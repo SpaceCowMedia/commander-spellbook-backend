@@ -16,7 +16,7 @@ def get_expression_from_combo(combo: Combo) -> And:
     return expression[0]
   return And(*expression)
 
-def get_expression_from_effect(effect: Feature)-> Xor:
+def get_expression_from_effect(effect: Feature) -> Xor:
   expression = []
   for card in Card.objects.filter(features=effect):
     expression.append(Symbol(name=str(card.id)))
@@ -45,13 +45,13 @@ def create_variant(combo: Combo, cards: list[Card]):
 
 def update_variants():
     with transaction.atomic():
-            print('Updating variants...')
-            Variant.objects.all().delete()
-            for combo in Combo.objects.all():
-                cards = get_cards_for_combo(combo)
-                for card_list in cards:
-                    create_variant(combo, card_list)
-            print('Done.')
+        print('Updating variants...')
+        Variant.objects.all().delete()
+        for combo in Combo.objects.all():
+            cards = get_cards_for_combo(combo)
+            for card_list in cards:
+                create_variant(combo, card_list)
+        print('Done.')
 
 @receiver(m2m_changed, sender=Card)
 @receiver(m2m_changed, sender=Feature)

@@ -3,7 +3,7 @@ from .serializers import CardSerializer, FeatureSerializer, ComboSerializer, Var
 from rest_framework import viewsets
 
 class VariantViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Variant.objects.all()
+    queryset = Variant.objects.filter(status=Variant.Status.OK)
     serializer_class = VariantSerializer
 
 variant_list = VariantViewSet.as_view({'get': 'list'})

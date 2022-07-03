@@ -43,17 +43,20 @@ class Combo(models.Model):
     produces = models.ManyToManyField(
         to=Feature,
         related_name='produced_by_combos',
-        help_text='Features that this combo produces')
+        help_text='Features that this combo produces',
+        verbose_name='produced features')
     needs = models.ManyToManyField(
         to=Feature,
         related_name='needed_by_combos',
         help_text='Features that this combo needs',
-        blank=True)
+        blank=True,
+        verbose_name='needed features')
     includes = models.ManyToManyField(
         to=Card,
         related_name='included_in_combos',
         help_text='Cards that this combo includes',
-        blank=True)
+        blank=True,
+        verbose_name='included cards')
     prerequisites = models.TextField(blank=True, help_text='Setup instructions for this combo')
     description = models.TextField(blank=True, help_text='Long description of the combo, in steps')
     created = models.DateTimeField(auto_now_add=True, editable=False)

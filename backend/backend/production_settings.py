@@ -26,7 +26,12 @@ DEBUG = False
 
 # Security settings
 ALLOWED_HOSTS = ['commanderspellbook.com', 'localhost', '127.0.0.1']
-CSRF_TRUSTED_ORIGINS = []
+CSRF_TRUSTED_ORIGINS = [
+    'https://commanderspellbook.com',
+    'http://localhost:1337',
+    'http://localhost',
+    'https://*.ngrok.io' # delete this
+]
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # Production settings

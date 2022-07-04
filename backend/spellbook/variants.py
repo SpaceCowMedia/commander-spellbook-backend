@@ -1,8 +1,10 @@
 import hashlib
+import logging
 from django.db import transaction
 from sympy import Symbol, S, satisfiable
 from sympy.logic.boolalg import Exclusive, And, Or
 from .models import Card, Feature, Combo, Variant
+logger = logging.getLogger(__name__)
 
 def get_expression_from_combo(combo: Combo) -> And:
     expression = []
@@ -34,7 +36,7 @@ def get_cards_for_combo(combo: Combo) -> list[list[Card]]:
         if model is False:
             return []
         if model == {True: True}:
-            print('Found strange combo', str(combo))
+            logger.info('Found strange combo', str(combo))
         result.append([Card.objects.get(pk=symbol.name) for symbol in model if model[symbol]])
     return result
 
@@ -71,11 +73,11 @@ def create_variant(cards: list[Card], unique_id: str, combo: Combo):
 
 def generate_variants():
     with transaction.atomic():
-        print('Generating variants:')
-        print('Fetching all variant unique ids...')
+        logger.info('Generating variants:')
+        logger.info('Fetching all variant unique ids...')
         old_id_set = set(Variant.objects.values_list('unique_id', flat=True))
         new_id_set = set()
-        print('Generating new variants...')
+        logger.info('Generating new variants...')
         for combo in Combo.objects.all():
             card_list_list = get_cards_for_combo(combo)
             for card_list in card_list_list:
@@ -88,7 +90,7 @@ def generate_variants():
                     Variant.objects.get(unique_id=unique_id).of.add(combo)
         to_delete = old_id_set - new_id_set
         added = new_id_set - old_id_set
-        print(f'Added {len(added)} new variants.')
-        print(f'Deleting {len(to_delete)} variants...')
+        logger.info(f'Added {len(added)} new variants.')
+        logger.info(f'Deleting {len(to_delete)} variants...')
         Variant.objects.filter(unique_id__in=to_delete).delete()
-        print('Done.')
+        logger.info('Done.')

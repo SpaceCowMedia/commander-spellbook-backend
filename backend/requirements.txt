@@ -1,4 +1,4 @@
-Django
-djangorestframework
-django-filter
-sympy
+Django==4.0.5
+djangorestframework==3.13.1
+django-filter==22.1
+sympy==1.10.1

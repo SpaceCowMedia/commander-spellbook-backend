@@ -45,4 +45,9 @@ class VariantAdmin(admin.ModelAdmin):
 
 @admin.register(Combo)
 class ComboAdmin(admin.ModelAdmin):
-    filter_horizontal = ['produces', 'needs', 'includes']
+    fieldsets = [
+        ('Requirements', {'fields': ['includes', 'needs', 'prerequisites']}),
+        ('Features', {'fields': ['produces']}),
+        ('Description', {'fields': ['description']})
+    ]
+    filter_horizontal = ['includes', 'produces', 'needs']

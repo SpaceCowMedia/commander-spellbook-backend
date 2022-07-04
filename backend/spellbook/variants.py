@@ -54,12 +54,11 @@ def unique_id_from_cards(cards: list[Card]) -> str:
         hash_algorithm.update(str(card.id).encode('utf-8'))
     return hash_algorithm.hexdigest()
 
-def create_variant(cards: list[Card], unique_id: str):
+def create_variant(cards: list[Card], unique_id: str, combo: Combo):
     variant = Variant(unique_id=unique_id)
     variant.save()
     variant.includes.set(cards)
-    # TODO: refactor to fetch only exact matches, not included
-    variant.of.set(find_included_combos(cards))
+    variant.of.add(combo)
     variant.produces.set(
         Combo.objects
         .filter(pk__in=find_included_combos(cards))
@@ -67,9 +66,9 @@ def create_variant(cards: list[Card], unique_id: str):
         )
     variant.save()
 
-def update_variants():
+def generate_variants():
     with transaction.atomic():
-        print('Updating variants:')
+        print('Generating variants:')
         print('Fetching all variant unique ids...')
         old_id_set = set(Variant.objects.values_list('unique_id', flat=True))
         new_id_set = set()
@@ -82,9 +81,11 @@ def update_variants():
                     new_id_set.add(unique_id)
                     if unique_id not in old_id_set:
                         create_variant(card_list, unique_id)
+                else:
+                    Variant.objects.get(unique_id=unique_id).of.add(combo)
         to_delete = old_id_set - new_id_set
         added = new_id_set - old_id_set
         print(f'Added {len(added)} new variants.')
         print(f'Deleting {len(to_delete)} variants...')
         Variant.objects.filter(unique_id__in=to_delete).delete()
-        print('Variants updated')
+        print('Done.')

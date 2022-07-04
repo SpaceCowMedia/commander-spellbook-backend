@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.urls import path, reverse
 from django.http import HttpResponseRedirect
 
-from .variants import update_variants
+from .variants import generate_variants
 from .models import Card, Feature, Combo, Variant
 
 @admin.register(Card)
@@ -43,7 +43,7 @@ class VariantAdmin(admin.ModelAdmin):
     list_display = ['__str__', 'status']
 
     def generate(self, request):
-        update_variants()
+        generate_variants()
         return HttpResponseRedirect(reverse('admin:spellbook_variant_changelist'))
 
     def get_urls(self):

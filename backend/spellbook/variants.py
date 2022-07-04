@@ -38,14 +38,14 @@ def get_cards_for_combo(combo: Combo) -> list[list[Card]]:
         result.append([Card.objects.get(pk=symbol.name) for symbol in model if model[symbol]])
     return result
 
-def find_included_combos(cards: list[Card]) -> list[int]:
+def find_included_combos(cards: list[Card]) -> list[Combo]:
     result = []
     for combo in Combo.objects.all():
         expr = get_expression_from_combo(combo)
         card_ids = {str(card.id) for card in cards}
         cards_symbols = {symbol: symbol.name in card_ids for symbol in expr.free_symbols}
         if expr.subs(cards_symbols) == S.true:
-            result.append(combo.id)
+            result.append(combo)
     return result
 
 def unique_id_from_cards(cards: list[Card]) -> str:
@@ -55,13 +55,16 @@ def unique_id_from_cards(cards: list[Card]) -> str:
     return hash_algorithm.hexdigest()
 
 def create_variant(cards: list[Card], unique_id: str, combo: Combo):
-    variant = Variant(unique_id=unique_id)
+    combos_included = find_included_combos(cards)
+    prerequisites = '\n'.join(c.prerequisites for c in combos_included)
+    description = '\n'.join(c.description for c in combos_included)
+    variant = Variant(unique_id=unique_id, prerequisites=prerequisites, description=description)
     variant.save()
     variant.includes.set(cards)
     variant.of.add(combo)
     variant.produces.set(
         Combo.objects
-        .filter(pk__in=find_included_combos(cards))
+        .filter(pk__in=[c.id for c in combos_included])
         .values_list('produces', flat=True).distinct()
         )
     variant.save()
@@ -80,7 +83,7 @@ def generate_variants():
                 if unique_id not in new_id_set:
                     new_id_set.add(unique_id)
                     if unique_id not in old_id_set:
-                        create_variant(card_list, unique_id)
+                        create_variant(card_list, unique_id, combo)
                 else:
                     Variant.objects.get(unique_id=unique_id).of.add(combo)
         to_delete = old_id_set - new_id_set

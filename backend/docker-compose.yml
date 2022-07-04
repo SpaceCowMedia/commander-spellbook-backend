@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  web:
+    build:
+      context: .
+      args:
+        SECRET_KEY: hotdogs
+    expose:
+      - 8000
+    depends_on:
+      - db
+    volumes:
+      - static_volume:/home/app/web/staticfiles
+  nginx:
+    build: ./nginx
+    ports:
+      - 1337:80
+    depends_on:
+      - web
+    volumes:
+      - static_volume:/home/app/web/staticfiles
+
+volumes:
+  static_volume:

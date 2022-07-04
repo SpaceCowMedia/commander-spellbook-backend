@@ -6,6 +6,7 @@ from sympy.logic.boolalg import Exclusive, And, Or
 from .models import Card, Feature, Combo, Variant
 logger = logging.getLogger(__name__)
 
+
 def get_expression_from_combo(combo: Combo) -> And:
     expression = []
     for card in combo.includes.all():
@@ -13,10 +14,11 @@ def get_expression_from_combo(combo: Combo) -> And:
     for effect in combo.needs.all():
         expression.append(get_expression_from_effect(effect))
     if len(expression) == 0:
-            return S.true
+        return S.true
     elif len(expression) == 1:
         return expression[0]
     return And(*expression)
+
 
 def get_expression_from_effect(effect: Feature) -> And:
     expression = []
@@ -30,6 +32,7 @@ def get_expression_from_effect(effect: Feature) -> And:
         return expression[0]
     return And(Or(*expression), Exclusive(*expression))
 
+
 def get_cards_for_combo(combo: Combo) -> list[list[Card]]:
     result = []
     for model in satisfiable(get_expression_from_combo(combo), all_models=True):
@@ -39,6 +42,7 @@ def get_cards_for_combo(combo: Combo) -> list[list[Card]]:
             logger.info('Found strange combo', str(combo))
         result.append([Card.objects.get(pk=symbol.name) for symbol in model if model[symbol]])
     return result
+
 
 def find_included_combos(cards: list[Card]) -> list[Combo]:
     result = []
@@ -50,11 +54,13 @@ def find_included_combos(cards: list[Card]) -> list[Combo]:
             result.append(combo)
     return result
 
+
 def unique_id_from_cards(cards: list[Card]) -> str:
     hash_algorithm = hashlib.sha256()
     for card in sorted(cards, key=lambda card: card.id):
         hash_algorithm.update(str(card.id).encode('utf-8'))
     return hash_algorithm.hexdigest()
+
 
 def create_variant(cards: list[Card], unique_id: str, combo: Combo):
     combos_included = find_included_combos(cards)
@@ -68,8 +74,9 @@ def create_variant(cards: list[Card], unique_id: str, combo: Combo):
         Combo.objects
         .filter(pk__in=[c.id for c in combos_included])
         .values_list('produces', flat=True).distinct()
-        )
+    )
     variant.save()
+
 
 def generate_variants():
     with transaction.atomic():

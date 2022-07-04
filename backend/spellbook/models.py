@@ -1,7 +1,6 @@
 from django.db import models
 
 
-
 class Feature(models.Model):
     name = models.CharField(max_length=255, unique=True, blank=False, help_text='Short name for a produced effect', verbose_name='name of feature')
     description = models.TextField(blank=True, help_text='Long description of a produced effect', verbose_name='description of feature')
@@ -12,10 +11,9 @@ class Feature(models.Model):
         ordering = ['name']
         verbose_name = 'feature'
         verbose_name_plural = 'features'
-    
+
     def __str__(self):
         return self.name
-
 
 
 class Card(models.Model):
@@ -33,10 +31,9 @@ class Card(models.Model):
         ordering = ['name']
         verbose_name = 'card'
         verbose_name_plural = 'cards'
-    
+
     def __str__(self):
         return self.name
-
 
 
 class Combo(models.Model):
@@ -66,13 +63,12 @@ class Combo(models.Model):
         ordering = ['created']
         verbose_name = 'combo'
         verbose_name_plural = 'combos'
-    
+
     def __str__(self):
         if self.pk is None:
-            return f'New, unsaved combo'
+            return 'New, unsaved combo'
         return ' + '.join([str(card) for card in self.includes.all()] + [str(feature) for feature in self.needs.all()]) \
             + ' ➡ ' + ' + '.join([str(feature) for feature in self.produces.all()])
-
 
 
 class Variant(models.Model):
@@ -110,7 +106,7 @@ class Variant(models.Model):
         indexes = [
             models.Index(fields=['unique_id'], name='unique_variant_index')
         ]
-    
+
     def __str__(self):
         if self.pk is None:
             return f'New variant with id <{self.unique_id}>'

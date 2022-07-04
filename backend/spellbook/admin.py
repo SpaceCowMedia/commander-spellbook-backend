@@ -5,6 +5,7 @@ from django.http import HttpResponseRedirect
 from .variants import generate_variants
 from .models import Card, Feature, Combo, Variant
 
+
 @admin.register(Card)
 class CardAdmin(admin.ModelAdmin):
     fieldsets = [
@@ -17,10 +18,12 @@ class CardAdmin(admin.ModelAdmin):
     list_filter = ['features__name']
     list_display = ['name', 'id']
 
+
 class CardInline(admin.StackedInline):
     model = Feature.cards.through
     extra = 1
     autocomplete_fields = ['card']
+
 
 @admin.register(Feature)
 class FeatureAdmin(admin.ModelAdmin):
@@ -47,16 +50,16 @@ class VariantAdmin(admin.ModelAdmin):
         return HttpResponseRedirect(reverse('admin:spellbook_variant_changelist'))
 
     def get_urls(self):
-        return [
-            path('generate/', 
-                self.admin_site.admin_view(view=self.generate, cacheable=False),
-                name='spellbook_variant_generate')
-            ] + super().get_urls()
+        return [path('generate/',
+                    self.admin_site.admin_view(view=self.generate, cacheable=False),
+                    name='spellbook_variant_generate')] + super().get_urls()
 
     def has_add_permission(self, request):
         return False
+
     def has_change_permission(self, request, obj=None):
         return True
+
     def has_delete_permission(self, request, obj=None):
         return False
 

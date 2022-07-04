@@ -68,7 +68,9 @@ class Combo(models.Model):
         verbose_name_plural = 'combos'
     
     def __str__(self):
-        return ' + '.join([str(card) for card in self.includes.all()] + [str(feature) for feature in self.needs.all()]) \
+        if self.pk is None:
+            return f'New, unsaved combo'
+        return f'[{self.id}] ' + ' + '.join([str(card) for card in self.includes.all()] + [str(feature) for feature in self.needs.all()]) \
             + ' ➡ ' + ' + '.join([str(feature) for feature in self.produces.all()])
 
 
@@ -89,24 +91,28 @@ class Variant(models.Model):
         related_name='produced_by_variants',
         help_text='Features that this variant produces',
         editable=False)
-    of = models.ForeignKey(
+    of = models.ManyToManyField(
         to=Combo,
         related_name='variants',
         help_text='Combo that this variant is an instance of',
-        on_delete=models.CASCADE,
-        blank=False,
         editable=False)
     status = models.CharField(choices=Status.choices, default=Status.DRAFT, help_text='Variant status for editors', max_length=2)
     prerequisites = models.TextField(blank=True, help_text='Setup instructions for this variant')
     description = models.TextField(blank=True, help_text='Long description of the variant, in steps')
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, editable=False)
+    unique_id = models.CharField(max_length=128, unique=True, blank=False, help_text='Unique ID for this variant', editable=False)
 
     class Meta:
         ordering = ['-status', '-created']
         verbose_name = 'variant'
         verbose_name_plural = 'variants'
+        indexes = [
+            models.Index(fields=['unique_id'], name='unique_variant_index')
+        ]
     
     def __str__(self):
+        if self.pk is None:
+            return f'New variant with id <{self.unique_id}>'
         return ' + '.join([str(card) for card in self.includes.all()]) \
             + ' ➡ ' + ' + '.join([str(feature) for feature in self.produces.all()])

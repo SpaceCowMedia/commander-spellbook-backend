@@ -1,3 +1,4 @@
+import hashlib
 from django.db import transaction
 from sympy import Symbol, S, satisfiable
 from sympy.logic.boolalg import Exclusive, And, Or
@@ -31,32 +32,60 @@ def get_cards_for_combo(combo: Combo) -> list[list[Card]]:
     result = []
     for model in satisfiable(get_expression_from_combo(combo), all_models=True):
         if model is False:
-                raise Exception(f'Combo {combo.id} is not satisfiable: {str(combo)}')
+            return []
+        if model == {True: True}:
+            print('Found strange combo', str(combo))
         result.append([Card.objects.get(pk=symbol.name) for symbol in model if model[symbol]])
     return result
 
-def find_matching_combos(cards: list[Card]) -> list[Combo]:
+def find_included_combos(cards: list[Card]) -> list[int]:
     result = []
-    cards_symbols = {Symbol(str(card.id)): S.true for card in cards}
     for combo in Combo.objects.all():
         expr = get_expression_from_combo(combo)
+        card_ids = {str(card.id) for card in cards}
+        cards_symbols = {symbol: symbol.name in card_ids for symbol in expr.free_symbols}
         if expr.subs(cards_symbols) == S.true:
-            result.append(combo)
+            result.append(combo.id)
     return result
 
-def create_variant(combo: Combo, cards: list[Card]):
-    variant = Variant(of=combo, status=Variant.Status.DRAFT)
+def unique_id_from_cards(cards: list[Card]) -> str:
+    hash_algorithm = hashlib.sha256()
+    for card in sorted(cards, key=lambda card: card.id):
+        hash_algorithm.update(str(card.id).encode('utf-8'))
+    return hash_algorithm.hexdigest()
+
+def create_variant(cards: list[Card], unique_id: str):
+    variant = Variant(unique_id=unique_id)
     variant.save()
     variant.includes.set(cards)
-    variant.produces.set(combo.produces.all())
+    # TODO: refactor to fetch only exact matches, not included
+    variant.of.set(find_included_combos(cards))
+    variant.produces.set(
+        Combo.objects
+        .filter(pk__in=find_included_combos(cards))
+        .values_list('produces', flat=True).distinct()
+        )
     variant.save()
 
 def update_variants():
     with transaction.atomic():
-        print('Updating variants...')
         Variant.objects.all().delete()
+        print('Updating variants:')
+        print('Fetching all variant unique ids...')
+        old_id_set = set(Variant.objects.values_list('unique_id', flat=True))
+        new_id_set = set()
+        print('Generating new variants...')
         for combo in Combo.objects.all():
-            cards = get_cards_for_combo(combo)
-            for card_list in cards:
-                create_variant(combo, card_list)
-        print('Done.')
+            card_list_list = get_cards_for_combo(combo)
+            for card_list in card_list_list:
+                unique_id = unique_id_from_cards(card_list)
+                if unique_id not in new_id_set:
+                    new_id_set.add(unique_id)
+                    if unique_id not in old_id_set:
+                        create_variant(card_list, unique_id)
+        to_delete = old_id_set - new_id_set
+        added = new_id_set - old_id_set
+        print(f'Added {len(added)} new variants.')
+        print(f'Deleting {len(to_delete)} variants...')
+        Variant.objects.filter(unique_id__in=to_delete).delete()
+        print('Variants updated')

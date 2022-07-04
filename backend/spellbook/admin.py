@@ -14,6 +14,8 @@ class CardAdmin(admin.ModelAdmin):
     # inlines = [FeatureInline]
     search_fields = ['name', 'features__name']
     autocomplete_fields = ['features']
+    list_filter = ['features__name']
+    list_display = ['name', 'id']
 
 class CardInline(admin.StackedInline):
     model = Feature.cards.through
@@ -27,15 +29,18 @@ class FeatureAdmin(admin.ModelAdmin):
     ]
     inlines = [CardInline]
     search_fields = ['name', 'cards__name']
+    list_display = ['name', 'id']
 
 
 @admin.register(Variant)
 class VariantAdmin(admin.ModelAdmin):
-    readonly_fields = ['includes', 'produces', 'of']
+    readonly_fields = ['includes', 'produces', 'of', 'unique_id']
     fieldsets = [
-        ('Generated', {'fields': ['includes', 'produces', 'of']}),
+        ('Generated', {'fields': ['unique_id', 'includes', 'produces', 'of']}),
         ('Editable', {'fields': ['status', 'prerequisites', 'description']})
     ]
+    list_filter = ['status']
+    list_display = ['__str__', 'status']
 
     def generate(self, request):
         update_variants()
@@ -64,3 +69,12 @@ class ComboAdmin(admin.ModelAdmin):
         ('Description', {'fields': ['description']})
     ]
     filter_horizontal = ['includes', 'produces', 'needs']
+    list_filter = ['produces', 'needs']
+    search_fields = ['includes__name', 'produces__name', 'needs__name']
+    list_display = ['__str__', 'id']
+
+
+# Admin configuration
+admin.site.site_header = 'Spellbook Admin Panel'
+admin.site.site_title = 'Spellbook Admin'
+admin.site.index_title = 'Spellbook Admin Index'

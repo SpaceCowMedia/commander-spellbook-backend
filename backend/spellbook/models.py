@@ -3,8 +3,8 @@ from django.db import models
 
 
 class Feature(models.Model):
-    name = models.CharField(max_length=255, unique=True, blank=False, help_text='Short name for a produced effect')
-    description = models.TextField(blank=True, help_text='Long description of a produced effect')
+    name = models.CharField(max_length=255, unique=True, blank=False, help_text='Short name for a produced effect', verbose_name='name of feature')
+    description = models.TextField(blank=True, help_text='Long description of a produced effect', verbose_name='description of feature')
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, editable=False)
 
@@ -19,8 +19,8 @@ class Feature(models.Model):
 
 
 class Card(models.Model):
-    name = models.CharField(max_length=255, unique=True, blank=False, help_text='Card name')
-    oracle_id = models.UUIDField(unique=True, blank=True, help_text='Scryfall Oracle ID')
+    name = models.CharField(max_length=255, unique=True, blank=False, help_text='Card name', verbose_name='name of card')
+    oracle_id = models.UUIDField(unique=True, blank=True, help_text='Scryfall Oracle ID', verbose_name='Scryfall Oracle ID of card')
     features = models.ManyToManyField(
         to=Feature,
         related_name='cards',
@@ -70,7 +70,7 @@ class Combo(models.Model):
     def __str__(self):
         if self.pk is None:
             return f'New, unsaved combo'
-        return f'[{self.id}] ' + ' + '.join([str(card) for card in self.includes.all()] + [str(feature) for feature in self.needs.all()]) \
+        return ' + '.join([str(card) for card in self.includes.all()] + [str(feature) for feature in self.needs.all()]) \
             + ' ➡ ' + ' + '.join([str(feature) for feature in self.produces.all()])
 
 

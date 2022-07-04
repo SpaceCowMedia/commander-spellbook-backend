@@ -1,4 +1,8 @@
 from django.contrib import admin
+from django.urls import path, reverse
+from django.http import HttpResponseRedirect
+
+from .variants import update_variants
 from .models import Card, Feature, Combo, Variant
 
 @admin.register(Card)
@@ -33,12 +37,21 @@ class VariantAdmin(admin.ModelAdmin):
         ('Editable', {'fields': ['status', 'prerequisites', 'description']})
     ]
 
+    def generate(self, request):
+        update_variants()
+        return HttpResponseRedirect(reverse('admin:spellbook_variant_changelist'))
+
+    def get_urls(self):
+        return [
+            path('generate/', 
+                self.admin_site.admin_view(view=self.generate, cacheable=False),
+                name='spellbook_variant_generate')
+            ] + super().get_urls()
+
     def has_add_permission(self, request):
         return False
-
     def has_change_permission(self, request, obj=None):
         return True
-
     def has_delete_permission(self, request, obj=None):
         return False
 

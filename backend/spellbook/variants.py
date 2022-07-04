@@ -69,7 +69,6 @@ def create_variant(cards: list[Card], unique_id: str):
 
 def update_variants():
     with transaction.atomic():
-        Variant.objects.all().delete()
         print('Updating variants:')
         print('Fetching all variant unique ids...')
         old_id_set = set(Variant.objects.values_list('unique_id', flat=True))

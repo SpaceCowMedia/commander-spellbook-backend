@@ -1,9 +1,11 @@
 from django.contrib import admin
 from django.urls import path, reverse
 from django.http import HttpResponseRedirect
-
+from django.contrib.admin.models import LogEntry, CHANGE
+from django.contrib.contenttypes.models import ContentType
 from .variants import generate_variants
 from .models import Card, Feature, Combo, Variant
+from django.contrib import messages
 
 
 @admin.register(Card)
@@ -47,7 +49,18 @@ class VariantAdmin(admin.ModelAdmin):
 
     def generate(self, request):
         if request.method == 'POST':
-            generate_variants()
+            added, removed = generate_variants()
+            LogEntry(
+                user=request.user,
+                content_type=ContentType.objects.get_for_model(Variant),
+                object_repr='Generated Variants',
+                action_flag=CHANGE,
+                change_message=f'Variant generation: added {added} new variants, removed {removed} variants'
+            ).save()
+            if added == 0 and removed == 0:
+                messages.info(request, 'Variants are already synced with combos')
+            else:
+                messages.success(request, f'Generated {added} new variants, removed {removed} variants')
         return HttpResponseRedirect(reverse('admin:spellbook_variant_changelist'))
 
     def get_urls(self):

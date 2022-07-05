@@ -46,6 +46,7 @@ class VariantAdmin(admin.ModelAdmin):
     ]
     list_filter = ['status']
     list_display = ['__str__', 'status']
+    search_fields = ['includes__name', 'produces__name', 'unique_id']
 
     def generate(self, request):
         if request.method == 'POST':

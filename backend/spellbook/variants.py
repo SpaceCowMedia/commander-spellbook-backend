@@ -78,7 +78,7 @@ def create_variant(cards: list[Card], unique_id: str, combo: Combo):
     variant.save()
 
 
-def generate_variants():
+def generate_variants() -> tuple[int, int]:
     with transaction.atomic():
         logger.info('Generating variants:')
         logger.info('Fetching all variant unique ids...')
@@ -101,3 +101,4 @@ def generate_variants():
         logger.info(f'Deleting {len(to_delete)} variants...')
         Variant.objects.filter(unique_id__in=to_delete).delete()
         logger.info('Done.')
+        return len(added), len(to_delete)

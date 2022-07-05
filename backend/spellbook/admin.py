@@ -46,7 +46,8 @@ class VariantAdmin(admin.ModelAdmin):
     list_display = ['__str__', 'status']
 
     def generate(self, request):
-        generate_variants()
+        if request.method == 'POST':
+            generate_variants()
         return HttpResponseRedirect(reverse('admin:spellbook_variant_changelist'))
 
     def get_urls(self):

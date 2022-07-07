@@ -6,8 +6,10 @@ from sympy.logic.boolalg import Exclusive, And, Or
 from .models import Card, Feature, Combo, Variant
 logger = logging.getLogger(__name__)
 
+
 class RecursiveComboException(Exception):
     RECURSION_LIMIT = 20
+
 
 def get_expression_from_combo(combo: Combo, recursion_counter: int = 1) -> And:
     if recursion_counter > RecursiveComboException.RECURSION_LIMIT:

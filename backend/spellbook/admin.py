@@ -64,7 +64,7 @@ class VariantAdmin(admin.ModelAdmin):
                 else:
                     messages.success(request, f'Generated {added} new variants, removed {removed} variants')
             except RecursiveComboException:
-                messages.error(request, f'Recursive combo chain found, variant generation failed')
+                messages.error(request, 'Recursive combo chain found, variant generation failed')
         return HttpResponseRedirect(reverse('admin:spellbook_variant_changelist'))
 
     def get_urls(self):

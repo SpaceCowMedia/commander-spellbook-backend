@@ -6,13 +6,17 @@ from sympy.logic.boolalg import Exclusive, And, Or
 from .models import Card, Feature, Combo, Variant
 logger = logging.getLogger(__name__)
 
+class RecursiveComboException(Exception):
+    RECURSION_LIMIT = 20
 
-def get_expression_from_combo(combo: Combo) -> And:
+def get_expression_from_combo(combo: Combo, recursion_counter: int = 1) -> And:
+    if recursion_counter > RecursiveComboException.RECURSION_LIMIT:
+        raise RecursiveComboException('Recursive combo detected.')
     expression = []
     for card in combo.includes.all():
         expression.append(Symbol(name=str(card.id)))
     for effect in combo.needs.all():
-        expression.append(get_expression_from_effect(effect))
+        expression.append(get_expression_from_effect(effect, recursion_counter=recursion_counter + 1))
     if len(expression) == 0:
         return S.true
     elif len(expression) == 1:
@@ -20,17 +24,35 @@ def get_expression_from_combo(combo: Combo) -> And:
     return And(*expression)
 
 
-def get_expression_from_effect(effect: Feature) -> And:
+def get_expression_from_effect(effect: Feature, recursion_counter: int = 1) -> And:
+    if recursion_counter > RecursiveComboException.RECURSION_LIMIT:
+        raise RecursiveComboException('Recursive combo detected.')
     expression = []
     for card in Card.objects.filter(features=effect):
         expression.append(Symbol(name=str(card.id)))
     for combo in Combo.objects.filter(produces=effect):
-        expression.append(get_expression_from_combo(combo))
+        expression.append(get_expression_from_combo(combo, recursion_counter=recursion_counter + 1))
     if len(expression) == 0:
         return S.false
     if len(expression) == 1:
         return expression[0]
     return And(Or(*expression), Exclusive(*expression))
+
+
+def check_combo_sanity(combo: Combo):
+    try:
+        get_expression_from_combo(combo)
+    except RecursiveComboException:
+        return False
+    return True
+
+
+def check_feature_sanity(feature: Feature):
+    try:
+        get_expression_from_effect(feature)
+    except RecursiveComboException:
+        return False
+    return True
 
 
 def get_cards_for_combo(combo: Combo) -> list[list[Card]]:
@@ -75,7 +97,6 @@ def create_variant(cards: list[Card], unique_id: str, combo: Combo):
         .filter(pk__in=[c.id for c in combos_included])
         .values_list('produces', flat=True).distinct()
     )
-    variant.save()
 
 
 def generate_variants() -> tuple[int, int]:
@@ -86,15 +107,19 @@ def generate_variants() -> tuple[int, int]:
         new_id_set = set()
         logger.info('Generating new variants...')
         for combo in Combo.objects.all():
-            card_list_list = get_cards_for_combo(combo)
-            for card_list in card_list_list:
-                unique_id = unique_id_from_cards(card_list)
-                if unique_id not in new_id_set:
-                    new_id_set.add(unique_id)
-                    if unique_id not in old_id_set:
-                        create_variant(card_list, unique_id, combo)
-                else:
-                    Variant.objects.get(unique_id=unique_id).of.add(combo)
+            try:
+                card_list_list = get_cards_for_combo(combo)
+                for card_list in card_list_list:
+                    unique_id = unique_id_from_cards(card_list)
+                    if unique_id not in new_id_set:
+                        new_id_set.add(unique_id)
+                        if unique_id not in old_id_set:
+                            create_variant(card_list, unique_id, combo)
+                    else:
+                        Variant.objects.get(unique_id=unique_id).of.add(combo)
+            except RecursiveComboException:
+                logger.warning(f'Recursive combo (id: {combo.id}) detected. Aborting variant generation.')
+                raise
         to_delete = old_id_set - new_id_set
         added = new_id_set - old_id_set
         logger.info(f'Added {len(added)} new variants.')

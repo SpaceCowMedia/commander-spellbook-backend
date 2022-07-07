@@ -3,7 +3,7 @@ from django.urls import path, reverse
 from django.http import HttpResponseRedirect
 from django.contrib.admin.models import LogEntry, CHANGE
 from django.contrib.contenttypes.models import ContentType
-from .variants import generate_variants
+from .variants import RecursiveComboException, generate_variants
 from .models import Card, Feature, Combo, Variant
 from django.contrib import messages
 
@@ -50,18 +50,21 @@ class VariantAdmin(admin.ModelAdmin):
 
     def generate(self, request):
         if request.method == 'POST':
-            added, removed = generate_variants()
-            LogEntry(
-                user=request.user,
-                content_type=ContentType.objects.get_for_model(Variant),
-                object_repr='Generated Variants',
-                action_flag=CHANGE,
-                change_message=f'Variant generation: added {added} new variants, removed {removed} variants'
-            ).save()
-            if added == 0 and removed == 0:
-                messages.info(request, 'Variants are already synced with combos')
-            else:
-                messages.success(request, f'Generated {added} new variants, removed {removed} variants')
+            try:
+                added, removed = generate_variants()
+                LogEntry(
+                    user=request.user,
+                    content_type=ContentType.objects.get_for_model(Variant),
+                    object_repr='Generated Variants',
+                    action_flag=CHANGE,
+                    change_message=f'Variant generation: added {added} new variants, removed {removed} variants'
+                ).save()
+                if added == 0 and removed == 0:
+                    messages.info(request, 'Variants are already synced with combos')
+                else:
+                    messages.success(request, f'Generated {added} new variants, removed {removed} variants')
+            except RecursiveComboException:
+                messages.error(request, f'Recursive combo chain found, variant generation failed')
         return HttpResponseRedirect(reverse('admin:spellbook_variant_changelist'))
 
     def get_urls(self):

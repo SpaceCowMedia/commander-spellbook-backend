@@ -6,10 +6,11 @@ from django.contrib.contenttypes.models import ContentType
 from .variants import RecursiveComboException, generate_variants
 from .models import Card, Feature, Combo, Variant
 from django.contrib import messages
+from .patches import ModelAdmin
 
 
 @admin.register(Card)
-class CardAdmin(admin.ModelAdmin):
+class CardAdmin(ModelAdmin):
     fieldsets = [
         ('Scryfall', {'fields': ['oracle_id']}),
         ('Spellbook', {'fields': ['name', 'features']})
@@ -28,7 +29,7 @@ class CardInline(admin.StackedInline):
 
 
 @admin.register(Feature)
-class FeatureAdmin(admin.ModelAdmin):
+class FeatureAdmin(ModelAdmin):
     fieldsets = [
         (None, {'fields': ['name', 'description']}),
     ]
@@ -38,7 +39,7 @@ class FeatureAdmin(admin.ModelAdmin):
 
 
 @admin.register(Variant)
-class VariantAdmin(admin.ModelAdmin):
+class VariantAdmin(ModelAdmin):
     readonly_fields = ['includes', 'produces', 'of', 'unique_id']
     fieldsets = [
         ('Generated', {'fields': ['unique_id', 'includes', 'produces', 'of']}),
@@ -83,7 +84,7 @@ class VariantAdmin(admin.ModelAdmin):
 
 
 @admin.register(Combo)
-class ComboAdmin(admin.ModelAdmin):
+class ComboAdmin(ModelAdmin):
     fieldsets = [
         ('Requirements', {'fields': ['includes', 'needs', 'prerequisites']}),
         ('Features', {'fields': ['produces']}),

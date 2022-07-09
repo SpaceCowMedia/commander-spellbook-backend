@@ -90,11 +90,10 @@ class ComboForm(ModelForm):
     def clean(self):
         ok = False
         with transaction.atomic(savepoint=True, durable=False):
-            self.save(commit=True)
-            ok = check_combo_sanity(self.instance)
-            transaction.rollback()
+            ok = check_combo_sanity(self.save(commit=True))
+            transaction.set_rollback(True)
         if not ok:
-            raise ValidationError(f'Combo {self.instance.id} would cause a recursion chain.')
+            raise ValidationError(f'Combo {self.instance.id} would cause a recursive chain of dependency.')
         return super().clean()
 
 

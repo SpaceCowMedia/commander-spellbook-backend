@@ -1,6 +1,10 @@
 version: 2
 updates:
-  - package-ecosystem: "pip"
-    directory: "backend/"
+  - package-ecosystem: pip
+    directory: backend/
     schedule:
-      interval: "monthly"
+      interval: monthly
+  - package-ecosystem: docker
+    directory: backend/
+    schedule:
+      interval: monthly

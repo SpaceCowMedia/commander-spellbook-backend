@@ -1,16 +1,19 @@
+import logging
 from django.contrib import admin
 from django.urls import path, reverse
 from django.http import HttpResponseRedirect
 from django.contrib.admin.models import LogEntry, CHANGE
 from django.contrib.contenttypes.models import ContentType
-from .variants import RecursiveComboException, generate_variants
+from .variants import RecursiveComboException, check_combo_sanity, generate_variants
 from .models import Card, Feature, Combo, Variant
 from django.contrib import messages
-from .patches import ModelAdmin
+from django.forms import ModelForm
+from django.db import transaction
+from django.core.exceptions import ValidationError
 
 
 @admin.register(Card)
-class CardAdmin(ModelAdmin):
+class CardAdmin(admin.ModelAdmin):
     fieldsets = [
         ('Scryfall', {'fields': ['oracle_id']}),
         ('Spellbook', {'fields': ['name', 'features']})
@@ -29,7 +32,7 @@ class CardInline(admin.StackedInline):
 
 
 @admin.register(Feature)
-class FeatureAdmin(ModelAdmin):
+class FeatureAdmin(admin.ModelAdmin):
     fieldsets = [
         (None, {'fields': ['name', 'description']}),
     ]
@@ -39,7 +42,7 @@ class FeatureAdmin(ModelAdmin):
 
 
 @admin.register(Variant)
-class VariantAdmin(ModelAdmin):
+class VariantAdmin(admin.ModelAdmin):
     readonly_fields = ['includes', 'produces', 'of', 'unique_id']
     fieldsets = [
         ('Generated', {'fields': ['unique_id', 'includes', 'produces', 'of']}),
@@ -83,8 +86,21 @@ class VariantAdmin(ModelAdmin):
         return False
 
 
+class ComboForm(ModelForm):
+    def clean(self):
+        ok = False
+        with transaction.atomic(savepoint=True, durable=False):
+            self.save(commit=True)
+            ok = check_combo_sanity(self.instance)
+            transaction.rollback()
+        if not ok:
+            raise ValidationError(f'Combo {self.instance.id} would cause a recursion chain.')
+        return super().clean()
+
+
 @admin.register(Combo)
-class ComboAdmin(ModelAdmin):
+class ComboAdmin(admin.ModelAdmin):
+    form = ComboForm
     fieldsets = [
         ('Requirements', {'fields': ['includes', 'needs', 'prerequisites']}),
         ('Features', {'fields': ['produces']}),

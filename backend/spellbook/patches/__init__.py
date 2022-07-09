@@ -1,1 +1,0 @@
-from .admin import NewModelAdmin as ModelAdmin

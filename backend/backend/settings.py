@@ -26,7 +26,11 @@ SECRET_KEY = 'django-insecure-!5xe$b7a9e4osw_3i23&&f1_s$inz*=j#97-6z88sf!!(f6w2q
 DEBUG = True
 
 ALLOWED_HOSTS = ['*']
-
+CSRF_TRUSTED_ORIGINS = [
+    'https://commanderspellbook.com',
+    'http://localhost',
+    'https://*.ngrok.io'
+]
 
 # Application definition
 
@@ -38,6 +42,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'spellbook',
     'django.contrib.admin',
+    'sortedm2m',
     'rest_framework',
 ]
 

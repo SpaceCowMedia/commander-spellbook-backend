@@ -11,12 +11,19 @@ class RecursiveComboException(Exception):
     RECURSION_LIMIT = 20
 
 
+class OrderedSymbol(Symbol):
+    def __new__(cls, name, order=0):
+        obj = Symbol.__new__(cls, name)
+        obj.order = order
+        return obj
+
+
 def get_expression_from_combo(combo: Combo, recursion_counter: int = 1) -> And:
     if recursion_counter > RecursiveComboException.RECURSION_LIMIT:
         raise RecursiveComboException('Recursive combo detected.')
     expression = []
     for card in combo.includes.all():
-        expression.append(Symbol(name=str(card.id)))
+        expression.append(OrderedSymbol(name=str(card.id), order=recursion_counter))
     for effect in combo.needs.all():
         expression.append(get_expression_from_effect(effect, recursion_counter=recursion_counter + 1))
     if len(expression) == 0:
@@ -31,7 +38,7 @@ def get_expression_from_effect(effect: Feature, recursion_counter: int = 1) -> A
         raise RecursiveComboException('Recursive combo detected.')
     expression = []
     for card in Card.objects.filter(features=effect):
-        expression.append(Symbol(name=str(card.id)))
+        expression.append(OrderedSymbol(name=str(card.id), order=recursion_counter))
     for combo in Combo.objects.filter(produces=effect):
         expression.append(get_expression_from_combo(combo, recursion_counter=recursion_counter + 1))
     if len(expression) == 0:
@@ -58,13 +65,17 @@ def check_feature_sanity(feature: Feature):
 
 
 def get_cards_for_combo(combo: Combo) -> list[list[Card]]:
-    result = []
-    for model in satisfiable(get_expression_from_combo(combo), all_models=True):
+    result: list[list[Card]] = list()
+    expr = get_expression_from_combo(combo)
+    for model in satisfiable(expr, all_models=True):
         if model is False:
             return []
         if model == {True: True}:
             logger.info('Found strange combo', str(combo))
-        result.append([Card.objects.get(pk=symbol.name) for symbol in model if model[symbol]])
+            continue
+        # Check minimality of solution
+        if all([expr.subs({s: s != symbol and model[s] for s in model}) == S.false for symbol in model if model[symbol]]):
+            result.append([Card.objects.get(pk=symbol.name) for symbol in sorted(model, key=lambda os: os.order) if model[symbol]])
     return result
 
 

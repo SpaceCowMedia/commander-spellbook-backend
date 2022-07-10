@@ -1,4 +1,5 @@
 from django.db import models
+from sortedm2m.fields import SortedManyToManyField
 
 
 class Feature(models.Model):
@@ -77,7 +78,7 @@ class Variant(models.Model):
         DRAFT = 'D'
         OK = 'OK'
 
-    includes = models.ManyToManyField(
+    includes = SortedManyToManyField(
         to=Card,
         related_name='included_in_variants',
         help_text='Cards that this variant includes',

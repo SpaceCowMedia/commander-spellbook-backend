@@ -24,7 +24,7 @@ RUN flake8 --ignore=E501,F401,E128 .
 
 # install dependencies
 COPY ./requirements.txt .
-RUN echo "gunicorn" >> requirements.txt
+RUN echo -e "\ngunicorn" >> requirements.txt
 RUN pip wheel --no-cache-dir --no-deps --wheel-dir /usr/src/app/wheels -r requirements.txt
 
 

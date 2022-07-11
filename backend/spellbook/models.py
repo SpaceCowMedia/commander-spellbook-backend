@@ -77,6 +77,7 @@ class Variant(models.Model):
         NOT_WORKING = 'NW'
         DRAFT = 'D'
         OK = 'OK'
+        RESTORE = 'R'
 
     includes = SortedManyToManyField(
         to=Card,
@@ -110,6 +111,6 @@ class Variant(models.Model):
 
     def __str__(self):
         if self.pk is None:
-            return f'New variant with id <{self.unique_id}>'
+            return f'New variant with unique id <{self.unique_id}>'
         return ' + '.join([str(card) for card in self.includes.all()]) \
             + ' ➡ ' + ' + '.join([str(feature) for feature in self.produces.all()])

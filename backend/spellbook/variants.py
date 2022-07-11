@@ -45,7 +45,7 @@ def get_expression_from_effect(effect: Feature, recursion_counter: int = 1) -> A
         return S.false
     if len(expression) == 1:
         return expression[0]
-    return And(Or(*expression), Exclusive(*expression))
+    return Or(*expression)
 
 
 def check_combo_sanity(combo: Combo):
@@ -114,6 +114,10 @@ def create_variant(cards: list[Card], unique_id: str, combo: Combo):
 
 def generate_variants() -> tuple[int, int]:
     with transaction.atomic():
+        logger.info('Deleting variants set to RESTORE...')
+        _, deleted_dict = Variant.objects.filter(status=Variant.Status.RESTORE).delete()
+        restored = deleted_dict['spellbook.Variant'] if 'spellbook.Variant' in deleted_dict else 0
+        logger.info(f'Deleted {restored} variants set to RESTORE.')
         logger.info('Generating variants:')
         logger.info('Fetching all variant unique ids...')
         old_id_set = set(Variant.objects.values_list('unique_id', flat=True))
@@ -139,4 +143,4 @@ def generate_variants() -> tuple[int, int]:
         logger.info(f'Deleting {len(to_delete)} variants...')
         Variant.objects.filter(unique_id__in=to_delete).delete()
         logger.info('Done.')
-        return len(added), len(to_delete)
+        return len(added), len(to_delete) + restored

@@ -28,7 +28,7 @@ def get_expression_from_combo(combo: Combo, recursion_counter: int = 1) -> And:
         expression.append(get_expression_from_effect(effect, recursion_counter=recursion_counter + 1))
     if len(expression) == 0:
         return S.true
-    elif len(expression) == 1:
+    if len(expression) == 1:
         return expression[0]
     return And(*expression)
 
@@ -37,9 +37,9 @@ def get_expression_from_effect(effect: Feature, recursion_counter: int = 1) -> A
     if recursion_counter > RecursiveComboException.RECURSION_LIMIT:
         raise RecursiveComboException('Recursive combo detected.')
     expression = []
-    for card in Card.objects.filter(features=effect):
+    for card in effect.cards.all():
         expression.append(OrderedSymbol(name=str(card.id), order=recursion_counter))
-    for combo in Combo.objects.filter(produces=effect):
+    for combo in effect.produced_by_combos.all():
         expression.append(get_expression_from_combo(combo, recursion_counter=recursion_counter + 1))
     if len(expression) == 0:
         return S.false

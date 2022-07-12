@@ -1,6 +1,7 @@
 import hashlib
 import logging
 from django.db import transaction
+from django.conf import settings
 from .models import Card, Feature, Combo, Variant
 import pulp as lp
 logger = logging.getLogger(__name__)
@@ -97,7 +98,7 @@ def get_cards_for_combo(combo: Combo) -> list[list[Card]]:
     while lpmodel.status in [lp.LpStatusOptimal, lp.LpStatusNotSolved]:
         for v in lpmodel.variables():
             v.setInitialValue(v.upBound)
-        lpmodel.solve(lp.PULP_CBC_CMD(msg=False))
+        lpmodel.solve(lp.getSolver(settings.PULP_SOLVER, msg=False))
         if lpmodel.status == lp.LpStatusOptimal:
             card_variables = [v for v in lpmodel.variables() if v.name.startswith('C') and v.value() > 0]
             result.append([Card.objects.get(pk=int(v.name[1:])) for v in card_variables])
@@ -120,7 +121,7 @@ def find_included_combos(cards: list[Card]) -> list[Combo]:
                     model += v <= 0
             for v in model.variables():
                 v.setInitialValue(v.upBound)
-            model.solve(lp.PULP_CBC_CMD(msg=False))
+            model.solve(lp.getSolver(settings.PULP_SOLVER, msg=False))
             if model.status == lp.LpStatusOptimal:
                 result.append(combo)
     return result

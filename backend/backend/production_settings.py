@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/4.0/ref/settings/
 
 import os
 from pathlib import Path
+import pulp as pl
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -23,6 +24,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ['SECRET_KEY']
 
 DEBUG = False
+PULP_SOLVER = pl.listSolvers(onlyAvailable=True)[0]
 
 # Security settings
 ALLOWED_HOSTS = ['commanderspellbook.com', 'localhost', '127.0.0.1']

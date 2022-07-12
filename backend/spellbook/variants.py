@@ -12,7 +12,7 @@ class RecursiveComboException(Exception):
 
 
 class LpVariable(lp.LpVariable):
-    def __init__(self, name, lowBound=None, upBound=None, cat=..., e=None):
+    def __init__(self, name, lowBound=None, upBound=None, cat=lp.LpContinuous, e=None):
         super().__init__(name, lowBound, upBound, cat, e)
         self.hash = hash(name)
 

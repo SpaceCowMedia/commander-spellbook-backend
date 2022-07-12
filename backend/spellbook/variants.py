@@ -9,10 +9,12 @@ logger = logging.getLogger(__name__)
 class RecursiveComboException(Exception):
     RECURSION_LIMIT = 20
 
+
 class LpVariable(lp.LpVariable):
     def __init__(self, name, lowBound=None, upBound=None, cat=..., e=None):
         super().__init__(name, lowBound, upBound, cat, e)
         self.hash = hash(name)
+
 
 def check_combo_sanity(combo: Combo):
     try:
@@ -29,7 +31,8 @@ def check_feature_sanity(feature: Feature):
         return False
     return True
 
-def extend_model_from_feature(model: lp.LpProblem, feature: Feature, recursive_counter = 1) -> lp.LpProblem:
+
+def extend_model_from_feature(model: lp.LpProblem, feature: Feature, recursive_counter=1) -> lp.LpProblem:
     if recursive_counter > RecursiveComboException.RECURSION_LIMIT:
         raise RecursiveComboException('Recursive combo detected.')
     f = LpVariable(f'F{feature.id}', cat=lp.LpBinary)
@@ -51,7 +54,7 @@ def extend_model_from_feature(model: lp.LpProblem, feature: Feature, recursive_c
     return model
 
 
-def extend_model_from_combo(model: lp.LpProblem, combo: Combo, recursive_counter = 1) -> lp.LpProblem:
+def extend_model_from_combo(model: lp.LpProblem, combo: Combo, recursive_counter=1) -> lp.LpProblem:
     if recursive_counter > RecursiveComboException.RECURSION_LIMIT:
         raise RecursiveComboException('Recursive combo detected.')
     b = LpVariable(f'B{combo.id}', cat=lp.LpBinary)
@@ -68,7 +71,7 @@ def extend_model_from_combo(model: lp.LpProblem, combo: Combo, recursive_counter
         needed_feature_variables += f
         extend_model_from_feature(model, feature, recursive_counter=recursive_counter + 1)
         model += b - f <= 0
-    
+
     model += b - lp.lpSum(cards_variables + needed_feature_variables) + len(cards_variables) + len(needed_feature_variables) - 1 >= 0
     return model
 
@@ -78,6 +81,7 @@ def get_model_from_combo(combo: Combo) -> lp.LpProblem:
     extend_model_from_combo(lpmodel, combo)
     lpmodel += LpVariable(f'B{combo.id}', cat=lp.LpBinary) >= 1
     return lpmodel
+
 
 def get_model_from_feature(feature: Feature) -> lp.LpProblem:
     lpmodel = lp.LpProblem(str(feature), lp.LpMinimize)
@@ -91,9 +95,11 @@ def get_cards_for_combo(combo: Combo) -> list[list[Card]]:
     lpmodel = get_model_from_combo(combo)
     lpmodel += lp.lpSum([v for v in lpmodel.variables() if v.name.startswith('C')])
     while lpmodel.status in [lp.LpStatusOptimal, lp.LpStatusNotSolved]:
+        for v in lpmodel.variables():
+            v.setInitialValue(v.upBound)
         lpmodel.solve(lp.PULP_CBC_CMD(msg=False))
         if lpmodel.status == lp.LpStatusOptimal:
-            card_variables = [v for v in lpmodel.variables() if v.name.startswith('C') and v.value() == 1]
+            card_variables = [v for v in lpmodel.variables() if v.name.startswith('C') and v.value() > 0]
             result.append([Card.objects.get(pk=int(v.name[1:])) for v in card_variables])
             lpmodel += lp.lpSum(card_variables) <= len(card_variables) - 1
     return result
@@ -112,6 +118,8 @@ def find_included_combos(cards: list[Card]) -> list[Combo]:
                     model += v >= 1
                 else:
                     model += v <= 0
+            for v in model.variables():
+                v.setInitialValue(v.upBound)
             model.solve(lp.PULP_CBC_CMD(msg=False))
             if model.status == lp.LpStatusOptimal:
                 result.append(combo)
@@ -127,9 +135,6 @@ def unique_id_from_cards(cards: list[Card]) -> str:
 
 def create_variant(cards: list[Card], unique_id: str, combo: Combo):
     combos_included = find_included_combos(cards)
-    if len(combos_included) == 0:
-        logger.error(f'No combos included for cards: {cards} coming from {combo}')
-        print(get_model_from_combo(combo))
     prerequisites = '\n'.join(c.prerequisites for c in combos_included)
     description = '\n'.join(c.description for c in combos_included)
     variant = Variant(unique_id=unique_id, prerequisites=prerequisites, description=description)

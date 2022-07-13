@@ -12,9 +12,10 @@ class RecursiveComboException(Exception):
 
 
 class LpVariable(lp.LpVariable):
-    def __init__(self, name, lowBound=None, upBound=None, cat=lp.LpContinuous, e=None):
+    def __init__(self, name: str, order: int = 0, lowBound=None, upBound=None, cat=lp.LpContinuous, e=None):
         super().__init__(name, lowBound, upBound, cat, e)
         self.hash = hash(name)
+        self.order = order
 
 
 def check_combo_sanity(combo: Combo):
@@ -36,17 +37,17 @@ def check_feature_sanity(feature: Feature):
 def extend_model_from_feature(model: lp.LpProblem, feature: Feature, recursive_counter=1) -> lp.LpProblem:
     if recursive_counter > RecursiveComboException.RECURSION_LIMIT:
         raise RecursiveComboException('Recursive combo detected.')
-    f = LpVariable(f'F{feature.id}', cat=lp.LpBinary)
+    f = LpVariable(f'F{feature.id}', order=recursive_counter, cat=lp.LpBinary)
 
     cards_variables = []
     for card in feature.cards.all():
-        c = LpVariable(f'C{card.id}', cat=lp.LpBinary)
+        c = LpVariable(f'C{card.id}', order=recursive_counter, cat=lp.LpBinary)
         cards_variables += c
         model += f - c >= 0
 
     combo_variables = []
     for combo in feature.produced_by_combos.all():
-        b = LpVariable(f'B{combo.id}', cat=lp.LpBinary)
+        b = LpVariable(f'B{combo.id}', order=recursive_counter, cat=lp.LpBinary)
         combo_variables += b
         extend_model_from_combo(model, combo, recursive_counter=recursive_counter + 1)
         model += f - b >= 0
@@ -58,17 +59,17 @@ def extend_model_from_feature(model: lp.LpProblem, feature: Feature, recursive_c
 def extend_model_from_combo(model: lp.LpProblem, combo: Combo, recursive_counter=1) -> lp.LpProblem:
     if recursive_counter > RecursiveComboException.RECURSION_LIMIT:
         raise RecursiveComboException('Recursive combo detected.')
-    b = LpVariable(f'B{combo.id}', cat=lp.LpBinary)
+    b = LpVariable(f'B{combo.id}', order=recursive_counter, cat=lp.LpBinary)
 
     cards_variables = []
     for card in combo.includes.all():
-        c = LpVariable(f'C{card.id}', cat=lp.LpBinary)
+        c = LpVariable(f'C{card.id}', order=recursive_counter, cat=lp.LpBinary)
         cards_variables += c
         model += b - c <= 0
 
     needed_feature_variables = []
     for feature in combo.needs.all():
-        f = LpVariable(f'F{feature.id}', cat=lp.LpBinary)
+        f = LpVariable(f'F{feature.id}', order=recursive_counter, cat=lp.LpBinary)
         needed_feature_variables += f
         extend_model_from_feature(model, feature, recursive_counter=recursive_counter + 1)
         model += b - f <= 0
@@ -78,14 +79,14 @@ def extend_model_from_combo(model: lp.LpProblem, combo: Combo, recursive_counter
 
 
 def get_model_from_combo(combo: Combo) -> lp.LpProblem:
-    lpmodel = lp.LpProblem(str(combo), lp.LpMinimize)
+    lpmodel = lp.LpProblem(str(combo).replace(' ', '_'), lp.LpMinimize)
     extend_model_from_combo(lpmodel, combo)
     lpmodel += LpVariable(f'B{combo.id}', cat=lp.LpBinary) >= 1
     return lpmodel
 
 
 def get_model_from_feature(feature: Feature) -> lp.LpProblem:
-    lpmodel = lp.LpProblem(str(feature), lp.LpMinimize)
+    lpmodel = lp.LpProblem(str(feature).replace(' ', '_'), lp.LpMinimize)
     extend_model_from_feature(lpmodel, feature)
     lpmodel += LpVariable(f'F{feature.id}', cat=lp.LpBinary) >= 1
     return lpmodel
@@ -101,7 +102,7 @@ def get_cards_for_combo(combo: Combo) -> list[list[Card]]:
         lpmodel.solve(lp.getSolver(settings.PULP_SOLVER, msg=False))
         if lpmodel.status == lp.LpStatusOptimal:
             card_variables = [v for v in lpmodel.variables() if v.name.startswith('C') and v.value() > 0]
-            result.append([Card.objects.get(pk=int(v.name[1:])) for v in card_variables])
+            result.append([Card.objects.get(pk=int(v.name[1:])) for v in sorted(card_variables, key=lambda v: v.order)])
             lpmodel += lp.lpSum(card_variables) <= len(card_variables) - 1
     return result
 
@@ -132,6 +133,17 @@ def unique_id_from_cards(cards: list[Card]) -> str:
     for card in sorted(cards, key=lambda card: card.id):
         hash_algorithm.update(str(card.id).encode('utf-8'))
     return hash_algorithm.hexdigest()
+
+
+def update_variant(cards: list[Card], unique_id: str, combo: Combo):
+    variant = Variant.objects.get(unique_id=unique_id)
+    combos_included = find_included_combos(cards)
+    variant.of.set(combos_included)
+    variant.produces.set(
+        Combo.objects
+        .filter(pk__in=[c.id for c in combos_included])
+        .values_list('produces', flat=True).distinct()
+    )
 
 
 def create_variant(cards: list[Card], unique_id: str, combo: Combo):
@@ -168,15 +180,19 @@ def generate_variants() -> tuple[int, int]:
                     unique_id = unique_id_from_cards(card_list)
                     if unique_id not in new_id_set:
                         new_id_set.add(unique_id)
-                        if unique_id not in old_id_set:
+                        if unique_id in old_id_set:
+                            update_variant(card_list, unique_id, combo)
+                        else:
                             create_variant(card_list, unique_id, combo)
             except RecursiveComboException:
                 logger.warning(f'Recursive combo (id: {combo.id}) detected. Aborting variant generation.')
                 raise
         to_delete = old_id_set - new_id_set
         added = new_id_set - old_id_set
+        updated = new_id_set & old_id_set
         logger.info(f'Added {len(added)} new variants.')
+        logger.info(f'Updated {len(updated)} variants.')
         logger.info(f'Deleting {len(to_delete)} variants...')
         Variant.objects.filter(unique_id__in=to_delete).delete()
         logger.info('Done.')
-        return len(added), len(to_delete) + restored
+        return len(added), len(updated), len(to_delete) + restored

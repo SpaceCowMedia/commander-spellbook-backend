@@ -55,20 +55,20 @@ class VariantAdmin(admin.ModelAdmin):
     def generate(self, request):
         if request.method == 'POST':
             try:
-                added, removed = generate_variants()
+                added, updated, removed = generate_variants()
                 LogEntry(
                     user=request.user,
                     content_type=ContentType.objects.get_for_model(Variant),
                     object_repr='Generated Variants',
                     action_flag=CHANGE,
-                    change_message=f'Variant generation: added {added} new variants, removed {removed} variants'
+                    change_message=f'Variant generation: added {added} new variants, updated {updated} variants, removed {removed} variants.'
                 ).save()
                 if added == 0 and removed == 0:
                     messages.info(request, 'Variants are already synced with combos')
                 else:
-                    messages.success(request, f'Generated {added} new variants, removed {removed} variants')
+                    messages.success(request, f'Generated {added} new variants, updated {updated} variants, removed {removed} variants')
             except RecursiveComboException:
-                messages.error(request, 'Recursive combo chain found, variant generation failed')
+                messages.error(request, f'A combo chain longer than {RecursiveComboException.RECURSION_LIMIT} was detected. Generation was aborted to avoid possible loops.')
         return HttpResponseRedirect(reverse('admin:spellbook_variant_changelist'))
 
     def get_urls(self):
@@ -93,7 +93,7 @@ class ComboForm(ModelForm):
             ok = check_combo_sanity(self.save(commit=True))
             transaction.set_rollback(True)
         if not ok:
-            raise ValidationError(f'Combo {self.instance.id} would cause a recursive chain of dependency.')
+            raise ValidationError(f'Combo {self.instance.id} causes a chain of dependencies longer than {RecursiveComboException.RECURSION_LIMIT}, which is the limit imposed to avoid loops.')
         return super().clean()
 
 

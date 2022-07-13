@@ -179,7 +179,8 @@ def create_variant(cards: list[Card], unique_id: str, combo: Combo):
     variant.produces.set(
         Combo.objects
         .filter(pk__in=[c.id for c in combos_included])
-        .values_list('produces', flat=True).distinct()
+        .values_list('produces', flat=True)
+        .distinct()
     )
 
 

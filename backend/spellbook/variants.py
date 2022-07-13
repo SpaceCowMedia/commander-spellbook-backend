@@ -1,6 +1,7 @@
 import hashlib
 import logging
 from django.db import transaction
+from django.db.models import Count
 from django.conf import settings
 from .models import Card, Feature, Combo, Variant
 import pulp as lp
@@ -172,7 +173,7 @@ def generate_variants() -> tuple[int, int]:
         old_id_set = set(Variant.objects.values_list('unique_id', flat=True))
         new_id_set = set()
         logger.info('Generating new variants...')
-        for combo in Combo.objects.all():
+        for combo in Combo.objects.annotate(m=Count('needs') + Count('includes')).filter(m__gt=1):
             try:
                 logger.debug(f'Checking combo [{combo.id}] {combo}...')
                 card_list_list = get_cards_for_combo(combo)

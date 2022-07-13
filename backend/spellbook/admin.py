@@ -49,7 +49,7 @@ class VariantAdmin(admin.ModelAdmin):
         ('Editable', {'fields': ['status', 'prerequisites', 'description']})
     ]
     list_filter = ['status', 'produces__name']
-    list_display = ['__str__', 'status']
+    list_display = ['__str__', 'status', 'id']
     search_fields = ['includes__name', 'produces__name', 'unique_id']
 
     def generate(self, request):
@@ -88,12 +88,15 @@ class VariantAdmin(admin.ModelAdmin):
 
 class ComboForm(ModelForm):
     def clean(self):
-        ok = False
-        with transaction.atomic(savepoint=True, durable=False):
-            ok = check_combo_sanity(self.save(commit=True))
-            transaction.set_rollback(True)
-        if not ok:
-            raise ValidationError(f'Combo {self.instance.id} causes a chain of dependencies longer than {RecursiveComboException.RECURSION_LIMIT}, which is the limit imposed to avoid loops.')
+        if self.is_valid():
+            if len(self.cleaned_data['includes']) + len(self.cleaned_data['needs']) == 0:
+                raise ValidationError('Combo must include a card or need a feature to make sense.')
+            ok = False
+            with transaction.atomic(savepoint=True, durable=False):
+                ok = check_combo_sanity(self.save(commit=True))
+                transaction.set_rollback(True)
+            if not ok:
+                raise ValidationError(f'Possible loop detected.')
         return super().clean()
 
 

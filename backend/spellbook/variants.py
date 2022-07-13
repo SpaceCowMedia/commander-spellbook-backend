@@ -38,21 +38,26 @@ def check_feature_sanity(feature: Feature):
 def extend_model_from_feature(model: lp.LpProblem, feature: Feature, recursive_counter=1) -> lp.LpProblem:
     if recursive_counter > RecursiveComboException.RECURSION_LIMIT:
         raise RecursiveComboException('Recursive combo detected.')
+    # The variable representing the feature in the model
     f = LpVariable(f'F{feature.id}', order=recursive_counter, cat=lp.LpBinary)
 
     cards_variables = []
     for card in feature.cards.all():
         c = LpVariable(f'C{card.id}', order=recursive_counter, cat=lp.LpBinary)
         cards_variables += c
+        # For each card having the feature, we need f to be 1 if any of those is 1
         model += f - c >= 0
 
     combo_variables = []
     for combo in feature.produced_by_combos.all():
         b = LpVariable(f'B{combo.id}', order=recursive_counter, cat=lp.LpBinary)
         combo_variables += b
+        # We add the constraints around the combo to the current model
         extend_model_from_combo(model, combo, recursive_counter=recursive_counter + 1)
+        # For each combo producing the feature, we need f to be 1 if any of those is 1
         model += f - b >= 0
 
+    # If none of the cards or combos producing the feature are in the model, f is 0
     model += f <= lp.lpSum(cards_variables + combo_variables)
     return model
 
@@ -60,21 +65,26 @@ def extend_model_from_feature(model: lp.LpProblem, feature: Feature, recursive_c
 def extend_model_from_combo(model: lp.LpProblem, combo: Combo, recursive_counter=1) -> lp.LpProblem:
     if recursive_counter > RecursiveComboException.RECURSION_LIMIT:
         raise RecursiveComboException('Recursive combo detected.')
+    # The variable representing the combo in the model
     b = LpVariable(f'B{combo.id}', order=recursive_counter, cat=lp.LpBinary)
 
     cards_variables = []
     for card in combo.includes.all():
         c = LpVariable(f'C{card.id}', order=recursive_counter, cat=lp.LpBinary)
         cards_variables += c
+        # For each card included in the combo, we need b to be 0 if any of those is 0
         model += b - c <= 0
 
     needed_feature_variables = []
     for feature in combo.needs.all():
         f = LpVariable(f'F{feature.id}', order=recursive_counter, cat=lp.LpBinary)
         needed_feature_variables += f
+        # We add the constraints around the feature to the current model
         extend_model_from_feature(model, feature, recursive_counter=recursive_counter + 1)
+        # For each feature needed by the combo, we need b to be 0 if any of those is 0
         model += b - f <= 0
 
+    # If every card and feature needed by the combo is in the model, b is 1
     model += b - lp.lpSum(cards_variables + needed_feature_variables) + len(cards_variables) + len(needed_feature_variables) - 1 >= 0
     return model
 
@@ -82,6 +92,7 @@ def extend_model_from_combo(model: lp.LpProblem, combo: Combo, recursive_counter
 def get_model_from_combo(combo: Combo) -> lp.LpProblem:
     lpmodel = lp.LpProblem(str(combo).replace(' ', '_'), lp.LpMinimize)
     extend_model_from_combo(lpmodel, combo)
+    # In order to solve for the comvo, its variable must be 1
     lpmodel += LpVariable(f'B{combo.id}', cat=lp.LpBinary) >= 1
     return lpmodel
 
@@ -89,6 +100,7 @@ def get_model_from_combo(combo: Combo) -> lp.LpProblem:
 def get_model_from_feature(feature: Feature) -> lp.LpProblem:
     lpmodel = lp.LpProblem(str(feature).replace(' ', '_'), lp.LpMinimize)
     extend_model_from_feature(lpmodel, feature)
+    # In order to solve for the feature, its variable must be 1
     lpmodel += LpVariable(f'F{feature.id}', cat=lp.LpBinary) >= 1
     return lpmodel
 
@@ -97,13 +109,17 @@ def get_cards_for_combo(combo: Combo) -> list[list[Card]]:
     result: list[list[Card]] = list()
     lpmodel = get_model_from_combo(combo)
     lpmodel += lp.lpSum([v for v in lpmodel.variables() if v.name.startswith('C')])
-    while lpmodel.status in [lp.LpStatusOptimal, lp.LpStatusNotSolved]:
+    while lpmodel.status in {lp.LpStatusOptimal, lp.LpStatusNotSolved}:
+        # We need to set initial values to 1 to avoid None values in the solution
         for v in lpmodel.variables():
             v.setInitialValue(v.upBound)
         lpmodel.solve(lp.getSolver(settings.PULP_SOLVER, msg=False))
         if lpmodel.status == lp.LpStatusOptimal:
+            # Selecting only card variables with a value of 1
             card_variables = [v for v in lpmodel.variables() if v.name.startswith('C') and v.value() > 0]
+            # Fetching the cards from the db, ordered by depth of first encounter
             result.append([Card.objects.get(pk=int(v.name[1:])) for v in sorted(card_variables, key=lambda v: v.order)])
+            # Eclude any solution containing the current variant of the combo
             lpmodel += lp.lpSum(card_variables) <= len(card_variables) - 1
     return result
 
@@ -115,15 +131,20 @@ def find_included_combos(cards: list[Card]) -> list[Combo]:
         model = get_model_from_combo(combo)
         variables = [v for v in model.variables() if v.name.startswith('C')]
         variable_names = {v.name[1:] for v in variables}
+        # Check if combo has something in common with the cards
         if not variable_names.isdisjoint(card_ids):
             for v in variables:
                 if v.name[1:] in card_ids:
+                    # Cards in list are set to 1
                     model += v >= 1
                 else:
+                    # Cards not in list are set to 0
                     model += v <= 0
+            # We need to set initial values to 1 to avoid None values in the solution
             for v in model.variables():
                 v.setInitialValue(v.upBound)
             model.solve(lp.getSolver(settings.PULP_SOLVER, msg=False))
+            # If model can be solved, the card list contains the combo
             if model.status == lp.LpStatusOptimal:
                 result.append(combo)
     return result

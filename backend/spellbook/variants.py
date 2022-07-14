@@ -19,6 +19,23 @@ class LpVariable(lp.LpVariable):
         self.order = order
 
 
+class LpProblem():
+    def __init__(self, name: str):
+        self.name = name
+        self.constraints = []
+    
+    def __iadd__(self, constraint):
+        self.constraints.append(constraint)
+        return self
+    
+    def to_pulp(self) -> lp.LpProblem:
+        p = lp.LpProblem(self.name.replace(' ', '_'), lp.LpMinimize)
+        for constraint in self.constraints:
+            p += constraint
+        return p
+
+Cache = dict[str, LpProblem]
+
 def check_combo_sanity(combo: Combo):
     try:
         get_model_from_combo(combo)
@@ -35,7 +52,7 @@ def check_feature_sanity(feature: Feature):
     return True
 
 
-def extend_model_from_feature(model: lp.LpProblem, feature: Feature, recursive_counter=1) -> lp.LpProblem:
+def extend_model_from_feature(model: LpProblem, feature: Feature, recursive_counter=1):
     if recursive_counter > RecursiveComboException.RECURSION_LIMIT:
         raise RecursiveComboException('Recursive combo detected.')
     # The variable representing the feature in the model
@@ -59,10 +76,9 @@ def extend_model_from_feature(model: lp.LpProblem, feature: Feature, recursive_c
 
     # If none of the cards or combos producing the feature are in the model, f is 0
     model += f <= lp.lpSum(cards_variables + combo_variables)
-    return model
 
 
-def extend_model_from_combo(model: lp.LpProblem, combo: Combo, recursive_counter=1) -> lp.LpProblem:
+def extend_model_from_combo(model: LpProblem, combo: Combo, recursive_counter=1):
     if recursive_counter > RecursiveComboException.RECURSION_LIMIT:
         raise RecursiveComboException('Recursive combo detected.')
     # The variable representing the combo in the model
@@ -86,28 +102,35 @@ def extend_model_from_combo(model: lp.LpProblem, combo: Combo, recursive_counter
 
     # If every card and feature needed by the combo is in the model, b is 1
     model += b - lp.lpSum(cards_variables + needed_feature_variables) + len(cards_variables) + len(needed_feature_variables) - 1 >= 0
-    return model
 
 
-def get_model_from_combo(combo: Combo) -> lp.LpProblem:
-    lpmodel = lp.LpProblem(str(combo).replace(' ', '_'), lp.LpMinimize)
+def get_model_from_combo(combo: Combo, cache: Cache = {}) -> lp.LpProblem:
+    key = str(combo.id)
+    if key in cache:
+        return cache[key].to_pulp()
+    lpmodel = LpProblem(str(combo))
     extend_model_from_combo(lpmodel, combo)
     # In order to solve for the comvo, its variable must be 1
     lpmodel += LpVariable(f'B{combo.id}', cat=lp.LpBinary) >= 1
-    return lpmodel
+    cache[key] = lpmodel
+    return lpmodel.to_pulp()
 
 
-def get_model_from_feature(feature: Feature) -> lp.LpProblem:
-    lpmodel = lp.LpProblem(str(feature).replace(' ', '_'), lp.LpMinimize)
+def get_model_from_feature(feature: Feature, cache: Cache = {}) -> lp.LpProblem:
+    key = str(feature.id)
+    if key in cache:
+        return cache[key].to_pulp()
+    lpmodel = LpProblem(str(feature))
     extend_model_from_feature(lpmodel, feature)
     # In order to solve for the feature, its variable must be 1
     lpmodel += LpVariable(f'F{feature.id}', cat=lp.LpBinary) >= 1
-    return lpmodel
+    cache[key] = lpmodel
+    return lpmodel.to_pulp()
 
 
-def get_cards_for_combo(combo: Combo) -> list[list[Card]]:
+def get_cards_for_combo(combo: Combo, cache: Cache) -> list[list[Card]]:
     result: list[list[Card]] = list()
-    lpmodel = get_model_from_combo(combo)
+    lpmodel = get_model_from_combo(combo, cache)
     lpmodel += lp.lpSum([v for v in lpmodel.variables() if v.name.startswith('C')])
     while lpmodel.status in {lp.LpStatusOptimal, lp.LpStatusNotSolved}:
         # We need to set initial values to 1 to avoid None values in the solution
@@ -124,11 +147,11 @@ def get_cards_for_combo(combo: Combo) -> list[list[Card]]:
     return result
 
 
-def find_included_combos(cards: list[Card]) -> list[Combo]:
+def find_included_combos(cards: list[Card], cache: Cache) -> list[Combo]:
     result = []
     card_ids = {str(card.id) for card in cards}
     for combo in Combo.objects.all():
-        model = get_model_from_combo(combo)
+        model = get_model_from_combo(combo, cache)
         variables = [v for v in model.variables() if v.name.startswith('C')]
         variable_names = {v.name[1:] for v in variables}
         # Check if combo has something in common with the cards
@@ -157,9 +180,9 @@ def unique_id_from_cards(cards: list[Card]) -> str:
     return hash_algorithm.hexdigest()
 
 
-def update_variant(cards: list[Card], unique_id: str, combo: Combo):
+def update_variant(cards: list[Card], unique_id: str, combo: Combo, cache: Cache):
     variant = Variant.objects.get(unique_id=unique_id)
-    combos_included = find_included_combos(cards)
+    combos_included = find_included_combos(cards, cache)
     variant.of.set(combos_included)
     variant.produces.set(
         Combo.objects
@@ -168,8 +191,8 @@ def update_variant(cards: list[Card], unique_id: str, combo: Combo):
     )
 
 
-def create_variant(cards: list[Card], unique_id: str, combo: Combo):
-    combos_included = find_included_combos(cards)
+def create_variant(cards: list[Card], unique_id: str, combo: Combo, cache: Cache):
+    combos_included = find_included_combos(cards, cache)
     prerequisites = '\n'.join(c.prerequisites for c in combos_included)
     description = '\n'.join(c.description for c in combos_included)
     variant = Variant(unique_id=unique_id, prerequisites=prerequisites, description=description)
@@ -195,18 +218,19 @@ def generate_variants() -> tuple[int, int]:
         old_id_set = set(Variant.objects.values_list('unique_id', flat=True))
         new_id_set = set()
         logger.info('Generating new variants...')
+        cache = Cache()
         for combo in Combo.objects.annotate(m=Count('needs') + Count('includes')).filter(m__gt=1):
             try:
                 logger.debug(f'Checking combo [{combo.id}] {combo}...')
-                card_list_list = get_cards_for_combo(combo)
+                card_list_list = get_cards_for_combo(combo, cache)
                 for card_list in card_list_list:
                     unique_id = unique_id_from_cards(card_list)
                     if unique_id not in new_id_set:
                         new_id_set.add(unique_id)
                         if unique_id in old_id_set:
-                            update_variant(card_list, unique_id, combo)
+                            update_variant(card_list, unique_id, combo, cache)
                         else:
-                            create_variant(card_list, unique_id, combo)
+                            create_variant(card_list, unique_id, combo, cache)
             except RecursiveComboException:
                 logger.warning(f'Recursive combo (id: {combo.id}) detected. Aborting variant generation.')
                 raise

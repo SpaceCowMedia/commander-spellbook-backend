@@ -24,18 +24,20 @@ class LpProblem():
     def __init__(self, name: str):
         self.name = name
         self.constraints = []
-    
+
     def __iadd__(self, constraint):
         self.constraints.append(constraint)
         return self
-    
+
     def to_pulp(self) -> lp.LpProblem:
         p = lp.LpProblem(self.name.replace(' ', '_'), lp.LpMinimize)
         for constraint in self.constraints:
             p += constraint
         return p
 
+
 Cache = dict[str, LpProblem]
+
 
 def check_combo_sanity(combo: Combo):
     try:
@@ -147,7 +149,7 @@ def get_cards_for_model(lpmodel: lp.LpProblem) -> list[list[Card]]:
     return result
 
 
-def find_included_combos(cards: list[Card], cache: Cache) -> list[Combo]:
+def find_included_combos(cards: list[Card], cache: Cache, pool: ThreadPool) -> list[Combo]:
     card_ids = {str(card.id) for card in cards}
     combos: list[Combo] = [c for c in Combo.objects.all()]
     models: list[lp.LpProblem] = []
@@ -168,13 +170,12 @@ def find_included_combos(cards: list[Card], cache: Cache) -> list[Combo]:
             for v in model.variables():
                 v.setInitialValue(v.upBound)
             models.append(model)
+
     def solve_model(model):
         model.solve(lp.getSolver(settings.PULP_SOLVER, msg=False))
         # If model can be solved, the card list contains the combo
         return model.status == lp.LpStatusOptimal
-    pool = ThreadPool(processes=settings.PULP_THREADS)
     results: list[bool] = pool.map(solve_model, models)
-    pool.close()
     return [c for c, r in zip(combos, results) if r]
 
 
@@ -185,9 +186,9 @@ def unique_id_from_cards(cards: list[Card]) -> str:
     return hash_algorithm.hexdigest()
 
 
-def update_variant(cards: list[Card], unique_id: str, combo: Combo, cache: Cache):
+def update_variant(cards: list[Card], unique_id: str, combo: Combo, cache: Cache, pool: ThreadPool):
     variant = Variant.objects.get(unique_id=unique_id)
-    combos_included = find_included_combos(cards, cache)
+    combos_included = find_included_combos(cards, cache, pool)
     variant.of.set(combos_included)
     variant.produces.set(
         Combo.objects
@@ -196,8 +197,8 @@ def update_variant(cards: list[Card], unique_id: str, combo: Combo, cache: Cache
     )
 
 
-def create_variant(cards: list[Card], unique_id: str, combo: Combo, cache: Cache):
-    combos_included = find_included_combos(cards, cache)
+def create_variant(cards: list[Card], unique_id: str, combo: Combo, cache: Cache, pool: ThreadPool):
+    combos_included = find_included_combos(cards, cache, pool)
     prerequisites = '\n'.join(c.prerequisites for c in combos_included)
     description = '\n'.join(c.description for c in combos_included)
     variant = Variant(unique_id=unique_id, prerequisites=prerequisites, description=description)
@@ -241,9 +242,9 @@ def generate_variants() -> tuple[int, int]:
                 if unique_id not in new_id_set:
                     new_id_set.add(unique_id)
                     if unique_id in old_id_set:
-                        update_variant(card_list, unique_id, combo, cache)
+                        update_variant(card_list, unique_id, combo, cache, pool)
                     else:
-                        create_variant(card_list, unique_id, combo, cache)
+                        create_variant(card_list, unique_id, combo, cache, pool)
         pool.close()
         to_delete = old_id_set - new_id_set
         added = new_id_set - old_id_set

@@ -96,7 +96,7 @@ class ComboForm(ModelForm):
                 ok = check_combo_sanity(self.save(commit=True))
                 transaction.set_rollback(True)
             if not ok:
-                raise ValidationError(f'Possible loop detected.')
+                raise ValidationError('Possible loop detected.')
         return super().clean()
 
 

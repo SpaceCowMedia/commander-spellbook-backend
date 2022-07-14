@@ -132,3 +132,6 @@ dmypy.json
 Include/
 Lib/
 Scripts/
+
+# profiling
+*.prof

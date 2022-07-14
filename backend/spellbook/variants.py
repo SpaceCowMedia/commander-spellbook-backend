@@ -5,6 +5,7 @@ from django.db.models import Count
 from django.conf import settings
 from .models import Card, Feature, Combo, Variant
 import pulp as lp
+from multiprocessing.dummy import Pool as ThreadPool
 logger = logging.getLogger(__name__)
 
 
@@ -128,9 +129,8 @@ def get_model_from_feature(feature: Feature, cache: Cache = {}) -> lp.LpProblem:
     return lpmodel.to_pulp()
 
 
-def get_cards_for_combo(combo: Combo, cache: Cache) -> list[list[Card]]:
+def get_cards_for_model(lpmodel: lp.LpProblem) -> list[list[Card]]:
     result: list[list[Card]] = list()
-    lpmodel = get_model_from_combo(combo, cache)
     lpmodel += lp.lpSum([v for v in lpmodel.variables() if v.name.startswith('C')])
     while lpmodel.status in {lp.LpStatusOptimal, lp.LpStatusNotSolved}:
         # We need to set initial values to 1 to avoid None values in the solution
@@ -148,9 +148,10 @@ def get_cards_for_combo(combo: Combo, cache: Cache) -> list[list[Card]]:
 
 
 def find_included_combos(cards: list[Card], cache: Cache) -> list[Combo]:
-    result = []
     card_ids = {str(card.id) for card in cards}
-    for combo in Combo.objects.all():
+    combos: list[Combo] = [c for c in Combo.objects.all()]
+    models: list[lp.LpProblem] = []
+    for combo in combos:
         model = get_model_from_combo(combo, cache)
         variables = [v for v in model.variables() if v.name.startswith('C')]
         variable_names = {v.name[1:] for v in variables}
@@ -166,11 +167,15 @@ def find_included_combos(cards: list[Card], cache: Cache) -> list[Combo]:
             # We need to set initial values to 1 to avoid None values in the solution
             for v in model.variables():
                 v.setInitialValue(v.upBound)
-            model.solve(lp.getSolver(settings.PULP_SOLVER, msg=False))
-            # If model can be solved, the card list contains the combo
-            if model.status == lp.LpStatusOptimal:
-                result.append(combo)
-    return result
+            models.append(model)
+    def solve_model(model):
+        model.solve(lp.getSolver(settings.PULP_SOLVER, msg=False))
+        # If model can be solved, the card list contains the combo
+        return model.status == lp.LpStatusOptimal
+    pool = ThreadPool(processes=settings.PULP_THREADS)
+    results: list[bool] = pool.map(solve_model, models)
+    pool.close()
+    return [c for c, r in zip(combos, results) if r]
 
 
 def unique_id_from_cards(cards: list[Card]) -> str:
@@ -218,22 +223,28 @@ def generate_variants() -> tuple[int, int]:
         old_id_set = set(Variant.objects.values_list('unique_id', flat=True))
         new_id_set = set()
         logger.info('Generating new variants...')
+        # Performance optimization objects
         cache = Cache()
+        models = []
         for combo in Combo.objects.annotate(m=Count('needs') + Count('includes')).filter(m__gt=1):
             try:
                 logger.debug(f'Checking combo [{combo.id}] {combo}...')
-                card_list_list = get_cards_for_combo(combo, cache)
-                for card_list in card_list_list:
-                    unique_id = unique_id_from_cards(card_list)
-                    if unique_id not in new_id_set:
-                        new_id_set.add(unique_id)
-                        if unique_id in old_id_set:
-                            update_variant(card_list, unique_id, combo, cache)
-                        else:
-                            create_variant(card_list, unique_id, combo, cache)
+                model = get_model_from_combo(combo, cache)
+                models.append(model)
             except RecursiveComboException:
                 logger.warning(f'Recursive combo (id: {combo.id}) detected. Aborting variant generation.')
                 raise
+        pool = ThreadPool(processes=settings.PULP_THREADS)
+        for card_list_list in pool.map(get_cards_for_model, models):
+            for card_list in card_list_list:
+                unique_id = unique_id_from_cards(card_list)
+                if unique_id not in new_id_set:
+                    new_id_set.add(unique_id)
+                    if unique_id in old_id_set:
+                        update_variant(card_list, unique_id, combo, cache)
+                    else:
+                        create_variant(card_list, unique_id, combo, cache)
+        pool.close()
         to_delete = old_id_set - new_id_set
         added = new_id_set - old_id_set
         updated = new_id_set & old_id_set

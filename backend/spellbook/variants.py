@@ -1,11 +1,14 @@
 import hashlib
 import logging
+import pulp as lp
+from typing import Callable
+from functools import partial
+from itertools import compress
+from multiprocessing.dummy import Pool as ThreadPool
 from django.db import transaction
 from django.db.models import Count
 from django.conf import settings
 from .models import Card, Feature, Combo, Variant
-import pulp as lp
-from multiprocessing.dummy import Pool as ThreadPool
 logger = logging.getLogger(__name__)
 
 
@@ -149,36 +152,6 @@ def get_cards_for_model(lpmodel: lp.LpProblem) -> list[list[Card]]:
     return result
 
 
-def find_included_combos(cards: list[Card], cache: Cache, pool: ThreadPool) -> list[Combo]:
-    card_ids = {str(card.id) for card in cards}
-    combos: list[Combo] = [c for c in Combo.objects.all()]
-    models: list[lp.LpProblem] = []
-    for combo in combos:
-        model = get_model_from_combo(combo, cache)
-        variables = [v for v in model.variables() if v.name.startswith('C')]
-        variable_names = {v.name[1:] for v in variables}
-        # Check if combo has something in common with the cards
-        if not variable_names.isdisjoint(card_ids):
-            for v in variables:
-                if v.name[1:] in card_ids:
-                    # Cards in list are set to 1
-                    model += v >= 1
-                else:
-                    # Cards not in list are set to 0
-                    model += v <= 0
-            # We need to set initial values to 1 to avoid None values in the solution
-            for v in model.variables():
-                v.setInitialValue(v.upBound)
-            models.append(model)
-
-    def solve_model(model):
-        model.solve(lp.getSolver(settings.PULP_SOLVER, msg=False))
-        # If model can be solved, the card list contains the combo
-        return model.status == lp.LpStatusOptimal
-    results: list[bool] = pool.map(solve_model, models)
-    return [c for c, r in zip(combos, results) if r]
-
-
 def unique_id_from_cards(cards: list[Card]) -> str:
     hash_algorithm = hashlib.sha256()
     for card in sorted(cards, key=lambda card: card.id):
@@ -186,9 +159,8 @@ def unique_id_from_cards(cards: list[Card]) -> str:
     return hash_algorithm.hexdigest()
 
 
-def update_variant(cards: list[Card], unique_id: str, combo: Combo, cache: Cache, pool: ThreadPool):
+def update_variant(unique_id: str, combos_included: list[Combo]):
     variant = Variant.objects.get(unique_id=unique_id)
-    combos_included = find_included_combos(cards, cache, pool)
     variant.of.set(combos_included)
     variant.produces.set(
         Combo.objects
@@ -197,8 +169,7 @@ def update_variant(cards: list[Card], unique_id: str, combo: Combo, cache: Cache
     )
 
 
-def create_variant(cards: list[Card], unique_id: str, combo: Combo, cache: Cache, pool: ThreadPool):
-    combos_included = find_included_combos(cards, cache, pool)
+def create_variant(cards: list[Card], unique_id: str, combos_included: list[Combo]):
     prerequisites = '\n'.join(c.prerequisites for c in combos_included)
     description = '\n'.join(c.description for c in combos_included)
     variant = Variant(unique_id=unique_id, prerequisites=prerequisites, description=description)
@@ -213,39 +184,80 @@ def create_variant(cards: list[Card], unique_id: str, combo: Combo, cache: Cache
     )
 
 
+def check_inclusion(cards: list[Card], model: lp.LpProblem) -> bool:
+    card_ids = {str(card.id) for card in cards}
+    variables = [v for v in model.variables() if v.name.startswith('C')]
+    variable_names = {v.name[1:] for v in variables}
+    # Check if combo has something in common with the cards
+    if variable_names.isdisjoint(card_ids):
+        return False
+    for v in variables:
+        if v.name[1:] in card_ids:
+            # Cards in list are set to 1
+            model += v >= 1
+        else:
+            # Cards not in list are set to 0
+            model += v <= 0
+    # We need to set initial values to 1 to avoid None values in the solution
+    for v in model.variables():
+        v.setInitialValue(v.upBound)
+    model.solve(lp.getSolver(settings.PULP_SOLVER, msg=False))
+    return model.status == lp.LpStatusOptimal
+
+
 def generate_variants() -> tuple[int, int]:
     with transaction.atomic():
         logger.info('Deleting variants set to RESTORE...')
         _, deleted_dict = Variant.objects.filter(status=Variant.Status.RESTORE).delete()
         restored = deleted_dict['spellbook.Variant'] if 'spellbook.Variant' in deleted_dict else 0
         logger.info(f'Deleted {restored} variants set to RESTORE.')
-        logger.info('Generating variants:')
         logger.info('Fetching all variant unique ids...')
         old_id_set = set(Variant.objects.values_list('unique_id', flat=True))
         new_id_set = set()
-        logger.info('Generating new variants...')
-        # Performance optimization objects
+        logger.info('Computing combos MILP representation...')
+        models_combos: list[tuple[lp.LpProblem, Combo]] = []
+        combos = Combo.objects.all()
         cache = Cache()
-        models = []
-        for combo in Combo.objects.annotate(m=Count('needs') + Count('includes')).filter(m__gt=1):
+        # Considering only combos with two or more components to avoid 1 -> 1 combos
+        for combo in combos.annotate(m=Count('needs') + Count('includes')).filter(m__gt=1):
             try:
                 logger.debug(f'Checking combo [{combo.id}] {combo}...')
                 model = get_model_from_combo(combo, cache)
-                models.append(model)
+                models_combos.append((model, combo))
             except RecursiveComboException:
                 logger.warning(f'Recursive combo (id: {combo.id}) detected. Aborting variant generation.')
                 raise
+        logger.debug('Initiating thread pool...')
         pool = ThreadPool(processes=settings.PULP_THREADS)
-        for card_list_list in pool.map(get_cards_for_model, models):
+        variants = dict[str, list[Card]]()
+        actions = dict[str, Callable]()
+        logger.info('Computing variants...')
+
+        def get_cards_for_model_wrapper(model, combo):
+            cards = get_cards_for_model(model)
+            return cards, combo
+        for card_list_list, combo in pool.starmap(get_cards_for_model_wrapper, models_combos):
             for card_list in card_list_list:
                 unique_id = unique_id_from_cards(card_list)
                 if unique_id not in new_id_set:
                     new_id_set.add(unique_id)
                     if unique_id in old_id_set:
-                        update_variant(card_list, unique_id, combo, cache, pool)
+                        variants[unique_id] = card_list
+                        actions[unique_id] = partial(update_variant, unique_id)
                     else:
-                        create_variant(card_list, unique_id, combo, cache, pool)
+                        variants[unique_id] = card_list
+                        actions[unique_id] = partial(create_variant, card_list, unique_id)
+        logger.info('Computing included combos...')
+        m = len(variants)
+        n = len(combos)
+        models = [[get_model_from_combo(combo, cache) for combo in combos] for _ in range(m)]
+        inclusion_checks: list[bool] = pool.starmap(check_inclusion, ((v, models[i][j]) for i, v in enumerate(variants.values()) for j in range(n)))
+        del models
+        inclusion_checks: list[list[Combo]] = [list(compress(combos, inclusion_checks[i * n:(i + 1) * n])) for i in range(m)]
         pool.close()
+        logger.info('Saving variants...')
+        for unique_id, included_combos in zip(variants, inclusion_checks):
+            actions[unique_id](included_combos)
         to_delete = old_id_set - new_id_set
         added = new_id_set - old_id_set
         updated = new_id_set & old_id_set

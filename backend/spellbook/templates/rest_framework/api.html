@@ -6,3 +6,14 @@
     {{ block.super }}
     <link rel="icon" type="image/x-icon" href="{% static 'spellbook/favicon.ico' %}">
 {% endblock %}
+
+{% block branding %}
+    <a class='navbar-brand' rel="nofollow" href="https://www.commanderspellbook.com/">
+        Commander Spellbook
+    </a>
+{% endblock %}
+
+{% block userlinks %}
+    {{ block.super }}
+    <li><a href="{% url 'admin:index' %}">Admin Website</a></li>
+{% endblock %}

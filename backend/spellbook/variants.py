@@ -1,19 +1,17 @@
+from collections import defaultdict
 import hashlib
 import logging
 import pulp as lp
-from typing import Callable
-from functools import partial
-from itertools import compress
 from multiprocessing.dummy import Pool as ThreadPool
 from django.db import transaction
 from django.db.models import Count
 from django.conf import settings
 from .models import Card, Feature, Combo, Variant
+from copy import deepcopy
 logger = logging.getLogger(__name__)
 
 
-class RecursiveComboException(Exception):
-    RECURSION_LIMIT = 20
+RECURSION_LIMIT = 20
 
 
 class LpProblem():
@@ -38,15 +36,7 @@ class LpProblem():
         return p
 
     def copy(self):
-        return LpProblem(self.constraints.copy(), self.variables.copy())
-
-
-def check_combo_sanity(combo: Combo):
-    return True
-
-
-def check_feature_sanity(feature: Feature):
-    return True
+        return LpProblem(deepcopy(self.constraints), deepcopy(self.variables))
 
 
 def extend_model_from_feature(model: LpProblem, feature: Feature):
@@ -100,11 +90,38 @@ def unique_id_from_cards(cards: list[Card]) -> str:
     return hash_algorithm.hexdigest()
 
 
+def priority_dict_for_combo(combo: Combo, recursion_counter = 0) -> tuple[dict[Card, int], dict[Feature, int]]:
+    result = dict[Card, int]()
+    result2 = dict[Feature, int]()
+    for card in combo.includes.all():
+        result[card] = recursion_counter
+    for feature in combo.produces.all():
+        result2[feature] = recursion_counter
+    for feature in combo.needs.all():
+        result2[feature] = recursion_counter + 1
+        for card in feature.cards.all():
+            result[card] = recursion_counter + 1
+        for combo in feature.produced_by_combos.all():
+            p1, p2 = priority_dict_for_combo(combo, recursion_counter + 2)
+            result = p1 | result
+            result2 = p2 | result2
+    return result, result2
+
+
+def check_combo_sanity(combo: Combo, recursion_counter: int = 0) -> bool:
+    if recursion_counter > RECURSION_LIMIT:
+        return False
+    for feature in combo.needs.all():
+        for combo in feature.produced_by_combos.all():
+            if not check_combo_sanity(combo, recursion_counter + 1):
+                return False
+    return True
+
+
 def get_variants_from_model(base_model: LpProblem) -> dict[str, tuple[list[Card], list[Combo], list[Feature]]]:
-    result: dict[str, tuple[list[Card], list[Feature]]] = {}
-    # Considering only combos with two or more components to avoid 1 -> 1 combos
-    for combo in Combo.objects.annotate(m=Count('needs') + Count('includes')).filter(m__gt=1):
-        model = base_model.copy()
+    def variants_from_combo(combo: Combo, model: LpProblem) -> dict[str, tuple[list[Card], list[Combo], list[Feature]]]:
+        result: dict[str, tuple[list[Card], list[Feature]]] = {}
+        priorityc, priorityf = priority_dict_for_combo(combo)
         lpmodel = model.to_pulp(f'P{combo.id}')
         # Minimize cards, maximize features
         lpmodel.addConstraint(model[f'B{combo.id}'] >= 1)
@@ -130,14 +147,25 @@ def get_variants_from_model(base_model: LpProblem) -> dict[str, tuple[list[Card]
                 card_list = [Card.objects.get(pk=int(v.name[1:])) for v in card_variables]
                 unique_id = unique_id_from_cards(card_list)
                 if unique_id not in result:
-                    feature_list = [Feature.objects.get(pk=int(v.name[1:])) for v in feature_variables]
                     combo_list = [Combo.objects.get(pk=int(v.name[1:])) for v in combo_variables]
-                    # TODO: sort card list
+                    feature_list = sorted([Feature.objects.get(pk=int(v.name[1:])) for v in feature_variables], key=lambda f: priorityf.get(f, RECURSION_LIMIT))
+                    card_list = sorted(card_list, key=lambda card: priorityc[card])
                     result[unique_id] = (card_list, feature_list, combo_list)
                 # Eclude any solution containing the current variant of the combo, from now on
                 model += lp.lpSum(card_variables) <= len(card_variables) - 1
                 lpmodel = model.to_pulp(f'P{combo.id}')
                 lpmodel.addConstraint(model[f'B{combo.id}'] >= 1)
+        return result
+    logging.info(f'Spawning thread pool of size {settings.PULP_THREADS}...')
+    pool = ThreadPool(processes=settings.PULP_THREADS)
+    # Considering only combos with two or more components to avoid 1 -> 1 combos
+    result = {}
+    results = pool.starmap(variants_from_combo,
+        ((c, base_model.copy()) for c in
+            Combo.objects.annotate(m=Count('needs') + Count('includes')).filter(m__gt=1)))
+    for r in results:
+        result.update(r)
+    pool.close()
     return result
 
 
@@ -176,10 +204,8 @@ def generate_variants() -> tuple[int, int]:
         logger.info('Saving variants...')
         for unique_id, (cards, features, combos) in variants.items():
             if unique_id in old_id_set:
-                logger.info(f'Updating variant {unique_id}...')
                 update_variant(unique_id, combos, features)
             else:
-                logger.info(f'Creating variant {unique_id}...')
                 create_variant(cards, unique_id, combos, features)
         new_id_set = set(variants.keys())
         to_delete = old_id_set - new_id_set

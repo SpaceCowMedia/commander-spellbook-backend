@@ -84,7 +84,7 @@ class Variant(models.Model):
         related_name='included_in_variants',
         help_text='Cards that this variant includes',
         editable=False)
-    produces = models.ManyToManyField(
+    produces = SortedManyToManyField(
         to=Feature,
         related_name='produced_by_variants',
         help_text='Features that this variant produces',

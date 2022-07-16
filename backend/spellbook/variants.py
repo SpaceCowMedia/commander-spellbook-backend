@@ -1,5 +1,6 @@
 from collections import defaultdict
 import hashlib
+import json
 import logging
 import pulp as lp
 from multiprocessing.dummy import Pool as ThreadPool
@@ -85,8 +86,7 @@ def extend_model_from_combo(model: LpProblem, combo: Combo):
 
 def unique_id_from_cards(cards: list[Card]) -> str:
     hash_algorithm = hashlib.sha256()
-    for card in sorted(cards, key=lambda card: card.id):
-        hash_algorithm.update(f'{card.id}.'.encode('utf-8'))
+    hash_algorithm.update(json.dumps(sorted(map(lambda card: card.id, cards))).encode('utf-8'))
     return hash_algorithm.hexdigest()
 
 

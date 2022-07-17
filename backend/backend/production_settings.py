@@ -25,7 +25,8 @@ SECRET_KEY = os.environ['SECRET_KEY']
 
 DEBUG = False
 PULP_SOLVER = pl.listSolvers(onlyAvailable=True)[0]
-PULP_THREADS = 20
+PULP_THREADS = 100
+PULP_DEBUG = False
 
 # Security settings
 ALLOWED_HOSTS = ['commanderspellbook.com', 'localhost', '127.0.0.1']

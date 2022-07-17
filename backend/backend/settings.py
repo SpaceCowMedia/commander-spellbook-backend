@@ -27,6 +27,7 @@ SECRET_KEY = 'django-insecure-!5xe$b7a9e4osw_3i23&&f1_s$inz*=j#97-6z88sf!!(f6w2q
 DEBUG = True
 PULP_SOLVER = pl.listSolvers(onlyAvailable=True)[0]
 PULP_THREADS = 20
+PULP_DEBUG = False
 
 ALLOWED_HOSTS = ['*']
 CSRF_TRUSTED_ORIGINS = [

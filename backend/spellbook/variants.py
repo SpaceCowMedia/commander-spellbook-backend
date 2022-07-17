@@ -165,14 +165,17 @@ def get_variants_from_model(base_model: LpProblemFactory) -> dict[str, tuple[lis
         return result
     logging.info(f'Spawning thread pool of size {settings.PULP_THREADS}...')
     pool = ThreadPool(processes=settings.PULP_THREADS)
-    # Considering only combos with two or more components to avoid 1 -> 1 combos
     result = {}
+    # Considering only combos with two or more components to avoid 1 -> 1 combos
+    logging.info(f'Computing all possible variants in parallel...')
     results = pool.starmap(variants_from_combo,
         ((c, base_model.copy()) for c in
             Combo.objects.annotate(m=Count('needs') + Count('includes')).filter(m__gt=1)))
+    logging.info(f'Merging results, discarding duplicates...')
     for r in results:
         result.update(r)
     pool.close()
+    logging.info(f'Done: pool closed.')
     return result
 
 

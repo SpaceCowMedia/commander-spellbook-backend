@@ -1,4 +1,3 @@
-from collections import defaultdict
 import hashlib
 import json
 import logging
@@ -7,6 +6,8 @@ from multiprocessing.dummy import Pool as ThreadPool
 from django.db import transaction
 from django.db.models import Count
 from django.conf import settings
+
+from .pulp_patch import LpProblem
 from .models import Card, Feature, Combo, Variant
 from copy import deepcopy
 logger = logging.getLogger(__name__)
@@ -15,7 +16,7 @@ logger = logging.getLogger(__name__)
 RECURSION_LIMIT = 20
 
 
-class LpProblem():
+class LpProblemFactory():
     def __init__(self, constraints: list = [], variables: dict[str, lp.LpVariable] = {}):
         self.constraints = constraints
         self.variables = variables
@@ -23,7 +24,7 @@ class LpProblem():
     def __iadd__(self, constraint):
         self.constraints.append(constraint)
         return self
-    
+
     def __getitem__(self, key):
         if key in self.variables:
             return self.variables[key]
@@ -31,16 +32,16 @@ class LpProblem():
         return self.variables[key]
 
     def to_pulp(self, name: str) -> lp.LpProblem:
-        p = lp.LpProblem(name.replace(' ', '_'), lp.LpMinimize)
+        p = LpProblem(name.replace(' ', '_'), lp.LpMinimize)
         for constraint in self.constraints:
             p += constraint
         return p
 
     def copy(self):
-        return LpProblem(deepcopy(self.constraints), deepcopy(self.variables))
+        return LpProblemFactory(deepcopy(self.constraints), deepcopy(self.variables))
 
 
-def extend_model_from_feature(model: LpProblem, feature: Feature):
+def extend_model_from_feature(model: LpProblemFactory, feature: Feature):
     # The variable representing the feature in the model
     f = model[f'F{feature.id}']
 
@@ -62,7 +63,7 @@ def extend_model_from_feature(model: LpProblem, feature: Feature):
     model += f <= lp.lpSum(card_variables + combo_variables)
 
 
-def extend_model_from_combo(model: LpProblem, combo: Combo):
+def extend_model_from_combo(model: LpProblemFactory, combo: Combo):
     # The variable representing the combo in the model
     b = model[f'B{combo.id}']
 
@@ -90,7 +91,9 @@ def unique_id_from_cards(cards: list[Card]) -> str:
     return hash_algorithm.hexdigest()
 
 
-def priority_dict_for_combo(combo: Combo, recursion_counter = 0) -> tuple[dict[Card, int], dict[Feature, int]]:
+def priority_dict_for_combo(combo: Combo, recursion_counter=0) -> tuple[dict[Card, int], dict[Feature, int]]:
+    if recursion_counter > RECURSION_LIMIT:
+        raise Exception('Recursion limit reached with combo {}'.format(combo.id))
     result = dict[Card, int]()
     result2 = dict[Feature, int]()
     for card in combo.includes.all():
@@ -118,8 +121,8 @@ def check_combo_sanity(combo: Combo, recursion_counter: int = 0) -> bool:
     return True
 
 
-def get_variants_from_model(base_model: LpProblem) -> dict[str, tuple[list[Card], list[Combo], list[Feature]]]:
-    def variants_from_combo(combo: Combo, model: LpProblem) -> dict[str, tuple[list[Card], list[Combo], list[Feature]]]:
+def get_variants_from_model(base_model: LpProblemFactory) -> dict[str, tuple[list[Card], list[Combo], list[Feature]]]:
+    def variants_from_combo(combo: Combo, model: LpProblemFactory) -> dict[str, tuple[list[Card], list[Combo], list[Feature]]]:
         result: dict[str, tuple[list[Card], list[Feature]]] = {}
         priorityc, priorityf = priority_dict_for_combo(combo)
         lpmodel = model.to_pulp(f'P{combo.id}')
@@ -130,12 +133,16 @@ def get_variants_from_model(base_model: LpProblem) -> dict[str, tuple[list[Card]
             for v in lpmodel.variables():
                 v.setInitialValue(v.upBound)
             # Minimize cards, maximize features
-            lpmodel.sequentialSolve(objectives=[
+            try:
+                lpmodel.sequentialSolve(objectives=[
                     lp.lpSum([v for v in lpmodel.variables() if v.name.startswith('C')]),
                     -lp.lpSum([v for v in lpmodel.variables() if v.name.startswith('F')]),
-                    -lp.lpSum([v for v in lpmodel.variables() if v.name.startswith('B')])
+                    lp.lpSum([v for v in lpmodel.variables() if v.name.startswith('B')])
                 ],
-                solver = lp.getSolver(settings.PULP_SOLVER, msg=False))
+                    solver=lp.getSolver(settings.PULP_SOLVER, msg=settings.PULP_DEBUG))
+            except lp.PulpSolverError:
+                logging.error(lpmodel)
+                raise
 
             if lpmodel.status == lp.LpStatusOptimal:
                 # Selecting only variables with a value of 1
@@ -194,7 +201,7 @@ def generate_variants() -> tuple[int, int]:
         logger.info('Fetching all variant unique ids...')
         old_id_set = set(Variant.objects.values_list('unique_id', flat=True))
         logger.info('Computing combos MILP representation...')
-        model = LpProblem()
+        model = LpProblemFactory()
         for combo in Combo.objects.all():
             extend_model_from_combo(model, combo)
         for feature in Feature.objects.all():

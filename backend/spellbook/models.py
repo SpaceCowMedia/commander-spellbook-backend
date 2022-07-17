@@ -112,5 +112,7 @@ class Variant(models.Model):
     def __str__(self):
         if self.pk is None:
             return f'New variant with unique id <{self.unique_id}>'
+        produces = self.produces.all()[:4]
         return ' + '.join([str(card) for card in self.includes.all()]) \
-            + ' ➡ ' + ' + '.join([str(feature) for feature in self.produces.all()])
+            + ' ➡ ' + ' + '.join([str(feature) for feature in produces[:3]]) \
+            + ('...' if len(produces) > 3 else '')

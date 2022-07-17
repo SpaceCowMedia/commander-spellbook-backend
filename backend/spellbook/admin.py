@@ -54,18 +54,22 @@ class VariantAdmin(admin.ModelAdmin):
 
     def generate(self, request):
         if request.method == 'POST':
-            added, updated, removed = generate_variants()
-            LogEntry(
-                user=request.user,
-                content_type=ContentType.objects.get_for_model(Variant),
-                object_repr='Generated Variants',
-                action_flag=CHANGE,
-                change_message=f'Variant generation: added {added} new variants, updated {updated} variants, removed {removed} variants.'
-            ).save()
-            if added == 0 and removed == 0:
-                messages.info(request, 'Variants are already synced with combos')
-            else:
-                messages.success(request, f'Generated {added} new variants, updated {updated} variants, removed {removed} variants')
+            try:
+                added, updated, removed = generate_variants()
+                LogEntry(
+                    user=request.user,
+                    content_type=ContentType.objects.get_for_model(Variant),
+                    object_repr='Generated Variants',
+                    action_flag=CHANGE,
+                    change_message=f'Variant generation: added {added} new variants, updated {updated} variants, removed {removed} variants.'
+                ).save()
+                if added == 0 and removed == 0:
+                    messages.info(request, 'Variants are already synced with combos')
+                else:
+                    messages.success(request, f'Generated {added} new variants, updated {updated} variants, removed {removed} variants')
+            except Exception as e:
+                logging.error(e)
+                messages.error(request, 'Error generating variants: ' + str(e))
         return HttpResponseRedirect(reverse('admin:spellbook_variant_changelist'))
 
     def get_urls(self):

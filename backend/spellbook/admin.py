@@ -1,4 +1,5 @@
 import logging
+import traceback
 from django.contrib import admin
 from django.urls import path, reverse
 from django.http import HttpResponseRedirect
@@ -68,7 +69,7 @@ class VariantAdmin(admin.ModelAdmin):
                 else:
                     messages.success(request, f'Generated {added} new variants, updated {updated} variants, removed {removed} variants')
             except Exception as e:
-                logging.error(e)
+                logging.error(traceback.format_exc())
                 messages.error(request, 'Error generating variants: ' + str(e))
         return HttpResponseRedirect(reverse('admin:spellbook_variant_changelist'))
 

@@ -6,3 +6,8 @@
     {{ block.super }}
     <link rel="icon" type="image/x-icon" href="{% static 'spellbook/favicon.ico' %}">
 {% endblock %}
+
+{% block userlinks %}
+    {{ block.super }}
+    / <a href="https://github.com/ldeluigi/commander-spellbook-backend/issues" target="_blank">Feedback</a>
+{% endblock %}

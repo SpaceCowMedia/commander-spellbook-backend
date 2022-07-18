@@ -7,9 +7,6 @@ from multiprocessing.dummy import Pool as ThreadPool
 from django.db import transaction
 from django.db.models import Count
 from django.conf import settings
-
-from .atomic_patch import immediate_atomic
-
 from .pulp_patch import LpProblem
 from .models import Card, Feature, Combo, Variant
 from copy import deepcopy
@@ -194,7 +191,7 @@ def create_variant(cards: list[Card], unique_id: str, combos_included: list[Comb
 
 
 def generate_variants() -> tuple[int, int]:
-    with immediate_atomic():
+    with transaction.atomic():
         logger.info('Deleting variants set to RESTORE...')
         _, deleted_dict = Variant.objects.filter(status=Variant.Status.RESTORE).delete()
         restored = deleted_dict['spellbook.Variant'] if 'spellbook.Variant' in deleted_dict else 0

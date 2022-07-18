@@ -1,4 +1,5 @@
 import hashlib
+from itertools import starmap
 import json
 import logging
 import pulp as lp
@@ -6,6 +7,8 @@ from multiprocessing.dummy import Pool as ThreadPool
 from django.db import transaction
 from django.db.models import Count
 from django.conf import settings
+
+from .atomic_patch import immediate_atomic
 
 from .pulp_patch import LpProblem
 from .models import Card, Feature, Combo, Variant
@@ -91,24 +94,19 @@ def unique_id_from_cards(cards: list[Card]) -> str:
     return hash_algorithm.hexdigest()
 
 
-def priority_dict_for_combo(combo: Combo, recursion_counter=0) -> tuple[dict[Card, int], dict[Feature, int]]:
+def priority_dict_for_combo(combo: Combo, recursion_counter=0) -> dict[Card, int]:
     if recursion_counter > RECURSION_LIMIT:
         raise Exception('Recursion limit reached with combo {}'.format(combo.id))
     result = dict[Card, int]()
-    result2 = dict[Feature, int]()
     for card in combo.includes.all():
         result[card] = recursion_counter
-    for feature in combo.produces.all():
-        result2[feature] = recursion_counter
     for feature in combo.needs.all():
-        result2[feature] = recursion_counter + 1
         for card in feature.cards.all():
             result[card] = recursion_counter + 1
         for combo in feature.produced_by_combos.all():
-            p1, p2 = priority_dict_for_combo(combo, recursion_counter + 2)
+            p1 = priority_dict_for_combo(combo, recursion_counter + 2)
             result = p1 | result
-            result2 = p2 | result2
-    return result, result2
+    return result
 
 
 def check_combo_sanity(combo: Combo, recursion_counter: int = 0) -> bool:
@@ -124,7 +122,7 @@ def check_combo_sanity(combo: Combo, recursion_counter: int = 0) -> bool:
 def get_variants_from_model(base_model: LpProblemFactory) -> dict[str, tuple[list[Card], list[Combo], list[Feature]]]:
     def variants_from_combo(combo: Combo, model: LpProblemFactory) -> dict[str, tuple[list[Card], list[Combo], list[Feature]]]:
         result: dict[str, tuple[list[Card], list[Feature]]] = {}
-        priorityc, priorityf = priority_dict_for_combo(combo)
+        priorityc = priority_dict_for_combo(combo)
         lpmodel = model.to_pulp(f'P{combo.id}')
         # Minimize cards, maximize features
         lpmodel.addConstraint(model[f'B{combo.id}'] >= 1)
@@ -137,7 +135,7 @@ def get_variants_from_model(base_model: LpProblemFactory) -> dict[str, tuple[lis
                 lpmodel.sequentialSolve(objectives=[
                     lp.lpSum([v for v in lpmodel.variables() if v.name.startswith('C')]),
                     -lp.lpSum([v for v in lpmodel.variables() if v.name.startswith('F')]),
-                    lp.lpSum([v for v in lpmodel.variables() if v.name.startswith('B')])
+                    -lp.lpSum([v for v in lpmodel.variables() if v.name.startswith('B')])
                 ],
                     solver=lp.getSolver(settings.PULP_SOLVER, msg=settings.PULP_DEBUG))
             except lp.PulpSolverError:
@@ -155,7 +153,7 @@ def get_variants_from_model(base_model: LpProblemFactory) -> dict[str, tuple[lis
                 unique_id = unique_id_from_cards(card_list)
                 if unique_id not in result:
                     combo_list = [Combo.objects.get(pk=int(v.name[1:])) for v in combo_variables]
-                    feature_list = sorted([Feature.objects.get(pk=int(v.name[1:])) for v in feature_variables], key=lambda f: priorityf.get(f, RECURSION_LIMIT))
+                    feature_list = [Feature.objects.get(pk=int(v.name[1:])) for v in feature_variables]
                     card_list = sorted(card_list, key=lambda card: priorityc[card])
                     result[unique_id] = (card_list, feature_list, combo_list)
                 # Eclude any solution containing the current variant of the combo, from now on
@@ -164,17 +162,17 @@ def get_variants_from_model(base_model: LpProblemFactory) -> dict[str, tuple[lis
                 lpmodel.addConstraint(model[f'B{combo.id}'] >= 1)
         return result
     logging.info(f'Spawning thread pool of size {settings.PULP_THREADS}...')
-    pool = ThreadPool(processes=settings.PULP_THREADS)
+    #pool = ThreadPool(processes=settings.PULP_THREADS)
     result = {}
     # Considering only combos with two or more components to avoid 1 -> 1 combos
     logging.info(f'Computing all possible variants in parallel...')
-    results = pool.starmap(variants_from_combo,
+    results = starmap(variants_from_combo,
         ((c, base_model.copy()) for c in
             Combo.objects.annotate(m=Count('needs') + Count('includes')).filter(m__gt=1)))
     logging.info(f'Merging results, discarding duplicates...')
     for r in results:
         result.update(r)
-    pool.close()
+    #pool.close()
     logging.info(f'Done: pool closed.')
     return result
 
@@ -196,7 +194,7 @@ def create_variant(cards: list[Card], unique_id: str, combos_included: list[Comb
 
 
 def generate_variants() -> tuple[int, int]:
-    with transaction.atomic():
+    with immediate_atomic():
         logger.info('Deleting variants set to RESTORE...')
         _, deleted_dict = Variant.objects.filter(status=Variant.Status.RESTORE).delete()
         restored = deleted_dict['spellbook.Variant'] if 'spellbook.Variant' in deleted_dict else 0

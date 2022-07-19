@@ -131,6 +131,30 @@ def combo_model(base_model: pyo.ConcreteModel, combo: Combo) -> pyo.ConcreteMode
     return model
 
 
+def solve_combo_model(model: pyo.ConcreteModel, opt: pyo.SolverFactory) -> bool:
+    model.MinimizeCards.activate()
+    results = opt.solve(model, tee=False)
+    if results.solver.termination_condition == TerminationCondition.optimal:
+        model.Sequential.add(model.MinimizeCards <= pyo.value(model.MinimizeCards))
+        model.MinimizeCards.deactivate()
+        model.MaximizeFeatures.activate()
+        results = opt.solve(model, tee=False)
+        if results.solver.termination_condition == TerminationCondition.optimal:
+            model.Sequential.add(model.MaximizeFeatures >= pyo.value(model.MaximizeFeatures))
+            model.MaximizeFeatures.deactivate()
+            model.MaximizeCombos.activate()
+            results = opt.solve(model, tee=False)
+            if results.solver.termination_condition == TerminationCondition.optimal:
+                model.Sequential.clear()
+                model.MaximizeCombos.deactivate()
+                return True
+    model.Sequential.clear()
+    model.MinimizeCards.deactivate()
+    model.MaximizeFeatures.deactivate()
+    model.MaximizeCombos.deactivate()
+    return False
+
+
 @dataclass
 class VariantDefinition:
     card_ids: list[int]
@@ -157,8 +181,8 @@ def get_variants_from_model(base_model: pyo.ConcreteModel) -> dict[str, VariantD
     # logging.info(f'Spawning thread pool of size {settings.PARALLEL_SOLVERS}...')
     # pool = ThreadPool(processes=settings.PARALLEL_SOLVERS)
     logging.info(f'Computing all possible variants')
-    # Considering only combos with two or more components to avoid 1 -> 1 combos
     opt = pyo.SolverFactory('glpk', executable='D:\Downloads\winglpk-4.65\glpk-4.65\w64\glpsol.exe')
+    # Considering only combos with two or more components to avoid 1 -> 1 combos
     results = list(starmap(variants_from_combo,
         ((combo_model(base_model, c), opt, priority_dict_for_combo(c)) for c in
             Combo.objects.annotate(m=Count('needs') + Count('includes')).filter(m__gt=1))))
@@ -170,28 +194,6 @@ def get_variants_from_model(base_model: pyo.ConcreteModel) -> dict[str, VariantD
     logging.info(f'Done: pool closed.')
     return result
 
-
-def solve_combo_model(model: pyo.ConcreteModel, opt: pyo.SolverFactory) -> bool:
-    model.MinimizeCards.activate()
-    results = opt.solve(model, tee=False)
-    if results.solver.termination_condition == TerminationCondition.optimal:
-        model.Sequential.add(model.MinimizeCards <= pyo.value(model.MinimizeCards))
-        model.MinimizeCards.deactivate()
-        model.MaximizeFeatures.activate()
-        results = opt.solve(model, tee=False)
-        if results.solver.termination_condition == TerminationCondition.optimal:
-            model.Sequential.add(model.MaximizeFeatures >= pyo.value(model.MaximizeFeatures))
-            model.MaximizeFeatures.deactivate()
-            model.MaximizeCombos.activate()
-            results = opt.solve(model, tee=False)
-            if results.solver.termination_condition == TerminationCondition.optimal:
-                model.Sequential.clear()
-                model.MaximizeCombos.deactivate()
-                return True
-    model.MinimizeCards.deactivate()
-    model.MaximizeFeatures.deactivate()
-    model.MaximizeCombos.deactivate()
-    return False
 
 def generate_variants() -> tuple[int, int]:
     with transaction.atomic():

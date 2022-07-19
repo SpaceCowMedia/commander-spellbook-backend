@@ -74,8 +74,9 @@ class Combo(models.Model):
 
 class Variant(models.Model):
     class Status(models.TextChoices):
-        NOT_WORKING = 'NW'
+        NEW = 'N'
         DRAFT = 'D'
+        NOT_WORKING = 'NW'
         OK = 'OK'
         RESTORE = 'R'
 
@@ -94,7 +95,7 @@ class Variant(models.Model):
         related_name='variants',
         help_text='Combo that this variant is an instance of',
         editable=False)
-    status = models.CharField(choices=Status.choices, default=Status.DRAFT, help_text='Variant status for editors', max_length=2)
+    status = models.CharField(choices=Status.choices, default=Status.NEW, help_text='Variant status for editors', max_length=2)
     prerequisites = models.TextField(blank=True, help_text='Setup instructions for this variant')
     description = models.TextField(blank=True, help_text='Long description of the variant, in steps')
     created = models.DateTimeField(auto_now_add=True, editable=False)

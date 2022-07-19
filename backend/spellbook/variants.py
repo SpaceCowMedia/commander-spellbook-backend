@@ -8,7 +8,7 @@ from django.db import transaction
 from django.db.models import Count
 from django.conf import settings
 import pyomo.environ as pyo
-from pyomo.opt import SolverStatus, TerminationCondition
+from pyomo.opt import TerminationCondition
 from .models import Card, Feature, Combo, Variant
 logging.getLogger('pyomo.opt').setLevel(logging.WARNING)
 logging.getLogger('pyomo.core').setLevel(logging.WARNING)
@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 RECURSION_LIMIT = 20
+
 
 def unique_id_from_cards_ids(cards: list[int]) -> str:
     hash_algorithm = hashlib.sha256()
@@ -48,17 +49,22 @@ def check_combo_sanity(combo: Combo, recursion_counter: int = 0) -> bool:
     return True
 
 
-def update_variant(unique_id: str, combos_included: list[int], features: list[int]):
+def update_variant(unique_id: str, combos_included: list[int], features: list[int], ok: bool):
     variant = Variant.objects.get(unique_id=unique_id)
     variant.of.set(combos_included)
     variant.produces.set(features)
+    if not ok:
+        variant.status = Variant.Status.NOT_WORKING
+        variant.save()
 
 
-def create_variant(cards: list[Card], unique_id: str, combos_included: list[int], features: list[int]):
+def create_variant(cards: list[Card], unique_id: str, combos_included: list[int], features: list[int], ok: bool):
     combos = Combo.objects.filter(id__in=combos_included)
     prerequisites = '\n'.join(c.prerequisites for c in combos)
     description = '\n'.join(c.description for c in combos)
     variant = Variant(unique_id=unique_id, prerequisites=prerequisites, description=description)
+    if not ok:
+        variant.status = Variant.Status.NOT_WORKING
     variant.save()
     variant.includes.set(cards)
     variant.of.set(combos_included)
@@ -131,6 +137,25 @@ def combo_model(base_model: pyo.ConcreteModel, combo: Combo) -> pyo.ConcreteMode
     return model
 
 
+def exclude_variants_model(base_model: pyo.ConcreteModel) -> pyo.ConcreteModel:
+    model = base_model.clone()
+    not_working_variants = Variant.objects.filter(status=Variant.Status.NOT_WORKING)
+    for variant in not_working_variants:
+        card_id_list = variant.includes.values_list('id', flat=True)
+        model.Variants.add(sum(model.c[i] for i in card_id_list) <= len(card_id_list) - 1)
+    model.obj = pyo.Objective(expr=sum(model.f[i] for i in model.f) + sum(model.b[i] for i in model.b), sense=pyo.maximize)
+    return model
+
+
+def is_variant_valid(model: pyo.ConcreteModel, card_ids: list[int], opt: pyo.SolverFactory) -> bool:
+    for card_id in card_ids:
+        model.c[card_id].fix(True)
+    result = opt.solve(model)
+    answer = result.solver.termination_condition == TerminationCondition.optimal
+    model.c.fix(False)
+    return answer
+
+
 def solve_combo_model(model: pyo.ConcreteModel, opt: pyo.SolverFactory) -> bool:
     model.MinimizeCards.activate()
     results = opt.solve(model, tee=False)
@@ -162,7 +187,7 @@ class VariantDefinition:
     feature_ids: list[int]
 
 
-def get_variants_from_model(base_model: pyo.ConcreteModel) -> dict[str, VariantDefinition]:
+def get_variants_from_model(base_model: pyo.ConcreteModel, opt: pyo.SolverFactory) -> dict[str, VariantDefinition]:
     def variants_from_combo(model: pyo.ConcreteModel, opt: pyo.SolverFactory, priorityc: dict[Card, int]) -> dict[str, VariantDefinition]:
         result: dict[str, VariantDefinition] = {}
         while True:
@@ -180,18 +205,17 @@ def get_variants_from_model(base_model: pyo.ConcreteModel) -> dict[str, VariantD
         return result
     # logging.info(f'Spawning thread pool of size {settings.PARALLEL_SOLVERS}...')
     # pool = ThreadPool(processes=settings.PARALLEL_SOLVERS)
-    logging.info(f'Computing all possible variants')
-    opt = pyo.SolverFactory('glpk', executable='D:\Downloads\winglpk-4.65\glpk-4.65\w64\glpsol.exe')
+    logging.info('Computing all possible variants')
     # Considering only combos with two or more components to avoid 1 -> 1 combos
     results = list(starmap(variants_from_combo,
         ((combo_model(base_model, c), opt, priority_dict_for_combo(c)) for c in
             Combo.objects.annotate(m=Count('needs') + Count('includes')).filter(m__gt=1))))
-    logging.info(f'Merging results, discarding duplicates...')
+    logging.info('Merging results, discarding duplicates...')
     result = {}
     for r in results:
         result.update(r)
     # pool.close()
-    logging.info(f'Done: pool closed.')
+    logging.info('Done.')
     return result
 
 
@@ -205,14 +229,16 @@ def generate_variants() -> tuple[int, int]:
         old_id_set = set(Variant.objects.values_list('unique_id', flat=True))
         logger.info('Computing combos MILP representation...')
         model = base_model()
+        variant_check_model = exclude_variants_model(model)
+        opt = pyo.SolverFactory('glpk')
         logger.info('Solving MILP for each combo...')
-        variants = get_variants_from_model(model)
+        variants = get_variants_from_model(model, opt)
         logger.info('Saving variants...')
         for unique_id, variant_def in variants.items():
             if unique_id in old_id_set:
-                update_variant(unique_id, variant_def.combo_ids, variant_def.feature_ids)
+                update_variant(unique_id, variant_def.combo_ids, variant_def.feature_ids, is_variant_valid(variant_check_model, variant_def.card_ids, opt))
             else:
-                create_variant(variant_def.card_ids, unique_id, variant_def.combo_ids, variant_def.feature_ids)
+                create_variant(variant_def.card_ids, unique_id, variant_def.combo_ids, variant_def.feature_ids, is_variant_valid(variant_check_model, variant_def.card_ids, opt))
         new_id_set = set(variants.keys())
         to_delete = old_id_set - new_id_set
         added = new_id_set - old_id_set

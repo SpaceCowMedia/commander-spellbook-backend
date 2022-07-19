@@ -2,4 +2,4 @@ Django==4.0.6
 djangorestframework==3.13.1
 django-filter==22.1
 django-sortedm2m==3.1.1
-pulp==2.6.0
+pyomo==6.4.1

@@ -24,9 +24,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ['SECRET_KEY']
 
 DEBUG = False
-PULP_SOLVER = pl.listSolvers(onlyAvailable=True)[0]
-PULP_THREADS = 100
-PULP_DEBUG = False
+PARALLEL_SOLVERS = 20
 
 # Security settings
 ALLOWED_HOSTS = ['commanderspellbook.com', 'localhost', '127.0.0.1']

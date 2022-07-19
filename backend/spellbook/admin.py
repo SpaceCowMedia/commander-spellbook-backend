@@ -108,12 +108,12 @@ class ComboAdmin(admin.ModelAdmin):
     fieldsets = [
         ('Requirements', {'fields': ['includes', 'needs', 'prerequisites']}),
         ('Features', {'fields': ['produces']}),
-        ('Description', {'fields': ['description']})
+        ('Description', {'fields': ['generator', 'description']})
     ]
     filter_horizontal = ['includes', 'produces', 'needs']
-    list_filter = ['produces', 'needs']
+    list_filter = ['generator', 'produces', 'needs']
     search_fields = ['includes__name', 'produces__name', 'needs__name']
-    list_display = ['__str__', 'id']
+    list_display = ['__str__', 'generator', 'id']
 
 
 # Admin configuration

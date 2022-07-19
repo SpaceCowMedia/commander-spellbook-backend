@@ -57,6 +57,7 @@ class Combo(models.Model):
         verbose_name='included cards')
     prerequisites = models.TextField(blank=True, help_text='Setup instructions for this combo')
     description = models.TextField(blank=True, help_text='Long description of the combo, in steps')
+    generator = models.BooleanField(default=True, help_text='Is this combo a generator for variants?', verbose_name='is generator')
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, editable=False)
 

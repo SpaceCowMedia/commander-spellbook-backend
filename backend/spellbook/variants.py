@@ -7,11 +7,11 @@ from multiprocessing.dummy import Pool as ThreadPool
 from django.db import transaction
 from django.db.models import Count
 from django.conf import settings
+logging.getLogger('pyomo.opt').setLevel(logging.WARNING)
+logging.getLogger('pyomo.core').setLevel(logging.WARNING)
 import pyomo.environ as pyo
 from pyomo.opt import TerminationCondition
 from .models import Card, Feature, Combo, Variant
-logging.getLogger('pyomo.opt').setLevel(logging.WARNING)
-logging.getLogger('pyomo.core').setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 
@@ -208,8 +208,7 @@ def get_variants_from_model(base_model: pyo.ConcreteModel, opt: pyo.SolverFactor
     logging.info('Computing all possible variants')
     # Considering only combos with two or more components to avoid 1 -> 1 combos
     results = list(starmap(variants_from_combo,
-        ((combo_model(base_model, c), opt, priority_dict_for_combo(c)) for c in
-            Combo.objects.annotate(m=Count('needs') + Count('includes')).filter(m__gt=1))))
+        ((combo_model(base_model, c), opt, priority_dict_for_combo(c)) for c in Combo.objects.filter(generator=True))))
     logging.info('Merging results, discarding duplicates...')
     result = {}
     for r in results:

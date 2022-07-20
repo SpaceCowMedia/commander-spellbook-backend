@@ -75,7 +75,8 @@ class Combo(models.Model):
         if self.pk is None:
             return 'New, unsaved combo'
         return ' + '.join([str(card) for card in self.includes.all()] + [str(feature) for feature in self.needs.all()]) \
-            + ' ➡ ' + ' + '.join([str(feature) for feature in self.produces.all()])
+            + ' ➡ ' + ' + '.join([str(feature) for feature in self.produces.all()]) \
+            + (' - ' + ' - '.join([str(feature) for feature in self.removes.all()]) if self.removes.exists() else '')
 
 
 class Variant(models.Model):

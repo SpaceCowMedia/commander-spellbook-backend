@@ -1,10 +1,14 @@
 version: 2
 updates:
   - package-ecosystem: pip
+    labels:
+      - dependencies
     directory: backend/
     schedule:
       interval: monthly
   - package-ecosystem: docker
+    labels:
+      - dependencies
     directory: backend/
     schedule:
       interval: monthly

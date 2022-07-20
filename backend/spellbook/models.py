@@ -43,6 +43,11 @@ class Combo(models.Model):
         related_name='produced_by_combos',
         help_text='Features that this combo produces',
         verbose_name='produced features')
+    removes = models.ManyToManyField(
+        to=Feature,
+        related_name='removed_by_combos',
+        help_text='Features that this combo removes',
+        verbose_name='removed features')
     needs = models.ManyToManyField(
         to=Feature,
         related_name='needed_by_combos',

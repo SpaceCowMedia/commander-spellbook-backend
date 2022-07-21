@@ -44,6 +44,7 @@ class Combo(models.Model):
         help_text='Features that this combo produces',
         verbose_name='produced features')
     removes = models.ManyToManyField(
+        blank=True,
         to=Feature,
         related_name='removed_by_combos',
         help_text='Features that this combo removes',

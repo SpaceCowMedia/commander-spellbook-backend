@@ -13,6 +13,8 @@ logger = logging.getLogger(__name__)
 
 
 RECURSION_LIMIT = 20
+SOLVE_TIMEOUT = 5
+MAX_CARDS_IN_COMBO = 10
 
 
 @dataclass
@@ -94,6 +96,8 @@ def base_model(data: Data) -> pyo.ConcreteModel:
     model.b = pyo.Var(model.B, domain=pyo.Boolean)
     model.f = pyo.Var(model.F, domain=pyo.Boolean)
     model.c = pyo.Var(model.C, domain=pyo.Boolean)
+    # Variants constraints
+    model.V = pyo.Constraint(expr=sum(model.c[i] for i in model.c) <= MAX_CARDS_IN_COMBO)
     # Combo constraints
     model.BC = pyo.ConstraintList()
     model.BF = pyo.ConstraintList()
@@ -163,24 +167,24 @@ def is_variant_valid(model: pyo.ConcreteModel, card_ids: list[int], opt: pyo.Sol
     model.c.fix(False)
     for card_id in card_ids:
         model.c[card_id].fix(True)
-    result = opt.solve(model)
+    result = opt.solve(model, tee=False, timelimit=SOLVE_TIMEOUT)
     answer = result.solver.termination_condition == TerminationCondition.optimal
     return answer
 
 
 def solve_combo_model(model: pyo.ConcreteModel, opt: pyo.SolverFactory) -> bool:
     model.MinimizeCards.activate()
-    results = opt.solve(model, tee=False)
+    results = opt.solve(model, tee=False, timelimit=SOLVE_TIMEOUT)
     if results.solver.termination_condition == TerminationCondition.optimal:
         model.Sequential.add(model.MinimizeCards <= pyo.value(model.MinimizeCards))
         model.MinimizeCards.deactivate()
         model.MaximizeFeatures.activate()
-        results = opt.solve(model, tee=False)
+        results = opt.solve(model, tee=False, timelimit=SOLVE_TIMEOUT)
         if results.solver.termination_condition == TerminationCondition.optimal:
             model.Sequential.add(model.MaximizeFeatures >= pyo.value(model.MaximizeFeatures))
             model.MaximizeFeatures.deactivate()
             model.MaximizeCombos.activate()
-            results = opt.solve(model, tee=False)
+            results = opt.solve(model, tee=False, timelimit=SOLVE_TIMEOUT)
             if results.solver.termination_condition == TerminationCondition.optimal:
                 model.Sequential.clear()
                 model.MaximizeCombos.deactivate()

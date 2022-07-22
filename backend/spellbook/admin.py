@@ -16,8 +16,8 @@ from django.core.exceptions import ValidationError
 @admin.register(Card)
 class CardAdmin(admin.ModelAdmin):
     fieldsets = [
+        ('Spellbook', {'fields': ['name', 'features']}),
         ('Scryfall', {'fields': ['oracle_id']}),
-        ('Spellbook', {'fields': ['name', 'features']})
     ]
     # inlines = [FeatureInline]
     search_fields = ['name', 'features__name']

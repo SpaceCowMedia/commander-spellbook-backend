@@ -1,0 +1,52 @@
+{% extends "admin/change_form.html" %}
+{% load static %}
+
+{% block extrahead %}
+    {{ block.super }}
+    <!-- jQuery !-->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"> </script>
+    <!-- jQuery UI !-->
+    <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/themes/smoothness/jquery-ui.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
+{% endblock %}
+
+{% block admin_change_form_document_ready %}
+    {{ block.super }}
+    <script>
+        $(function() {
+            $('#id_name').autocomplete({
+                source: function(request, response) {
+                    $.ajax({
+                        url: 'https://api.scryfall.com/cards/autocomplete',
+                        dataType: 'json',
+                        data: {
+                            q: request.term,
+                            format: 'json'
+                        },
+                        success: function(data) {
+                            response(data.data);
+                        }
+                    });
+                },
+                minLength: 3,
+                select: function(event, ui) {
+                    let card = ui.item.value;
+                    $.ajax({
+                        url: 'https://api.scryfall.com/cards/named',
+                        dataType: 'json',
+                        data: {
+                            exact: card,
+                            format: 'json'
+                        },
+                        success: function(data) {
+                            let oracle_id = data.oracle_id;
+                            $('#id_oracle_id').val(oracle_id);
+                        }
+                    })
+                },
+                open: function() {},
+                close: function() {}
+            });
+        });
+    </script>
+{% endblock %}

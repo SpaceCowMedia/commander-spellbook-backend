@@ -88,11 +88,13 @@ def create_variant(cards: list[int], unique_id: str, combos_included: set[int], 
     variant.produces.set(removed_features(variant, features))
 
 
-def base_model(data: Data) -> pyo.ConcreteModel:
+def base_model(data: Data) -> pyo.ConcreteModel | None:
     model = pyo.ConcreteModel(name='Spellbook')
     model.B = pyo.Set(initialize=data.combos.values_list('id', flat=True))
     model.F = pyo.Set(initialize=data.features.values_list('id', flat=True))
     model.C = pyo.Set(initialize=data.cards.values_list('id', flat=True))
+    if len(model.C) == 0:
+        return None
     model.b = pyo.Var(model.B, domain=pyo.Boolean)
     model.f = pyo.Var(model.F, domain=pyo.Boolean)
     model.c = pyo.Var(model.C, domain=pyo.Boolean)
@@ -242,16 +244,19 @@ def generate_variants() -> tuple[int, int]:
         old_id_set = set(data.variants.values_list('unique_id', flat=True))
         logger.info('Computing combos MILP representation...')
         model = base_model(data)
-        variant_check_model = exclude_variants_model(model, data)
-        opt = pyo.SolverFactory(settings.SOLVER_NAME)
-        logger.info('Solving MILP for each combo...')
-        variants = get_variants_from_model(model, opt, data)
-        logger.info('Saving variants...')
-        for unique_id, variant_def in variants.items():
-            if unique_id in old_id_set:
-                update_variant(unique_id, variant_def.combo_ids, variant_def.feature_ids, is_variant_valid(variant_check_model, variant_def.card_ids, opt), data)
-            else:
-                create_variant(variant_def.card_ids, unique_id, variant_def.combo_ids, variant_def.feature_ids, is_variant_valid(variant_check_model, variant_def.card_ids, opt), data)
+        if model is not None:
+            variant_check_model = exclude_variants_model(model, data)
+            opt = pyo.SolverFactory(settings.SOLVER_NAME)
+            logger.info('Solving MILP for each combo...')
+            variants = get_variants_from_model(model, opt, data)
+            logger.info('Saving variants...')
+            for unique_id, variant_def in variants.items():
+                if unique_id in old_id_set:
+                    update_variant(unique_id, variant_def.combo_ids, variant_def.feature_ids, is_variant_valid(variant_check_model, variant_def.card_ids, opt), data)
+                else:
+                    create_variant(variant_def.card_ids, unique_id, variant_def.combo_ids, variant_def.feature_ids, is_variant_valid(variant_check_model, variant_def.card_ids, opt), data)
+        else:
+            variants = dict()
         new_id_set = set(variants.keys())
         to_delete = old_id_set - new_id_set
         added = new_id_set - old_id_set

@@ -42,6 +42,21 @@ class FeatureAdmin(admin.ModelAdmin):
     list_display = ['name', 'id']
 
 
+@admin.action(description='Mark selected variants as RESTORE')
+def set_restore(modeladmin, request, queryset):
+    queryset.update(status=Variant.Status.RESTORE)
+
+
+@admin.action(description='Mark selected variants as DRAFT')
+def set_draft(modeladmin, request, queryset):
+    queryset.update(status=Variant.Status.DRAFT)
+
+
+@admin.action(description='Mark selected variants as NEW')
+def set_new(modeladmin, request, queryset):
+    queryset.update(status=Variant.Status.NEW)
+
+
 @admin.register(Variant)
 class VariantAdmin(admin.ModelAdmin):
     readonly_fields = ['includes', 'produces', 'of', 'unique_id']
@@ -52,6 +67,7 @@ class VariantAdmin(admin.ModelAdmin):
     list_filter = ['status', 'produces__name']
     list_display = ['__str__', 'status', 'id']
     search_fields = ['id', 'includes__name', 'produces__name', 'unique_id']
+    actions = [set_restore, set_draft, set_new]
 
     def generate(self, request):
         if request.method == 'POST':

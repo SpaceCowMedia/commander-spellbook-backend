@@ -31,12 +31,13 @@ SOLVER_NAME = 'glpk'
 ALLOWED_HOSTS = [
     'commanderspellbook.com',
     'localhost',
-    '127.0.0.1'
+    '127.0.0.1',
+    '192.168.1.119',
 ]
 CSRF_TRUSTED_ORIGINS = [
     'https://commanderspellbook.com',
     'http://localhost:1337',
-    'http://localhost'
+    'http://192.168.1.119:1337',
 ]
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
@@ -164,6 +165,20 @@ REST_FRAMEWORK = {
         'anon': '100/minute',
         'user': '1000/minute'
     }
+}
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
 }
 logging.getLogger('pyomo.opt').setLevel(logging.WARNING)
 logging.getLogger('pyomo.core').setLevel(logging.WARNING)

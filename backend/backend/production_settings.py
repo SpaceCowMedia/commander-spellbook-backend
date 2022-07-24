@@ -28,7 +28,11 @@ PARALLEL_SOLVERS = 20
 SOLVER_NAME = 'glpk'
 
 # Security settings
-ALLOWED_HOSTS = ['commanderspellbook.com', 'localhost', '127.0.0.1']
+ALLOWED_HOSTS = [
+    'commanderspellbook.com',
+    'localhost',
+    '127.0.0.1'
+]
 CSRF_TRUSTED_ORIGINS = [
     'https://commanderspellbook.com',
     'http://localhost:1337',
@@ -52,6 +56,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'spellbook',
     'django.contrib.admin',
+    'sortedm2m',
     'rest_framework',
     'django_filters',
 ]
@@ -92,8 +97,12 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': os.getenv('SQL_ENGINE', 'django.db.backends.sqlite3'),
+        'NAME': os.environ.get("SQL_DATABASE", BASE_DIR / "db.sqlite3"),
+        "USER": os.environ.get("SQL_USER", "user"),
+        "PASSWORD": os.environ.get("SQL_PASSWORD", "password"),
+        "HOST": os.environ.get("SQL_HOST", "localhost"),
+        "PORT": os.environ.get("SQL_PORT", "5432"),
     }
 }
 

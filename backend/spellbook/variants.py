@@ -243,7 +243,7 @@ def generate_variants() -> tuple[int, int]:
         logger.info('Computing combos MILP representation...')
         model = base_model(data)
         variant_check_model = exclude_variants_model(model, data)
-        opt = pyo.SolverFactory('glpk')
+        opt = pyo.SolverFactory(settings.SOLVER_NAME)
         logger.info('Solving MILP for each combo...')
         variants = get_variants_from_model(model, opt, data)
         logger.info('Saving variants...')

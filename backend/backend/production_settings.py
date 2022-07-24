@@ -25,6 +25,7 @@ SECRET_KEY = os.environ['SECRET_KEY']
 
 DEBUG = False
 PARALLEL_SOLVERS = 20
+SOLVER_NAME = 'glpk'
 
 # Security settings
 ALLOWED_HOSTS = ['commanderspellbook.com', 'localhost', '127.0.0.1']

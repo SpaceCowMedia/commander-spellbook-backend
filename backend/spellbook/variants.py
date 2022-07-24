@@ -66,16 +66,36 @@ def removed_features(variant: Variant, features: set[int]) -> set[int]:
     return features - set(variant.of.values_list('removes__id', flat=True))
 
 
-def update_variant(unique_id: str, combos_included: set[int], features: set[int], ok: bool, data: Data):
+def update_variant(
+    data: Data,
+    unique_id: str,
+    combos_included: set[int],
+    features: set[int],
+    ok: bool,
+    restore=False):
     variant = data.variants.get(unique_id=unique_id)
     variant.of.set(combos_included)
     variant.produces.set(removed_features(variant, features))
+    if restore:
+        combos = data.combos.filter(id__in=combos_included)
+        prerequisites = '\n'.join(c.prerequisites for c in combos)
+        description = '\n'.join(c.description for c in combos)
+        variant.prerequisites = prerequisites
+        variant.description = description
+        variant.status = Variant.Status.NEW if ok else Variant.Status.NOT_WORKING
     if not ok:
         variant.status = Variant.Status.NOT_WORKING
+    if not ok or restore:
         variant.save()
 
 
-def create_variant(cards: list[int], unique_id: str, combos_included: set[int], features: set[int], ok: bool, data: Data):
+def create_variant(
+    data: Data,
+    unique_id: str,
+    cards: list[int],
+    combos_included: set[int],
+    features: set[int],
+    ok: bool):
     combos = data.combos.filter(id__in=combos_included)
     prerequisites = '\n'.join(c.prerequisites for c in combos)
     description = '\n'.join(c.description for c in combos)
@@ -236,9 +256,7 @@ def get_variants_from_model(base_model: pyo.ConcreteModel, opt: pyo.SolverFactor
 def generate_variants() -> tuple[int, int]:
     with transaction.atomic():
         logger.info('Deleting variants set to RESTORE...')
-        _, deleted_dict = Variant.objects.filter(status=Variant.Status.RESTORE).delete()
-        restored = deleted_dict['spellbook.Variant'] if 'spellbook.Variant' in deleted_dict else 0
-        logger.info(f'Deleted {restored} variants set to RESTORE.')
+        to_restore = set(Variant.objects.filter(status=Variant.Status.RESTORE).values_list('unique_id', flat=True))
         logger.info('Fetching all variant unique ids...')
         data = Data()
         old_id_set = set(data.variants.values_list('unique_id', flat=True))
@@ -252,18 +270,30 @@ def generate_variants() -> tuple[int, int]:
             logger.info('Saving variants...')
             for unique_id, variant_def in variants.items():
                 if unique_id in old_id_set:
-                    update_variant(unique_id, variant_def.combo_ids, variant_def.feature_ids, is_variant_valid(variant_check_model, variant_def.card_ids, opt), data)
+                    update_variant(
+                        data=data,
+                        unique_id=unique_id,
+                        combos_included=variant_def.combo_ids,
+                        features=variant_def.feature_ids,
+                        ok=is_variant_valid(variant_check_model, variant_def.card_ids, opt),
+                        restore=unique_id in to_restore)
                 else:
-                    create_variant(variant_def.card_ids, unique_id, variant_def.combo_ids, variant_def.feature_ids, is_variant_valid(variant_check_model, variant_def.card_ids, opt), data)
+                    create_variant(
+                        data=data,
+                        unique_id=unique_id,
+                        cards=variant_def.card_ids,
+                        combos_included=variant_def.combo_ids,
+                        features=variant_def.feature_ids,
+                        ok=is_variant_valid(variant_check_model, variant_def.card_ids, opt))
         else:
             variants = dict()
         new_id_set = set(variants.keys())
         to_delete = old_id_set - new_id_set
         added = new_id_set - old_id_set
-        updated = new_id_set & old_id_set
+        restored = new_id_set & to_restore
         logger.info(f'Added {len(added)} new variants.')
-        logger.info(f'Updated {len(updated)} variants.')
+        logger.info(f'Updated {len(restored)} variants.')
         logger.info(f'Deleting {len(to_delete)} variants...')
         data.variants.filter(unique_id__in=to_delete).delete()
         logger.info('Done.')
-        return len(added), len(updated), len(to_delete) + restored
+        return len(added), len(restored), len(to_delete)

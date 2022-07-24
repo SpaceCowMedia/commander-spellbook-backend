@@ -51,23 +51,23 @@ class VariantAdmin(admin.ModelAdmin):
     ]
     list_filter = ['status', 'produces__name']
     list_display = ['__str__', 'status', 'id']
-    search_fields = ['includes__name', 'produces__name', 'unique_id']
+    search_fields = ['id', 'includes__name', 'produces__name', 'unique_id']
 
     def generate(self, request):
         if request.method == 'POST':
             try:
-                added, updated, removed = generate_variants()
+                added, restored, removed = generate_variants()
                 LogEntry(
                     user=request.user,
                     content_type=ContentType.objects.get_for_model(Variant),
                     object_repr='Generated Variants',
                     action_flag=CHANGE,
-                    change_message=f'Variant generation: added {added} new variants, updated {updated} variants, removed {removed} variants.'
+                    change_message=f'Variant generation: added {added} new variants, restored {restored} variants, removed {removed} variants.'
                 ).save()
-                if added == 0 and removed == 0:
+                if added == 0 and removed == 0 and restored == 0:
                     messages.info(request, 'Variants are already synced with combos')
                 else:
-                    messages.success(request, f'Generated {added} new variants, updated {updated} variants, removed {removed} variants')
+                    messages.success(request, f'Generated {added} new variants, restored {restored} variants, removed {removed} variants')
             except Exception as e:
                 logging.error(traceback.format_exc())
                 messages.error(request, 'Error generating variants: ' + str(e))

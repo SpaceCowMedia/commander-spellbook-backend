@@ -67,12 +67,12 @@ def removed_features(variant: Variant, features: set[int]) -> set[int]:
 
 
 def update_variant(
-    data: Data,
-    unique_id: str,
-    combos_included: set[int],
-    features: set[int],
-    ok: bool,
-    restore=False):
+        data: Data,
+        unique_id: str,
+        combos_included: set[int],
+        features: set[int],
+        ok: bool,
+        restore=False):
     variant = data.variants.get(unique_id=unique_id)
     variant.of.set(combos_included)
     variant.produces.set(removed_features(variant, features))
@@ -90,12 +90,12 @@ def update_variant(
 
 
 def create_variant(
-    data: Data,
-    unique_id: str,
-    cards: list[int],
-    combos_included: set[int],
-    features: set[int],
-    ok: bool):
+        data: Data,
+        unique_id: str,
+        cards: list[int],
+        combos_included: set[int],
+        features: set[int],
+        ok: bool):
     combos = data.combos.filter(id__in=combos_included)
     prerequisites = '\n'.join(c.prerequisites for c in combos)
     description = '\n'.join(c.description for c in combos)

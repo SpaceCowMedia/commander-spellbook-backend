@@ -14,7 +14,7 @@ ENV PYTHONUNBUFFERED 1
 
 # install psycopg2 dependencies
 RUN apk update \
-    && apk add gcc python3-dev musl-dev
+    && apk add gcc python3-dev musl-dev postgresql-dev
 
 # lint
 RUN pip install --upgrade pip
@@ -71,9 +71,9 @@ USER app
 ARG SECRET_KEY
 ENV SECRET_KEY=${SECRET_KEY}
 ENV DJANGO_SETTINGS_MODULE=backend.production_settings
-RUN python manage.py migrate --noinput
 # run entrypoint.prod.sh
 RUN echo "python manage.py collectstatic --no-input --clear" > entrypoint.prod.sh
+RUN echo "python manage.py migrate --noinput" >> entrypoint.prod.sh
 RUN echo "gunicorn backend.wsgi:application --bind 0.0.0.0:8000" >> entrypoint.prod.sh
 EXPOSE 8000
 ENTRYPOINT ["/bin/sh", "entrypoint.prod.sh"]

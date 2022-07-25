@@ -148,14 +148,6 @@ class Jobs(models.Model):
         on_delete=models.SET_NULL,
         help_text='User that started this job')
 
-    class Meta:
-        ordering = ['-created']
-        verbose_name = 'job'
-        verbose_name_plural = 'jobs'
-
-    def __str__(self):
-        return self.name
-
     def start(name: str, duration: timezone.timedelta, user: User):
         try:
             with transaction.atomic(durable=True):

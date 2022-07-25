@@ -255,7 +255,7 @@ def get_variants_from_model(base_model: pyo.ConcreteModel, opt: pyo.SolverFactor
 
 def generate_variants() -> tuple[int, int]:
     with transaction.atomic():
-        logger.info('Deleting variants set to RESTORE...')
+        logger.info('Fetching variants set to RESTORE...')
         to_restore = set(Variant.objects.filter(status=Variant.Status.RESTORE).values_list('unique_id', flat=True))
         logger.info('Fetching all variant unique ids...')
         data = Data()

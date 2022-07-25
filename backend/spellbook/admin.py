@@ -1,16 +1,13 @@
-import logging
-import traceback
 from django.contrib import admin
 from django.urls import path, reverse
 from django.http import HttpResponseRedirect
-from django.contrib.admin.models import LogEntry, CHANGE
-from django.contrib.contenttypes.models import ContentType
-from .variants import check_combo_sanity, generate_variants
-from .models import Card, Feature, Combo, Variant
+from .variants import check_combo_sanity
+from .models import Card, Feature, Combo, Variant, Jobs
 from django.contrib import messages
 from django.forms import ModelForm
 from django.db import transaction
 from django.core.exceptions import ValidationError
+from django.utils import timezone
 
 
 @admin.register(Card)
@@ -70,23 +67,17 @@ class VariantAdmin(admin.ModelAdmin):
     actions = [set_restore, set_draft, set_new]
 
     def generate(self, request):
-        if request.method == 'POST':
-            try:
-                added, restored, removed = generate_variants()
-                LogEntry(
-                    user=request.user,
-                    content_type=ContentType.objects.get_for_model(Variant),
-                    object_repr='Generated Variants',
-                    action_flag=CHANGE,
-                    change_message=f'Variant generation: added {added} new variants, restored {restored} variants, removed {removed} variants.'
-                ).save()
-                if added == 0 and removed == 0 and restored == 0:
-                    messages.info(request, 'Variants are already synced with combos')
-                else:
-                    messages.success(request, f'Generated {added} new variants, restored {restored} variants, removed {removed} variants')
-            except Exception as e:
-                logging.error(traceback.format_exc())
-                messages.error(request, 'Error generating variants: ' + str(e))
+        if request.method == 'POST' and request.user.is_authenticated:
+            job = Jobs.start(
+                name='generate_variants',
+                duration=timezone.timedelta(minutes=2),
+                user=request.user)
+            if job is not None:
+                import subprocess
+                subprocess.Popen(['python', 'manage.py', 'generate_variants', '--id', str(job.id)])
+                messages.info(request, 'Generation of variants job started.')
+            else:
+                messages.warning(request, 'Variant generation is already running.')
         return HttpResponseRedirect(reverse('admin:spellbook_variant_changelist'))
 
     def get_urls(self):
@@ -127,6 +118,20 @@ class ComboAdmin(admin.ModelAdmin):
     list_filter = ['generator', 'produces', 'needs']
     search_fields = ['includes__name', 'produces__name', 'needs__name']
     list_display = ['__str__', 'generator', 'id']
+
+
+@admin.register(Jobs)
+class JobsAdmin(admin.ModelAdmin):
+    list_display = ['id', 'name', 'status', 'created', 'expected_termination']
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 # Admin configuration

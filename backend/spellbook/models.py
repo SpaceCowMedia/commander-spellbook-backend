@@ -1,5 +1,7 @@
-from django.db import models
+from django.utils import timezone
+from django.db import OperationalError, models, transaction
 from sortedm2m.fields import SortedManyToManyField
+from django.contrib.auth.models import User
 
 
 class Feature(models.Model):
@@ -125,3 +127,60 @@ class Variant(models.Model):
         return ' + '.join([str(card) for card in self.includes.all()]) \
             + ' ➡ ' + ' + '.join([str(feature) for feature in produces[:3]]) \
             + ('...' if len(produces) > 3 else '')
+
+
+class Jobs(models.Model):
+    class Status(models.TextChoices):
+        SUCCESS = 'S'
+        FAILURE = 'F'
+        PENDING = 'P'
+    name = models.CharField(max_length=255, blank=False, verbose_name='name of job')
+    created = models.DateTimeField(auto_now_add=True, blank=False)
+    expected_termination = models.DateTimeField(blank=False)
+    termination = models.DateTimeField(blank=True, null=True)
+    status = models.CharField(choices=Status.choices, default=Status.PENDING, max_length=2, blank=False)
+    message = models.TextField(blank=True)
+    started_by = models.ForeignKey(
+        to=User,
+        related_name='started_jobs',
+        blank=True,
+        null=True,
+        on_delete=models.SET_NULL,
+        help_text='User that started this job')
+
+    class Meta:
+        ordering = ['-created']
+        verbose_name = 'job'
+        verbose_name_plural = 'jobs'
+
+    def __str__(self):
+        return self.name
+
+    def start(name: str, duration: timezone.timedelta, user: User):
+        try:
+            with transaction.atomic(durable=True):
+                if Jobs.objects.filter(
+                        name=name,
+                        expected_termination__gte=timezone.now(),
+                        status=Jobs.Status.PENDING).exists():
+                    return None
+                return Jobs.objects.create(
+                    name=name,
+                    expected_termination=timezone.now() + duration,
+                    started_by=user)
+        except OperationalError:
+            return None
+
+    class Meta:
+        ordering = ['-created', 'name']
+        verbose_name = 'job'
+        verbose_name_plural = 'jobs'
+        indexes = [
+            models.Index(fields=['name'], name='job_name_index')
+        ]
+        constraints = [
+            models.CheckConstraint(check=models.Q(expected_termination__gte=models.F('created')), name='job_expected_termination_gte_created')
+        ]
+
+    def __str__(self):
+        return self.name

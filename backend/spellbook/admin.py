@@ -122,7 +122,7 @@ class ComboAdmin(admin.ModelAdmin):
 
 @admin.register(Jobs)
 class JobsAdmin(admin.ModelAdmin):
-    list_display = ['id', 'name', 'status', 'created', 'expected_termination']
+    list_display = ['id', 'name', 'status', 'created', 'expected_termination', 'termination']
 
     def has_add_permission(self, request):
         return False

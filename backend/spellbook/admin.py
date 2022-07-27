@@ -19,7 +19,6 @@ class CardAdmin(admin.ModelAdmin):
     # inlines = [FeatureInline]
     search_fields = ['name', 'features__name']
     autocomplete_fields = ['features']
-    list_filter = ['features__name']
     list_display = ['name', 'id']
 
 
@@ -115,7 +114,7 @@ class ComboAdmin(admin.ModelAdmin):
         ('Description', {'fields': ['generator', 'description']})
     ]
     filter_horizontal = ['includes', 'produces', 'needs', 'removes']
-    list_filter = ['generator', 'produces', 'needs']
+    list_filter = ['generator']
     search_fields = ['includes__name', 'produces__name', 'needs__name']
     list_display = ['__str__', 'generator', 'id']
 

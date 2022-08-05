@@ -15,6 +15,17 @@
             ],
             "django": true,
             "justMyCode": true
+        },
+        {
+            "name": "Python: Django / Import Combos",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}\\backend\\manage.py",
+            "args": [
+                "import_combos"
+            ],
+            "django": true,
+            "justMyCode": true
         }
     ]
 }

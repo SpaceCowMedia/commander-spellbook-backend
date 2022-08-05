@@ -8,6 +8,7 @@ from django.forms import ModelForm
 from django.db import transaction
 from django.core.exceptions import ValidationError
 from django.utils import timezone
+from django.db.models import Avg, F
 
 
 @admin.register(Card)
@@ -26,6 +27,8 @@ class CardInline(admin.StackedInline):
     model = Feature.cards.through
     extra = 1
     autocomplete_fields = ['card']
+    verbose_name = 'Produced by card'
+    verbose_name_plural = 'Produced by cards'
 
 
 @admin.register(Feature)
@@ -67,9 +70,18 @@ class VariantAdmin(admin.ModelAdmin):
 
     def generate(self, request):
         if request.method == 'POST' and request.user.is_authenticated:
+            past_runs_duration = Jobs.objects \
+                .filter(name='generate_variants', status=Jobs.Status.SUCCESS) \
+                .order_by('-created') \
+                [:5] \
+                .annotate(duration=F('termination') - F('created')) \
+                .aggregate(average_duration=Avg('duration'))['average_duration']
+            if past_runs_duration is None:
+                past_runs_duration = timezone.timedelta(minutes=30)
+
             job = Jobs.start(
                 name='generate_variants',
-                duration=timezone.timedelta(minutes=2),
+                duration=past_runs_duration,
                 user=request.user)
             if job is not None:
                 import subprocess

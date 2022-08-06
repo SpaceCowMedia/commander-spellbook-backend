@@ -9,6 +9,7 @@ from spellbook.models import Feature, Card, Combo, Jobs
 from django.utils import timezone
 from django.db.models import Count, Q
 
+
 def scryfall() -> dict:
     req = Request(
         'https://api.scryfall.com/bulk-data/oracle-cards?format=json'
@@ -45,6 +46,7 @@ def combos_including_other_combos(pool: set[frozenset[str]]) -> dict[frozenset[s
             result[combo] = set()
     return result
 
+
 def find_combos():
     combosdb = dict[frozenset[str], frozenset[str]]()
     combosdata = dict[frozenset[str], tuple[str, str]]()
@@ -77,8 +79,7 @@ def find_combos():
             cards -= ic
         result.append((combos_reverse_id[c], cards, needs, features, combosdata[c][0], combosdata[c][1], c, ics))
     return result
-    
-    
+
 
 class Command(BaseCommand):
     help = 'Tries to import combos from the google sheet'

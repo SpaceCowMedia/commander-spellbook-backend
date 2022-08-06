@@ -1,3 +1,4 @@
+import pathlib
 from django.contrib import admin
 from django.urls import path, reverse
 from django.http import HttpResponseRedirect
@@ -84,8 +85,11 @@ class VariantAdmin(admin.ModelAdmin):
                 duration=past_runs_duration,
                 user=request.user)
             if job is not None:
+                manage_py_path = pathlib.Path(__file__).parent.parent / 'manage.py'
                 import subprocess
-                subprocess.Popen(['python', 'manage.py', 'generate_variants', '--id', str(job.id)])
+                subprocess.Popen(
+                    args=['python', manage_py_path.resolve(), 'generate_variants', '--id', str(job.id)],
+                    creationflags=subprocess.CREATE_NEW_PROCESS_GROUP)
                 messages.info(request, 'Generation of variants job started.')
             else:
                 messages.warning(request, 'Variant generation is already running.')

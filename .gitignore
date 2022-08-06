@@ -135,3 +135,6 @@ Scripts/
 
 # profiling
 *.prof
+
+# vscode
+.vscode/settings.json

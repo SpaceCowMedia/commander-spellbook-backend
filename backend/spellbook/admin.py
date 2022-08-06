@@ -1,4 +1,5 @@
 import pathlib
+import sys
 from django.contrib import admin
 from django.urls import path, reverse
 from django.http import HttpResponseRedirect
@@ -73,8 +74,7 @@ class VariantAdmin(admin.ModelAdmin):
         if request.method == 'POST' and request.user.is_authenticated:
             past_runs_duration = Jobs.objects \
                 .filter(name='generate_variants', status=Jobs.Status.SUCCESS) \
-                .order_by('-created') \
-                [:5] \
+                .order_by('-created')[:5] \
                 .annotate(duration=F('termination') - F('created')) \
                 .aggregate(average_duration=Avg('duration'))['average_duration']
             if past_runs_duration is None:
@@ -87,9 +87,13 @@ class VariantAdmin(admin.ModelAdmin):
             if job is not None:
                 manage_py_path = pathlib.Path(__file__).parent.parent / 'manage.py'
                 import subprocess
-                subprocess.Popen(
-                    args=['python', manage_py_path.resolve(), 'generate_variants', '--id', str(job.id)],
-                    creationflags=subprocess.CREATE_NEW_PROCESS_GROUP)
+                args = ['python', manage_py_path.resolve(), 'generate_variants', '--id', str(job.id)]
+                if sys.platform == "win32":
+                    subprocess.Popen(
+                        args=args,
+                        creationflags=subprocess.CREATE_NEW_PROCESS_GROUP)
+                else:
+                    subprocess.Popen(args=args)
                 messages.info(request, 'Generation of variants job started.')
             else:
                 messages.warning(request, 'Variant generation is already running.')

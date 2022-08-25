@@ -65,7 +65,7 @@ class VariantAdmin(admin.ModelAdmin):
         ('Generated', {'fields': ['unique_id', 'includes', 'produces', 'of']}),
         ('Editable', {'fields': ['status', 'prerequisites', 'description', 'frozen']})
     ]
-    list_filter = ['status', 'produces__name']
+    list_filter = ['status']
     list_display = ['__str__', 'status', 'id']
     search_fields = ['id', 'includes__name', 'produces__name', 'unique_id']
     actions = [set_restore, set_draft, set_new]

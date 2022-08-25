@@ -4,8 +4,8 @@ from pyexpat import features
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 from django.core.management.base import BaseCommand, CommandError
-from spellbook.variants import check_combo_sanity
-from spellbook.models import Feature, Card, Combo, Jobs
+from spellbook.variants import unique_id_from_cards_ids
+from spellbook.models import Feature, Card, Jobs, Variant
 from django.utils import timezone
 from django.db.models import Count, Q
 
@@ -31,22 +31,6 @@ def scryfall() -> dict:
     return card_db
 
 
-def combos_including_other_combos(pool: set[frozenset[str]]) -> dict[frozenset[str], set[frozenset[str]]]:
-    combo_db = defaultdict(set)
-    for combo in pool:
-        for card in combo:
-            combo_db[card].add(combo)
-    result = defaultdict(set)
-    for combo in pool:
-        for card in combo:
-            for other_combo in combo_db[card]:
-                if other_combo.issubset(combo) and other_combo != combo:
-                    result[combo].add(other_combo)
-        if combo not in result:
-            result[combo] = set()
-    return result
-
-
 def find_combos():
     combosdb = dict[frozenset[str], frozenset[str]]()
     combosdata = dict[frozenset[str], tuple[str, str]]()
@@ -65,19 +49,10 @@ def find_combos():
             pros = [token.replace('.', '') for token in row[14].lower().strip(' \t\n\r').split('. ')]
             combosdb[cards] = frozenset(pros)
             combosdata[cards] = (row[12], row[13])
-    cioc = combos_including_other_combos(combosdb.keys())
     result = []
-    tags = {c: {f'FEATURE_TO_RENAME_{i}'} for i, c in enumerate(combosdb, start=1)}
-    for c, ics in cioc.items():
+    for c in combosdb:
         features = frozenset(combosdb[c])
-        needs = frozenset()
-        cards = c
-        for ic in ics:
-            features -= combosdb[ic]
-            needs |= tags[ic]
-            combosdb[ic] = combosdb[ic] | tags[ic]
-            cards -= ic
-        result.append((combos_reverse_id[c], cards, needs, features, combosdata[c][0], combosdata[c][1], c, ics))
+        result.append((combos_reverse_id[c], c, features, combosdata[c][0], combosdata[c][1]))
     return result
 
 
@@ -116,52 +91,22 @@ class Command(BaseCommand):
                         Card.objects.create(name=data['name'], oracle_id=data['oracle_id'])
             self.stdout.write('Done fetching cards')
             self.stdout.write('Importing combos...')
-            for i, (id, _cards, needed, produced, prerequisite, description, original, included) in enumerate(x):
+            for i, (id, _cards, produced, prerequisite, description) in enumerate(x):
                 self.stdout.write(f'{i+1}/{len(x)}')
-                if len(cards) == 0 and len(features) == 0:
-                    self.stdout.write(f'Skipping combo [{id}] {_cards}: useless')
-                    continue
-                if len(produced) == 0:
-                    # TODO: Handle case per case
-                    self.stdout.write(f'Skipping combo [{id}] {_cards}: nonsense')
-                    continue
-                if len(_cards) == 1 and len(needed) == 0:
-                    data = scryfall_db[list(_cards)[0].lower()]
-                    c = Card.objects.get(oracle_id=data['oracle_id'])
-                    for p in produced:
-                        try:
-                            f = Feature.objects.get(name=p.title())
-                        except Feature.DoesNotExist:
-                            f = Feature.objects.create(name=p.title())
-                        if f not in c.features.all():
-                            c.features.add(f)
-                    continue
                 cards = [Card.objects.get(oracle_id=scryfall_db[card.lower()]['oracle_id']) for card in _cards]
-                needed_f = []
-                for n in needed:
-                    try:
-                        f = Feature.objects.get(name=n.title())
-                    except Feature.DoesNotExist:
-                        f = Feature.objects.create(name=n.title())
-                    needed_f.append(f)
-                already_present = Combo.objects.annotate(
+                already_present = Variant.objects.annotate(
                     total_cards=Count('includes'),
                     matching_cards=Count('includes', filter=Q(includes__in=cards)),
-                    total_features=Count('needs'),
-                    matching_features=Count('needs', filter=Q(needs__in=needed_f))
                 ).filter(
                     total_cards=len(cards),
                     matching_cards=len(cards),
-                    total_features=len(needed_f),
-                    matching_features=len(needed_f)
                 )
                 if already_present.exists():
-                    self.stdout.write(f'Skipping combo [{id}] {cards}: already present')
+                    self.stdout.write(f'Skipping combo [{id}] {cards}: already present in variants')
                     continue
-                combo = Combo(prerequisites=prerequisite, description=description)
+                combo = Variant(prerequisites=prerequisite, description=description, frozen=True, unique_id=unique_id_from_cards_ids([c.id for c in cards]))
                 combo.save()
                 combo.includes.set(cards)
-                combo.needs.set(needed_f)
                 for p in produced:
                     try:
                         f = Feature.objects.get(name=p.title())
@@ -169,10 +114,6 @@ class Command(BaseCommand):
                         f = Feature.objects.create(name=p.title())
                     if f not in combo.produces.all():
                         combo.produces.add(f)
-                if not check_combo_sanity(combo):
-                    self.stdout.write(f'Skipping combo {cards}: insane')
-                    combo.delete()
-                    continue
             job.termination = timezone.now()
             job.status = Jobs.Status.SUCCESS
             job.message = f'Successfully imported {len(x)} combos'

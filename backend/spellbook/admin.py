@@ -63,7 +63,7 @@ class VariantAdmin(admin.ModelAdmin):
     readonly_fields = ['includes', 'produces', 'of', 'unique_id']
     fieldsets = [
         ('Generated', {'fields': ['unique_id', 'includes', 'produces', 'of']}),
-        ('Editable', {'fields': ['status', 'prerequisites', 'description']})
+        ('Editable', {'fields': ['status', 'prerequisites', 'description', 'frozen']})
     ]
     list_filter = ['status', 'produces__name']
     list_display = ['__str__', 'status', 'id']

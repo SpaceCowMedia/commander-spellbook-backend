@@ -289,6 +289,8 @@ def generate_variants() -> tuple[int, int]:
         logging.info(f'Added {len(added)} new variants.')
         logging.info(f'Updated {len(restored)} variants.')
         logging.info(f'Deleting {len(to_delete)} variants...')
-        data.variants.filter(unique_id__in=to_delete).delete()
+        delete_query = data.variants.filter(unique_id__in=to_delete, frozen=False)
+        deleted = delete_query.count()
+        delete_query.delete()
         logging.info('Done.')
-        return len(added), len(restored), len(to_delete)
+        return len(added), len(restored), deleted

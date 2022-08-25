@@ -2,17 +2,18 @@ import json
 import hashlib
 import logging
 import pyomo.environ as pyo
-from pyomo.opt import TerminationCondition
 from dataclasses import dataclass
 from itertools import starmap
 from django.db import transaction
 from django.db.models import QuerySet
 from django.conf import settings
 from .models import Card, Feature, Combo, Variant
+from pyomo.opt import TerminationCondition
+from pyomo.opt.base.solvers import OptSolver
 
 
 RECURSION_LIMIT = 20
-SOLVE_TIMEOUT = 5
+# SOLVE_TIMEOUT = 5
 MAX_CARDS_IN_COMBO = 10
 
 
@@ -107,6 +108,11 @@ def create_variant(
     variant.produces.set(removed_features(variant, features))
 
 
+def create_solver() -> OptSolver:
+    c = pyo.SolverFactory(settings.SOLVER_NAME)
+    return c
+
+
 def base_model(data: Data) -> pyo.ConcreteModel | None:
     model = pyo.ConcreteModel(name='Spellbook')
     model.B = pyo.Set(initialize=data.combos.values_list('id', flat=True))
@@ -186,21 +192,22 @@ def exclude_variants_model(base_model: pyo.ConcreteModel, data: Data) -> pyo.Con
     return model
 
 
-def is_variant_valid(model: pyo.ConcreteModel, card_ids: list[int], opt: pyo.SolverFactory) -> bool:
+def is_variant_valid(model: pyo.ConcreteModel, card_ids: list[int]) -> bool:
+    opt = create_solver()
     model.c.fix(False)
     for card_id in card_ids:
         model.c[card_id].fix(True)
-    result = opt.solve(model, tee=False, timelimit=SOLVE_TIMEOUT)
+    result = opt.solve(model, tee=False)
     answer = result.solver.termination_condition == TerminationCondition.optimal
     return answer
 
 
-def solve_combo_model(model: pyo.ConcreteModel, opt: pyo.SolverFactory) -> bool:
+def solve_combo_model(model: pyo.ConcreteModel, opt: OptSolver) -> bool:
     model.MinMaxObj.activate()
-    results = opt.solve(model, tee=False, timelimit=SOLVE_TIMEOUT)
+    results = opt.solve(model, tee=False)
+    model.MinMaxObj.deactivate()
     if results.solver.termination_condition == TerminationCondition.optimal:
         return True
-    model.MinMaxObj.deactivate()
     return False
 
 
@@ -211,9 +218,10 @@ class VariantDefinition:
     feature_ids: set[int]
 
 
-def get_variants_from_model(base_model: pyo.ConcreteModel, opt: pyo.SolverFactory, data: Data) -> dict[str, VariantDefinition]:
-    def variants_from_combo(n: int, tot: int, model: pyo.ConcreteModel, opt: pyo.SolverFactory, priorityc: dict[Card, int]) -> dict[str, VariantDefinition]:
+def get_variants_from_model(base_model: pyo.ConcreteModel, data: Data) -> dict[str, VariantDefinition]:
+    def variants_from_combo(n: int, tot: int, model: pyo.ConcreteModel, priorityc: dict[Card, int]) -> dict[str, VariantDefinition]:
         result: dict[str, VariantDefinition] = {}
+        opt = create_solver()
         while True:
             if solve_combo_model(model, opt):
                 # Selecting only variables with a value of 1
@@ -232,7 +240,7 @@ def get_variants_from_model(base_model: pyo.ConcreteModel, opt: pyo.SolverFactor
     combos = data.combos.filter(generator=True)
     total = combos.count()
     results = list(starmap(variants_from_combo,
-        ((i, total, combo_model(base_model, c), opt, priority_dict_for_combo(c)) for i, c in enumerate(combos, start=1))))
+        ((i, total, combo_model(base_model, c), priority_dict_for_combo(c)) for i, c in enumerate(combos, start=1))))
     logging.info('Merging results, discarding duplicates...')
     result = {}
     for r in results:
@@ -252,9 +260,8 @@ def generate_variants() -> tuple[int, int]:
         model = base_model(data)
         if model is not None:
             variant_check_model = exclude_variants_model(model, data)
-            opt = pyo.SolverFactory(settings.SOLVER_NAME)
             logging.info('Solving MILP for each combo...')
-            variants = get_variants_from_model(model, opt, data)
+            variants = get_variants_from_model(model, data)
             logging.info('Saving variants...')
             for unique_id, variant_def in variants.items():
                 if unique_id in old_id_set:
@@ -263,7 +270,7 @@ def generate_variants() -> tuple[int, int]:
                         unique_id=unique_id,
                         combos_included=variant_def.combo_ids,
                         features=variant_def.feature_ids,
-                        ok=is_variant_valid(variant_check_model, variant_def.card_ids, opt),
+                        ok=is_variant_valid(variant_check_model, variant_def.card_ids),
                         restore=unique_id in to_restore)
                 else:
                     create_variant(
@@ -272,7 +279,7 @@ def generate_variants() -> tuple[int, int]:
                         cards=variant_def.card_ids,
                         combos_included=variant_def.combo_ids,
                         features=variant_def.feature_ids,
-                        ok=is_variant_valid(variant_check_model, variant_def.card_ids, opt))
+                        ok=is_variant_valid(variant_check_model, variant_def.card_ids))
         else:
             variants = dict()
         new_id_set = set(variants.keys())

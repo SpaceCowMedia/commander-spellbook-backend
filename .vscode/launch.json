@@ -26,6 +26,17 @@
             ],
             "django": true,
             "justMyCode": true
+        },
+        {
+            "name": "Python: Django / Generate Variants",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}\\backend\\manage.py",
+            "args": [
+                "generate_variants"
+            ],
+            "django": true,
+            "justMyCode": true
         }
     ]
 }

@@ -4,7 +4,7 @@ from django.contrib import admin
 from django.urls import path, reverse
 from django.http import HttpResponseRedirect
 from .variants import check_combo_sanity
-from .models import Card, Feature, Combo, Variant, Jobs
+from .models import Card, Feature, Combo, Variant, Job
 from django.contrib import messages
 from django.forms import ModelForm
 from django.db import transaction
@@ -72,15 +72,15 @@ class VariantAdmin(admin.ModelAdmin):
 
     def generate(self, request):
         if request.method == 'POST' and request.user.is_authenticated:
-            past_runs_duration = Jobs.objects \
-                .filter(name='generate_variants', status=Jobs.Status.SUCCESS) \
+            past_runs_duration = Job.objects \
+                .filter(name='generate_variants', status=Job.Status.SUCCESS) \
                 .order_by('-created')[:5] \
                 .annotate(duration=F('termination') - F('created')) \
                 .aggregate(average_duration=Avg('duration'))['average_duration']
             if past_runs_duration is None:
                 past_runs_duration = timezone.timedelta(minutes=30)
 
-            job = Jobs.start(
+            job = Job.start(
                 name='generate_variants',
                 duration=past_runs_duration,
                 user=request.user)
@@ -139,8 +139,8 @@ class ComboAdmin(admin.ModelAdmin):
     list_display = ['__str__', 'generator', 'id']
 
 
-@admin.register(Jobs)
-class JobsAdmin(admin.ModelAdmin):
+@admin.register(Job)
+class JobAdmin(admin.ModelAdmin):
     list_display = ['id', 'name', 'status', 'created', 'expected_termination', 'termination']
 
     def has_add_permission(self, request):

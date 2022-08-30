@@ -130,7 +130,7 @@ class Variant(models.Model):
             + ('...' if len(produces) > 3 else '')
 
 
-class Jobs(models.Model):
+class Job(models.Model):
     class Status(models.TextChoices):
         SUCCESS = 'S'
         FAILURE = 'F'
@@ -152,12 +152,12 @@ class Jobs(models.Model):
     def start(name: str, duration: timezone.timedelta, user: User):
         try:
             with transaction.atomic(durable=True):
-                if Jobs.objects.filter(
+                if Job.objects.filter(
                         name=name,
                         expected_termination__gte=timezone.now(),
-                        status=Jobs.Status.PENDING).exists():
+                        status=Job.Status.PENDING).exists():
                     return None
-                return Jobs.objects.create(
+                return Job.objects.create(
                     name=name,
                     expected_termination=timezone.now() + duration,
                     started_by=user)

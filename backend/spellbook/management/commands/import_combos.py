@@ -5,7 +5,7 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 from django.core.management.base import BaseCommand, CommandError
 from spellbook.variants import unique_id_from_cards_ids
-from spellbook.models import Feature, Card, Jobs, Variant
+from spellbook.models import Feature, Card, Job, Variant
 from django.utils import timezone
 from django.db.models import Count, Q
 
@@ -60,7 +60,7 @@ class Command(BaseCommand):
     help = 'Tries to import combos from the google sheet'
 
     def handle(self, *args, **options):
-        job = Jobs(name='import_combos', expected_termination=timezone.now() + timezone.timedelta(minutes=3))
+        job = Job(name='import_combos', expected_termination=timezone.now() + timezone.timedelta(minutes=3))
         job.save()
         try:
             self.stdout.write('Importing combos...')
@@ -115,12 +115,12 @@ class Command(BaseCommand):
                     if f not in combo.produces.all():
                         combo.produces.add(f)
             job.termination = timezone.now()
-            job.status = Jobs.Status.SUCCESS
+            job.status = Job.Status.SUCCESS
             job.message = f'Successfully imported {len(x)} combos'
             job.save()
         except Exception as e:
             job.termination = timezone.now()
-            job.status = Jobs.Status.FAILURE
+            job.status = Job.Status.FAILURE
             job.message = f'Failed to import combos: {e}'
             job.save()
             raise e

@@ -1,6 +1,6 @@
 import traceback
 from django.core.management.base import BaseCommand, CommandError
-from spellbook.models import Jobs, Variant
+from spellbook.models import Job, Variant
 from spellbook.variants import generate_variants
 from django.utils import timezone
 from django.contrib.admin.models import LogEntry, CHANGE
@@ -22,8 +22,8 @@ class Command(BaseCommand):
         job = None
         if options['job_id']:
             try:
-                job = Jobs.objects.get(id=options['job_id'])
-            except Jobs.DoesNotExist:
+                job = Job.objects.get(id=options['job_id'])
+            except Job.DoesNotExist:
                 raise CommandError('Job with id %s does not exist' % options['job_id'])
         try:
             added, restored, removed = generate_variants()
@@ -34,7 +34,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(message))
             if job is not None:
                 job.termination = timezone.now()
-                job.status = Jobs.Status.SUCCESS
+                job.status = Job.Status.SUCCESS
                 job.message = message
                 job.save()
                 if job.started_by is not None:
@@ -49,6 +49,6 @@ class Command(BaseCommand):
             message = f'Failed to generate variants: {e}'
             if job is not None:
                 job.termination = timezone.now()
-                job.status = Jobs.Status.FAILURE
+                job.status = Job.Status.FAILURE
                 job.message = message
                 job.save()

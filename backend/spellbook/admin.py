@@ -36,7 +36,7 @@ class CardInline(admin.StackedInline):
 @admin.register(Feature)
 class FeatureAdmin(admin.ModelAdmin):
     fieldsets = [
-        (None, {'fields': ['name', 'description']}),
+        (None, {'fields': ['name', 'utility', 'description']}),
     ]
     inlines = [CardInline]
     search_fields = ['name', 'cards__name']

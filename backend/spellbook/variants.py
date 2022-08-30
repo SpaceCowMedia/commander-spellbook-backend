@@ -5,7 +5,6 @@ import pyomo.environ as pyo
 from dataclasses import dataclass
 from itertools import starmap
 from django.db import transaction
-from django.db.models import QuerySet
 from django.conf import settings
 from .models import Card, Feature, Combo, Variant
 from pyomo.opt import TerminationCondition
@@ -19,16 +18,12 @@ MAX_CARDS_IN_COMBO = 10
 
 @dataclass
 class Data:
-    combos: QuerySet[Combo]
-    cards: QuerySet[Card]
-    features: QuerySet[Feature]
-    variants: QuerySet[Variant]
-
     def __init__(self) -> None:
         self.combos = Combo.objects.prefetch_related('includes', 'needs', 'removes')
         self.features = Feature.objects.prefetch_related('cards', 'produced_by_combos')
         self.cards = Card.objects.all()
         self.variants = Variant.objects.prefetch_related('includes')
+        self.utility_features_ids = frozenset[int](Feature.objects.filter(utility=True).values_list('id', flat=True))
 
 
 def unique_id_from_cards_ids(cards: list[int]) -> str:
@@ -75,7 +70,7 @@ def update_variant(
         restore=False):
     variant = data.variants.get(unique_id=unique_id)
     variant.of.set(combos_included)
-    variant.produces.set(removed_features(variant, features))
+    variant.produces.set(removed_features(variant, features) - data.utility_features_ids)
     if restore:
         combos = data.combos.filter(id__in=combos_included)
         prerequisites = '\n'.join(c.prerequisites for c in combos)
@@ -105,7 +100,7 @@ def create_variant(
     variant.save()
     variant.includes.set(cards)
     variant.of.set(combos_included)
-    variant.produces.set(removed_features(variant, features))
+    variant.produces.set(removed_features(variant, features) - data.utility_features_ids)
 
 
 def create_solver() -> OptSolver:
@@ -288,9 +283,9 @@ def generate_variants() -> tuple[int, int]:
         restored = new_id_set & to_restore
         logging.info(f'Added {len(added)} new variants.')
         logging.info(f'Updated {len(restored)} variants.')
-        logging.info(f'Deleting {len(to_delete)} variants...')
         delete_query = data.variants.filter(unique_id__in=to_delete, frozen=False)
         deleted = delete_query.count()
         delete_query.delete()
+        logging.info(f'Deleted {deleted} variants...')
         logging.info('Done.')
         return len(added), len(restored), deleted

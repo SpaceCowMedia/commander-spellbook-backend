@@ -9,6 +9,7 @@ class Feature(models.Model):
     description = models.TextField(blank=True, help_text='Long description of a produced effect', verbose_name='description of feature')
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, editable=False)
+    utility = models.BooleanField(default=False, help_text='Is this a utility feature? Utility features are hidden to the end users', verbose_name='is utility feature')
 
     class Meta:
         ordering = ['name']

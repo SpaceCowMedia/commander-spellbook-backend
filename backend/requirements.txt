@@ -1,4 +1,4 @@
-Django==4.0.7
+Django==4.1
 djangorestframework==3.13.1
 django-filter==22.1
 django-sortedm2m==3.1.1

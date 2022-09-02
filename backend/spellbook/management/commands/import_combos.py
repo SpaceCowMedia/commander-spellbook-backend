@@ -1,6 +1,5 @@
 from collections import defaultdict
 import json
-from pyexpat import features
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 from django.core.management.base import BaseCommand, CommandError

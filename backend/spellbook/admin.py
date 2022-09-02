@@ -59,6 +59,11 @@ def set_new(modeladmin, request, queryset):
     queryset.update(status=Variant.Status.NEW)
 
 
+@admin.action(description='Mark selected variants as NOT WORKING')
+def set_not_working(modeladmin, request, queryset):
+    queryset.update(status=Variant.Status.NOT_WORKING)
+
+
 @admin.register(Variant)
 class VariantAdmin(admin.ModelAdmin):
     readonly_fields = ['includes', 'produces', 'of', 'unique_id']
@@ -69,7 +74,7 @@ class VariantAdmin(admin.ModelAdmin):
     list_filter = ['status']
     list_display = ['__str__', 'status', 'id']
     search_fields = ['id', 'includes__name', 'produces__name', 'unique_id']
-    actions = [set_restore, set_draft, set_new]
+    actions = [set_restore, set_draft, set_new, set_not_working]
 
     def generate(self, request):
         if request.method == 'POST' and request.user.is_authenticated:

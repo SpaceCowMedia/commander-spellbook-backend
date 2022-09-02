@@ -40,7 +40,8 @@ class FeatureAdmin(admin.ModelAdmin):
     ]
     inlines = [CardInline]
     search_fields = ['name', 'cards__name']
-    list_display = ['name', 'id']
+    list_display = ['name', 'utility','id']
+    list_filter = ['utility']
 
 
 @admin.action(description='Mark selected variants as RESTORE')

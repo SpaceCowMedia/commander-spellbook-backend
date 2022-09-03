@@ -40,7 +40,7 @@ class FeatureAdmin(admin.ModelAdmin):
     ]
     inlines = [CardInline]
     search_fields = ['name', 'cards__name']
-    list_display = ['name', 'utility','id']
+    list_display = ['name', 'utility', 'id']
     list_filter = ['utility']
 
 
@@ -131,13 +131,30 @@ class ComboForm(ModelForm):
         return super().clean()
 
 
+class VariantInline(admin.TabularInline):
+    model = Variant.of.through
+    verbose_name = 'Variant'
+    verbose_name_plural = 'List of variants'
+    readonly_fields = ['variant']
+    fields = ['variant']
+    can_delete = False
+    extra = 0
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
 @admin.register(Combo)
 class ComboAdmin(admin.ModelAdmin):
     form = ComboForm
+    inlines = [VariantInline]
     fieldsets = [
         ('Requirements', {'fields': ['includes', 'needs', 'prerequisites']}),
         ('Features', {'fields': ['produces', 'removes']}),
-        ('Description', {'fields': ['generator', 'description']})
+        ('Description', {'fields': ['generator', 'description']}),
     ]
     filter_horizontal = ['includes', 'produces', 'needs', 'removes']
     list_filter = ['generator']

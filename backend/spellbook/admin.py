@@ -131,7 +131,7 @@ class ComboForm(ModelForm):
         return super().clean()
 
 
-class VariantInline(admin.TabularInline):
+class ComboVariantInline(admin.TabularInline):
     model = Variant.of.through
     verbose_name = 'Variant'
     verbose_name_plural = 'List of variants'
@@ -150,7 +150,7 @@ class VariantInline(admin.TabularInline):
 @admin.register(Combo)
 class ComboAdmin(admin.ModelAdmin):
     form = ComboForm
-    inlines = [VariantInline]
+    inlines = [ComboVariantInline]
     fieldsets = [
         ('Requirements', {'fields': ['includes', 'needs', 'prerequisites']}),
         ('Features', {'fields': ['produces', 'removes']}),
@@ -162,8 +162,14 @@ class ComboAdmin(admin.ModelAdmin):
     list_display = ['__str__', 'generator', 'id']
 
 
+class JobVariantInline(ComboVariantInline):
+    model = Job.variants.through
+    verbose_name_plural = 'List of variants created by this job'
+
+
 @admin.register(Job)
 class JobAdmin(admin.ModelAdmin):
+    inlines = [JobVariantInline]
     list_display = ['id', 'name', 'status', 'created', 'expected_termination', 'termination']
 
     def has_add_permission(self, request):

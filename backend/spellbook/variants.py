@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from itertools import starmap
 from django.db import transaction
 from django.conf import settings
-from .models import Card, Feature, Combo, Variant
+from .models import Card, Feature, Combo, Job, Variant
 from pyomo.opt import TerminationCondition
 from pyomo.opt.base.solvers import OptSolver
 
@@ -82,6 +82,7 @@ def update_variant(
         variant.status = Variant.Status.NOT_WORKING
     if not ok or restore:
         variant.save()
+    return variant.id
 
 
 def create_variant(
@@ -101,6 +102,7 @@ def create_variant(
     variant.includes.set(cards)
     variant.of.set(combos_included)
     variant.produces.set(removed_features(variant, features) - data.utility_features_ids)
+    return variant.id
 
 
 def create_solver() -> OptSolver:
@@ -244,7 +246,7 @@ def get_variants_from_model(base_model: pyo.ConcreteModel, data: Data) -> dict[s
     return result
 
 
-def generate_variants() -> tuple[int, int]:
+def generate_variants(job: Job = None) -> tuple[int, int]:
     with transaction.atomic():
         logging.info('Fetching variants set to RESTORE...')
         to_restore = set(Variant.objects.filter(status=Variant.Status.RESTORE).values_list('unique_id', flat=True))
@@ -258,6 +260,7 @@ def generate_variants() -> tuple[int, int]:
             logging.info('Solving MILP for each combo...')
             variants = get_variants_from_model(model, data)
             logging.info('Saving variants...')
+            variants_ids = set()
             for unique_id, variant_def in variants.items():
                 if unique_id in old_id_set:
                     update_variant(
@@ -268,13 +271,16 @@ def generate_variants() -> tuple[int, int]:
                         ok=is_variant_valid(variant_check_model, variant_def.card_ids),
                         restore=unique_id in to_restore)
                 else:
-                    create_variant(
-                        data=data,
-                        unique_id=unique_id,
-                        cards=variant_def.card_ids,
-                        combos_included=variant_def.combo_ids,
-                        features=variant_def.feature_ids,
-                        ok=is_variant_valid(variant_check_model, variant_def.card_ids))
+                    variants_ids.add(
+                        create_variant(
+                            data=data,
+                            unique_id=unique_id,
+                            cards=variant_def.card_ids,
+                            combos_included=variant_def.combo_ids,
+                            features=variant_def.feature_ids,
+                            ok=is_variant_valid(variant_check_model, variant_def.card_ids)))
+            if job is not None:
+                job.variants.set(variants_ids)
         else:
             variants = dict()
         new_id_set = set(variants.keys())

@@ -149,6 +149,14 @@ class Job(models.Model):
         null=True,
         on_delete=models.SET_NULL,
         help_text='User that started this job')
+    variants = models.ManyToManyField(
+        to=Variant,
+        related_name='jobs',
+        blank=True,
+        help_text='Variants that this job added or updated',
+        verbose_name='variants updated',
+        editable=False
+    )
 
     def start(name: str, duration: timezone.timedelta, user: User):
         try:

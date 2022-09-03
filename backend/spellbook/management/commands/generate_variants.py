@@ -26,7 +26,7 @@ class Command(BaseCommand):
             except Job.DoesNotExist:
                 raise CommandError('Job with id %s does not exist' % options['job_id'])
         try:
-            added, restored, removed = generate_variants()
+            added, restored, removed = generate_variants(job)
             if added == 0 and removed == 0 and restored == 0:
                 message = 'Variants are already synced with combos'
             else:

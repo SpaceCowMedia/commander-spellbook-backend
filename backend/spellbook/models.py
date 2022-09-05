@@ -2,6 +2,10 @@ from django.utils import timezone
 from django.db import OperationalError, models, transaction
 from sortedm2m.fields import SortedManyToManyField
 from django.contrib.auth.models import User
+from django.core.validators import RegexValidator
+
+
+mana_validator = RegexValidator(regex=r'^(?:\{(?:[0-9WUBRGCXS]|1[0-6])(?:\/[WUBRG])?(?:\/[WUBRGP])?\}\s?)*$', message='Mana needed must be in the {1}{W}{U}{B}{R}{G}{B/P}... format.')
 
 
 class Feature(models.Model):
@@ -64,7 +68,10 @@ class Combo(models.Model):
         help_text='Cards that this combo includes',
         blank=True,
         verbose_name='included cards')
-    prerequisites = models.TextField(blank=True, help_text='Setup instructions for this combo')
+    zone_locations = models.TextField(blank=True, default='', help_text='Starting locations for cards.')
+    cards_state = models.TextField(blank=True, default='', help_text='State of cards in their starting locations.')
+    mana_needed = models.CharField(blank=True, max_length=200, default='', help_text='Mana needed for this combo. Use the {1}{W}{U}{B}{R}{G}{B/P}... format.', validators=[mana_validator])
+    other_prerequisites = models.TextField(blank=True, default='', help_text='Other prerequisites for this combo.')
     description = models.TextField(blank=True, help_text='Long description of the combo, in steps')
     generator = models.BooleanField(default=True, help_text='Is this combo a generator for variants?', verbose_name='is generator')
     created = models.DateTimeField(auto_now_add=True, editable=False)
@@ -78,9 +85,12 @@ class Combo(models.Model):
     def __str__(self):
         if self.pk is None:
             return 'New, unsaved combo'
-        return ' + '.join([str(card) for card in self.includes.all()] + [str(feature) for feature in self.needs.all()]) \
+        return self.ingredients() \
             + ' ➡ ' + ' + '.join([str(feature) for feature in self.produces.all()]) \
             + (' - ' + ' - '.join([str(feature) for feature in self.removes.all()]) if self.removes.exists() else '')
+    
+    def ingredients(self):
+        return ' + '.join([str(card) for card in self.includes.all()] + [str(feature) for feature in self.needs.all()])
 
 
 class Variant(models.Model):
@@ -107,7 +117,10 @@ class Variant(models.Model):
         help_text='Combo that this variant is an instance of',
         editable=False)
     status = models.CharField(choices=Status.choices, default=Status.NEW, help_text='Variant status for editors', max_length=2)
-    prerequisites = models.TextField(blank=True, help_text='Setup instructions for this variant')
+    zone_locations = models.TextField(blank=True, default='', help_text='Starting locations for cards.')
+    cards_state = models.TextField(blank=True, default='', help_text='State of cards in their starting locations.')
+    mana_needed = models.CharField(blank=True, max_length=200, default='', help_text='Mana needed for this combo. Use the {1}{W}{U}{B}{R}{G}{B/P}... format.', validators=[mana_validator])
+    other_prerequisites = models.TextField(blank=True, default='', help_text='Other prerequisites for this variant.')
     description = models.TextField(blank=True, help_text='Long description of the variant, in steps')
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, editable=False)

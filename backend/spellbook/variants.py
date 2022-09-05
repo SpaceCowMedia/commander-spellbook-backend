@@ -73,9 +73,15 @@ def update_variant(
     variant.produces.set(removed_features(variant, features) - data.utility_features_ids)
     if restore:
         combos = data.combos.filter(id__in=combos_included)
-        prerequisites = '\n'.join(c.prerequisites for c in combos)
-        description = '\n'.join(c.description for c in combos)
-        variant.prerequisites = prerequisites
+        zone_locations = '\n'.join(c.zone_locations for c in combos if len(c.zone_locations) > 0)
+        cards_state = '\n'.join(c.cards_state for c in combos if len(c.cards_state) > 0)
+        other_prerequisites = '\n'.join(c.other_prerequisites for c in combos if len(c.other_prerequisites) > 0)
+        mana_needed = ' '.join(c.mana_needed for c in combos if len(c.mana_needed) > 0)
+        description = '\n'.join(c.description for c in combos if len(c.description) > 0)
+        variant.zone_locations = zone_locations
+        variant.cards_state = cards_state
+        variant.other_prerequisites = other_prerequisites
+        variant.mana_needed = mana_needed
         variant.description = description
         variant.status = Variant.Status.NEW if ok else Variant.Status.NOT_WORKING
     if not ok:
@@ -93,9 +99,18 @@ def create_variant(
         features: set[int],
         ok: bool):
     combos = data.combos.filter(id__in=combos_included)
-    prerequisites = '\n'.join(c.prerequisites for c in combos)
-    description = '\n'.join(c.description for c in combos)
-    variant = Variant(unique_id=unique_id, prerequisites=prerequisites, description=description)
+    zone_locations = '\n'.join(c.zone_locations for c in combos if len(c.zone_locations) > 0)
+    cards_state = '\n'.join(c.cards_state for c in combos if len(c.cards_state) > 0)
+    other_prerequisites = '\n'.join(c.other_prerequisites for c in combos if len(c.other_prerequisites) > 0)
+    mana_needed = ' '.join(c.mana_needed for c in combos if len(c.mana_needed) > 0)
+    description = '\n'.join(c.description for c in combos if len(c.description) > 0)
+    variant = Variant(
+        unique_id=unique_id,
+        zone_locations=zone_locations,
+        cards_state=cards_state,
+        other_prerequisites=other_prerequisites,
+        mana_needed=mana_needed,
+        description=description)
     if not ok:
         variant.status = Variant.Status.NOT_WORKING
     variant.save()

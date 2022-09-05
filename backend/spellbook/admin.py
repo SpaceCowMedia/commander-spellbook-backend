@@ -69,7 +69,14 @@ class VariantAdmin(admin.ModelAdmin):
     readonly_fields = ['includes', 'produces', 'of', 'unique_id']
     fieldsets = [
         ('Generated', {'fields': ['unique_id', 'includes', 'produces', 'of']}),
-        ('Editable', {'fields': ['status', 'prerequisites', 'description', 'frozen']})
+        ('Editable', {'fields': [
+            'status',
+            'zone_locations',
+            'cards_state',
+            'mana_needed',
+            'other_prerequisites',
+            'description',
+            'frozen']})
     ]
     list_filter = ['status']
     list_display = ['__str__', 'status', 'id']
@@ -152,7 +159,13 @@ class ComboAdmin(admin.ModelAdmin):
     form = ComboForm
     inlines = [ComboVariantInline]
     fieldsets = [
-        ('Requirements', {'fields': ['includes', 'needs', 'prerequisites']}),
+        ('Requirements', {'fields': [
+            'includes',
+            'needs',
+            'zone_locations',
+            'cards_state',
+            'mana_needed',
+            'other_prerequisites']}),
         ('Features', {'fields': ['produces', 'removes']}),
         ('Description', {'fields': ['generator', 'description']}),
     ]

@@ -29,7 +29,16 @@ class ComboSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Combo
-        fields = ['id', 'produces', 'needs', 'includes', 'prerequisites', 'description']
+        fields = [
+            'id',
+            'produces',
+            'needs',
+            'includes',
+            'zone_locations',
+            'cards_state',
+            'mana_needed',
+            'other_prerequisites',
+            'description']
 
 
 class VariantSerializer(serializers.ModelSerializer):
@@ -39,4 +48,14 @@ class VariantSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Variant
-        fields = ['id', 'unique_id', 'includes', 'produces', 'of', 'prerequisites', 'description']
+        fields = [
+            'id',
+            'unique_id',
+            'includes',
+            'produces',
+            'of',
+            'zone_locations',
+            'cards_state',
+            'mana_needed',
+            'other_prerequisites',
+            'description']

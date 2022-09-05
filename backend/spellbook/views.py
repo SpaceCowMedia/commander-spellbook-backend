@@ -3,10 +3,11 @@ from .serializers import CardDetailSerializer, FeatureSerializer, ComboSerialize
 from rest_framework import viewsets
 from rest_framework import filters
 from django_filters.rest_framework import DjangoFilterBackend
+from django.db.models import Q
 
 
 class VariantViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Variant.objects.filter(status=Variant.Status.OK)
+    queryset = Variant.objects.filter(Q(status=Variant.Status.OK) | Q(frozen=True))
     serializer_class = VariantSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['unique_id', 'includes__id', 'produces__id', 'of__id']

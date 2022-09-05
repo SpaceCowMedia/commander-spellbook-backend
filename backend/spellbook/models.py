@@ -26,7 +26,7 @@ class Feature(models.Model):
 
 class Card(models.Model):
     name = models.CharField(max_length=255, unique=True, blank=False, help_text='Card name', verbose_name='name of card')
-    oracle_id = models.UUIDField(unique=True, blank=True, help_text='Scryfall Oracle ID', verbose_name='Scryfall Oracle ID of card')
+    oracle_id = models.UUIDField(unique=True, blank=True, null=True, help_text='Scryfall Oracle ID', verbose_name='Scryfall Oracle ID of card')
     features = models.ManyToManyField(
         to=Feature,
         related_name='cards',

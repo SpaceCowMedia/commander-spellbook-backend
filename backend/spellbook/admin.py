@@ -169,7 +169,7 @@ class ComboAdmin(admin.ModelAdmin):
         ('Features', {'fields': ['produces', 'removes']}),
         ('Description', {'fields': ['generator', 'description']}),
     ]
-    #filter_horizontal = ['includes', 'produces', 'needs', 'removes']
+    filter_horizontal = ['includes', 'produces', 'needs', 'removes']
     list_filter = ['generator']
     search_fields = ['includes__name', 'produces__name', 'needs__name']
     list_display = ['__str__', 'generator', 'id']

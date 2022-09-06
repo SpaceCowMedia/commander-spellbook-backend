@@ -103,7 +103,7 @@ class Command(BaseCommand):
                 if already_present.exists():
                     self.stdout.write(f'Skipping combo [{id}] {cards}: already present in variants')
                     continue
-                combo = Variant(other_prerequisites=prerequisite, description=description, frozen=True, unique_id=unique_id_from_cards_ids([c.id for c in cards]))
+                combo = Variant(other_prerequisites=prerequisite, description=description, frozen=True, status=Variant.Status.OK, unique_id=unique_id_from_cards_ids([c.id for c in cards]))
                 combo.save()
                 combo.includes.set(cards)
                 for p in produced:

@@ -88,7 +88,7 @@ class Combo(models.Model):
         return self.ingredients() \
             + ' ➡ ' + ' + '.join([str(feature) for feature in self.produces.all()]) \
             + (' - ' + ' - '.join([str(feature) for feature in self.removes.all()]) if self.removes.exists() else '')
-    
+
     def ingredients(self):
         return ' + '.join([str(card) for card in self.includes.all()] + [str(feature) for feature in self.needs.all()])
 

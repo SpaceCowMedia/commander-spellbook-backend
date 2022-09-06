@@ -64,8 +64,14 @@ def set_not_working(modeladmin, request, queryset):
     queryset.update(status=Variant.Status.NOT_WORKING)
 
 
+class VariantForm(ModelForm):
+    def clean_mana_needed(self):
+        return self.cleaned_data['mana_needed'].upper() if self.cleaned_data['mana_needed'] else None
+
+
 @admin.register(Variant)
 class VariantAdmin(admin.ModelAdmin):
+    form = VariantForm
     readonly_fields = ['includes', 'produces', 'of', 'unique_id']
     fieldsets = [
         ('Generated', {'fields': ['unique_id', 'includes', 'produces', 'of']}),
@@ -137,6 +143,9 @@ class ComboForm(ModelForm):
                 raise ValidationError('Possible loop detected.')
         return super().clean()
 
+    def clean_mana_needed(self):
+        return self.cleaned_data['mana_needed'].upper() if self.cleaned_data['mana_needed'] is not None else None
+
 
 class ComboVariantInline(admin.TabularInline):
     model = Variant.of.through
@@ -183,6 +192,7 @@ class JobVariantInline(ComboVariantInline):
 @admin.register(Job)
 class JobAdmin(admin.ModelAdmin):
     inlines = [JobVariantInline]
+    fields = ['id', 'name', 'status', 'created', 'expected_termination', 'termination', 'message', 'started_by']
     list_display = ['id', 'name', 'status', 'created', 'expected_termination', 'termination']
 
     def has_add_permission(self, request):

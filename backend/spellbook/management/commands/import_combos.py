@@ -23,10 +23,11 @@ def scryfall() -> dict:
         with urlopen(req) as response:
             data = json.loads(response.read().decode())
             for card in data:
-                card_db[card['name'].lower().strip(' \t\n\r')] = card
-                if 'card_faces' in card and len(card['card_faces']) > 1:
-                    for face in card['card_faces']:
-                        card_db[face['name'].lower().strip(' \t\n\r')] = card
+                if 'paper' in card['games'] and card['layout'] not in ['art_series', 'vanguard', 'scheme']:
+                    card_db[card['name'].lower().strip(' \t\n\r')] = card
+                    if 'card_faces' in card and len(card['card_faces']) > 1:
+                        for face in card['card_faces']:
+                            card_db[face['name'].lower().strip(' \t\n\r')] = card
     return card_db
 
 

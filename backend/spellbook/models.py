@@ -5,7 +5,7 @@ from django.contrib.auth.models import User
 from django.core.validators import RegexValidator
 
 
-mana_validator = RegexValidator(regex=r'^(?:\{(?:[0-9WUBRGCXS]|1[0-6])(?:\/[WUBRG])?(?:\/[WUBRGP])?\}\s?)*$', message='Mana needed must be in the {1}{W}{U}{B}{R}{G}{B/P}... format.')
+mana_validator = RegexValidator(regex=r'^(\{(?:[0-9WUBRGCXS]|[1-9][0-9]|([2WUBRG])(?:\/(?!\2)[WUBRG])?(?:\/P)?)\} *)*$', message='Mana needed must be in the {1}{W}{U}{B}{R}{G}{B/P}... format.')
 
 
 class Feature(models.Model):

@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/4.0/ref/settings/
 """
 
 import logging
+import multiprocessing
 import os
 from pathlib import Path
 
@@ -24,7 +25,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ['SECRET_KEY']
 
 DEBUG = False
-PARALLEL_SOLVERS = 20
+PARALLEL_SOLVERS = multiprocessing.cpu_count()
 SOLVER_NAME = 'glpk'
 
 # Security settings

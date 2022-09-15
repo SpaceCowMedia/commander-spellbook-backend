@@ -20,14 +20,16 @@ services:
       SQL_HOST: db
       SQL_PORT: 5432
       DATABASE: postgres
+    restart: always
   nginx:
     build: ./nginx
     ports:
-      - 1337:80
+      - 80:80
     depends_on:
       - web
     volumes:
       - static_volume:/home/app/web/staticfiles
+    restart: always
   db:
     image: postgres:14-alpine
     volumes:
@@ -39,6 +41,7 @@ services:
       POSTGRES_USER: docker_compose
       POSTGRES_PASSWORD: docker_compose
       POSTGRES_DB: spellbook_db_prod
+    restart: always
 volumes:
   static_volume:
   postgres_data:

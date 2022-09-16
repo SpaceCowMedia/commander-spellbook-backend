@@ -33,12 +33,12 @@ ALLOWED_HOSTS = [
     'commanderspellbook.com',
     'localhost',
     '127.0.0.1',
-    '192.168.1.119',
+    'backend.commanderspellbook.com',
 ]
 CSRF_TRUSTED_ORIGINS = [
     'https://commanderspellbook.com',
-    'http://localhost:1337',
-    'http://192.168.1.119:1337',
+    'http://localhost',
+    'https://backend.commanderspellbook.com',
 ]
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 

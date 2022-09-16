@@ -5,7 +5,7 @@ services:
     build:
       context: .
       args:
-        SECRET_KEY: hotdogs
+        SECRET_KEY: ${SECRET_KEY:?}
     expose:
       - 8000
     depends_on:
@@ -15,8 +15,8 @@ services:
     environment:
       SQL_ENGINE: django.db.backends.postgresql
       SQL_DATABASE: spellbook_db_prod
-      SQL_USER: docker_compose
-      SQL_PASSWORD: docker_compose
+      SQL_USER: ${DB_USER:?}
+      SQL_PASSWORD: ${DB_PASSWORD:?}
       SQL_HOST: db
       SQL_PORT: 5432
       DATABASE: postgres
@@ -38,8 +38,8 @@ services:
       - 5432
     environment:
       PGPORT: 5432
-      POSTGRES_USER: docker_compose
-      POSTGRES_PASSWORD: docker_compose
+      POSTGRES_USER: ${DB_USER:?}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?}
       POSTGRES_DB: spellbook_db_prod
     restart: always
 volumes:

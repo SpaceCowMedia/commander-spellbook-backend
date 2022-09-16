@@ -16,7 +16,6 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: backend
         shell: bash
     env:
       SECRET_KEY: ci_build_secret
@@ -25,3 +24,4 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - run: docker compose -f docker-compose.yml build
+        working-directory: backend

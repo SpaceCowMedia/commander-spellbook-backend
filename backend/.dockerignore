@@ -1,0 +1,6 @@
+.env
+*.sqlite3
+docker-*.yml
+Dockerfile
+*.md
+nginx/

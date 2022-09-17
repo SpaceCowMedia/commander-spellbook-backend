@@ -6,12 +6,13 @@ services:
       context: .
       args:
         SECRET_KEY: ${SECRET_KEY:?}
+    image: spellbook-backend
     expose:
       - 8000
     depends_on:
       - db
     volumes:
-      - static_volume:/home/app/web/staticfiles
+      - static_volume:/home/app/web/staticfiles:rw
     environment:
       SQL_ENGINE: django.db.backends.postgresql
       SQL_DATABASE: spellbook_db_prod
@@ -22,13 +23,16 @@ services:
       DATABASE: postgres
     restart: always
   nginx:
-    build: ./nginx
+    build:
+      context: ./nginx
+      target: base
+    image: spellbook-nginx
     ports:
       - 80:80
     depends_on:
       - web
     volumes:
-      - static_volume:/home/app/web/staticfiles
+      - static_volume:/home/app/web/staticfiles:ro
     restart: always
   db:
     image: postgres:14-alpine

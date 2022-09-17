@@ -1,4 +1,5 @@
-FROM nginx:1.23-alpine
+FROM nginx:1.23-alpine AS base
+COPY nginx.conf /etc/nginx/templates/default.conf.template
 
-RUN rm /etc/nginx/conf.d/default.conf
-COPY nginx.conf /etc/nginx/conf.d
+FROM base AS ssl
+COPY ssl.conf /etc/nginx/ssl/ssl.conf

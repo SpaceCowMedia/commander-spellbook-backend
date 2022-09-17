@@ -9,9 +9,10 @@ services:
       target: ssl
     image: spellbook-nginx-ssl
     volumes:
-      - /usr/local/ssl/cert.crt:/etc/nginx/ssl/cert.crt:ro
-      - /usr/local/ssl/cert.key:/etc/nginx/ssl/cert.key:ro
-  
+      - ${SSL_CERTIFICATE_PATH:?}:/etc/nginx/ssl/cert.crt:ro
+      - ${SSL_PRIVATEKEY_PATH:?}:/etc/nginx/ssl/cert.key:ro
+    ports:
+      - 443:443
   web:
     extends:
       file: docker-compose.yml

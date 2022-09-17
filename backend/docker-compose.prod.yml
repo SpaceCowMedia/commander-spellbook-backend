@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  nginx:
+    extends:
+      file: docker-compose.yml
+      service: nginx
+    build:
+      target: ssl
+    image: spellbook-nginx-ssl
+    volumes:
+      - /usr/local/ssl/cert.crt:/etc/nginx/ssl/cert.crt:ro
+      - /usr/local/ssl/cert.key:/etc/nginx/ssl/cert.key:ro
+  
+  web:
+    extends:
+      file: docker-compose.yml
+      service: web
+  db:
+    extends:
+      file: docker-compose.yml
+      service: db
+
+volumes:
+  static_volume:
+  postgres_data:

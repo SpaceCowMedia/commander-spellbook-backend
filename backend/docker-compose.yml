@@ -21,7 +21,7 @@ services:
       SQL_HOST: db
       SQL_PORT: 5432
       DATABASE: postgres
-    restart: on-failure
+    restart: always
   nginx:
     build:
       context: ./nginx
@@ -33,7 +33,7 @@ services:
       - web
     volumes:
       - static_volume:/home/app/web/staticfiles:ro
-    restart: on-failure
+    restart: always
   db:
     image: postgres:14-alpine
     volumes:
@@ -45,7 +45,7 @@ services:
       POSTGRES_USER: ${DB_USER:?}
       POSTGRES_PASSWORD: ${DB_PASSWORD:?}
       POSTGRES_DB: spellbook_db_prod
-    restart: on-failure
+    restart: always
 volumes:
   static_volume:
   postgres_data:

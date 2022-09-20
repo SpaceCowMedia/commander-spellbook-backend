@@ -13,15 +13,3 @@ services:
       - ${SSL_PRIVATEKEY_PATH:?}:/etc/nginx/ssl/cert.key:ro
     ports:
       - 443:443
-  web:
-    extends:
-      file: docker-compose.yml
-      service: web
-  db:
-    extends:
-      file: docker-compose.yml
-      service: db
-
-volumes:
-  static_volume:
-  postgres_data:

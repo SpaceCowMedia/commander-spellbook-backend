@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  db-backups:
+    image: schickling/postgres-backup-s3
+    depends_on:
+      - db
+    environment:
+      SCHEDULE: '@daily'
+      S3_REGION: ${AWS_S3_REGION:?}
+      S3_ACCESS_KEY_ID: ${AWS_S3_ACCESS_KEY_ID:?}
+      S3_SECRET_ACCESS_KEY: ${AWS_S3_SECRET_ACCESS_KEY:?}
+      S3_BUCKET: ${AWS_S3_BUCKET:?}
+      S3_PREFIX: backup
+      POSTGRES_BACKUP_ALL: 'false'
+      POSTGRES_HOST: db
+      POSTGRES_DATABASE: spellbook_db_prod
+      POSTGRES_USER: ${DB_USER:?}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?}
+      POSTGRES_EXTRA_OPTS: ''
+    restart: always

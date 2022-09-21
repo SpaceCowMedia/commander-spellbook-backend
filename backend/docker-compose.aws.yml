@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   db-backups:
-    image: schickling/postgres-backup-s3
+    image: eeshugerman/postgres-backup-s3:14
     depends_on:
       - db
     environment:

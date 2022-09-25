@@ -34,7 +34,7 @@ class Command(BaseCommand):
             result = {
                 'timestamp': timezone.now().isoformat(),
                 'variants': [prepare_variant(v) for v in Variant.objects.filter(status=Variant.Status.OK)],
-                }
+            }
             self.stdout.write(f'Exporting variants to {output}...')
             output.parent.mkdir(parents=True, exist_ok=True)
             with output.open('w', encoding='utf8') as f, gzip.open(str(output) + '.gz', mode='wt', encoding='utf8') as fz:

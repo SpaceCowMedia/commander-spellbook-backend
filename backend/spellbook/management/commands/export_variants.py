@@ -31,16 +31,20 @@ class Command(BaseCommand):
                 raise Exception('No file specified')
             output: Path = options['file'].resolve()
             self.stdout.write('Fetching variants from db...')
-            variants = [prepare_variant(v) for v in Variant.objects.filter(status=Variant.Status.OK)]
+            result = {
+                'timestamp': timezone.now().isoformat(),
+                'variants': [prepare_variant(v) for v in Variant.objects.filter(status=Variant.Status.OK)],
+                }
             self.stdout.write(f'Exporting variants to {output}...')
             output.parent.mkdir(parents=True, exist_ok=True)
             with output.open('w', encoding='utf8') as f, gzip.open(str(output) + '.gz', mode='wt', encoding='utf8') as fz:
-                json.dump(variants, f)
-                json.dump(variants, fz)
+                json.dump(result, f)
+                json.dump(result, fz)
             self.stdout.write('Done')
             job.termination = timezone.now()
             job.status = Job.Status.SUCCESS
-            job.message = f'Successfully exported {len(variants)} variants'
+            v = result['variants']
+            job.message = f'Successfully exported {len(v)} variants'
             job.save()
         except Exception as e:
             job.termination = timezone.now()

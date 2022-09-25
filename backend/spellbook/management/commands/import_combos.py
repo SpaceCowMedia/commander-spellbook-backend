@@ -1,8 +1,7 @@
-from collections import defaultdict
 import json
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import BaseCommand
 from spellbook.variants import unique_id_from_cards_ids
 from spellbook.models import Feature, Card, Job, Variant
 from django.utils import timezone
@@ -23,8 +22,11 @@ def scryfall() -> dict:
         with urlopen(req) as response:
             data = json.loads(response.read().decode())
             for card in data:
-                if 'paper' in card['games'] and card['layout'] not in ['art_series', 'vanguard', 'scheme']:
-                    card_db[card['name'].lower().strip(' \t\n\r')] = card
+                name = card['name'].lower().strip(' \t\n\r')
+                if name not in card_db \
+                    and ('paper' in card['games'] or 'mtgo' in card['games']) \
+                        and card['layout'] not in {'art_series', 'vanguard', 'scheme'}:
+                    card_db[name] = card
                     if 'card_faces' in card and len(card['card_faces']) > 1:
                         for face in card['card_faces']:
                             card_db[face['name'].lower().strip(' \t\n\r')] = card
@@ -60,7 +62,7 @@ class Command(BaseCommand):
     help = 'Tries to import combos from the google sheet'
 
     def handle(self, *args, **options):
-        job = Job(name='import_combos', expected_termination=timezone.now() + timezone.timedelta(minutes=3))
+        job = Job(name='import_combos', expected_termination=timezone.now() + timezone.timedelta(minutes=12))
         job.save()
         try:
             self.stdout.write('Importing combos...')
@@ -76,6 +78,7 @@ class Command(BaseCommand):
                 if card in scryfall_db:
                     data = scryfall_db[card]
                 else:
+                    self.stdout.write(f'Card {card} not found in Scryfall JSON, fetching...')
                     scryreq = Request(
                         'https://api.scryfall.com/cards/named?' + urlencode({'fuzzy': card}))
                     with urlopen(scryreq) as response:

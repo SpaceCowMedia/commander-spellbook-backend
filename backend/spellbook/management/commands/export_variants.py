@@ -5,6 +5,7 @@ from django.utils import timezone
 from django.core.management.base import BaseCommand
 from spellbook.models import Variant, Job
 from spellbook.serializers import VariantSerializer
+from django.conf import settings
 
 
 def prepare_variant(variant: Variant):
@@ -20,7 +21,7 @@ class Command(BaseCommand):
             '--file',
             type=Path,
             dest='file',
-            default=Path('/home/app/web/staticfiles/bulk/variants.json')
+            default=Path(settings.DEFAULT_BULK_FOLDER) / Path('variants.json')
         )
 
     def handle(self, *args, **options):

@@ -25,8 +25,10 @@ SECRET_KEY = 'django-insecure-!5xe$b7a9e4osw_3i23&&f1_s$inz*=j#97-6z88sf!!(f6w2q
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
+
 PARALLEL_SOLVERS = 20
 SOLVER_NAME = 'glpk'
+DEFAULT_BULK_FOLDER = './temp/bulk'
 
 ALLOWED_HOSTS = ['*']
 CSRF_TRUSTED_ORIGINS = [

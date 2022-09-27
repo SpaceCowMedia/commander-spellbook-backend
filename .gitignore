@@ -138,3 +138,6 @@ Scripts/
 
 # vscode
 .vscode/settings.json
+
+# temp files
+temp/

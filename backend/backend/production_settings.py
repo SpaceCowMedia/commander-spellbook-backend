@@ -24,9 +24,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.environ['SECRET_KEY']
 
+# SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
+
 PARALLEL_SOLVERS = multiprocessing.cpu_count()
 SOLVER_NAME = 'glpk'
+DEFAULT_BULK_FOLDER = '/home/app/web/staticfiles/bulk'
 
 # Security settings
 ALLOWED_HOSTS = [

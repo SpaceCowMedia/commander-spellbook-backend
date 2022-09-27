@@ -44,48 +44,24 @@ class FeatureAdmin(admin.ModelAdmin):
     list_filter = ['utility']
 
 
-def run_export_variants(request):
-    job = Job.start(
-        name='export_variants',
-        duration=timezone.timedelta(minutes=1),
-        user=request.user)
-    if job is not None:
-        manage_py_path = pathlib.Path(__file__).parent.parent / 'manage.py'
-        import subprocess
-        args = ['python', manage_py_path.resolve(), 'export_variants', '--id', str(job.id)]
-        if sys.platform == "win32":
-            subprocess.Popen(
-                args=args,
-                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP)
-        else:
-            subprocess.Popen(args=args)
-        messages.info(request, 'Exporting of variants job started.')
-    else:
-        messages.warning(request, 'Variant exporting is already running.')
-
-
 @admin.action(description='Mark selected variants as RESTORE')
 def set_restore(modeladmin, request, queryset):
     queryset.update(status=Variant.Status.RESTORE)
-    run_export_variants(request)
 
 
 @admin.action(description='Mark selected variants as DRAFT')
 def set_draft(modeladmin, request, queryset):
     queryset.update(status=Variant.Status.DRAFT)
-    run_export_variants(request)
 
 
 @admin.action(description='Mark selected variants as NEW')
 def set_new(modeladmin, request, queryset):
     queryset.update(status=Variant.Status.NEW)
-    run_export_variants(request)
 
 
 @admin.action(description='Mark selected variants as NOT WORKING')
 def set_not_working(modeladmin, request, queryset):
     queryset.update(status=Variant.Status.NOT_WORKING)
-    run_export_variants(request)
 
 
 class VariantForm(ModelForm):
@@ -141,21 +117,41 @@ class VariantAdmin(admin.ModelAdmin):
             else:
                 messages.warning(request, 'Variant generation is already running.')
         return HttpResponseRedirect(reverse('admin:spellbook_variant_changelist'))
+    
+    def export(self, request):
+        if request.method == 'POST' and request.user.is_authenticated:
+            job = Job.start(
+                name='export_variants',
+                duration=timezone.timedelta(minutes=1),
+                user=request.user)
+            if job is not None:
+                manage_py_path = pathlib.Path(__file__).parent.parent / 'manage.py'
+                import subprocess
+                args = ['python', manage_py_path.resolve(), 'export_variants', '--id', str(job.id)]
+                if sys.platform == "win32":
+                    subprocess.Popen(
+                        args=args,
+                        creationflags=subprocess.CREATE_NEW_PROCESS_GROUP)
+                else:
+                    subprocess.Popen(args=args)
+                messages.info(request, 'Exporting of variants job started.')
+            else:
+                messages.warning(request, 'Variant exporting is already running.')
+        return HttpResponseRedirect(reverse('admin:spellbook_variant_changelist'))
 
     def get_urls(self):
         return [path('generate/',
                     self.admin_site.admin_view(view=self.generate, cacheable=False),
-                    name='spellbook_variant_generate')] + super().get_urls()
+                    name='spellbook_variant_generate'),
+                path('export/',
+                    self.admin_site.admin_view(view=self.export, cacheable=False),
+                    name='spellbook_variant_export')] + super().get_urls()
 
     def has_add_permission(self, request):
         return False
 
     def has_delete_permission(self, request, obj=None):
         return False
-    
-    def save_model(self, request, obj, form, change):
-        super().save_model(request, obj, form, change)
-        run_export_variants(request)
 
 
 class ComboForm(ModelForm):

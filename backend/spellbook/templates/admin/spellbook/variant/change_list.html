@@ -65,5 +65,13 @@
         </button>
     </form>
 </li>
+<li>
+    <form method="post" action="{% url 'admin:spellbook_variant_export' %}" class="inline" novalidate>
+        {% csrf_token %}
+        <button type="submit" class="default" onclick="this.classList.toggle('button--loading'); this.disabled=true; this.parentNode.submit();">
+            <span class="button__text">Export variants</span>
+        </button>
+    </form>
+</li>
 {{ block.super }}
 {% endblock %}

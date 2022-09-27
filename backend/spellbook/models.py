@@ -173,7 +173,7 @@ class Job(models.Model):
 
     def start(name: str, duration: timezone.timedelta, user: User):
         try:
-            with transaction.atomic(durable=True):
+            with transaction.atomic():
                 if Job.objects.filter(
                         name=name,
                         expected_termination__gte=timezone.now(),

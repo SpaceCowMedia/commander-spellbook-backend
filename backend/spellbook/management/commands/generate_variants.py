@@ -5,7 +5,6 @@ from spellbook.variants import generate_variants
 from django.utils import timezone
 from django.contrib.admin.models import LogEntry, CHANGE
 from django.contrib.contenttypes.models import ContentType
-from django.core.management import call_command
 
 
 class Command(BaseCommand):
@@ -33,8 +32,6 @@ class Command(BaseCommand):
             else:
                 message = f'Generated {added} new variants, restored {restored} variants, removed {removed} variants'
             self.stdout.write(self.style.SUCCESS(message))
-            self.stdout.write(self.style.SUCCESS('Exporting variants...'))
-            call_command('export_variants')
             if job is not None:
                 job.termination = timezone.now()
                 job.status = Job.Status.SUCCESS

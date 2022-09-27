@@ -117,7 +117,7 @@ class VariantAdmin(admin.ModelAdmin):
             else:
                 messages.warning(request, 'Variant generation is already running.')
         return HttpResponseRedirect(reverse('admin:spellbook_variant_changelist'))
-    
+
     def export(self, request):
         if request.method == 'POST' and request.user.is_authenticated:
             job = Job.start(

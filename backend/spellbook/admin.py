@@ -128,6 +128,26 @@ class VariantAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+    
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        job = Job.start(
+            name='export_variants',
+            duration=timezone.timedelta(minutes=1),
+            user=request.user)
+        if job is not None:
+            manage_py_path = pathlib.Path(__file__).parent.parent / 'manage.py'
+            import subprocess
+            args = ['python', manage_py_path.resolve(), 'export_variants', '--id', str(job.id)]
+            if sys.platform == "win32":
+                subprocess.Popen(
+                    args=args,
+                    creationflags=subprocess.CREATE_NEW_PROCESS_GROUP)
+            else:
+                subprocess.Popen(args=args)
+            messages.info(request, 'Exporting of variants job started.')
+        else:
+            messages.warning(request, 'Variant exporting is already running.')
 
 
 class ComboForm(ModelForm):

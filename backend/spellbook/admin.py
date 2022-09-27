@@ -66,7 +66,7 @@ def set_not_working(modeladmin, request, queryset):
 
 class VariantForm(ModelForm):
     def clean_mana_needed(self):
-        return self.cleaned_data['mana_needed'].upper() if self.cleaned_data['mana_needed'] else None
+        return self.cleaned_data['mana_needed'].upper() if self.cleaned_data['mana_needed'] else self.cleaned_data['mana_needed']
 
 
 @admin.register(Variant)
@@ -144,7 +144,7 @@ class ComboForm(ModelForm):
         return super().clean()
 
     def clean_mana_needed(self):
-        return self.cleaned_data['mana_needed'].upper() if self.cleaned_data['mana_needed'] is not None else None
+        return self.cleaned_data['mana_needed'].upper() if self.cleaned_data['mana_needed'] else self.cleaned_data['mana_needed']
 
 
 class ComboVariantInline(admin.TabularInline):

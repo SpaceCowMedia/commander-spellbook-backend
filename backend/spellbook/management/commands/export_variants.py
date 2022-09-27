@@ -1,8 +1,9 @@
 import json
 import gzip
 from pathlib import Path
+import traceback
 from django.utils import timezone
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from spellbook.models import Variant, Job
 from spellbook.serializers import VariantSerializer
 from django.conf import settings
@@ -23,10 +24,19 @@ class Command(BaseCommand):
             dest='file',
             default=Path(settings.DEFAULT_BULK_FOLDER) / Path('variants.json')
         )
+        parser.add_argument(
+            '--id',
+            type=int,
+            dest='job_id',
+        )
 
     def handle(self, *args, **options):
-        job = Job(name='export_variants', expected_termination=timezone.now() + timezone.timedelta(minutes=1))
-        job.save()
+        job = None
+        if options['job_id']:
+            try:
+                job = Job.objects.get(id=options['job_id'])
+            except Job.DoesNotExist:
+                raise CommandError('Job with id %s does not exist' % options['job_id'])
         try:
             if options['file'] is None:
                 raise Exception('No file specified')
@@ -42,14 +52,17 @@ class Command(BaseCommand):
                 json.dump(result, f)
                 json.dump(result, fz)
             self.stdout.write('Done')
-            job.termination = timezone.now()
-            job.status = Job.Status.SUCCESS
-            v = result['variants']
-            job.message = f'Successfully exported {len(v)} variants'
-            job.save()
+            if job is not None:
+                job.termination = timezone.now()
+                job.status = Job.Status.SUCCESS
+                v = result['variants']
+                job.message = f'Successfully exported {len(v)} variants'
+                job.save()
         except Exception as e:
-            job.termination = timezone.now()
-            job.status = Job.Status.FAILURE
-            job.message = f'Failed to export variants: {e}'
-            job.save()
-            raise e
+            self.stdout.write(self.style.ERROR(traceback.format_exc()))
+            message = f'Failed to export variants: {e}'
+            if job is not None:
+                job.termination = timezone.now()
+                job.status = Job.Status.FAILURE
+                job.message = message
+                job.save()

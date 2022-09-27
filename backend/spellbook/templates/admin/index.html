@@ -53,7 +53,7 @@
                 {% endif %}
                 {% if entry.user %}
                     <br>
-                    <span class="mini quiet">By <a href="{% url 'admin:auth_user_change' entry.user.pk %}">{{ entry.user }}</a></span>
+                    <span class="mini quiet"><a href="{% url 'admin:auth_user_change' entry.user.pk %}">{{ entry.user }}</a></span>
                 {% endif %}
             </li>
             {% endfor %}

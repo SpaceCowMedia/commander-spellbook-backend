@@ -32,8 +32,6 @@ jobs:
       - id: semver
         name: Checkout
         uses: EasyDesk/action-semver-checkout@v1
-      - run: python manage.py test
-        working-directory: backend
       - run: docker compose -f docker-compose.yml build
         working-directory: backend
   release:

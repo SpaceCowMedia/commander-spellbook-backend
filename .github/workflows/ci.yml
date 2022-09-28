@@ -3,6 +3,8 @@ name: CI/CD
 on:
   push:
     branches:
+      - "**"
+    tags:
       - "*"
   pull_request:
     types:
@@ -21,7 +23,35 @@ jobs:
       SECRET_KEY: ci_build_secret
       DB_USER: ci_build_user
       DB_PASSWORD: ci_build_password
+    outputs:
+      version: ${{ steps.semver.outputs.version }}
+      should-release: ${{ steps.semver.outputs.should-release }}
+      is-prerelease: ${{ steps.semver.outputs.is-github-prerelease }}
+      should-deploy: 'false'
     steps:
-      - uses: actions/checkout@v3
+      - id: semver
+        name: Checkout
+        uses: EasyDesk/action-semver-checkout@v1
+      - run: python manage.py test
+        working-directory: backend
       - run: docker compose -f docker-compose.yml build
         working-directory: backend
+  release:
+    runs-on: ubuntu-latest
+    needs: build
+    if: needs.build.outputs.should-release == 'true'
+    concurrency: release
+    steps:
+      - name: Release
+        uses: EasyDesk/action-semver-release@v1
+        with:
+          version: ${{ needs.build.outputs.version }}
+          prerelease: ${{ needs.build.outputs.is-prerelease }}
+          prefix: CSB
+  deploy:
+    runs-on: ubuntu-latest
+    needs: release
+    if: needs.build.outputs.should-deploy == 'true'
+    concurrency: deploy
+    steps:
+      - run: echo 'WIP'

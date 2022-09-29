@@ -49,7 +49,7 @@ jobs:
     concurrency: deploy
     environment: production
     steps:
-      - run: arwynfr/actions-docker-context@v2
+      - uses: arwynfr/actions-docker-context@v2
         with:
           docker_host: ssh://${{ secrets.USERNAME }}@${{ secrets.HOST }}
           context_name: production

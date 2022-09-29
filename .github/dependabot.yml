@@ -12,3 +12,10 @@ updates:
     directory: backend/
     schedule:
       interval: monthly
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    labels:
+      - CI/CD
+      - dependency

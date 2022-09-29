@@ -51,6 +51,6 @@ jobs:
         with:
           docker_host: ssh://${{ secrets.USERNAME }}@${{ secrets.HOST }}
           context_name: production
-          ssh_cert: ${{ secrets.HOST }} ${{ secrets.SSH_PUB }}
+          ssh_cert: ${{ secrets.HOST }} ${{ secrets.SSH_SERVER_CERT }}
           ssh_key: ${{ secrets.SSH_KEY }}
       - run: docker --context production ps

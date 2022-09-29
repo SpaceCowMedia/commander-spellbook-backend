@@ -23,7 +23,7 @@ jobs:
       version: ${{ steps.semver.outputs.version }}
       should-release: ${{ steps.semver.outputs.should-release }}
       is-prerelease: ${{ steps.semver.outputs.is-github-prerelease }}
-      can-deploy: 'false'
+      can-deploy: ${{ secrets.HOST != '' }}
     steps:
       - id: semver
         name: Checkout

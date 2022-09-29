@@ -67,6 +67,7 @@ jobs:
           context_name: production
           ssh_cert: ${{ secrets.HOST }} ${{ secrets.SSH_SERVER_CERT }}
           ssh_key: ${{ secrets.SSH_KEY }}
+      - uses: actions/checkout@v3
       - name: Build Docker images on remote host
         run: docker --context production compose -f docker-compose.yml -f docker-compose.ssl.yml -f docker-compose.aws.yml build
       - name: Start Docker containers on remote host

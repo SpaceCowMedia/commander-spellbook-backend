@@ -25,7 +25,7 @@ class CardDetailSerializer(serializers.ModelSerializer):
 class ComboSerializer(serializers.ModelSerializer):
     produces = FeatureSerializer(many=True, read_only=True)
     needs = FeatureSerializer(many=True, read_only=True)
-    includes = CardSerializer(many=True, read_only=True)
+    uses = CardSerializer(many=True, read_only=True)
 
     class Meta:
         model = Combo
@@ -33,7 +33,7 @@ class ComboSerializer(serializers.ModelSerializer):
             'id',
             'produces',
             'needs',
-            'includes',
+            'uses',
             'zone_locations',
             'cards_state',
             'mana_needed',
@@ -42,18 +42,20 @@ class ComboSerializer(serializers.ModelSerializer):
 
 
 class VariantSerializer(serializers.ModelSerializer):
-    includes = CardSerializer(many=True, read_only=True)
+    uses = CardSerializer(many=True, read_only=True)
     produces = FeatureSerializer(many=True, read_only=True)
     of = ComboSerializer(many=True, read_only=True)
+    includes = ComboSerializer(many=True, read_only=True)
 
     class Meta:
         model = Variant
         fields = [
             'id',
             'unique_id',
-            'includes',
+            'uses',
             'produces',
             'of',
+            'includes',
             'zone_locations',
             'cards_state',
             'mana_needed',

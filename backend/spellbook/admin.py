@@ -72,9 +72,9 @@ class VariantForm(ModelForm):
 @admin.register(Variant)
 class VariantAdmin(admin.ModelAdmin):
     form = VariantForm
-    readonly_fields = ['includes', 'produces', 'of', 'unique_id']
+    readonly_fields = ['uses', 'produces', 'of', 'includes', 'unique_id']
     fieldsets = [
-        ('Generated', {'fields': ['unique_id', 'includes', 'produces', 'of']}),
+        ('Generated', {'fields': ['unique_id', 'uses', 'produces', 'of', 'includes']}),
         ('Editable', {'fields': [
             'status',
             'zone_locations',
@@ -86,7 +86,7 @@ class VariantAdmin(admin.ModelAdmin):
     ]
     list_filter = ['status']
     list_display = ['__str__', 'status', 'id']
-    search_fields = ['id', 'includes__name', 'produces__name', 'unique_id']
+    search_fields = ['id', 'uses__name', 'produces__name', 'unique_id']
     actions = [set_restore, set_draft, set_new, set_not_working]
 
     def generate(self, request):
@@ -157,7 +157,7 @@ class VariantAdmin(admin.ModelAdmin):
 class ComboForm(ModelForm):
     def clean(self):
         if self.is_valid():
-            if len(self.cleaned_data['includes']) + len(self.cleaned_data['needs']) == 0:
+            if len(self.cleaned_data['uses']) + len(self.cleaned_data['needs']) == 0:
                 raise ValidationError('Combo must include a card or need a feature to make sense.')
             ok = False
             with transaction.atomic(savepoint=True, durable=False):
@@ -193,7 +193,7 @@ class ComboAdmin(admin.ModelAdmin):
     inlines = [ComboVariantInline]
     fieldsets = [
         ('Requirements', {'fields': [
-            'includes',
+            'uses',
             'needs',
             'zone_locations',
             'cards_state',
@@ -202,9 +202,9 @@ class ComboAdmin(admin.ModelAdmin):
         ('Features', {'fields': ['produces', 'removes']}),
         ('Description', {'fields': ['generator', 'description']}),
     ]
-    filter_horizontal = ['includes', 'produces', 'needs', 'removes']
+    filter_horizontal = ['uses', 'produces', 'needs', 'removes']
     list_filter = ['generator']
-    search_fields = ['includes__name', 'produces__name', 'needs__name']
+    search_fields = ['uses__name', 'produces__name', 'needs__name']
     list_display = ['__str__', 'generator', 'id']
 
 

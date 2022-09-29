@@ -109,7 +109,7 @@ class Command(BaseCommand):
                     continue
                 combo = Variant(other_prerequisites=prerequisite, description=description, frozen=True, status=Variant.Status.OK, unique_id=unique_id_from_cards_ids([c.id for c in cards]))
                 combo.save()
-                combo.includes.set(cards)
+                combo.uses.set(cards)
                 for p in produced:
                     try:
                         f = Feature.objects.get(name=p.title())

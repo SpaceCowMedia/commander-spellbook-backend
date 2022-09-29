@@ -45,6 +45,18 @@ class Card(models.Model):
 
 
 class Combo(models.Model):
+    uses = models.ManyToManyField(
+        to=Card,
+        related_name='used_in_combos',
+        help_text='Cards that this combo uses',
+        blank=True,
+        verbose_name='used cards')
+    needs = models.ManyToManyField(
+        to=Feature,
+        related_name='needed_by_combos',
+        help_text='Features that this combo needs',
+        blank=True,
+        verbose_name='needed features')
     produces = models.ManyToManyField(
         to=Feature,
         related_name='produced_by_combos',
@@ -56,18 +68,6 @@ class Combo(models.Model):
         help_text='Features that this combo removes',
         blank=True,
         verbose_name='removed features')
-    needs = models.ManyToManyField(
-        to=Feature,
-        related_name='needed_by_combos',
-        help_text='Features that this combo needs',
-        blank=True,
-        verbose_name='needed features')
-    includes = models.ManyToManyField(
-        to=Card,
-        related_name='included_in_combos',
-        help_text='Cards that this combo includes',
-        blank=True,
-        verbose_name='included cards')
     zone_locations = models.TextField(blank=True, default='', help_text='Starting locations for cards.')
     cards_state = models.TextField(blank=True, default='', help_text='State of cards in their starting locations.')
     mana_needed = models.CharField(blank=True, max_length=200, default='', help_text='Mana needed for this combo. Use the {1}{W}{U}{B}{R}{G}{B/P}... format.', validators=[mana_validator])
@@ -90,7 +90,7 @@ class Combo(models.Model):
             + (' - ' + ' - '.join([str(feature) for feature in self.removes.all()]) if self.removes.exists() else '')
 
     def ingredients(self):
-        return ' + '.join([str(card) for card in self.includes.all()] + [str(feature) for feature in self.needs.all()])
+        return ' + '.join([str(card) for card in self.uses.all()] + [str(feature) for feature in self.needs.all()])
 
 
 class Variant(models.Model):
@@ -101,15 +101,20 @@ class Variant(models.Model):
         OK = 'OK'
         RESTORE = 'R'
 
-    includes = SortedManyToManyField(
+    uses = SortedManyToManyField(
         to=Card,
-        related_name='included_in_variants',
-        help_text='Cards that this variant includes',
+        related_name='used_in_variants',
+        help_text='Cards that this variant uses',
         editable=False)
     produces = SortedManyToManyField(
         to=Feature,
         related_name='produced_by_variants',
         help_text='Features that this variant produces',
+        editable=False)
+    includes = models.ManyToManyField(
+        to=Combo,
+        related_name='included_in_variants',
+        help_text='Combo that this variant includes',
         editable=False)
     of = models.ManyToManyField(
         to=Combo,
@@ -139,7 +144,7 @@ class Variant(models.Model):
         if self.pk is None:
             return f'New variant with unique id <{self.unique_id}>'
         produces = self.produces.all()[:4]
-        return ' + '.join([str(card) for card in self.includes.all()]) \
+        return ' + '.join([str(card) for card in self.uses.all()]) \
             + ' ➡ ' + ' + '.join([str(feature) for feature in produces[:3]]) \
             + ('...' if len(produces) > 3 else '')
 

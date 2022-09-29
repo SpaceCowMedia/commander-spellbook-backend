@@ -6,10 +6,6 @@ on:
       - "**"
     tags:
       - "*"
-  pull_request:
-    types:
-      - opened
-      - reopened
   workflow_dispatch:
 
 
@@ -27,7 +23,7 @@ jobs:
       version: ${{ steps.semver.outputs.version }}
       should-release: ${{ steps.semver.outputs.should-release }}
       is-prerelease: ${{ steps.semver.outputs.is-github-prerelease }}
-      should-deploy: 'false'
+      can-deploy: 'false'
     steps:
       - id: semver
         name: Checkout
@@ -49,7 +45,14 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs: release
-    if: needs.build.outputs.should-deploy == 'true'
+    if: needs.build.outputs.can-deploy == 'true'
     concurrency: deploy
+    environment: production
     steps:
-      - run: echo 'WIP'
+      - run: arwynfr/actions-docker-context@v2
+        with:
+          docker_host: ssh://${{ secrets.USERNAME }}@${{ secrets.HOST }}
+          context_name: production
+          ssh_cert: ${{ secrets.HOST }} ${{ secrets.SSH_PUB }}
+          ssh_key: ${{ secrets.SSH_KEY }}
+      - run: docker --context remote ps

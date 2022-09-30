@@ -2,10 +2,7 @@ from django.utils import timezone
 from django.db import OperationalError, models, transaction
 from sortedm2m.fields import SortedManyToManyField
 from django.contrib.auth.models import User
-from django.core.validators import RegexValidator
-
-
-mana_validator = RegexValidator(regex=r'^(\{(?:[0-9WUBRGCXS]|[1-9][0-9]|([2WUBRG])(?:\/(?!\2)[WUBRG])?(?:\/P)?)\} *)*$', message='Mana needed must be in the {1}{W}{U}{B}{R}{G}{B/P}... format.')
+from .symbols import MANA_VALIDATOR, TEXT_VALIDATORS
 
 
 class Feature(models.Model):
@@ -68,11 +65,11 @@ class Combo(models.Model):
         help_text='Features that this combo removes',
         blank=True,
         verbose_name='removed features')
-    zone_locations = models.TextField(blank=True, default='', help_text='Starting locations for cards.')
-    cards_state = models.TextField(blank=True, default='', help_text='State of cards in their starting locations.')
-    mana_needed = models.CharField(blank=True, max_length=200, default='', help_text='Mana needed for this combo. Use the {1}{W}{U}{B}{R}{G}{B/P}... format.', validators=[mana_validator])
-    other_prerequisites = models.TextField(blank=True, default='', help_text='Other prerequisites for this combo.')
-    description = models.TextField(blank=True, help_text='Long description of the combo, in steps')
+    zone_locations = models.TextField(blank=True, default='', help_text='Starting locations for cards.', validators=TEXT_VALIDATORS, verbose_name='starting locations')
+    cards_state = models.TextField(blank=True, default='', help_text='State of cards in their starting locations.', validators=TEXT_VALIDATORS, verbose_name='starting cards state')
+    mana_needed = models.CharField(blank=True, max_length=200, default='', help_text='Mana needed for this combo. Use the {1}{W}{U}{B}{R}{G}{B/P}... format.', validators=[MANA_VALIDATOR])
+    other_prerequisites = models.TextField(blank=True, default='', help_text='Other prerequisites for this combo.', validators=TEXT_VALIDATORS)
+    description = models.TextField(blank=True, help_text='Long description of the combo, in steps', validators=TEXT_VALIDATORS)
     generator = models.BooleanField(default=True, help_text='Is this combo a generator for variants?', verbose_name='is generator')
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, editable=False)
@@ -122,11 +119,11 @@ class Variant(models.Model):
         help_text='Combo that this variant is an instance of',
         editable=False)
     status = models.CharField(choices=Status.choices, default=Status.NEW, help_text='Variant status for editors', max_length=2)
-    zone_locations = models.TextField(blank=True, default='', help_text='Starting locations for cards.')
-    cards_state = models.TextField(blank=True, default='', help_text='State of cards in their starting locations.')
-    mana_needed = models.CharField(blank=True, max_length=200, default='', help_text='Mana needed for this combo. Use the {1}{W}{U}{B}{R}{G}{B/P}... format.', validators=[mana_validator])
-    other_prerequisites = models.TextField(blank=True, default='', help_text='Other prerequisites for this variant.')
-    description = models.TextField(blank=True, help_text='Long description of the variant, in steps')
+    zone_locations = models.TextField(blank=True, default='', help_text='Starting locations for cards.', validators=TEXT_VALIDATORS, verbose_name='starting locations')
+    cards_state = models.TextField(blank=True, default='', help_text='State of cards in their starting locations.', validators=TEXT_VALIDATORS, verbose_name='starting cards state')
+    mana_needed = models.CharField(blank=True, max_length=200, default='', help_text='Mana needed for this combo. Use the {1}{W}{U}{B}{R}{G}{B/P}... format.', validators=[MANA_VALIDATOR])
+    other_prerequisites = models.TextField(blank=True, default='', help_text='Other prerequisites for this variant.', validators=TEXT_VALIDATORS)
+    description = models.TextField(blank=True, help_text='Long description of the variant, in steps', validators=TEXT_VALIDATORS)
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, editable=False)
     unique_id = models.CharField(max_length=128, unique=True, blank=False, help_text='Unique ID for this variant', editable=False)

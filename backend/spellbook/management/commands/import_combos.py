@@ -2,7 +2,7 @@ import json
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 from django.core.management.base import BaseCommand
-from spellbook.variants import unique_id_from_cards_ids
+from spellbook.variants import unique_id_from_cards_ids, merge_identities
 from spellbook.models import Feature, Card, Job, Variant
 from django.utils import timezone
 from django.db.models import Count, Q
@@ -89,17 +89,17 @@ class Command(BaseCommand):
                 except Card.DoesNotExist:
                     q = Card.objects.filter(name=data['name'])
                     if q.exists():
-                        q.update(oracle_id=data['oracle_id'])
+                        q.update(oracle_id=data['oracle_id'], identity=merge_identities(data['color_identity']))
                     else:
-                        Card.objects.create(name=data['name'], oracle_id=data['oracle_id'])
+                        Card.objects.create(name=data['name'], oracle_id=data['oracle_id'], identity=merge_identities(data['color_identity']))
             self.stdout.write('Done fetching cards')
             self.stdout.write('Importing combos...')
             for i, (id, _cards, produced, prerequisite, description) in enumerate(x):
                 self.stdout.write(f'{i+1}/{len(x)}')
                 cards = [Card.objects.get(oracle_id=scryfall_db[card.lower()]['oracle_id']) for card in _cards]
                 already_present = Variant.objects.annotate(
-                    total_cards=Count('includes'),
-                    matching_cards=Count('includes', filter=Q(includes__in=cards)),
+                    total_cards=Count('uses'),
+                    matching_cards=Count('uses', filter=Q(uses__in=cards)),
                 ).filter(
                     total_cards=len(cards),
                     matching_cards=len(cards),
@@ -107,7 +107,12 @@ class Command(BaseCommand):
                 if already_present.exists():
                     self.stdout.write(f'Skipping combo [{id}] {cards}: already present in variants')
                     continue
-                combo = Variant(other_prerequisites=prerequisite, description=description, frozen=True, status=Variant.Status.OK, unique_id=unique_id_from_cards_ids([c.id for c in cards]))
+                combo = Variant(other_prerequisites=prerequisite,
+                    description=description,
+                    frozen=True,
+                    status=Variant.Status.OK,
+                    unique_id=unique_id_from_cards_ids([c.id for c in cards]),
+                    identity=merge_identities([c.identity for c in cards]))
                 combo.save()
                 combo.uses.set(cards)
                 for p in produced:
@@ -126,4 +131,5 @@ class Command(BaseCommand):
             job.status = Job.Status.FAILURE
             job.message = f'Failed to import combos: {e}'
             job.save()
+            print(e)
             raise e

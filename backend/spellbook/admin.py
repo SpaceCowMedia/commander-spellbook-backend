@@ -17,12 +17,12 @@ from django.db.models import Avg, F
 class CardAdmin(admin.ModelAdmin):
     fieldsets = [
         ('Spellbook', {'fields': ['name', 'features']}),
-        ('Scryfall', {'fields': ['oracle_id']}),
+        ('Scryfall', {'fields': ['oracle_id', 'identity']}),
     ]
     # inlines = [FeatureInline]
     search_fields = ['name', 'features__name']
     autocomplete_fields = ['features']
-    list_display = ['name', 'id']
+    list_display = ['name', 'identity', 'id']
 
 
 class CardInline(admin.StackedInline):
@@ -72,9 +72,9 @@ class VariantForm(ModelForm):
 @admin.register(Variant)
 class VariantAdmin(admin.ModelAdmin):
     form = VariantForm
-    readonly_fields = ['uses', 'produces', 'of', 'includes', 'unique_id']
+    readonly_fields = ['uses', 'produces', 'of', 'includes', 'unique_id', 'identity']
     fieldsets = [
-        ('Generated', {'fields': ['unique_id', 'uses', 'produces', 'of', 'includes']}),
+        ('Generated', {'fields': ['unique_id', 'uses', 'produces', 'of', 'includes', 'identity']}),
         ('Editable', {'fields': [
             'status',
             'zone_locations',
@@ -84,9 +84,9 @@ class VariantAdmin(admin.ModelAdmin):
             'description',
             'frozen']})
     ]
-    list_filter = ['status']
-    list_display = ['__str__', 'status', 'id']
-    search_fields = ['id', 'uses__name', 'produces__name', 'unique_id']
+    list_filter = ['status', 'identity']
+    list_display = ['__str__', 'status', 'id', 'identity']
+    search_fields = ['id', 'uses__name', 'produces__name', 'unique_id', 'identity']
     actions = [set_restore, set_draft, set_new, set_not_working]
 
     def generate(self, request):

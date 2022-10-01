@@ -41,6 +41,8 @@
                         success: function(data) {
                             let oracle_id = data.oracle_id;
                             $('#id_oracle_id').val(oracle_id);
+                            let color_identity = Array.from(new Set(Array.from(data.color_identity).map(i => i.toUpperCase()))).sort().join('');
+                            $('#id_identity').val(color_identity);
                         }
                     })
                 },

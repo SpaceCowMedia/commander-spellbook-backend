@@ -8,3 +8,5 @@ DOUBLE_SQUARE_BRACKET_TEXT_VALIDATOR = RegexValidator(regex=DOUBLE_SQUARE_BRACKE
 SYMBOLS_TEXT_REGEX = r'^(?:[^\{]*\{(?:[0-9WUBRGCPXYZSTQEA½∞]|PW|CHAOS|TK|[1-9][0-9]{1,2}|H[WUBRG]|(?:2\/[WUBRG]|W\/U|W\/B|B\/R|B\/G|U\/B|U\/R|R\/G|R\/W|G\/W|G\/U)(?:\/P)?)\})*[^\{]*$'
 SYMBOLS_TEXT_VALIDATOR = RegexValidator(regex=SYMBOLS_TEXT_REGEX, message='Symbols must be in the {1}{W}{U}{B}{R}{G}{B/P}{A}{E}{T}{Q}... format.')
 TEXT_VALIDATORS = [DOUBLE_SQUARE_BRACKET_TEXT_VALIDATOR, SYMBOLS_TEXT_VALIDATOR]
+IDENTITY_REGEX = r'^W?U?B?R?G?$'
+IDENTITY_VALIDATOR = RegexValidator(regex=IDENTITY_REGEX, message='Can be any combination of zero or more letters in [W,U,B,R,G], in order.')

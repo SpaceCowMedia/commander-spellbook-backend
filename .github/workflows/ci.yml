@@ -71,4 +71,4 @@ jobs:
       - name: Build Docker images on remote host
         run: docker --context production compose -f docker-compose.yml -f docker-compose.ssl.yml -f docker-compose.aws.yml build
       - name: Start Docker containers on remote host
-        run: docker --context production compose -f docker-compose.yml -f docker-compose.ssl.yml -f docker-compose.aws.yml up -d
+        run: docker --context production compose -f docker-compose.yml -f docker-compose.ssl.yml -f docker-compose.aws.yml down -v

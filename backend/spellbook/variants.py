@@ -1,6 +1,7 @@
 import json
 import hashlib
 import logging
+from typing import Iterable
 import pyomo.environ as pyo
 from dataclasses import dataclass
 from itertools import starmap
@@ -61,6 +62,11 @@ def removed_features(variant: Variant, features: set[int]) -> set[int]:
     return features - set(variant.includes.values_list('removes__id', flat=True))
 
 
+def merge_identities(identities: Iterable[str]):
+    i = set(''.join(identities).upper())
+    return ''.join([color for color in 'WUBRG' if color in i])
+
+
 def update_variant(
         data: Data,
         unique_id: str,
@@ -73,18 +79,14 @@ def update_variant(
     variant.of.set(combos_that_generated)
     variant.includes.set(combos_included)
     variant.produces.set(removed_features(variant, features) - data.utility_features_ids)
+    variant.identity = merge_identities(variant.uses.values_list('identity', flat=True))
     if restore:
         combos = data.combos.filter(id__in=combos_included)
-        zone_locations = '\n'.join(c.zone_locations for c in combos if len(c.zone_locations) > 0)
-        cards_state = '\n'.join(c.cards_state for c in combos if len(c.cards_state) > 0)
-        other_prerequisites = '\n'.join(c.other_prerequisites for c in combos if len(c.other_prerequisites) > 0)
-        mana_needed = ' '.join(c.mana_needed for c in combos if len(c.mana_needed) > 0)
-        description = '\n'.join(c.description for c in combos if len(c.description) > 0)
-        variant.zone_locations = zone_locations
-        variant.cards_state = cards_state
-        variant.other_prerequisites = other_prerequisites
-        variant.mana_needed = mana_needed
-        variant.description = description
+        variant.zone_locations = '\n'.join(c.zone_locations for c in combos if len(c.zone_locations) > 0)
+        variant.cards_state = '\n'.join(c.cards_state for c in combos if len(c.cards_state) > 0)
+        variant.other_prerequisites = '\n'.join(c.other_prerequisites for c in combos if len(c.other_prerequisites) > 0)
+        variant.mana_needed = ' '.join(c.mana_needed for c in combos if len(c.mana_needed) > 0)
+        variant.description = '\n'.join(c.description for c in combos if len(c.description) > 0)
         variant.status = Variant.Status.NEW if ok else Variant.Status.NOT_WORKING
     if not ok:
         variant.status = Variant.Status.NOT_WORKING
@@ -113,7 +115,8 @@ def create_variant(
         cards_state=cards_state,
         other_prerequisites=other_prerequisites,
         mana_needed=mana_needed,
-        description=description)
+        description=description,
+        identity=merge_identities(data.cards.filter(id__in=cards).values_list('identity', flat=True)))
     if not ok:
         variant.status = Variant.Status.NOT_WORKING
     variant.save()

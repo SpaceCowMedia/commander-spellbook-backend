@@ -2,7 +2,7 @@ from django.utils import timezone
 from django.db import OperationalError, models, transaction
 from sortedm2m.fields import SortedManyToManyField
 from django.contrib.auth.models import User
-from .symbols import MANA_VALIDATOR, TEXT_VALIDATORS
+from .symbols import MANA_VALIDATOR, TEXT_VALIDATORS, IDENTITY_VALIDATOR
 
 
 class Feature(models.Model):
@@ -29,6 +29,7 @@ class Card(models.Model):
         related_name='cards',
         help_text='Features provided by this single card effects or characteristics',
         blank=True)
+    identity = models.CharField(max_length=5, blank=True, help_text='Card mana identity', verbose_name='mana identity of card', validators=[IDENTITY_VALIDATOR])
     added = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, editable=False)
 
@@ -123,11 +124,12 @@ class Variant(models.Model):
     cards_state = models.TextField(blank=True, default='', help_text='State of cards in their starting locations.', validators=TEXT_VALIDATORS, verbose_name='starting cards state')
     mana_needed = models.CharField(blank=True, max_length=200, default='', help_text='Mana needed for this combo. Use the {1}{W}{U}{B}{R}{G}{B/P}... format.', validators=[MANA_VALIDATOR])
     other_prerequisites = models.TextField(blank=True, default='', help_text='Other prerequisites for this variant.', validators=TEXT_VALIDATORS)
-    description = models.TextField(blank=True, help_text='Long description of the variant, in steps', validators=TEXT_VALIDATORS)
+    description = models.TextField(blank=True, help_text='Long description, in steps', validators=TEXT_VALIDATORS)
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, editable=False)
     unique_id = models.CharField(max_length=128, unique=True, blank=False, help_text='Unique ID for this variant', editable=False)
     frozen = models.BooleanField(default=False, blank=False, help_text='Is this variant undeletable?', verbose_name='is frozen')
+    identity = models.CharField(max_length=5, blank=True, help_text='Mana identity', verbose_name='mana identity', editable=False, validators=[IDENTITY_VALIDATOR])
 
     class Meta:
         ordering = ['-status', '-created']

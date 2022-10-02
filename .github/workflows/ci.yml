@@ -61,14 +61,21 @@ jobs:
         working-directory: backend
     steps:
       - name: Setup Docker context for production
-        uses: arwynfr/actions-docker-context@v2
-        with:
-          docker_host: ssh://${{ secrets.USERNAME }}@${{ secrets.HOST }}
-          context_name: production
-          ssh_cert: ${{ secrets.HOST }} ${{ secrets.SSH_SERVER_CERT }}
-          ssh_key: ${{ secrets.SSH_KEY }}
+        run: |
+          docker context create production --docker 'host=ssh://${{ secrets.USERNAME }}@${{ secrets.HOST }}'
+          docker context use production
+      - name: Setup ssh credentials for user
+        run: |
+          eval `ssh-agent -s`
+          echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> $GITHUB_ENV
+          echo "SSH_AGENT_PID=$SSH_AGENT_PID" >> $GITHUB_ENV
+          echo '${{ secrets.SSH_KEY }}' | tr -d '\r' | ssh-add -
+      - name: Setup ssh credentials for server
+        run: echo '${{ secrets.HOST }} ${{ secrets.SSH_SERVER_CERT }} >> "$HOME/.ssh/known_hosts"
       - uses: actions/checkout@v3
       - name: Build Docker images on remote host
         run: docker --context production compose -f docker-compose.yml -f docker-compose.ssl.yml -f docker-compose.aws.yml build
       - name: Start Docker containers on remote host
-        run: docker --context production compose -f docker-compose.yml -f docker-compose.ssl.yml -f docker-compose.aws.yml down -v
+        run: docker --context production compose -f docker-compose.yml -f docker-compose.ssl.yml -f docker-compose.aws.yml up -d
+      - name: Check if containers are running
+        run: docker --context production ps

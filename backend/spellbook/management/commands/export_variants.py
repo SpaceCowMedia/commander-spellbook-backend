@@ -6,6 +6,8 @@ from django.utils import timezone
 from django.core.management.base import BaseCommand, CommandError
 from spellbook.models import Variant, Job
 from spellbook.serializers import VariantSerializer
+from django.contrib.admin.models import LogEntry, CHANGE
+from django.contrib.contenttypes.models import ContentType
 from django.conf import settings
 
 
@@ -58,6 +60,13 @@ class Command(BaseCommand):
                 v = result['variants']
                 job.message = f'Successfully exported {len(v)} variants'
                 job.save()
+                if job.started_by is not None:
+                    LogEntry(
+                        user=job.started_by,
+                        content_type=ContentType.objects.get_for_model(Variant),
+                        object_repr='Exported Variants',
+                        action_flag=CHANGE
+                    ).save()
         except Exception as e:
             self.stdout.write(self.style.ERROR(traceback.format_exc()))
             message = f'Failed to export variants: {e}'

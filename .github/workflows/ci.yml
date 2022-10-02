@@ -60,6 +60,7 @@ jobs:
       run:
         working-directory: backend
     steps:
+      - uses: actions/checkout@v3
       - name: Setup Docker context for production
         run: |
           docker context create production --docker 'host=ssh://${{ secrets.USERNAME }}@${{ secrets.HOST }}'
@@ -72,7 +73,6 @@ jobs:
           echo '${{ secrets.SSH_KEY }}' | tr -d '\r' | ssh-add -
       - name: Setup ssh credentials for server
         run: echo '${{ secrets.HOST }} ${{ secrets.SSH_SERVER_CERT }} >> "$HOME/.ssh/known_hosts"
-      - uses: actions/checkout@v3
       - name: Build Docker images on remote host
         run: docker --context production compose -f docker-compose.yml -f docker-compose.ssl.yml -f docker-compose.aws.yml build
       - name: Start Docker containers on remote host

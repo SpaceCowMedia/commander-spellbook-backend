@@ -72,9 +72,9 @@ class VariantForm(ModelForm):
 @admin.register(Variant)
 class VariantAdmin(admin.ModelAdmin):
     form = VariantForm
-    readonly_fields = ['uses', 'produces', 'of', 'includes', 'unique_id', 'identity']
+    readonly_fields = ['uses', 'requires', 'produces', 'of', 'includes', 'unique_id', 'identity']
     fieldsets = [
-        ('Generated', {'fields': ['unique_id', 'uses', 'produces', 'of', 'includes', 'identity']}),
+        ('Generated', {'fields': ['unique_id', 'uses', 'requires', 'produces', 'of', 'includes', 'identity']}),
         ('Editable', {'fields': [
             'status',
             'zone_locations',
@@ -86,7 +86,7 @@ class VariantAdmin(admin.ModelAdmin):
     ]
     list_filter = ['status', 'identity']
     list_display = ['__str__', 'status', 'id', 'identity']
-    search_fields = ['id', 'uses__name', 'produces__name', 'unique_id', 'identity']
+    search_fields = ['id', 'uses__name', 'produces__name', 'requires__name', 'unique_id', 'identity']
     actions = [set_restore, set_draft, set_new, set_not_working]
 
     def generate(self, request):
@@ -195,6 +195,7 @@ class ComboAdmin(admin.ModelAdmin):
         ('Requirements', {'fields': [
             'uses',
             'needs',
+            'requires',
             'zone_locations',
             'cards_state',
             'mana_needed',
@@ -202,9 +203,9 @@ class ComboAdmin(admin.ModelAdmin):
         ('Features', {'fields': ['produces', 'removes']}),
         ('Description', {'fields': ['generator', 'description']}),
     ]
-    filter_horizontal = ['uses', 'produces', 'needs', 'removes']
+    filter_horizontal = ['uses', 'requires', 'produces', 'needs', 'removes']
     list_filter = ['generator']
-    search_fields = ['uses__name', 'produces__name', 'needs__name']
+    search_fields = ['uses__name', 'requires__name', 'produces__name', 'needs__name']
     list_display = ['__str__', 'generator', 'id']
 
 

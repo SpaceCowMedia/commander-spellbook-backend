@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from itertools import starmap
 from django.db import transaction
 from django.conf import settings
-from .models import Card, Feature, Combo, Job, Variant
+from .models import Card, Feature, Combo, Job, Template, Variant
 from pyomo.opt import TerminationCondition
 from pyomo.opt.base.solvers import OptSolver
 
@@ -20,16 +20,17 @@ MAX_CARDS_IN_COMBO = 10
 @dataclass
 class Data:
     def __init__(self):
-        self.combos = Combo.objects.prefetch_related('uses', 'needs', 'removes')
+        self.combos = Combo.objects.prefetch_related('uses', 'requires', 'needs', 'removes')
         self.features = Feature.objects.prefetch_related('cards', 'produced_by_combos')
         self.cards = Card.objects.all()
-        self.variants = Variant.objects.prefetch_related('uses')
+        self.variants = Variant.objects.prefetch_related('uses', 'requires')
         self.utility_features_ids = frozenset[int](Feature.objects.filter(utility=True).values_list('id', flat=True))
+        self.templates = Template.objects.all()
 
 
-def unique_id_from_cards_ids(cards: list[int]) -> str:
+def unique_id_from_cards_and_templates_ids(cards: list[int], templates: list[int]) -> str:
     hash_algorithm = hashlib.sha256()
-    hash_algorithm.update(json.dumps(sorted(cards)).encode('utf-8'))
+    hash_algorithm.update(json.dumps({'c': sorted(cards), 't': sorted(templates)}).encode('utf-8'))
     return hash_algorithm.hexdigest()
 
 
@@ -99,6 +100,7 @@ def create_variant(
         data: Data,
         unique_id: str,
         cards: list[int],
+        templates: set[int],
         combos_that_generated: set[int],
         combos_included: set[int],
         features: set[int],
@@ -121,6 +123,7 @@ def create_variant(
         variant.status = Variant.Status.NOT_WORKING
     variant.save()
     variant.uses.set(cards)
+    variant.requires.set(templates)
     variant.of.set(combos_that_generated)
     variant.includes.set(combos_included)
     variant.produces.set(removed_features(variant, features) - data.utility_features_ids)
@@ -136,17 +139,20 @@ def base_model(data: Data) -> pyo.ConcreteModel | None:
     model.B = pyo.Set(initialize=data.combos.values_list('id', flat=True))
     model.F = pyo.Set(initialize=data.features.values_list('id', flat=True))
     model.C = pyo.Set(initialize=data.cards.values_list('id', flat=True))
+    model.T = pyo.Set(initialize=data.templates.values_list('id', flat=True))
     if len(model.C) == 0:
         return None
     model.b = pyo.Var(model.B, domain=pyo.Boolean)
     model.f = pyo.Var(model.F, domain=pyo.Boolean)
     model.c = pyo.Var(model.C, domain=pyo.Boolean)
+    model.t = pyo.Var(model.T, domain=pyo.Boolean)
     # Variants constraints
     model.V = pyo.Constraint(expr=sum(model.c[i] for i in model.c) <= MAX_CARDS_IN_COMBO)
     # Combo constraints
     model.BC = pyo.ConstraintList()
     model.BF = pyo.ConstraintList()
-    model.BCF = pyo.ConstraintList()
+    model.BT = pyo.ConstraintList()
+    model.BCFT = pyo.ConstraintList()
     for combo in data.combos:
         b = model.b[combo.id]
         used = combo.uses.all()
@@ -161,7 +167,13 @@ def base_model(data: Data) -> pyo.ConcreteModel | None:
             f = model.f[feature.id]
             feature_vars.append(f)
             model.BF.add(b <= f)
-        model.BCF.add(b >= sum(card_vars + feature_vars) - len(card_vars) - len(feature_vars) + 1)
+        required = combo.requires.all()
+        template_vars = []
+        for template in required:
+            t = model.t[template.id]
+            template_vars.append(t)
+            model.BT.add(b <= t)
+        model.BCFT.add(b >= sum(card_vars + feature_vars + template_vars) - len(card_vars) - len(feature_vars) - len(template_vars) + 1)
     # Feature constraints
     model.FC = pyo.ConstraintList()
     model.FB = pyo.ConstraintList()
@@ -187,7 +199,8 @@ def base_model(data: Data) -> pyo.ConcreteModel | None:
         expr=sum(
             model.b[i] for i in model.b) + sum(
             model.f[i] * (combo_count + 1) for i in model.f) - sum(
-            model.c[i] * ((combo_count + 1) * (feature_count + 1)) for i in model.c),
+            model.c[i] * ((combo_count + 1) * (feature_count + 1)) for i in model.c) - sum(
+            model.t[i] * ((combo_count + 1) * (feature_count + 1)) for i in model.t),
         sense=pyo.maximize)
     model.MinMaxObj.deactivate()
     model.Variants = pyo.ConstraintList()
@@ -232,6 +245,7 @@ def solve_combo_model(model: pyo.ConcreteModel, opt: OptSolver) -> bool:
 @dataclass
 class VariantDefinition:
     card_ids: list[int]
+    template_ids: set[int]
     of_ids: set[int]
     feature_ids: set[int]
     included_ids: set[int]
@@ -249,8 +263,14 @@ def get_variants_from_model(base_model: pyo.ConcreteModel, data: Data) -> dict[s
                 card_id_list = sorted([v for v in model.c if model.c[v].value == 1], key=lambda c: priorityc[c])
                 feature_id_list = {v for v in model.f if model.f[v].value == 1}
                 combo_id_list = {v for v in model.b if model.b[v].value == 1}
-                unique_id = unique_id_from_cards_ids(card_id_list)
-                result[unique_id] = VariantDefinition(card_ids=card_id_list, of_ids=frozenset({combo.id}), included_ids=combo_id_list, feature_ids=feature_id_list)
+                template_id_list = {v for v in model.t if model.t[v].value == 1}
+                unique_id = unique_id_from_cards_and_templates_ids(cards=card_id_list, templates=template_id_list)
+                result[unique_id] = VariantDefinition(
+                    card_ids=card_id_list,
+                    template_ids=template_id_list,
+                    of_ids=frozenset({combo.id}),
+                    included_ids=combo_id_list,
+                    feature_ids=feature_id_list)
                 # Eclude any solution containing the current variant of the combo, from now on
                 model.Variants.add(sum(model.c[i] for i in card_id_list) <= len(card_id_list) - 1)
             else:
@@ -304,6 +324,7 @@ def generate_variants(job: Job = None) -> tuple[int, int]:
                             data=data,
                             unique_id=unique_id,
                             cards=variant_def.card_ids,
+                            templates=variant_def.template_ids,
                             combos_that_generated=variant_def.of_ids,
                             combos_included=variant_def.included_ids,
                             features=variant_def.feature_ids,

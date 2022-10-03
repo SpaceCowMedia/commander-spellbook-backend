@@ -44,6 +44,38 @@ class Card(models.Model):
         return self.name
 
 
+class Template(models.Model):
+    name = models.CharField(max_length=255, blank=False, verbose_name='template name', help_text='short description of the template in natural language')
+    scryfall_query = models.CharField(max_length=255, blank=False, verbose_name='Scryfall query', help_text=SCRYFALL_QUERY_HELP, validators=[SCRYFALL_QUERY_VALIDATOR])
+    created = models.DateTimeField(auto_now_add=True, editable=False)
+    updated = models.DateTimeField(auto_now=True, editable=False)
+
+    class Meta:
+        ordering = ['name']
+        verbose_name = 'card template'
+        verbose_name_plural = 'templates'
+        indexes = [
+            models.Index(fields=['name'], name='card_template_name_index')
+        ]
+    
+    def __str__(self):
+        return self.name
+
+    def scryfall_urlencode(self):
+        return urlencode({'q': self.scryfall_query + ' legal:commander'})
+
+    def scryfall_api(self):
+        if self.scryfall_query == '':
+            return 'https://api.scryfall.com/cards/search'
+        return 'https://scryfall.com/search?' + self.scryfall_urlencode()
+    
+    def scryfall_link(self):
+        if self.scryfall_query == '':
+            return 'Empty query'
+        link = 'http://scryfall.com/search?' + self.scryfall_urlencode()
+        return format_html(f'<a href="{link}" target="_blank">{link}</a>')
+
+
 class Combo(models.Model):
     uses = models.ManyToManyField(
         to=Card,
@@ -57,6 +89,12 @@ class Combo(models.Model):
         help_text='Features that this combo needs',
         blank=True,
         verbose_name='needed features')
+    requires = models.ManyToManyField(
+        to=Template,
+        related_name='required_by_combos',
+        help_text='Templates that this combo requires',
+        blank=True,
+        verbose_name='required templates')
     produces = models.ManyToManyField(
         to=Feature,
         related_name='produced_by_combos',
@@ -90,7 +128,7 @@ class Combo(models.Model):
             + (' - ' + ' - '.join([str(feature) for feature in self.removes.all()]) if self.removes.exists() else '')
 
     def ingredients(self):
-        return ' + '.join([str(card) for card in self.uses.all()] + [str(feature) for feature in self.needs.all()])
+        return ' + '.join([str(card) for card in self.uses.all()] + [str(feature) for feature in self.needs.all()] + [str(template) for template in self.requires.all()])
 
 
 class Variant(models.Model):
@@ -106,6 +144,12 @@ class Variant(models.Model):
         related_name='used_in_variants',
         help_text='Cards that this variant uses',
         editable=False)
+    requires = models.ManyToManyField(
+        to=Template,
+        related_name='required_by_variants',
+        help_text='Templates that this variant requires',
+        blank=True,
+        verbose_name='required templates')
     produces = SortedManyToManyField(
         to=Feature,
         related_name='produced_by_variants',
@@ -145,7 +189,7 @@ class Variant(models.Model):
         if self.pk is None:
             return f'New variant with unique id <{self.unique_id}>'
         produces = self.produces.all()[:4]
-        return ' + '.join([str(card) for card in self.uses.all()]) \
+        return ' + '.join([str(card) for card in self.uses.all()] + [str(template) for template in self.requires.all()]) \
             + ' ➡ ' + ' + '.join([str(feature) for feature in produces[:3]]) \
             + ('...' if len(produces) > 3 else '')
 
@@ -205,27 +249,3 @@ class Job(models.Model):
 
     def __str__(self):
         return self.name
-
-
-class Template(models.Model):
-    name = models.CharField(max_length=255, blank=False, verbose_name='template name', help_text='short description of the template in natural language')
-    scryfall_query = models.CharField(max_length=255, blank=False, verbose_name='Scryfall query', help_text=SCRYFALL_QUERY_HELP, validators=[SCRYFALL_QUERY_VALIDATOR])
-    created = models.DateTimeField(auto_now_add=True, editable=False)
-    updated = models.DateTimeField(auto_now=True, editable=False)
-
-    class Meta:
-        ordering = ['name']
-        verbose_name = 'card template'
-        verbose_name_plural = 'templates'
-        indexes = [
-            models.Index(fields=['name'], name='card_template_name_index')
-        ]
-    
-    def __str__(self):
-        return self.name
-    
-    def scryfall_link(self):
-        if self.scryfall_query is '':
-            return 'Empty query'
-        link = 'http://scryfall.com/search?' + urlencode({'q': self.scryfall_query + ' legal:commander'})
-        return format_html(f'<a href="{link}" target="_blank">{link}</a>')

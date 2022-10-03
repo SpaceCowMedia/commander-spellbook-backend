@@ -22,10 +22,17 @@ class CardDetailSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'oracle_id', 'identity', 'features']
 
 
+class TemplateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Template
+        fields = ['id', 'name', 'scryfall_query', 'scryfall_api']
+
+
 class ComboSerializer(serializers.ModelSerializer):
     produces = FeatureSerializer(many=True, read_only=True)
     needs = FeatureSerializer(many=True, read_only=True)
     uses = CardSerializer(many=True, read_only=True)
+    requires = TemplateSerializer(many=True, read_only=True)
 
     class Meta:
         model = Combo
@@ -34,6 +41,7 @@ class ComboSerializer(serializers.ModelSerializer):
             'produces',
             'needs',
             'uses',
+            'requires',
             'zone_locations',
             'cards_state',
             'mana_needed',
@@ -43,6 +51,7 @@ class ComboSerializer(serializers.ModelSerializer):
 
 class VariantSerializer(serializers.ModelSerializer):
     uses = CardSerializer(many=True, read_only=True)
+    requires = TemplateSerializer(many=True, read_only=True)
     produces = FeatureSerializer(many=True, read_only=True)
     of = ComboSerializer(many=True, read_only=True)
     includes = ComboSerializer(many=True, read_only=True)
@@ -53,6 +62,7 @@ class VariantSerializer(serializers.ModelSerializer):
             'id',
             'unique_id',
             'uses',
+            'requires',
             'produces',
             'of',
             'includes',
@@ -62,9 +72,3 @@ class VariantSerializer(serializers.ModelSerializer):
             'mana_needed',
             'other_prerequisites',
             'description']
-
-
-class TemplateSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Template
-        fields = ['id', 'name', 'scryfall_query', 'scryfall_link']

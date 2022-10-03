@@ -57,7 +57,7 @@ class Template(models.Model):
         indexes = [
             models.Index(fields=['name'], name='card_template_name_index')
         ]
-    
+
     def __str__(self):
         return self.name
 
@@ -68,7 +68,7 @@ class Template(models.Model):
         if self.scryfall_query == '':
             return 'https://api.scryfall.com/cards/search'
         return 'https://scryfall.com/search?' + self.query_string()
-    
+
     def scryfall_link(self):
         if self.scryfall_query == '':
             return 'Empty query'

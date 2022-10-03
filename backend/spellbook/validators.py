@@ -21,9 +21,9 @@ COMPARISON_OPERATORS = r'(?::|[<>]=?|!=|=)'
 NUMERIC_VARIABLE = r'(?:mv|manavalue|power|pow|toughness|tou|pt|powtou|loyalty|loy)'
 SCRYFALL_QUERY_ATOM = r'(?:-?(?:' + \
     r'(?:(?:c|color|id|identity)' + COMPARISON_OPERATORS + r'|(?:has|t|type|keyword|is):)(?:[^\s:<>!=]+|"[^"]")|' + \
-        r'(?:m|mana|devotion|produces)' + COMPARISON_OPERATORS + r'(?:\{' + MANA_SYMBOL + r'\})+|' + \
-            NUMERIC_VARIABLE + COMPARISON_OPERATORS + r'(?:\d+|' + NUMERIC_VARIABLE + r')' + \
-                r'))'
+    r'(?:m|mana|devotion|produces)' + COMPARISON_OPERATORS + r'(?:\{' + MANA_SYMBOL + r'\})+|' + \
+    NUMERIC_VARIABLE + COMPARISON_OPERATORS + r'(?:\d+|' + NUMERIC_VARIABLE + r')' + \
+    r'))'
 SCRYFALL_OR_EXPRESSION = r'(?:' + SCRYFALL_QUERY_ATOM + r'(?: or ' + SCRYFALL_QUERY_ATOM + r')*)'
 SCRYFALL_AND_EXPRESSION = r'(?:' + SCRYFALL_OR_EXPRESSION + r'|\(' + SCRYFALL_OR_EXPRESSION + r'\)(?: (?:and )(?:' + SCRYFALL_QUERY_ATOM + r'|\(' + SCRYFALL_OR_EXPRESSION + r'\)))*)'
 SCRYFALL_QUERY_REGEX = r'^' + SCRYFALL_AND_EXPRESSION + r'$'

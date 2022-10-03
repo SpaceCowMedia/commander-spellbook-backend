@@ -61,18 +61,18 @@ class Template(models.Model):
     def __str__(self):
         return self.name
 
-    def scryfall_urlencode(self):
+    def query_string(self):
         return urlencode({'q': self.scryfall_query + ' legal:commander'})
 
     def scryfall_api(self):
         if self.scryfall_query == '':
             return 'https://api.scryfall.com/cards/search'
-        return 'https://scryfall.com/search?' + self.scryfall_urlencode()
+        return 'https://scryfall.com/search?' + self.query_string()
     
     def scryfall_link(self):
         if self.scryfall_query == '':
             return 'Empty query'
-        link = 'http://scryfall.com/search?' + self.scryfall_urlencode()
+        link = 'http://scryfall.com/search?' + self.query_string()
         return format_html(f'<a href="{link}" target="_blank">{link}</a>')
 
 

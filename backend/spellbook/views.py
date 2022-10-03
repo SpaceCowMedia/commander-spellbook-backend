@@ -1,9 +1,8 @@
-from .models import Card, Feature, Combo, Variant
-from .serializers import CardDetailSerializer, FeatureSerializer, ComboSerializer, VariantSerializer
+from .models import Card, Feature, Combo, Template, Variant
+from .serializers import CardDetailSerializer, FeatureSerializer, ComboSerializer, TemplateSerializer, VariantSerializer
 from rest_framework import viewsets
 from rest_framework import filters
 from django_filters.rest_framework import DjangoFilterBackend
-from django.db.models import Q
 
 
 class VariantViewSet(viewsets.ReadOnlyModelViewSet):
@@ -45,3 +44,12 @@ class CardViewSet(viewsets.ReadOnlyModelViewSet):
 
 card_list = CardViewSet.as_view({'get': 'list'})
 card_detail = CardViewSet.as_view({'get': 'retrieve'})
+
+
+class TemplateViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Template.objects.all()
+    serializer_class = TemplateSerializer
+
+
+template_list = TemplateViewSet.as_view({'get': 'list'})
+template_detail = TemplateViewSet.as_view({'get': 'retrieve'})

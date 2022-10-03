@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Card, Feature, Combo, Variant
+from .models import Card, Template, Feature, Combo, Variant
 
 
 class CardSerializer(serializers.ModelSerializer):
@@ -62,3 +62,9 @@ class VariantSerializer(serializers.ModelSerializer):
             'mana_needed',
             'other_prerequisites',
             'description']
+
+
+class TemplateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Template
+        fields = ['id', 'name', 'scryfall_query', 'scryfall_link']

@@ -4,7 +4,7 @@ from django.contrib import admin
 from django.urls import path, reverse
 from django.http import HttpResponseRedirect
 from .variants import check_combo_sanity
-from .models import Card, Feature, Combo, Variant, Job
+from .models import Card, Template, Feature, Combo, Variant, Job
 from django.contrib import messages
 from django.forms import ModelForm
 from django.db import transaction
@@ -227,6 +227,14 @@ class JobAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+
+@admin.register(Template)
+class TemplateAdmin(admin.ModelAdmin):
+    readonly_fields = ['scryfall_link']
+    fields = ['name', 'scryfall_query', 'scryfall_link']
+    list_display = ['name', 'scryfall_query', 'id']
+    search_fields = ['name', 'scryfall_query']
 
 
 # Admin configuration

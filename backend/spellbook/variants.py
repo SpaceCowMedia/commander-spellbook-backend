@@ -195,13 +195,11 @@ def base_model(data: Data) -> pyo.ConcreteModel | None:
     # Minimize cards, maximize features and combos
     count_templates = len(model.t)
     model.MinimizeCardsObj = pyo.Objective(
-        expr=sum(model.c[i] * count_templates + 1 for i in model.c) +
-        sum(model.t[i] for i in model.t),
+        expr=sum(model.c[i] * count_templates + 1 for i in model.c) + sum(model.t[i] for i in model.t),
         sense=pyo.minimize)
     count_features = len(model.f)
     model.MaximizeCombosObj = pyo.Objective(
-        expr=sum(model.b[i] * count_features + 1 for i in model.b) +
-        sum(model.f[i] for i in model.f),
+        expr=sum(model.b[i] * count_features + 1 for i in model.b) + sum(model.f[i] for i in model.f),
         sense=pyo.maximize)
     model.MinimizeCardsObj.deactivate()
     model.MaximizeCombosObj.deactivate()

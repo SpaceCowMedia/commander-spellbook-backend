@@ -32,9 +32,8 @@ DEFAULT_BULK_FOLDER = './temp/bulk'
 
 ALLOWED_HOSTS = ['*']
 CSRF_TRUSTED_ORIGINS = [
-    'https://commanderspellbook.com',
     'http://localhost',
-    'https://*.ngrok.io'
+    'https://*.ngrok.io',
 ]
 
 # Application definition

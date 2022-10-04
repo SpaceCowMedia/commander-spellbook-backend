@@ -4,6 +4,7 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from .models import Combo, Variant
 
+
 @receiver(post_save, sender=Combo)
 def update_new_variants(sender, instance: Combo, created, raw, **kwargs):
     if not raw and not created:

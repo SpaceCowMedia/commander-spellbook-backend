@@ -193,17 +193,20 @@ def base_model(data: Data) -> pyo.ConcreteModel | None:
             model.FB.add(f >= b)
         model.FCB.add(f <= sum(card_vars + combo_vars))
     # Minimize cards, maximize features and combos
-    feature_count = len(model.F)
-    combo_count = len(model.B)
-    model.MinMaxObj = pyo.Objective(
-        expr=sum(
-            model.b[i] for i in model.b) + sum(
-            model.f[i] * (combo_count + 1) for i in model.f) - sum(
-            model.c[i] * ((combo_count + 1) * (feature_count + 1)) for i in model.c) - sum(
-            model.t[i] * ((combo_count + 1) * (feature_count + 1)) for i in model.t),
+    count_templates = len(model.t)
+    model.MinimizeCardsObj = pyo.Objective(
+        expr=sum(model.c[i] * count_templates + 1 for i in model.c) + \
+            sum(model.t[i] for i in model.t),
+        sense=pyo.minimize)
+    count_features = len(model.f)
+    model.MaximizeCombosObj = pyo.Objective(
+        expr=sum(model.b[i] * count_features + 1 for i in model.b) + \
+        sum(model.f[i] for i in model.f),
         sense=pyo.maximize)
-    model.MinMaxObj.deactivate()
+    model.MinimizeCardsObj.deactivate()
+    model.MaximizeCombosObj.deactivate()
     model.Variants = pyo.ConstraintList()
+    model.Sequential = pyo.ConstraintList()
     return model
 
 
@@ -234,11 +237,16 @@ def is_variant_valid(model: pyo.ConcreteModel, card_ids: list[int]) -> bool:
 
 
 def solve_combo_model(model: pyo.ConcreteModel, opt: OptSolver) -> bool:
-    model.MinMaxObj.activate()
+    model.MinimizeCardsObj.activate()
     results = opt.solve(model, tee=False)
-    model.MinMaxObj.deactivate()
+    model.MinimizeCardsObj.deactivate()
     if results.solver.termination_condition == TerminationCondition.optimal:
-        return True
+        model.Sequential.add(model.MinimizeCardsObj <= pyo.value(model.MinimizeCardsObj))
+        model.MaximizeCombosObj.activate()
+        results = opt.solve(model, tee=False)
+        model.MaximizeCombosObj.deactivate()
+        if results.solver.termination_condition == TerminationCondition.optimal:
+            return True
     return False
 
 
@@ -273,6 +281,8 @@ def get_variants_from_model(base_model: pyo.ConcreteModel, data: Data) -> dict[s
                     feature_ids=feature_id_list)
                 # Eclude any solution containing the current variant of the combo, from now on
                 model.Variants.add(sum(model.c[i] for i in card_id_list) <= len(card_id_list) - 1)
+                if logging.getLogger().isEnabledFor(logging.DEBUG):
+                    logging.debug(f'New variant of {n}/{tot} found: ' + str([data.cards.get(id=c).name for c in card_id_list]))
             else:
                 break
         logging.info(f'Computed variants for combo {n}/{tot}')

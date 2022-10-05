@@ -72,7 +72,9 @@ jobs:
           echo "SSH_AGENT_PID=$SSH_AGENT_PID" >> $GITHUB_ENV
           echo '${{ secrets.SSH_KEY }}' | tr -d '\r' | ssh-add -
       - name: Setup ssh credentials for server
-        run: echo '${{ secrets.HOST }} ${{ secrets.SSH_SERVER_CERT }}' >> "$HOME/.ssh/known_hosts"
+        run: |
+          mkdir -p "$HOME/.ssh"
+          echo '${{ secrets.HOST }} ${{ secrets.SSH_SERVER_CERT }}' >> "$HOME/.ssh/known_hosts"
       - name: Build Docker images on remote host
         run: docker --context production compose -f docker-compose.yml -f docker-compose.ssl.yml -f docker-compose.aws.yml build
       - name: Start Docker containers on remote host

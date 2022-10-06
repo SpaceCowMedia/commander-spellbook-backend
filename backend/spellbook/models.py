@@ -226,7 +226,7 @@ class Job(models.Model):
             with transaction.atomic():
                 if Job.objects.filter(
                         name=name,
-                        expected_termination__gte=timezone.now(),
+                        expected_termination__gte=timezone.now() - duration * 2,
                         status=Job.Status.PENDING).exists():
                     return None
                 return Job.objects.create(

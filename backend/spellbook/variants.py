@@ -14,7 +14,7 @@ from pyomo.opt.base.solvers import OptSolver
 
 RECURSION_LIMIT = 20
 # SOLVE_TIMEOUT = 5
-MAX_CARDS_IN_COMBO = 10
+MAX_CARDS_IN_COMBO = 5
 
 
 @dataclass

@@ -147,7 +147,7 @@ def base_model(data: Data) -> pyo.ConcreteModel | None:
     model.c = pyo.Var(model.C, domain=pyo.Boolean)
     model.t = pyo.Var(model.T, domain=pyo.Boolean)
     # Variants constraints
-    model.V = pyo.Constraint(expr=sum(model.c[i] for i in model.c) <= MAX_CARDS_IN_COMBO)
+    model.V = pyo.Constraint(expr=sum(model.c[i] for i in model.c) + sum(model.t[i] for i in model.t) <= MAX_CARDS_IN_COMBO)
     # Combo constraints
     model.BC = pyo.ConstraintList()
     model.BF = pyo.ConstraintList()

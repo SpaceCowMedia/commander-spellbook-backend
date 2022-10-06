@@ -101,7 +101,7 @@ class VariantAdmin(admin.ModelAdmin):
 
             job = Job.start(
                 name='generate_variants',
-                duration=past_runs_duration,
+                duration=past_runs_duration * 1.5,
                 user=request.user)
             if job is not None:
                 manage_py_path = pathlib.Path(__file__).parent.parent / 'manage.py'

@@ -284,7 +284,7 @@ def get_variants_from_model(base_model: pyo.ConcreteModel, data: Data) -> dict[s
                     logging.debug(f'New variant of {n}/{tot} found: ' + str([data.cards.get(id=c).name for c in card_id_list]))
             else:
                 break
-        logging.info(f'Computed variants for combo {n}/{tot}')
+        logging.info(f'Computed variants for combo {n}/{tot} id: {combo.pk}')
         return result
     logging.info('Computing all possible variants')
     combos = data.combos.filter(generator=True)

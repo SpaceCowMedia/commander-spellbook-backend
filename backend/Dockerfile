@@ -77,6 +77,7 @@ ENV DJANGO_SETTINGS_MODULE=backend.production_settings
 RUN echo "python manage.py collectstatic --no-input --clear" > entrypoint.prod.sh
 RUN echo "sleep 3" >> entrypoint.prod.sh
 RUN echo "python manage.py migrate --noinput" >> entrypoint.prod.sh
+RUN echo "python manage.py clean_jobs" >> entrypoint.prod.sh
 RUN echo "python manage.py export_variants" >> entrypoint.prod.sh
 RUN echo "gunicorn backend.wsgi:application --bind 0.0.0.0:8000" >> entrypoint.prod.sh
 EXPOSE 8000

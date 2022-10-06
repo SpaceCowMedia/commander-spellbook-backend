@@ -293,12 +293,14 @@ def get_variants_from_model(base_model: pyo.ConcreteModel, data: Data) -> dict[s
         ((i, total, base_model, c) for i, c in enumerate(combos, start=1))))
     logging.info('Merging results, discarding duplicates...')
     result = dict[str, VariantDefinition]()
+    before_count = sum(len(r) for r in results)
     for r in results:
         for k, v in r.items():
             if k in result:
                 v.of_ids |= result[k].of_ids
             result[k] = v
-    logging.info('Done.')
+    after_count = len(result)
+    logging.info(f'Found {after_count} variants, {before_count - after_count} duplicates discarded.')
     return result
 
 

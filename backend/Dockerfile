@@ -30,6 +30,19 @@ COPY . .
 RUN flake8 --ignore=E501,F401,E128 .
 
 
+# cbc builder
+FROM python:3.10.7-alpine as cbc
+
+# install dependencies
+RUN apk update && apk add bash git make wget tar patch dos2unix pkgconfig g++
+
+# download coinbrew script and run it
+# the script will clone the cbc repo and build it
+RUN wget https://raw.githubusercontent.com/coin-or/coinbrew/master/coinbrew && \
+    chmod +x ./coinbrew && \
+    ./coinbrew build Cbc@stable/2.10 --tests none --prefix=/usr/local/ --build-dir build-cbc
+
+
 #########
 # FINAL #
 #########
@@ -51,7 +64,8 @@ RUN mkdir $APP_HOME/staticfiles
 WORKDIR $APP_HOME
 
 # install dependencies
-RUN apk update && apk add libpq glpk
+COPY --from=cbc /usr/local/ /usr/local/
+RUN apk update && apk add libpq gcc
 COPY --from=builder /usr/src/app/wheels /wheels
 COPY --from=builder /usr/src/app/requirements.txt .
 RUN pip install --no-cache /wheels/*

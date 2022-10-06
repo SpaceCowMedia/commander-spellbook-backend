@@ -28,7 +28,7 @@ SECRET_KEY = os.environ['SECRET_KEY']
 DEBUG = False
 
 PARALLEL_SOLVERS = multiprocessing.cpu_count()
-SOLVER_NAME = 'glpk'
+SOLVER_NAME = 'cbc'
 DEFAULT_BULK_FOLDER = '/home/app/web/staticfiles/bulk'
 
 # Security settings

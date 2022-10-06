@@ -243,6 +243,7 @@ def solve_combo_model(model: pyo.ConcreteModel, opt: OptSolver) -> bool:
         model.MaximizeCombosObj.activate()
         results = opt.solve(model, tee=False)
         model.MaximizeCombosObj.deactivate()
+        model.Sequential.clear()
         if results.solver.termination_condition == TerminationCondition.optimal:
             return True
     return False

@@ -35,15 +35,15 @@ def unique_id_from_cards_and_templates_ids(cards: list[int], templates: list[int
     return hash_algorithm.hexdigest()
 
 
-def priority_dict_for_combo(combo: Combo, recursion_counter=0) -> dict[int, int]:
+def priority_dict_for_combo(combo: Combo, recursion_counter=0) -> dict[int, float]:
     if recursion_counter > RECURSION_LIMIT:
         raise Exception('Recursion limit reached with combo {}'.format(combo.id))
-    result = dict[int, int]()
+    result = dict[int, float]()
     for card in combo.uses.all():
         result[card.id] = recursion_counter
     for feature in combo.needs.all():
         for card in feature.cards.all():
-            result[card.id] = recursion_counter + 1
+            result[card.id] = recursion_counter + 0.5
         for combo in feature.produced_by_combos.all():
             p1 = priority_dict_for_combo(combo, recursion_counter + 1)
             result = p1 | result

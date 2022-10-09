@@ -6,6 +6,7 @@ import pyomo.environ as pyo
 from dataclasses import dataclass
 from itertools import starmap
 from django.db import transaction
+from django.db.models import Count
 from django.conf import settings
 from .models import Card, Feature, Combo, Job, Template, Variant
 from pyomo.opt import TerminationCondition
@@ -49,12 +50,20 @@ def priority_dict_for_combo(combo: Combo, recursion_counter=0) -> dict[int, int]
     return result
 
 
-def check_combo_sanity(combo: Combo, recursion_counter: int = 0) -> bool:
-    if recursion_counter > RECURSION_LIMIT:
-        return False
-    for feature in combo.needs.all():
-        for combo in feature.produced_by_combos.all():
-            if not check_combo_sanity(combo, recursion_counter + 1):
+def check_combo_sanity(combo: Combo) -> bool:
+    if combo.produces.count() == 0 or combo.produces.aggregate(nc=Count('needed_by_combos'))['nc'] == 0:
+        def _check_combo_sanity_internal(combo: Combo, recursion_counter: int = 0) -> bool:
+            if recursion_counter > RECURSION_LIMIT:
+                return False
+            for feature in combo.needs.all():
+                for combo in feature.produced_by_combos.all():
+                    if not _check_combo_sanity_internal(combo, recursion_counter + 1):
+                        return False
+            return True
+        return _check_combo_sanity_internal(combo)
+    for feature in combo.produces.all():
+        for combo in feature.needed_by_combos.all():
+            if not check_combo_sanity(combo):
                 return False
     return True
 

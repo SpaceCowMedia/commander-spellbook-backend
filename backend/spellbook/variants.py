@@ -55,6 +55,7 @@ def check_combo_sanity(combo: Combo, recursion_counter: int = 0) -> bool:
         if recursion_counter > RECURSION_LIMIT:
             return recursion_counter
         return max((_count_up(c, recursion_counter + 1) for feature in combo.needs.all() for c in feature.produced_by_combos.all()), default=0)
+
     def _count_down(combo: Combo, recursion_counter: int = 0) -> int:
         if recursion_counter > RECURSION_LIMIT:
             return recursion_counter

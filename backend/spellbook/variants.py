@@ -50,22 +50,16 @@ def priority_dict_for_combo(combo: Combo, recursion_counter=0) -> dict[int, int]
     return result
 
 
-def check_combo_sanity(combo: Combo) -> bool:
-    if combo.produces.count() == 0 or combo.produces.aggregate(nc=Count('needed_by_combos'))['nc'] == 0:
-        def _check_combo_sanity_internal(combo: Combo, recursion_counter: int = 0) -> bool:
-            if recursion_counter > RECURSION_LIMIT:
-                return False
-            for feature in combo.needs.all():
-                for combo in feature.produced_by_combos.all():
-                    if not _check_combo_sanity_internal(combo, recursion_counter + 1):
-                        return False
-            return True
-        return _check_combo_sanity_internal(combo)
-    for feature in combo.produces.all():
-        for combo in feature.needed_by_combos.all():
-            if not check_combo_sanity(combo):
-                return False
-    return True
+def check_combo_sanity(combo: Combo, recursion_counter: int = 0) -> bool:
+    def _count_up(combo: Combo, recursion_counter: int = 0) -> int:
+        if recursion_counter > RECURSION_LIMIT:
+            return recursion_counter
+        return max((_count_up(c, recursion_counter + 1) for feature in combo.needs.all() for c in feature.produced_by_combos.all()), default=0)
+    def _count_down(combo: Combo, recursion_counter: int = 0) -> int:
+        if recursion_counter > RECURSION_LIMIT:
+            return recursion_counter
+        return max((_count_down(c, recursion_counter + 1) for feature in combo.produces.all() for c in feature.needed_by_combos.all()), default=0)
+    return _count_up(combo) + _count_down(combo) <= RECURSION_LIMIT
 
 
 def removed_features(variant: Variant, features: set[int]) -> set[int]:

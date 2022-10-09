@@ -45,7 +45,7 @@ def priority_dict_for_combo(combo: Combo, recursion_counter=0) -> dict[int, int]
         for card in feature.cards.all():
             result[card.id] = recursion_counter + 1
         for combo in feature.produced_by_combos.all():
-            p1 = priority_dict_for_combo(combo, recursion_counter + 2)
+            p1 = priority_dict_for_combo(combo, recursion_counter + 1)
             result = p1 | result
     return result
 
@@ -60,7 +60,7 @@ def check_combo_sanity(combo: Combo, recursion_counter: int = 0) -> bool:
         if recursion_counter > RECURSION_LIMIT:
             return recursion_counter
         return max((_count_down(c, recursion_counter + 1) for feature in combo.produces.all() for c in feature.needed_by_combos.all()), default=recursion_counter)
-    return _count_up(combo) + _count_down(combo) <= RECURSION_LIMIT
+    return _count_up(combo) + _count_down(combo) < RECURSION_LIMIT
 
 
 def removed_features(variant: Variant, features: set[int]) -> set[int]:

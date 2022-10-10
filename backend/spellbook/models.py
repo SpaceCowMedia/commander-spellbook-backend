@@ -65,9 +65,7 @@ class Template(models.Model):
         return urlencode({'q': self.scryfall_query + ' legal:commander'})
 
     def scryfall_api(self):
-        if self.scryfall_query == '':
-            return 'https://api.scryfall.com/cards/search'
-        return 'https://scryfall.com/search?' + self.query_string()
+        return 'https://api.scryfall.com/cards/search' + ('?' + self.query_string() if self.query_string() else '')
 
     def scryfall_link(self):
         if self.scryfall_query == '':

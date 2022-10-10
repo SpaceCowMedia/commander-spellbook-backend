@@ -179,11 +179,15 @@ class ComboVariantInline(admin.TabularInline):
     fields = ['variant']
     can_delete = False
     extra = 0
+    template = 'admin/edit_inline/readonly_tabular.html'
 
     def has_add_permission(self, request, obj=None):
         return False
 
     def has_delete_permission(self, request, obj=None):
+        return False
+    
+    def has_change_permission(self, request, obj):
         return False
 
 

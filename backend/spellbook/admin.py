@@ -171,30 +171,9 @@ class ComboForm(ModelForm):
         return self.cleaned_data['mana_needed'].upper() if self.cleaned_data['mana_needed'] else self.cleaned_data['mana_needed']
 
 
-class ComboVariantInline(admin.TabularInline):
-    model = Variant.of.through
-    verbose_name = 'Variant'
-    verbose_name_plural = 'List of variants'
-    readonly_fields = ['variant']
-    fields = ['variant']
-    can_delete = False
-    extra = 0
-    template = 'admin/edit_inline/readonly_tabular.html'
-
-    def has_add_permission(self, request, obj=None):
-        return False
-
-    def has_delete_permission(self, request, obj=None):
-        return False
-
-    def has_change_permission(self, request, obj):
-        return False
-
-
 @admin.register(Combo)
 class ComboAdmin(admin.ModelAdmin):
     form = ComboForm
-    inlines = [ComboVariantInline]
     fieldsets = [
         ('Requirements', {'fields': [
             'uses',
@@ -213,14 +192,8 @@ class ComboAdmin(admin.ModelAdmin):
     list_display = ['__str__', 'generator', 'id']
 
 
-class JobVariantInline(ComboVariantInline):
-    model = Job.variants.through
-    verbose_name_plural = 'List of variants created by this job'
-
-
 @admin.register(Job)
 class JobAdmin(admin.ModelAdmin):
-    inlines = [JobVariantInline]
     fields = ['id', 'name', 'status', 'created', 'expected_termination', 'termination', 'message', 'started_by']
     list_display = ['id', 'name', 'status', 'created', 'expected_termination', 'termination']
 

@@ -6,7 +6,7 @@ import pyomo.environ as pyo
 from dataclasses import dataclass
 from itertools import starmap
 from django.db import transaction
-from django.db.models import Count
+from django.db.models import Prefetch
 from django.conf import settings
 from .models import Card, Feature, Combo, Job, Template, Variant
 from pyomo.opt import TerminationCondition
@@ -51,15 +51,21 @@ def priority_dict_for_combo(combo: Combo, recursion_counter=0) -> dict[int, floa
 
 
 def check_combo_sanity(combo: Combo, recursion_counter: int = 0) -> bool:
+    features = Feature.objects.prefetch_related(
+        Prefetch('produced_by_combos', to_attr='up_c'),
+        Prefetch('needed_by_combos', to_attr='down_c'))
+    combos = Combo.objects.prefetch_related(
+        Prefetch('needs', queryset=features, to_attr='up_f'),
+        Prefetch('produces', queryset=features, to_attr='down_f'))
     def _count_up(combo: Combo, recursion_counter: int = 0) -> int:
         if recursion_counter > RECURSION_LIMIT:
             return recursion_counter
-        return max((_count_up(c, recursion_counter + 1) for feature in combo.needs.all() for c in feature.produced_by_combos.all()), default=recursion_counter)
+        return max((_count_up(c, recursion_counter + 1) for feature in combos.get(pk=combo.pk).up_f for c in feature.up_c), default=recursion_counter)
 
     def _count_down(combo: Combo, recursion_counter: int = 0) -> int:
         if recursion_counter > RECURSION_LIMIT:
             return recursion_counter
-        return max((_count_down(c, recursion_counter + 1) for feature in combo.produces.all() for c in feature.needed_by_combos.all()), default=recursion_counter)
+        return max((_count_down(c, recursion_counter + 1) for feature in combos.get(pk=combo.pk).down_f for c in feature.down_c), default=recursion_counter)
     return _count_up(combo) + _count_down(combo) < RECURSION_LIMIT
 
 

@@ -57,6 +57,7 @@ def check_combo_sanity(combo: Combo, recursion_counter: int = 0) -> bool:
     combos = Combo.objects.prefetch_related(
         Prefetch('needs', queryset=features, to_attr='up_f'),
         Prefetch('produces', queryset=features, to_attr='down_f'))
+
     def _count_up(combo: Combo, recursion_counter: int = 0) -> int:
         if recursion_counter > RECURSION_LIMIT:
             return recursion_counter

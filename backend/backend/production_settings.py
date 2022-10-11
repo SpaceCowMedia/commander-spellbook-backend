@@ -183,6 +183,12 @@ LOGGING = {
         'handlers': ['console'],
         'level': 'INFO',
     },
+    'pyomo.core': {
+        'handlers': ['console'],
+        'level': 'WARNING',
+    },
+    'pyomo.opt': {
+        'handlers': ['console'],
+        'level': 'WARNING',
+    },
 }
-logging.getLogger('pyomo.opt').setLevel(logging.WARNING)
-logging.getLogger('pyomo.core').setLevel(logging.WARNING)

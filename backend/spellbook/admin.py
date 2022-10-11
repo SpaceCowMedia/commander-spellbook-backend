@@ -153,6 +153,9 @@ class VariantAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         return False
 
+    def get_queryset(self, request):
+        return super().get_queryset(request).prefetch_related('uses', 'requires', 'produces', 'of', 'includes')
+
 
 class ComboForm(ModelForm):
     def clean(self):
@@ -161,7 +164,9 @@ class ComboForm(ModelForm):
                 raise ValidationError('Combo must include a card or need a feature to make sense.')
             ok = False
             with transaction.atomic(savepoint=True, durable=False):
+                self.instance._meta.auto_created = True
                 ok = check_combo_sanity(self.save(commit=True))
+                self.instance._meta.auto_created = False
                 transaction.set_rollback(True)
             if not ok:
                 raise ValidationError('Possible loop detected.')
@@ -190,6 +195,9 @@ class ComboAdmin(admin.ModelAdmin):
     list_filter = ['generator']
     search_fields = ['uses__name', 'requires__name', 'produces__name', 'needs__name']
     list_display = ['__str__', 'generator', 'id']
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).prefetch_related('uses', 'requires', 'produces', 'needs', 'removes')
 
 
 @admin.register(Job)

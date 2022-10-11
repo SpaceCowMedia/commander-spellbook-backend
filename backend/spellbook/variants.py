@@ -12,9 +12,6 @@ from .models import Card, Feature, Combo, Job, Template, Variant
 from pyomo.opt import TerminationCondition
 from pyomo.opt.base.solvers import OptSolver
 
-
-RECURSION_LIMIT = 20
-# SOLVE_TIMEOUT = 5
 MAX_CARDS_IN_COMBO = 5
 
 
@@ -36,8 +33,8 @@ def unique_id_from_cards_and_templates_ids(cards: list[int], templates: list[int
 
 
 def priority_dict_for_combo(combo: Combo, recursion_counter=0) -> dict[int, float]:
-    if recursion_counter > RECURSION_LIMIT:
-        raise Exception('Recursion limit reached with combo {}'.format(combo.id))
+    if recursion_counter > MAX_CARDS_IN_COMBO:
+        return {}
     result = dict[int, float]()
     for card in combo.uses.all():
         result[card.id] = recursion_counter
@@ -48,26 +45,6 @@ def priority_dict_for_combo(combo: Combo, recursion_counter=0) -> dict[int, floa
             p1 = priority_dict_for_combo(combo, recursion_counter + 1)
             result = p1 | result
     return result
-
-
-def check_combo_sanity(combo: Combo, recursion_counter: int = 0) -> bool:
-    features = Feature.objects.prefetch_related(
-        Prefetch('produced_by_combos', to_attr='up_c'),
-        Prefetch('needed_by_combos', to_attr='down_c'))
-    combos = Combo.objects.prefetch_related(
-        Prefetch('needs', queryset=features, to_attr='up_f'),
-        Prefetch('produces', queryset=features, to_attr='down_f'))
-
-    def _count_up(combo: Combo, recursion_counter: int = 0) -> int:
-        if recursion_counter > RECURSION_LIMIT:
-            return recursion_counter
-        return max((_count_up(c, recursion_counter + 1) for feature in combos.get(pk=combo.pk).up_f for c in feature.up_c), default=recursion_counter)
-
-    def _count_down(combo: Combo, recursion_counter: int = 0) -> int:
-        if recursion_counter > RECURSION_LIMIT:
-            return recursion_counter
-        return max((_count_down(c, recursion_counter + 1) for feature in combos.get(pk=combo.pk).down_f for c in feature.down_c), default=recursion_counter)
-    return _count_up(combo) + _count_down(combo) < RECURSION_LIMIT
 
 
 def removed_features(variant: Variant, features: set[int]) -> set[int]:
@@ -292,7 +269,7 @@ def get_variants_from_model(base_model: pyo.ConcreteModel, data: Data) -> dict[s
                 # Eclude any solution containing the current variant of the combo, from now on
                 model.Variants.add(sum(model.c[i] for i in card_id_list) <= len(card_id_list) - 1)
                 if logging.getLogger().isEnabledFor(logging.DEBUG):
-                    logging.debug(f'New variant of {n}/{tot} found: ' + str([data.cards.get(id=c).name for c in card_id_list]))
+                    logging.debug(f'New variant of {n}/{tot} found. id: ' + unique_id)
             else:
                 break
         logging.info(f'Computed variants for combo {n}/{tot} id: {combo.pk}')

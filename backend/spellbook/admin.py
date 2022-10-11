@@ -3,7 +3,6 @@ import sys
 from django.contrib import admin
 from django.urls import path, reverse
 from django.http import HttpResponseRedirect
-from .variants import check_combo_sanity
 from .models import Card, Template, Feature, Combo, Variant, Job
 from django.contrib import messages
 from django.forms import ModelForm
@@ -162,14 +161,6 @@ class ComboForm(ModelForm):
         if self.is_valid():
             if len(self.cleaned_data['uses']) + len(self.cleaned_data['needs']) == 0:
                 raise ValidationError('Combo must include a card or need a feature to make sense.')
-            ok = False
-            with transaction.atomic(savepoint=True, durable=False):
-                self.instance._meta.auto_created = True
-                ok = check_combo_sanity(self.save(commit=True))
-                self.instance._meta.auto_created = False
-                transaction.set_rollback(True)
-            if not ok:
-                raise ValidationError('Possible loop detected.')
         return super().clean()
 
     def clean_mana_needed(self):

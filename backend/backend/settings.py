@@ -153,10 +153,21 @@ LOGGING = {
             'class': 'logging.StreamHandler',
         },
     },
-    'root': {
-        'handlers': ['console'],
-        'level': 'DEBUG',
-    },
+    'loggers' : {
+        'root': {
+            'level': 'DEBUG',
+            'handlers': ['console'],
+        },
+        'django.db.backends': {
+            'level': 'DEBUG',
+        },
+        'pyomo.opt': {
+            'level': 'WARNING',
+            'handlers': ['console'],
+        },
+        'pyomo.core': {
+            'level': 'WARNING',
+            'handlers': ['console'],
+        },
+    }
 }
-logging.getLogger('pyomo.opt').setLevel(logging.WARNING)
-logging.getLogger('pyomo.core').setLevel(logging.WARNING)

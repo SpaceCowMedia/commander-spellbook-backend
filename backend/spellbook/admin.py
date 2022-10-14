@@ -1,12 +1,10 @@
-import pathlib
-import sys
 from django.contrib import admin
 from django.urls import path, reverse
 from django.http import HttpResponseRedirect
+from .utils import launch_command_async, launch_job_command
 from .models import Card, Template, Feature, Combo, Variant, Job
 from django.contrib import messages
 from django.forms import ModelForm
-from django.db import transaction
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.db.models import Avg, F
@@ -90,50 +88,16 @@ class VariantAdmin(admin.ModelAdmin):
 
     def generate(self, request):
         if request.method == 'POST' and request.user.is_authenticated:
-            past_runs_duration = Job.objects \
-                .filter(name='generate_variants', status=Job.Status.SUCCESS) \
-                .order_by('-created')[:5] \
-                .annotate(duration=F('termination') - F('created')) \
-                .aggregate(average_duration=Avg('duration'))['average_duration']
-            if past_runs_duration is None:
-                past_runs_duration = timezone.timedelta(minutes=30)
-
-            job = Job.start(
-                name='generate_variants',
-                duration=past_runs_duration * 1.5,
-                user=request.user)
-            if job is not None:
-                manage_py_path = pathlib.Path(__file__).parent.parent / 'manage.py'
-                import subprocess
-                args = ['python', manage_py_path.resolve(), 'generate_variants', '--id', str(job.id)]
-                if sys.platform == "win32":
-                    subprocess.Popen(
-                        args=args,
-                        creationflags=subprocess.CREATE_NEW_PROCESS_GROUP)
-                else:
-                    subprocess.Popen(args=args)
-                messages.info(request, 'Generation of variants job started.')
+            if (launch_job_command('generate_variants', timezone.timedelta(minutes=30), request.user)):
+                messages.info(request, 'Variant generation job started.')
             else:
                 messages.warning(request, 'Variant generation is already running.')
         return HttpResponseRedirect(reverse('admin:spellbook_variant_changelist'))
 
     def export(self, request):
         if request.method == 'POST' and request.user.is_authenticated:
-            job = Job.start(
-                name='export_variants',
-                duration=timezone.timedelta(minutes=1),
-                user=request.user)
-            if job is not None:
-                manage_py_path = pathlib.Path(__file__).parent.parent / 'manage.py'
-                import subprocess
-                args = ['python', manage_py_path.resolve(), 'export_variants', '--id', str(job.id)]
-                if sys.platform == "win32":
-                    subprocess.Popen(
-                        args=args,
-                        creationflags=subprocess.CREATE_NEW_PROCESS_GROUP)
-                else:
-                    subprocess.Popen(args=args)
-                messages.info(request, 'Exporting of variants job started.')
+            if (launch_job_command('export_variants', timezone.timedelta(minutes=1), request.user)):
+                messages.info(request, 'Variant exporting job started.')
             else:
                 messages.warning(request, 'Variant exporting is already running.')
         return HttpResponseRedirect(reverse('admin:spellbook_variant_changelist'))

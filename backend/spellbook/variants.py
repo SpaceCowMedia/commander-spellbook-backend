@@ -65,7 +65,8 @@ def update_variant(
         ok: bool,
         restore=False):
     variant = data.variants.get(unique_id=unique_id)
-    variant.of.set(combos_that_generated)
+    if combos_that_generated is not None:
+        variant.of.set(combos_that_generated)
     variant.includes.set(combos_included)
     variant.produces.set(removed_features(variant, features) - data.utility_features_ids)
     variant.identity = merge_identities(variant.uses.values_list('identity', flat=True))
@@ -112,7 +113,8 @@ def create_variant(
     variant.save()
     variant.uses.set(cards)
     variant.requires.set(templates)
-    variant.of.set(combos_that_generated)
+    if combos_that_generated is not None:
+        variant.of.set(combos_that_generated)
     variant.includes.set(combos_included)
     variant.produces.set(removed_features(variant, features) - data.utility_features_ids)
     return variant.id
@@ -246,38 +248,37 @@ class VariantDefinition:
     included_ids: set[int]
 
 
+def get_variants_from_combo(n: int, tot: int, base_model: pyo.ConcreteModel, combo: Combo) -> dict[str, VariantDefinition]:
+    model = combo_model(base_model, combo)
+    priorityc = priority_dict_for_combo(combo)
+    result: dict[str, VariantDefinition] = {}
+    opt = create_solver()
+    while solve_combo_model(model, opt):
+        # Selecting only variables with a value of 1
+        card_id_list = sorted([v for v in model.c if model.c[v].value == 1], key=lambda c: priorityc[c])
+        feature_id_list = {v for v in model.f if model.f[v].value == 1}
+        combo_id_list = {v for v in model.b if model.b[v].value == 1}
+        template_id_list = {v for v in model.t if model.t[v].value == 1}
+        unique_id = unique_id_from_cards_and_templates_ids(cards=card_id_list, templates=template_id_list)
+        result[unique_id] = VariantDefinition(
+            card_ids=card_id_list,
+            template_ids=template_id_list,
+            of_ids=frozenset({combo.id}),
+            included_ids=combo_id_list,
+            feature_ids=feature_id_list)
+        # Eclude any solution containing the current variant of the combo, from now on
+        model.Variants.add(sum(model.c[i] for i in card_id_list) <= len(card_id_list) - 1)
+        if logging.getLogger().isEnabledFor(logging.DEBUG):
+            logging.debug(f'New variant of {n}/{tot} found. id: ' + unique_id)
+    logging.info(f'Computed variants for combo {n}/{tot} id: {combo.pk}')
+    return result
+
+
 def get_variants_from_model(base_model: pyo.ConcreteModel, data: Data) -> dict[str, VariantDefinition]:
-    def variants_from_combo(n: int, tot: int, base_model: pyo.ConcreteModel, combo: Combo) -> dict[str, VariantDefinition]:
-        model = combo_model(base_model, combo)
-        priorityc = priority_dict_for_combo(combo)
-        result: dict[str, VariantDefinition] = {}
-        opt = create_solver()
-        while True:
-            if solve_combo_model(model, opt):
-                # Selecting only variables with a value of 1
-                card_id_list = sorted([v for v in model.c if model.c[v].value == 1], key=lambda c: priorityc[c])
-                feature_id_list = {v for v in model.f if model.f[v].value == 1}
-                combo_id_list = {v for v in model.b if model.b[v].value == 1}
-                template_id_list = {v for v in model.t if model.t[v].value == 1}
-                unique_id = unique_id_from_cards_and_templates_ids(cards=card_id_list, templates=template_id_list)
-                result[unique_id] = VariantDefinition(
-                    card_ids=card_id_list,
-                    template_ids=template_id_list,
-                    of_ids=frozenset({combo.id}),
-                    included_ids=combo_id_list,
-                    feature_ids=feature_id_list)
-                # Eclude any solution containing the current variant of the combo, from now on
-                model.Variants.add(sum(model.c[i] for i in card_id_list) <= len(card_id_list) - 1)
-                if logging.getLogger().isEnabledFor(logging.DEBUG):
-                    logging.debug(f'New variant of {n}/{tot} found. id: ' + unique_id)
-            else:
-                break
-        logging.info(f'Computed variants for combo {n}/{tot} id: {combo.pk}')
-        return result
     logging.info('Computing all possible variants')
     combos = data.combos.filter(generator=True)
     total = combos.count()
-    results = list(starmap(variants_from_combo,
+    results = list(starmap(get_variants_from_combo,
         ((i, total, base_model, c) for i, c in enumerate(combos, start=1))))
     logging.info('Merging results, discarding duplicates...')
     result = dict[str, VariantDefinition]()
@@ -295,9 +296,9 @@ def get_variants_from_model(base_model: pyo.ConcreteModel, data: Data) -> dict[s
 def generate_variants(job: Job = None) -> tuple[int, int]:
     with transaction.atomic():
         logging.info('Fetching variants set to RESTORE...')
-        to_restore = set(Variant.objects.filter(status=Variant.Status.RESTORE).values_list('unique_id', flat=True))
-        logging.info('Fetching all variant unique ids...')
         data = Data()
+        to_restore = set(data.variants.filter(status=Variant.Status.RESTORE).values_list('unique_id', flat=True))
+        logging.info('Fetching all variant unique ids...')
         old_id_set = set(data.variants.values_list('unique_id', flat=True))
         logging.info('Computing combos MILP representation...')
         model = base_model(data)
@@ -343,4 +344,50 @@ def generate_variants(job: Job = None) -> tuple[int, int]:
         delete_query.delete()
         logging.info(f'Deleted {deleted} variants...')
         logging.info('Done.')
+        return len(added), len(restored), deleted
+
+
+def generate_variant(combo: Combo, job: Job = None):
+    with transaction.atomic():
+        to_restore = set(combo.variants.filter(status=Variant.Status.RESTORE).values_list('unique_id', flat=True))
+        old_id_set = set(combo.variants.values_list('unique_id', flat=True))
+        data = Data()
+        model = base_model(data)
+        if model is not None:
+            variant_check_model = exclude_variants_model(model, data)
+            variants = get_variants_from_combo(1, 1, model, combo)
+            variants_ids = set()
+            for unique_id, variant_def in variants.items():
+                if unique_id in old_id_set:
+                    update_variant(
+                        data=data,
+                        unique_id=unique_id,
+                        combos_that_generated=None,
+                        combos_included=variant_def.included_ids,
+                        features=variant_def.feature_ids,
+                        ok=is_variant_valid(variant_check_model, variant_def.card_ids),
+                        restore=unique_id in to_restore)
+                else:
+                    variants_ids.add(
+                        create_variant(
+                            data=data,
+                            unique_id=unique_id,
+                            cards=variant_def.card_ids,
+                            templates=variant_def.template_ids,
+                            combos_that_generated=None,
+                            combos_included=variant_def.included_ids,
+                            features=variant_def.feature_ids,
+                            ok=is_variant_valid(variant_check_model, variant_def.card_ids)))
+        else:
+            variants = dict()
+        new_id_set = set(variants.keys())
+        to_remove_of = old_id_set - new_id_set
+        added = new_id_set - old_id_set
+        restored = new_id_set & to_restore
+        remove_of_query = combo.variants.filter(unique_id__in=to_remove_of)
+        for v in remove_of_query:
+            v.of.remove(combo)
+        delete_query = remove_of_query.filter(of=None)
+        deleted = delete_query.count()
+        delete_query.delete()
         return len(added), len(restored), deleted

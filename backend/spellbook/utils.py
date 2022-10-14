@@ -8,7 +8,7 @@ from django.db.models import Avg, F
 from django.utils import timezone
 
 
-def launch_command_async(command: str, args: list[str]=[]):
+def launch_command_async(command: str, args: list[str] = []):
     manage_py_path = pathlib.Path(__file__).parent.parent / 'manage.py'
     args = ['python', manage_py_path.resolve(), command] + args
     if sys.platform == "win32":

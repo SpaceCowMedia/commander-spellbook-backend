@@ -19,7 +19,7 @@ def launch_command_async(command: str, args: list[str] = []):
         subprocess.Popen(args=args)
 
 
-def launch_job_command(command: str, duration: timedelta, user) -> bool:
+def launch_job_command(command: str, duration: timedelta, user, args: list[str] = []) -> bool:
     """
     Launch a command asynchronously and create a Job object to track it.
     The command must be a management command that can take a --id parameter with the Job id.
@@ -38,6 +38,6 @@ def launch_job_command(command: str, duration: timedelta, user) -> bool:
         duration=past_runs_duration * 1.5,
         user=user)
     if job is not None:
-        launch_command_async(command, ['--id', str(job.id)])
+        launch_command_async(command, ['--id', str(job.id)] + args)
         return True
     return False

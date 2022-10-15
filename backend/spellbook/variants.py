@@ -7,11 +7,11 @@ import pyomo.environ as pyo
 from dataclasses import dataclass
 from itertools import starmap
 from django.db import transaction
-from django.db.models import Prefetch
 from django.conf import settings
 from .models import Card, Feature, Combo, Job, Template, Variant
 from pyomo.opt import TerminationCondition
 from pyomo.opt.base.solvers import OptSolver
+from django.db.models import Count
 
 MAX_CARDS_IN_COMBO = 5
 
@@ -186,11 +186,11 @@ def base_model(data: Data) -> pyo.ConcreteModel | None:
     # Minimize cards, maximize features and combos
     count_templates = len(model.t)
     model.MinimizeCardsObj = pyo.Objective(
-        expr=sum(model.c[i] * count_templates + 1 for i in model.c) + sum(model.t[i] for i in model.t),
+        expr=sum(model.c[i] * (count_templates + 1) for i in model.c) + sum(model.t[i] for i in model.t),
         sense=pyo.minimize)
     count_features = len(model.f)
     model.MaximizeCombosObj = pyo.Objective(
-        expr=sum(model.b[i] * count_features + 1 for i in model.b) + sum(model.f[i] for i in model.f),
+        expr=sum(model.b[i] * (count_features + 1) for i in model.b) + sum(model.f[i] for i in model.f),
         sense=pyo.maximize)
     model.MinimizeCardsObj.deactivate()
     model.MaximizeCombosObj.deactivate()
@@ -405,12 +405,13 @@ def generate_variants_for_combo(combo: Combo, job: Job = None) -> tuple[int, int
         restored = new_id_set & to_restore
         logging.info(f'Added {len(added)} new variants.')
         logging.info(f'Updated {len(restored)} variants.')
-        remove_of_query = combo.variants.filter(unique_id__in=to_remove_of)
-        for v in remove_of_query:
-            v.of.remove(combo)
-        delete_query = remove_of_query.filter(of=None)
+        annotated_variants = combo.variants.annotate(of_count=Count('of'))
+        remove_of_query = annotated_variants.filter(unique_id__in=to_remove_of, of_count__gt=1)
+        updated = remove_of_query.count()
+        delete_query = annotated_variants.filter(unique_id__in=to_remove_of, of_count=1)
         deleted = delete_query.count()
         delete_query.delete()
+        combo.variants.remove(*remove_of_query)
         logging.info(f'Deleted {deleted} variants...')
         logging.info('Done.')
-        return len(added), len(restored), deleted
+        return len(added), len(restored) + updated, deleted

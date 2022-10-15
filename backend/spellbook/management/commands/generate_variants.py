@@ -32,15 +32,27 @@ class Command(BaseCommand):
                 job = Job.objects.get(id=options['job_id'])
             except Job.DoesNotExist:
                 raise CommandError('Job with id %s does not exist' % options['job_id'])
+        combo = None
+        if options['combo_id']:
+            try:
+                combo = Combo.objects.get(id=options['combo_id'])
+            except Combo.DoesNotExist:
+                raise CommandError('Combo with id %s does not exist' % options['combo_id'])
         try:
-            if options['combo_id']:
-                added, restored, removed = generate_variants_for_combo(Combo.objects.get(id=options['combo_id']), job)
+            if combo:
+                if not combo.generator:
+                    raise Exception(f'The provided combo {combo} with id {combo.id} is not a generator')
+                added, restored, removed = generate_variants_for_combo(combo, job)
             else:
                 added, restored, removed = generate_variants(job)
             if added == 0 and removed == 0 and restored == 0:
-                message = 'Variants are already synced with combos'
+                message = 'Variants are already synced with'
             else:
-                message = f'Generated {added} new variants, restored {restored} variants, removed {removed} variants'
+                message = f'Generated {added} new variants, restored {restored} variants, removed {removed} variants for'
+            if combo:
+                message += f' combo {combo.id} {combo}'
+            else:
+                message += ' all combos'
             self.stdout.write(self.style.SUCCESS(message))
             if job is not None:
                 job.termination = timezone.now()

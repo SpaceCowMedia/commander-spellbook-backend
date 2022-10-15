@@ -1,0 +1,17 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Create temporary directories",
+            "type": "shell",
+            "args": [],
+            "group": "build",
+            "linux": {
+                "command": "mkdir -p ${workspaceFolder}/backend/temp/profiles"
+            },
+            "windows": {
+                "command": "if not exist ${workspaceFolder}\\backend\\temp\\profiles mkdir ${workspaceFolder}\\backend\\temp\\profiles"
+            }
+        }
+    ]
+}

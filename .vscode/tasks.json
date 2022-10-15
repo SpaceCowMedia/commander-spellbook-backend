@@ -12,6 +12,22 @@
             "windows": {
                 "command": "if not exist ${workspaceFolder}\\backend\\temp\\profiles mkdir ${workspaceFolder}\\backend\\temp\\profiles"
             }
+        },
+        {
+            "label": "Clean pending jobs",
+            "type": "shell",
+            "command": "python backend/manage.py clean_jobs",
+            "group": "build",
+        },
+        {
+            "label": "Profile Prelaunch",
+            "type": "shell",
+            "command": "echo ok",
+            "group": "build",
+            "dependsOn": [
+                "Create temporary directories",
+                "Clean pending jobs"
+            ],
         }
     ]
 }

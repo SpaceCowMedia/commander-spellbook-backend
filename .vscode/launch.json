@@ -48,7 +48,7 @@
                 "--use-cprofile",
                 "--prof-path=${workspaceFolder}/backend/temp/profiles"
             ],
-            "preLaunchTask": "Create temporary directories",
+            "preLaunchTask": "Profile Prelaunch",
             "django": true,
             "justMyCode": true
         }

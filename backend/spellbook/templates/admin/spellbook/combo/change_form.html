@@ -57,6 +57,8 @@
     </style>
 {% endblock %}
 
+{% comment %}
+<!--Feature disabled-->
 {% block object-tools-items %}
 {% if original.generator %}
 <li>
@@ -75,3 +77,4 @@
 {% endif %}
 {{ block.super }}
 {% endblock %}
+{% endcomment %}

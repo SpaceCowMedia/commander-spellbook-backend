@@ -1,13 +1,13 @@
 from django.contrib import admin
 from django.urls import path, reverse
 from django.http import HttpResponseRedirect
-from .utils import launch_command_async, launch_job_command
+from .utils import launch_job_command
 from .models import Card, Template, Feature, Combo, Variant, Job
 from django.contrib import messages
 from django.forms import ModelForm
 from django.core.exceptions import ValidationError
 from django.utils import timezone
-from django.db.models import Avg, F
+from django.http import HttpRequest
 
 
 @admin.register(Card)
@@ -86,21 +86,24 @@ class VariantAdmin(admin.ModelAdmin):
     search_fields = ['id', 'uses__name', 'produces__name', 'requires__name', 'unique_id', 'identity']
     actions = [set_restore, set_draft, set_new, set_not_working]
 
-    def generate(self, request):
+    def generate(self, request: HttpRequest):
         if request.method == 'POST' and request.user.is_authenticated:
-            if (launch_job_command('generate_variants', timezone.timedelta(minutes=30), request.user)):
+            args = []
+            if request.POST.get('combo'):
+                args = ['--combo', request.POST.get('combo')]
+            if (launch_job_command('generate_variants', timezone.timedelta(minutes=30), request.user, args)):
                 messages.info(request, 'Variant generation job started.')
             else:
                 messages.warning(request, 'Variant generation is already running.')
-        return HttpResponseRedirect(reverse('admin:spellbook_variant_changelist'))
+        return HttpResponseRedirect(reverse('admin:spellbook_job_changelist'))
 
-    def export(self, request):
+    def export(self, request: HttpRequest):
         if request.method == 'POST' and request.user.is_authenticated:
             if (launch_job_command('export_variants', timezone.timedelta(minutes=1), request.user)):
                 messages.info(request, 'Variant exporting job started.')
             else:
                 messages.warning(request, 'Variant exporting is already running.')
-        return HttpResponseRedirect(reverse('admin:spellbook_variant_changelist'))
+        return HttpResponseRedirect(reverse('admin:spellbook_job_changelist'))
 
     def get_urls(self):
         return [path('generate/',

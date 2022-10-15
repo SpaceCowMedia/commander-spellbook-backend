@@ -1,0 +1,71 @@
+{% extends "admin/change_form.html" %}
+
+{% block extrahead %}
+    {{ block.super }}
+    <style>
+        .object-tools button {
+            border-radius: 15px;
+            display: block;
+            float: left;
+            padding: 6px 12px;
+            background: var(--object-tools-bg);
+            color: var(--object-tools-fg);
+            font-weight: 400;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-width: 0px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .button__text {
+            transition: all 0.2s;
+        }
+
+        .button--loading::after {
+            content: "";
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            margin: auto;
+            margin-top: 2px;
+            border: 4px solid transparent;
+            border-top-color: #ffffff;
+            border-radius: 50%;
+            animation: button-loading-spinner 1s ease infinite;
+        }
+
+        .button--loading .button__text {
+            visibility: hidden;
+            opacity: 0;
+        }
+
+        @keyframes button-loading-spinner {
+            from {
+                transform: rotate(0turn);
+            }
+
+            to {
+                transform: rotate(1turn);
+            }
+        }
+    </style>
+{% endblock %}
+
+{% block object-tools-items %}
+<li>
+    <form method="post" action="{% url 'admin:spellbook_variant_generate' %}" class="inline" novalidate>
+        {% csrf_token %}
+        <input hidden name="combo" value="{{ original.id }}">
+        <button type="submit" class="default" onclick="this.classList.toggle('button--loading'); this.disabled=true; this.parentNode.submit();">
+            <span class="button__text">Add variants for this combo</span>
+        </button>
+    </form>
+</li>
+{{ block.super }}
+{% endblock %}

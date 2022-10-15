@@ -1,7 +1,8 @@
 import traceback
 from django.core.management.base import BaseCommand, CommandError
+from spellbook.models import Combo
 from spellbook.models import Job, Variant
-from spellbook.variants import generate_variants
+from spellbook.variants import generate_variants, generate_variants_for_combo
 from django.utils import timezone
 from django.contrib.admin.models import LogEntry, CHANGE
 from django.contrib.contenttypes.models import ContentType
@@ -17,6 +18,12 @@ class Command(BaseCommand):
             type=int,
             dest='job_id',
         )
+        parser.add_argument(
+            '--combo',
+            type=int,
+            dest='combo_id',
+            required=False,
+        )
 
     def handle(self, *args, **options):
         job = None
@@ -26,7 +33,10 @@ class Command(BaseCommand):
             except Job.DoesNotExist:
                 raise CommandError('Job with id %s does not exist' % options['job_id'])
         try:
-            added, restored, removed = generate_variants(job)
+            if options['combo_id']:
+                added, restored, removed = generate_variants_for_combo(Combo.objects.get(id=options['combo_id']), job)
+            else:
+                added, restored, removed = generate_variants(job)
             if added == 0 and removed == 0 and restored == 0:
                 message = 'Variants are already synced with combos'
             else:

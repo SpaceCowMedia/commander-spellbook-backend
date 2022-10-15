@@ -8,7 +8,7 @@
             "name": "Python: Django",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}\\backend\\manage.py",
+            "program": "${workspaceFolder}/backend/manage.py",
             "args": [
                 "runserver",
                 "8001"
@@ -20,7 +20,7 @@
             "name": "Python: Django / Import Combos",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}\\backend\\manage.py",
+            "program": "${workspaceFolder}/backend/manage.py",
             "args": [
                 "import_combos"
             ],
@@ -31,10 +31,24 @@
             "name": "Python: Django / Generate Variants",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}\\backend\\manage.py",
+            "program": "${workspaceFolder}/backend/manage.py",
             "args": [
                 "generate_variants"
             ],
+            "django": true,
+            "justMyCode": true
+        },
+        {
+            "name": "Python: Django Profiling",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/backend/manage.py",
+            "args": [
+                "runprofileserver",
+                "--use-cprofile",
+                "--prof-path=${workspaceFolder}/backend/temp/profiles"
+            ],
+            "preLaunchTask": "Create temporary directories",
             "django": true,
             "justMyCode": true
         }

@@ -2,10 +2,11 @@ from datetime import timedelta
 import pathlib
 import subprocess
 import sys
-
-from .models import Job
+from django.core.management import call_command
 from django.db.models import Avg, F
-from django.utils import timezone
+from .models import Job
+
+ASYNC_MODE = True
 
 
 def launch_command_async(command: str, args: list[str] = []):
@@ -38,6 +39,9 @@ def launch_job_command(command: str, duration: timedelta, user, args: list[str] 
         duration=past_runs_duration * 1.5,
         user=user)
     if job is not None:
-        launch_command_async(command, ['--id', str(job.id)] + args)
+        if ASYNC_MODE:
+            launch_command_async(command, ['--id', str(job.id)] + args)
+        else:
+            call_command(command, *args, id=job.id)
         return True
     return False

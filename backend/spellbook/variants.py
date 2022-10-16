@@ -9,9 +9,9 @@ from itertools import starmap
 from django.db import transaction
 from django.conf import settings
 from .models import Card, Feature, Combo, Job, Template, Variant
-from pyomo.opt import TerminationCondition
 from pyomo.opt.base.solvers import OptSolver
-from django.db.models import Count
+from pyomo.contrib.appsi.base import TerminationCondition
+from pyomo.contrib.appsi.solvers.cbc import CbcConfig, Cbc
 
 MAX_CARDS_IN_COMBO = 5
 
@@ -122,7 +122,13 @@ def create_variant(
 
 
 def create_solver() -> OptSolver:
-    return pyo.SolverFactory(settings.SOLVER_NAME)
+    opt = Cbc(only_child_vars=True)
+    opt.update_config.check_for_new_or_removed_vars = False
+    opt.update_config.check_for_new_or_removed_params = False
+    opt.update_config.update_params = False
+    opt.update_config.update_vars = False
+    opt.config.log_level = logging.WARNING
+    return opt
 
 
 def base_model(data: Data) -> pyo.ConcreteModel | None:
@@ -220,19 +226,19 @@ def is_variant_valid(model: pyo.ConcreteModel, card_ids: list[int]) -> bool:
     model.c.fix(False)
     for card_id in card_ids:
         model.c[card_id].fix(True)
-    result = opt.solve(model, tee=False)
+    result = opt.solve(model)
     answer = result.solver.termination_condition == TerminationCondition.optimal
     return answer
 
 
 def solve_combo_model(model: pyo.ConcreteModel, opt: OptSolver) -> bool:
     model.MinimizeCardsObj.activate()
-    results = opt.solve(model, tee=False)
+    results = opt.solve(model)
     model.MinimizeCardsObj.deactivate()
     if results.solver.termination_condition == TerminationCondition.optimal:
         model.Sequential.add(model.MinimizeCardsObj <= pyo.value(model.MinimizeCardsObj))
         model.MaximizeCombosObj.activate()
-        results = opt.solve(model, tee=False)
+        results = opt.solve(model)
         model.MaximizeCombosObj.deactivate()
         model.Sequential.clear()
         if results.solver.termination_condition == TerminationCondition.optimal:

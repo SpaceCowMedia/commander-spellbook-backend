@@ -2,7 +2,7 @@ import traceback
 from django.core.management.base import BaseCommand, CommandError
 from spellbook.models import Combo
 from spellbook.models import Job, Variant
-from spellbook.variants import generate_variants, generate_variants_for_combo
+from spellbook.variants import generate_variants
 from django.utils import timezone
 from django.contrib.admin.models import LogEntry, CHANGE
 from django.contrib.contenttypes.models import ContentType

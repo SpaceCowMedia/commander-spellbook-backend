@@ -121,7 +121,7 @@ def create_variant(
 
 
 def create_solver() -> OptSolver:
-    return pyo.SolverFactory(settings.SOLVER_NAME)
+    return pyo.SolverFactory('glpk')
 
 
 def base_model(data: Data) -> pyo.ConcreteModel | None:

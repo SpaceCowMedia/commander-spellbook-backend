@@ -7,7 +7,6 @@ import pyomo.environ as pyo
 from dataclasses import dataclass
 from itertools import starmap
 from django.db import transaction
-from django.conf import settings
 from .models import Card, Feature, Combo, Job, Template, Variant
 from pyomo.opt import TerminationCondition
 from pyomo.opt.base.solvers import OptSolver

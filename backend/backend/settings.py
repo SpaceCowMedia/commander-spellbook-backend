@@ -10,7 +10,6 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.0/ref/settings/
 """
 
-import logging
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -27,7 +26,6 @@ SECRET_KEY = 'django-insecure-!5xe$b7a9e4osw_3i23&&f1_s$inz*=j#97-6z88sf!!(f6w2q
 DEBUG = True
 
 PARALLEL_SOLVERS = 20
-SOLVER_NAME = 'glpk'
 DEFAULT_BULK_FOLDER = './temp/bulk'
 
 ALLOWED_HOSTS = ['*']

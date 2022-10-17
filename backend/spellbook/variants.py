@@ -9,7 +9,7 @@ from itertools import starmap
 from django.db import transaction
 from django.conf import settings
 from .models import Card, Feature, Combo, Job, Template, Variant
-from pyomo.opt.base.solvers import OptSolver
+from pyomo.contrib.appsi.base import PersistentSolver as OptSolver
 from pyomo.contrib.appsi.base import TerminationCondition
 from pyomo.contrib.appsi.solvers.cbc import Cbc
 from pyomo.core.expr.numeric_expr import LinearExpression
@@ -128,7 +128,9 @@ def create_solver() -> OptSolver:
     opt.update_config.check_for_new_or_removed_params = False
     opt.update_config.update_params = False
     opt.update_config.update_vars = False
-    opt.config.log_level = logging.WARNING
+    opt.config.log_level = logging.DEBUG
+    opt.config.solver_output_logger = logging.getLogger('pyomo.opt')
+    opt.config.load_solution = False
     return opt
 
 
@@ -242,7 +244,7 @@ def is_variant_valid(model: pyo.ConcreteModel, card_ids: list[int]) -> bool:
     for card_id in card_ids:
         model.c[card_id].fix(True)
     result = opt.solve(model)
-    answer = result.solver.termination_condition == TerminationCondition.optimal
+    answer = result.termination_condition == TerminationCondition.optimal
     return answer
 
 
@@ -250,13 +252,15 @@ def solve_combo_model(model: pyo.ConcreteModel, opt: OptSolver) -> bool:
     model.MinimizeCardsObj.activate()
     results = opt.solve(model)
     model.MinimizeCardsObj.deactivate()
-    if results.solver.termination_condition == TerminationCondition.optimal:
+    if results.termination_condition == TerminationCondition.optimal:
+        opt.load_vars()
         model.Sequential.add(model.MinimizeCardsObj <= pyo.value(model.MinimizeCardsObj))
         model.MaximizeCombosObj.activate()
         results = opt.solve(model)
         model.MaximizeCombosObj.deactivate()
         model.Sequential.clear()
-        if results.solver.termination_condition == TerminationCondition.optimal:
+        if results.termination_condition == TerminationCondition.optimal:
+            opt.load_vars()
             return True
     return False
 

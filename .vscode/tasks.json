@@ -10,7 +10,16 @@
                 "command": "mkdir -p ${workspaceFolder}/backend/temp/profiles"
             },
             "windows": {
-                "command": "if not exist ${workspaceFolder}\\backend\\temp\\profiles mkdir ${workspaceFolder}\\backend\\temp\\profiles"
+                "command": "if not exist ${workspaceFolder}\\backend\\temp\\profiles mkdir ${workspaceFolder}\\backend\\temp\\profiles",
+                "options": {
+                    "shell": {
+                        "executable": "cmd",
+                        "args": [
+                            "/c"
+                        ]
+                    }
+                }
+                }
             }
         },
         {

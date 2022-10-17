@@ -11,7 +11,8 @@ from django.conf import settings
 from .models import Card, Feature, Combo, Job, Template, Variant
 from pyomo.opt.base.solvers import OptSolver
 from pyomo.contrib.appsi.base import TerminationCondition
-from pyomo.contrib.appsi.solvers.cbc import CbcConfig, Cbc
+from pyomo.contrib.appsi.solvers.cbc import Cbc
+from pyomo.core.expr.numeric_expr import LinearExpression
 
 MAX_CARDS_IN_COMBO = 5
 
@@ -144,7 +145,11 @@ def base_model(data: Data) -> pyo.ConcreteModel | None:
     model.c = pyo.Var(model.C, domain=pyo.Boolean)
     model.t = pyo.Var(model.T, domain=pyo.Boolean)
     # Variants constraints
-    model.V = pyo.Constraint(expr=sum(model.c[i] for i in model.c) + sum(model.t[i] for i in model.t) <= MAX_CARDS_IN_COMBO)
+    model.vexpr = LinearExpression(
+        constant=0,
+        linear_coefs=[1] * (len(model.c) + len(model.t)),
+        linear_vars=[model.c[i] for i in model.c] + [model.t[i] for i in model.t])
+    model.V = pyo.Constraint(expr=model.vexpr <= MAX_CARDS_IN_COMBO)
     # Combo constraints
     model.BC = pyo.ConstraintList()
     model.BF = pyo.ConstraintList()
@@ -191,12 +196,22 @@ def base_model(data: Data) -> pyo.ConcreteModel | None:
         model.FCB.add(f <= sum(card_vars + combo_vars))
     # Minimize cards, maximize features and combos
     count_templates = len(model.t)
+    model.objexpr1 = LinearExpression(
+        constant=0,
+        linear_coefs=[count_templates + 1] * len(model.c) + [1] * count_templates,
+        linear_vars=model.vexpr.linear_vars
+    )
     model.MinimizeCardsObj = pyo.Objective(
-        expr=sum(model.c[i] * (count_templates + 1) for i in model.c) + sum(model.t[i] for i in model.t),
+        expr=model.objexpr1,
         sense=pyo.minimize)
     count_features = len(model.f)
+    model.objexpr2 = LinearExpression(
+        constant=0,
+        linear_coefs=[count_features + 1] * len(model.b) + [1] * count_features,
+        linear_vars=[model.b[i] for i in model.b] + [model.f[i] for i in model.f]
+    )
     model.MaximizeCombosObj = pyo.Objective(
-        expr=sum(model.b[i] * (count_features + 1) for i in model.b) + sum(model.f[i] for i in model.f),
+        expr=model.objexpr2,
         sense=pyo.maximize)
     model.MinimizeCardsObj.deactivate()
     model.MaximizeCombosObj.deactivate()

@@ -123,7 +123,7 @@ def create_variant(
 
 
 def create_solver() -> OptSolver:
-    opt = Cbc(only_child_vars=True)
+    opt = Cbc()
     opt.update_config.check_for_new_or_removed_vars = False
     opt.update_config.check_for_new_or_removed_params = False
     opt.update_config.update_params = False

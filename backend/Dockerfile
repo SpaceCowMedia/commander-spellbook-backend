@@ -14,14 +14,15 @@ ENV PYTHONUNBUFFERED 1
 
 # install psycopg2 dependencies
 RUN apk update \
-    && apk add gcc python3-dev musl-dev postgresql-dev
+    && apk add gcc python3-dev musl-dev postgresql-dev g++
 
 # pip
 RUN pip install --upgrade pip
 
 # install dependencies
 COPY ./requirements.txt .
-RUN echo -e "\ngunicorn" >> requirements.txt
+RUN pip install pybind11 && echo -e "\ngunicorn\npybind11\nnumpy" >> requirements.txt
+ENV PYOMO_SETUP_ARGS='--with-distributable-extensions'
 RUN pip wheel --no-cache-dir --no-deps --wheel-dir /usr/src/app/wheels -r requirements.txt
 
 # lint
@@ -30,7 +31,9 @@ COPY . .
 RUN flake8 --ignore=E501,F401,E128 .
 
 
-# cbc builder
+#########
+#  CBC  #
+#########
 FROM python:3.10.7-alpine as cbc
 
 # install dependencies
@@ -68,7 +71,7 @@ COPY --from=cbc /usr/local/ /usr/local/
 RUN apk update && apk add libpq gcc
 COPY --from=builder /usr/src/app/wheels /wheels
 COPY --from=builder /usr/src/app/requirements.txt .
-RUN pip install --no-cache /wheels/*
+RUN pip install --no-cache /wheels/*    
 
 # copy entrypoint.prod.sh
 # COPY ./entrypoint.prod.sh .

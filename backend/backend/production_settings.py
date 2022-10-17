@@ -10,7 +10,6 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.0/ref/settings/
 """
 
-import logging
 import multiprocessing
 import os
 from pathlib import Path
@@ -28,7 +27,6 @@ SECRET_KEY = os.environ['SECRET_KEY']
 DEBUG = False
 
 PARALLEL_SOLVERS = multiprocessing.cpu_count()
-SOLVER_NAME = 'cbc'
 DEFAULT_BULK_FOLDER = '/home/app/web/staticfiles/bulk'
 
 # Security settings

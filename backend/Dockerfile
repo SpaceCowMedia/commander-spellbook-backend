@@ -71,7 +71,7 @@ COPY --from=cbc /usr/local/ /usr/local/
 RUN apk update && apk add libpq gcc
 COPY --from=builder /usr/src/app/wheels /wheels
 COPY --from=builder /usr/src/app/requirements.txt .
-RUN pip install --no-cache /wheels/*    
+RUN pip install --no-cache /wheels/*
 
 # copy entrypoint.prod.sh
 # COPY ./entrypoint.prod.sh .

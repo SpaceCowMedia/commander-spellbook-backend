@@ -3,7 +3,7 @@
 ###########
 
 # pull official base image
-FROM python:3.10.7-alpine as builder
+FROM python:3.11.0rc2-alpine as builder
 
 # set work directory
 WORKDIR /usr/src/app
@@ -35,7 +35,7 @@ RUN flake8 --ignore=E501,F401,E128 .
 #########
 
 # pull official base image
-FROM python:3.10.7-alpine
+FROM python:3.11.0rc2-alpine
 
 # create directory for the app user
 RUN mkdir -p /home/app

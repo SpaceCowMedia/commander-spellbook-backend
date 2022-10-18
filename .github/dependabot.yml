@@ -5,13 +5,13 @@ updates:
       - dependencies
     directory: backend/
     schedule:
-      interval: monthly
+      interval: weekly
   - package-ecosystem: docker
     labels:
       - dependencies
     directory: backend/
     schedule:
-      interval: monthly
+      interval: weekly
   - package-ecosystem: github-actions
     directory: /
     schedule:

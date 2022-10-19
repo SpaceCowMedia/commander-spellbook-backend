@@ -335,13 +335,14 @@ def generate_variants(job: Job = None) -> tuple[int, int, int]:
     with transaction.atomic():
         for unique_id, variant_def in variants.items():
             if unique_id in old_id_set:
+                status = data.variants.get(unique_id=unique_id).status
                 update_variant(
                     data=data,
                     unique_id=unique_id,
                     combos_that_generated=variant_def.of_ids,
                     combos_included=variant_def.included_ids,
                     features=variant_def.feature_ids,
-                    ok=data.variants.get(unique_id=unique_id).status == Variant.Status.OK or is_variant_valid(variant_check_model, variant_def.card_ids),
+                    ok=status is Variant.Status.OK or status is not Variant.Status.NOT_WORKING and is_variant_valid(variant_check_model, variant_def.card_ids),
                     restore=unique_id in to_restore)
             else:
                 variants_ids.add(

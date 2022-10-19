@@ -341,7 +341,7 @@ def generate_variants(job: Job = None) -> tuple[int, int, int]:
                     combos_that_generated=variant_def.of_ids,
                     combos_included=variant_def.included_ids,
                     features=variant_def.feature_ids,
-                    ok=is_variant_valid(variant_check_model, variant_def.card_ids),
+                    ok=data.variants.get(unique_id=unique_id).status == Variant.Status.OK or is_variant_valid(variant_check_model, variant_def.card_ids),
                     restore=unique_id in to_restore)
             else:
                 variants_ids.add(

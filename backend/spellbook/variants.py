@@ -121,6 +121,10 @@ class Graph:
             return []
         combo.state = NodeState.VISITING
         cards = combo.cards
+        if any(card.state == NodeState.VISITING for card in cards):
+            # This means that this combo needs a card that is currently considered an option for a feature
+            # This makes this combo useless
+            return []
         for c in cards:
             c.state = NodeState.VISITED
         templates = combo.templates
@@ -169,10 +173,10 @@ class Graph:
         result: list[VariantIngredients] = []
         for c in cards:
             result.append(VariantIngredients([c], [], []))
-            c.state = NodeState.VISITED
+            c.state = NodeState.VISITING
         for c in combos:
             result.extend(self._variantsb(c, base_cards_amount))
-            c.state = NodeState.VISITED
+            c.state = NodeState.VISITING
         return result
 
 

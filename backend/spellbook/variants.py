@@ -17,42 +17,43 @@ class NodeState(Enum):
     VISITED = 2
 
 
+
+class Node:
+    state: NodeState = field(default=NodeState.NOT_VISITED)
+
+
 @dataclass
-class CardNode:
+class CardNode(Node):
     card: Card
-    state: NodeState = NodeState.NOT_VISITED
 
     def __hash__(self):
         return hash(self.card)
 
 
 @dataclass
-class TemplateNode:
+class TemplateNode(Node):
     template: Template
-    state: NodeState = NodeState.NOT_VISITED
 
     def __hash__(self):
         return hash(self.template)
 
 
 @dataclass
-class FeatureNode:
+class FeatureNode(Node):
     feature: Feature
     cards: list[CardNode]
     combos: list['ComboNode']
-    state: NodeState = NodeState.NOT_VISITED
 
     def __hash__(self):
         return hash(self.feature)
 
 
 @dataclass
-class ComboNode:
+class ComboNode(Node):
     combo: Combo
     cards: list[CardNode]
     features: list[FeatureNode]
-    templates: list[Template]
-    state: NodeState = NodeState.NOT_VISITED
+    templates: list[TemplateNode]
 
     def __hash__(self):
         return hash(self.combo)
@@ -85,8 +86,8 @@ class Data:
 
 
 class Graph:
-    def __init__(self, data: Data = None, other: 'Graph' = None):
-        if data is not None and other is None:
+    def __init__(self, data: Data):
+        if data is not None:
             self.data = data
             self.cnodes = dict[int, CardNode]((card.id, CardNode(card)) for card in data.cards)
             self.tnodes = dict[int, TemplateNode]((template.id, TemplateNode(template)) for template in data.templates)
@@ -98,16 +99,10 @@ class Graph:
                 for feature in combo.produces.all():
                     featureNode = self.fnodes[feature.id]
                     featureNode.combos.append(node)
-        elif data is None and other is not None:
-            self.data = other.data
-            self.cnodes = {k: replace(v) for k, v in other.cnodes.items()}
-            self.tnodes = {k: replace(v) for k, v in other.tnodes.items()}
-            self.fnodes = {k: replace(v) for k, v in other.fnodes.items()}
-            self.bnodes = {k: replace(v) for k, v in other.bnodes.items()}
         else:
             raise Exception('Invalid arguments')
 
-    def reset(self) -> 'Graph':
+    def copy(self) -> 'Graph':
         return Graph(other=self)
 
     def variants(self, combo_id: int) -> Iterable[VariantIngredients]:
@@ -271,7 +266,9 @@ def get_variants_from_graph(data: Data) -> dict[str, VariantDefinition]:
             templates_ids = [tn.template.id for tn in variant.templates]
             unique_id = unique_id_from_cards_and_templates_ids(cards_ids, templates_ids)
             if unique_id in result:
-                result[unique_id].of_ids.add(combo.id)
+                x = result[unique_id]
+                x.of_ids.add(combo.id)
+                x.included_ids.update({cn.combo.id for cn in variant.combos})
             else:
                 result[unique_id] = VariantDefinition(
                     card_ids=cards_ids,

@@ -106,20 +106,20 @@ class Graph:
             self.bnodes = {k: replace(v) for k, v in other.bnodes.items()}
         else:
             raise Exception('Invalid arguments')
-    
+
     def reset(self) -> 'Graph':
         return Graph(other=self)
-    
+
     def variants(self, combo_id: int) -> Iterable[VariantIngredients]:
         combo = self.bnodes[combo_id]
         return self._variantsb(combo)
-    
+
     def _variantsb(self, combo: ComboNode, base_cards_amount: int = 0) -> Iterable[VariantIngredients]:
         if combo.state == NodeState.VISITED:
             return [VariantIngredients([], [], [])]
         if combo.state == NodeState.VISITING or base_cards_amount >= MAX_CARDS_IN_COMBO:
             return []
-        combo.state=NodeState.VISITING
+        combo.state = NodeState.VISITING
         cards = combo.cards
         for c in cards:
             c.state = NodeState.VISITED
@@ -151,14 +151,13 @@ class Graph:
                 temp_combos.extend(variant.combos)
             result.append(VariantIngredients(temp_cards, temp_templates, temp_combos))
         return result
-            
 
     def _variantsf(self, feature: FeatureNode, base_cards_amount: int = 0) -> Iterable[VariantIngredients]:
         if feature.state == NodeState.VISITED:
             return [VariantIngredients([], [], [])]
         if feature.state == NodeState.VISITING or base_cards_amount >= MAX_CARDS_IN_COMBO:
             return []
-        feature.state=NodeState.VISITING
+        feature.state = NodeState.VISITING
         cards = feature.cards
         combos = feature.combos
         for c in cards:
@@ -303,7 +302,7 @@ def generate_variants(job: Job = None) -> tuple[int, int, int]:
                     combos_that_generated=variant_def.of_ids,
                     combos_included=variant_def.included_ids,
                     features=variant_def.feature_ids,
-                    ok=status is Variant.Status.OK or status is not Variant.Status.NOT_WORKING and True, # TODO: check if variant is valid
+                    ok=status is Variant.Status.OK or status is not Variant.Status.NOT_WORKING and True,  # TODO: check if variant is valid
                     restore=unique_id in to_restore)
             else:
                 variants_ids.add(
@@ -315,7 +314,7 @@ def generate_variants(job: Job = None) -> tuple[int, int, int]:
                         combos_that_generated=variant_def.of_ids,
                         combos_included=variant_def.included_ids,
                         features=variant_def.feature_ids,
-                        ok=True)) # TODO check if variant is valid
+                        ok=True))  # TODO check if variant is valid
         if job is not None:
             job.variants.set(variants_ids)
         new_id_set = set(variants.keys())

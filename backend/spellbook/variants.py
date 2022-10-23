@@ -130,12 +130,16 @@ class Graph:
 
     def _variantsb(self, combo: ComboNode, base_cards_amount: int = 0) -> list[VariantIngredients]:
         combo.state = NodeState.VISITING
-        cards = combo.cards.copy()
-        for c in cards:
-            c.state = NodeState.VISITED
-        templates = combo.templates.copy()
-        for t in templates:
-            t.state = NodeState.VISITED
+        cards: list[ComboNode] = []
+        for c in combo.cards:
+            if c.state != NodeState.VISITED:
+                cards.append(c)
+                c.state = NodeState.VISITED
+        templates: list[TemplateNode] = []
+        for t in combo.templates:
+            if t.state != NodeState.VISITED:
+                templates.append(t)
+                t.state = NodeState.VISITED
         cards_amount = len(cards) + len(templates) + base_cards_amount
         if cards_amount > MAX_CARDS_IN_COMBO:
             return []

@@ -3,6 +3,7 @@ from itertools import product
 import json
 import hashlib
 import logging
+from math import comb
 from typing import Iterable
 from dataclasses import dataclass, replace, field
 from django.db import transaction
@@ -86,7 +87,7 @@ class Data:
 
 
 class Graph:
-    def __init__(self, data: Data):
+    def __init__(self, data: Data = None):
         if data is not None:
             self.data = data
             self.cnodes = dict[int, CardNode]((card.id, CardNode(card)) for card in data.cards)
@@ -99,80 +100,82 @@ class Graph:
                 for feature in combo.produces.all():
                     featureNode = self.fnodes[feature.id]
                     featureNode.combos.append(node)
+            self._pop = True
         else:
             raise Exception('Invalid arguments')
 
-    def copy(self) -> 'Graph':
-        return Graph(other=self)
+    def reset(self):
+        for node in self.cnodes.values():
+            node.state = NodeState.NOT_VISITED
+        for node in self.tnodes.values():
+            node.state = NodeState.NOT_VISITED
+        for node in self.fnodes.values():
+            node.state = NodeState.NOT_VISITED
+        for node in self.bnodes.values():
+            node.state = NodeState.NOT_VISITED
+        self._pop = True
 
     def variants(self, combo_id: int) -> Iterable[VariantIngredients]:
         combo = self.bnodes[combo_id]
-        return self._variantsb(combo)
+        new_variants = self._variantsb(combo)
+        result = []
+        while len(new_variants) > 0:
+            result.extend(new_variants)
+            self.reset()
+            new_variants = self._variantsb(combo)
+        return result
 
-    def _variantsb(self, combo: ComboNode, base_cards_amount: int = 0) -> Iterable[VariantIngredients]:
-        if combo.state == NodeState.VISITED:
-            return [VariantIngredients([], [], [])]
-        if combo.state == NodeState.VISITING or base_cards_amount >= MAX_CARDS_IN_COMBO:
-            return []
+    def _variantsb(self, combo: ComboNode, base_cards_amount: int = 0) -> list[VariantIngredients]:
         combo.state = NodeState.VISITING
-        cards = combo.cards
-        if any(card.state == NodeState.VISITING for card in cards):
-            # This means that this combo needs a card that is currently considered an option for a feature
-            # This makes this combo useless
-            return []
+        cards = combo.cards.copy()
         for c in cards:
             c.state = NodeState.VISITED
-        templates = combo.templates
+        templates = combo.templates.copy()
         for t in templates:
             t.state = NodeState.VISITED
-        cards_amount = len(cards) + len(templates)
+        cards_amount = len(cards) + len(templates) + base_cards_amount
         if cards_amount > MAX_CARDS_IN_COMBO:
             return []
         needed_features = combo.features
         if len(needed_features) == 0:
             return [VariantIngredients(cards, templates, [combo])]
-        variants_matrix: list[Iterable[VariantIngredients]] = []
         for f in needed_features:
             variantsf = self._variantsf(f, cards_amount)
             if len(variantsf) == 0:
                 return []
-            variants_matrix.append(variantsf)
+            cards.extend(variantsf[0].cards)
+            templates.extend(variantsf[0].templates)
             f.state = NodeState.VISITED
-        result: list[VariantIngredients] = []
-        p: list[VariantIngredients]
-        for p in product(*variants_matrix):
-            temp_cards = cards.copy()
-            temp_templates = templates.copy()
-            temp_combos = [combo]
-            for variant in p:
-                temp_cards.extend(variant.cards)
-                temp_templates.extend(variant.templates)
-                temp_combos.extend(variant.combos)
-            result.append(VariantIngredients(temp_cards, temp_templates, temp_combos))
-        return result
+        return [VariantIngredients(cards, templates, [combo])]
 
-    def _variantsf(self, feature: FeatureNode, base_cards_amount: int = 0) -> Iterable[VariantIngredients]:
-        if feature.state == NodeState.VISITED:
-            return [VariantIngredients([], [], [])]
-        if feature.state == NodeState.VISITING or base_cards_amount >= MAX_CARDS_IN_COMBO:
-            return []
+    def _variantsf(self, feature: FeatureNode, base_cards_amount: int = 0) -> list[VariantIngredients]:
         feature.state = NodeState.VISITING
         cards = feature.cards
         combos = feature.combos
         for c in cards:
-            if c.state == NodeState.VISITED or c.state == NodeState.VISITING:
+            if c.state == NodeState.VISITED:
                 return [VariantIngredients([], [], [])]
         for c in combos:
-            if c.state == NodeState.VISITED or c.state == NodeState.VISITING:
+            if c.state == NodeState.VISITED:
                 return [VariantIngredients([], [], [])]
-        result: list[VariantIngredients] = []
-        for c in cards:
-            result.append(VariantIngredients([c], [], []))
-            c.state = NodeState.VISITING
-        for c in combos:
-            result.extend(self._variantsb(c, base_cards_amount))
-            c.state = NodeState.VISITING
-        return result
+        if len(cards) > 0:
+            if self._pop:
+                c = cards.pop()
+                self._pop = False
+            else:
+                c = cards[0]
+            c.state = NodeState.VISITED
+            return [VariantIngredients([c], [], [])]
+        for i, c in enumerate(combos):
+            if c.state != NodeState.VISITING:
+                r = self._variantsb(c, base_cards_amount)
+                c.state = NodeState.VISITED
+                if len(r) > 0:
+                    if self._pop:
+                        self._pop = False
+                        combos.pop(i)
+                    return r
+        return []
 
 
 def unique_id_from_cards_and_templates_ids(cards: list[int], templates: list[int]) -> str:

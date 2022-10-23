@@ -274,7 +274,7 @@ def get_variants_from_graph(data: Data) -> dict[str, VariantDefinition]:
                 result[unique_id] = VariantDefinition(
                     card_ids=cards_ids,
                     template_ids=frozenset(templates_ids),
-                    feature_ids={f.id for cn in variant.combos for f in cn.combo.produces.all()},
+                    feature_ids={f.id for cn in variant.combos for f in cn.combo.produces.all()} | {f.id for cn in variant.cards for f in cn.card.features.all()},
                     included_ids={cn.combo.id for cn in variant.combos},
                     of_ids={combo.id})
     return result

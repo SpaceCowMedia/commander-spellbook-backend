@@ -99,11 +99,13 @@ class Graph:
                 for feature in combo.produces.all():
                     featureNode = self.fnodes[feature.id]
                     featureNode.combos.append(node)
-            self._pop = True
+            self._pop = None
         else:
             raise Exception('Invalid arguments')
 
-    def reset(self):
+    def reset(self) -> bool:
+        if self._pop is None:
+            return False
         for node in self.cnodes.values():
             node.state = NodeState.NOT_VISITED
         for node in self.tnodes.values():
@@ -112,16 +114,18 @@ class Graph:
             node.state = NodeState.NOT_VISITED
         for node in self.bnodes.values():
             node.state = NodeState.NOT_VISITED
-        self._pop = True
+        self._pop()
+        self._pop = None
+        return True
 
     def variants(self, combo_id: int) -> Iterable[VariantIngredients]:
         combo = self.bnodes[combo_id]
         new_variants = self._variantsb(combo)
         result = []
-        while len(new_variants) > 0:
-            result.extend(new_variants)
-            self.reset()
+        result.extend(new_variants)
+        while self.reset():
             new_variants = self._variantsb(combo)
+            result.extend(new_variants)
         return result
 
     def _variantsb(self, combo: ComboNode, base_cards_amount: int = 0) -> list[VariantIngredients]:
@@ -158,21 +162,16 @@ class Graph:
             if c.state == NodeState.VISITED:
                 return [VariantIngredients([], [], [])]
         if len(cards) > 0:
-            if self._pop:
-                c = cards.pop()
-                self._pop = False
-            else:
-                c = cards[0]
+            c = cards[0]
             c.state = NodeState.VISITED
+            self._pop = lambda: cards.pop(0)
             return [VariantIngredients([c], [], [])]
         for i, c in enumerate(combos):
             if c.state != NodeState.VISITING:
                 r = self._variantsb(c, base_cards_amount)
                 c.state = NodeState.VISITED
                 if len(r) > 0:
-                    if self._pop:
-                        self._pop = False
-                        combos.pop(i)
+                    self._pop = lambda: combos.pop(i)
                     return r
         return []
 

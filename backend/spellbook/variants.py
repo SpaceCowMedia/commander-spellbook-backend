@@ -142,14 +142,16 @@ class Graph:
         needed_features = combo.features
         if len(needed_features) == 0:
             return [VariantIngredients(cards, templates, [combo])]
+        combos = [combo]
         for f in needed_features:
             variantsf = self._variantsf(f, cards_amount)
             if len(variantsf) == 0:
                 return []
             cards.extend(variantsf[0].cards)
             templates.extend(variantsf[0].templates)
+            combos.extend(variantsf[0].combos)
             f.state = NodeState.VISITED
-        return [VariantIngredients(cards, templates, [combo])]
+        return [VariantIngredients(cards, templates, combos)]
 
     def _variantsf(self, feature: FeatureNode, base_cards_amount: int = 0) -> list[VariantIngredients]:
         feature.state = NodeState.VISITING
@@ -266,16 +268,19 @@ def get_variants_from_graph(data: Data) -> dict[str, VariantDefinition]:
             cards_ids = [cn.card.id for cn in variant.cards]
             templates_ids = [tn.template.id for tn in variant.templates]
             unique_id = unique_id_from_cards_and_templates_ids(cards_ids, templates_ids)
+            feature_ids = {f.id for cn in variant.combos for f in cn.combo.produces.all()} | {f.id for cn in variant.cards for f in cn.card.features.all()}
+            combo_ids = {cn.combo.id for cn in variant.combos}
             if unique_id in result:
                 x = result[unique_id]
                 x.of_ids.add(combo.id)
-                x.included_ids.update({cn.combo.id for cn in variant.combos})
+                x.included_ids.update(combo_ids)
+                x.feature_ids.update(feature_ids)
             else:
                 result[unique_id] = VariantDefinition(
                     card_ids=cards_ids,
                     template_ids=frozenset(templates_ids),
-                    feature_ids={f.id for cn in variant.combos for f in cn.combo.produces.all()} | {f.id for cn in variant.cards for f in cn.card.features.all()},
-                    included_ids={cn.combo.id for cn in variant.combos},
+                    feature_ids=feature_ids,
+                    included_ids=combo_ids,
                     of_ids={combo.id})
     return result
 

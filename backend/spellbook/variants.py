@@ -18,7 +18,6 @@ class NodeState(Enum):
     VISITED = 2
 
 
-
 class Node:
     state: NodeState = field(default=NodeState.NOT_VISITED)
 

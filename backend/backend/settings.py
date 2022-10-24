@@ -146,15 +146,23 @@ REST_FRAMEWORK = {
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
+    'formatters': {
+        'timestamp': {
+            'format': '[{levelname}] {asctime}: {message}',
+            'style': '{'
+        }
+    },
     'handlers': {
         'console': {
             'class': 'logging.StreamHandler',
+            'formatter': 'timestamp'
         },
     },
     'loggers': {
         'root': {
             'level': 'DEBUG',
             'handlers': ['console'],
+            
         },
         # 'django.db.backends': {
         #     'level': 'DEBUG',

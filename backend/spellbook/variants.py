@@ -255,6 +255,7 @@ class Graph:
         result: list[VariantIngredients] = []
         opt = create_solver()
         while solve_combo_model(model, opt):
+            logging.debug(f'Found new variant for combo {combo_id}')
             card_id_list = sorted([v for v in model.c if model.c[v].value == 1], key=lambda c: self.cnodes[c].depth)
             feature_id_list = {v for v in model.f if model.f[v].value == 1}
             combo_id_list = {v for v in model.b if model.b[v].value == 1}
@@ -400,11 +401,12 @@ def create_variant(
 
 
 def get_variants_from_graph(data: Data) -> dict[str, VariantDefinition]:
-    logging.info('Computing all possible variants')
+    logging.info('Computing all possible variants:')
     combos = data.combos.filter(generator=True)
     result = dict[str, VariantDefinition]()
     graph = Graph(data)
-    for combo in combos:
+    total = combos.count()
+    for i, combo in enumerate(combos):
         variants = graph.variants(combo.id)
         for variant in variants:
             cards_ids = [cn.card.id for cn in variant.cards]
@@ -425,6 +427,7 @@ def get_variants_from_graph(data: Data) -> dict[str, VariantDefinition]:
                     included_ids=combo_ids,
                     of_ids={combo.id})
         graph.reset()
+        logging.info(f'{i + 1}/{total} combos processed')
     return result
 
 

@@ -303,7 +303,7 @@ class Graph:
             nodes_from_features.update(nodesf)
         for node in cards | templates | needed_features:
             node.state = NodeState.VISITED
-            node.depth = depth          
+            node.depth = depth
         return cards | templates | needed_features | nodes_from_features | this_combo_set
 
     def _variantsf(self, feature: FeatureNode, base_cards_amount: int = 0, depth: int = 0) -> set[Node]:

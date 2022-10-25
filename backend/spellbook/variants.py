@@ -213,6 +213,8 @@ class Data:
         self.variants = Variant.objects.prefetch_related('uses', 'requires')
         self.utility_features_ids = frozenset[int](Feature.objects.filter(utility=True).values_list('id', flat=True))
         self.templates = Template.objects.prefetch_related('required_by_combos')
+        self.not_working_variants = [frozenset[int](v.uses.values_list('id', flat=True)) for v in self.variants.filter(status=Variant.Status.NOT_WORKING)]
+
 
 
 class Graph:
@@ -328,7 +330,7 @@ def unique_id_from_cards_and_templates_ids(cards: list[int], templates: list[int
     return hash_algorithm.hexdigest()
 
 
-def removed_features(variant: Variant, features: set[int]) -> set[int]:
+def subtract_removed_features(variant: Variant, features: set[int]) -> set[int]:
     return features - set(variant.includes.values_list('removes__id', flat=True))
 
 
@@ -337,22 +339,28 @@ def merge_identities(identities: Iterable[str]):
     return ''.join([color for color in 'WUBRG' if color in i])
 
 
+def includes_any(v: set[int], others: Iterable[set[int]]) -> bool:
+    for o in others:
+        if v.issuperset(o):
+            return True
+    return False
+
+
 def update_variant(
         data: Data,
         unique_id: str,
-        combos_that_generated: set[int],
-        combos_included: set[int],
-        features: set[int],
-        ok: bool,
+        variant_def: VariantDefinition,
+        status: Variant.Status,
         restore=False):
     variant = data.variants.get(unique_id=unique_id)
-    if combos_that_generated is not None:
-        variant.of.set(combos_that_generated)
-    variant.includes.set(combos_included)
-    variant.produces.set(removed_features(variant, features) - data.utility_features_ids)
+    variant.of.set(variant_def.of_ids)
+    variant.includes.set(variant_def.included_ids)
+    variant.produces.set(subtract_removed_features(variant, variant_def.feature_ids) - data.utility_features_ids)
     variant.identity = merge_identities(variant.uses.values_list('identity', flat=True))
+    ok = status is Variant.Status.OK or \
+        status is not Variant.Status.NOT_WORKING and not includes_any(v=frozenset(variant_def.card_ids), others=data.not_working_variants)
     if restore:
-        combos = data.combos.filter(id__in=combos_included)
+        combos = data.combos.filter(id__in=variant_def.included_ids)
         variant.zone_locations = '\n'.join(c.zone_locations for c in combos if len(c.zone_locations) > 0)
         variant.cards_state = '\n'.join(c.cards_state for c in combos if len(c.cards_state) > 0)
         variant.other_prerequisites = '\n'.join(c.other_prerequisites for c in combos if len(c.other_prerequisites) > 0)
@@ -369,18 +377,14 @@ def update_variant(
 def create_variant(
         data: Data,
         unique_id: str,
-        cards: list[int],
-        templates: set[int],
-        combos_that_generated: set[int],
-        combos_included: set[int],
-        features: set[int],
-        ok: bool):
-    combos = data.combos.filter(id__in=combos_included)
+        variant_def: VariantDefinition):
+    combos = data.combos.filter(id__in=variant_def.included_ids)
     zone_locations = '\n'.join(c.zone_locations for c in combos if len(c.zone_locations) > 0)
     cards_state = '\n'.join(c.cards_state for c in combos if len(c.cards_state) > 0)
     other_prerequisites = '\n'.join(c.other_prerequisites for c in combos if len(c.other_prerequisites) > 0)
     mana_needed = ' '.join(c.mana_needed for c in combos if len(c.mana_needed) > 0)
     description = '\n'.join(c.description for c in combos if len(c.description) > 0)
+    ok = not includes_any(v=frozenset(variant_def.card_ids), others=data.not_working_variants)
     variant = Variant(
         unique_id=unique_id,
         zone_locations=zone_locations,
@@ -388,16 +392,15 @@ def create_variant(
         other_prerequisites=other_prerequisites,
         mana_needed=mana_needed,
         description=description,
-        identity=merge_identities(data.cards.filter(id__in=cards).values_list('identity', flat=True)))
+        identity=merge_identities(data.cards.filter(id__in=variant_def.card_ids).values_list('identity', flat=True)))
     if not ok:
         variant.status = Variant.Status.NOT_WORKING
     variant.save()
-    variant.uses.set(cards)
-    variant.requires.set(templates)
-    if combos_that_generated is not None:
-        variant.of.set(combos_that_generated)
-    variant.includes.set(combos_included)
-    variant.produces.set(removed_features(variant, features) - data.utility_features_ids)
+    variant.uses.set(variant_def.card_ids)
+    variant.requires.set(variant_def.template_ids)
+    variant.of.set(variant_def.of_ids)
+    variant.includes.set(variant_def.included_ids)
+    variant.produces.set(subtract_removed_features(variant, variant_def.feature_ids) - data.utility_features_ids)
     return variant.id
 
 
@@ -454,22 +457,15 @@ def generate_variants(job: Job = None) -> tuple[int, int, int]:
                 update_variant(
                     data=data,
                     unique_id=unique_id,
-                    combos_that_generated=variant_def.of_ids,
-                    combos_included=variant_def.included_ids,
-                    features=variant_def.feature_ids,
-                    ok=status is Variant.Status.OK or status is not Variant.Status.NOT_WORKING and True,  # TODO: check if variant is valid
+                    variant_def=variant_def,
+                    status=status,
                     restore=unique_id in to_restore)
             else:
                 variants_ids.add(
                     create_variant(
                         data=data,
                         unique_id=unique_id,
-                        cards=variant_def.card_ids,
-                        templates=variant_def.template_ids,
-                        combos_that_generated=variant_def.of_ids,
-                        combos_included=variant_def.included_ids,
-                        features=variant_def.feature_ids,
-                        ok=True))  # TODO check if variant is valid
+                        variant_def=variant_def))
         if job is not None:
             job.variants.set(variants_ids)
         new_id_set = set(variants.keys())

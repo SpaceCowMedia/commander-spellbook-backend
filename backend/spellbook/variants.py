@@ -478,7 +478,7 @@ def generate_variants(job: Job = None) -> tuple[int, int, int]:
         logging.info(f'Updated {len(restored)} variants.')
         delete_query = data.variants.filter(unique_id__in=to_delete, frozen=False)
         for v in delete_query:    
-            logging.debug(f'Deleting variant {v.unique_id}: {v} of combos {", ".join(v.of.values_list("id", flat=True))}')
+            logging.debug(f'Deleting variant {v.unique_id}: {v} of combos {", ".join([str(i) for i in v.of.values_list("combo__id", flat=True)])}')
         deleted = delete_query.count()
         delete_query.delete()
         logging.info(f'Deleted {deleted} variants...')

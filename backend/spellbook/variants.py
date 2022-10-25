@@ -144,14 +144,16 @@ def base_model(nodes: Iterable[Node]) -> Optional[pyo.ConcreteModel]:
         f = model.f[feature_node.feature.id]
         card_vars = []
         for card_node in feature_node.cards:
-            c = model.c[card_node.card.id]
-            card_vars.append(c)
-            model.FC.add(f >= c)
+            if card_node.card.id in model.c:
+                c = model.c[card_node.card.id]
+                card_vars.append(c)
+                model.FC.add(f >= c)
         combo_vars = []
         for combo_node in feature_node.combos:
-            b = model.b[combo_node.combo.id]
-            combo_vars.append(b)
-            model.FB.add(f >= b)
+            if combo_node.combo.id in model.b:
+                b = model.b[combo_node.combo.id]
+                combo_vars.append(b)
+                model.FB.add(f >= b)
         model.FCB.add(f <= sum(card_vars + combo_vars))
     # Minimize cards, maximize features and combos
     count_templates = len(model.t)

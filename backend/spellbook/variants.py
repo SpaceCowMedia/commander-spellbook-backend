@@ -21,8 +21,8 @@ class NodeState(Enum):
 
 
 class Node:
-    state: NodeState = field(default=NodeState.NOT_VISITED)
-    depth: int = field(default=0)
+    state: NodeState = NodeState.NOT_VISITED
+    depth: int = 0
 
 
 @dataclass
@@ -313,8 +313,10 @@ class Graph:
         other: set[Node] = set()
         for c in feature.combos:
             if c.state == NodeState.NOT_VISITED:
-                combos.add(c)
-                other.update(self._variantsb(c, base_cards_amount, depth + 1))
+                new_other = self._variantsb(c, base_cards_amount, depth + 1)
+                if len(new_other) > 0:
+                    combos.add(c)
+                    other.update(new_other)
         for node in cards | combos:
             node.depth = depth
         return cards | combos | other

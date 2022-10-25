@@ -254,23 +254,20 @@ class Graph:
         if base is None:
             return []
         model = combo_model(base, combo_id)
-        result: list[VariantIngredients] = []
         opt = create_solver()
         while solve_combo_model(model, opt):
-            logging.debug(f'Found new variant for combo {combo_id}')
             card_id_list = sorted([v for v in model.c if model.c[v].value == 1], key=lambda c: self.cnodes[c].depth)
             feature_id_list = {v for v in model.f if model.f[v].value == 1}
             combo_id_list = {v for v in model.b if model.b[v].value == 1}
             template_id_list = {v for v in model.t if model.t[v].value == 1}
-            result.append(VariantIngredients(
+            yield VariantIngredients(
                 cards=[self.cnodes[i] for i in card_id_list],
                 features=[self.fnodes[i] for i in feature_id_list],
                 combos=[self.bnodes[i] for i in combo_id_list],
                 templates=[self.tnodes[i] for i in template_id_list]
-            ))
+            )
             # Eclude any solution containing the current variant of the combo, from now on
             model.Variants.add(sum(model.c[i] for i in card_id_list) <= len(card_id_list) - 1)
-        return result
 
     def _variantsb(self, combo: ComboNode, base_cards_amount: int = 0, depth: int = 0) -> set[Node]:
         combo.state = NodeState.VISITING
@@ -422,6 +419,7 @@ def get_variants_from_graph(data: Data) -> dict[str, VariantDefinition]:
                 x.included_ids.update(combo_ids)
                 x.feature_ids.update(feature_ids)
             else:
+                logging.info(f'Found new variant for combo {combo.id} ({i + 1}/{total}): {unique_id}')
                 result[unique_id] = VariantDefinition(
                     card_ids=cards_ids,
                     template_ids=templates_ids,
@@ -479,6 +477,8 @@ def generate_variants(job: Job = None) -> tuple[int, int, int]:
         logging.info(f'Added {len(added)} new variants.')
         logging.info(f'Updated {len(restored)} variants.')
         delete_query = data.variants.filter(unique_id__in=to_delete, frozen=False)
+        for v in delete_query:    
+            logging.debug(f'Deleting variant {v.unique_id}: {v}')
         deleted = delete_query.count()
         delete_query.delete()
         logging.info(f'Deleted {deleted} variants...')

@@ -23,6 +23,7 @@ class NodeState(Enum):
 class Node:
     state: NodeState = NodeState.NOT_VISITED
     depth: int = 0
+    down: bool = False
 
 
 @dataclass
@@ -45,7 +46,9 @@ class TemplateNode(Node):
 class FeatureNode(Node):
     feature: Feature
     cards: list[CardNode]
-    combos: list['ComboNode']
+    produced_by_combos: list['ComboNode']
+    needed_by_combos: list['ComboNode']
+    
 
     def __hash__(self):
         return hash(self.feature) + 7 * hash('feature')
@@ -55,8 +58,9 @@ class FeatureNode(Node):
 class ComboNode(Node):
     combo: Combo
     cards: list[CardNode]
-    features: list[FeatureNode]
     templates: list[TemplateNode]
+    features_needed: list[FeatureNode]
+    features_produced: list[FeatureNode]
 
     def __hash__(self):
         return hash(self.combo) + 7 * hash('combo')
@@ -122,19 +126,22 @@ def base_model(nodes: Iterable[Node]) -> Optional[pyo.ConcreteModel]:
         b = model.b[combo_node.combo.id]
         card_vars = []
         for card_node in combo_node.cards:
-            c = model.c[card_node.card.id]
-            card_vars.append(c)
-            model.BC.add(b <= c)
+            if card_node.down or card_node.card.id in model.C:
+                c = model.c[card_node.card.id]
+                card_vars.append(c)
+                model.BC.add(b <= c)
         template_vars = []
         for template_node in combo_node.templates:
-            t = model.t[template_node.template.id]
-            template_vars.append(t)
-            model.BT.add(b <= t)
+            if template_node.down or template_node.template.id in model.T:
+                t = model.t[template_node.template.id]
+                template_vars.append(t)
+                model.BT.add(b <= t)
         feature_vars = []
-        for feature_node in combo_node.features:
-            f = model.f[feature_node.feature.id]
-            feature_vars.append(f)
-            model.BF.add(b <= f)
+        for feature_node in combo_node.features_needed:
+            if feature_node.down or feature_node.feature.id in model.F:
+                f = model.f[feature_node.feature.id]
+                feature_vars.append(f)
+                model.BF.add(b <= f)
         model.BCFT.add(b >= sum(card_vars + feature_vars + template_vars) - len(card_vars) - len(feature_vars) - len(template_vars) + 1)
     # Feature constraints
     model.FC = pyo.ConstraintList()
@@ -149,7 +156,7 @@ def base_model(nodes: Iterable[Node]) -> Optional[pyo.ConcreteModel]:
                 card_vars.append(c)
                 model.FC.add(f >= c)
         combo_vars = []
-        for combo_node in feature_node.combos:
+        for combo_node in feature_node.produced_by_combos:
             if combo_node.combo.id in model.b:
                 b = model.b[combo_node.combo.id]
                 combo_vars.append(b)
@@ -223,14 +230,21 @@ class Graph:
             self.data = data
             self.cnodes = dict[int, CardNode]((card.id, CardNode(card)) for card in data.cards)
             self.tnodes = dict[int, TemplateNode]((template.id, TemplateNode(template)) for template in data.templates)
-            self.fnodes = dict[int, FeatureNode]((feature.id, FeatureNode(feature, [self.cnodes[i.id] for i in feature.cards.all()], [])) for feature in data.features)
+            self.fnodes = dict[int, FeatureNode]((feature.id, FeatureNode(feature, [self.cnodes[i.id] for i in feature.cards.all()], [], [])) for feature in data.features)
             self.bnodes = dict[int, ComboNode]()
             for combo in data.combos:
-                node = ComboNode(combo, [self.cnodes[i.id] for i in combo.uses.all()], [self.fnodes[i.id] for i in combo.needs.all()], [self.tnodes[i.id] for i in combo.requires.all()])
+                node = ComboNode(combo,
+                    cards=[self.cnodes[i.id] for i in combo.uses.all()],
+                    templates=[self.tnodes[i.id] for i in combo.requires.all()],
+                    features_needed=[self.fnodes[i.id] for i in combo.needs.all()],
+                    features_produced=[self.fnodes[i.id] for i in combo.produces.all()])
                 self.bnodes[combo.id] = node
                 for feature in combo.produces.all():
                     featureNode = self.fnodes[feature.id]
-                    featureNode.combos.append(node)
+                    featureNode.produced_by_combos.append(node)
+                for feature in combo.needs.all():
+                    featureNode = self.fnodes[feature.id]
+                    featureNode.needed_by_combos.append(node)
         else:
             raise Exception('Invalid arguments')
 
@@ -238,20 +252,36 @@ class Graph:
         for node in self.cnodes.values():
             node.state = NodeState.NOT_VISITED
             node.depth = 0
+            node.down = False
         for node in self.tnodes.values():
             node.state = NodeState.NOT_VISITED
             node.depth = 0
+            node.down = False
         for node in self.fnodes.values():
             node.state = NodeState.NOT_VISITED
             node.depth = 0
+            node.down = False
         for node in self.bnodes.values():
             node.state = NodeState.NOT_VISITED
             node.depth = 0
+            node.down = False
         return True
 
     def variants(self, combo_id: int) -> Iterable[VariantIngredients]:
         combo = self.bnodes[combo_id]
-        nodes = self._variantsb(combo)
+        # Down step
+        nodes = self._combo_nodes_down(combo)
+        for n in nodes:
+            n.down = True
+        # Up step
+        for node in nodes.copy():
+            ups = set()
+            match node:
+                case FeatureNode(_, _, _):
+                    ups = self._feature_nodes_up(node)
+                case ComboNode(_, _, _, _):
+                    ups = self._combo_nodes_up(node)
+            nodes.update(ups)
         base = base_model(nodes)
         if base is None:
             return []
@@ -259,9 +289,9 @@ class Graph:
         opt = create_solver()
         while solve_combo_model(model, opt):
             card_id_list = sorted([v for v in model.c if model.c[v].value == 1], key=lambda c: self.cnodes[c].depth)
+            template_id_list = {v for v in model.t if model.t[v].value == 1}
             feature_id_list = {v for v in model.f if model.f[v].value == 1}
             combo_id_list = {v for v in model.b if model.b[v].value == 1}
-            template_id_list = {v for v in model.t if model.t[v].value == 1}
             yield VariantIngredients(
                 cards=[self.cnodes[i] for i in card_id_list],
                 features=[self.fnodes[i] for i in feature_id_list],
@@ -271,7 +301,7 @@ class Graph:
             # Eclude any solution containing the current variant of the combo, from now on
             model.Variants.add(sum(model.c[i] for i in card_id_list) <= len(card_id_list) - 1)
 
-    def _variantsb(self, combo: ComboNode, base_cards_amount: int = 0, depth: int = 0) -> set[Node]:
+    def _combo_nodes_down(self, combo: ComboNode, base_cards_amount: int = 0, depth: int = 0) -> set[Node]:
         combo.state = NodeState.VISITING
         cards: set[ComboNode] = set()
         for c in combo.cards:
@@ -285,17 +315,17 @@ class Graph:
         if cards_amount > MAX_CARDS_IN_COMBO:
             return set()
         this_combo_set = {combo}
-        if len(combo.features) == 0:
+        if len(combo.features_needed) == 0:
             for node in cards | templates:
                 node.state = NodeState.VISITED
                 node.depth = depth
             return cards | templates | this_combo_set
         needed_features: set[FeatureNode] = set()
         nodes_from_features: set[Node] = set()
-        for f in combo.features:
+        for f in combo.features_needed:
             if f.state == NodeState.VISITING:
                 return set()
-            nodesf = self._variantsf(f, cards_amount, depth + 1)
+            nodesf = self._feature_nodes_down(f, cards_amount, depth + 1)
             if len(nodesf) == 0:
                 return set()
             needed_features.add(f)
@@ -305,7 +335,7 @@ class Graph:
             node.depth = depth
         return cards | templates | needed_features | nodes_from_features | this_combo_set
 
-    def _variantsf(self, feature: FeatureNode, base_cards_amount: int = 0, depth: int = 0) -> set[Node]:
+    def _feature_nodes_down(self, feature: FeatureNode, base_cards_amount: int = 0, depth: int = 0) -> set[Node]:
         feature.state = NodeState.VISITING
         cards: set[ComboNode] = set()
         for c in feature.cards:
@@ -313,15 +343,37 @@ class Graph:
                 cards.add(c)
         combos: set[ComboNode] = set()
         other: set[Node] = set()
-        for c in feature.combos:
+        for c in feature.produced_by_combos:
             if c.state == NodeState.NOT_VISITED:
-                new_other = self._variantsb(c, base_cards_amount, depth + 1)
+                new_other = self._combo_nodes_down(c, base_cards_amount, depth + 1)
                 if len(new_other) > 0:
                     combos.add(c)
                     other.update(new_other)
         for node in cards | combos:
             node.depth = depth
         return cards | combos | other
+    
+    def _combo_nodes_up(self, combo: ComboNode) -> set[Node]:
+        combo.state = NodeState.VISITING
+        features: set[FeatureNode] = set()
+        other: set[Node] = set()
+        for f in combo.features_produced:
+            if f.state == NodeState.NOT_VISITED:
+                features.add(f)
+                other.update(self._feature_nodes_up(f))
+                f.state = NodeState.VISITED
+        return features | other
+    
+    def _feature_nodes_up(self, feature: FeatureNode) -> set[Node]:
+        feature.state = NodeState.VISITING
+        combos: set[ComboNode] = set()
+        other: set[Node] = set()
+        for c in feature.needed_by_combos:
+            if c.state == NodeState.NOT_VISITED:
+                combos.add(c)
+                other.update(self._combo_nodes_up(c))
+                c.state = NodeState.VISITED
+        return combos | other
 
 
 def unique_id_from_cards_and_templates_ids(cards: list[int], templates: list[int]) -> str:
@@ -357,8 +409,8 @@ def update_variant(
     variant.includes.set(variant_def.included_ids)
     variant.produces.set(subtract_removed_features(variant, variant_def.feature_ids) - data.utility_features_ids)
     variant.identity = merge_identities(variant.uses.values_list('identity', flat=True))
-    ok = status is Variant.Status.OK or \
-        status is not Variant.Status.NOT_WORKING and not includes_any(v=frozenset(variant_def.card_ids), others=data.not_working_variants)
+    ok = status == Variant.Status.OK or \
+        status != Variant.Status.NOT_WORKING and not includes_any(v=frozenset(variant_def.card_ids), others=data.not_working_variants)
     if restore:
         combos = data.combos.filter(id__in=variant_def.included_ids)
         variant.zone_locations = '\n'.join(c.zone_locations for c in combos if len(c.zone_locations) > 0)

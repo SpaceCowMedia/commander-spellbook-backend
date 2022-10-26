@@ -48,7 +48,6 @@ class FeatureNode(Node):
     cards: list[CardNode]
     produced_by_combos: list['ComboNode']
     needed_by_combos: list['ComboNode']
-    
 
     def __hash__(self):
         return hash(self.feature) + 7 * hash('feature')
@@ -223,7 +222,6 @@ class Data:
         self.not_working_variants = [frozenset[int](v.uses.values_list('id', flat=True)) for v in self.variants.filter(status=Variant.Status.NOT_WORKING)]
 
 
-
 class Graph:
     def __init__(self, data: Data):
         if data is not None:
@@ -352,7 +350,7 @@ class Graph:
         for node in cards | combos:
             node.depth = depth
         return cards | combos | other
-    
+
     def _combo_nodes_up(self, combo: ComboNode) -> set[Node]:
         combo.state = NodeState.VISITING
         features: set[FeatureNode] = set()
@@ -363,7 +361,7 @@ class Graph:
                 other.update(self._feature_nodes_up(f))
                 f.state = NodeState.VISITED
         return features | other
-    
+
     def _feature_nodes_up(self, feature: FeatureNode) -> set[Node]:
         feature.state = NodeState.VISITING
         combos: set[ComboNode] = set()
@@ -527,8 +525,6 @@ def generate_variants(job: Job = None) -> tuple[int, int, int]:
         logging.info(f'Added {len(added)} new variants.')
         logging.info(f'Updated {len(restored)} variants.')
         delete_query = data.variants.filter(unique_id__in=to_delete, frozen=False)
-        for v in delete_query:    
-            logging.debug(f'Deleting variant {v.unique_id}: {v} of combos {", ".join([str(i) for i in v.of.values_list("id", flat=True)])}')
         deleted = delete_query.count()
         delete_query.delete()
         logging.info(f'Deleted {deleted} variants...')

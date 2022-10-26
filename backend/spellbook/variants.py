@@ -3,7 +3,7 @@ import json
 import hashlib
 import logging
 from typing import Iterable, Optional
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from django.db import transaction
 from .models import Card, Feature, Combo, Job, Template, Variant
 import pyomo.environ as pyo

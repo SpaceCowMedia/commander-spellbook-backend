@@ -454,7 +454,7 @@ def create_variant(
     return variant.id
 
 
-def get_variants_from_graph(data: Data) -> dict[str, VariantDefinition]:
+def get_variants_from_graph(data: Data, job: Job = None) -> dict[str, VariantDefinition]:
     logging.info('Computing all possible variants:')
     combos = data.combos.filter(generator=True)
     result = dict[str, VariantDefinition]()
@@ -482,7 +482,12 @@ def get_variants_from_graph(data: Data) -> dict[str, VariantDefinition]:
                     included_ids=combo_ids,
                     of_ids={combo.id})
         graph.reset()
-        logging.info(f'{i + 1}/{total} combos processed')
+        msg = f'{i + 1}/{total} combos processed (just processed combo {combo.id})'
+        logging.info(msg)
+        if job:
+            with transaction.atomic(durable=True):
+                job.message += msg + '\n'
+                job.save()
     return result
 
 
@@ -493,7 +498,7 @@ def generate_variants(job: Job = None) -> tuple[int, int, int]:
     logging.info('Fetching all variant unique ids...')
     old_id_set = set(data.variants.values_list('unique_id', flat=True))
     logging.info('Computing combos MILP representation...')
-    variants = get_variants_from_graph(data)
+    variants = get_variants_from_graph(data, job)
     logging.info(f'Saving {len(variants)} variants...')
     if job:
         with transaction.atomic(durable=True):

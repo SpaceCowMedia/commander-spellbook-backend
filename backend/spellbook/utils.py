@@ -8,7 +8,7 @@ from django.db.models import Avg, F
 from .models import Job
 from django.conf import settings
 
-ASYNC_MODE = False
+ASYNC_MODE = True
 
 
 def launch_command_async(command: str, args: list[str] = []):

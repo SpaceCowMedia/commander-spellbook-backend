@@ -391,7 +391,7 @@ class Graph:
                 other.update(self._combo_nodes_up(c))
                 c.state = NodeState.VISITED
         return combos | other
-    
+
     def _card_nodes_up(self, card: CardNode) -> set[Node]:
         card.state = NodeState.VISITING
         features: set[FeatureNode] = set()
@@ -408,7 +408,7 @@ class Graph:
                 other.update(self._combo_nodes_up(c))
                 c.state = NodeState.VISITED
         return features | combos | other
-    
+
     def _template_nodes_up(self, template: TemplateNode) -> set[Node]:
         template.state = NodeState.VISITING
         combos: set[ComboNode] = set()

@@ -27,7 +27,7 @@ jobs:
       - id: semver
         name: Checkout
         uses: EasyDesk/action-semver-checkout@v1
-      - run: docker compose -f docker-compose.yml build
+      - run: docker compose -f docker-compose.yml build --no-cache
         working-directory: backend
   release:
     runs-on: ubuntu-latest
@@ -76,7 +76,7 @@ jobs:
           mkdir -p "$HOME/.ssh"
           echo '${{ secrets.HOST }} ${{ secrets.SSH_SERVER_CERT }}' >> "$HOME/.ssh/known_hosts"
       - name: Build Docker images on remote host
-        run: docker --context production compose -f docker-compose.yml -f docker-compose.ssl.yml -f docker-compose.aws.yml build
+        run: docker --context production compose -f docker-compose.yml -f docker-compose.ssl.yml -f docker-compose.aws.yml build --no-cache
       - name: Start Docker containers on remote host
         run: docker --context production compose -f docker-compose.yml -f docker-compose.ssl.yml -f docker-compose.aws.yml up -d
       - name: Check if containers are running

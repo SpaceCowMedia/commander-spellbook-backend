@@ -1,0 +1,25 @@
+{% extends "admin/change_form.html" %}
+{% load static %}
+
+{% block content %}
+    {{ block.super }}
+    <table>
+        <thead>
+            <tr>
+                <th class="column-variant">New variants</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in original.variants.all %}
+                <tr class="form-row">
+                    <td class="field-variant">
+                        <p>
+                            <a href="{% url 'admin:spellbook_variant_change' item.id %}">{{ item }}</a>
+                        </p>
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+{% endblock %}

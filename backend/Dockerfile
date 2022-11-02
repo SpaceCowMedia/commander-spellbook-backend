@@ -21,7 +21,7 @@ RUN pip install --upgrade pip
 
 # install dependencies
 COPY ./requirements.txt .
-RUN echo -e "\ngunicorn" >> requirements.txt
+RUN echo -e "\ngunicorn\npsycopg2\n" >> requirements.txt
 RUN pip wheel --no-cache-dir --no-deps --wheel-dir /usr/src/app/wheels -r requirements.txt
 
 # lint

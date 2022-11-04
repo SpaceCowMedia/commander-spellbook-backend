@@ -9,6 +9,19 @@
             for (const node of box.options) {
                 cache.push({value: node.value, text: node.text, displayed: 1});
             }
+            const searchInput = document.getElementById(id.replace(/_[^_]+$/, '_input'));
+            if (searchInput) {
+                searchInput.onpaste = event => {
+                    event.stopPropagation();
+                    event.preventDefault();
+                    let paste = (event.clipboardData || window.clipboardData).getData('text');
+                    paste = paste.split(/[\r\n/]+/)
+                        .map(item => item.trim())
+                        .filter(item => item.length > 0)
+                        .join('; ');
+                    event.target.value = paste;
+                };
+            }
         },
         redisplay: function(id) {
             // Repopulate HTML select box from cache

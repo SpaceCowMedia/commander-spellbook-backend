@@ -166,13 +166,5 @@ LOGGING = {
         # 'django.db.backends': {
         #     'level': 'DEBUG',
         # },
-        'pyomo.opt': {
-            'level': 'WARNING',
-            'handlers': ['console'],
-        },
-        'pyomo.core': {
-            'level': 'WARNING',
-            'handlers': ['console'],
-        },
     }
 }

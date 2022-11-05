@@ -1,5 +1,6 @@
 from ..models import Card, Feature, Combo, Template, Variant
 
+
 class Data:
     def __init__(self):
         self.combos = Combo.objects.prefetch_related('uses', 'requires', 'needs', 'removes', 'produces')

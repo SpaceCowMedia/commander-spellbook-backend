@@ -90,7 +90,7 @@ class VariantTrie():
                     templates.append(self.template_dict[int(item[1:])])
             result.append((cards, templates))
         return result
-    
+
     def __str__(self):
         return str(self.trie)
 
@@ -101,6 +101,7 @@ def or_tries(tries: list[VariantTrie], limit: int = DEFAULT_MAX_DEPTH) -> Varian
 
 def and_tries(tries: list[VariantTrie], limit: int = DEFAULT_MAX_DEPTH) -> VariantTrie:
     return aggregate_tries(tries, limit=limit, strategy=lambda x, y: x & y)
+
 
 def aggregate_tries(tries: list[VariantTrie], strategy, limit: int = DEFAULT_MAX_DEPTH) -> VariantTrie:
     match len(tries):

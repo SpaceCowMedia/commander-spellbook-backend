@@ -18,7 +18,7 @@ class Node:
     def __init__(self):
         self.state: NodeState = NodeState.NOT_VISITED
         self.trie: Optional[VariantTrie] = None
-    
+
     def __str__(self) -> str:
         return f'{self.__class__} of {self._item()}'
 

@@ -132,7 +132,7 @@ class Graph:
         else:
             raise Exception('Invalid arguments')
 
-    def reset(self) -> bool: # TODO do we need this?
+    def reset(self):
         for node in self.cnodes.values():
             node.state = NodeState.NOT_VISITED
             node.depth = 0
@@ -149,7 +149,6 @@ class Graph:
             node.state = NodeState.NOT_VISITED
             node.depth = 0
             node.down = False
-        return True # TODO remove bool return value
 
     def variants(self, combo_id: int) -> Iterable[VariantIngredients]:
         combo = self.bnodes[combo_id]

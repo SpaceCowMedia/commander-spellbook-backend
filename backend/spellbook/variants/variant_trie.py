@@ -6,6 +6,14 @@ from ..models import Card, Template
 DEFAULT_MAX_DEPTH = 100
 
 
+def rotate(li: list, x: int) -> list:
+  return li[-x % len(li):] + li[:-x % len(li)]
+
+
+def all_rotations(li: list) -> list[list]:
+    return [rotate(li, x) for x in range(len(li))]
+
+
 def merge_sort(left: list, right: list) -> list:
     return sorted(set(left + right))
 
@@ -29,27 +37,31 @@ class VariantTrie():
         return merge_sort([f'C{c_id}' for c_id in cards_ids], [f'T{t_id}' for t_id in templates_ids])
 
     def add(self, cards: list[Card], templates: list[Template]):
-        key = self.ingredients_to_key(cards, templates)
+        base_key = self.ingredients_to_key(cards, templates)
+        if len(base_key) > self.max_depth:
+            return
+        keys = all_rotations(base_key)
+        self._add(base_key, keys)
+        
+    
+    def _add(self, key: list[str], all_rotations: list[list[str]]):
         if len(key) > self.max_depth:
             return
-        prefix = self.trie.longest_prefix(key)
-        if prefix and self.trie.has_key(prefix.key):
-            return
-        if self.trie.has_subtrie(key):
-            del self.trie[key:]
-        self.trie[key] = []
+        for key in all_rotations:
+            prefix = self.trie.longest_prefix(key)
+            if prefix and self.trie.has_key(prefix.key):
+                return
+        for key in all_rotations:
+            if self.trie.has_subtrie(key):
+                for subkey in self.trie.keys(prefix=key):
+                    for rotated_subkey in self.trie[subkey]:
+                        del self.trie[rotated_subkey]
+            self.trie[key] = all_rotations
 
     def __or__(self, other: 'VariantTrie') -> 'VariantTrie':
-        trie = Trie()
-        for key, value in self.trie.items() + other.trie.items():
-            prefix = trie.longest_prefix(key)
-            if prefix and trie.has_key(prefix.key):
-                continue
-            if trie.has_subtrie(key):
-                del trie[key:]
-            trie[key] = value
         result = VariantTrie(limit=self.max_depth)
-        result.trie = trie
+        for key, value in self.trie.items() + other.trie.items():
+            result._add(key, value)
         result.card_dict = self.card_dict | other.card_dict
         result.template_dict = self.template_dict | other.template_dict
         return result
@@ -58,19 +70,12 @@ class VariantTrie():
         return self.__or__(other)
 
     def __and__(self, other: 'VariantTrie') -> 'VariantTrie':
-        trie = Trie()
+        result = VariantTrie(limit=self.max_depth)
         for left_part, right_part in product(self.trie.keys(), other.trie.keys()):
             key = merge_sort(left_part, right_part)
             if len(key) > self.max_depth:
                 continue
-            prefix = trie.longest_prefix(key)
-            if prefix and trie.has_key(prefix.key):
-                continue
-            if trie.has_subtrie(key):
-                del trie[key:]
-            trie[key] = []
-        result = VariantTrie(limit=self.max_depth)
-        result.trie = trie
+            result._add(key, all_rotations(key))
         result.card_dict = self.card_dict | other.card_dict
         result.template_dict = self.template_dict | other.template_dict
         return result

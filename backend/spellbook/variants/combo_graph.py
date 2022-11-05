@@ -214,7 +214,7 @@ class Graph:
                     for feature_combo in feature.needed_by_combos:
                         if feature_combo.state == NodeState.NOT_VISITED:
                             feature_combo.state = NodeState.VISITING
-                            combo_nodes_to_visit.add(combo)
+                            combo_nodes_to_visit.add(feature_combo)
         flag = True
         while flag:
             flag = False

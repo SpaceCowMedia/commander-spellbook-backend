@@ -9,7 +9,7 @@ DEFAULT_MAX_DEPTH = 100
 
 
 def rotate(li: list, x: int) -> list:
-  return li[-x % len(li):] + li[:-x % len(li)]
+    return li[-x % len(li):] + li[:-x % len(li)]
 
 
 def all_rotations(li: list) -> list[list]:
@@ -34,8 +34,7 @@ class VariantTrie():
             return
         keys = all_rotations(base_key)
         self._add(base_key, keys)
-        
-    
+
     def _add(self, key: list[str], all_rotations: list[list[str]]):
         if len(key) > self.max_depth:
             return

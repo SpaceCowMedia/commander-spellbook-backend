@@ -22,7 +22,7 @@
                 </tr>
             </thead>
             <tbody>
-                {% for item in original.variants.all|slice':10' %}
+                {% for item in original.variants.all|slice:':10' %}
                     <tr class="form-row">
                         <td class="field-variant">
                             <p>
@@ -31,6 +31,15 @@
                         </td>
                     </tr>
                 {% endfor %}
+                {% if original.variants.count > 10 %}
+                    <tr class="form-row">
+                        <td class="field-variant">
+                            <p>
+                                <a href="{% url 'admin:spellbook_variant_changelist' %}">View more variants...</a>
+                            </p>
+                        </td>
+                    </tr>
+                {% endif %}
             </tbody>
         </table>
         {% endblock %}

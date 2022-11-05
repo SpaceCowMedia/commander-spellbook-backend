@@ -22,7 +22,7 @@
                 </tr>
             </thead>
             <tbody>
-                {% for item in original.variants.all %}
+                {% for item in original.variants.all|slice':10' %}
                     <tr class="form-row">
                         <td class="field-variant">
                             <p>

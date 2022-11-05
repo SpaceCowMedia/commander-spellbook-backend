@@ -181,12 +181,4 @@ LOGGING = {
         'handlers': ['console'],
         'level': 'INFO',
     },
-    'pyomo.core': {
-        'handlers': ['console'],
-        'level': 'WARNING',
-    },
-    'pyomo.opt': {
-        'handlers': ['console'],
-        'level': 'WARNING',
-    },
 }

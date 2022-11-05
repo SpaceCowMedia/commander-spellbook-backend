@@ -27,7 +27,7 @@ RUN pip wheel --no-cache-dir --no-deps --wheel-dir /usr/src/app/wheels -r requir
 # lint
 RUN pip install flake8==3.9.2
 COPY . .
-RUN flake8 --ignore=E501,F401,E128 .
+RUN flake8 --ignore=E501,F401,E128,W601 .
 
 
 #########
@@ -51,7 +51,7 @@ RUN mkdir $APP_HOME/staticfiles
 WORKDIR $APP_HOME
 
 # install dependencies
-RUN apk update && apk add libpq glpk
+RUN apk update && apk add libpq
 COPY --from=builder /usr/src/app/wheels /wheels
 COPY --from=builder /usr/src/app/requirements.txt .
 RUN pip install --no-cache /wheels/*

@@ -118,7 +118,7 @@ def get_variants_from_graph(data: Data, job: Job = None) -> dict[str, VariantDef
                 x.included_ids.update(combo_ids)
                 x.feature_ids.update(feature_ids)
             else:
-                logging.info(f'Found new variant for combo {combo.id} ({i + 1}/{total}): {unique_id}')
+                logging.debug(f'Found new variant for combo {combo.id} ({i + 1}/{total}): {unique_id}')
                 result[unique_id] = VariantDefinition(
                     card_ids=cards_ids,
                     template_ids=templates_ids,

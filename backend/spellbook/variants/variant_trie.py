@@ -1,6 +1,8 @@
 from pygtrie import Trie
 from itertools import product
-from ..models import Card, Template
+
+cardid = int
+templateid = int
 
 
 DEFAULT_MAX_DEPTH = 100
@@ -21,22 +23,12 @@ def merge_sort(left: list, right: list) -> list:
 class VariantTrie():
     def __init__(self, limit: int = DEFAULT_MAX_DEPTH):
         self.trie = Trie()
-        self.card_dict = dict[int, Card]()
-        self.template_dict = dict[int, Template]()
         self.max_depth = limit
 
-    def ingredients_to_key(self, cards: list[Card], templates: list[Template]) -> list[str]:
-        cards_ids = list[int]()
-        templates_ids = list[int]()
-        for card in cards:
-            self.card_dict[card.id] = card
-            cards_ids.append(card.id)
-        for template in templates:
-            self.template_dict[template.id] = template
-            templates_ids.append(template.id)
-        return merge_sort([f'C{c_id}' for c_id in cards_ids], [f'T{t_id}' for t_id in templates_ids])
+    def ingredients_to_key(self, cards: list[cardid], templates: list[templateid]) -> list[str]:
+        return merge_sort([f'C{c_id}' for c_id in cards], [f'T{t_id}' for t_id in templates])
 
-    def add(self, cards: list[Card], templates: list[Template]):
+    def add(self, cards: list[cardid], templates: list[templateid]):
         base_key = self.ingredients_to_key(cards, templates)
         if len(base_key) > self.max_depth:
             return
@@ -62,8 +54,6 @@ class VariantTrie():
         result = VariantTrie(limit=self.max_depth)
         for key, value in self.trie.items() + other.trie.items():
             result._add(key, value)
-        result.card_dict = self.card_dict | other.card_dict
-        result.template_dict = self.template_dict | other.template_dict
         return result
 
     def __add__(self, other: 'VariantTrie') -> 'VariantTrie':
@@ -76,23 +66,21 @@ class VariantTrie():
             if len(key) > self.max_depth:
                 continue
             result._add(key, all_rotations(key))
-        result.card_dict = self.card_dict | other.card_dict
-        result.template_dict = self.template_dict | other.template_dict
         return result
 
     def __mul__(self, other: 'VariantTrie') -> 'VariantTrie':
         return self.__and__(other)
 
-    def variants(self) -> list[tuple[list[Card], list[Template]]]:
-        result = list[tuple[list[Card], list[Template]]]()
+    def variants(self) -> list[tuple[list[cardid], list[templateid]]]:
+        result = list[tuple[list[cardid], list[templateid]]]()
         for key in self.trie.keys():
-            cards = list[Card]()
-            templates = list[Template]()
+            cards = list[cardid]()
+            templates = list[templateid]()
             for item in key:
                 if item[0] == 'C':
-                    cards.append(self.card_dict[int(item[1:])])
+                    cards.append(int(item[1:]))
                 elif item[0] == 'T':
-                    templates.append(self.template_dict[int(item[1:])])
+                    templates.append(int(item[1:]))
             result.append((cards, templates))
         return result
 

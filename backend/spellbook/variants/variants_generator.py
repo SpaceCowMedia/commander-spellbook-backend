@@ -110,8 +110,8 @@ def get_variants_from_graph(data: Data, job: Job = None) -> dict[str, VariantDef
             cards_ids = [c.id for c in variant.cards]
             templates_ids = [t.id for t in variant.templates]
             unique_id = unique_id_from_cards_and_templates_ids(cards_ids, templates_ids)
-            feature_ids = set()  # TODO after up step
-            combo_ids = set()  # TODO after up step
+            feature_ids = set(f.id for f in variant.features)
+            combo_ids = set(c.id for c in variant.combos)
             if unique_id in result:
                 x = result[unique_id]
                 x.of_ids.add(combo.id)
@@ -125,7 +125,6 @@ def get_variants_from_graph(data: Data, job: Job = None) -> dict[str, VariantDef
                     feature_ids=feature_ids,
                     included_ids=combo_ids,
                     of_ids={combo.id})
-        graph.reset()
         msg = f'{i + 1}/{total} combos processed (just processed combo {combo.id})'
         logging.info(msg)
         if job:

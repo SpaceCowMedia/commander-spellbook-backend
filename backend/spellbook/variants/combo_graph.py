@@ -137,20 +137,12 @@ class Graph:
     def reset(self):
         for node in self.cnodes.values():
             node.state = NodeState.NOT_VISITED
-            node.depth = 0
-            node.down = False
         for node in self.tnodes.values():
             node.state = NodeState.NOT_VISITED
-            node.depth = 0
-            node.down = False
         for node in self.fnodes.values():
             node.state = NodeState.NOT_VISITED
-            node.depth = 0
-            node.down = False
         for node in self.bnodes.values():
             node.state = NodeState.NOT_VISITED
-            node.depth = 0
-            node.down = False
 
     def variants(self, combo_id: int) -> Iterable[VariantIngredients]:
         combo = self.bnodes[combo_id]

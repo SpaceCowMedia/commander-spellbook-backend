@@ -3,7 +3,13 @@
 {% block content %}
     {{ block.super }}
     <div class="after-content">
-        {% block after-content %}
-        {% endblock %}
+        {% with suggested_count=15 %}
+        {% with suggested_count_s=suggested_count|stringformat:"s" %}
+        {% with suggested_slice=':'|add:suggested_count_s %}
+            {% block after-content %}
+            {% endblock %}
+        {% endwith %}
+        {% endwith %}
+        {% endwith %}
     </div>
 {% endblock %}

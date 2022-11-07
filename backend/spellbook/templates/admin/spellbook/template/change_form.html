@@ -9,7 +9,7 @@
             </tr>
         </thead>
         <tbody>
-            {% for item in original.required_by_combos.all|slice:':10' %}
+            {% for item in original.required_by_combos.all|slice:suggested_slice %}
                 <tr class="form-row">
                     <td class="field-combo">
                         <p>
@@ -18,7 +18,7 @@
                     </td>
                 </tr>
             {% endfor %}
-            {% if original.required_by_combos.count > 10 %}
+            {% if original.required_by_combos.count > suggested_count %}
                 <tr class="form-row">
                     <td class="field-combo">
                         <p>

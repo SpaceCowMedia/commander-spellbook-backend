@@ -1,13 +1,26 @@
 {% extends "admin/base.html" %}
-
 {% load static %}
 
 {% block extrahead %}
     {{ block.super }}
     <link rel="icon" type="image/x-icon" href="{% static 'spellbook/favicon.ico' %}">
+    <style>
+        .after-content {
+            float: left;
+            width: 100%;
+        }
+    </style>
 {% endblock %}
 
 {% block userlinks %}
     {{ block.super }}
     / <a href="https://github.com/ldeluigi/commander-spellbook-backend/issues" target="_blank">Feedback</a>
+{% endblock %}
+
+{% block content %}
+    {{ block.super }}
+    <div class="after-content">
+        {% block after-content %}
+        {% endblock %}
+    </div>
 {% endblock %}

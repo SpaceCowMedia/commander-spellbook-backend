@@ -1,47 +1,31 @@
 {% extends "admin/change_form.html" %}
-{% load static %}
 
-{% block extrahead %}
-    {{ block.super }}
-    <style>
-        .after-content {
-            float: left;
-            width: 100%;
-        }
-    </style>
-{% endblock %}
-
-{% block content %}
-    {{ block.super }}
-    <div class="after-content">
-        {% block after-content %}
-        <table class="after-content">
-            <thead>
-                <tr>
-                    <th class="column-variant">New variants</th>
+{% block after-content %}
+    <table class="after-content">
+        <thead>
+            <tr>
+                <th class="column-variant">New variants</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in original.variants.all|slice:':10' %}
+                <tr class="form-row">
+                    <td class="field-variant">
+                        <p>
+                            <a href="{% url 'admin:spellbook_variant_change' item.id %}">{{ item }}</a>
+                        </p>
+                    </td>
                 </tr>
-            </thead>
-            <tbody>
-                {% for item in original.variants.all|slice:':10' %}
-                    <tr class="form-row">
-                        <td class="field-variant">
-                            <p>
-                                <a href="{% url 'admin:spellbook_variant_change' item.id %}">{{ item }}</a>
-                            </p>
-                        </td>
-                    </tr>
-                {% endfor %}
-                {% if original.variants.count > 10 %}
-                    <tr class="form-row">
-                        <td class="field-variant">
-                            <p>
-                                <a href="{% url 'admin:spellbook_variant_changelist' %}">View more variants...</a>
-                            </p>
-                        </td>
-                    </tr>
-                {% endif %}
-            </tbody>
-        </table>
-        {% endblock %}
-    </div>
+            {% endfor %}
+            {% if original.variants.count > 10 %}
+                <tr class="form-row">
+                    <td class="field-variant">
+                        <p>
+                            <a href="{% url 'admin:spellbook_variant_changelist' %}">View more variants...</a>
+                        </p>
+                    </td>
+                </tr>
+            {% endif %}
+        </tbody>
+    </table>
 {% endblock %}

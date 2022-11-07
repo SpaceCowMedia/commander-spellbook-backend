@@ -1,5 +1,4 @@
 {% extends "admin/change_form.html" %}
-{% load static %}
 
 {% block extrahead %}
     {{ block.super }}
@@ -58,4 +57,35 @@
             });
         });
     </script>
+{% endblock %}
+
+{% block after-content %}
+    {{ block.super }}
+    <table class="after-content">
+        <thead>
+            <tr>
+                <th class="column-variant">Used in combos</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in original.used_in_combos.all|slice:':10' %}
+                <tr class="form-row">
+                    <td class="field-combo">
+                        <p>
+                            <a href="{% url 'admin:spellbook_combo_change' item.id %}">{{ item }}</a>
+                        </p>
+                    </td>
+                </tr>
+            {% endfor %}
+            {% if original.used_in_combos.count > 10 %}
+                <tr class="form-row">
+                    <td class="field-combo">
+                        <p>
+                            <a href="{% url 'admin:spellbook_combo_changelist' %}">View more combos...</a>
+                        </p>
+                    </td>
+                </tr>
+            {% endif %}
+        </tbody>
+    </table>
 {% endblock %}

@@ -1,27 +1,28 @@
 {% extends "admin/change_form.html" %}
 
 {% block after-content %}
+    {{ block.super }}
     <table class="after-content">
         <thead>
             <tr>
-                <th class="column-variant">Variants</th>
+                <th class="column-variant">Used in combos</th>
             </tr>
         </thead>
         <tbody>
-            {% for item in original.variants.all|slice:':10' %}
+            {% for item in original.required_by_combos.all|slice:':10' %}
                 <tr class="form-row">
-                    <td class="field-variant">
+                    <td class="field-combo">
                         <p>
-                            <a href="{% url 'admin:spellbook_variant_change' item.id %}">{{ item }}</a>
+                            <a href="{% url 'admin:spellbook_combo_change' item.id %}">{{ item }}</a>
                         </p>
                     </td>
                 </tr>
             {% endfor %}
-            {% if original.variants.count > 10 %}
+            {% if original.required_by_combos.count > 10 %}
                 <tr class="form-row">
-                    <td class="field-variant">
+                    <td class="field-combo">
                         <p>
-                            <a href="{% url 'admin:spellbook_variant_changelist' %}">View more variants...</a>
+                            <a href="{% url 'admin:spellbook_combo_changelist' %}">View more combos...</a>
                         </p>
                     </td>
                 </tr>

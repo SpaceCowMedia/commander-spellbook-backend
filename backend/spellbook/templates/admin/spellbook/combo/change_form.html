@@ -1,5 +1,56 @@
 {% extends "admin/change_form.html" %}
 
+{% block admin_change_form_document_ready %}
+    {{ block.super }}
+    <script>
+        window.SelectBox.old_redisplay = window.SelectBox.redisplay;
+        window.SelectBox.redisplay = function(id) {
+            if (id.startsWith('id_uses_')) {
+                const box = document.getElementById(id);
+                const scroll_value_from_top = box.scrollTop;
+                box.innerHTML = '';
+                for (const node of SelectBox.cache[id]) {
+                    if (node.displayed) {
+                        const new_option = new Option(node.text, node.value, false, false);
+                        // Shows a tooltip when hovering over the option
+                        new_option.onmouseover = function(e) {
+                            if (e.target.title === '') {
+                                e.target.title = node.text;
+                                django.jQuery.ajax({
+                                    url: 'https://api.scryfall.com/cards/named',
+                                    dataType: 'json',
+                                    data: {
+                                        exact: e.target.text,
+                                        format: 'json'
+                                    },
+                                    success: function(data) {
+                                        e.target.removeAttribute('title');
+                                        if (data.card_faces && data.card_faces.length > 0) {
+                                            e.target.title = data.card_faces
+                                                .map(e => 
+                                                    e.name + '  ' + e.mana_cost + '\n\n' + 
+                                                    e.oracle_text)
+                                                .join('\n🔄\n');
+                                        } else {
+                                            e.target.title = 
+                                                data.name + '  ' + data.mana_cost + '\n\n' +
+                                                data.oracle_text;
+                                        }
+                                    }
+                                });
+                            }
+                        }
+                        box.appendChild(new_option);
+                    }
+                }
+                box.scrollTop = scroll_value_from_top;
+            } else {
+                window.SelectBox.old_redisplay(id);
+            }
+        }
+    </script>
+{% endblock %}
+
 {% block after-content %}
     <table class="after-content">
         <thead>

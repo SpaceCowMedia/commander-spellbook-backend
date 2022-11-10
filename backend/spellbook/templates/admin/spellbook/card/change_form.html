@@ -1,7 +1,9 @@
 {% extends "admin/change_form.html" %}
+{% load static %}
 
 {% block extrahead %}
     {{ block.super }}
+    <script src="{% static 'admin/js/card_info.js' %}" type="text/javascript"></script>
     <!-- jQuery !-->
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"> </script>
     <!-- jQuery UI !-->
@@ -52,8 +54,17 @@
                 })
             },
             open: function() {},
-            close: function() {}
-        });
+            close: function() {},
+        }).autocomplete('instance')
+            ._renderItem = function(ul, item) {
+                return $("<li>")
+                    .attr("data-value", item.value)
+                    .mouseover(function(e) {
+                            fetch_card_info(item.value, e.target);
+                    })
+                    .append(item.label)
+                    .appendTo(ul);
+                };
     </script>
 {% endblock %}
 

@@ -1,4 +1,10 @@
 {% extends "admin/change_form.html" %}
+{% load static %}
+
+{% block extrahead %}
+    {{ block.super }}
+    <script src="{% static 'admin/js/card_info.js' %}" type="text/javascript"></script>
+{% endblock %}
 
 {% block admin_change_form_document_ready %}
     {{ block.super }}
@@ -14,31 +20,7 @@
                         const new_option = new Option(node.text, node.value, false, false);
                         // Shows a tooltip when hovering over the option
                         new_option.onmouseover = function(e) {
-                            if (e.target.title === '') {
-                                e.target.title = node.text;
-                                django.jQuery.ajax({
-                                    url: 'https://api.scryfall.com/cards/named',
-                                    dataType: 'json',
-                                    data: {
-                                        exact: e.target.text,
-                                        format: 'json'
-                                    },
-                                    success: function(data) {
-                                        e.target.removeAttribute('title');
-                                        if (data.card_faces && data.card_faces.length > 0) {
-                                            e.target.title = data.card_faces
-                                                .map(e => 
-                                                    e.name + '  ' + e.mana_cost + '\n\n' + 
-                                                    e.oracle_text)
-                                                .join('\n🔄\n');
-                                        } else {
-                                            e.target.title = 
-                                                data.name + '  ' + data.mana_cost + '\n\n' +
-                                                data.oracle_text;
-                                        }
-                                    }
-                                });
-                            }
+                            fetch_card_info(e.target.text, e.target);
                         }
                         box.appendChild(new_option);
                     }

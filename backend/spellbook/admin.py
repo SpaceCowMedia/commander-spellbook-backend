@@ -1,6 +1,5 @@
 from django.contrib import admin
 from django.urls import path, reverse
-from django.http import HttpResponseRedirect
 from .utils import launch_job_command
 from .models import Card, Template, Feature, Combo, Variant, Job
 from django.contrib import messages
@@ -8,6 +7,7 @@ from django.forms import ModelForm
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.http import HttpRequest
+from django.shortcuts import redirect
 
 
 @admin.register(Card)
@@ -92,7 +92,7 @@ class VariantAdmin(admin.ModelAdmin):
                 messages.info(request, 'Variant generation job started.')
             else:
                 messages.warning(request, 'Variant generation is already running.')
-        return HttpResponseRedirect(reverse('admin:spellbook_job_changelist'))
+        return redirect('admin:spellbook_job_changelist')
 
     def export(self, request: HttpRequest):
         if request.method == 'POST' and request.user.is_authenticated:
@@ -100,7 +100,7 @@ class VariantAdmin(admin.ModelAdmin):
                 messages.info(request, 'Variant exporting job started.')
             else:
                 messages.warning(request, 'Variant exporting is already running.')
-        return HttpResponseRedirect(reverse('admin:spellbook_job_changelist'))
+        return redirect('admin:spellbook_job_changelist')
 
     def get_urls(self):
         return [path('generate/',

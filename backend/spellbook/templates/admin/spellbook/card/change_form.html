@@ -5,11 +5,38 @@
     {{ block.super }}
     {% include 'admin/spellbook/includes/jquery_imports.html' %}
     <script src="{% static 'admin/js/card_info.js' %}" type="text/javascript"></script>
+    <style>
+        #card-image {
+            width: min(8cm, 100%);
+        }
+    </style>
 {% endblock %}
 
 {% block admin_change_form_document_ready %}
     {{ block.super }}
     <script>
+        function updateCardImage() {
+            django.jQuery.ajax({
+                type: 'POST',
+                url: 'https://api.scryfall.com/cards/collection',
+                data: JSON.stringify({
+                    identifiers: [{
+                        oracle_id: document.getElementById('id_oracle_id').value
+                    }]
+                }),
+                success: function(data) {
+                    if (data.data.length > 0) {
+                        let png_url = data.data[0].image_uris.png;
+                        document.getElementById('card-image').src = png_url;
+                    }
+                },
+                contentType: 'application/json',
+                dataType: 'json'
+            });
+        }
+        if (document.getElementById('id_oracle_id').value) {
+            updateCardImage();
+        }
         $('#id_name').autocomplete({
             source: function(request, response) {
                 django.jQuery.ajax({
@@ -45,28 +72,44 @@
                                 result += c;
                             }
                         }
-                        django.jQuery('#id_identity').val(result);                        
+                        django.jQuery('#id_identity').val(result);
+                        updateCardImage();
                     }
                 })
             },
             open: function() {},
             close: function() {},
-        }).autocomplete('instance')
-            ._renderItem = function(ul, item) {
-                return $("<li>")
-                    .attr("data-value", item.value)
-                    .mouseover(function(e) {
-                        e.preventDefault();
-                        fetch_card_info(item.value, e.target);
-                    })
-                    .append(item.label)
-                    .appendTo(ul);
-                };
+        })
+        .autocomplete('instance')
+        ._renderItem = function(ul, item) {
+            return $("<li>")
+                .attr("data-value", item.value)
+                .mouseover(function(e) {
+                    e.preventDefault();
+                    fetch_card_info(item.value, e.target);
+                })
+                .append(item.label)
+                .appendTo(ul);
+        };
     </script>
 {% endblock %}
 
 {% block after-content %}
     {{ block.super }}
+    <table class="after-content">
+        <thead>
+            <tr>
+                <th class="column-variant">Card image from Scryfall</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>
+                    <img id="card-image" src="{% static 'spellbook/images/card-back.png' %}" alt="'{{ original.name }}' image">
+                </td>
+            </tr>
+        </tbody>
+    </table>
     <table class="after-content">
         <thead>
             <tr>

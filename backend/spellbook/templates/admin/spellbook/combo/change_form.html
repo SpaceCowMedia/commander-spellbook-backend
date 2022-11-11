@@ -21,6 +21,7 @@
                         const new_option = new Option(node.text, node.value, false, false);
                         // Shows a tooltip when hovering over the option
                         new_option.onmouseover = function(e) {
+                            e.preventDefault();
                             fetch_card_info(e.target.text, e.target);
                         }
                         box.appendChild(new_option);

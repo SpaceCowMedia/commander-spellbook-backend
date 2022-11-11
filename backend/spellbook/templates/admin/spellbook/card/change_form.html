@@ -56,6 +56,7 @@
                 return $("<li>")
                     .attr("data-value", item.value)
                     .mouseover(function(e) {
+                        e.preventDefault();
                         fetch_card_info(item.value, e.target);
                     })
                     .append(item.label)

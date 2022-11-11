@@ -3,6 +3,7 @@
 
 {% block extrahead %}
     {{ block.super }}
+    {% include 'admin/spellbook/includes/jquery_imports.html' %}
     <script src="{% static 'admin/js/card_info.js' %}" type="text/javascript"></script>
 {% endblock %}
 

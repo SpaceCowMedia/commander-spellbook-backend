@@ -3,6 +3,7 @@ version: '3.8'
 services:
   db-backups:
     image: eeshugerman/postgres-backup-s3:14
+    # HOW TO RESTORE: https://github.com/eeshugerman/postgres-backup-s3#restore
     depends_on:
       - db
     environment:

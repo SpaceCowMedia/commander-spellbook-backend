@@ -137,23 +137,17 @@ def get_variants_from_graph(data: Data, job: Job = None) -> dict[str, VariantDef
 def generate_variants(job: Job = None) -> tuple[int, int, int]:
     logging.info('Fetching variants set to RESTORE...')
     data = Data()
-    debug_queries(True)
-    return 0, 0, 0
     to_restore = set(data.variants.filter(status=Variant.Status.RESTORE).values_list('unique_id', flat=True))
-    debug_queries(True)
     logging.info('Fetching all variant unique ids...')
     old_id_set = set(data.variants.values_list('unique_id', flat=True))
-    debug_queries(True)
     logging.info('Computing combos MILP representation...')
     variants = get_variants_from_graph(data, job)
-    debug_queries(True)
     logging.info(f'Saving {len(variants)} variants...')
     if job:
         with transaction.atomic(durable=True):
             job.message += f'Saving {len(variants)} variants...\n'
             job.save()
     variants_ids = set()
-    debug_queries(True)
     with transaction.atomic():
         for unique_id, variant_def in variants.items():
             if unique_id in old_id_set:
@@ -170,7 +164,7 @@ def generate_variants(job: Job = None) -> tuple[int, int, int]:
                         data=data,
                         unique_id=unique_id,
                         variant_def=variant_def))
-            debug_queries()
+            debug_queries(True) # TODO too many queries
         if job is not None:
             job.variants.set(variants_ids)
         new_id_set = set(variants.keys())

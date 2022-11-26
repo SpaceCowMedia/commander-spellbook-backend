@@ -5,6 +5,7 @@ from django.db import reset_queries
 import logging
 from django.conf import settings
 
+
 def fetch_not_working_variants(variants_base_query):
     res = variants_base_query.filter(status=Variant.Status.NOT_WORKING).values('id', 'uses__id')
     d = defaultdict[int, set[int]](set)
@@ -12,12 +13,14 @@ def fetch_not_working_variants(variants_base_query):
         d[r['id']].add(r['uses__id'])
     return [frozenset(s) for s in d.values()]
 
+
 def fetch_removed_features(combos_base_query):
     res = combos_base_query.values('id', 'removes__id')
     d = defaultdict[int, set[int]](set)
     for r in res:
         d[r['id']].add(r['removes__id'])
     return d
+
 
 class Data:
     def __init__(self):
@@ -31,7 +34,10 @@ class Data:
         self.uid_to_variant = {v.unique_id: v for v in self.variants}
         self.combo_to_removed_features = fetch_removed_features(self.combos)
 
+
 count = 0
+
+
 def debug_queries(output=False):
     global count
     if settings.DEBUG:

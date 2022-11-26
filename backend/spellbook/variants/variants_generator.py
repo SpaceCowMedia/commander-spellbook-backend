@@ -200,9 +200,9 @@ def generate_variants(job: Job = None) -> tuple[int, int, int]:
                         restore=unique_id in to_restore))
             else:
                 variant_to_save = create_variant(
-                        data=data,
-                        unique_id=unique_id,
-                        variant_def=variant_def)
+                    data=data,
+                    unique_id=unique_id,
+                    variant_def=variant_def)
                 variants_ids.add(variant_to_save.variant.id)
                 to_bulk_create.append(variant_to_save)
         perform_bulk_saves(to_bulk_create, to_bulk_update)

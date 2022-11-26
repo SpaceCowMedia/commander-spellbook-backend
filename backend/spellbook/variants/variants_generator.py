@@ -5,7 +5,7 @@ from typing import Iterable
 from dataclasses import dataclass
 from django.db import transaction
 from ..models import Job, Variant
-from .variant_data import Data
+from .variant_data import Data, debug_queries
 from .combo_graph import Graph
 
 
@@ -24,8 +24,8 @@ def unique_id_from_cards_and_templates_ids(cards: list[int], templates: list[int
     return hash_algorithm.hexdigest()
 
 
-def subtract_removed_features(variant: Variant, features: set[int]) -> set[int]:
-    return features - set(variant.includes.values_list('removes__id', flat=True))
+def subtract_removed_features(data: Data, includes: set[int], features: set[int]) -> set[int]:
+    return features - set(r for c in includes for r in data.combo_to_removed_features[c])
 
 
 def merge_identities(identities: Iterable[str]):
@@ -40,21 +40,29 @@ def includes_any(v: set[int], others: Iterable[set[int]]) -> bool:
     return False
 
 
+@dataclass
+class VariantBulkSaveItem:
+    should_save: bool
+    variant: Variant
+    uses: list[int] | None
+    requires: list[int] | None
+    of: set[int]
+    includes: set[int]
+    produces: set[int]
+
+
 def update_variant(
         data: Data,
         unique_id: str,
         variant_def: VariantDefinition,
         status: Variant.Status,
         restore=False):
-    variant = data.variants.get(unique_id=unique_id)
-    variant.of.set(variant_def.of_ids)
-    variant.includes.set(variant_def.included_ids)
-    variant.produces.set(subtract_removed_features(variant, variant_def.feature_ids) - data.utility_features_ids)
-    variant.identity = merge_identities(variant.uses.values_list('identity', flat=True))
+    variant = data.uid_to_variant[unique_id]
     ok = status == Variant.Status.OK or \
         status != Variant.Status.NOT_WORKING and not includes_any(v=frozenset(variant_def.card_ids), others=data.not_working_variants)
     if restore:
         combos = data.combos.filter(id__in=variant_def.included_ids)
+        variant.identity = merge_identities(variant.uses.values_list('identity', flat=True))
         variant.zone_locations = '\n'.join(c.zone_locations for c in combos if len(c.zone_locations) > 0)
         variant.cards_state = '\n'.join(c.cards_state for c in combos if len(c.cards_state) > 0)
         variant.other_prerequisites = '\n'.join(c.other_prerequisites for c in combos if len(c.other_prerequisites) > 0)
@@ -63,9 +71,16 @@ def update_variant(
         variant.status = Variant.Status.NEW if ok else Variant.Status.NOT_WORKING
     if not ok:
         variant.status = Variant.Status.NOT_WORKING
-    if not ok or restore:
-        variant.save()
-    return variant.id
+    should_save = not ok or restore
+    return VariantBulkSaveItem(
+        should_save=should_save,
+        variant=variant,
+        uses=None,
+        requires=None,
+        of=variant_def.of_ids,
+        includes=variant_def.included_ids,
+        produces=subtract_removed_features(data, variant_def.included_ids, variant_def.feature_ids) - data.utility_features_ids,
+    )
 
 
 def create_variant(
@@ -89,21 +104,23 @@ def create_variant(
         identity=merge_identities(data.cards.filter(id__in=variant_def.card_ids).values_list('identity', flat=True)))
     if not ok:
         variant.status = Variant.Status.NOT_WORKING
-    variant.save()
-    variant.uses.set(variant_def.card_ids)
-    variant.requires.set(variant_def.template_ids)
-    variant.of.set(variant_def.of_ids)
-    variant.includes.set(variant_def.included_ids)
-    variant.produces.set(subtract_removed_features(variant, variant_def.feature_ids) - data.utility_features_ids)
-    return variant.id
+    return VariantBulkSaveItem(
+        should_save=True,
+        variant=variant,
+        uses=variant_def.card_ids,
+        requires=variant_def.template_ids,
+        of=variant_def.of_ids,
+        includes=variant_def.included_ids,
+        produces=subtract_removed_features(data, variant_def.included_ids, variant_def.feature_ids) - data.utility_features_ids,
+    )
 
 
 def get_variants_from_graph(data: Data, job: Job = None) -> dict[str, VariantDefinition]:
     logging.info('Computing all possible variants:')
-    combos = data.combos.filter(generator=True)
+    combos = list(data.combos.filter(generator=True))
     result = dict[str, VariantDefinition]()
     graph = Graph(data)
-    total = combos.count()
+    total = len(combos)
     for i, combo in enumerate(combos):
         variants = graph.variants(combo.id)
         for variant in variants:
@@ -134,12 +151,32 @@ def get_variants_from_graph(data: Data, job: Job = None) -> dict[str, VariantDef
     return result
 
 
+def perform_bulk_saves(to_create: list[VariantBulkSaveItem], to_update: list[VariantBulkSaveItem]):
+    batch_size = 999
+    Variant.objects.bulk_create((v.variant for v in to_create if v.should_save), batch_size=batch_size)
+    update_fields = ['identity', 'zone_locations', 'cards_state', 'mana_needed', 'other_prerequisites', 'description', 'status']
+    Variant.objects.bulk_update((v.variant for v in to_update if v.should_save), fields=update_fields, batch_size=batch_size)
+    UsesTable = Variant.uses.through
+    UsesTable.objects.bulk_create((UsesTable(variant_id=v.variant.id, card_id=c) for v in to_create if v.should_save for c in v.uses), batch_size=batch_size)
+    RequiresTable = Variant.requires.through
+    RequiresTable.objects.bulk_create((RequiresTable(variant_id=v.variant.id, template_id=t) for v in to_create if v.should_save for t in v.requires), batch_size=batch_size)
+    OfTable = Variant.of.through
+    OfTable.objects.all().delete()
+    OfTable.objects.bulk_create((OfTable(variant_id=v.variant.id, combo_id=c) for v in to_create + to_update for c in v.of), batch_size=batch_size)
+    IncludesTable = Variant.includes.through
+    IncludesTable.objects.all().delete()
+    IncludesTable.objects.bulk_create((IncludesTable(variant_id=v.variant.id, combo_id=c) for v in to_create + to_update for c in v.includes), batch_size=batch_size)
+    ProducesTable = Variant.produces.through
+    ProducesTable.objects.all().delete()
+    ProducesTable.objects.bulk_create((ProducesTable(variant_id=v.variant.id, feature_id=f) for v in to_create + to_update for f in v.produces), batch_size=batch_size)
+
+
 def generate_variants(job: Job = None) -> tuple[int, int, int]:
     logging.info('Fetching variants set to RESTORE...')
     data = Data()
-    to_restore = set(data.variants.filter(status=Variant.Status.RESTORE).values_list('unique_id', flat=True))
+    to_restore = set(k for k, v in data.uid_to_variant.items() if v.status == Variant.Status.RESTORE)
     logging.info('Fetching all variant unique ids...')
-    old_id_set = set(data.variants.values_list('unique_id', flat=True))
+    old_id_set = set(data.uid_to_variant.keys())
     logging.info('Computing combos MILP representation...')
     variants = get_variants_from_graph(data, job)
     logging.info(f'Saving {len(variants)} variants...')
@@ -149,21 +186,26 @@ def generate_variants(job: Job = None) -> tuple[int, int, int]:
             job.save()
     variants_ids = set()
     with transaction.atomic():
+        to_bulk_update = list[VariantBulkSaveItem]()
+        to_bulk_create = list[VariantBulkSaveItem]()
         for unique_id, variant_def in variants.items():
             if unique_id in old_id_set:
-                status = data.variants.get(unique_id=unique_id).status
-                update_variant(
-                    data=data,
-                    unique_id=unique_id,
-                    variant_def=variant_def,
-                    status=status,
-                    restore=unique_id in to_restore)
-            else:
-                variants_ids.add(
-                    create_variant(
+                status = data.uid_to_variant[unique_id].status
+                to_bulk_update.append(
+                    update_variant(
                         data=data,
                         unique_id=unique_id,
-                        variant_def=variant_def))
+                        variant_def=variant_def,
+                        status=status,
+                        restore=unique_id in to_restore))
+            else:
+                variant_to_save = create_variant(
+                    data=data,
+                    unique_id=unique_id,
+                    variant_def=variant_def)
+                variants_ids.add(variant_to_save.variant.id)
+                to_bulk_create.append(variant_to_save)
+        perform_bulk_saves(to_bulk_create, to_bulk_update)
         if job is not None:
             job.variants.set(variants_ids)
         new_id_set = set(variants.keys())
@@ -177,4 +219,5 @@ def generate_variants(job: Job = None) -> tuple[int, int, int]:
         delete_query.delete()
         logging.info(f'Deleted {deleted} variants...')
         logging.info('Done.')
+        debug_queries(True)
         return len(added), len(restored), deleted

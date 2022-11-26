@@ -153,6 +153,7 @@ def get_variants_from_graph(data: Data, job: Job = None) -> dict[str, VariantDef
 
 def perform_bulk_saves(to_create: list[VariantBulkSaveItem], to_update: list[VariantBulkSaveItem]):
     batch_size = 999
+    debug_queries(True)
     Variant.objects.bulk_create((v.variant for v in to_create if v.should_save), batch_size=batch_size)
     update_fields = ['identity', 'zone_locations', 'cards_state', 'mana_needed', 'other_prerequisites', 'description', 'status']
     Variant.objects.bulk_update((v.variant for v in to_update if v.should_save), fields=update_fields, batch_size=batch_size)
@@ -169,6 +170,7 @@ def perform_bulk_saves(to_create: list[VariantBulkSaveItem], to_update: list[Var
     ProducesTable = Variant.produces.through
     ProducesTable.objects.all().delete()
     ProducesTable.objects.bulk_create((ProducesTable(variant_id=v.variant.id, feature_id=f) for v in to_create + to_update for f in v.produces), batch_size=batch_size)
+    debug_queries(True)
 
 
 def generate_variants(job: Job = None) -> tuple[int, int, int]:
@@ -184,7 +186,6 @@ def generate_variants(job: Job = None) -> tuple[int, int, int]:
         with transaction.atomic(durable=True):
             job.message += f'Saving {len(variants)} variants...\n'
             job.save()
-    variants_ids = set()
     with transaction.atomic():
         to_bulk_update = list[VariantBulkSaveItem]()
         to_bulk_create = list[VariantBulkSaveItem]()
@@ -203,11 +204,11 @@ def generate_variants(job: Job = None) -> tuple[int, int, int]:
                     data=data,
                     unique_id=unique_id,
                     variant_def=variant_def)
-                variants_ids.add(variant_to_save.variant.id)
                 to_bulk_create.append(variant_to_save)
         perform_bulk_saves(to_bulk_create, to_bulk_update)
         if job is not None:
-            job.variants.set(variants_ids)
+            # TODO set which variants were generated for this job
+            pass
         new_id_set = set(variants.keys())
         to_delete = old_id_set - new_id_set
         added = new_id_set - old_id_set

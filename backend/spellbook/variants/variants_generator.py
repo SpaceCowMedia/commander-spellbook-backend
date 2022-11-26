@@ -46,7 +46,7 @@ def update_variant(
         variant_def: VariantDefinition,
         status: Variant.Status,
         restore=False):
-    variant = data.variants.get(unique_id=unique_id)
+    variant = data.uid_to_variant[unique_id]
     variant.of.set(variant_def.of_ids)
     variant.includes.set(variant_def.included_ids)
     variant.produces.set(subtract_removed_features(variant, variant_def.feature_ids) - data.utility_features_ids)
@@ -100,10 +100,10 @@ def create_variant(
 
 def get_variants_from_graph(data: Data, job: Job = None) -> dict[str, VariantDefinition]:
     logging.info('Computing all possible variants:')
-    combos = data.combos.filter(generator=True)
+    combos = list(data.combos.filter(generator=True))
     result = dict[str, VariantDefinition]()
     graph = Graph(data)
-    total = combos.count()
+    total = len(combos)
     for i, combo in enumerate(combos):
         variants = graph.variants(combo.id)
         for variant in variants:
@@ -137,9 +137,9 @@ def get_variants_from_graph(data: Data, job: Job = None) -> dict[str, VariantDef
 def generate_variants(job: Job = None) -> tuple[int, int, int]:
     logging.info('Fetching variants set to RESTORE...')
     data = Data()
-    to_restore = set(data.variants.filter(status=Variant.Status.RESTORE).values_list('unique_id', flat=True))
+    to_restore = set(k for k, v in data.uid_to_variant.items() if v.status == Variant.Status.RESTORE)
     logging.info('Fetching all variant unique ids...')
-    old_id_set = set(data.variants.values_list('unique_id', flat=True))
+    old_id_set = set(data.uid_to_variant.keys())
     logging.info('Computing combos MILP representation...')
     variants = get_variants_from_graph(data, job)
     logging.info(f'Saving {len(variants)} variants...')
@@ -151,7 +151,7 @@ def generate_variants(job: Job = None) -> tuple[int, int, int]:
     with transaction.atomic():
         for unique_id, variant_def in variants.items():
             if unique_id in old_id_set:
-                status = data.variants.get(unique_id=unique_id).status
+                status = data.uid_to_variant[unique_id].status
                 update_variant(
                     data=data,
                     unique_id=unique_id,

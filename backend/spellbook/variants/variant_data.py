@@ -21,6 +21,7 @@ class Data:
         self.utility_features_ids = frozenset[int](Feature.objects.filter(utility=True).values_list('id', flat=True))
         self.templates = Template.objects.prefetch_related('required_by_combos')
         self.not_working_variants = fetch_not_working_variants(self.variants)
+        self.uid_to_variant = {v.unique_id: v for v in self.variants}
 
 count = 0
 def debug_queries(output=False):

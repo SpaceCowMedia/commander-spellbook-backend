@@ -162,14 +162,14 @@ def perform_bulk_saves(to_create: list[VariantBulkSaveItem], to_update: list[Var
     RequiresTable.objects.bulk_create((RequiresTable(variant_id=v.variant.id, template_id=t) for v in to_create if v.should_save for t in v.requires), batch_size=batch_size)
     OfTable = Variant.of.through
     OfTable.objects.all().delete()
-    OfTable.objects.bulk_create((OfTable(variant_id=v.variant.id, combo_id=c) for v in to_create + to_update if v.should_save for c in v.of), batch_size=batch_size)
+    OfTable.objects.bulk_create((OfTable(variant_id=v.variant.id, combo_id=c) for v in to_create + to_update for c in v.of), batch_size=batch_size)
     IncludesTable = Variant.includes.through
     IncludesTable.objects.all().delete()
-    IncludesTable.objects.bulk_create((IncludesTable(variant_id=v.variant.id, combo_id=c) for v in to_create + to_update if v.should_save for c in v.includes), batch_size=batch_size)
+    IncludesTable.objects.bulk_create((IncludesTable(variant_id=v.variant.id, combo_id=c) for v in to_create + to_update for c in v.includes), batch_size=batch_size)
     ProducesTable = Variant.produces.through
     ProducesTable.objects.all().delete()
-    ProducesTable.objects.bulk_create((ProducesTable(variant_id=v.variant.id, feature_id=f) for v in to_create + to_update if v.should_save for f in v.produces), batch_size=batch_size)
-    
+    ProducesTable.objects.bulk_create((ProducesTable(variant_id=v.variant.id, feature_id=f) for v in to_create + to_update for f in v.produces), batch_size=batch_size)
+
 
 def generate_variants(job: Job = None) -> tuple[int, int, int]:
     logging.info('Fetching variants set to RESTORE...')
@@ -205,7 +205,6 @@ def generate_variants(job: Job = None) -> tuple[int, int, int]:
                         variant_def=variant_def)
                 variants_ids.add(variant_to_save.variant.id)
                 to_bulk_create.append(variant_to_save)
-            debug_queries(False)
         perform_bulk_saves(to_bulk_create, to_bulk_update)
         if job is not None:
             job.variants.set(variants_ids)

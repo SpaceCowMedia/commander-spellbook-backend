@@ -86,8 +86,9 @@ def update_variant(
 def create_variant(
         data: Data,
         unique_id: str,
-        variant_def: VariantDefinition):
-    combos = data.combos.filter(id__in=variant_def.included_ids)
+        variant_def: VariantDefinition,
+        job: Job = None):
+    combos = [data.id_to_combo[c_id] for c_id in variant_def.included_ids]
     zone_locations = '\n'.join(c.zone_locations for c in combos if len(c.zone_locations) > 0)
     cards_state = '\n'.join(c.cards_state for c in combos if len(c.cards_state) > 0)
     other_prerequisites = '\n'.join(c.other_prerequisites for c in combos if len(c.other_prerequisites) > 0)
@@ -101,7 +102,8 @@ def create_variant(
         other_prerequisites=other_prerequisites,
         mana_needed=mana_needed,
         description=description,
-        identity=merge_identities(data.cards.filter(id__in=variant_def.card_ids).values_list('identity', flat=True)))
+        identity=merge_identities([data.id_to_card[c_id].identity for c_id in variant_def.card_ids]),
+        generated_by=job)
     if not ok:
         variant.status = Variant.Status.NOT_WORKING
     return VariantBulkSaveItem(
@@ -153,7 +155,6 @@ def get_variants_from_graph(data: Data, job: Job = None) -> dict[str, VariantDef
 
 def perform_bulk_saves(to_create: list[VariantBulkSaveItem], to_update: list[VariantBulkSaveItem]):
     batch_size = 999
-    debug_queries(True)
     Variant.objects.bulk_create((v.variant for v in to_create if v.should_save), batch_size=batch_size)
     update_fields = ['identity', 'zone_locations', 'cards_state', 'mana_needed', 'other_prerequisites', 'description', 'status']
     Variant.objects.bulk_update((v.variant for v in to_update if v.should_save), fields=update_fields, batch_size=batch_size)
@@ -170,7 +171,6 @@ def perform_bulk_saves(to_create: list[VariantBulkSaveItem], to_update: list[Var
     ProducesTable = Variant.produces.through
     ProducesTable.objects.all().delete()
     ProducesTable.objects.bulk_create((ProducesTable(variant_id=v.variant.id, feature_id=f) for v in to_create + to_update for f in v.produces), batch_size=batch_size)
-    debug_queries(True)
 
 
 def generate_variants(job: Job = None) -> tuple[int, int, int]:
@@ -203,12 +203,10 @@ def generate_variants(job: Job = None) -> tuple[int, int, int]:
                 variant_to_save = create_variant(
                     data=data,
                     unique_id=unique_id,
-                    variant_def=variant_def)
+                    variant_def=variant_def,
+                    job=job)
                 to_bulk_create.append(variant_to_save)
         perform_bulk_saves(to_bulk_create, to_bulk_update)
-        if job is not None:
-            # TODO set which variants were generated for this job
-            pass
         new_id_set = set(variants.keys())
         to_delete = old_id_set - new_id_set
         added = new_id_set - old_id_set

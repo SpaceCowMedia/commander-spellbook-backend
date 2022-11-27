@@ -33,6 +33,8 @@ class Data:
         self.not_working_variants = fetch_not_working_variants(self.variants)
         self.uid_to_variant = {v.unique_id: v for v in self.variants}
         self.combo_to_removed_features = fetch_removed_features(self.combos)
+        self.id_to_combo = {c.id: c for c in self.combos}
+        self.id_to_card = {c.id: c for c in self.cards}
 
 
 count = 0

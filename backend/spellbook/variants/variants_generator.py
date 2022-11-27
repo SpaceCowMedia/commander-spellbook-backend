@@ -9,6 +9,16 @@ from .variant_data import Data, debug_queries
 from .combo_graph import Graph
 
 
+def log_into_job(job: Job, message: str, reset=False):
+    if job:
+        if reset:
+            job.message = message
+        else:
+            job.message += message + '\n'
+        with transaction.atomic(durable=True):
+            job.save()
+
+
 @dataclass
 class VariantDefinition:
     card_ids: list[int]
@@ -146,10 +156,7 @@ def get_variants_from_graph(data: Data, job: Job = None) -> dict[str, VariantDef
                     of_ids={combo.id})
         msg = f'{i + 1}/{total} combos processed (just processed combo {combo.id})'
         logging.info(msg)
-        if job:
-            with transaction.atomic(durable=True):
-                job.message += msg + '\n'
-                job.save()
+        log_into_job(job, msg)
     return result
 
 
@@ -180,16 +187,10 @@ def generate_variants(job: Job = None) -> tuple[int, int, int]:
     logging.info('Fetching all variant unique ids...')
     old_id_set = set(data.uid_to_variant.keys())
     logging.info('Computing combos graph representation...')
-    if job:
-        with transaction.atomic(durable=True):
-            job.message += 'Computing combos graph representation...\n'
-            job.save()
+    log_into_job(job, 'Computing combos graph representation...')
     variants = get_variants_from_graph(data, job)
     logging.info(f'Saving {len(variants)} variants...')
-    if job:
-        with transaction.atomic(durable=True):
-            job.message += f'Saving {len(variants)} variants...\n'
-            job.save()
+    log_into_job(job, f'Saving {len(variants)} variants...')
     with transaction.atomic():
         to_bulk_update = list[VariantBulkSaveItem]()
         to_bulk_create = list[VariantBulkSaveItem]()

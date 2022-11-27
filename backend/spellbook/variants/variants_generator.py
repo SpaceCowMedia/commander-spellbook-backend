@@ -179,7 +179,11 @@ def generate_variants(job: Job = None) -> tuple[int, int, int]:
     to_restore = set(k for k, v in data.uid_to_variant.items() if v.status == Variant.Status.RESTORE)
     logging.info('Fetching all variant unique ids...')
     old_id_set = set(data.uid_to_variant.keys())
-    logging.info('Computing combos MILP representation...')
+    logging.info('Computing combos graph representation...')
+    if job:
+        with transaction.atomic(durable=True):
+            job.message += f'Computing combos graph representation...\n'
+            job.save()
     variants = get_variants_from_graph(data, job)
     logging.info(f'Saving {len(variants)} variants...')
     if job:

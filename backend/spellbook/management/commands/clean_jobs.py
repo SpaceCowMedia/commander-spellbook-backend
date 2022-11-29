@@ -14,12 +14,12 @@ class Command(BaseCommand):
             query.update(status=Job.Status.FAILURE, message='Job was cancelled.', termination=timezone.now())
             now = timezone.now() + timezone.timedelta(seconds=2)
             job = Job(
-                name="cancel_jobs",
+                name='clean_jobs',
                 expected_termination=now,
                 termination=now,
                 status=Job.Status.SUCCESS,
-                message=f"{count} pending jobs were cancelled.")
+                message=f'{count} pending jobs were cancelled.')
             job.save()
-            self.stdout.write(self.style.SUCCESS(f"{count} pending jobs were cancelled."))
+            self.stdout.write(self.style.SUCCESS(f'{count} pending jobs were cancelled.'))
         else:
-            self.stdout.write(self.style.SUCCESS("No pending jobs to cancel."))
+            self.stdout.write(self.style.SUCCESS('No pending jobs to cancel.'))

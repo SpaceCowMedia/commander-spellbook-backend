@@ -1,5 +1,5 @@
 from django.contrib import admin
-from django.urls import path, reverse
+from django.urls import path
 from .utils import launch_job_command
 from .models import Card, Template, Feature, Combo, Variant, Job
 from django.contrib import messages

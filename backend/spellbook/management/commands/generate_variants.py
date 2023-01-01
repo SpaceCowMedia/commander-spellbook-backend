@@ -1,6 +1,5 @@
 import traceback
 from django.core.management.base import BaseCommand, CommandError
-from spellbook.models import Combo
 from spellbook.models import Job, Variant
 from spellbook.variants.variants_generator import generate_variants
 from django.utils import timezone

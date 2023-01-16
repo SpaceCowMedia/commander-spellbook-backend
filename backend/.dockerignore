@@ -7,3 +7,4 @@ nginx/
 __pycache__
 ./temp
 *_data.json
+*tests.py

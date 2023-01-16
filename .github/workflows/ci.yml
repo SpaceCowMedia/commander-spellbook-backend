@@ -34,6 +34,7 @@ jobs:
       matrix:
         python-version: [3.11, 3.10]
         os: [ubuntu-latest, windows-latest, macos-latest]
+      max-parallel: 2
     runs-on: ${{ matrix.os }}
     needs: build
     defaults:
@@ -44,7 +45,11 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-      - run: python manage.py test --no-input --parallel auto
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+        working-directory: backend
+      - name: Test
+        run: python manage.py test --no-input --parallel auto
         working-directory: backend
   release:
     runs-on: ubuntu-latest

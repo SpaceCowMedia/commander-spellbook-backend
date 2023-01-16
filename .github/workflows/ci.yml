@@ -27,6 +27,11 @@ jobs:
       - id: semver
         name: Checkout
         uses: EasyDesk/action-semver-checkout@v1
+      - name: Install dependencies and print Django version
+        run: |
+          pip install -r requirements.txt
+          python manage.py version
+        working-directory: backend
       - run: docker compose -f docker-compose.yml build --no-cache
         working-directory: backend
   test:

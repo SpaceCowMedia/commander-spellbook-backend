@@ -29,9 +29,26 @@ jobs:
         uses: EasyDesk/action-semver-checkout@v1
       - run: docker compose -f docker-compose.yml build --no-cache
         working-directory: backend
+  test:
+    strategy:
+      matrix:
+        python-version: [3.11, 3.10]
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    needs: build
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: python manage.py test --no-input --parallel auto
+        working-directory: backend
   release:
     runs-on: ubuntu-latest
-    needs: build
+    needs: test
     if: needs.build.outputs.should-release == 'true'
     concurrency: release
     steps:

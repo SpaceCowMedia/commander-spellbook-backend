@@ -47,7 +47,7 @@ INSTALLED_APPS = [
     'sortedm2m',
     'rest_framework',
     'django_filters',
-    'django_extensions',
+    # 'django_extensions',
 ]
 
 MIDDLEWARE = [

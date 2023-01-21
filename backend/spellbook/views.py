@@ -1,5 +1,5 @@
 from .models import Card, Feature, Combo, Template, Variant
-from .serializers import CardDetailSerializer, FeatureSerializer, ComboSerializer, TemplateSerializer, VariantSerializer
+from .serializers import CardDetailSerializer, FeatureSerializer, ComboDetailSerializer, TemplateSerializer, VariantSerializer
 from rest_framework import viewsets
 from rest_framework import filters
 from django_filters.rest_framework import DjangoFilterBackend
@@ -29,7 +29,7 @@ feature_detail = FeatureViewSet.as_view({'get': 'retrieve'})
 
 class ComboViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Combo.objects.all()
-    serializer_class = ComboSerializer
+    serializer_class = ComboDetailSerializer
 
 
 combo_list = ComboViewSet.as_view({'get': 'list'})

@@ -1,4 +1,3 @@
-from typing import Self
 from pygtrie import Trie
 from itertools import product
 from .list_utils import all_rotations, merge_sort_unique
@@ -88,15 +87,15 @@ class VariantTrie():
         return str(self.trie)
 
     @classmethod
-    def or_tries(cls, tries: list[Self], limit: int = DEFAULT_MAX_DEPTH) -> Self:
+    def or_tries(cls, tries: list['VariantTrie'], limit: int = DEFAULT_MAX_DEPTH) -> 'VariantTrie':
         return VariantTrie.aggregate_tries(tries, limit=limit, strategy=lambda x, y: x | y)
 
     @classmethod
-    def and_tries(cls, tries: list[Self], limit: int = DEFAULT_MAX_DEPTH) -> Self:
+    def and_tries(cls, tries: list['VariantTrie'], limit: int = DEFAULT_MAX_DEPTH) -> 'VariantTrie':
         return VariantTrie.aggregate_tries(tries, limit=limit, strategy=lambda x, y: x & y)
 
     @classmethod
-    def aggregate_tries(cls, tries: list[Self], strategy, limit: int = DEFAULT_MAX_DEPTH) -> Self:
+    def aggregate_tries(cls, tries: list['VariantTrie'], strategy, limit: int = DEFAULT_MAX_DEPTH) -> 'VariantTrie':
         match len(tries):
             case 0: return VariantTrie(limit=limit)
             case 1: return tries[0]

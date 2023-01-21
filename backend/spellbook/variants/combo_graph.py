@@ -2,7 +2,7 @@ from typing import Iterable, Optional
 from enum import Enum
 from ..models import Card, Feature, Combo, Template
 from .variant_data import Data
-from .variant_trie import VariantTrie, and_tries, or_tries
+from .variant_trie import VariantTrie
 from dataclasses import dataclass
 
 MAX_CARDS_IN_COMBO = 5
@@ -167,7 +167,7 @@ class Graph:
             if f.state == NodeState.VISITING:
                 return VariantTrie()
             needed_features_tries.append(self._feature_nodes_down(f))
-        combo.trie = and_tries(card_tries + template_tries + needed_features_tries, limit=MAX_CARDS_IN_COMBO)
+        combo.trie = VariantTrie.and_tries(card_tries + template_tries + needed_features_tries, limit=MAX_CARDS_IN_COMBO)
         combo.state = NodeState.VISITED
         return combo.trie
 
@@ -182,7 +182,7 @@ class Graph:
             if c.state == NodeState.VISITING:
                 continue
             produced_combos_tries.append(self._combo_nodes_down(c))
-        feature.trie = or_tries(card_tries + produced_combos_tries, limit=MAX_CARDS_IN_COMBO)
+        feature.trie = VariantTrie.or_tries(card_tries + produced_combos_tries, limit=MAX_CARDS_IN_COMBO)
         feature.state = NodeState.VISITED
         return feature.trie
 

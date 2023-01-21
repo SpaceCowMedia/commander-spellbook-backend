@@ -28,7 +28,7 @@ class TemplateSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'scryfall_query', 'scryfall_api']
 
 
-class ComboSerializer(serializers.ModelSerializer):
+class ComboDetailSerializer(serializers.ModelSerializer):
     produces = FeatureSerializer(many=True, read_only=True)
     needs = FeatureSerializer(many=True, read_only=True)
     uses = CardSerializer(many=True, read_only=True)
@@ -47,6 +47,12 @@ class ComboSerializer(serializers.ModelSerializer):
             'mana_needed',
             'other_prerequisites',
             'description']
+
+
+class ComboSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Combo
+        fields = ['id']
 
 
 class VariantSerializer(serializers.ModelSerializer):

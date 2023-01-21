@@ -41,16 +41,16 @@ class VariantTrie():
                         del self.trie[rotated_subkey]
             self.trie[key] = all_rotations
 
-    def __or__(self, other: Self) -> Self:
+    def __or__(self, other):
         result = VariantTrie(limit=self.max_depth)
         for value in self.trie.values() + other.trie.values():
             result._add(value)
         return result
 
-    def __add__(self, other: Self) -> Self:
+    def __add__(self, other):
         return self.__or__(other)
 
-    def __and__(self, other: Self) -> Self:
+    def __and__(self, other):
         result = VariantTrie(limit=self.max_depth)
         for left_part, right_part in product(self.trie.keys(), other.trie.keys()):
             key = merge_sort_unique(left_part, right_part)
@@ -59,7 +59,7 @@ class VariantTrie():
             result._add(all_rotations(key))
         return result
 
-    def __mul__(self, other: Self) -> Self:
+    def __mul__(self, other):
         return self.__and__(other)
 
     def variants(self, preserve=False) -> list[tuple[list[cardid], list[templateid]]]:

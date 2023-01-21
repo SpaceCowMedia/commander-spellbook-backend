@@ -62,3 +62,25 @@ class VariantTrieTests(TestCase):
         self.assertEqual(trie.variants(True), [([1, 2, 3, 4], [1, 2, 3]), ([1, 2, 3, 4, 5, 6], [1, 2])])
         trie.add([1, 2, 3, 4, 5], [1, 2])
         self.assertEqual(trie.variants(True), [([1, 2, 3, 4], [1, 2, 3]), ([1, 2, 3, 4, 5], [1, 2])])
+
+    def test_variant_trie_or(self):
+        trie = VariantTrie()
+        trie.add([1, 2, 3, 4], [1, 2, 3])
+        trie.add([1, 2, 3, 4, 5], [1, 2])
+        trie2 = VariantTrie()
+        trie2.add([1, 2, 3], [1, 2, 3, 4])
+        trie2.add([1, 2, 3, 4, 5], [1])
+        
+        trie3 = trie | trie2
+        self.assertEqual(trie3.variants(), [([1, 2, 3, 4], [1, 2, 3]), ([1, 2, 3, 4, 5], [1]), ([1, 2, 3], [1, 2, 3, 4])])
+
+    def test_variant_trie_and(self):
+        trie = VariantTrie()
+        trie.add([1, 2, 3, 4], [1, 2, 3])
+        trie.add([1, 2, 3, 4, 5], [1, 2])
+        trie2 = VariantTrie()
+        trie2.add([1, 2, 3], [1, 2, 3, 4])
+        trie2.add([1, 2, 3, 4, 5], [1])
+        
+        trie3 = trie & trie2
+        self.assertEqual(trie3.variants(), [([1, 2, 3, 4], [1, 2, 3, 4]), ([1, 2, 3, 4, 5], [1, 2])])

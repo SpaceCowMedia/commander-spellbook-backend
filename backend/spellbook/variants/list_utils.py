@@ -2,6 +2,7 @@ from typing import TypeVar
 
 T = TypeVar('T', int, str, float, complex)
 
+
 def rotate(li: list[T], x: int) -> list[T]:
     return li[-x % len(li):] + li[:-x % len(li)]
 

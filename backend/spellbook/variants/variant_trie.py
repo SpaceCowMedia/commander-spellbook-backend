@@ -18,6 +18,16 @@ class VariantTrie():
     def ingredients_to_key(self, cards: list[cardid], templates: list[templateid]) -> list[str]:
         return merge_sort_unique([f'C{c_id}' for c_id in cards], [f'T{t_id}' for t_id in templates])
 
+    def key_to_ingredients(self, key: list[str]) -> tuple[list[cardid], list[templateid]]:
+        cards = list[cardid]()
+        templates = list[templateid]()
+        for item in key:
+            if item[0] == 'C':
+                cards.append(int(item[1:]))
+            elif item[0] == 'T':
+                templates.append(int(item[1:]))
+        return (sorted(cards), sorted(templates))
+
     def add(self, cards: list[cardid], templates: list[templateid]):
         base_key = self.ingredients_to_key(cards, templates)
         if len(base_key) > self.max_depth:
@@ -67,14 +77,8 @@ class VariantTrie():
         trie = self.trie.copy() if preserve else self.trie
         while len(trie) > 0:
             key, value = trie.popitem()
-            cards = list[cardid]()
-            templates = list[templateid]()
-            for item in key:
-                if item[0] == 'C':
-                    cards.append(int(item[1:]))
-                elif item[0] == 'T':
-                    templates.append(int(item[1:]))
-            result.append((sorted(cards), sorted(templates)))
+            cards, templates = self.key_to_ingredients(key)
+            result.append((cards, templates))
             for rotation in value:
                 if trie.has_key(rotation):
                     del trie[rotation]

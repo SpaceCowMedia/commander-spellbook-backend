@@ -48,6 +48,14 @@ class ListUtilsTests(TestCase):
 
 class VariantTrieTests(TestCase):
 
+    def test_ingredients_to_key(self):
+        trie = VariantTrie()
+        self.assertEqual(trie.key_to_ingredients(trie.ingredients_to_key([1, 2, 3, 4], [])), ([1, 2, 3, 4], []))
+        self.assertEqual(trie.key_to_ingredients(trie.ingredients_to_key([1, 2, 3, 4], [1, 2, 3])), ([1, 2, 3, 4], [1, 2, 3]))
+        self.assertEqual(trie.key_to_ingredients(trie.ingredients_to_key([], [1, 2, 3])), ([], [1, 2, 3]))
+        self.assertEqual(trie.key_to_ingredients(trie.ingredients_to_key([], [])), ([], []))
+        self.assertEqual(trie.key_to_ingredients(trie.ingredients_to_key([1], [1])), ([1], [1]))
+
     def test_variant_trie_add(self):
         trie = VariantTrie()
         trie.add([1, 2, 3, 4], [1, 2, 3])

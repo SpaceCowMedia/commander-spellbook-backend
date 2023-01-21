@@ -8,7 +8,8 @@
             "name": "Python: Django",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/backend/manage.py",
+            "cwd": "${workspaceFolder}/backend",
+            "program": "manage.py",
             "args": [
                 "runserver",
                 "8000"
@@ -17,10 +18,23 @@
             "justMyCode": false
         },
         {
+            "name": "Python: Django / Test",
+            "type": "python",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/backend",
+            "program": "manage.py",
+            "args": [
+                "test"
+            ],
+            "django": true,
+            "justMyCode": false
+        },
+        {
             "name": "Python: Django / Import Combos",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/backend/manage.py",
+            "cwd": "${workspaceFolder}/backend",
+            "program": "manage.py",
             "args": [
                 "import_combos"
             ],
@@ -31,7 +45,8 @@
             "name": "Python: Django / Generate Variants",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/backend/manage.py",
+            "cwd": "${workspaceFolder}/backend",
+            "program": "manage.py",
             "args": [
                 "generate_variants"
             ],
@@ -42,7 +57,8 @@
             "name": "Python: Django Profiling",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/backend/manage.py",
+            "cwd": "${workspaceFolder}/backend",
+            "program": "manage.py",
             "args": [
                 "runprofileserver",
                 "--use-cprofile",

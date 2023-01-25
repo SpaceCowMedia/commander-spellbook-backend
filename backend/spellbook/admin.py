@@ -8,6 +8,8 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.http import HttpRequest
 from django.shortcuts import redirect
+from django.db.models import Count
+from .variants.combo_graph import MAX_CARDS_IN_COMBO
 
 
 @admin.register(Card)
@@ -66,6 +68,20 @@ class VariantForm(ModelForm):
         return self.cleaned_data['mana_needed'].upper() if self.cleaned_data['mana_needed'] else self.cleaned_data['mana_needed']
 
 
+class CardsCountListFilter(admin.SimpleListFilter):
+    title = 'cards count'
+    parameter_name = 'cards_count'
+
+    def lookups(self, request, model_admin):
+        return [(i, str(i)) for i in range(2, MAX_CARDS_IN_COMBO + 1)]
+    
+    def queryset(self, request, queryset):
+        if self.value() is not None:
+            value = int(self.value())
+            return queryset.annotate(cards_count=Count('uses', distinct=True) + Count('requires', distinct=True)).filter(cards_count=value)
+        return queryset
+
+
 @admin.register(Variant)
 class VariantAdmin(admin.ModelAdmin):
     form = VariantForm
@@ -81,7 +97,7 @@ class VariantAdmin(admin.ModelAdmin):
             'description',
             'frozen']})
     ]
-    list_filter = ['status', 'identity']
+    list_filter = ['status', CardsCountListFilter, 'identity']
     list_display = ['__str__', 'status', 'id', 'identity']
     search_fields = ['id', 'uses__name', 'produces__name', 'requires__name', 'unique_id', 'identity']
     actions = [set_restore, set_draft, set_new, set_not_working]
@@ -117,7 +133,8 @@ class VariantAdmin(admin.ModelAdmin):
         return False
 
     def get_queryset(self, request):
-        return super().get_queryset(request).prefetch_related('uses', 'requires', 'produces', 'of', 'includes')
+        return super().get_queryset(request) \
+            .prefetch_related('uses', 'requires', 'produces', 'of', 'includes')
 
 
 class ComboForm(ModelForm):

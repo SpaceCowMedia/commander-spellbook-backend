@@ -74,7 +74,7 @@ class CardsCountListFilter(admin.SimpleListFilter):
 
     def lookups(self, request, model_admin):
         return [(i, str(i)) for i in range(2, MAX_CARDS_IN_COMBO + 1)]
-    
+
     def queryset(self, request, queryset):
         if self.value() is not None:
             value = int(self.value())

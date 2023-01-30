@@ -5,7 +5,7 @@
             "label": "Create temporary directories",
             "type": "shell",
             "args": [],
-            "group": "build",
+            "group": "none",
             "linux": {
                 "command": "mkdir -p ${workspaceFolder}/backend/temp/profiles"
             },
@@ -25,13 +25,11 @@
             "label": "Clean pending jobs",
             "type": "shell",
             "command": "python backend/manage.py clean_jobs",
-            "group": "build",
+            "group": "none",
         },
         {
             "label": "Profile Prelaunch",
-            "type": "shell",
-            "command": "echo ok",
-            "group": "build",
+            "group": "none",
             "dependsOn": [
                 "Create temporary directories",
                 "Clean pending jobs"

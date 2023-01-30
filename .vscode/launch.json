@@ -5,7 +5,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: Django",
+            "name": "Start Server",
             "type": "python",
             "request": "launch",
             "cwd": "${workspaceFolder}/backend",
@@ -15,46 +15,21 @@
                 "8000"
             ],
             "django": true,
-            "justMyCode": false
+            "justMyCode": false,
+            "presentation": {
+                "hidden": false,
+                "group": "Django",
+                "order": 1
+            },
+            "serverReadyAction" : {
+                "action": "openExternally",
+                "pattern": "Starting development server at (https?://[a-z0-9\\.:]+/?)",
+                "uriFormat": "%s",
+                "killOnServerStop": true
+            }
         },
         {
-            "name": "Python: Django / Test",
-            "type": "python",
-            "request": "launch",
-            "cwd": "${workspaceFolder}/backend",
-            "program": "manage.py",
-            "args": [
-                "test"
-            ],
-            "django": true,
-            "justMyCode": false
-        },
-        {
-            "name": "Python: Django / Import Combos",
-            "type": "python",
-            "request": "launch",
-            "cwd": "${workspaceFolder}/backend",
-            "program": "manage.py",
-            "args": [
-                "import_combos"
-            ],
-            "django": true,
-            "justMyCode": true
-        },
-        {
-            "name": "Python: Django / Generate Variants",
-            "type": "python",
-            "request": "launch",
-            "cwd": "${workspaceFolder}/backend",
-            "program": "manage.py",
-            "args": [
-                "generate_variants"
-            ],
-            "django": true,
-            "justMyCode": true
-        },
-        {
-            "name": "Python: Django Profiling",
+            "name": "Profile Server",
             "type": "python",
             "request": "launch",
             "cwd": "${workspaceFolder}/backend",
@@ -67,7 +42,69 @@
             ],
             "preLaunchTask": "Profile Prelaunch",
             "django": true,
-            "justMyCode": true
-        }
+            "justMyCode": true,
+            "presentation": {
+                "hidden": false,
+                "group": "Django",
+                "order": 2
+            },
+            "serverReadyAction" : {
+                "action": "openExternally",
+                "pattern": "Development server is running at (https?://[a-z0-9\\.:]+/?)",
+                "uriFormat": "%s",
+                "killOnServerStop": true
+            }
+        },
+        {
+            "name": "Test",
+            "type": "python",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/backend",
+            "program": "manage.py",
+            "args": [
+                "test"
+            ],
+            "django": true,
+            "justMyCode": false,
+            "presentation": {
+                "hidden": false,
+                "group": "Django",
+                "order": 3
+            },
+        },
+        {
+            "name": "Generate Variants",
+            "type": "python",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/backend",
+            "program": "manage.py",
+            "args": [
+                "generate_variants"
+            ],
+            "django": true,
+            "justMyCode": true,
+            "presentation": {
+                "hidden": false,
+                "group": "Spellbook",
+                "order": 4
+            },
+        },
+        {
+            "name": "Import Combos",
+            "type": "python",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/backend",
+            "program": "manage.py",
+            "args": [
+                "import_combos"
+            ],
+            "django": true,
+            "justMyCode": true,
+            "presentation": {
+                "hidden": false,
+                "group": "Spellbook",
+                "order": 5
+            },
+        },
     ]
 }

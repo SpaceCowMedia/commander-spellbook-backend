@@ -4,7 +4,7 @@
 {% block extrahead %}
     {{ block.super }}
     {% include 'admin/spellbook/includes/jquery_imports.html' %}
-    <script src="{% static 'admin/js/card_info.js' %}" type="text/javascript"></script>
+    {% include 'admin/spellbook/includes/card_info_imports.html' %}
     <style>
         #card-image {
             width: min(8cm, 100%);
@@ -82,14 +82,12 @@
         })
         .autocomplete('instance')
         ._renderItem = function(ul, item) {
-            return $("<li>")
+            const newItem = $("<li>")
                 .attr("data-value", item.value)
-                .mouseover(function(e) {
-                    e.preventDefault();
-                    fetch_card_info(item.value, e.target);
-                })
                 .append(item.label)
                 .appendTo(ul);
+            setup_tooltip(item.value, newItem);
+            return newItem;
         };
     </script>
 {% endblock %}

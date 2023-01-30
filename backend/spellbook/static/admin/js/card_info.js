@@ -1,43 +1,51 @@
-/**
- * 
- * @param {string} name 
- * @param {HTMLElement} element 
- */
-function fetch_card_info(name, element) {
-    let attributeName = 'title';
-    if (typeof $ !== 'undefined' && $ !== null) {
-        attributeName = 'data-card-info';
+
+function format_card_summary(card) {
+    const alt = `${card.name}  ${card.mana_cost} - ${card.type_line}\n\n${card.oracle_text}`.replace('"', '\'');
+    return `<img class="card-image" src="${card.image_uris.normal}" alt="${alt}"/>`;
+}
+
+async function fetch_card_info(name) {
+    const data = await django.jQuery.ajax({
+        url: 'https://api.scryfall.com/cards/named',
+        dataType: 'json',
+        data: {
+            exact: name,
+            format: 'json'
+        },
+    });
+    if (data.card_faces && data.card_faces.length > 0) {
+        return data
+            .card_faces
+            .map(format_card_summary)
+            .join('');
     }
-    if (element.getAttribute(attributeName) === null) {
-        django.jQuery.ajax({
-            url: 'https://api.scryfall.com/cards/named',
-            dataType: 'json',
-            data: {
-                exact: name,
-                format: 'json'
+    return format_card_summary(data);
+}
+
+function setup_tooltip(card_name, element) {
+    if (typeof $ !== 'undefined' && $ !== null) {
+        $(element).tooltip({
+            items: element,
+            classes: {
+                "ui-tooltip": "ui-corner-all ui-widget-shadow card-info-tooltip"
+              },
+            content: function(next) {
+                fetch_card_info(card_name).then(next);
             },
-            success: function(data) {
-                if (data.card_faces && data.card_faces.length > 0) {
-                    element.setAttribute(attributeName,
-                        data.card_faces.map(e => 
-                            e.name + '  ' + e.mana_cost + ' - ' + e.type_line + '\n\n' + 
-                            e.oracle_text)
-                        .join('\n🔄\n'));
-                } else {
-                    element.setAttribute(attributeName,
-                        data.name + '  ' + data.mana_cost + ' - ' + data.type_line + '\n\n' +
-                        data.oracle_text);
-                }
-                if (typeof $ !== 'undefined' && $ !== null) {
-                    $(".ui-tooltip-content").parents('div').remove();
-                    $(element).tooltip({
-                        items: `[${attributeName}]`,
-                        content: function() {
-                            return this.getAttribute(attributeName);
-                        }
-                    }).mouseover();
-                }
-            }
+            // show: "fold",
+            // hide: "fold",
+            position: { my: "left+20 center", at: "right center", collision: "flipfit" },
+            track: true,
         });
+    } else {
+        element.title = 'Loading..';
+        element.onmouseover = function() {
+            if (element.title === 'Loading..') {
+                element.title = 'Loading...';
+                fetch_card_info(card_name).then(function(text) {
+                    element.title = text;
+                });
+            }
+        };
     }
 }

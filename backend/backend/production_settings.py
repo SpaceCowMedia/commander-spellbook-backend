@@ -26,8 +26,9 @@ SECRET_KEY = os.environ['SECRET_KEY']
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
-PARALLEL_SOLVERS = multiprocessing.cpu_count()
 DEFAULT_BULK_FOLDER = '/home/app/web/staticfiles/bulk'
+
+ASYNC_GENERATION = True
 
 # Security settings
 ALLOWED_HOSTS = [

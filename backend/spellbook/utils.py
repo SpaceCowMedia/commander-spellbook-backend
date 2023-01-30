@@ -8,8 +8,6 @@ from django.db.models import Avg, F
 from .models import Job
 from django.conf import settings
 
-ASYNC_MODE = True
-
 
 def launch_command_async(command: str, args: list[str] = []):
     manage_py_path = pathlib.Path(__file__).parent.parent / 'manage.py'
@@ -42,7 +40,7 @@ def launch_job_command(command: str, duration: timedelta, user, args: list[str] 
         user=user)
     if job is not None:
         try:
-            if ASYNC_MODE:
+            if settings.ASYNC_GENERATION:
                 launch_command_async(command, ['--id', str(job.id)] + args)
             else:
                 call_command(command, *args, id=job.id)

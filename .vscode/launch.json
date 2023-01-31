@@ -14,6 +14,7 @@
                 "runserver",
                 "8000"
             ],
+            "preLaunchTask": "Clean pending jobs",
             "django": true,
             "justMyCode": false,
             "presentation": {

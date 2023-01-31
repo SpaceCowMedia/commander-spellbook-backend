@@ -10,6 +10,8 @@ from django.http import HttpRequest
 from django.shortcuts import redirect
 from django.db.models import Count
 from .variants.combo_graph import MAX_CARDS_IN_COMBO
+from django.urls import reverse
+from django.utils.html import format_html
 
 
 @admin.register(Card)
@@ -85,9 +87,9 @@ class CardsCountListFilter(admin.SimpleListFilter):
 @admin.register(Variant)
 class VariantAdmin(admin.ModelAdmin):
     form = VariantForm
-    readonly_fields = ['uses', 'requires', 'produces', 'of', 'includes', 'unique_id', 'identity']
+    readonly_fields = ['uses_cards', 'requires', 'produces', 'of', 'includes', 'unique_id', 'identity']
     fieldsets = [
-        ('Generated', {'fields': ['unique_id', 'uses', 'requires', 'produces', 'of', 'includes', 'identity']}),
+        ('Generated', {'fields': ['unique_id', 'uses_cards', 'requires', 'produces', 'of', 'includes', 'identity']}),
         ('Editable', {'fields': [
             'status',
             'zone_locations',
@@ -135,6 +137,16 @@ class VariantAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         return super().get_queryset(request) \
             .prefetch_related('uses', 'requires', 'produces', 'of', 'includes')
+    
+    @admin.display(description='Uses these cards')
+    def uses_cards(self, instance):
+        cards = list(instance.uses.all())
+        args=[]
+        for card in cards:
+            args.append(reverse('admin:spellbook_card_change', args=(card.id,)))
+            args.append(card.name)
+        html = ', '.join(['<a href="{}" class="card-name">{}</a>' for _ in cards])
+        return format_html(html, *args)
 
 
 class ComboForm(ModelForm):

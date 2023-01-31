@@ -1,0 +1,15 @@
+{% extends "admin/change_form.html" %}
+{% load static %}
+
+{% block extrahead %}
+    {{ block.super }}
+    {% include 'admin/spellbook/includes/jquery_imports.html' %}
+    {% include 'admin/spellbook/includes/card_info_imports.html' %}
+    <script>
+        django.jQuery(function(){
+            django.jQuery('.card-name').each((_, e) => {
+                card_info.setup_tooltip(e.text, e);
+            })
+        });
+    </script>
+{% endblock %}

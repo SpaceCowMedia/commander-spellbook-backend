@@ -2,7 +2,7 @@ import json
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 from django.core.management.base import BaseCommand
-from spellbook.variants import unique_id_from_cards_ids, merge_identities
+from spellbook.variants.variants_generator import unique_id_from_cards_and_templates_ids, merge_identities
 from spellbook.models import Feature, Card, Job, Variant
 from django.utils import timezone
 from django.db.models import Count, Q
@@ -17,7 +17,8 @@ def scryfall() -> dict:
     with urlopen(req) as response:
         data = json.loads(response.read().decode())
         req = Request(
-            data['download_uri']
+            data['download_uri'],
+            headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; rv:91.0) Gecko/20100101 Firefox/91.0'}
         )
         with urlopen(req) as response:
             data = json.loads(response.read().decode())
@@ -111,7 +112,7 @@ class Command(BaseCommand):
                     description=description,
                     frozen=True,
                     status=Variant.Status.OK,
-                    unique_id=unique_id_from_cards_ids([c.id for c in cards]),
+                    unique_id=unique_id_from_cards_and_templates_ids([c.id for c in cards], []),
                     identity=merge_identities([c.identity for c in cards]))
                 combo.save()
                 combo.uses.set(cards)

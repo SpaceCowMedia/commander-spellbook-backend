@@ -20,7 +20,7 @@
                     if (node.displayed) {
                         const new_option = new Option(node.text, node.value, false, false);
                         // Shows a tooltip when hovering over the option
-                        setup_tooltip(new_option.text, new_option);
+                        card_info.setup_tooltip(new_option.text, new_option);
                         box.appendChild(new_option);
                     }
                 }

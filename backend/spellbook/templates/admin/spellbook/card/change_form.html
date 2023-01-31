@@ -6,8 +6,8 @@
     {% include 'admin/spellbook/includes/jquery_imports.html' %}
     {% include 'admin/spellbook/includes/card_info_imports.html' %}
     <style>
-        #card-image {
-            width: min(8cm, 100%);
+        #card-images>img {
+            max-height: 10cm;
         }
     </style>
 {% endblock %}
@@ -15,28 +15,15 @@
 {% block admin_change_form_document_ready %}
     {{ block.super }}
     <script>
-        function updateCardImage() {
-            django.jQuery.ajax({
-                type: 'POST',
-                url: 'https://api.scryfall.com/cards/collection',
-                data: JSON.stringify({
-                    identifiers: [{
-                        oracle_id: document.getElementById('id_oracle_id').value
-                    }]
-                }),
-                success: function(data) {
-                    if (data.data.length > 0) {
-                        let png_url = data.data[0].image_uris.png;
-                        document.getElementById('card-image').src = png_url;
-                    }
-                },
-                contentType: 'application/json',
-                dataType: 'json'
-            });
-        }
-        if (document.getElementById('id_oracle_id').value) {
-            updateCardImage();
-        }
+        // trigger on page load if card is already selected
+        django.jQuery(function() {
+            if (document.getElementById('id_oracle_id').value) {
+                card_info.update_card_oracle_image(
+                    document.getElementById('id_oracle_id').value,
+                    document.getElementById('card-images'));
+            }
+        });
+
         $('#id_name').autocomplete({
             source: function(request, response) {
                 django.jQuery.ajax({
@@ -54,14 +41,9 @@
             minLength: 3,
             select: function(event, ui) {
                 let card = ui.item.value;
-                django.jQuery.ajax({
-                    url: 'https://api.scryfall.com/cards/named',
-                    dataType: 'json',
-                    data: {
-                        exact: card,
-                        format: 'json'
-                    },
-                    success: function(data) {
+                card_info
+                    .fetch_card_info(card)
+                    .then(function(data) {
                         let oracle_id = data.oracle_id;
                         django.jQuery('#id_oracle_id').val(oracle_id);
 
@@ -73,20 +55,21 @@
                             }
                         }
                         django.jQuery('#id_identity').val(result);
-                        updateCardImage();
-                    }
-                })
+                        card_info.update_card_oracle_image(
+                            document.getElementById('id_oracle_id').value,
+                            document.getElementById('card-images'));
+                    });
             },
             open: function() {},
             close: function() {},
         })
         .autocomplete('instance')
         ._renderItem = function(ul, item) {
-            const newItem = $("<li>")
-                .attr("data-value", item.value)
+            const newItem = $('<li>')
+                .attr('data-value', item.value)
                 .append(item.label)
                 .appendTo(ul);
-            setup_tooltip(item.value, newItem);
+            card_info.setup_tooltip(item.value, newItem);
             return newItem;
         };
     </script>
@@ -102,8 +85,8 @@
         </thead>
         <tbody>
             <tr>
-                <td>
-                    <img id="card-image" src="{% static 'spellbook/images/card-back.png' %}" alt="'{{ original.name }}' image">
+                <td id="card-images">
+                    <img src="{% static 'spellbook/images/card-back.png' %}" alt="Card image is not available yet">
                 </td>
             </tr>
         </tbody>

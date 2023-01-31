@@ -46,7 +46,7 @@ class Command(BaseCommand):
             self.stdout.write('Fetching variants from db...')
             result = {
                 'timestamp': timezone.now().isoformat(),
-                'variants': [prepare_variant(v) for v in Variant.objects.filter(status=Variant.Status.OK)],
+                'variants': [prepare_variant(v) for v in Variant.objects.prefetch_related('uses', 'requires', 'produces', 'of', 'includes').filter(status=Variant.Status.OK)],
             }
             self.stdout.write(f'Exporting variants to {output}...')
             output.parent.mkdir(parents=True, exist_ok=True)

@@ -137,11 +137,11 @@ class VariantAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         return super().get_queryset(request) \
             .prefetch_related('uses', 'requires', 'produces', 'of', 'includes')
-    
+
     @admin.display(description='Uses these cards')
     def uses_cards(self, instance):
         cards = list(instance.uses.all())
-        args=[]
+        args = []
         for card in cards:
             args.append(reverse('admin:spellbook_card_change', args=(card.id,)))
             args.append(card.name)

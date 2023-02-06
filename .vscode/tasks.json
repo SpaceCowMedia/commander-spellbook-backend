@@ -2,6 +2,15 @@
     "version": "2.0.0",
     "tasks": [
         {
+            "label": "Apply migrations",
+            "type": "shell",
+            "command": "python manage.py migrate",
+            "group": "none",
+            "options": {
+                "cwd": "${workspaceFolder}/backend"
+            }
+        },
+        {
             "label": "Create temporary directories",
             "type": "shell",
             "args": [],
@@ -26,11 +35,15 @@
             "type": "shell",
             "command": "python backend/manage.py clean_jobs",
             "group": "none",
+            "dependsOn": [
+                "Apply migrations"
+            ],
         },
         {
             "label": "Profile Prelaunch",
             "group": "none",
             "dependsOn": [
+                "Apply migrations",
                 "Create temporary directories",
                 "Clean pending jobs"
             ],

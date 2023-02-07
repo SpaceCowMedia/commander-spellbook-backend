@@ -136,8 +136,5 @@ Scripts/
 # profiling
 *.prof
 
-# vscode
-.vscode/settings.json
-
 # temp files
 temp/

@@ -92,9 +92,9 @@ class Command(BaseCommand):
                 except Card.DoesNotExist:
                     q = Card.objects.filter(name=data['name'])
                     common_kwargs = {
-                        'oracle_id' : data['oracle_id'],
-                        'identity' : merge_identities(data['color_identity']), 
-                        'legal' : data['legalities']['commander'] != 'banned'
+                        'oracle_id': data['oracle_id'],
+                        'identity': merge_identities(data['color_identity']),
+                        'legal': data['legalities']['commander'] != 'banned'
                     }
                     if q.exists():
                         q.update(**common_kwargs)

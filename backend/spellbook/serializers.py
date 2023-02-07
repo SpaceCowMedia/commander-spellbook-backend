@@ -5,7 +5,7 @@ from .models import Card, Template, Feature, Combo, Variant
 class CardSerializer(serializers.ModelSerializer):
     class Meta:
         model = Card
-        fields = ['id', 'name', 'oracle_id', 'identity']
+        fields = ['id', 'name', 'oracle_id', 'identity', 'legal']
 
 
 class FeatureSerializer(serializers.ModelSerializer):
@@ -19,7 +19,7 @@ class CardDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Card
-        fields = ['id', 'name', 'oracle_id', 'identity', 'features']
+        fields = ['id', 'name', 'oracle_id', 'identity', 'legal', 'features']
 
 
 class TemplateSerializer(serializers.ModelSerializer):
@@ -77,4 +77,5 @@ class VariantSerializer(serializers.ModelSerializer):
             'cards_state',
             'mana_needed',
             'other_prerequisites',
-            'description']
+            'description',
+            'legal']

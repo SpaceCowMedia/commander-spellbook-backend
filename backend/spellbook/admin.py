@@ -18,9 +18,10 @@ from django.utils.html import format_html
 class CardAdmin(admin.ModelAdmin):
     fieldsets = [
         ('Spellbook', {'fields': ['name', 'features']}),
-        ('Scryfall', {'fields': ['oracle_id', 'identity']}),
+        ('Scryfall', {'fields': ['oracle_id', 'identity', 'legal']}),
     ]
     # inlines = [FeatureInline]
+    list_filter = ['identity', 'legal']
     search_fields = ['name', 'features__name']
     autocomplete_fields = ['features']
     list_display = ['name', 'identity', 'id']
@@ -87,9 +88,9 @@ class CardsCountListFilter(admin.SimpleListFilter):
 @admin.register(Variant)
 class VariantAdmin(admin.ModelAdmin):
     form = VariantForm
-    readonly_fields = ['uses_cards', 'requires', 'produces', 'of', 'includes', 'unique_id', 'identity']
+    readonly_fields = ['uses_cards', 'requires', 'produces', 'of', 'includes', 'unique_id', 'identity', 'legal']
     fieldsets = [
-        ('Generated', {'fields': ['unique_id', 'uses_cards', 'requires', 'produces', 'of', 'includes', 'identity']}),
+        ('Generated', {'fields': ['unique_id', 'uses_cards', 'requires', 'produces', 'of', 'includes', 'identity', 'legal']}),
         ('Editable', {'fields': [
             'status',
             'zone_locations',
@@ -99,7 +100,7 @@ class VariantAdmin(admin.ModelAdmin):
             'description',
             'frozen']})
     ]
-    list_filter = ['status', CardsCountListFilter, 'identity']
+    list_filter = ['status', CardsCountListFilter, 'identity', 'legal']
     list_display = ['__str__', 'status', 'id', 'identity']
     search_fields = ['id', 'uses__name', 'produces__name', 'requires__name', 'unique_id', 'identity']
     actions = [set_restore, set_draft, set_new, set_not_working]

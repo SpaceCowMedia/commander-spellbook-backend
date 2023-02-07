@@ -2,7 +2,7 @@ import json
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 from django.core.management.base import BaseCommand
-from spellbook.variants.variants_generator import unique_id_from_cards_and_templates_ids, merge_identities
+from spellbook.variants.variants_generator import unique_id_from_cards_and_templates_ids, merge_identities, VariantBulkSaveItem, perform_bulk_saves
 from spellbook.models import Feature, Card, Job, Variant
 from django.utils import timezone
 from django.db.models import Count, Q
@@ -66,13 +66,14 @@ class Command(BaseCommand):
         job = Job(name='import_combos', expected_termination=timezone.now() + timezone.timedelta(minutes=12))
         job.save()
         try:
-            self.stdout.write('Importing combos...')
+            self.stdout.write('Fetching combos...')
             x = find_combos()
             self.stdout.write('Found {} combos'.format(len(x)))
             self.stdout.write('Fetching scryfall dataset...')
             scryfall_db = scryfall()
             self.stdout.write('Fetching scryfall dataset...done')
             cards = {c.lower() for t in x for c in t[1]}
+            cards_db_cache = dict[str, Card]()
             self.stdout.write(f'Found {len(cards)} cards, fetching new ones from Scryfall...')
             for i, card in enumerate(cards):
                 self.stdout.write(f'{i+1}/{len(cards)} {card}')
@@ -85,19 +86,29 @@ class Command(BaseCommand):
                     with urlopen(scryreq) as response:
                         data = json.loads(response.read().decode())
                         scryfall_db[card] = data
+                c = None
                 try:
-                    Card.objects.get(oracle_id=data['oracle_id'])
+                    c = Card.objects.get(oracle_id=data['oracle_id'])
                 except Card.DoesNotExist:
                     q = Card.objects.filter(name=data['name'])
+                    common_kwargs = {
+                        'oracle_id' : data['oracle_id'],
+                        'identity' : merge_identities(data['color_identity']), 
+                        'legal' : data['legalities']['commander'] != 'banned'
+                    }
                     if q.exists():
-                        q.update(oracle_id=data['oracle_id'], identity=merge_identities(data['color_identity']))
+                        q.update(**common_kwargs)
+                        c = q.first()
                     else:
-                        Card.objects.create(name=data['name'], oracle_id=data['oracle_id'], identity=merge_identities(data['color_identity']))
+                        c = Card.objects.create(name=data['name'], **common_kwargs)
+                cards_db_cache[str(c.oracle_id)] = c
             self.stdout.write('Done fetching cards')
             self.stdout.write('Importing combos...')
+            bulk_variant_dict = dict[str, VariantBulkSaveItem]()
             for i, (id, _cards, produced, prerequisite, description) in enumerate(x):
-                self.stdout.write(f'{i+1}/{len(x)}')
-                cards = [Card.objects.get(oracle_id=scryfall_db[card.lower()]['oracle_id']) for card in _cards]
+                self.stdout.write(f'{i+1}/{len(x)}\n' if (i + 1) % 100 == 0 else '.', ending='')
+                cards = [cards_db_cache[scryfall_db[card.lower()]['oracle_id']] for card in _cards]
+                unique_id = unique_id_from_cards_and_templates_ids([c.id for c in cards], [])
                 already_present = Variant.objects.annotate(
                     total_cards=Count('uses'),
                     matching_cards=Count('uses', filter=Q(uses__in=cards)),
@@ -106,23 +117,36 @@ class Command(BaseCommand):
                     matching_cards=len(cards),
                 )
                 if already_present.exists():
-                    self.stdout.write(f'Skipping combo [{id}] {cards}: already present in variants')
+                    self.stdout.write(f'\nSkipping combo [{id}] {cards}: already present in variants')
+                    continue
+                if unique_id in bulk_variant_dict:
+                    self.stdout.write(f'\nSkipping combo [{id}] {cards}: already present in imported variants')
                     continue
                 combo = Variant(other_prerequisites=prerequisite,
                     description=description,
                     frozen=True,
                     status=Variant.Status.OK,
-                    unique_id=unique_id_from_cards_and_templates_ids([c.id for c in cards], []),
-                    identity=merge_identities([c.identity for c in cards]))
-                combo.save()
-                combo.uses.set(cards)
+                    unique_id=unique_id,
+                    identity=merge_identities([c.identity for c in cards]),
+                    legal=all(c.legal for c in cards))
+                produces = set()
                 for p in produced:
                     try:
                         f = Feature.objects.get(name=p.title())
                     except Feature.DoesNotExist:
                         f = Feature.objects.create(name=p.title())
-                    if f not in combo.produces.all():
-                        combo.produces.add(f)
+                    if f not in produces:
+                        produces.add(f)
+                bulk_item = VariantBulkSaveItem(should_save=True,
+                    variant=combo,
+                    uses=[c.id for c in cards],
+                    requires=[],
+                    of=set(),
+                    includes=set(),
+                    produces={f.id for f in produces})
+                bulk_variant_dict[bulk_item.variant.unique_id] = bulk_item
+            self.stdout.write('Saving combos...')
+            perform_bulk_saves(to_create=list(bulk_variant_dict.values()), to_update=[])
             job.termination = timezone.now()
             job.status = Job.Status.SUCCESS
             job.message = f'Successfully imported {len(x)} combos'

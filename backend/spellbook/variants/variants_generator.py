@@ -52,10 +52,12 @@ def includes_any(v: set[int], others: Iterable[set[int]]) -> bool:
 
 @dataclass
 class VariantBulkSaveItem:
+    # Data fields
     should_save: bool
     variant: Variant
-    uses: list[int] | None
-    requires: list[int] | None
+    # Relationships fields
+    uses: list[int]
+    requires: list[int]
     of: set[int]
     includes: set[int]
     produces: set[int]
@@ -78,6 +80,7 @@ def update_variant(
         variant.other_prerequisites = '\n'.join(c.other_prerequisites for c in combos if len(c.other_prerequisites) > 0)
         variant.mana_needed = ' '.join(c.mana_needed for c in combos if len(c.mana_needed) > 0)
         variant.description = '\n'.join(c.description for c in combos if len(c.description) > 0)
+        variant.legal = all(i not in data.banned_cards_ids for i in variant_def.card_ids)
         variant.status = Variant.Status.NEW if ok else Variant.Status.NOT_WORKING
     if not ok:
         variant.status = Variant.Status.NOT_WORKING
@@ -85,8 +88,8 @@ def update_variant(
     return VariantBulkSaveItem(
         should_save=should_save,
         variant=variant,
-        uses=None,
-        requires=None,
+        uses=[],
+        requires=[],
         of=variant_def.of_ids,
         includes=variant_def.included_ids,
         produces=subtract_removed_features(data, variant_def.included_ids, variant_def.feature_ids) - data.utility_features_ids,
@@ -112,6 +115,7 @@ def create_variant(
         other_prerequisites=other_prerequisites,
         mana_needed=mana_needed,
         description=description,
+        legal=all(i not in data.banned_cards_ids for i in variant_def.card_ids),
         identity=merge_identities([data.id_to_card[c_id].identity for c_id in variant_def.card_ids]),
         generated_by=job)
     if not ok:
@@ -163,7 +167,7 @@ def get_variants_from_graph(data: Data, job: Job = None) -> dict[str, VariantDef
 def perform_bulk_saves(to_create: list[VariantBulkSaveItem], to_update: list[VariantBulkSaveItem]):
     batch_size = 999
     Variant.objects.bulk_create((v.variant for v in to_create if v.should_save), batch_size=batch_size)
-    update_fields = ['identity', 'zone_locations', 'cards_state', 'mana_needed', 'other_prerequisites', 'description', 'status']
+    update_fields = ['identity', 'zone_locations', 'cards_state', 'mana_needed', 'other_prerequisites', 'description', 'status', 'legal']
     Variant.objects.bulk_update((v.variant for v in to_update if v.should_save), fields=update_fields, batch_size=batch_size)
     UsesTable = Variant.uses.through
     UsesTable.objects.bulk_create((UsesTable(variant_id=v.variant.id, card_id=c) for v in to_create if v.should_save for c in v.uses), batch_size=batch_size)

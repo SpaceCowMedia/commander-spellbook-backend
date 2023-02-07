@@ -32,6 +32,7 @@ class Card(models.Model):
         help_text='Features provided by this single card effects or characteristics',
         blank=True)
     identity = models.CharField(max_length=5, blank=True, help_text='Card mana identity', verbose_name='mana identity of card', validators=[IDENTITY_VALIDATOR])
+    legal = models.BooleanField(default=True, help_text='Is this card legal in Commander?', verbose_name='is legal')
     added = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, editable=False)
 
@@ -222,6 +223,7 @@ class Variant(models.Model):
     updated = models.DateTimeField(auto_now=True, editable=False)
     unique_id = models.CharField(max_length=128, unique=True, blank=False, help_text='Unique ID for this variant', editable=False)
     frozen = models.BooleanField(default=False, blank=False, help_text='Is this variant undeletable?', verbose_name='is frozen')
+    legal = models.BooleanField(default=True, blank=False, help_text='Is this variant legal in Commander?', verbose_name='is legal')
     identity = models.CharField(max_length=5, blank=True, help_text='Mana identity', verbose_name='mana identity', editable=False, validators=[IDENTITY_VALIDATOR])
     generated_by = models.ForeignKey(Job, on_delete=models.SET_NULL, null=True, blank=True, editable=False, help_text='Job that generated this variant', related_name='variants')
 

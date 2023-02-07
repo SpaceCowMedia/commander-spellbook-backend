@@ -35,6 +35,7 @@ class Data:
         self.combo_to_removed_features = fetch_removed_features(self.combos)
         self.id_to_combo = {c.id: c for c in self.combos}
         self.id_to_card = {c.id: c for c in self.cards}
+        self.banned_cards_ids = frozenset[int](Card.objects.filter(legal=False).values_list('id', flat=True))
 
 
 count = 0

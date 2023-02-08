@@ -1,10 +1,10 @@
 from django.contrib import admin
 from django.urls import path
 from .utils import launch_job_command
-from .models import Card, Template, Feature, Combo, Variant, Job
+from .models import *
 from django.contrib import messages
 from django.forms import ModelForm
-from django.core.exceptions import ValidationError
+# from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.http import HttpRequest
 from django.shortcuts import redirect
@@ -27,7 +27,7 @@ class CardAdmin(admin.ModelAdmin):
     list_display = ['name', 'identity', 'id']
 
 
-class CardInline(admin.StackedInline):
+class CardInFeatureAdminInline(admin.StackedInline):
     model = Feature.cards.through
     extra = 1
     autocomplete_fields = ['card']
@@ -40,7 +40,7 @@ class FeatureAdmin(admin.ModelAdmin):
     fieldsets = [
         (None, {'fields': ['name', 'utility', 'description']}),
     ]
-    inlines = [CardInline]
+    inlines = [CardInFeatureAdminInline]
     search_fields = ['name', 'cards__name']
     list_display = ['name', 'utility', 'id']
     list_filter = ['utility']
@@ -85,16 +85,124 @@ class CardsCountListFilter(admin.SimpleListFilter):
         return queryset
 
 
+class ComboForm(ModelForm):
+    def clean_mana_needed(self):
+        return self.cleaned_data['mana_needed'].upper() if self.cleaned_data['mana_needed'] else self.cleaned_data['mana_needed']
+
+
+class IngredientInComboForm(ModelForm):
+    def clean(self):
+        if hasattr(self.cleaned_data['combo'], 'ingredient_count'):
+            self.cleaned_data['combo'].ingredient_count += 1
+        else:
+            self.cleaned_data['combo'].ingredient_count = 1
+        self.instance.order = self.cleaned_data['combo'].ingredient_count
+        return super().clean()
+
+
+class CardInComboAdminInline(admin.TabularInline):
+    fields = ['card', 'zone_location', 'card_state']
+    form = IngredientInComboForm
+    model = CardInCombo
+    extra = 1
+    verbose_name = 'Card'
+    verbose_name_plural = 'Cards'
+    autocomplete_fields = ['card']
+    max_num = MAX_CARDS_IN_COMBO
+
+
+class TemplateInComboAdminInline(admin.TabularInline):
+    fields = ['template', 'zone_location', 'card_state']
+    form = IngredientInComboForm
+    model = TemplateInCombo
+    extra = 1
+    verbose_name = 'Template'
+    verbose_name_plural = 'Templates'
+    autocomplete_fields = ['template']
+    max_num = MAX_CARDS_IN_COMBO
+
+
+class FeatureInComboAdminInline(admin.TabularInline):
+    model = Combo.needs.through
+    extra = 1
+    verbose_name = 'Feature'
+    verbose_name_plural = 'Features'
+    autocomplete_fields = ['feature']
+    max_num = MAX_CARDS_IN_COMBO
+
+
+@admin.register(Combo)
+class ComboAdmin(admin.ModelAdmin):
+    form = ComboForm
+    fieldsets = [
+        ('More Requirements', {'fields': [
+            'mana_needed',
+            'other_prerequisites']}),
+        ('Features', {'fields': ['produces', 'removes']}),
+        ('Description', {'fields': ['generator', 'description']}),
+    ]
+    inlines = [CardInComboAdminInline, TemplateInComboAdminInline, FeatureInComboAdminInline]
+    filter_horizontal = ['uses', 'produces', 'needs', 'removes']
+    list_filter = ['generator']
+    search_fields = ['uses__name', 'requires__name', 'produces__name', 'needs__name']
+    list_display = ['__str__', 'generator', 'id']
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).prefetch_related('uses', 'requires', 'produces', 'needs', 'removes')
+
+
+class CardInVariantAdminInline(admin.TabularInline):
+    readonly_fields = ['card_name']
+    fields = ['card_name', 'zone_location', 'card_state']
+    model = CardInVariant
+    extra = 0
+    verbose_name = 'Card'
+    verbose_name_plural = 'Cards'
+    can_delete = False
+
+    def has_add_permission(self, request, obj) -> bool:
+        return False
+    
+    def has_delete_permission(self, request, obj) -> bool:
+        return False
+
+    def card_name(self, instance):
+        card = instance.card
+        html = '<a href="{}" class="card-name">{}</a>'
+        return format_html(html, reverse('admin:spellbook_card_change', args=(card.id,)), card.name)
+
+
+class TemplateInVariantAdminInline(admin.TabularInline):
+    readonly_fields = ['template']
+    fields = ['template', 'zone_location', 'card_state']
+    model = TemplateInVariant
+    extra = 0
+    verbose_name = 'Template'
+    verbose_name_plural = 'Templates'
+    can_delete = False
+
+    def has_add_permission(self, request, obj) -> bool:
+        return False
+    
+    def has_delete_permission(self, request, obj) -> bool:
+        return False
+
+
 @admin.register(Variant)
 class VariantAdmin(admin.ModelAdmin):
     form = VariantForm
-    readonly_fields = ['uses_cards', 'requires', 'produces', 'of', 'includes', 'unique_id', 'identity', 'legal']
+    inlines = [CardInVariantAdminInline, TemplateInVariantAdminInline]
+    readonly_fields = ['produces', 'of', 'includes', 'unique_id', 'identity', 'legal']
     fieldsets = [
-        ('Generated', {'fields': ['unique_id', 'uses_cards', 'requires', 'produces', 'of', 'includes', 'identity', 'legal']}),
+        ('Generated', {'fields': [
+            'unique_id',
+            'produces',
+            'of',
+            'includes',
+            'identity',
+            'legal']}),
         ('Editable', {'fields': [
             'status',
-            'zone_locations',
-            'cards_state',
             'mana_needed',
             'other_prerequisites',
             'description',
@@ -138,51 +246,6 @@ class VariantAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         return super().get_queryset(request) \
             .prefetch_related('uses', 'requires', 'produces', 'of', 'includes')
-
-    @admin.display(description='Uses these cards')
-    def uses_cards(self, instance):
-        cards = list(instance.uses.all())
-        args = []
-        for card in cards:
-            args.append(reverse('admin:spellbook_card_change', args=(card.id,)))
-            args.append(card.name)
-        html = ', '.join(['<a href="{}" class="card-name">{}</a>' for _ in cards])
-        return format_html(html, *args)
-
-
-class ComboForm(ModelForm):
-    def clean(self):
-        if self.is_valid():
-            if len(self.cleaned_data['uses']) + len(self.cleaned_data['needs']) == 0:
-                raise ValidationError('Combo must include a card or need a feature to make sense.')
-        return super().clean()
-
-    def clean_mana_needed(self):
-        return self.cleaned_data['mana_needed'].upper() if self.cleaned_data['mana_needed'] else self.cleaned_data['mana_needed']
-
-
-@admin.register(Combo)
-class ComboAdmin(admin.ModelAdmin):
-    form = ComboForm
-    fieldsets = [
-        ('Requirements', {'fields': [
-            'uses',
-            'needs',
-            'requires',
-            'zone_locations',
-            'cards_state',
-            'mana_needed',
-            'other_prerequisites']}),
-        ('Features', {'fields': ['produces', 'removes']}),
-        ('Description', {'fields': ['generator', 'description']}),
-    ]
-    filter_horizontal = ['uses', 'requires', 'produces', 'needs', 'removes']
-    list_filter = ['generator']
-    search_fields = ['uses__name', 'requires__name', 'produces__name', 'needs__name']
-    list_display = ['__str__', 'generator', 'id']
-
-    def get_queryset(self, request):
-        return super().get_queryset(request).prefetch_related('uses', 'requires', 'produces', 'needs', 'removes')
 
 
 @admin.register(Job)

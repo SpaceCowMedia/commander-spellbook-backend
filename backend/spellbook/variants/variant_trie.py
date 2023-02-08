@@ -77,7 +77,7 @@ class VariantTrie():
         while len(trie) > 0:
             key, value = trie.popitem()
             cards, templates = self.key_to_ingredients(key)
-            result.append((cards, templates))
+            result.append((sorted(cards), sorted(templates)))
             for rotation in value:
                 if trie.has_key(rotation):
                     del trie[rotation]

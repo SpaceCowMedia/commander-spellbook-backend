@@ -5,6 +5,15 @@
     {{ block.super }}
     {% include 'admin/spellbook/includes/jquery_imports.html' %}
     {% include 'admin/spellbook/includes/card_info_imports.html' %}
+    <style>
+        td.original p {
+            visibility: hidden
+        }
+
+        .inline-group .tabular tr.has_original td {
+            padding-top: 8px;
+        }
+    </style>
     <script>
         django.jQuery(function(){
             django.jQuery('.card-name').each((_, e) => {
@@ -12,4 +21,18 @@
             })
         });
     </script>
+{% endblock %}
+
+{% block field_sets %}
+{% for inline_admin_formset in inline_admin_formsets %}
+    {% include inline_admin_formset.opts.template %}
+{% endfor %}
+
+{% for fieldset in adminform %}
+  {% include "admin/includes/fieldset.html" %}
+{% endfor %}
+{% endblock %}
+
+{% block inline_field_sets %}
+    <!-- Emptied -->
 {% endblock %}

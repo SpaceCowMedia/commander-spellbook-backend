@@ -5,31 +5,68 @@
     {{ block.super }}
     {% include 'admin/spellbook/includes/jquery_imports.html' %}
     {% include 'admin/spellbook/includes/card_info_imports.html' %}
-{% endblock %}
-
-{% block admin_change_form_document_ready %}
-    {{ block.super }}
     <script>
-        window.SelectBox.old_redisplay = window.SelectBox.redisplay;
-        window.SelectBox.redisplay = function(id) {
-            if (id.startsWith('id_uses_')) {
-                const box = document.getElementById(id);
-                const scroll_value_from_top = box.scrollTop;
-                box.innerHTML = '';
-                for (const node of SelectBox.cache[id]) {
-                    if (node.displayed) {
-                        const new_option = new Option(node.text, node.value, false, false);
-                        // Shows a tooltip when hovering over the option
-                        card_info.setup_tooltip(new_option.text, new_option);
-                        box.appendChild(new_option);
-                    }
-                }
-                box.scrollTop = scroll_value_from_top;
-            } else {
-                window.SelectBox.old_redisplay(id);
-            }
+        'use strict';
+        {
+            django.jQuery.fn.djangoAdminSelectCards = function() {
+                django.jQuery.each(this, function(i, element) {
+                    const s = django.jQuery(element).select2({
+                        ajax: {
+                            data: (params) => {
+                                return {
+                                    term: params.term,
+                                    page: params.page,
+                                    app_label: element.dataset.appLabel,
+                                    model_name: element.dataset.modelName,
+                                    field_name: element.dataset.fieldName
+                                };
+                            }
+                        },
+                        templateResult: (data) => {
+                            const elem = django.jQuery(document.createElement('span'));
+                            elem.addClass('tooltip-in-dropdown');
+                            elem.text(data.text);
+                            card_info.setup_tooltip(data.text, elem);
+                            return elem;
+                        },
+                        templateSelection: (data) => {
+                            const elem = django.jQuery(document.createElement('span'));
+                            elem.text(data.text);
+                            card_info.setup_tooltip(data.text, elem);
+                            return elem;
+                        },
+                    }).on('select2:closing', function(e) {
+                        $('.tooltip-in-dropdown').tooltip('close');                        
+                    });
+                });
+                return this;
+            };
+
+            django.jQuery(function() {
+                // Initialize all autocomplete widgets except the one in the template
+                // form used when a new formset is added.
+                django.jQuery('.admin-autocomplete[data-field-name=card]').not('[name*=__prefix__]').djangoAdminSelectCards();
+            });
+
+            document.addEventListener('formset:added', (event) => {
+                django.jQuery(event.target).find('.admin-autocomplete[data-field-name=card]').djangoAdminSelectCards();
+            });
         }
     </script>
+{% endblock %}
+
+{% block field_sets %}
+{% for inline_admin_formset in inline_admin_formsets %}
+    {% include inline_admin_formset.opts.template %}
+{% endfor %}
+
+{% for fieldset in adminform %}
+  {% include "admin/includes/fieldset.html" %}
+{% endfor %}
+{% endblock %}
+
+{% block inline_field_sets %}
+    <!-- Emptied -->
 {% endblock %}
 
 {% block after-content %}

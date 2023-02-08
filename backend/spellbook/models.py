@@ -81,7 +81,8 @@ class Combo(models.Model):
         related_name='used_in_combos',
         help_text='Cards that this combo uses',
         blank=True,
-        verbose_name='used cards')
+        verbose_name='used cards',
+        through='CardInCombo')
     needs = models.ManyToManyField(
         to=Feature,
         related_name='needed_by_combos',
@@ -93,7 +94,8 @@ class Combo(models.Model):
         related_name='required_by_combos',
         help_text='Templates that this combo requires',
         blank=True,
-        verbose_name='required templates')
+        verbose_name='required templates',
+        through='TemplateInCombo')
     produces = models.ManyToManyField(
         to=Feature,
         related_name='produced_by_combos',
@@ -105,8 +107,6 @@ class Combo(models.Model):
         help_text='Features that this combo removes',
         blank=True,
         verbose_name='removed features')
-    zone_locations = models.TextField(blank=True, default='', help_text='Starting locations for cards.', validators=TEXT_VALIDATORS, verbose_name='starting locations')
-    cards_state = models.TextField(blank=True, default='', help_text='State of cards in their starting locations.', validators=TEXT_VALIDATORS, verbose_name='starting cards state')
     mana_needed = models.CharField(blank=True, max_length=200, default='', help_text='Mana needed for this combo. Use the {1}{W}{U}{B}{R}{G}{B/P}... format.', validators=[MANA_VALIDATOR])
     other_prerequisites = models.TextField(blank=True, default='', help_text='Other prerequisites for this combo.', validators=TEXT_VALIDATORS)
     description = models.TextField(blank=True, help_text='Long description of the combo, in steps', validators=TEXT_VALIDATORS)
@@ -127,7 +127,7 @@ class Combo(models.Model):
             + (' - ' + ' - '.join([str(feature) for feature in self.removes.all()]) if self.removes.exists() else '')
 
     def ingredients(self):
-        return ' + '.join([str(card) for card in self.uses.all()] + [str(feature) for feature in self.needs.all()] + [str(template) for template in self.requires.all()])
+        return ' + '.join([str(card) for card in self.uses.order_by('cardincombo')] + [str(feature) for feature in self.needs.all()] + [str(template) for template in self.requires.order_by('templateincombo')])
 
 
 class Job(models.Model):
@@ -187,17 +187,19 @@ class Variant(models.Model):
         OK = 'OK'
         RESTORE = 'R'
 
-    uses = SortedManyToManyField(
+    uses = models.ManyToManyField(
         to=Card,
         related_name='used_in_variants',
         help_text='Cards that this variant uses',
-        editable=False)
+        editable=False,
+        through='CardInVariant')
     requires = models.ManyToManyField(
         to=Template,
         related_name='required_by_variants',
         help_text='Templates that this variant requires',
         blank=True,
-        verbose_name='required templates')
+        verbose_name='required templates',
+        through='TemplateInVariant')
     produces = SortedManyToManyField(
         to=Feature,
         related_name='produced_by_variants',
@@ -214,8 +216,6 @@ class Variant(models.Model):
         help_text='Combo that this variant is an instance of',
         editable=False)
     status = models.CharField(choices=Status.choices, default=Status.NEW, help_text='Variant status for editors', max_length=2)
-    zone_locations = models.TextField(blank=True, default='', help_text='Starting locations for cards.', validators=TEXT_VALIDATORS, verbose_name='starting locations')
-    cards_state = models.TextField(blank=True, default='', help_text='State of cards in their starting locations.', validators=TEXT_VALIDATORS, verbose_name='starting cards state')
     mana_needed = models.CharField(blank=True, max_length=200, default='', help_text='Mana needed for this combo. Use the {1}{W}{U}{B}{R}{G}{B/P}... format.', validators=[MANA_VALIDATOR])
     other_prerequisites = models.TextField(blank=True, default='', help_text='Other prerequisites for this variant.', validators=TEXT_VALIDATORS)
     description = models.TextField(blank=True, help_text='Long description, in steps', validators=TEXT_VALIDATORS)
@@ -239,6 +239,53 @@ class Variant(models.Model):
         if self.pk is None:
             return f'New variant with unique id <{self.unique_id}>'
         produces = self.produces.all()[:4]
-        return ' + '.join([str(card) for card in self.uses.all()] + [str(template) for template in self.requires.all()]) \
+        return ' + '.join([str(card) for card in self.uses.order_by('cardinvariant')] + [str(template) for template in self.requires.order_by('templateinvariant')]) \
             + ' ➡ ' + ' + '.join([str(feature) for feature in produces[:3]]) \
             + ('...' if len(produces) > 3 else '')
+
+
+# Through models
+class IngredientInCombination(models.Model):
+    class ZoneLocation(models.TextChoices):
+        HAND = 'H'
+        BATTLEFIELD = 'B'
+        COMMAND_ZONE = 'C'
+        GRAVEYARD = 'G'
+        LIBRARY = 'L'
+        EXILE = 'E'
+    order = models.IntegerField(blank=False, help_text='Order of the card in the combo.', verbose_name='order')
+    zone_location = models.CharField(choices=ZoneLocation.choices, default=ZoneLocation.HAND, max_length=2, blank=False, help_text='Starting location for the card.', verbose_name='starting location')
+    card_state = models.CharField(max_length=200, blank=True, default='', help_text='State of the card in its starting location.', validators=TEXT_VALIDATORS, verbose_name='starting card state')
+
+    class Meta:
+        abstract = True
+        ordering = ['order']
+
+
+class CardInCombo(IngredientInCombination):
+    card = models.ForeignKey(to=Card, on_delete=models.CASCADE)
+    combo = models.ForeignKey(to=Combo, on_delete=models.CASCADE)
+
+    class Meta(IngredientInCombination.Meta):
+        unique_together = [('card', 'combo'), ('order', 'combo')]
+
+class CardInVariant(IngredientInCombination):
+    card = models.ForeignKey(to=Card, on_delete=models.CASCADE)
+    variant = models.ForeignKey(to=Variant, on_delete=models.CASCADE)
+
+    class Meta(IngredientInCombination.Meta):
+        unique_together = [('card', 'variant'), ('order', 'variant')]
+
+class TemplateInCombo(IngredientInCombination):
+    template = models.ForeignKey(to=Template, on_delete=models.CASCADE)
+    combo = models.ForeignKey(to=Combo, on_delete=models.CASCADE)
+
+    class Meta(IngredientInCombination.Meta):
+        unique_together =  [('template', 'combo'), ('order', 'combo')]
+
+class TemplateInVariant(IngredientInCombination):
+    template = models.ForeignKey(to=Template, on_delete=models.CASCADE)
+    variant = models.ForeignKey(to=Variant, on_delete=models.CASCADE)
+
+    class Meta(IngredientInCombination.Meta):
+        unique_together = [('template', 'variant'), ('order', 'variant')]

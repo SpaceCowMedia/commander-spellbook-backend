@@ -187,8 +187,8 @@ class Graph:
         return feature.trie
 
     def _card_nodes_up(self, cards: list[CardNode], templates: list[TemplateNode]) -> VariantIngredients:
-        for featrue_node in templates + cards:
-            featrue_node.state = NodeState.VISITED
+        for feature_node in templates + cards:
+            feature_node.state = NodeState.VISITED
         card_nodes = set(cards)
         template_nodes = set(templates)
         feature_nodes: set[FeatureNode] = set()

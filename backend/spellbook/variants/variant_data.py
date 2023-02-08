@@ -1,5 +1,5 @@
 from collections import defaultdict
-from ..models import Card, Feature, Combo, Template, Variant
+from ..models import Card, Feature, Combo, Template, Variant, CardInCombo, TemplateInCombo
 from django.db import connection
 from django.db import reset_queries
 import logging
@@ -36,6 +36,14 @@ class Data:
         self.id_to_combo = {c.id: c for c in self.combos}
         self.id_to_card = {c.id: c for c in self.cards}
         self.banned_cards_ids = frozenset[int](Card.objects.filter(legal=False).values_list('id', flat=True))
+        self.cards_in_combo : dict[tuple[int, int], CardInCombo] = {(cic.card.id, cic.combo.id): cic for cic in CardInCombo.objects.prefetch_related('card', 'combo').all()}
+        self.templates_in_combo : dict[tuple[int, int], TemplateInCombo] = {(tic.template.id, tic.combo.id): tic for tic in TemplateInCombo.objects.prefetch_related('template', 'combo').all()}
+        self.combo_to_card_ids = defaultdict[int, list[int]](list)
+        self.combo_to_template_ids = defaultdict[int, list[int]](list)
+        for cid, cicid in self.combos.filter(uses__isnull=False).distinct().values_list('id', 'uses__id'):
+            self.combo_to_card_ids[cid].append(cicid)
+        for cid, ticid in self.combos.filter(requires__isnull=False).distinct().values_list('id', 'requires__id'):
+            self.combo_to_template_ids[cid].append(ticid)
 
 
 count = 0

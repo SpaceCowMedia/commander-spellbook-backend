@@ -1,10 +1,11 @@
 import json
 import hashlib
 import logging
+from itertools import chain
 from typing import Iterable
 from dataclasses import dataclass
 from django.db import transaction
-from ..models import Job, Variant
+from ..models import Job, Variant, CardInVariant, TemplateInVariant, IngredientInCombination
 from .variant_data import Data, debug_queries
 from .combo_graph import Graph
 
@@ -51,13 +52,24 @@ def includes_any(v: set[int], others: Iterable[set[int]]) -> bool:
 
 
 @dataclass
+class VariantIngredientSaveItem:
+    id: int
+    zone_location: str
+    card_state: str
+    order: int
+
+    @classmethod
+    def from_id(cls, id: int, order: int):
+        return cls(id=id, zone_location=IngredientInCombination.ZoneLocation.HAND, card_state='', order=order)
+
+@dataclass
 class VariantBulkSaveItem:
     # Data fields
     should_save: bool
     variant: Variant
     # Relationships fields
-    uses: list[int]
-    requires: list[int]
+    uses: list[VariantIngredientSaveItem]
+    requires: list[VariantIngredientSaveItem]
     of: set[int]
     includes: set[int]
     produces: set[int]
@@ -75,8 +87,6 @@ def update_variant(
     if restore:
         combos = data.combos.filter(id__in=variant_def.included_ids)
         variant.identity = merge_identities(variant.uses.values_list('identity', flat=True))
-        variant.zone_locations = '\n'.join(c.zone_locations for c in combos if len(c.zone_locations) > 0)
-        variant.cards_state = '\n'.join(c.cards_state for c in combos if len(c.cards_state) > 0)
         variant.other_prerequisites = '\n'.join(c.other_prerequisites for c in combos if len(c.other_prerequisites) > 0)
         variant.mana_needed = ' '.join(c.mana_needed for c in combos if len(c.mana_needed) > 0)
         variant.description = '\n'.join(c.description for c in combos if len(c.description) > 0)
@@ -102,16 +112,12 @@ def create_variant(
         variant_def: VariantDefinition,
         job: Job = None):
     combos = [data.id_to_combo[c_id] for c_id in variant_def.included_ids]
-    zone_locations = '\n'.join(c.zone_locations for c in combos if len(c.zone_locations) > 0)
-    cards_state = '\n'.join(c.cards_state for c in combos if len(c.cards_state) > 0)
     other_prerequisites = '\n'.join(c.other_prerequisites for c in combos if len(c.other_prerequisites) > 0)
     mana_needed = ' '.join(c.mana_needed for c in combos if len(c.mana_needed) > 0)
     description = '\n'.join(c.description for c in combos if len(c.description) > 0)
     ok = not includes_any(v=frozenset(variant_def.card_ids), others=data.not_working_variants)
     variant = Variant(
         unique_id=unique_id,
-        zone_locations=zone_locations,
-        cards_state=cards_state,
         other_prerequisites=other_prerequisites,
         mana_needed=mana_needed,
         description=description,
@@ -120,11 +126,38 @@ def create_variant(
         generated_by=job)
     if not ok:
         variant.status = Variant.Status.NOT_WORKING
+    uses = dict[int, VariantIngredientSaveItem]()
+    for card_id in variant_def.card_ids:
+        uses[card_id] = VariantIngredientSaveItem.from_id(card_id, 0)
+    requires = dict[int, VariantIngredientSaveItem]()
+    for template_id in variant_def.template_ids:
+        requires[template_id] = VariantIngredientSaveItem.from_id(template_id, 0)
+    for i, combo_id in enumerate(chain(variant_def.included_ids, variant_def.of_ids)):
+        for card_id in data.combo_to_card_ids[combo_id]:
+            uses[card_id].zone_location = data.cards_in_combo[(card_id, combo_id)].zone_location
+            if len(uses[card_id].card_state) > 0:
+                uses[card_id].card_state += ' '
+            uses[card_id].card_state += data.cards_in_combo[(card_id, combo_id)].card_state
+            uses[card_id].order += i
+        for template_id in data.combo_to_template_ids[combo_id]:
+            requires[template_id].zone_location = data.templates_in_combo[(template_id, combo_id)].zone_location
+            if len(requires[template_id].card_state) > 0:
+                requires[template_id].card_state += ' '
+            requires[template_id].card_state += data.templates_in_combo[(template_id, combo_id)].card_state
+            requires[template_id].order += i
+    def uses_list():
+        for i, v in enumerate(sorted(uses.values(), key=lambda v: v.order, reverse=True)):
+            v.order = i
+            yield v
+    def requires_list():
+        for i, v in enumerate(sorted(requires.values(), key=lambda v: v.order, reverse=True)):
+            v.order = i
+            yield v
     return VariantBulkSaveItem(
         should_save=True,
         variant=variant,
-        uses=variant_def.card_ids,
-        requires=variant_def.template_ids,
+        uses=list(uses_list()),
+        requires=list(requires_list()),
         of=variant_def.of_ids,
         includes=variant_def.included_ids,
         produces=subtract_removed_features(data, variant_def.included_ids, variant_def.feature_ids) - data.utility_features_ids,
@@ -167,12 +200,10 @@ def get_variants_from_graph(data: Data, job: Job = None) -> dict[str, VariantDef
 def perform_bulk_saves(to_create: list[VariantBulkSaveItem], to_update: list[VariantBulkSaveItem]):
     batch_size = 999
     Variant.objects.bulk_create((v.variant for v in to_create if v.should_save), batch_size=batch_size)
-    update_fields = ['identity', 'zone_locations', 'cards_state', 'mana_needed', 'other_prerequisites', 'description', 'status', 'legal']
+    update_fields = ['identity', 'mana_needed', 'other_prerequisites', 'description', 'status', 'legal']
     Variant.objects.bulk_update((v.variant for v in to_update if v.should_save), fields=update_fields, batch_size=batch_size)
-    UsesTable = Variant.uses.through
-    UsesTable.objects.bulk_create((UsesTable(variant_id=v.variant.id, card_id=c) for v in to_create if v.should_save for c in v.uses), batch_size=batch_size)
-    RequiresTable = Variant.requires.through
-    RequiresTable.objects.bulk_create((RequiresTable(variant_id=v.variant.id, template_id=t) for v in to_create if v.should_save for t in v.requires), batch_size=batch_size)
+    CardInVariant.objects.bulk_create((CardInVariant(variant_id=v.variant.id, card_id=c.id, zone_location=c.zone_location, card_state=c.card_state, order=c.order) for v in to_create if v.should_save for c in v.uses), batch_size=batch_size)
+    TemplateInVariant.objects.bulk_create((TemplateInVariant(variant_id=v.variant.id, template_id=t.id, zone_location=t.zone_location, card_state=t.card_state, order=t.order) for v in to_create if v.should_save for t in v.requires), batch_size=batch_size)
     OfTable = Variant.of.through
     OfTable.objects.all().delete()
     OfTable.objects.bulk_create((OfTable(variant_id=v.variant.id, combo_id=c) for v in to_create + to_update for c in v.of), batch_size=batch_size)

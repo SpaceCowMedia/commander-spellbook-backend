@@ -104,9 +104,9 @@ class CardInComboAdminInline(admin.TabularInline):
     fields = ['card', 'zone_location', 'card_state']
     form = IngredientInComboForm
     model = CardInCombo
-    extra = 1
+    extra = 0
     verbose_name = 'Card'
-    verbose_name_plural = 'Cards'
+    verbose_name_plural = 'Required Cards'
     autocomplete_fields = ['card']
     max_num = MAX_CARDS_IN_COMBO
 
@@ -115,18 +115,18 @@ class TemplateInComboAdminInline(admin.TabularInline):
     fields = ['template', 'zone_location', 'card_state']
     form = IngredientInComboForm
     model = TemplateInCombo
-    extra = 1
+    extra = 0
     verbose_name = 'Template'
-    verbose_name_plural = 'Templates'
+    verbose_name_plural = 'Required Templates'
     autocomplete_fields = ['template']
     max_num = MAX_CARDS_IN_COMBO
 
 
 class FeatureInComboAdminInline(admin.TabularInline):
     model = Combo.needs.through
-    extra = 1
+    extra = 0
     verbose_name = 'Feature'
-    verbose_name_plural = 'Features'
+    verbose_name_plural = 'Required Features'
     autocomplete_fields = ['feature']
     max_num = MAX_CARDS_IN_COMBO
 

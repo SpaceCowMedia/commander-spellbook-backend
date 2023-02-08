@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.urls import path
 from .utils import launch_job_command
-from .models import *
+from .models import Card, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, CardInVariant, TemplateInVariant, Job
 from django.contrib import messages
 from django.forms import ModelForm
 # from django.core.exceptions import ValidationError
@@ -162,7 +162,7 @@ class CardInVariantAdminInline(admin.TabularInline):
 
     def has_add_permission(self, request, obj) -> bool:
         return False
-    
+
     def has_delete_permission(self, request, obj) -> bool:
         return False
 
@@ -183,7 +183,7 @@ class TemplateInVariantAdminInline(admin.TabularInline):
 
     def has_add_permission(self, request, obj) -> bool:
         return False
-    
+
     def has_delete_permission(self, request, obj) -> bool:
         return False
 

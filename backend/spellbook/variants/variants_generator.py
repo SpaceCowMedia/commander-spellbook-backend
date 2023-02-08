@@ -62,6 +62,7 @@ class VariantIngredientSaveItem:
     def from_id(cls, id: int, order: int):
         return cls(id=id, zone_location=IngredientInCombination.ZoneLocation.HAND, card_state='', order=order)
 
+
 @dataclass
 class VariantBulkSaveItem:
     # Data fields
@@ -145,10 +146,12 @@ def create_variant(
                 requires[template_id].card_state += ' '
             requires[template_id].card_state += data.templates_in_combo[(template_id, combo_id)].card_state
             requires[template_id].order += i
+
     def uses_list():
         for i, v in enumerate(sorted(uses.values(), key=lambda v: v.order, reverse=True)):
             v.order = i
             yield v
+
     def requires_list():
         for i, v in enumerate(sorted(requires.values(), key=lambda v: v.order, reverse=True)):
             v.order = i

@@ -24,7 +24,6 @@ def create_through_relation(apps, schema_editor):
             TemplateInVariant(variant=variant, template=template, order=order).save()
 
 
-
 class Migration(migrations.Migration):
 
     dependencies = [

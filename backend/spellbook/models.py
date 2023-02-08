@@ -269,6 +269,7 @@ class CardInCombo(IngredientInCombination):
     class Meta(IngredientInCombination.Meta):
         unique_together = [('card', 'combo'), ('order', 'combo')]
 
+
 class CardInVariant(IngredientInCombination):
     card = models.ForeignKey(to=Card, on_delete=models.CASCADE)
     variant = models.ForeignKey(to=Variant, on_delete=models.CASCADE)
@@ -276,12 +277,14 @@ class CardInVariant(IngredientInCombination):
     class Meta(IngredientInCombination.Meta):
         unique_together = [('card', 'variant'), ('order', 'variant')]
 
+
 class TemplateInCombo(IngredientInCombination):
     template = models.ForeignKey(to=Template, on_delete=models.CASCADE)
     combo = models.ForeignKey(to=Combo, on_delete=models.CASCADE)
 
     class Meta(IngredientInCombination.Meta):
-        unique_together =  [('template', 'combo'), ('order', 'combo')]
+        unique_together = [('template', 'combo'), ('order', 'combo')]
+
 
 class TemplateInVariant(IngredientInCombination):
     template = models.ForeignKey(to=Template, on_delete=models.CASCADE)

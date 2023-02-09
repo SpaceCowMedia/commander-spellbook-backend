@@ -1,10 +1,9 @@
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.urls import path
 from .utils import launch_job_command
 from .models import Card, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, CardInVariant, TemplateInVariant, Job
-from django.contrib import messages
+from django.contrib.admin.models import LogEntry, DELETION
 from django.forms import ModelForm
-# from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.http import HttpRequest
 from django.shortcuts import redirect
@@ -12,6 +11,12 @@ from django.db.models import Count
 from .variants.combo_graph import MAX_CARDS_IN_COMBO
 from django.urls import reverse
 from django.utils.html import format_html
+
+
+# Admin configuration
+admin.site.site_header = 'Spellbook Admin Panel'
+admin.site.site_title = 'Spellbook Admin'
+admin.site.index_title = 'Spellbook Admin Index'
 
 
 @admin.register(Card)
@@ -271,7 +276,26 @@ class TemplateAdmin(admin.ModelAdmin):
     search_fields = ['name', 'scryfall_query']
 
 
-# Admin configuration
-admin.site.site_header = 'Spellbook Admin Panel'
-admin.site.site_title = 'Spellbook Admin'
-admin.site.index_title = 'Spellbook Admin Index'
+@admin.register(LogEntry)
+class LogEntryAdmin(admin.ModelAdmin):
+    date_hierarchy = 'action_time'
+    list_filter = ['user', 'content_type', 'action_flag']
+    search_fields = ['object_repr', 'change_message']
+    list_display = ['action_time', 'user', 'content_type', 'object_link', 'action_flag']
+
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        return False
+    
+    def has_change_permission(self, request: HttpRequest, obj=None) -> bool:
+        return False
+    
+    def has_delete_permission(self, request: HttpRequest, obj=None) -> bool:
+        return False
+    
+    @admin.display(ordering='object_repr', description='object')
+    def object_link(self, obj: LogEntry) -> str:
+        if obj.action_flag == DELETION:
+            return format_html('{}', obj.object_repr)
+        if obj.get_admin_url():
+            return format_html('<a href="{}">{}</a>', obj.get_admin_url(), obj.object_repr)
+        return format_html('{}', obj.object_repr)

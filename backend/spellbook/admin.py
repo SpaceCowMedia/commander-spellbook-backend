@@ -285,13 +285,13 @@ class LogEntryAdmin(admin.ModelAdmin):
 
     def has_add_permission(self, request: HttpRequest) -> bool:
         return False
-    
+
     def has_change_permission(self, request: HttpRequest, obj=None) -> bool:
         return False
-    
+
     def has_delete_permission(self, request: HttpRequest, obj=None) -> bool:
         return False
-    
+
     @admin.display(ordering='object_repr', description='object')
     def object_link(self, obj: LogEntry) -> str:
         if obj.action_flag == DELETION:

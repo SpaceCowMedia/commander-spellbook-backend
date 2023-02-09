@@ -22,9 +22,20 @@ def fetch_removed_features(combos_base_query):
     return d
 
 
-class Data:
+class RestoreData:
     def __init__(self):
         self.combos = Combo.objects.prefetch_related('uses', 'requires', 'needs', 'removes', 'produces')
+        self.combo_to_cards = defaultdict[int, list[CardInCombo]](list)
+        self.combo_to_templates = defaultdict[int, list[TemplateInCombo]](list)
+        for cic in CardInCombo.objects.prefetch_related('card', 'combo').distinct():
+            self.combo_to_cards[cic.combo.id].append(cic)
+        for tic in TemplateInCombo.objects.prefetch_related('template', 'combo').distinct():
+            self.combo_to_templates[tic.combo.id].append(tic)
+
+
+class Data(RestoreData):
+    def __init__(self):
+        super().__init__()
         self.features = Feature.objects.prefetch_related('cards', 'produced_by_combos', 'needed_by_combos', 'removed_by_combos')
         self.cards = Card.objects.prefetch_related('features', 'used_in_combos')
         self.variants = Variant.objects.all()
@@ -33,17 +44,9 @@ class Data:
         self.not_working_variants = fetch_not_working_variants(self.variants)
         self.uid_to_variant = {v.unique_id: v for v in self.variants}
         self.combo_to_removed_features = fetch_removed_features(self.combos)
-        self.id_to_combo = {c.id: c for c in self.combos}
-        self.id_to_card = {c.id: c for c in self.cards}
-        self.banned_cards_ids = frozenset[int](Card.objects.filter(legal=False).values_list('id', flat=True))
-        self.cards_in_combo: dict[tuple[int, int], CardInCombo] = {(cic.card.id, cic.combo.id): cic for cic in CardInCombo.objects.prefetch_related('card', 'combo').all()}
-        self.templates_in_combo: dict[tuple[int, int], TemplateInCombo] = {(tic.template.id, tic.combo.id): tic for tic in TemplateInCombo.objects.prefetch_related('template', 'combo').all()}
-        self.combo_to_card_ids = defaultdict[int, list[int]](list)
-        self.combo_to_template_ids = defaultdict[int, list[int]](list)
-        for cid, cicid in self.combos.filter(uses__isnull=False).distinct().values_list('id', 'uses__id'):
-            self.combo_to_card_ids[cid].append(cicid)
-        for cid, ticid in self.combos.filter(requires__isnull=False).distinct().values_list('id', 'requires__id'):
-            self.combo_to_template_ids[cid].append(ticid)
+        self.id_to_combo: dict[int, Combo] = {c.id: c for c in self.combos}
+        self.id_to_card: dict[int, Card] = {c.id: c for c in self.cards}
+        self.id_to_template: dict[int, Template] = {t.id: t for t in self.templates}
 
 
 count = 0
@@ -56,3 +59,4 @@ def debug_queries(output=False):
         reset_queries()
         if output:
             logging.info(f'Number of queries so far: {count}')
+    return count

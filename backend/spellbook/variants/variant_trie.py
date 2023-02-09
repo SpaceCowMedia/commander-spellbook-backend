@@ -1,5 +1,5 @@
 from pygtrie import Trie
-from itertools import product
+from itertools import product, chain
 from .list_utils import all_rotations, merge_sort_unique
 
 cardid = int
@@ -12,6 +12,7 @@ DEFAULT_MAX_DEPTH = 100
 class VariantTrie():
     def __init__(self, limit: int = DEFAULT_MAX_DEPTH):
         self.trie = Trie()
+        self.shadow = Trie()
         self.max_depth = limit
 
     def ingredients_to_key(self, cards: list[cardid], templates: list[templateid]) -> list[str]:
@@ -43,16 +44,24 @@ class VariantTrie():
             prefix = self.trie.longest_prefix(key)
             if prefix.is_set:
                 return
+        self.shadow[all_rotations[0]] = all_rotations
         for key in all_rotations:
             if self.trie.has_subtrie(key):
                 for subkey in self.trie.keys(prefix=key):
+                    del self.shadow[self.trie[subkey][0]]
                     for rotated_subkey in self.trie[subkey]:
                         del self.trie[rotated_subkey]
             self.trie[key] = all_rotations
 
+    def _keys(self) -> list[list[str]]:
+        return self.shadow.keys()
+
+    def _values(self) -> list[list[list[str]]]:
+        return self.shadow.values()
+
     def __or__(self, other):
         result = VariantTrie(limit=self.max_depth)
-        for value in self.trie.values() + other.trie.values():
+        for value in chain(self._values(), other._values()):
             result._add(value)
         return result
 
@@ -61,8 +70,10 @@ class VariantTrie():
 
     def __and__(self, other):
         result = VariantTrie(limit=self.max_depth)
-        for left_part, right_part in product(self.trie.keys(), other.trie.keys()):
-            key = merge_sort_unique(left_part, right_part)
+        left_keys = list(self._keys())
+        right_keys = list(other._keys())
+        for left_key, right_key in product(left_keys, right_keys):
+            key = merge_sort_unique(left_key, right_key)
             if len(key) > self.max_depth:
                 continue
             result._add(all_rotations(key))
@@ -71,16 +82,11 @@ class VariantTrie():
     def __mul__(self, other):
         return self.__and__(other)
 
-    def variants(self, preserve=False) -> list[tuple[list[cardid], list[templateid]]]:
+    def variants(self) -> list[tuple[list[cardid], list[templateid]]]:
         result = list[tuple[list[cardid], list[templateid]]]()
-        trie = self.trie.copy() if preserve else self.trie
-        while len(trie) > 0:
-            key, value = trie.popitem()
+        for key in self._keys():
             cards, templates = self.key_to_ingredients(key)
             result.append((sorted(cards), sorted(templates)))
-            for rotation in value:
-                if trie.has_key(rotation):
-                    del trie[rotation]
         return result
 
     def __str__(self):

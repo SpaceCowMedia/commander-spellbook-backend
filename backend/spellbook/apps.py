@@ -6,4 +6,4 @@ class SpellbookConfig(AppConfig):
     name = 'spellbook'
 
     def ready(self):
-        from . import signals
+        pass

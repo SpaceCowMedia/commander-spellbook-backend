@@ -11,6 +11,8 @@ from django.db.models import Count
 from .variants.combo_graph import MAX_CARDS_IN_COMBO
 from django.urls import reverse
 from django.utils.html import format_html
+from .variants.variant_data import RestoreData
+from .variants.variants_generator import restore_variant
 
 
 # Admin configuration
@@ -154,6 +156,36 @@ class ComboAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         return super().get_queryset(request).prefetch_related('uses', 'requires', 'produces', 'needs', 'removes')
+
+    def save_related(self, request, form, formsets, change):
+        super().save_related(request, form, formsets, change)
+        if change:
+            query = form.instance.variants.filter(status__in=[Variant.Status.NEW, Variant.Status.RESTORE])
+            count = query.count()
+            if count <= 0:
+                return
+            if count >= 1000:
+                messages.warning(request, f'{count} "New" or "Restore" variants are too many to update for this combo: no automatic update was done.')
+                return
+            variants_to_update = list[Variant]()
+            card_in_variants_to_update = list[CardInVariant]()
+            template_in_variants_to_update = list[TemplateInVariant]()
+            data = RestoreData()
+            for variant in list[Variant](query):
+                uses_set, requires_set = restore_variant(
+                    variant,
+                    list(variant.includes.all()),
+                    list(variant.of.all()),
+                    list(variant.cardinvariant_set.all()),
+                    list(variant.templateinvariant_set.all()),
+                    data=data)
+                card_in_variants_to_update.extend(uses_set)
+                template_in_variants_to_update.extend(requires_set)
+            update_fields = ['status', 'mana_needed', 'other_prerequisites', 'description', 'legal', 'identity']
+            Variant.objects.bulk_update(variants_to_update, update_fields)
+            update_fields = ['zone_location', 'card_state', 'order']
+            CardInVariant.objects.bulk_update(card_in_variants_to_update, update_fields)
+            TemplateInVariant.objects.bulk_update(template_in_variants_to_update, update_fields)
 
 
 class CardInVariantAdminInline(admin.TabularInline):

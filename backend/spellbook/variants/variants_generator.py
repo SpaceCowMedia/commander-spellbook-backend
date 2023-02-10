@@ -113,34 +113,51 @@ def restore_variant(
     uses = dict[int, CardInVariant]()
     for card_in_variant in used_cards:
         card_in_variant.order = 0
+        card_in_variant.card_state = ''
         uses[card_in_variant.card.id] = card_in_variant
     requires = dict[int, TemplateInVariant]()
     for template_in_variant in required_templates:
         template_in_variant.order = 0
+        template_in_variant.card_state = ''
         requires[template_in_variant.template.id] = template_in_variant
+    for combo in included_combos:
+        for card_in_combo in data.combo_to_cards[combo.id]:
+            to_edit = uses[card_in_combo.card.id]
+            if len(to_edit.card_state) > 0:
+                to_edit.card_state += ' '
+            to_edit.card_state += card_in_combo.card_state
+        for template_in_combo in data.combo_to_templates[combo.id]:
+            to_edit = requires[template_in_combo.template.id]
+            if len(to_edit.card_state) > 0:
+                to_edit.card_state += ' '
+            to_edit.card_state += template_in_combo.card_state
     for i, combo in enumerate(chain(included_combos, generator_combos)):
         for card_in_combo in data.combo_to_cards[combo.id]:
             to_edit = uses[card_in_combo.card.id]
             to_edit.zone_location = card_in_combo.zone_location
-            if len(to_edit.card_state) > 0:
-                to_edit.card_state += ' '
-            to_edit.card_state += card_in_combo.card_state
             to_edit.order += i
         for template_in_combo in data.combo_to_templates[combo.id]:
             to_edit = requires[template_in_combo.template.id]
             to_edit.zone_location = template_in_combo.zone_location
-            if len(to_edit.card_state) > 0:
-                to_edit.card_state += ' '
-            to_edit.card_state += template_in_combo.card_state
             to_edit.order += i
 
     def uses_list():
-        for i, v in enumerate(sorted(uses.values(), key=lambda v: v.order, reverse=True)):
+        i = -1
+        prec = -1
+        for v in sorted(uses.values(), key=lambda v: v.order, reverse=True):
+            if v.order != prec:
+                i += 1
+                prec = v.order
             v.order = i
             yield v
 
     def requires_list():
-        for i, v in enumerate(sorted(requires.values(), key=lambda v: v.order, reverse=True)):
+        i = -1
+        prec = -1
+        for v in sorted(requires.values(), key=lambda v: v.order, reverse=True):
+            if v.order != prec:
+                i += 1
+                prec = v.order
             v.order = i
             yield v
 

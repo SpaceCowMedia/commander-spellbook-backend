@@ -1,5 +1,5 @@
 from collections import defaultdict
-from ..models import Card, Feature, Combo, Template, Variant, CardInCombo, TemplateInCombo
+from ..models import Card, Feature, Combo, Template, Variant, CardInCombo, TemplateInCombo, CardInVariant, TemplateInVariant
 from django.db import connection
 from django.db import reset_queries
 import logging
@@ -27,9 +27,9 @@ class RestoreData:
         self.combos = Combo.objects.prefetch_related('uses', 'requires', 'needs', 'removes', 'produces')
         self.combo_to_cards = defaultdict[int, list[CardInCombo]](list)
         self.combo_to_templates = defaultdict[int, list[TemplateInCombo]](list)
-        for cic in CardInCombo.objects.prefetch_related('card', 'combo').distinct():
+        for cic in CardInCombo.objects.select_related('card', 'combo').distinct():
             self.combo_to_cards[cic.combo.id].append(cic)
-        for tic in TemplateInCombo.objects.prefetch_related('template', 'combo').distinct():
+        for tic in TemplateInCombo.objects.select_related('template', 'combo').distinct():
             self.combo_to_templates[tic.combo.id].append(tic)
 
 
@@ -47,6 +47,8 @@ class Data(RestoreData):
         self.id_to_combo: dict[int, Combo] = {c.id: c for c in self.combos}
         self.id_to_card: dict[int, Card] = {c.id: c for c in self.cards}
         self.id_to_template: dict[int, Template] = {t.id: t for t in self.templates}
+        self.card_in_variant = {(civ.card.id, civ.variant.id): civ for civ in CardInVariant.objects.select_related('card', 'variant')}
+        self.template_in_variant = {(tiv.template.id, tiv.variant.id): tiv for tiv in TemplateInVariant.objects.select_related('template', 'variant')}
 
 
 count = 0

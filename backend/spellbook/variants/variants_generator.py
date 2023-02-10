@@ -86,6 +86,7 @@ def includes_any(v: set[int], others: Iterable[set[int]]) -> bool:
 
 @dataclass
 class VariantBulkSaveItem:
+    should_update: bool
     # Data fields
     variant: Variant
     # Relationships fields
@@ -161,12 +162,13 @@ def update_variant(
             variant=variant,
             included_combos=[data.id_to_combo[c_id] for c_id in variant_def.included_ids],
             generator_combos=[data.id_to_combo[c_id] for c_id in variant_def.of_ids],
-            used_cards=[CardInVariant(card=data.id_to_card[c_id], variant=variant) for c_id in variant_def.card_ids],
-            required_templates=[TemplateInVariant(template=data.id_to_template[t_id], variant=variant) for t_id in variant_def.template_ids],
+            used_cards=[data.card_in_variant[(c_id, variant.id)] for c_id in variant_def.card_ids],
+            required_templates=[data.template_in_variant[(t_id, variant.id)] for t_id in variant_def.template_ids],
             data=data)
     if not ok:
         variant.status = Variant.Status.NOT_WORKING
     return VariantBulkSaveItem(
+        should_update=restore or status != variant.status,
         variant=variant,
         uses=uses,
         requires=requires,
@@ -196,6 +198,7 @@ def create_variant(
     if not ok:
         variant.status = Variant.Status.NOT_WORKING
     return VariantBulkSaveItem(
+        should_update=True,
         variant=variant,
         uses=uses,
         requires=requires,
@@ -208,11 +211,13 @@ def create_variant(
 def perform_bulk_saves(to_create: list[VariantBulkSaveItem], to_update: list[VariantBulkSaveItem]):
     Variant.objects.bulk_create(v.variant for v in to_create)
     update_fields = ['status', 'mana_needed', 'other_prerequisites', 'description', 'legal', 'identity']
-    Variant.objects.bulk_update((v.variant for v in to_update), fields=update_fields)
-    CardInVariant.objects.all().delete()
-    CardInVariant.objects.bulk_create(c for v in chain(to_create, to_update) for c in v.uses)
-    TemplateInVariant.objects.all().delete()
-    TemplateInVariant.objects.bulk_create(t for v in chain(to_create, to_update) for t in v.requires)
+    Variant.objects.bulk_update((v.variant for v in to_update if v.should_update), fields=update_fields)
+    CardInVariant.objects.bulk_create(c for v in to_create for c in v.uses)
+    update_fields = ['zone_location', 'card_state', 'order']
+    CardInVariant.objects.bulk_update((c for v in to_update if v.should_update for c in v.uses), fields=update_fields)
+    TemplateInVariant.objects.bulk_create(t for v in to_create for t in v.requires)
+    update_fields = ['zone_location', 'card_state', 'order']
+    TemplateInVariant.objects.bulk_update((t for v in to_update if v.should_update for t in v.requires), fields=update_fields)
     OfTable = Variant.of.through
     OfTable.objects.all().delete()
     OfTable.objects.bulk_create(
@@ -234,7 +239,7 @@ def perform_bulk_saves(to_create: list[VariantBulkSaveItem], to_update: list[Var
 
 
 def generate_variants(job: Job = None) -> tuple[int, int, int]:
-    logging.info('Fetching variants set to RESTORE...')
+    logging.info('Fetching data...')
     data = Data()
     to_restore = set(k for k, v in data.uid_to_variant.items() if v.status == Variant.Status.RESTORE)
     logging.info('Fetching all variant unique ids...')
@@ -244,26 +249,28 @@ def generate_variants(job: Job = None) -> tuple[int, int, int]:
     variants = get_variants_from_graph(data, job)
     logging.info(f'Saving {len(variants)} variants...')
     log_into_job(job, f'Saving {len(variants)} variants...')
+    debug_queries()
+    to_bulk_update = list[VariantBulkSaveItem]()
+    to_bulk_create = list[VariantBulkSaveItem]()
+    for unique_id, variant_def in variants.items():
+        if unique_id in old_id_set:
+            status = data.uid_to_variant[unique_id].status
+            variant_to_update = update_variant(
+                data=data,
+                unique_id=unique_id,
+                variant_def=variant_def,
+                status=status,
+                restore=unique_id in to_restore)
+            to_bulk_update.append(variant_to_update)
+        else:
+            variant_to_save = create_variant(
+                data=data,
+                unique_id=unique_id,
+                variant_def=variant_def,
+                job=job)
+            to_bulk_create.append(variant_to_save)
+        debug_queries()
     with transaction.atomic():
-        to_bulk_update = list[VariantBulkSaveItem]()
-        to_bulk_create = list[VariantBulkSaveItem]()
-        for unique_id, variant_def in variants.items():
-            if unique_id in old_id_set:
-                status = data.uid_to_variant[unique_id].status
-                to_bulk_update.append(
-                    update_variant(
-                        data=data,
-                        unique_id=unique_id,
-                        variant_def=variant_def,
-                        status=status,
-                        restore=unique_id in to_restore))
-            else:
-                variant_to_save = create_variant(
-                    data=data,
-                    unique_id=unique_id,
-                    variant_def=variant_def,
-                    job=job)
-                to_bulk_create.append(variant_to_save)
         perform_bulk_saves(to_bulk_create, to_bulk_update)
         new_id_set = set(variants.keys())
         to_delete = old_id_set - new_id_set

@@ -79,7 +79,7 @@ class Template(models.Model):
 class UsesCardsMixin:
     def query_string(self):
         cards_query = ' or '.join(f'!"{card.name}"' for card in self.cards())
-        return urlencode({'q': f'{SCRYFALL_LEGAL_IN_COMMANDER} ({cards_query})'})
+        return urlencode({'q': cards_query})
 
     def scryfall_link(self):
         link = f'{SCRYFALL_WEBSITE_CARD_SEARCH}?{self.query_string()}'

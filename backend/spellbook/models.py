@@ -5,6 +5,7 @@ from sortedm2m.fields import SortedManyToManyField
 from django.contrib.auth.models import User
 from .validators import MANA_VALIDATOR, TEXT_VALIDATORS, IDENTITY_VALIDATOR, SCRYFALL_QUERY_VALIDATOR, SCRYFALL_QUERY_HELP
 from django.utils.html import format_html
+from .scryfall import SCRYFALL_API_CARD_SEARCH, SCRYFALL_WEBSITE_CARD_SEARCH, SCRYFALL_LEGAL_IN_COMMANDER
 
 
 class Feature(models.Model):
@@ -63,19 +64,29 @@ class Template(models.Model):
         return self.name
 
     def query_string(self):
-        return urlencode({'q': self.scryfall_query + ' legal:commander'})
+        return urlencode({'q': ' '.join(term for term in [self.scryfall_query, SCRYFALL_LEGAL_IN_COMMANDER] if term != '')})
 
     def scryfall_api(self):
-        return 'https://api.scryfall.com/cards/search' + ('?' + self.query_string() if self.query_string() else '')
+        return f'{SCRYFALL_API_CARD_SEARCH}?{self.query_string()}'
 
     def scryfall_link(self):
         if self.scryfall_query == '':
             return 'Empty query'
-        link = 'http://scryfall.com/search?' + self.query_string()
+        link = f'{SCRYFALL_WEBSITE_CARD_SEARCH}?{self.query_string()}'
         return format_html(f'<a href="{link}" target="_blank">{link}</a>')
 
 
-class Combo(models.Model):
+class UsesCardsMixin:
+    def query_string(self):
+        cards_query = ' or '.join(f'!"{card.name}"' for card in self.cards())
+        return urlencode({'q': f'{SCRYFALL_LEGAL_IN_COMMANDER} ({cards_query})'})
+
+    def scryfall_link(self):
+        link = f'{SCRYFALL_WEBSITE_CARD_SEARCH}?{self.query_string()}'
+        return format_html(f'<a href="{link}" target="_blank">Show cards on scryfall</a>')
+
+
+class Combo(models.Model, UsesCardsMixin):
     uses = models.ManyToManyField(
         to=Card,
         related_name='used_in_combos',
@@ -114,6 +125,12 @@ class Combo(models.Model):
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, editable=False)
 
+    def cards(self):
+        return self.uses.order_by('cardincombo')
+
+    def templates(self):
+        return self.requires.order_by('templateincombo')
+
     class Meta:
         ordering = ['created']
         verbose_name = 'combo'
@@ -127,7 +144,7 @@ class Combo(models.Model):
             + (' - ' + ' - '.join([str(feature) for feature in self.removes.all()]) if self.removes.exists() else '')
 
     def ingredients(self):
-        return ' + '.join([str(card) for card in self.uses.order_by('cardincombo')] + [str(feature) for feature in self.needs.all()] + [str(template) for template in self.requires.order_by('templateincombo')])
+        return ' + '.join([str(card) for card in self.cards()] + [str(feature) for feature in self.needs.all()] + [str(template) for template in self.templates()])
 
 
 class Job(models.Model):
@@ -179,7 +196,7 @@ class Job(models.Model):
         return self.name
 
 
-class Variant(models.Model):
+class Variant(models.Model, UsesCardsMixin):
     class Status(models.TextChoices):
         NEW = 'N'
         DRAFT = 'D'
@@ -235,11 +252,17 @@ class Variant(models.Model):
             models.Index(fields=['unique_id'], name='unique_variant_index')
         ]
 
+    def cards(self):
+        return self.uses.order_by('cardinvariant')
+
+    def templates(self):
+        return self.requires.order_by('templateinvariant')
+
     def __str__(self):
         if self.pk is None:
             return f'New variant with unique id <{self.unique_id}>'
         produces = self.produces.all()[:4]
-        return ' + '.join([str(card) for card in self.uses.order_by('cardinvariant')] + [str(template) for template in self.requires.order_by('templateinvariant')]) \
+        return ' + '.join([str(card) for card in self.cards()] + [str(template) for template in self.templates()]) \
             + ' ➡ ' + ' + '.join([str(feature) for feature in produces[:3]]) \
             + ('...' if len(produces) > 3 else '')
 

@@ -141,7 +141,9 @@ class FeatureInComboAdminInline(admin.TabularInline):
 @admin.register(Combo)
 class ComboAdmin(admin.ModelAdmin):
     form = ComboForm
+    readonly_fields = ['scryfall_link']
     fieldsets = [
+        ('Generated', {'fields': ['scryfall_link']}),
         ('More Requirements', {'fields': [
             'mana_needed',
             'other_prerequisites']}),
@@ -229,7 +231,7 @@ class TemplateInVariantAdminInline(admin.TabularInline):
 class VariantAdmin(admin.ModelAdmin):
     form = VariantForm
     inlines = [CardInVariantAdminInline, TemplateInVariantAdminInline]
-    readonly_fields = ['produces', 'of', 'includes', 'unique_id', 'identity', 'legal']
+    readonly_fields = ['produces', 'of', 'includes', 'unique_id', 'identity', 'legal', 'scryfall_link']
     fieldsets = [
         ('Generated', {'fields': [
             'unique_id',
@@ -237,7 +239,8 @@ class VariantAdmin(admin.ModelAdmin):
             'of',
             'includes',
             'identity',
-            'legal']}),
+            'legal',
+            'scryfall_link']}),
         ('Editable', {'fields': [
             'status',
             'mana_needed',

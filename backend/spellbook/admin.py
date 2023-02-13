@@ -141,6 +141,7 @@ class FeatureInComboAdminInline(admin.TabularInline):
 @admin.register(Combo)
 class ComboAdmin(admin.ModelAdmin):
     form = ComboForm
+    save_as = True
     readonly_fields = ['scryfall_link']
     fieldsets = [
         ('Generated', {'fields': ['scryfall_link']}),

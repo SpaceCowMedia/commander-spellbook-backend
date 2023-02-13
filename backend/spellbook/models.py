@@ -146,6 +146,13 @@ class Combo(models.Model, UsesCardsMixin):
     def ingredients(self):
         return ' + '.join([str(card) for card in self.cards()] + [str(feature) for feature in self.needs.all()] + [str(template) for template in self.templates()])
 
+    def variants_for_editors(self):
+        return self.variants.order_by(models.Case(
+            models.When(status=Variant.Status.DRAFT, then=0),
+            models.When(status=Variant.Status.NEW, then=1),
+            default=2
+        ), '-updated')
+
 
 class Job(models.Model):
     class Status(models.TextChoices):

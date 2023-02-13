@@ -77,20 +77,20 @@
             </tr>
         </thead>
         <tbody>
-            {% for item in original.variants.all|slice:suggested_slice %}
+            {% for item in original.variants_for_editors|slice:suggested_slice %}
                 <tr class="form-row">
                     <td class="field-variant">
                         <p>
-                            <a href="{% url 'admin:spellbook_variant_change' item.id %}">{{ item }}</a>
+                            <a href="{% url 'admin:spellbook_variant_change' item.id %}">[{{ item.get_status_display }}] {{ item }}</a>
                         </p>
                     </td>
                 </tr>
             {% endfor %}
-            {% if original.variants.count > suggested_count %}
+            {% if original.variants_for_editors.count > suggested_count %}
                 <tr class="form-row">
                     <td class="field-variant">
                         <p>
-                            <a href="{% url 'admin:spellbook_variant_changelist' %}">View more variants...</a>
+                            <a href="{% url 'admin:spellbook_variant_changelist' %}?of__id={{ original.id }}">View more variants of this combo...</a>
                         </p>
                     </td>
                 </tr>

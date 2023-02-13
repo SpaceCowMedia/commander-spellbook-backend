@@ -86,15 +86,17 @@
                     </td>
                 </tr>
             {% endfor %}
-            {% if original.variants_for_editors.count > suggested_count %}
+            {% with variants_count=original.variants_for_editors.count %}
+            {% if variants_count > suggested_count %}
                 <tr class="form-row">
                     <td class="field-variant">
                         <p>
-                            <a href="{% url 'admin:spellbook_variant_changelist' %}?of__id={{ original.id }}">View more variants of this combo...</a>
+                            <a href="{% url 'admin:spellbook_variant_changelist' %}?of__id={{ original.id }}">View all {{ variants_count }} variants of this combo...</a>
                         </p>
                     </td>
                 </tr>
             {% endif %}
+            {% endwith %}
         </tbody>
     </table>
 {% endblock %}

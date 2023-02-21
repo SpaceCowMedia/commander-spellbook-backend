@@ -17,15 +17,17 @@
                     </td>
                 </tr>
             {% endfor %}
-            {% if original.variants.count > suggested_count %}
+            {% with variants_count=original.variants.count %}
+            {% if variants_count > suggested_count %}
                 <tr class="form-row">
                     <td class="field-variant">
                         <p>
-                            <a href="{% url 'admin:spellbook_variant_changelist' %}">View more variants...</a>
+                            <a href="{% url 'admin:spellbook_variant_changelist' %}?generated_by__id={{ original.id }}">View all {{ variants_count }} variants created by this job...</a>
                         </p>
                     </td>
                 </tr>
             {% endif %}
+            {% endwith %}
         </tbody>
     </table>
 {% endblock %}

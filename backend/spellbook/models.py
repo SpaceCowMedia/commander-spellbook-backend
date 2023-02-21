@@ -24,7 +24,17 @@ class Feature(models.Model):
         return self.name
 
 
-class Card(models.Model):
+class ScryfallLinkMixin:
+    def query_string(self):
+        cards_query = ' or '.join(f'!"{card.name}"' for card in self.cards())
+        return urlencode({'q': cards_query})
+
+    def scryfall_link(self):
+        link = f'{SCRYFALL_WEBSITE_CARD_SEARCH}?{self.query_string()}'
+        return format_html(f'<a href="{link}" target="_blank">Show cards on scryfall</a>')
+
+
+class Card(models.Model, ScryfallLinkMixin):
     name = models.CharField(max_length=255, unique=True, blank=False, help_text='Card name', verbose_name='name of card')
     oracle_id = models.UUIDField(unique=True, blank=True, null=True, help_text='Scryfall Oracle ID', verbose_name='Scryfall Oracle ID of card')
     features = models.ManyToManyField(
@@ -44,6 +54,9 @@ class Card(models.Model):
 
     def __str__(self):
         return self.name
+    
+    def query_string(self):
+        return urlencode({'q': f'!"{self.name}"'})
 
 
 class Template(models.Model):
@@ -76,17 +89,7 @@ class Template(models.Model):
         return format_html(f'<a href="{link}" target="_blank">{link}</a>')
 
 
-class UsesCardsMixin:
-    def query_string(self):
-        cards_query = ' or '.join(f'!"{card.name}"' for card in self.cards())
-        return urlencode({'q': cards_query})
-
-    def scryfall_link(self):
-        link = f'{SCRYFALL_WEBSITE_CARD_SEARCH}?{self.query_string()}'
-        return format_html(f'<a href="{link}" target="_blank">Show cards on scryfall</a>')
-
-
-class Combo(models.Model, UsesCardsMixin):
+class Combo(models.Model, ScryfallLinkMixin):
     uses = models.ManyToManyField(
         to=Card,
         related_name='used_in_combos',
@@ -203,7 +206,7 @@ class Job(models.Model):
         return self.name
 
 
-class Variant(models.Model, UsesCardsMixin):
+class Variant(models.Model, ScryfallLinkMixin):
     class Status(models.TextChoices):
         NEW = 'N'
         DRAFT = 'D'

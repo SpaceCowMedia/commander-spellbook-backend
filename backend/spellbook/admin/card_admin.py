@@ -4,9 +4,12 @@ from ..models import Card
 
 @admin.register(Card)
 class CardAdmin(admin.ModelAdmin):
+    readonly_fields = ['scryfall_link']
     fieldsets = [
         ('Spellbook', {'fields': ['name', 'features']}),
-        ('Scryfall', {'fields': ['oracle_id', 'identity', 'legal']}),
+        ('Scryfall', {
+            'fields': ['scryfall_link', 'oracle_id', 'identity', 'legal'],
+            'description': 'Scryfall data should be consistent with what Scryfall says about this card. Editors must take care to ensure that the data is correct.'}),
     ]
     # inlines = [FeatureInline]
     list_filter = ['identity', 'legal']

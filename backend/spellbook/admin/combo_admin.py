@@ -60,13 +60,11 @@ class ComboAdmin(SearchMultipleRelatedMixin, admin.ModelAdmin):
     readonly_fields = ['scryfall_link']
     fieldsets = [
         ('Generated', {'fields': ['scryfall_link']}),
-        ('More Requirements', {'fields': [
-            'mana_needed',
-            'other_prerequisites']}),
-        ('Features', {'fields': ['produces', 'removes']}),
+        ('More Requirements', {'fields': ['mana_needed', 'other_prerequisites']}),
+        ('Results', {'fields': ['produces', 'removes']}),
         ('Description', {'fields': ['generator', 'description']}),
     ]
-    inlines = [CardInComboAdminInline, TemplateInComboAdminInline, FeatureInComboAdminInline]
+    inlines = [CardInComboAdminInline, FeatureInComboAdminInline, TemplateInComboAdminInline]
     filter_horizontal = ['uses', 'produces', 'needs', 'removes']
     list_filter = ['generator']
     search_fields = ['uses__name', 'requires__name', 'produces__name', 'needs__name']
@@ -105,3 +103,9 @@ class ComboAdmin(SearchMultipleRelatedMixin, admin.ModelAdmin):
             CardInVariant.objects.bulk_update(card_in_variants_to_update, update_fields)
             TemplateInVariant.objects.bulk_update(template_in_variants_to_update, update_fields)
             messages.info(request, f'{count} "New" or "Restore" variants were updated for this combo.')
+    
+    def get_fieldsets(self, request, obj):
+        fieldsets = super().get_fieldsets(request, obj)
+        if not obj or obj.uses.count() == 0:
+            fieldsets = fieldsets[1:]
+        return fieldsets

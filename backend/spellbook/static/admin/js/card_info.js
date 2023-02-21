@@ -75,9 +75,9 @@ const card_info = {
             element.innerHTML = html;
         });
     },
-    setup_tooltip: function (card_name, element) {
-        if (typeof $ !== 'undefined' && $ !== null) {
-            $(element).tooltip({
+    setup_tooltip: function (card_name, element, image=true) {
+        if (image) {
+            django.jQuery(element).tooltip({
                 items: element,
                 classes: {
                     "ui-tooltip": "ui-corner-all ui-widget-shadow card-info-tooltip"
@@ -97,10 +97,10 @@ const card_info = {
                 position: { my: "left+20 center", at: "right center", collision: "flipfit" },
                 track: true,
                 create: function(ev, ui) {
-                    $(this).data("ui-tooltip").liveRegion.remove();
+                    django.jQuery(this).data("ui-tooltip").liveRegion.remove();
                 }
             }).dblclick(function() {
-                $(this).tooltip('close');
+                django.jQuery(this).tooltip('close');
             });
         } else {
             element.title = 'Loading..';

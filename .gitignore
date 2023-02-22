@@ -138,3 +138,7 @@ Scripts/
 
 # temp files
 temp/
+
+# Localhost certificates
+*.crt
+*.key

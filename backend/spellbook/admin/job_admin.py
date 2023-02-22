@@ -8,13 +8,15 @@ from ..models import Job
 class JobAdmin(admin.ModelAdmin):
     readonly_fields = ['created_local', 'expected_termination_local', 'termination_local']
     fields = ['id', 'name', 'status', 'created_local', 'expected_termination_local', 'termination_local', 'message', 'started_by']
-    list_display = ['id', 'name', 'status', 'created', 'expected_termination', 'termination', 'variants_count']
+    list_display = ['id', 'name', 'status', 'created_local', 'expected_termination_local', 'termination_local', 'variants_count']
 
     def variants_count(self, obj):
         return obj.variants.count()
 
     def datetime_to_html(self, datetime):
-        return format_html('<span class="local-datetime" title="{}">{}</span>', datetime.isoformat(), localize(datetime))
+        if datetime is None:
+            return None
+        return format_html('<span class="local-datetime" data-iso="{}">{}</span>', datetime.isoformat(), localize(datetime))
 
     @admin.display(description='Created')
     def created_local(self, obj):
@@ -36,3 +38,6 @@ class JobAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+    class Media:
+        js = ['admin/js/jquery.init.js', 'admin/js/iso_to_local_time.js']

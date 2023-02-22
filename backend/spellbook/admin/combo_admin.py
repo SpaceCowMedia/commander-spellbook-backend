@@ -103,7 +103,7 @@ class ComboAdmin(SearchMultipleRelatedMixin, admin.ModelAdmin):
             CardInVariant.objects.bulk_update(card_in_variants_to_update, update_fields)
             TemplateInVariant.objects.bulk_update(template_in_variants_to_update, update_fields)
             messages.info(request, f'{count} "New" or "Restore" variants were updated for this combo.')
-    
+
     def get_fieldsets(self, request, obj):
         fieldsets = super().get_fieldsets(request, obj)
         if not obj or obj.uses.count() == 0:

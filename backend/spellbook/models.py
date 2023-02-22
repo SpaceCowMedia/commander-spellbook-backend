@@ -54,7 +54,7 @@ class Card(models.Model, ScryfallLinkMixin):
 
     def __str__(self):
         return self.name
-    
+
     def query_string(self):
         return urlencode({'q': f'!"{self.name}"'})
 

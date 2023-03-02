@@ -9,6 +9,6 @@ services:
       target: ssl
     image: spellbook-nginx-ssl
     volumes:
-      - ${SSL_CERTIFICATE_LOCATION:?}:/etc/nginx/ssl/:ro
+      - /etc/letsencrypt/:/etc/letsencrypt/:ro
     ports:
       - 443:443

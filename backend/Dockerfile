@@ -71,6 +71,7 @@ sleep 3\n\
 python manage.py migrate --noinput\n\
 python manage.py clean_jobs\n\
 python manage.py export_variants\n\
+python manage.py seed_website_properties\n\
 gunicorn backend.wsgi:application --bind 0.0.0.0:8000\n' > entrypoint.prod.sh
 EXPOSE 8000
 ENTRYPOINT ["/bin/sh", "entrypoint.prod.sh"]

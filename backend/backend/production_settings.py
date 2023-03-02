@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'spellbook',
+    'website',
     'django.contrib.admin',
     'sortedm2m',
     'rest_framework',

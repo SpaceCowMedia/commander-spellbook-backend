@@ -1,0 +1,39 @@
+{% extends "admin/change_form.html" %}
+
+{% block extrahead %}
+    {{ block.super }}
+    {% include 'admin/spellbook/includes/jquery_imports.html' %}
+{% endblock %}
+
+{% block admin_change_form_document_ready  %}
+{{ block.super }}
+{% if original.key == 'featured_set_codes' %}
+    <script>
+        const scryfallSets = [];
+        django.jQuery.getJSON(
+            'https://api.scryfall.com/sets',
+            function (data) {
+                scryfallSets.push(...data.data.map(e => e.code));
+            });
+        django.jQuery('#id_value').autocomplete({
+            source: function (request, response) {
+                response(django.jQuery.ui.autocomplete
+                    .filter(scryfallSets, request.term.replace(/^.+\,\s*/, ''))
+                    .slice(0, 10));
+            },
+            minLength: 0,
+            delay: 0,
+            autoFocus: true,
+            select: function (event, ui) {
+                const item = django.jQuery(event.target);
+                const current = item.val().replace(/[^\,\s]+$/, '');
+                item.val(current + ui.item.value);
+                return false;
+            },
+            focus: function (event, ui) {
+                return false;
+            },
+        });
+    </script>
+{% endif %}
+{% endblock %}

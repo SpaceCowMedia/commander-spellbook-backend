@@ -25,7 +25,6 @@ SECRET_KEY = os.environ['SECRET_KEY']
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
-DEFAULT_BULK_FOLDER = '/home/app/web/staticfiles/bulk'
 
 ASYNC_GENERATION = True
 
@@ -45,6 +44,7 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # Production settings
 STATIC_ROOT = BASE_DIR / "staticfiles"
+STATIC_BULK_FOLDER = STATIC_ROOT / 'bulk'
 CSRF_COOKIE_SECURE = True
 SESSION_COOKIE_SECURE = True
 CONN_MAX_AGE = 60 * 60

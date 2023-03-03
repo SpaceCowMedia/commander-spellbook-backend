@@ -24,7 +24,7 @@ class Command(BaseCommand):
             '--file',
             type=Path,
             dest='file',
-            default=Path(settings.DEFAULT_BULK_FOLDER) / Path('variants.json')
+            default=settings.STATIC_BULK_FOLDER / 'variants.json'
         )
         parser.add_argument(
             '--id',

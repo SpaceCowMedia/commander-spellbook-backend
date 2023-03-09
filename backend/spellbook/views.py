@@ -7,10 +7,10 @@ from django_filters.rest_framework import DjangoFilterBackend
 class VariantViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Variant.objects.filter(status=Variant.Status.OK)
     serializer_class = VariantSerializer
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['unique_id', 'uses__id', 'includes__id', 'produces__id', 'of__id', 'identity']
-    search_fields = ['uses__name', 'produces__name']
-    ordering_fields = ['created', 'updated', 'unique_id']
+    # filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    # filterset_fields = ['unique_id', 'uses__id', 'includes__id', 'produces__id', 'of__id', 'identity']
+    # search_fields = ['uses__name', 'produces__name']
+    # ordering_fields = ['created', 'updated', 'unique_id']
 
 
 variant_list = VariantViewSet.as_view({'get': 'list'})

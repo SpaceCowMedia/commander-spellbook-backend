@@ -214,6 +214,7 @@ class Variant(models.Model, ScryfallLinkMixin):
         OK = 'OK'
         RESTORE = 'R'
 
+    id = models.CharField(max_length=128, primary_key=True, unique=True, blank=False, help_text='Unique ID for this variant', editable=False)
     uses = models.ManyToManyField(
         to=Card,
         related_name='used_in_variants',
@@ -248,7 +249,6 @@ class Variant(models.Model, ScryfallLinkMixin):
     description = models.TextField(blank=True, help_text='Long description, in steps', validators=TEXT_VALIDATORS)
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, editable=False)
-    unique_id = models.CharField(max_length=128, unique=True, blank=False, help_text='Unique ID for this variant', editable=False)
     frozen = models.BooleanField(default=False, blank=False, help_text='Is this variant undeletable?', verbose_name='is frozen')
     legal = models.BooleanField(default=True, blank=False, help_text='Is this variant legal in Commander?', verbose_name='is legal')
     identity = models.CharField(max_length=5, blank=True, help_text='Mana identity', verbose_name='mana identity', editable=False, validators=[IDENTITY_VALIDATOR])
@@ -259,7 +259,7 @@ class Variant(models.Model, ScryfallLinkMixin):
         verbose_name = 'variant'
         verbose_name_plural = 'variants'
         indexes = [
-            models.Index(fields=['unique_id'], name='unique_variant_index')
+            models.Index(fields=['id'], name='unique_variant_index')
         ]
 
     def cards(self):
@@ -270,7 +270,7 @@ class Variant(models.Model, ScryfallLinkMixin):
 
     def __str__(self):
         if self.pk is None:
-            return f'New variant with unique id <{self.unique_id}>'
+            return f'New variant with unique id <{self.id}>'
         produces = self.produces.all()[:4]
         return ' + '.join([str(card) for card in self.cards()] + [str(template) for template in self.templates()]) \
             + ' ➡ ' + ' + '.join([str(feature) for feature in produces[:3]]) \

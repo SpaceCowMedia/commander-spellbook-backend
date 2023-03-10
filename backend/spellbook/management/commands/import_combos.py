@@ -2,7 +2,7 @@ import json
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 from django.core.management.base import BaseCommand
-from spellbook.variants.variants_generator import unique_id_from_cards_and_templates_ids, merge_identities, VariantBulkSaveItem, perform_bulk_saves
+from spellbook.variants.variants_generator import id_from_cards_and_templates_ids, merge_identities, VariantBulkSaveItem, perform_bulk_saves
 from spellbook.models import Feature, Card, Job, Variant
 from django.utils import timezone
 from django.db.models import Count, Q
@@ -108,7 +108,7 @@ class Command(BaseCommand):
             for i, (id, _cards, produced, prerequisite, description) in enumerate(x):
                 self.stdout.write(f'{i+1}/{len(x)}\n' if (i + 1) % 100 == 0 else '.', ending='')
                 cards = [cards_db_cache[scryfall_db[card.lower()]['oracle_id']] for card in _cards]
-                unique_id = unique_id_from_cards_and_templates_ids([c.id for c in cards], [])
+                id = id_from_cards_and_templates_ids([c.id for c in cards], [])
                 already_present = Variant.objects.annotate(
                     total_cards=Count('uses'),
                     matching_cards=Count('uses', filter=Q(uses__in=cards)),
@@ -119,14 +119,14 @@ class Command(BaseCommand):
                 if already_present.exists():
                     self.stdout.write(f'\nSkipping combo [{id}] {cards}: already present in variants')
                     continue
-                if unique_id in bulk_variant_dict:
+                if id in bulk_variant_dict:
                     self.stdout.write(f'\nSkipping combo [{id}] {cards}: already present in imported variants')
                     continue
                 combo = Variant(other_prerequisites=prerequisite,
                     description=description,
                     frozen=True,
                     status=Variant.Status.OK,
-                    unique_id=unique_id,
+                    id=id,
                     identity=merge_identities([c.identity for c in cards]),
                     legal=all(c.legal for c in cards))
                 produces = set()
@@ -144,7 +144,7 @@ class Command(BaseCommand):
                     of=set(),
                     includes=set(),
                     produces={f.id for f in produces})
-                bulk_variant_dict[bulk_item.variant.unique_id] = bulk_item
+                bulk_variant_dict[bulk_item.variant.id] = bulk_item
             self.stdout.write('Saving combos...')
             perform_bulk_saves(to_create=list(bulk_variant_dict.values()), to_update=[])
             job.termination = timezone.now()

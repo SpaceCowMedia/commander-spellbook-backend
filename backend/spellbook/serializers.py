@@ -117,7 +117,6 @@ class VariantSerializer(serializers.ModelSerializer):
         model = Variant
         fields = [
             'id',
-            'unique_id',
             'uses',
             'requires',
             'produces',

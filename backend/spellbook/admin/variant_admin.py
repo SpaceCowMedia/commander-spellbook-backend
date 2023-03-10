@@ -92,10 +92,10 @@ class VariantForm(ModelForm):
 class VariantAdmin(SearchMultipleRelatedMixin, admin.ModelAdmin):
     form = VariantForm
     inlines = [CardInVariantAdminInline, TemplateInVariantAdminInline]
-    readonly_fields = ['produces', 'of', 'includes', 'unique_id', 'identity', 'legal', 'scryfall_link']
+    readonly_fields = ['produces', 'of', 'includes', 'id', 'identity', 'legal', 'scryfall_link']
     fieldsets = [
         ('Generated', {'fields': [
-            'unique_id',
+            'id',
             'produces',
             'of',
             'includes',
@@ -111,7 +111,7 @@ class VariantAdmin(SearchMultipleRelatedMixin, admin.ModelAdmin):
     ]
     list_filter = ['status', CardsCountListFilter, 'identity', 'legal']
     list_display = ['__str__', 'status', 'id', 'identity']
-    search_fields = ['=id', 'uses__name', 'produces__name', 'requires__name', '=unique_id']
+    search_fields = ['=id', 'uses__name', 'produces__name', 'requires__name']
     actions = [set_restore, set_draft, set_new, set_not_working]
 
     def generate(self, request: HttpRequest):

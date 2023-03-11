@@ -1,19 +1,15 @@
-from .models import Card, Feature, Combo, Template, Variant
+from .models import Card, Feature, Combo, Template, Variant, CardInVariant
 from .serializers import CardDetailSerializer, FeatureSerializer, ComboDetailSerializer, TemplateSerializer, VariantSerializer
-from rest_framework import viewsets
+from rest_framework import viewsets, parsers
+from rest_framework.decorators import api_view, parser_classes
+from rest_framework.response import Response
+from rest_framework.request import Request
+from collections import defaultdict
 
 
 class VariantViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Variant.objects.filter(status=Variant.Status.OK)
     serializer_class = VariantSerializer
-    # filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    # filterset_fields = ['id', 'uses__id', 'includes__id', 'produces__id', 'of__id', 'identity']
-    # search_fields = ['uses__name', 'produces__name']
-    # ordering_fields = ['created', 'updated', 'id']
-
-
-variant_list = VariantViewSet.as_view({'get': 'list'})
-variant_detail = VariantViewSet.as_view({'get': 'retrieve'})
 
 
 class FeatureViewSet(viewsets.ReadOnlyModelViewSet):
@@ -21,17 +17,9 @@ class FeatureViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = FeatureSerializer
 
 
-feature_list = FeatureViewSet.as_view({'get': 'list'})
-feature_detail = FeatureViewSet.as_view({'get': 'retrieve'})
-
-
 class ComboViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Combo.objects.all()
     serializer_class = ComboDetailSerializer
-
-
-combo_list = ComboViewSet.as_view({'get': 'list'})
-combo_detail = ComboViewSet.as_view({'get': 'retrieve'})
 
 
 class CardViewSet(viewsets.ReadOnlyModelViewSet):
@@ -40,14 +28,58 @@ class CardViewSet(viewsets.ReadOnlyModelViewSet):
     filterset_fields = ['oracle_id', 'identity']
 
 
-card_list = CardViewSet.as_view({'get': 'list'})
-card_detail = CardViewSet.as_view({'get': 'retrieve'})
-
-
 class TemplateViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Template.objects.all()
     serializer_class = TemplateSerializer
 
 
-template_list = TemplateViewSet.as_view({'get': 'list'})
-template_detail = TemplateViewSet.as_view({'get': 'retrieve'})
+class DeckListParser(parsers.BaseParser):
+    media_type = 'text/plain'
+    def __init__(self):
+        self.cards_dict = {c.name.lower(): c for c in Card.objects.all()}
+
+    def parse(self, stream, media_type=None, parser_context=None):
+        parser_context = parser_context or {}
+        encoding = parser_context.get('encoding', 'UTF-8')
+        lines = stream.read().decode(encoding).splitlines()
+        result = set[Card]()
+        for line in lines[:500]:
+            line = line.strip().lower()
+            if line and line in self.cards_dict:
+                result.add(self.cards_dict[line])
+        return result
+
+
+@api_view()
+@parser_classes([DeckListParser])
+def find_my_combos(request: Request) -> Response:
+    cards: set[Card] = request.data
+    variant_to_cards = defaultdict[Variant, set[Card]](set)
+    for civ in CardInVariant.objects \
+        .filter(variant__status=Variant.Status.OK, variant__uses__in=cards) \
+        .prefetch_related(
+            'card',
+            'variant'):
+        variant_to_cards[civ.variant].add(civ.card)
+    included_variants = []
+    almost_included_variants = []
+    almost_included_variants_by_adding_colors = []
+
+    identity = set()
+    for card in cards:
+        identity.update(list(card.identity))
+
+    for variant in variant_to_cards:
+        if variant_to_cards[variant].issubset(cards):
+            included_variants.append(VariantSerializer(variant).data)
+        elif variant_to_cards[variant].intersection(cards):
+            if set(variant.identity).issubset(identity):
+                almost_included_variants.append(VariantSerializer(variant).data)
+            else:
+                almost_included_variants_by_adding_colors.append(VariantSerializer(variant).data)
+    return Response({
+        'identity': ''.join(i for i in 'WUBRG' if i in identity),
+        'included': included_variants,
+        'almost_included': almost_included_variants,
+        'almost_included_by_adding_colors': almost_included_variants_by_adding_colors,
+        })

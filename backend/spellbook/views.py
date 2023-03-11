@@ -8,7 +8,14 @@ from collections import defaultdict
 
 
 class VariantViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Variant.objects.filter(status=Variant.Status.OK)
+    queryset = Variant.objects.filter(status=Variant.Status.OK).prefetch_related(
+        'cardinvariant_set__card',
+        'templateinvariant_set__template',
+        'cardinvariant_set',
+        'templateinvariant_set',
+        'produces',
+        'of',
+        'includes')
     serializer_class = VariantSerializer
 
 
@@ -23,9 +30,10 @@ class ComboViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class CardViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Card.objects.all()
+    queryset = Card.objects.prefetch_related(
+        'features',
+    )
     serializer_class = CardDetailSerializer
-    filterset_fields = ['oracle_id', 'identity']
 
 
 class TemplateViewSet(viewsets.ReadOnlyModelViewSet):

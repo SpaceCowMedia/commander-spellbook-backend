@@ -43,6 +43,7 @@ class TemplateViewSet(viewsets.ReadOnlyModelViewSet):
 
 class DeckListParser(parsers.BaseParser):
     media_type = 'text/plain'
+
     def __init__(self):
         self.cards_dict = {c.name.lower(): c for c in Card.objects.all()}
 
@@ -90,4 +91,4 @@ def find_my_combos(request: Request) -> Response:
         'included': included_variants,
         'almost_included': almost_included_variants,
         'almost_included_by_adding_colors': almost_included_variants_by_adding_colors,
-        })
+    })

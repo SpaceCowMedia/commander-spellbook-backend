@@ -22,7 +22,7 @@ class ChoiceField(serializers.ChoiceField):
 class CardSerializer(serializers.ModelSerializer):
     class Meta:
         model = Card
-        fields = ['id', 'name', 'oracle_id', 'identity', 'legal']
+        fields = ['id', 'name', 'oracle_id', 'identity', 'legal', 'spoiler']
 
 
 class FeatureSerializer(serializers.ModelSerializer):
@@ -36,7 +36,7 @@ class CardDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Card
-        fields = ['id', 'name', 'oracle_id', 'identity', 'legal', 'features']
+        fields = ['id', 'name', 'oracle_id', 'identity', 'legal', 'spoiler', 'features']
 
 
 class TemplateSerializer(serializers.ModelSerializer):
@@ -125,5 +125,4 @@ class VariantSerializer(serializers.ModelSerializer):
             'identity',
             'mana_needed',
             'other_prerequisites',
-            'description',
-            'legal']
+            'description']

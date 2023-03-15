@@ -6,32 +6,7 @@ from spellbook.variants.variants_generator import id_from_cards_and_templates_id
 from spellbook.models import Feature, Card, Job, Variant
 from django.utils import timezone
 from django.db.models import Count, Q
-
-
-def scryfall() -> dict:
-    req = Request(
-        'https://api.scryfall.com/bulk-data/oracle-cards?format=json'
-    )
-    # Scryfall card database fetching
-    card_db = dict()
-    with urlopen(req) as response:
-        data = json.loads(response.read().decode())
-        req = Request(
-            data['download_uri'],
-            headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; rv:91.0) Gecko/20100101 Firefox/91.0'}
-        )
-        with urlopen(req) as response:
-            data = json.loads(response.read().decode())
-            for card in data:
-                name = card['name'].lower().strip(' \t\n\r')
-                if name not in card_db \
-                    and ('paper' in card['games'] or 'mtgo' in card['games']) \
-                        and card['layout'] not in {'art_series', 'vanguard', 'scheme'}:
-                    card_db[name] = card
-                    if 'card_faces' in card and len(card['card_faces']) > 1:
-                        for face in card['card_faces']:
-                            card_db[face['name'].lower().strip(' \t\n\r')] = card
-    return card_db
+from ..scryfall import scryfall
 
 
 def find_combos():
@@ -63,7 +38,10 @@ class Command(BaseCommand):
     help = 'Tries to import combos from the google sheet'
 
     def handle(self, *args, **options):
-        job = Job(name='import_combos', expected_termination=timezone.now() + timezone.timedelta(minutes=12))
+        job = Job.start('import_combos', timezone.timedelta(minutes=12))
+        if job is None:
+            self.stdout.write('Job already running')
+            return
         job.save()
         try:
             self.stdout.write('Fetching combos...')
@@ -127,8 +105,7 @@ class Command(BaseCommand):
                     frozen=True,
                     status=Variant.Status.OK,
                     id=id,
-                    identity=merge_identities([c.identity for c in cards]),
-                    legal=all(c.legal for c in cards))
+                    identity=merge_identities([c.identity for c in cards]))
                 produces = set()
                 for p in produced:
                     try:

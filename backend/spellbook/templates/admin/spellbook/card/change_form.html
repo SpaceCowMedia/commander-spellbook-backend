@@ -14,17 +14,21 @@
 
 {% block admin_change_form_document_ready %}
     {{ block.super }}
+    {% if original.oracle_id %}
     <script>
         // trigger on page load if card is already selected
         django.jQuery(function() {
-            if (document.getElementById('id_oracle_id').value) {
+            const oracle_id = '{{ original.oracle_id }}';
+            if (oracle_id) {
                 card_info.update_card_oracle_image(
-                    document.getElementById('id_oracle_id').value,
+                    oracle_id,
                     document.getElementById('card-images'));
             }
         });
-
-        django.jQuery('#id_name').autocomplete({
+    </script>
+    {% endif %}
+    <script>
+        const autocomplete = django.jQuery('#id_name').autocomplete({
             source: function(request, response) {
                 django.jQuery.ajax({
                     url: 'https://api.scryfall.com/cards/autocomplete',
@@ -64,15 +68,17 @@
             open: function() {},
             close: function() {},
         })
-        .autocomplete('instance')
-        ._renderItem = function(ul, item) {
-            const newItem = django.jQuery('<li>')
-                .attr('data-value', item.value)
-                .append(item.label)
-                .appendTo(ul);
-            card_info.setup_tooltip(item.value, newItem);
-            return newItem;
-        };
+        .autocomplete('instance');
+        if (autocomplete) {
+            autocomplete._renderItem = function(ul, item) {
+                const newItem = django.jQuery('<li>')
+                    .attr('data-value', item.value)
+                    .append(item.label)
+                    .appendTo(ul);
+                card_info.setup_tooltip(item.value, newItem);
+                return newItem;
+            };
+        }
     </script>
 {% endblock %}
 

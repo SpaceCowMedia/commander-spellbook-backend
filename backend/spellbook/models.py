@@ -44,6 +44,7 @@ class Card(models.Model, ScryfallLinkMixin):
         blank=True)
     identity = models.CharField(max_length=5, blank=True, help_text='Card mana identity', verbose_name='mana identity of card', validators=[IDENTITY_VALIDATOR])
     legal = models.BooleanField(default=True, help_text='Is this card legal in Commander?', verbose_name='is legal')
+    spoiler = models.BooleanField(default=False, help_text='Is this card from an upcoming set?', verbose_name='is spoiler')
     added = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, editable=False)
 
@@ -176,7 +177,7 @@ class Job(models.Model):
         on_delete=models.SET_NULL,
         help_text='User that started this job')
 
-    def start(name: str, duration: timezone.timedelta, user: User):
+    def start(name: str, duration: timezone.timedelta, user: User | None = None):
         try:
             with transaction.atomic():
                 if Job.objects.filter(
@@ -250,7 +251,6 @@ class Variant(models.Model, ScryfallLinkMixin):
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, editable=False)
     frozen = models.BooleanField(default=False, blank=False, help_text='Is this variant undeletable?', verbose_name='is frozen')
-    legal = models.BooleanField(default=True, blank=False, help_text='Is this variant legal in Commander?', verbose_name='is legal')
     identity = models.CharField(max_length=5, blank=True, help_text='Mana identity', verbose_name='mana identity', editable=False, validators=[IDENTITY_VALIDATOR])
     generated_by = models.ForeignKey(Job, on_delete=models.SET_NULL, null=True, blank=True, editable=False, help_text='Job that generated this variant', related_name='variants')
 
@@ -271,7 +271,7 @@ class Variant(models.Model, ScryfallLinkMixin):
     def __str__(self):
         if self.pk is None:
             return f'New variant with unique id <{self.id}>'
-        produces = self.produces.all()[:4]
+        produces = list(self.produces.all()[:4])
         return ' + '.join([str(card) for card in self.cards()] + [str(template) for template in self.templates()]) \
             + ' ➡ ' + ' + '.join([str(feature) for feature in produces[:3]]) \
             + ('...' if len(produces) > 3 else '')

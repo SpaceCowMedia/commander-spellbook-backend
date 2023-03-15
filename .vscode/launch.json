@@ -110,5 +110,23 @@
                 "order": 5
             },
         },
+        {
+            "name": "Update Cards",
+            "type": "python",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/backend",
+            "program": "manage.py",
+            "args": [
+                "update_cards"
+            ],
+            "preLaunchTask": "Apply migrations",
+            "django": true,
+            "justMyCode": true,
+            "presentation": {
+                "hidden": false,
+                "group": "Spellbook",
+                "order": 6
+            },
+        },
     ]
 }

@@ -1,10 +1,11 @@
 from django.contrib import admin, messages
 from django.forms import ModelForm
-from ..models import Combo, CardInCombo, TemplateInCombo, Variant, CardInVariant, TemplateInVariant
+from ..models import Combo, CardInCombo, TemplateInCombo, Variant, CardInVariant, TemplateInVariant, Card, Template, Feature
 from ..variants.combo_graph import MAX_CARDS_IN_COMBO
 from ..variants.variant_data import RestoreData
 from ..variants.variants_generator import restore_variant
-from .mixins import SearchMultipleRelatedMixin
+from .utils import SearchMultipleRelatedMixin
+from django.db.models import Prefetch
 
 
 class ComboForm(ModelForm):
@@ -68,10 +69,12 @@ class ComboAdmin(SearchMultipleRelatedMixin, admin.ModelAdmin):
     filter_horizontal = ['uses', 'produces', 'needs', 'removes']
     list_filter = ['generator']
     search_fields = ['uses__name', 'requires__name', 'produces__name', 'needs__name']
-    list_display = ['__str__', 'generator', 'id']
+    list_display = ['display_name', 'generator', 'id']
 
-    def get_queryset(self, request):
-        return super().get_queryset(request).prefetch_related('uses', 'requires', 'produces', 'needs', 'removes')
+    def display_name(self, obj):
+        return ' + '.join([card.name for card in obj.prefetched_uses] + [feature.name for feature in obj.prefetched_needs] + [template.name for template in obj.prefetched_requires]) \
+            + ' ➡ ' + ' + '.join([feature.name for feature in obj.prefetched_produces[:3]]) \
+            + ('...' if len(obj.prefetched_produces) > 3 else '')
 
     def save_related(self, request, form, formsets, change):
         super().save_related(request, form, formsets, change)
@@ -97,7 +100,7 @@ class ComboAdmin(SearchMultipleRelatedMixin, admin.ModelAdmin):
                     data=data)
                 card_in_variants_to_update.extend(uses_set)
                 template_in_variants_to_update.extend(requires_set)
-            update_fields = ['status', 'mana_needed', 'other_prerequisites', 'description', 'legal', 'identity']
+            update_fields = ['status', 'mana_needed', 'other_prerequisites', 'description', 'identity']
             Variant.objects.bulk_update(variants_to_update, update_fields)
             update_fields = ['zone_location', 'card_state', 'order']
             CardInVariant.objects.bulk_update(card_in_variants_to_update, update_fields)
@@ -109,3 +112,11 @@ class ComboAdmin(SearchMultipleRelatedMixin, admin.ModelAdmin):
         if not obj or obj.uses.count() == 0:
             fieldsets = fieldsets[1:]
         return fieldsets
+
+    def get_queryset(self, request):
+        return Combo.objects \
+            .prefetch_related(
+                Prefetch('uses', queryset=Card.objects.order_by('cardincombo').only('name'), to_attr='prefetched_uses'),
+                Prefetch('requires', queryset=Template.objects.order_by('templateincombo').only('name'), to_attr='prefetched_requires'),
+                Prefetch('needs', queryset=Feature.objects.only('name'), to_attr='prefetched_needs'),
+                Prefetch('produces', queryset=Feature.objects.only('name'), to_attr='prefetched_produces'))

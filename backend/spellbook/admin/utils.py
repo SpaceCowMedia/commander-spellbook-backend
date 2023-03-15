@@ -1,3 +1,13 @@
+from django.utils.html import format_html
+from django.utils.formats import localize
+
+
+def datetime_to_html(datetime):
+    if datetime is None:
+        return None
+    return format_html('<span class="local-datetime" data-iso="{}">{}</span>', datetime.isoformat(), localize(datetime))
+
+
 class SearchMultipleRelatedMixin:
     def get_search_results(self, request, queryset, search_term: str):
         result = queryset

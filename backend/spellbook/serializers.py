@@ -125,4 +125,6 @@ class VariantSerializer(serializers.ModelSerializer):
             'identity',
             'mana_needed',
             'other_prerequisites',
-            'description']
+            'description',
+            'legal',
+            'spoiler']

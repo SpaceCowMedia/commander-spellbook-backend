@@ -6,6 +6,9 @@ from django.contrib.auth.models import User
 from .validators import MANA_VALIDATOR, TEXT_VALIDATORS, IDENTITY_VALIDATOR, SCRYFALL_QUERY_VALIDATOR, SCRYFALL_QUERY_HELP
 from django.utils.html import format_html
 from .scryfall import SCRYFALL_API_CARD_SEARCH, SCRYFALL_WEBSITE_CARD_SEARCH, SCRYFALL_LEGAL_IN_COMMANDER
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from .variants.list_utils import merge_identities
 
 
 class Feature(models.Model):
@@ -253,6 +256,8 @@ class Variant(models.Model, ScryfallLinkMixin):
     frozen = models.BooleanField(default=False, blank=False, help_text='Is this variant undeletable?', verbose_name='is frozen')
     identity = models.CharField(max_length=5, blank=True, help_text='Mana identity', verbose_name='mana identity', editable=False, validators=[IDENTITY_VALIDATOR])
     generated_by = models.ForeignKey(Job, on_delete=models.SET_NULL, null=True, blank=True, editable=False, help_text='Job that generated this variant', related_name='variants')
+    legal = models.BooleanField(blank=False, help_text='Is this variant legal in Commander?', verbose_name='is legal')
+    spoiler = models.BooleanField(blank=False, help_text='Is this variant a spoiler?', verbose_name='is spoiler')
 
     class Meta:
         ordering = ['-status', '-created']
@@ -326,3 +331,32 @@ class TemplateInVariant(IngredientInCombination):
 
     class Meta(IngredientInCombination.Meta):
         unique_together = [('template', 'variant')]
+
+
+@receiver(post_save, sender=Card, dispatch_uid='update_variant_fields')
+def update_variant_fields(sender, instance, created, raw, **kwargs):
+    if raw:
+        return
+    if created:
+        return
+    variants_to_save = []
+    for variant in instance.used_in_variants.all():
+        save = False
+        if variant.legal and not instance.legal:
+            variant.legal = False
+            save = True
+        elif not variant.legal and instance.legal:
+            variant.legal = all(card.legal for card in variant.uses.all())
+            save = True
+        if not variant.spoiler and instance.spoiler:
+            variant.spoiler = True
+            save = True
+        elif variant.spoiler and not instance.spoiler:
+            variant.spoiler = any(card.spoiler for card in variant.uses.all())
+            save = True
+        if instance.identity != variant.identity:
+            variant.identity = merge_identities(card.identity for card in variant.uses.all())
+            save = True
+        if save:
+            variants_to_save.append(variant)
+    Variant.objects.bulk_update(variants_to_save, ['legal', 'spoiler', 'identity'])        

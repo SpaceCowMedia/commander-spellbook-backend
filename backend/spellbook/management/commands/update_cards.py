@@ -2,7 +2,7 @@ import traceback
 from ..scryfall import scryfall
 from django.core.management.base import BaseCommand
 from spellbook.models import Job, Card
-from spellbook.variants.variants_generator import merge_identities
+from spellbook.variants.list_utils import merge_identities
 from django.utils import timezone
 import datetime
 

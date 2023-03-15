@@ -1,4 +1,5 @@
 from typing import TypeVar
+from typing import Iterable
 
 T = TypeVar('T', int, str, float, complex)
 
@@ -13,3 +14,15 @@ def all_rotations(li: list[T]) -> list[list[T]]:
 
 def merge_sort_unique(left: list[T], right: list[T]) -> list[T]:
     return sorted(set(left + right))
+
+
+def merge_identities(identities: Iterable[str]):
+    i = set(''.join(identities).upper())
+    return ''.join([color for color in 'WUBRG' if color in i])
+
+
+def includes_any(v: set[int], others: Iterable[set[int]]) -> bool:
+    for o in others:
+        if v.issuperset(o):
+            return True
+    return False

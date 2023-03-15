@@ -2,12 +2,12 @@ import json
 import hashlib
 import logging
 from itertools import chain
-from typing import Iterable
 from dataclasses import dataclass
 from django.db import transaction
-from ..models import Combo, Job, Variant, CardInVariant, TemplateInVariant, IngredientInCombination
+from ..models import Combo, Job, Variant, CardInVariant, TemplateInVariant
 from .variant_data import RestoreData, Data, debug_queries
 from .combo_graph import Graph
+from .list_utils import merge_identities, includes_any
 
 
 def log_into_job(job: Job, message: str, reset=False):
@@ -72,18 +72,6 @@ def subtract_removed_features(data: Data, includes: set[int], features: set[int]
     return features - set(r for c in includes for r in data.combo_to_removed_features[c])
 
 
-def merge_identities(identities: Iterable[str]):
-    i = set(''.join(identities).upper())
-    return ''.join([color for color in 'WUBRG' if color in i])
-
-
-def includes_any(v: set[int], others: Iterable[set[int]]) -> bool:
-    for o in others:
-        if v.issuperset(o):
-            return True
-    return False
-
-
 @dataclass
 class VariantBulkSaveItem:
     should_update: bool
@@ -109,6 +97,8 @@ def restore_variant(
     variant.mana_needed = ' '.join(c.mana_needed for c in included_combos if len(c.mana_needed) > 0)
     variant.description = '\n'.join(c.description for c in included_combos if len(c.description) > 0)
     variant.status = Variant.Status.NEW
+    variant.legal = all(c.card.legal for c in used_cards)
+    variant.spoiler = any(c.card.spoiler for c in used_cards)
     uses = dict[int, CardInVariant]()
     for card_in_variant in used_cards:
         card_in_variant.order = 0
@@ -226,7 +216,7 @@ def create_variant(
 
 def perform_bulk_saves(to_create: list[VariantBulkSaveItem], to_update: list[VariantBulkSaveItem]):
     Variant.objects.bulk_create(v.variant for v in to_create)
-    update_fields = ['status', 'mana_needed', 'other_prerequisites', 'description', 'identity']
+    update_fields = ['status', 'mana_needed', 'other_prerequisites', 'description', 'identity', 'legal', 'spoiler']
     Variant.objects.bulk_update((v.variant for v in to_update if v.should_update), fields=update_fields)
     CardInVariant.objects.bulk_create(c for v in to_create for c in v.uses)
     update_fields = ['zone_location', 'card_state', 'order']

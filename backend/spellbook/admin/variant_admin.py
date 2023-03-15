@@ -110,24 +110,10 @@ class VariantAdmin(SearchMultipleRelatedMixin, admin.ModelAdmin):
             'description',
             'frozen']})
     ]
-    list_filter = ['status', CardsCountListFilter, 'identity']
+    list_filter = ['status', CardsCountListFilter, 'identity', 'legal', 'spoiler', 'frozen']
     list_display = ['display_name', 'status', 'id', 'identity']
     search_fields = ['=id', 'uses__name', 'produces__name', 'requires__name']
     actions = [set_restore, set_draft, set_new, set_not_working]
-
-    @admin.display(
-        boolean=True,
-        description='Is legal',
-    )
-    def legal(self, obj):
-        return obj.legal
-
-    @admin.display(
-        boolean=True,
-        description='Is spoiler',
-    )
-    def spoiler(self, obj):
-        return obj.spoiler
 
     def display_name(self, obj):
         return ' + '.join([card.name for card in obj.prefetched_uses] + [template.name for template in obj.prefetched_requires]) \
@@ -166,12 +152,6 @@ class VariantAdmin(SearchMultipleRelatedMixin, admin.ModelAdmin):
 
     def get_queryset(self, request):
         return Variant.objects \
-            .annotate(
-                legal=Exists(
-                    CardInVariant.objects.filter(variant=OuterRef('pk'), card__legal=False),
-                    negated=True),
-                spoiler=Exists(
-                    CardInVariant.objects.filter(variant=OuterRef('pk'), card__spoiler=True))) \
             .prefetch_related(
                 Prefetch('uses', queryset=Card.objects.order_by('cardinvariant').only('name'), to_attr='prefetched_uses'),
                 Prefetch('requires', queryset=Template.objects.order_by('templateinvariant').only('name'), to_attr='prefetched_requires'),

@@ -359,4 +359,4 @@ def update_variant_fields(sender, instance, created, raw, **kwargs):
             save = True
         if save:
             variants_to_save.append(variant)
-    Variant.objects.bulk_update(variants_to_save, ['legal', 'spoiler', 'identity'])        
+    Variant.objects.bulk_update(variants_to_save, ['legal', 'spoiler', 'identity'])

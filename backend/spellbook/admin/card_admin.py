@@ -17,5 +17,8 @@ class CardAdmin(admin.ModelAdmin):
     autocomplete_fields = ['features']
     list_display = ['name', 'identity', 'id']
 
-    def has_change_permission(self, request, obj: Card | None = None) -> bool:
-        return obj is not None and obj.oracle_id is None and super().has_change_permission(request, obj)
+    def get_readonly_fields(self, request, obj):
+        readonly_fields = super().get_readonly_fields(request, obj)
+        if obj is not None and obj.oracle_id is not None:
+            return readonly_fields + ['name', 'oracle_id', 'identity', 'legal', 'spoiler']
+        return readonly_fields

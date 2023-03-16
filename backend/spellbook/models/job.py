@@ -13,7 +13,7 @@ class Job(models.Model):
     expected_termination = models.DateTimeField(blank=False)
     termination = models.DateTimeField(blank=True, null=True)
     status = models.CharField(choices=Status.choices, default=Status.PENDING, max_length=2, blank=False)
-    message = models.TextField(blank=True)
+    message = models.TextField(blank=True, default='')
     started_by = models.ForeignKey(
         to=User,
         related_name='started_jobs',

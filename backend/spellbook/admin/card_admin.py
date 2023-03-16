@@ -1,5 +1,5 @@
 from django.contrib import admin
-from ..models import Card
+from spellbook.models import Card
 
 
 @admin.register(Card)

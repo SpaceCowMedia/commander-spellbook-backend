@@ -1,10 +1,10 @@
 import traceback
-from ..scryfall import scryfall
+import datetime
 from django.core.management.base import BaseCommand
+from django.utils import timezone
 from spellbook.models import Job, Card
 from spellbook.variants.list_utils import merge_identities
-from django.utils import timezone
-import datetime
+from ..scryfall import scryfall
 
 
 class Command(BaseCommand):

@@ -1,9 +1,12 @@
-from collections import defaultdict
-from ..models import Card, Feature, Combo, Template, Variant, CardInCombo, TemplateInCombo, CardInVariant, TemplateInVariant
-from django.db import connection
-from django.db import reset_queries
 import logging
 from django.conf import settings
+from django.db import connection, reset_queries
+from collections import defaultdict
+from spellbook.models.card import Card
+from spellbook.models.feature import Feature
+from spellbook.models.combo import Combo, CardInCombo, TemplateInCombo
+from spellbook.models.template import Template
+from spellbook.models.variant import Variant, CardInVariant, TemplateInVariant
 
 
 def fetch_not_working_variants(variants_base_query):

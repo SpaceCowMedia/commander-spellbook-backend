@@ -4,10 +4,10 @@ import logging
 from itertools import chain
 from dataclasses import dataclass
 from django.db import transaction
-from ..models import Combo, Job, Variant, CardInVariant, TemplateInVariant
+from .list_utils import merge_identities, includes_any
 from .variant_data import RestoreData, Data, debug_queries
 from .combo_graph import Graph
-from .list_utils import merge_identities, includes_any
+from spellbook.models import Combo, Job, Variant, CardInVariant, TemplateInVariant
 
 
 def log_into_job(job: Job, message: str, reset=False):

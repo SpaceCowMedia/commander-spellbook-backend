@@ -1,14 +1,14 @@
-from django.contrib import admin, messages
 from django.utils.html import format_html
 from django.urls import reverse, path
-from django.db.models import Count, Prefetch, OuterRef, Exists
+from django.db.models import Count, Prefetch
 from django.forms import ModelForm
 from django.http import HttpRequest
 from django.shortcuts import redirect
 from django.utils import timezone
-from ..models import Variant, CardInVariant, TemplateInVariant, Card, Template, Feature
-from ..variants.combo_graph import MAX_CARDS_IN_COMBO
-from ..utils import launch_job_command
+from django.contrib import admin, messages
+from spellbook.models import Card, Template, Feature, Variant, CardInVariant, TemplateInVariant
+from spellbook.variants.combo_graph import MAX_CARDS_IN_COMBO
+from spellbook.utils import launch_job_command
 from .utils import SearchMultipleRelatedMixin
 
 

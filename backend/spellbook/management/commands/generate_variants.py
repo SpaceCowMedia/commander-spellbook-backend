@@ -1,10 +1,10 @@
 import traceback
 from django.core.management.base import BaseCommand, CommandError
-from spellbook.models import Job, Variant
-from spellbook.variants.variants_generator import generate_variants
 from django.utils import timezone
 from django.contrib.admin.models import LogEntry, CHANGE
 from django.contrib.contenttypes.models import ContentType
+from spellbook.models import Job, Variant
+from spellbook.variants.variants_generator import generate_variants
 
 
 class Command(BaseCommand):

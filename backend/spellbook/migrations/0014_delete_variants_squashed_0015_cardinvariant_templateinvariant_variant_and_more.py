@@ -78,7 +78,7 @@ class Migration(migrations.Migration):
                 'verbose_name_plural': 'variants',
                 'ordering': ['-status', '-created'],
             },
-            bases=(models.Model, spellbook.models.ScryfallLinkMixin),
+            bases=(models.Model, spellbook.models.mixins.ScryfallLinkMixin),
         ),
         migrations.AddField(
             model_name='templateinvariant',

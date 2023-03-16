@@ -1,7 +1,6 @@
-from django.urls import include, path
+from django.urls import include, path, re_path
 from .hybridrouter import HybridRouter
 from . import views
-from django.urls import re_path
 from website.urls import router as website_router
 
 router = HybridRouter()

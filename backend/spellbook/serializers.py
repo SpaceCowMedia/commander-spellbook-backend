@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Card, Template, Feature, Combo, Variant, CardInCombo, TemplateInCombo, CardInVariant, TemplateInVariant, IngredientInCombination
+from spellbook.models import Card, Template, Feature, IngredientInCombination, Combo, CardInCombo, TemplateInCombo, Variant, CardInVariant, TemplateInVariant
 
 
 class ChoiceField(serializers.ChoiceField):

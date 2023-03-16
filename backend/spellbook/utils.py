@@ -1,12 +1,12 @@
-from datetime import timedelta
-import pathlib
-import subprocess
 import sys
+import subprocess
+import pathlib
+from datetime import timedelta
 from django.utils import timezone
 from django.core.management import call_command
 from django.db.models import Avg, F
-from .models import Job
 from django.conf import settings
+from spellbook.models import Job
 
 
 def launch_command_async(command: str, args: list[str] = []):

@@ -1,10 +1,10 @@
-from .models import Card, Feature, Combo, Template, Variant, CardInVariant
-from .serializers import CardDetailSerializer, FeatureSerializer, ComboDetailSerializer, TemplateSerializer, VariantSerializer
+from collections import defaultdict
 from rest_framework import viewsets, parsers
 from rest_framework.decorators import api_view, parser_classes
 from rest_framework.response import Response
 from rest_framework.request import Request
-from collections import defaultdict
+from spellbook.models import Card, Template, Feature, Combo, Variant, CardInVariant
+from spellbook.serializers import CardDetailSerializer, FeatureSerializer, ComboDetailSerializer, TemplateSerializer, VariantSerializer
 
 
 class VariantViewSet(viewsets.ReadOnlyModelViewSet):

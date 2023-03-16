@@ -4,11 +4,11 @@ import traceback
 from pathlib import Path
 from django.utils import timezone
 from django.core.management.base import BaseCommand, CommandError
-from spellbook.models import Variant, Job
-from spellbook.serializers import VariantSerializer
 from django.contrib.admin.models import LogEntry, CHANGE
 from django.contrib.contenttypes.models import ContentType
 from django.conf import settings
+from spellbook.models import Variant, Job
+from spellbook.serializers import VariantSerializer
 
 
 def prepare_variant(variant: Variant):

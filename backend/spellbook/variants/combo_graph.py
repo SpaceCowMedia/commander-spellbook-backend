@@ -1,9 +1,13 @@
 from typing import Iterable, Optional
 from enum import Enum
-from ..models import Card, Feature, Combo, Template
+from dataclasses import dataclass
+from spellbook.models.card import Card
+from spellbook.models.feature import Feature
+from spellbook.models.combo import Combo
+from spellbook.models.template import Template
 from .variant_data import Data
 from .variant_trie import VariantTrie
-from dataclasses import dataclass
+
 
 MAX_CARDS_IN_COMBO = 5
 

@@ -1,8 +1,6 @@
-from django.contrib import admin
-from django.utils.html import format_html
-from django.utils.formats import localize
-from ..models import Job
 from django.db.models import Count
+from django.contrib import admin
+from spellbook.models.job import Job
 from .utils import datetime_to_html
 
 

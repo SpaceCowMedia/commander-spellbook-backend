@@ -2,11 +2,11 @@ import json
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 from django.core.management.base import BaseCommand
+from django.utils import timezone
+from django.db.models import Count, Q
 from spellbook.variants.variants_generator import id_from_cards_and_templates_ids, VariantBulkSaveItem, perform_bulk_saves
 from spellbook.variants.list_utils import merge_identities
 from spellbook.models import Feature, Card, Job, Variant
-from django.utils import timezone
-from django.db.models import Count, Q
 from ..scryfall import scryfall
 
 

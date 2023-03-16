@@ -1,5 +1,5 @@
 from django.contrib import admin
-from ..models import Feature
+from spellbook.models import Feature
 
 
 class CardInFeatureAdminInline(admin.StackedInline):

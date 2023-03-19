@@ -28,7 +28,9 @@ class Command(BaseCommand):
             scryfall_db = {card_object['oracle_id']: card_object for card_object in scryfall_name_db.values()}
             self.log_job(job, 'Fetching scryfall dataset...done')
             self.log_job(job, 'Updating cards...')
-            cards_to_update = Card.objects.all()
+            cards_to_update = list(Card.objects.all())
+            existing_names = {card.name: card for card in cards_to_update}
+            existing_oracle_ids = {card.oracle_id: card for card in cards_to_update if card.oracle_id is not None}
             updated_count = 0
             for card in cards_to_update:
                 updated = False
@@ -37,18 +39,24 @@ class Command(BaseCommand):
                     card_name = card.name.lower().strip(' \t\n\r')
                     if card_name in scryfall_name_db:
                         card.oracle_id = uuid.UUID(hex=scryfall_name_db[card_name]['oracle_id'])
+                        if card.oracle_id in existing_oracle_ids:
+                            self.log_job(job, f'Card {card.name} would have the same oracle id as {existing_oracle_ids[card.oracle_id].name}, skipping', self.style.ERROR)
+                            continue
                         updated = True
                         self.log_job(job, f'Card {card.name} found in scryfall dataset, oracle_id set to {card.oracle_id}')
                     else:
-                        self.log_job(job, f'Card {card.name} not found in scryfall dataset', self.style.WARNING)
+                        self.log_job(job, f'Card {card.name} not found in scryfall dataset, after searching by name', self.style.WARNING)
                         continue
                 oracle_id = str(card.oracle_id)
                 if oracle_id in scryfall_db:
                     card_in_db = scryfall_db[oracle_id]
                     card_name = card_in_db['name']
                     if card.name != card_name:
-                        card.name = card_in_db['name']
-                        updated = True
+                        if card_name in existing_names:
+                            self.log_job(job, f'Card {card.name} would have a the same name as another card with oracle id {existing_names[card_name].oracle_id}, skipping name update', self.style.ERROR)
+                        else:
+                            card.name = card_in_db['name']
+                            updated = True
                     card_identity = merge_identities(card_in_db['color_identity'])
                     if card.identity != card_identity:
                         card.identity = card_identity
@@ -63,11 +71,14 @@ class Command(BaseCommand):
                     if card.spoiler != card_spoiler:
                         card.spoiler = card_spoiler
                         updated = True
-                    if updated:
-                        card.save()
-                        updated_count += 1
                 else:
-                    self.log_job(job, f'Card {card.name} with oracle id {oracle_id} not found in scryfall dataset', self.style.WARNING)
+                    self.log_job(job, f'Card {card.name} with oracle id {oracle_id} not found in scryfall dataset. Oracle id has been removed.', self.style.WARNING)
+                    card.oracle_id = None
+                    updated = True
+                if updated:
+                    card.save()
+                    updated_count += 1
+
             job.termination = timezone.now()
             job.status = Job.Status.SUCCESS
             self.log_job(job, 'Updating cards...done', self.style.SUCCESS)

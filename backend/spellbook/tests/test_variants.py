@@ -1,6 +1,6 @@
 from django.test import TestCase
-from spellbook.variants.list_utils import rotate, all_rotations, merge_sort_unique
 from spellbook.variants.variant_trie import VariantTrie
+from spellbook.variants.list_utils import rotate, all_rotations, merge_sort_unique, merge_identities, includes_any
 
 def list_of_tuples_of_lists_to_set(l : list[tuple[list]]) -> set[tuple[tuple]]:
     return set([tuple([tuple(x) for x in y]) for y in l])
@@ -38,7 +38,7 @@ class ListUtilsTests(TestCase):
         self.assertEqual(all_rotations(['a', ['x'], {'a'}]), [['a', ['x'], {'a'}], [{'a'}, 'a', ['x']], [['x'], {'a'}, 'a']])
         self.assertEqual(all_rotations((1, 2, 3)), [(1, 2, 3), (3, 1, 2), (2, 3, 1)])
 
-    def test_merge_sort(self):
+    def test_merge_sort_unique(self):
         self.assertEqual(merge_sort_unique([1, 2, 3], [4, 5, 6]), [1, 2, 3, 4, 5, 6])
         self.assertEqual(merge_sort_unique([1, 2, 3], [3, 4, 5]), [1, 2, 3, 4, 5])
         self.assertEqual(merge_sort_unique([1, 2, 3], [1, 2, 3]), [1, 2, 3])
@@ -47,6 +47,31 @@ class ListUtilsTests(TestCase):
         self.assertEqual(merge_sort_unique([1, 2, 3, 4, 5], [1, 2, 3, 4, 5]), [1, 2, 3, 4, 5])
         self.assertEqual(merge_sort_unique(['a', 'c', 'z'], ['b', 'd', 'y']), ['a', 'b', 'c', 'd', 'y', 'z'])
         self.assertEqual(merge_sort_unique((1, 2, 3), (4, 5, 6)), [1, 2, 3, 4, 5, 6])
+    
+    def test_merge_identities(self):
+        self.assertEqual(merge_identities(['', '']), '')
+        for c in 'WUBRG':
+            self.assertEqual(merge_identities([c, '']), c)
+            self.assertEqual(merge_identities(['', c]), c)
+            self.assertEqual(merge_identities([c, c]), c)
+        self.assertEqual(merge_identities(['W', 'U']), 'WU')
+        self.assertEqual(merge_identities(['W', 'U', 'B']), 'WUB')
+        self.assertEqual(merge_identities(['W', 'U', 'B', 'R']), 'WUBR')
+        self.assertEqual(merge_identities(['W', 'U', 'B', 'R', 'G']), 'WUBRG')
+        self.assertEqual(merge_identities(sorted(['W', 'U', 'B', 'R', 'G'])), 'WUBRG')
+        self.assertEqual(merge_identities(['W', 'U', 'B', 'R', 'G', 'W']), 'WUBRG')
+        self.assertEqual(merge_identities(['WU', 'BR', 'G', 'WG']), 'WUBRG')
+        self.assertEqual(merge_identities(['S']), '')
+        self.assertEqual(merge_identities(['S', 'R']), 'R')
+        self.assertEqual(merge_identities(['r', 'g']), 'RG')
+        self.assertEqual(merge_identities(['g', 'r']), 'RG')
+
+    def test_includes_any(self):
+        self.assertTrue(includes_any({1, 2, 3}, [{1, 2, 3}]))
+        self.assertTrue(includes_any({1, 2, 3}, [{1, 2, 3}, {1, 2, 3, 4}]))
+        self.assertTrue(includes_any({1, 2, 3}, [{1, 2, 3, 4}, {2}]))
+        self.assertTrue(includes_any(set(), [set()]))
+        self.assertTrue(includes_any({1}, [{2}, {1}]))
 
 
 class VariantTrieTests(TestCase):

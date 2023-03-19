@@ -39,7 +39,7 @@ class Command(BaseCommand):
     help = 'Tries to import combos from the google sheet'
 
     def handle(self, *args, **options):
-        job = Job.start('import_combos', timezone.timedelta(minutes=12))
+        job = Job.start('import_combos')
         if job is None:
             self.stdout.write('Job already running')
             return

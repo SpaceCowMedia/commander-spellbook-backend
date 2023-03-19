@@ -17,7 +17,7 @@ class Command(BaseCommand):
         job.save()
 
     def handle(self, *args, **options):
-        job = Job.start('update_cards_data', timezone.timedelta(minutes=2))
+        job = Job.start('update_cards_data')
         if job is None:
             self.stdout.write(self.style.ERROR('Job already running'))
             return

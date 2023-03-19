@@ -26,17 +26,9 @@ def launch_job_command(command: str, duration: timedelta, user, args: list[str] 
     The command must be a management command that can take a --id parameter with the Job id.
     Returns true if the command was launched, false if there is already a job.
     """
-    past_runs_duration = Job.objects \
-        .filter(name=command, status=Job.Status.SUCCESS) \
-        .order_by('-created')[:5] \
-        .annotate(duration=F('termination') - F('created')) \
-        .aggregate(average_duration=Avg('duration'))['average_duration']
-    if past_runs_duration is None:
-        past_runs_duration = duration
-
     job = Job.start(
         name=command,
-        duration=past_runs_duration * 1.5,
+        duration=None,
         user=user)
     if job is not None:
         try:

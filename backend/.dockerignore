@@ -7,5 +7,5 @@ nginx/
 __pycache__
 ./temp
 *_data.json
-**/*tests*.py
+**/test*.py
 backend/debug_settings.py

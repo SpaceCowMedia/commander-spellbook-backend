@@ -17,6 +17,7 @@ def populate_db():
     f4 = Feature.objects.create(name='FD', description='Feature D', utility=True)
     b1 = Combo.objects.create(mana_needed='{W}{W}', other_prerequisites='Some requisites.', description='Some description.', generator=False)
     b2 = Combo.objects.create(mana_needed='{U}{U}', other_prerequisites='Some requisites.', description='Some description.', generator=True)
+    b3 = Combo.objects.create(mana_needed='{B}{B}', other_prerequisites='Some requisites.', description='Some description.', generator=False)
     t1 = Template.objects.create(name='TA', scryfall_query='tou>5')
     c1.features.add(f1)
     b1.needs.add(f1)
@@ -28,6 +29,10 @@ def populate_db():
     b2.removes.add(f3)
     TemplateInCombo.objects.create(template=t1, combo=b2, order=1, zone_location=IngredientInCombination.ZoneLocation.GRAVEYARD, card_state='Some state.')
     b2.produces.add(f4)
+    CardInCombo.objects.create(card=c4, combo=b3, order=1, zone_location=IngredientInCombination.ZoneLocation.HAND, card_state='Some state.')
+    CardInCombo.objects.create(card=c5, combo=b3, order=2, zone_location=IngredientInCombination.ZoneLocation.BATTLEFIELD, card_state='Some state.')
+    CardInCombo.objects.create(card=c6, combo=b3, order=3, zone_location=IngredientInCombination.ZoneLocation.COMMAND_ZONE, card_state='Some state.')
+    CardInCombo.objects.create(card=c7, combo=b3, order=4, zone_location=IngredientInCombination.ZoneLocation.LIBRARY, card_state='Some state.')
 
 
 class CardTests(TestCase):

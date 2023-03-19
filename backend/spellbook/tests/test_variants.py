@@ -2,8 +2,10 @@ from django.test import TestCase
 from spellbook.variants.variant_trie import VariantTrie
 from spellbook.variants.list_utils import rotate, all_rotations, merge_sort_unique, merge_identities, includes_any
 
-def list_of_tuples_of_lists_to_set(l : list[tuple[list]]) -> set[tuple[tuple]]:
-    return set([tuple([tuple(x) for x in y]) for y in l])
+
+def list_of_tuples_of_lists_to_set(list_of_tuples_of_lists: list[tuple[list]]) -> set[tuple[tuple]]:
+    return set([tuple([tuple(x) for x in y]) for y in list_of_tuples_of_lists])
+
 
 class ListUtilsTests(TestCase):
 
@@ -47,7 +49,7 @@ class ListUtilsTests(TestCase):
         self.assertEqual(merge_sort_unique([1, 2, 3, 4, 5], [1, 2, 3, 4, 5]), [1, 2, 3, 4, 5])
         self.assertEqual(merge_sort_unique(['a', 'c', 'z'], ['b', 'd', 'y']), ['a', 'b', 'c', 'd', 'y', 'z'])
         self.assertEqual(merge_sort_unique((1, 2, 3), (4, 5, 6)), [1, 2, 3, 4, 5, 6])
-    
+
     def test_merge_identities(self):
         self.assertEqual(merge_identities(['', '']), '')
         for c in 'WUBRG':
@@ -106,7 +108,7 @@ class VariantTrieTests(TestCase):
         trie2 = VariantTrie()
         trie2.add([1, 2, 3], [1, 2, 3, 4])
         trie2.add([1, 2, 3, 4, 5], [1])
-        
+
         trie3 = trie | trie2
         self.assertEqual(trie3.variants(), [([1, 2, 3, 4], [1, 2, 3]), ([1, 2, 3, 4, 5], [1]), ([1, 2, 3], [1, 2, 3, 4])])
         trie4 = trie2 | trie
@@ -119,7 +121,7 @@ class VariantTrieTests(TestCase):
         trie2 = VariantTrie()
         trie2.add([1, 2, 3], [1, 2, 3, 4])
         trie2.add([1, 2, 3, 4, 5], [1])
-        
+
         trie3 = trie & trie2
         self.assertEqual(trie3.variants(), [([1, 2, 3, 4], [1, 2, 3, 4]), ([1, 2, 3, 4, 5], [1, 2])])
         trie4 = trie2 & trie

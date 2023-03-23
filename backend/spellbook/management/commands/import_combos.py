@@ -56,7 +56,7 @@ class Command(BaseCommand):
         oracle_cards_in_database = {str(c.oracle_id): c for c in spellbook_cards}
         name_cards_in_database = {c.name: c for c in spellbook_cards}
         combo_card_name_to_card = dict[str, Card]()
-        for i, card in enumerate(cards_from_combos):
+        for i, card in enumerate(sorted(cards_from_combos)):
             self.stdout.write(f'{i+1}/{len(cards_from_combos)} {card}')
             if card in scryfall_db:
                 data = scryfall_db[card]
@@ -77,20 +77,25 @@ class Command(BaseCommand):
                 save_card = True
             else:
                 c = Card.objects.create(name=data['name'], oracle_id=data['oracle_id'])
+                oracle_cards_in_database[str(c.oracle_id)] = c
+                name_cards_in_database[c.name] = c
+                save_card = True
+            updated_cards = update_cards(
+                [c],
+                scryfall_db,
+                lambda x: self.log_job(job, x),
+                lambda x: self.log_job(job, x, self.style.WARNING),
+                lambda x: self.log_job(job, x, self.style.ERROR),
+            )
+            if len(updated_cards) > 0:
+                c = updated_cards[0]
                 save_card = True
             if save_card:
-                updated_cards = update_cards(
-                    [c],
-                    scryfall_db,
-                    lambda x: self.log_job(job, x),
-                    lambda x: self.log_job(job, x, self.style.WARNING),
-                    lambda x: self.log_job(job, x, self.style.ERROR),
-                )
-                if len(updated_cards) > 0:
-                    self.log_job(job, f'Updating card {c.name}...')
-                    c = updated_cards[0]
-                    c.save()
-                    self.log_job(job, f'Updating card {c.name}...done')
+                self.stdout.write(f'Updating card {c.name}...')
+                c.save()
+                oracle_cards_in_database[str(c.oracle_id)] = c
+                name_cards_in_database[c.name] = c
+                self.stdout.write(f'Updating card {c.name}...done')
             combo_card_name_to_card[card] = c
         self.log_job(job, 'Done fetching cards')
         return combo_card_name_to_card
@@ -128,7 +133,8 @@ class Command(BaseCommand):
                     frozen=True,
                     status=Variant.Status.OK,
                     id=id,
-                    identity=merge_identities([c.identity for c in cards_from_combo]))
+                    identity=merge_identities([c.identity for c in cards_from_combo]),
+                    generated_by=job)
                 feature_names = {p.strip().title() for p in produced}
                 for feature_name in feature_names:
                     if feature_name not in spellbook_features:

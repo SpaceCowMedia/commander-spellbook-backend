@@ -56,7 +56,7 @@ class Command(BaseCommand):
         oracle_cards_in_database = {str(c.oracle_id): c for c in spellbook_cards}
         name_cards_in_database = {c.name: c for c in spellbook_cards}
         combo_card_name_to_card = dict[str, Card]()
-        for i, card in enumerate(sorted(cards_from_combos)):
+        for i, card in enumerate(cards_from_combos):
             self.stdout.write(f'{i+1}/{len(cards_from_combos)} {card}')
             if card in scryfall_db:
                 data = scryfall_db[card]
@@ -128,12 +128,9 @@ class Command(BaseCommand):
                 if id in bulk_variant_dict:
                     self.stdout.write(f'\nSkipping combo [{id}] {cards_from_combo}: already present in imported variants')
                     continue
-                combo = Variant(other_prerequisites=prerequisite,
-                    description=description,
+                combo = Variant(
                     frozen=True,
-                    status=Variant.Status.OK,
                     id=id,
-                    identity=merge_identities([c.identity for c in cards_from_combo]),
                     generated_by=job)
                 feature_names = {p.strip().title() for p in produced}
                 for feature_name in feature_names:
@@ -150,6 +147,9 @@ class Command(BaseCommand):
                     used_cards=used_cards,
                     required_templates=[],
                     data=data)
+                combo.other_prerequisites = prerequisite
+                combo.description = description
+                combo.status = Variant.Status.OK
                 bulk_item = VariantBulkSaveItem(
                     should_update=True,
                     variant=combo,

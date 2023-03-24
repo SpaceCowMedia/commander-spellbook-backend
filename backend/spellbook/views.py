@@ -4,6 +4,7 @@ from rest_framework.decorators import api_view, parser_classes
 from rest_framework.response import Response
 from rest_framework.request import Request
 from spellbook.models import Card, Template, Feature, Combo, Variant, CardInVariant
+from spellbook.variants.list_utils import merge_identities
 from spellbook.serializers import CardDetailSerializer, FeatureSerializer, ComboDetailSerializer, TemplateSerializer, VariantSerializer
 
 
@@ -80,20 +81,19 @@ def find_my_combos(request: Request) -> Response:
     almost_included_variants = []
     almost_included_variants_by_adding_colors = []
 
-    identity = set()
-    for card in cards:
-        identity.update(list(card.identity))
+    identity = merge_identities(c.identity for c in cards)
+    identity_set = set(identity)
 
     for variant in variant_to_cards:
         if variant_to_cards[variant].issubset(cards):
             included_variants.append(VariantSerializer(variant).data)
         elif variant_to_cards[variant].intersection(cards):
-            if set(variant.identity).issubset(identity):
+            if set(variant.identity).issubset(identity_set):
                 almost_included_variants.append(VariantSerializer(variant).data)
             else:
                 almost_included_variants_by_adding_colors.append(VariantSerializer(variant).data)
     return Response({
-        'identity': ''.join(i for i in 'WUBRG' if i in identity),
+        'identity': identity,
         'included': included_variants,
         'almost_included': almost_included_variants,
         'almost_included_by_adding_colors': almost_included_variants_by_adding_colors,

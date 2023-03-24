@@ -58,7 +58,7 @@
                                 identity_result += c;
                             }
                         }
-                        django.jQuery('#id_identity').val(identity_result);
+                        django.jQuery('#id_identity').val(identity_result || 'C');
                         django.jQuery('#id_legal').prop('checked', Object.hasOwn(data.legalities, 'commander') && data.legalities.commander !== 'banned');
                         card_info.update_card_oracle_image(
                             document.getElementById('id_oracle_id').value,

@@ -1,4 +1,4 @@
-from django.core.validators import RegexValidator
+from django.core.validators import RegexValidator, MinLengthValidator
 
 MANA_SYMBOL = r'(?:[0-9WUBRGCPXYZS∞]|[1-9][0-9]{1,2}|(?:2\/[WUBRG]|W\/U|W\/B|B\/R|B\/G|U\/B|U\/R|R\/G|R\/W|G\/W|G\/U)(?:\/P)?)'
 MANA_REGEX = r'^(\{' + MANA_SYMBOL + r'\} *)*$'
@@ -13,8 +13,8 @@ SYMBOLS_TEXT_VALIDATOR = RegexValidator(regex=SYMBOLS_TEXT_REGEX, message='Symbo
 
 TEXT_VALIDATORS = [DOUBLE_SQUARE_BRACKET_TEXT_VALIDATOR, SYMBOLS_TEXT_VALIDATOR]
 
-IDENTITY_REGEX = r'^W?U?B?R?G?$'
-IDENTITY_VALIDATOR = RegexValidator(regex=IDENTITY_REGEX, message='Can be any combination of zero or more letters in [W,U,B,R,G], in order.')
+IDENTITY_REGEX = r'^(?:W?U?B?R?G?|C)$'
+IDENTITY_VALIDATORS = [RegexValidator(regex=IDENTITY_REGEX, message='Can be any combination of one or more letters in [W,U,B,R,G], in order, otherwise C for colorless.'), MinLengthValidator(1)]
 
 # Scryfall query syntax: https://scryfall.com/docs/syntax
 COMPARISON_OPERATORS = r'(?::|[<>]=?|!=|=)'

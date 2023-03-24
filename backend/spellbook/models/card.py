@@ -5,7 +5,7 @@ from django.db.models.signals import post_save
 from .mixins import ScryfallLinkMixin
 from .feature import Feature
 from ..variants.list_utils import merge_identities
-from .validators import IDENTITY_VALIDATOR
+from .validators import IDENTITY_VALIDATORS
 
 
 class Card(models.Model, ScryfallLinkMixin):
@@ -16,7 +16,7 @@ class Card(models.Model, ScryfallLinkMixin):
         related_name='cards',
         help_text='Features provided by this single card effects or characteristics',
         blank=True)
-    identity = models.CharField(max_length=5, blank=True, help_text='Card mana identity', verbose_name='mana identity of card', validators=[IDENTITY_VALIDATOR])
+    identity = models.CharField(max_length=5, blank=False, null=False, default='C', help_text='Card mana identity', verbose_name='mana identity of card', validators=IDENTITY_VALIDATORS)
     legal = models.BooleanField(default=True, help_text='Is this card legal in Commander?', verbose_name='is legal')
     spoiler = models.BooleanField(default=False, help_text='Is this card from an upcoming set?', verbose_name='is spoiler')
     added = models.DateTimeField(auto_now_add=True, editable=False)

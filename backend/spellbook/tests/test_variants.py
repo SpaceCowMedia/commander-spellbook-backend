@@ -51,8 +51,8 @@ class ListUtilsTests(TestCase):
         self.assertEqual(merge_sort_unique((1, 2, 3), (4, 5, 6)), [1, 2, 3, 4, 5, 6])
 
     def test_merge_identities(self):
-        self.assertEqual(merge_identities(['', '']), '')
-        for c in 'WUBRG':
+        self.assertEqual(merge_identities(['', '']), 'C')
+        for c in 'CWUBRG':
             self.assertEqual(merge_identities([c, '']), c)
             self.assertEqual(merge_identities(['', c]), c)
             self.assertEqual(merge_identities([c, c]), c)
@@ -63,7 +63,7 @@ class ListUtilsTests(TestCase):
         self.assertEqual(merge_identities(sorted(['W', 'U', 'B', 'R', 'G'])), 'WUBRG')
         self.assertEqual(merge_identities(['W', 'U', 'B', 'R', 'G', 'W']), 'WUBRG')
         self.assertEqual(merge_identities(['WU', 'BR', 'G', 'WG']), 'WUBRG')
-        self.assertEqual(merge_identities(['S']), '')
+        self.assertEqual(merge_identities(['S']), 'C')
         self.assertEqual(merge_identities(['S', 'R']), 'R')
         self.assertEqual(merge_identities(['r', 'g']), 'RG')
         self.assertEqual(merge_identities(['g', 'r']), 'RG')

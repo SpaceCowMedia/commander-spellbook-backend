@@ -216,28 +216,34 @@ def create_variant(
 
 def perform_bulk_saves(to_create: list[VariantBulkSaveItem], to_update: list[VariantBulkSaveItem]):
     Variant.objects.bulk_create(v.variant for v in to_create)
-    update_fields = ['status', 'mana_needed', 'other_prerequisites', 'description', 'identity', 'legal', 'spoiler']
-    Variant.objects.bulk_update((v.variant for v in to_update if v.should_update), fields=update_fields)
+    if to_update:
+        update_fields = ['status', 'mana_needed', 'other_prerequisites', 'description', 'identity', 'legal', 'spoiler']
+        Variant.objects.bulk_update((v.variant for v in to_update if v.should_update), fields=update_fields)
     CardInVariant.objects.bulk_create(c for v in to_create for c in v.uses)
-    update_fields = ['zone_location', 'card_state', 'order']
-    CardInVariant.objects.bulk_update((c for v in to_update if v.should_update for c in v.uses), fields=update_fields)
+    if to_update:
+        update_fields = ['zone_location', 'card_state', 'order']
+        CardInVariant.objects.bulk_update((c for v in to_update if v.should_update for c in v.uses), fields=update_fields)
     TemplateInVariant.objects.bulk_create(t for v in to_create for t in v.requires)
-    update_fields = ['zone_location', 'card_state', 'order']
-    TemplateInVariant.objects.bulk_update((t for v in to_update if v.should_update for t in v.requires), fields=update_fields)
+    if to_update:
+        update_fields = ['zone_location', 'card_state', 'order']
+        TemplateInVariant.objects.bulk_update((t for v in to_update if v.should_update for t in v.requires), fields=update_fields)
     OfTable = Variant.of.through
-    OfTable.objects.all().delete()
+    if to_update:
+        OfTable.objects.all().delete()
     OfTable.objects.bulk_create(
         OfTable(
             variant_id=v.variant.id,
             combo_id=c) for v in chain(to_create, to_update) for c in v.of)
     IncludesTable = Variant.includes.through
-    IncludesTable.objects.all().delete()
+    if to_update:
+        IncludesTable.objects.all().delete()
     IncludesTable.objects.bulk_create(
         IncludesTable(
             variant_id=v.variant.id,
             combo_id=c) for v in chain(to_create, to_update) for c in v.includes)
     ProducesTable = Variant.produces.through
-    ProducesTable.objects.all().delete()
+    if to_update:
+        ProducesTable.objects.all().delete()
     ProducesTable.objects.bulk_create(
         ProducesTable(
             variant_id=v.variant.id,

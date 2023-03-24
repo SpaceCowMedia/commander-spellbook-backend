@@ -27,7 +27,7 @@ class IdentityFilter(admin.SimpleListFilter):
     parameter_name = 'identity'
 
     def lookups(self, request, model_admin):
-        return [(i, i) for i in (''.join(t) or 'C' for l in range(6) for t in combinations('WUBRG', l))]
+        return [(i, i) for i in (''.join(t) or 'C' for length in range(6) for t in combinations('WUBRG', length))]
 
     def queryset(self, request, queryset):
         if self.value() is not None:

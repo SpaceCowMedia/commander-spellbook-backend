@@ -1,5 +1,6 @@
 from django.contrib import admin
 from spellbook.models import Card
+from .utils import IdentityFilter
 
 
 @admin.register(Card)
@@ -12,7 +13,7 @@ class CardAdmin(admin.ModelAdmin):
             'description': 'Scryfall data is updated periodically.'}),
     ]
     # inlines = [FeatureInline]
-    list_filter = ['identity', 'legal']
+    list_filter = [IdentityFilter, 'legal']
     search_fields = ['name', 'features__name']
     autocomplete_fields = ['features']
     list_display = ['name', 'identity', 'id']

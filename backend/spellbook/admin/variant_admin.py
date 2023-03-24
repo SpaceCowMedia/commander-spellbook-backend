@@ -9,7 +9,7 @@ from django.contrib import admin, messages
 from spellbook.models import Card, Template, Feature, Variant, CardInVariant, TemplateInVariant
 from spellbook.variants.combo_graph import MAX_CARDS_IN_COMBO
 from spellbook.utils import launch_job_command
-from .utils import SearchMultipleRelatedMixin
+from .utils import SearchMultipleRelatedMixin, IdentityFilter
 
 
 class CardInVariantAdminInline(admin.TabularInline):
@@ -110,7 +110,7 @@ class VariantAdmin(SearchMultipleRelatedMixin, admin.ModelAdmin):
             'description',
             'frozen']})
     ]
-    list_filter = ['status', CardsCountListFilter, 'identity', 'legal', 'spoiler', 'frozen']
+    list_filter = ['status', CardsCountListFilter, IdentityFilter, 'legal', 'spoiler', 'frozen']
     list_display = ['display_name', 'status', 'id', 'identity']
     search_fields = ['=id', 'uses__name', 'produces__name', 'requires__name']
     actions = [set_restore, set_draft, set_new, set_not_working]

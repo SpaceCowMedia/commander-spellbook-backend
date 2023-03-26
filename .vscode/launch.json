@@ -93,6 +93,24 @@
             },
         },
         {
+            "name": "Profile Generate Variants",
+            "type": "python",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/backend",
+            "module": "cProfile",
+            "args": [
+                "-o", "${workspaceFolder}/backend/temp/profiles/generate_variants.prof", "manage.py", "generate_variants"
+            ],
+            "preLaunchTask": "Apply migrations",
+            "django": true,
+            "justMyCode": true,
+            "presentation": {
+                "hidden": false,
+                "group": "Spellbook",
+                "order": 4
+            },
+        },
+        {
             "name": "Import Combos",
             "type": "python",
             "request": "launch",

@@ -53,7 +53,6 @@ class Variant(models.Model, ScryfallLinkMixin):
     description = models.TextField(blank=True, help_text='Long description, in steps', validators=TEXT_VALIDATORS)
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, editable=False)
-    frozen = models.BooleanField(default=False, blank=False, help_text='Is this variant undeletable?', verbose_name='is frozen')
     identity = models.CharField(max_length=5, blank=False, null=False, help_text='Mana identity', verbose_name='mana identity', editable=False, validators=IDENTITY_VALIDATORS)
     generated_by = models.ForeignKey(Job, on_delete=models.SET_NULL, null=True, blank=True, editable=False, help_text='Job that generated this variant', related_name='variants')
     legal = models.BooleanField(blank=False, help_text='Is this variant legal in Commander?', verbose_name='is legal')

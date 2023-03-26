@@ -37,11 +37,12 @@ def id_from_cards_and_templates_ids(cards: list[int], templates: list[int]) -> s
 
 def get_variants_from_graph(data: Data, job: Job = None) -> dict[str, VariantDefinition]:
     logging.info('Computing all possible variants:')
-    combos = list(data.combos.filter(generator=True))
+    combos = data.generator_combos
     result = dict[str, VariantDefinition]()
     graph = Graph(data)
     total = len(combos)
     for i, combo in enumerate(combos):
+        count = 0
         variants = graph.variants(combo.id)
         for variant in variants:
             cards_ids = [c.id for c in variant.cards]
@@ -62,9 +63,11 @@ def get_variants_from_graph(data: Data, job: Job = None) -> dict[str, VariantDef
                     feature_ids=feature_ids,
                     included_ids=combo_ids,
                     of_ids={combo.id})
+            count += 1
         msg = f'{i + 1}/{total} combos processed (just processed combo {combo.id})'
-        logging.info(msg)
-        log_into_job(job, msg)
+        if count > 1 or i % 100 == 0 or i == total - 1:
+            logging.info(msg)
+            log_into_job(job, msg)
     return result
 
 
@@ -173,6 +176,7 @@ def update_variant(
             data=data)
     if not ok:
         variant.status = Variant.Status.NOT_WORKING
+    produces = subtract_removed_features(data, variant_def.included_ids, variant_def.feature_ids) - data.utility_features_ids
     return VariantBulkSaveItem(
         should_update=restore or status != variant.status,
         variant=variant,
@@ -180,7 +184,7 @@ def update_variant(
         requires=requires,
         of=variant_def.of_ids,
         includes=variant_def.included_ids,
-        produces=subtract_removed_features(data, variant_def.included_ids, variant_def.feature_ids) - data.utility_features_ids,
+        produces=produces,
     )
 
 
@@ -290,7 +294,7 @@ def generate_variants(job: Job = None) -> tuple[int, int, int]:
         restored = new_id_set & to_restore
         logging.info(f'Added {len(added)} new variants.')
         logging.info(f'Updated {len(restored)} variants.')
-        delete_query = data.variants.filter(id__in=to_delete, frozen=False)
+        delete_query = data.variants.filter(id__in=to_delete)
         deleted = delete_query.count()
         delete_query.delete()
         logging.info(f'Deleted {deleted} variants...')

@@ -3,13 +3,22 @@ import gzip
 from pathlib import Path
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
+from dataclasses import dataclass
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from django.conf import settings
-from spellbook.variants.variants_generator import id_from_cards_and_templates_ids, VariantBulkSaveItem, perform_bulk_saves, restore_variant, RestoreData
-from spellbook.variants.list_utils import merge_identities
-from spellbook.models import Feature, Card, Job, Variant, CardInVariant
+from django.db import transaction
+from django.db.models import Max
+from spellbook.variants.variants_generator import id_from_cards_and_templates_ids, generate_variants
+from spellbook.models import Feature, Card, Job, Combo, CardInCombo, Variant
 from ..scryfall import scryfall, update_cards
+
+
+@dataclass(frozen=True)
+class ImportedVariantBulkSaveItem:
+    combo: Combo
+    uses: list[CardInCombo]
+    produces: list[Feature]
 
 
 def find_combos() -> list[tuple[str, frozenset[str], frozenset[str], str, str]]:
@@ -43,7 +52,7 @@ class Command(BaseCommand):
     def log_job(self, job, message, style=lambda x: x):
         self.stdout.write(style(message))
         job.message += message + '\n'
-        job.save()
+        job.save(update_fields=['message'])
 
     def update_and_load_cards(self, job, x) -> dict[str, Card]:
         self.log_job(job, 'Fetching combos...done')
@@ -112,56 +121,56 @@ class Command(BaseCommand):
             self.log_job(job, 'Found {} combos'.format(len(x)))
             combo_card_name_to_card = self.update_and_load_cards(job, x)
             self.log_job(job, 'Importing combos...')
-            bulk_variant_dict = dict[str, VariantBulkSaveItem]()
-            variant_id_map = dict[int, str]()
-            spellbook_features = {f.name: f for f in Feature.objects.all()}
-            existing_unique_ids = {v.id for v in Variant.objects.all()}
-            data = RestoreData()
-            for i, (old_id, _cards, produced, prerequisite, description) in enumerate(x):
-                self.stdout.write(f'{i+1}/{len(x)}\n' if (i + 1) % 100 == 0 else '.', ending='')
-                cards_from_combo = [combo_card_name_to_card[card] for card in _cards]
-                id = id_from_cards_and_templates_ids([c.id for c in cards_from_combo], [])
-                variant_id_map[int(old_id)] = id
-                if id in existing_unique_ids:
-                    self.stdout.write(f'\nSkipping combo [{id}] {cards_from_combo}: already present in variants')
-                    continue
-                if id in bulk_variant_dict:
-                    self.stdout.write(f'\nSkipping combo [{id}] {cards_from_combo}: already present in imported variants')
-                    continue
-                combo = Variant(
-                    frozen=True,
-                    id=id,
-                    generated_by=job)
-                feature_names = {p.strip().title() for p in produced}
-                for feature_name in feature_names:
-                    if feature_name not in spellbook_features:
-                        f = Feature.objects.create(name=feature_name)
-                        f.save()
-                        spellbook_features[feature_name] = f
-                produces = {spellbook_features[feature_name] for feature_name in feature_names}
-                used_cards = [CardInVariant(card=c, variant=combo, order=i) for i, c in enumerate(cards_from_combo)]
-                used_cards, _ = restore_variant(
-                    combo,
-                    included_combos=[],
-                    generator_combos=[],
-                    used_cards=used_cards,
-                    required_templates=[],
-                    data=data)
-                combo.other_prerequisites = prerequisite
-                combo.description = description
-                combo.status = Variant.Status.OK
-                bulk_item = VariantBulkSaveItem(
-                    should_update=True,
-                    variant=combo,
-                    uses=used_cards,
-                    requires=[],
-                    of=set(),
-                    includes=set(),
-                    produces={f.id for f in produces})
-                bulk_variant_dict[bulk_item.variant.id] = bulk_item
-            self.log_job(job, 'Saving combos...')
-            perform_bulk_saves(to_create=list(bulk_variant_dict.values()), to_update=[])
-            self.log_job(job, 'Saving combos...done')
+            with transaction.atomic(durable=True):
+                bulk_combo_dict = dict[str, ImportedVariantBulkSaveItem]()
+                existing_unique_ids = {id_from_cards_and_templates_ids([c.id for c in combo.uses.all()], []) for combo in Combo.objects.prefetch_related('uses')}
+                existing_feature_names = {f.name: f for f in Feature.objects.all()}
+                variant_id_map = dict[int, str]()
+                next_id = Combo.objects.aggregate(Max('id'))['id__max'] or 0 + 1
+                for i, (old_id, _cards, produced, prerequisite, description) in enumerate(x):
+                    self.stdout.write(f'{i+1}/{len(x)}\n' if (i + 1) % 100 == 0 else '.', ending='')
+                    cards_from_combo = [combo_card_name_to_card[card] for card in _cards]
+                    id = id_from_cards_and_templates_ids([c.id for c in cards_from_combo], [])
+                    old_id = int(old_id)
+                    variant_id_map[old_id] = id
+                    if id in existing_unique_ids:
+                        self.stdout.write(f'\nSkipping combo [{id}] {cards_from_combo}: already present in variants')
+                        continue
+                    if id in bulk_combo_dict:
+                        self.stdout.write(f'\nSkipping combo [{id}] {cards_from_combo}: already present in imported variants')
+                        continue
+                    combo = Combo(
+                        id=next_id,
+                        other_prerequisites=prerequisite,
+                        description=description,
+                        generator=True,
+                    )
+                    next_id += 1
+                    produces_dict = {}
+                    for name in (p.strip().title() for p in produced):
+                        if name in produces_dict:
+                            continue
+                        if name in existing_feature_names:
+                            produces_dict[name] = existing_feature_names[name]
+                        else:
+                            feature = Feature(name=name)
+                            feature.save()
+                            produces_dict[name] = feature
+                            existing_feature_names[name] = feature
+                    produces = list(produces_dict.values())
+                    used_cards = list({c: CardInCombo(card=c, combo=combo, order=i) for i, c in enumerate(cards_from_combo)}.values())
+                    bulk_item = ImportedVariantBulkSaveItem(
+                        combo=combo,
+                        uses=used_cards,
+                        produces=produces,
+                    )
+                    bulk_combo_dict[id] = bulk_item
+                self.log_job(job, 'Saving combos...')
+                Combo.objects.bulk_create(b.combo for b in bulk_combo_dict.values())
+                CardInCombo.objects.bulk_create(b for item in bulk_combo_dict.values() for b in item.uses)
+                ProducesTable = Combo.produces.through
+                ProducesTable.objects.bulk_create(ProducesTable(combo=item.combo, feature=f) for item in bulk_combo_dict.values() for f in item.produces)
+                self.log_job(job, 'Saving combos...done')
             self.log_job(job, 'Saving variant id map...')
             variant_id_map_file: Path = settings.STATIC_BULK_FOLDER / 'variant_id_map.json'
             output = variant_id_map_file.resolve()
@@ -170,7 +179,11 @@ class Command(BaseCommand):
                 json.dump(variant_id_map, f)
                 json.dump(variant_id_map, fz)
             self.log_job(job, 'Saving variant id map...done')
-            self.log_job(job, f'Successfully imported {len(bulk_variant_dict)}/{len(x)} combos. The rest was already present.', self.style.SUCCESS)
+            self.log_job(job, 'Generating variants...')
+            added, restored, deleted = generate_variants(job)
+            self.log_job(job, f'Generating variants...done. Added {added} variants, restored {restored} variants, deleted {deleted} variants.')
+            Variant.objects.filter(id__in=bulk_combo_dict.keys()).update(status=Variant.Status.OK)
+            self.log_job(job, f'Successfully imported {len(bulk_combo_dict)}/{len(x)} combos. The rest was already present.', self.style.SUCCESS)
             job.termination = timezone.now()
             job.status = Job.Status.SUCCESS
             job.save()

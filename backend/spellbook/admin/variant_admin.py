@@ -107,10 +107,9 @@ class VariantAdmin(SearchMultipleRelatedMixin, admin.ModelAdmin):
             'status',
             'mana_needed',
             'other_prerequisites',
-            'description',
-            'frozen']})
+            'description']})
     ]
-    list_filter = ['status', CardsCountListFilter, IdentityFilter, 'legal', 'spoiler', 'frozen']
+    list_filter = ['status', CardsCountListFilter, IdentityFilter, 'legal', 'spoiler']
     list_display = ['display_name', 'status', 'id', 'identity']
     search_fields = ['=id', 'uses__name', 'produces__name', 'requires__name']
     actions = [set_restore, set_draft, set_new, set_not_working]

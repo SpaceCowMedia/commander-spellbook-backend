@@ -135,17 +135,12 @@ class Graph:
                     self.cnodes[card.id].combos.append(node)
                 for template in combo.requires.all():
                     self.tnodes[template.id].combos.append(node)
+            self.to_reset_nodes = set[Node]()
         else:
             raise Exception('Invalid arguments')
 
     def reset(self):
-        for node in self.cnodes.values():
-            node.state = NodeState.NOT_VISITED
-        for node in self.tnodes.values():
-            node.state = NodeState.NOT_VISITED
-        for node in self.fnodes.values():
-            node.state = NodeState.NOT_VISITED
-        for node in self.bnodes.values():
+        for node in self.to_reset_nodes:
             node.state = NodeState.NOT_VISITED
 
     def variants(self, combo_id: int) -> Iterable[VariantIngredients]:
@@ -162,8 +157,10 @@ class Graph:
     def _combo_nodes_down(self, combo: ComboNode) -> VariantTrie:
         if combo.trie is not None:
             combo.state = NodeState.VISITED
+            self.to_reset_nodes.add(combo)
             return combo.trie
         combo.state = NodeState.VISITING
+        self.to_reset_nodes.add(combo)
         card_tries = [c.trie for c in combo.cards]
         template_tries = [t.trie for t in combo.templates]
         needed_features_tries: list[VariantTrie] = []
@@ -178,8 +175,10 @@ class Graph:
     def _feature_nodes_down(self, feature: FeatureNode) -> VariantTrie:
         if feature.trie is not None:
             feature.state = NodeState.VISITED
+            self.to_reset_nodes.add(feature)
             return feature.trie
         feature.state = NodeState.VISITING
+        self.to_reset_nodes.add(feature)
         card_tries = [c.trie for c in feature.cards]
         produced_combos_tries: list[VariantTrie] = []
         for c in feature.produced_by_combos:
@@ -193,6 +192,7 @@ class Graph:
     def _card_nodes_up(self, cards: list[CardNode], templates: list[TemplateNode]) -> VariantIngredients:
         for feature_node in templates + cards:
             feature_node.state = NodeState.VISITED
+            self.to_reset_nodes.add(feature_node)
         card_nodes = set(cards)
         template_nodes = set(templates)
         feature_nodes: set[FeatureNode] = set()
@@ -202,14 +202,17 @@ class Graph:
             for combo in card.combos:
                 if combo.state == NodeState.NOT_VISITED:
                     combo.state = NodeState.VISITING
+                    self.to_reset_nodes.add(combo)
                     combo_nodes_to_visit.add(combo)
             for feature in card.features:
                 if feature.state == NodeState.NOT_VISITED:
                     feature.state = NodeState.VISITED
+                    self.to_reset_nodes.add(feature)
                     feature_nodes.add(feature)
                     for feature_combo in feature.needed_by_combos:
                         if feature_combo.state == NodeState.NOT_VISITED:
                             feature_combo.state = NodeState.VISITING
+                            self.to_reset_nodes.add(feature_combo)
                             combo_nodes_to_visit.add(feature_combo)
         flag = True
         while flag:
@@ -217,15 +220,18 @@ class Graph:
             for combo in combo_nodes_to_visit:
                 if all((c in card_nodes for c in combo.cards)) and all((t in template_nodes for t in combo.templates)) and all((f in feature_nodes for f in combo.features_needed)):
                     combo.state = NodeState.VISITED
+                    self.to_reset_nodes.add(combo)
                     combo_nodes.add(combo)
                     combo_nodes_to_visit.remove(combo)
                     for feature in combo.features_produced:
                         if feature.state == NodeState.NOT_VISITED:
                             feature.state = NodeState.VISITED
+                            self.to_reset_nodes.add(feature)
                             feature_nodes.add(feature)
                             for feature_combo in feature.needed_by_combos:
                                 if feature_combo.state == NodeState.NOT_VISITED:
                                     feature_combo.state = NodeState.VISITING
+                                    self.to_reset_nodes.add(feature_combo)
                                     combo_nodes_to_visit.add(feature_combo)
                     flag = True
                     break

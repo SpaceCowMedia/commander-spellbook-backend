@@ -76,7 +76,7 @@
             </tr>
         </thead>
         <tbody>
-            {% for item in original.variants_for_editors|slice:suggested_slice %}
+            {% for item in adminform.form.variants_for_editors|slice:suggested_slice %}
                 <tr class="form-row">
                     <td class="field-variant">
                         <p>
@@ -85,7 +85,7 @@
                     </td>
                 </tr>
             {% endfor %}
-            {% with variants_count=original.variants_for_editors.count %}
+            {% with variants_count=adminform.form.variants_for_editors.count %}
             {% if variants_count > suggested_count %}
                 <tr class="form-row">
                     <td class="field-variant">

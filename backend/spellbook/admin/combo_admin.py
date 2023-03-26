@@ -9,6 +9,14 @@ from .utils import SearchMultipleRelatedMixin
 
 
 class ComboForm(ModelForm):
+
+    def variants_for_editors(self):
+        return self.instance.variants.order_by(Case(
+            When(status=Variant.Status.DRAFT, then=0),
+            When(status=Variant.Status.NEW, then=1),
+            default=2
+        ), '-updated')
+
     def clean_mana_needed(self):
         return self.cleaned_data['mana_needed'].upper() if self.cleaned_data['mana_needed'] else self.cleaned_data['mana_needed']
 
@@ -75,13 +83,6 @@ class ComboAdmin(SearchMultipleRelatedMixin, admin.ModelAdmin):
         return ' + '.join([card.name for card in obj.prefetched_uses] + [feature.name for feature in obj.prefetched_needs] + [template.name for template in obj.prefetched_requires]) \
             + ' ➡ ' + ' + '.join([feature.name for feature in obj.prefetched_produces[:3]]) \
             + ('...' if len(obj.prefetched_produces) > 3 else '')
-
-    def variants_for_editors(self, obj):
-        return obj.variants.order_by(Case(
-            When(status=Variant.Status.DRAFT, then=0),
-            When(status=Variant.Status.NEW, then=1),
-            default=2
-        ), '-updated')
 
     def save_related(self, request, form, formsets, change):
         super().save_related(request, form, formsets, change)

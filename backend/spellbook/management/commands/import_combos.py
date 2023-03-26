@@ -126,7 +126,7 @@ class Command(BaseCommand):
                 existing_unique_ids = {id_from_cards_and_templates_ids([c.id for c in combo.uses.all()], []) for combo in Combo.objects.prefetch_related('uses')}
                 existing_feature_names = {f.name: f for f in Feature.objects.all()}
                 variant_id_map = dict[int, str]()
-                next_id = Combo.objects.aggregate(Max('id'))['id__max'] or 0 + 1
+                next_id = (Combo.objects.aggregate(Max('id'))['id__max'] or 0) + 1
                 for i, (old_id, _cards, produced, prerequisite, description) in enumerate(x):
                     self.stdout.write(f'{i+1}/{len(x)}\n' if (i + 1) % 100 == 0 else '.', ending='')
                     cards_from_combo = [combo_card_name_to_card[card] for card in _cards]

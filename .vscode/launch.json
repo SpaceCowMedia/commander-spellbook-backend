@@ -83,7 +83,7 @@
             "args": [
                 "generate_variants"
             ],
-            "preLaunchTask": "Apply migrations",
+            "preLaunchTask": "Clean pending jobs",
             "django": true,
             "justMyCode": true,
             "presentation": {
@@ -101,7 +101,7 @@
             "args": [
                 "-o", "${workspaceFolder}/backend/temp/profiles/generate_variants.prof", "manage.py", "generate_variants"
             ],
-            "preLaunchTask": "Apply migrations",
+            "preLaunchTask": "Clean pending jobs",
             "django": true,
             "justMyCode": true,
             "presentation": {
@@ -119,7 +119,7 @@
             "args": [
                 "import_combos"
             ],
-            "preLaunchTask": "Apply migrations",
+            "preLaunchTask": "Clean pending jobs",
             "django": true,
             "justMyCode": true,
             "presentation": {
@@ -137,7 +137,7 @@
             "args": [
                 "update_cards"
             ],
-            "preLaunchTask": "Apply migrations",
+            "preLaunchTask": "Clean pending jobs",
             "django": true,
             "justMyCode": true,
             "presentation": {

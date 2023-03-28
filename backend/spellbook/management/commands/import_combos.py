@@ -1,5 +1,6 @@
 import json
 import gzip
+import re
 from pathlib import Path
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -11,6 +12,7 @@ from django.db import transaction
 from django.db.models import Max
 from spellbook.variants.variants_generator import id_from_cards_and_templates_ids, generate_variants
 from spellbook.models import Feature, Card, Job, Combo, CardInCombo, Variant
+from spellbook.models.validators import MANA_SYMBOL
 from ..scryfall import scryfall, update_cards
 
 
@@ -21,7 +23,9 @@ class ImportedVariantBulkSaveItem:
     produces: list[Feature]
 
 
-def find_combos() -> list[tuple[str, frozenset[str], frozenset[str], str, str]]:
+def find_combos() -> list[tuple[str, frozenset[str], frozenset[str], str, str, str]]:
+    """Fetches the combos from the google sheet.
+    Result format: id, cards, produced, prerequisite, description, mana"""
     combosdb = dict[frozenset[str], frozenset[str]]()
     combosdata = dict[frozenset[str], tuple[str, str]]()
     combos_reverse_id = dict[frozenset[str], str]()
@@ -42,7 +46,14 @@ def find_combos() -> list[tuple[str, frozenset[str], frozenset[str], str, str]]:
     result = []
     for c in combosdb:
         features = frozenset(combosdb[c])
-        result.append((combos_reverse_id[c], c, features, combosdata[c][0], combosdata[c][1]))
+        prerequisites = combosdata[c][0]
+        mana_match = re.match(r'^(.*?)\s*((?:\{' + MANA_SYMBOL + r'\})+) available[^\w].*$', prerequisites, re.IGNORECASE)
+        mana = ''
+        if mana_match:
+            prerequisites = mana_match.group(1)
+            mana = mana_match.group(2).upper()
+        description = combosdata[c][1]
+        result.append((combos_reverse_id[c], c, features, prerequisites, description, mana))
     return result
 
 
@@ -127,7 +138,7 @@ class Command(BaseCommand):
                 existing_feature_names = {f.name: f for f in Feature.objects.all()}
                 variant_id_map = dict[int, str]()
                 next_id = (Combo.objects.aggregate(Max('id'))['id__max'] or 0) + 1
-                for i, (old_id, _cards, produced, prerequisite, description) in enumerate(x):
+                for i, (old_id, _cards, produced, prerequisite, description, mana_needed) in enumerate(x):
                     self.stdout.write(f'{i+1}/{len(x)}\n' if (i + 1) % 100 == 0 else '.', ending='')
                     cards_from_combo = [combo_card_name_to_card[card] for card in _cards]
                     id = id_from_cards_and_templates_ids([c.id for c in cards_from_combo], [])
@@ -144,6 +155,7 @@ class Command(BaseCommand):
                         other_prerequisites=prerequisite,
                         description=description,
                         generator=True,
+                        mana_needed=mana_needed,
                     )
                     next_id += 1
                     produces_dict = {}

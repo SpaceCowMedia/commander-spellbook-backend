@@ -1,4 +1,4 @@
-from django.db.models import Prefetch, Case, When
+from django.db.models import Prefetch, Case, When, Count
 from django.forms import ModelForm
 from django.contrib import admin, messages
 from spellbook.models import Card, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, CardInVariant, TemplateInVariant
@@ -11,6 +11,8 @@ from .utils import SearchMultipleRelatedMixin
 class ComboForm(ModelForm):
 
     def variants_for_editors(self):
+        if self.instance.pk is None:
+            return Variant.objects.none()
         return self.instance.variants.order_by(Case(
             When(status=Variant.Status.DRAFT, then=0),
             When(status=Variant.Status.NEW, then=1),
@@ -77,6 +79,22 @@ class PayoffFilter(admin.SimpleListFilter):
         return queryset.exclude(needs__utility=False).distinct()
 
 
+class VariantRelatedFilter(admin.SimpleListFilter):
+    title = 'is unused by variants'
+    parameter_name = 'unused'
+
+    def lookups(self, request, model_admin):
+        return [('unused', 'Unused'), ('overlapping', 'Overlapping')]
+
+    def queryset(self, request, queryset):
+        if self.value() is None:
+            return queryset
+        if self.value() == 'unused':
+            return queryset.filter(included_in_variants__isnull=True).distinct()
+        elif self.value() == 'overlapping':
+            return queryset.annotate(possible_overlaps=Count('variants__of', distinct=True)).filter(possible_overlaps__gt=1).distinct()
+
+
 @admin.register(Combo)
 class ComboAdmin(SearchMultipleRelatedMixin, admin.ModelAdmin):
     form = ComboForm
@@ -90,7 +108,7 @@ class ComboAdmin(SearchMultipleRelatedMixin, admin.ModelAdmin):
     ]
     inlines = [CardInComboAdminInline, FeatureInComboAdminInline, TemplateInComboAdminInline]
     filter_horizontal = ['uses', 'produces', 'needs', 'removes']
-    list_filter = ['generator', PayoffFilter]
+    list_filter = ['generator', PayoffFilter, VariantRelatedFilter]
     search_fields = ['uses__name', 'requires__name', 'produces__name', 'needs__name']
     list_display = ['display_name', 'generator', 'id']
 

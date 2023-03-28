@@ -53,7 +53,7 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
         working-directory: backend
-      - name: Test
+      - name: Unit Test
         run: python manage.py test --no-input --parallel auto
         working-directory: backend
   release:

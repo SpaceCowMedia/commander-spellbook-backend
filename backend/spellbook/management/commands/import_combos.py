@@ -54,6 +54,7 @@ def find_combos() -> list[tuple[str, frozenset[str], frozenset[str], str, str, s
             mana = mana_match.group(2).upper()
         positions_dict = {}
         new_prerequisites = prerequisites
+
         def sorted_prereq_search_terms(prereq: str, card_set: set[str]):
             pre_lower = prereq.lower()
             terms = card_set | {'all permanents', 'all other permanents', 'all other cards', 'all cards'}
@@ -75,7 +76,7 @@ def find_combos() -> list[tuple[str, frozenset[str], frozenset[str], str, str, s
                 if re.search(r'(?:[^\w]|^)library(?:[^\w]|$)', position[0], re.IGNORECASE):
                     p_list.append(IngredientInCombination.ZoneLocation.LIBRARY)
                 if re.search(r'(?:[^\w]|^)any(?:[^\w]|$)', position[0], re.IGNORECASE) \
-                    or re.search(r'(?:[^\w]|^)or(?:[^\w]|$)', position[0], re.IGNORECASE):
+                or re.search(r'(?:[^\w]|^)or(?:[^\w]|$)', position[0], re.IGNORECASE):
                     p_list = [IngredientInCombination.ZoneLocation.ANY]
                 if len(p_list) == 1:
                     if c in positions_dict:

@@ -256,6 +256,7 @@ def perform_bulk_saves(to_create: list[VariantBulkSaveItem], to_update: list[Var
 
 def generate_variants(job: Job = None) -> tuple[int, int, int]:
     logging.info('Fetching data...')
+    log_into_job(job, 'Fetching data...')
     data = Data()
     to_restore = set(k for k, v in data.id_to_variant.items() if v.status == Variant.Status.RESTORE)
     logging.info('Fetching all variant unique ids...')

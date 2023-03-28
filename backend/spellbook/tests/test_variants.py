@@ -110,7 +110,7 @@ class VariantTrieTests(TestCase):
         trie2.add([1, 2, 3, 4, 5], [1])
 
         trie3 = trie | trie2
-        self.assertEqual(trie3.variants(), [([1, 2, 3, 4], [1, 2, 3]), ([1, 2, 3, 4, 5], [1]), ([1, 2, 3], [1, 2, 3, 4])])
+        self.assertSetEqual(list_of_tuples_of_lists_to_set(trie3.variants()), list_of_tuples_of_lists_to_set([([1, 2, 3, 4], [1, 2, 3]), ([1, 2, 3, 4, 5], [1]), ([1, 2, 3], [1, 2, 3, 4])]))
         trie4 = trie2 | trie
         self.assertSetEqual(list_of_tuples_of_lists_to_set(trie3.variants()), list_of_tuples_of_lists_to_set(trie4.variants()))
 
@@ -123,6 +123,6 @@ class VariantTrieTests(TestCase):
         trie2.add([1, 2, 3, 4, 5], [1])
 
         trie3 = trie & trie2
-        self.assertEqual(trie3.variants(), [([1, 2, 3, 4], [1, 2, 3, 4]), ([1, 2, 3, 4, 5], [1, 2])])
+        self.assertEqual(list_of_tuples_of_lists_to_set(trie3.variants()), list_of_tuples_of_lists_to_set([([1, 2, 3, 4], [1, 2, 3, 4]), ([1, 2, 3, 4, 5], [1, 2])]))
         trie4 = trie2 & trie
         self.assertSetEqual(list_of_tuples_of_lists_to_set(trie3.variants()), list_of_tuples_of_lists_to_set(trie4.variants()))

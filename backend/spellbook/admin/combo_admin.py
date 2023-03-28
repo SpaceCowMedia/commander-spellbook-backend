@@ -62,6 +62,21 @@ class FeatureInComboAdminInline(admin.TabularInline):
     max_num = MAX_CARDS_IN_COMBO
 
 
+class PayoffFilter(admin.SimpleListFilter):
+    title = 'is payoff'
+    parameter_name = 'payoff'
+
+    def lookups(self, request, model_admin):
+        return [(True, 'Yes'), (False, 'No')]
+
+    def queryset(self, request, queryset):
+        if self.value() is None:
+            return queryset
+        if self.value() == 'True':
+            return queryset.filter(needs__utility=False).distinct()
+        return queryset.exclude(needs__utility=False).distinct()
+
+
 @admin.register(Combo)
 class ComboAdmin(SearchMultipleRelatedMixin, admin.ModelAdmin):
     form = ComboForm
@@ -75,7 +90,7 @@ class ComboAdmin(SearchMultipleRelatedMixin, admin.ModelAdmin):
     ]
     inlines = [CardInComboAdminInline, FeatureInComboAdminInline, TemplateInComboAdminInline]
     filter_horizontal = ['uses', 'produces', 'needs', 'removes']
-    list_filter = ['generator']
+    list_filter = ['generator', PayoffFilter]
     search_fields = ['uses__name', 'requires__name', 'produces__name', 'needs__name']
     list_display = ['display_name', 'generator', 'id']
 

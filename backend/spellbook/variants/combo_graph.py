@@ -97,9 +97,10 @@ class VariantIngredients:
 
 
 class Graph:
-    def __init__(self, data: Data):
+    def __init__(self, data: Data, feature_variant_limit = 1000):
         if data is not None:
             self.data = data
+            self.feature_variant_limit = feature_variant_limit
             self.cnodes = dict[int, CardNode]((card.id, CardNode(card, [], [])) for card in data.cards)
             for c in self.cnodes.values():
                 c.trie = VariantTrie(limit=MAX_CARDS_IN_COMBO)
@@ -185,7 +186,11 @@ class Graph:
             if c.state == NodeState.VISITING:
                 continue
             produced_combos_tries.append(self._combo_nodes_down(c))
-        feature.trie = VariantTrie.or_tries(card_tries + produced_combos_tries, limit=MAX_CARDS_IN_COMBO)
+        tries = card_tries + produced_combos_tries
+        possible_variants_count = sum(len(t) for t in tries)
+        if possible_variants_count > self.feature_variant_limit:
+            raise Exception(f'Feature "{feature.feature.name}" has too many variants, around {possible_variants_count}.')
+        feature.trie = VariantTrie.or_tries(tries, limit=MAX_CARDS_IN_COMBO)
         feature.state = NodeState.VISITED
         return feature.trie
 

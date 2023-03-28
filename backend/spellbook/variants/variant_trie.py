@@ -92,6 +92,9 @@ class VariantTrie():
     def __str__(self):
         return str(self.trie)
 
+    def __len__(self):
+        return len(self.trie)
+
     @classmethod
     def or_tries(cls, tries: list['VariantTrie'], limit: int = DEFAULT_MAX_DEPTH) -> 'VariantTrie':
         return VariantTrie.aggregate_tries(tries, limit=limit, strategy=lambda x, y: x | y)

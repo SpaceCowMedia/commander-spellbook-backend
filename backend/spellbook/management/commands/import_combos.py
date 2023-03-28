@@ -11,7 +11,7 @@ from django.conf import settings
 from django.db import transaction
 from django.db.models import Max
 from spellbook.variants.variants_generator import id_from_cards_and_templates_ids, generate_variants
-from spellbook.models import Feature, Card, Job, Combo, CardInCombo, Variant
+from spellbook.models import Feature, Card, Job, Combo, CardInCombo, Variant, IngredientInCombination
 from spellbook.models.validators import MANA_SYMBOL
 from ..scryfall import scryfall, update_cards
 
@@ -44,16 +44,49 @@ def find_combos() -> list[tuple[str, frozenset[str], frozenset[str], str, str, s
             combosdb[cards] = frozenset(pros)
             combosdata[cards] = (row[12], row[13])
     result = []
-    for c in combosdb:
-        features = frozenset(combosdb[c])
-        prerequisites = combosdata[c][0]
+    for card_set in combosdb:
+        features = frozenset(combosdb[card_set])
+        prerequisites = combosdata[card_set][0]
         mana_match = re.match(r'^(.*?)\s*((?:\{' + MANA_SYMBOL + r'\})+) available[^\w].*$', prerequisites, re.IGNORECASE)
         mana = ''
         if mana_match:
             prerequisites = mana_match.group(1)
             mana = mana_match.group(2).upper()
-        description = combosdata[c][1]
-        result.append((combos_reverse_id[c], c, features, prerequisites, description, mana))
+        positions_dict = {}
+        new_prerequisites = prerequisites
+        def sorted_prereq_search_terms(prereq: str, card_set: set[str]):
+            pre_lower = prereq.lower()
+            terms = card_set | {'all permanents', 'all other permanents', 'all other cards', 'all cards'}
+            return sorted((c for c in terms if c.lower() in pre_lower), key=lambda x: pre_lower.index(x.lower()))
+        for c in sorted_prereq_search_terms(prerequisites, card_set):
+            positions = re.findall(c + r' ([^,\.]+)(.?)', prerequisites, re.IGNORECASE)
+            for position in positions:
+                p_list = list[IngredientInCombination.ZoneLocation]()
+                if re.search(r'(?:[^\w]|^)hand(?:[^\w]|$)', position[0], re.IGNORECASE):
+                    p_list.append(IngredientInCombination.ZoneLocation.HAND)
+                if re.search(r'(?:[^\w]|^)battlefield(?:[^\w]|$)', position[0], re.IGNORECASE):
+                    p_list.append(IngredientInCombination.ZoneLocation.BATTLEFIELD)
+                if re.search(r'(?:[^\w]|^)command zone(?:[^\w]|$)', position[0], re.IGNORECASE):
+                    p_list.append(IngredientInCombination.ZoneLocation.COMMAND_ZONE)
+                if re.search(r'(?:[^\w]|^)graveyard(?:[^\w]|$)', position[0], re.IGNORECASE):
+                    p_list.append(IngredientInCombination.ZoneLocation.GRAVEYARD)
+                if re.search(r'(?:[^\w]|^)exiled?(?:[^\w]|$)', position[0], re.IGNORECASE):
+                    p_list.append(IngredientInCombination.ZoneLocation.EXILE)
+                if re.search(r'(?:[^\w]|^)library(?:[^\w]|$)', position[0], re.IGNORECASE):
+                    p_list.append(IngredientInCombination.ZoneLocation.LIBRARY)
+                if re.search(r'(?:[^\w]|^)any(?:[^\w]|$)', position[0], re.IGNORECASE) \
+                    or re.search(r'(?:[^\w]|^)or(?:[^\w]|$)', position[0], re.IGNORECASE):
+                    p_list = [IngredientInCombination.ZoneLocation.ANY]
+                if len(p_list) == 1:
+                    if c in positions_dict:
+                        raise Exception(f'Found duplicate positioning for {c} in {prerequisites}')
+                    positions_dict[c] = p_list[0]
+                    if position[1] == '.' and positions_dict[c] != IngredientInCombination.ZoneLocation.ANY:
+                        new_prerequisites = re.subn(c + r' ([^,\.]+)\.', '', new_prerequisites, 1, re.IGNORECASE)[0].strip()
+                elif len(p_list) > 1:
+                    raise Exception(f'Found {len(p_list)} positions for {c} in {prerequisites}')
+        description = combosdata[card_set][1]
+        result.append((combos_reverse_id[card_set], card_set, features, prerequisites, description, mana))
     return result
 
 

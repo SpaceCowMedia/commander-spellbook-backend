@@ -97,7 +97,7 @@ class VariantIngredients:
 
 
 class Graph:
-    def __init__(self, data: Data, feature_variant_limit = 1000):
+    def __init__(self, data: Data, feature_variant_limit=1000):
         if data is not None:
             self.data = data
             self.feature_variant_limit = feature_variant_limit

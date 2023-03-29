@@ -36,7 +36,7 @@ RUN flake8 --ignore=E501,F401,E128,W601 .
 #########
 
 # pull official base image
-FROM python:3.11.2-alpine
+FROM python:3.11.2-alpine AS base
 
 # create directory for the app user
 RUN mkdir -p /home/app
@@ -65,7 +65,19 @@ USER app
 ARG SECRET_KEY
 ENV SECRET_KEY=${SECRET_KEY}
 ENV DJANGO_SETTINGS_MODULE=backend.production_settings
+
 # run entrypoint.prod.sh
+EXPOSE 8000
+ENTRYPOINT ["/bin/sh", "entrypoint.prod.sh"]
+RUN echo -e 'gunicorn backend.wsgi:application --bind 0.0.0.0:8000\n' > entrypoint.prod.sh
+
+
+#########
+# DEMO  #
+#########
+
+FROM base AS demo
+
 RUN echo -e 'python manage.py collectstatic --no-input --clear\n\
 sleep 3\n\
 python manage.py migrate --noinput\n\
@@ -73,5 +85,3 @@ python manage.py clean_jobs\n\
 python manage.py export_variants\n\
 python manage.py seed_website_properties\n\
 gunicorn backend.wsgi:application --bind 0.0.0.0:8000\n' > entrypoint.prod.sh
-EXPOSE 8000
-ENTRYPOINT ["/bin/sh", "entrypoint.prod.sh"]

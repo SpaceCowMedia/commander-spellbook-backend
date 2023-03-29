@@ -4,6 +4,7 @@ services:
   web:
     build:
       context: .
+      target: demo
       args:
         SECRET_KEY: ${SECRET_KEY:?}
     image: spellbook-backend

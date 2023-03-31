@@ -1,5 +1,5 @@
 from pygtrie import Trie
-from itertools import product, chain
+from itertools import product
 from .list_utils import all_rotations, merge_sort_unique
 
 cardid = int
@@ -60,8 +60,8 @@ class VariantTrie():
         return self.shadow.values()
 
     def __or__(self, other):
-        result = VariantTrie(limit=self.max_depth)
-        for value in chain(self._values(), other._values()):
+        result = self.copy()
+        for value in other._values():
             result._add(value)
         return result
 
@@ -95,6 +95,15 @@ class VariantTrie():
     def __len__(self):
         return len(self.trie)
 
+    def __copy__(self):
+        result = VariantTrie(limit=self.max_depth)
+        result.trie = self.trie.copy()
+        result.shadow = self.shadow.copy()
+        return result
+
+    def copy(self):
+        return self.__copy__()
+
     @classmethod
     def or_tries(cls, tries: list['VariantTrie'], limit: int = DEFAULT_MAX_DEPTH) -> 'VariantTrie':
         return VariantTrie.aggregate_tries(tries, limit=limit, strategy=lambda x, y: x | y)
@@ -107,7 +116,7 @@ class VariantTrie():
     def aggregate_tries(cls, tries: list['VariantTrie'], strategy, limit: int = DEFAULT_MAX_DEPTH) -> 'VariantTrie':
         match len(tries):
             case 0: return VariantTrie(limit=limit)
-            case 1: return tries[0]
+            case 1: return tries[0].copy()
             case _:
                 result = tries[0]
                 for trie in tries[1:]:

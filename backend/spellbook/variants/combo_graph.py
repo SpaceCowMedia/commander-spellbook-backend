@@ -143,6 +143,7 @@ class Graph:
     def reset(self):
         for node in self.to_reset_nodes:
             node.state = NodeState.NOT_VISITED
+        self.to_reset_nodes.clear()
 
     def variants(self, combo_id: int) -> Iterable[VariantIngredients]:
         combo = self.bnodes[combo_id]

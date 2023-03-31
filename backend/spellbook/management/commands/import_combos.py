@@ -9,7 +9,7 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 from django.conf import settings
 from django.db import transaction
-from django.db.models import Max
+from django.db.models import Max, Count
 from spellbook.variants.variants_generator import id_from_cards_and_templates_ids, generate_variants
 from spellbook.models import Feature, Card, Job, Combo, CardInCombo, Variant, IngredientInCombination
 from spellbook.models.validators import MANA_SYMBOL
@@ -284,7 +284,8 @@ class Command(BaseCommand):
             self.log_job(job, 'Generating variants...')
             added, restored, deleted = generate_variants(job)
             self.log_job(job, f'Generating variants...done. Added {added} variants, restored {restored} variants, deleted {deleted} variants.')
-            Variant.objects.filter(id__in=bulk_combo_dict.keys()).update(status=Variant.Status.OK)
+            Variant.objects.annotate(includes_count=Count('includes')).filter(id__in=bulk_combo_dict.keys(), includes_count=1).update(status=Variant.Status.OK)
+            Variant.objects.annotate(includes_count=Count('includes')).filter(id__in=bulk_combo_dict.keys(), includes_count__gt=1).update(status=Variant.Status.DRAFT)
             self.log_job(job, f'Successfully imported {len(bulk_combo_dict)}/{len(x)} combos. The rest was already present.', self.style.SUCCESS)
             job.termination = timezone.now()
             job.status = Job.Status.SUCCESS

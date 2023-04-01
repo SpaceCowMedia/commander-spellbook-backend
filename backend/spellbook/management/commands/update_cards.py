@@ -1,7 +1,9 @@
 import traceback
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from spellbook.models import Job, Card
+from django.db import transaction
+from spellbook.models import Job, Card, Variant
+from spellbook.variants.list_utils import merge_identities
 from ..scryfall import scryfall, update_cards
 
 
@@ -34,7 +36,20 @@ class Command(BaseCommand):
             )
             updated_count = len(cards_to_save)
             if updated_count > 0:
-                Card.objects.bulk_update(cards_to_save, fields=['name', 'oracle_id', 'identity', 'legal', 'spoiler'])
+                with transaction.atomic(durable=True):
+                    variants = list(Variant.objects.prefetch_related('uses'))
+                    updated_variants = list[Variant]()
+                    for v in variants:
+                        identity = merge_identities(c.identity for c in v.uses.all())
+                        legal = all(c.legal for c in v.uses.all())
+                        spoiler = any(c.spoiler for c in v.uses.all())
+                        if v.identity != identity or v.legal != legal or v.spoiler != spoiler:
+                            v.identity = identity
+                            v.legal = legal
+                            v.spoiler = spoiler
+                            updated_variants.append(v)
+                    Card.objects.bulk_update(cards_to_save, fields=['name', 'oracle_id', 'identity', 'legal', 'spoiler'])
+                    Variant.objects.bulk_update(variants, fields=['identity', 'legal', 'spoiler'])
             job.termination = timezone.now()
             job.status = Job.Status.SUCCESS
             self.log_job(job, 'Updating cards...done', self.style.SUCCESS)

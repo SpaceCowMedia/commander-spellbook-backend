@@ -95,11 +95,11 @@ def restore_variant(
         used_cards: list[CardInVariant],
         required_templates: list[TemplateInVariant],
         data: RestoreData) -> tuple[list[CardInVariant], list[TemplateInVariant]]:
-    variant.identity = merge_identities(c.card.identity for c in used_cards)
     variant.other_prerequisites = '\n'.join(c.other_prerequisites for c in included_combos if len(c.other_prerequisites) > 0)
     variant.mana_needed = ' '.join(c.mana_needed for c in included_combos if len(c.mana_needed) > 0)
     variant.description = '\n'.join(c.description for c in included_combos if len(c.description) > 0)
     variant.status = Variant.Status.NEW
+    variant.identity = merge_identities(c.card.identity for c in used_cards)
     variant.legal = all(c.card.legal for c in used_cards)
     variant.spoiler = any(c.card.spoiler for c in used_cards)
     uses = dict[int, CardInVariant]()

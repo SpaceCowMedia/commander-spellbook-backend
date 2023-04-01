@@ -91,13 +91,13 @@ class VariantForm(ModelForm):
 @admin.register(Variant)
 class VariantAdmin(SearchMultipleRelatedMixin, admin.ModelAdmin):
     form = VariantForm
-    readonly_fields = ['produces', 'of', 'includes', 'id', 'identity', 'legal', 'spoiler', 'scryfall_link']
+    readonly_fields = ['produces_link', 'of_link', 'includes_link', 'id', 'identity', 'legal', 'spoiler', 'scryfall_link']
     fieldsets = [
         ('Generated', {'fields': [
             'id',
-            'produces',
-            'of',
-            'includes',
+            'produces_link',
+            'of_link',
+            'includes_link',
             'identity',
             'legal',
             'spoiler',
@@ -112,6 +112,24 @@ class VariantAdmin(SearchMultipleRelatedMixin, admin.ModelAdmin):
     list_display = ['display_name', 'status', 'id', 'identity']
     search_fields = ['=id', 'uses__name', 'produces__name', 'requires__name']
     actions = [set_restore, set_draft, set_new, set_not_working]
+
+    @admin.display(description='produces')
+    def produces_link(self, obj):
+        features = obj.produces.all()
+        html = '<a href="{}">{}</a>'
+        return format_html(html, reverse('admin:spellbook_feature_changelist') + '?produced_by_variants__id=' + str(obj.id), '; '.join([str(feature) for feature in features]))
+
+    @admin.display(description='of')
+    def of_link(self, obj):
+        combos = obj.of.all()
+        html = '<a href="{}">{}</a>'
+        return format_html(html, reverse('admin:spellbook_combo_changelist') + '?variants__id=' + str(obj.id), '; '.join([str(combo) for combo in combos]))
+
+    @admin.display(description='includes')
+    def includes_link(self, obj):
+        combos = obj.includes.all()
+        html = '<a href="{}">{}</a>'
+        return format_html(html, reverse('admin:spellbook_combo_changelist') + '?included_in_variants__id=' + str(obj.id), '; '.join([str(combo) for combo in combos]))
 
     def get_inlines(self, request, obj: Variant):
         inlines = []

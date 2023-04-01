@@ -91,7 +91,6 @@ class VariantForm(ModelForm):
 @admin.register(Variant)
 class VariantAdmin(SearchMultipleRelatedMixin, admin.ModelAdmin):
     form = VariantForm
-    inlines = [CardInVariantAdminInline, TemplateInVariantAdminInline]
     readonly_fields = ['produces', 'of', 'includes', 'id', 'identity', 'legal', 'spoiler', 'scryfall_link']
     fieldsets = [
         ('Generated', {'fields': [
@@ -113,6 +112,14 @@ class VariantAdmin(SearchMultipleRelatedMixin, admin.ModelAdmin):
     list_display = ['display_name', 'status', 'id', 'identity']
     search_fields = ['=id', 'uses__name', 'produces__name', 'requires__name']
     actions = [set_restore, set_draft, set_new, set_not_working]
+
+    def get_inlines(self, request, obj: Variant):
+        inlines = []
+        if obj is None or obj.id is None or obj.uses.exists():
+            inlines.append(CardInVariantAdminInline)
+        if obj is None or obj.id is None or obj.requires.exists():
+            inlines.append(TemplateInVariantAdminInline)
+        return inlines
 
     def display_name(self, obj):
         return ' + '.join([card.name for card in obj.prefetched_uses] + [template.name for template in obj.prefetched_requires]) \

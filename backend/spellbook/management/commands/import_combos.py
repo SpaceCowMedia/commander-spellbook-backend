@@ -90,6 +90,7 @@ def find_combos() -> list[tuple[str, frozenset[str], frozenset[str], str, str, s
                 c_short_name = c.partition(',')[0]
                 positions = find_card_in_prereq(c_short_name, prerequisites)
             for position in positions:
+                avoid_deleting_sentence = False
                 p_list = list[IngredientInCombination.ZoneLocation]()
                 if re.search(r'(?:[^\w]|^)hand(?:[^\w]|$)', position[0], re.IGNORECASE):
                     p_list.append(IngredientInCombination.ZoneLocation.HAND)
@@ -103,15 +104,21 @@ def find_combos() -> list[tuple[str, frozenset[str], frozenset[str], str, str, s
                     p_list.append(IngredientInCombination.ZoneLocation.EXILE)
                 if re.search(r'(?:[^\w]|^)library(?:[^\w]|$)', position[0], re.IGNORECASE):
                     p_list.append(IngredientInCombination.ZoneLocation.LIBRARY)
+                if re.search(r'(?:[^\w]|^)any zone(?:[^\w]|$)', position[0], re.IGNORECASE):
+                    p_list = [IngredientInCombination.ZoneLocation.ANY]
                 if re.search(r'(?:[^\w]|^)or(?:[^\w]|$)', position[0], re.IGNORECASE):
+                    avoid_deleting_sentence = True
                     p_list = [IngredientInCombination.ZoneLocation.ANY]
                 if len(p_list) == 1:
                     if c in positions_dict:
                         raise Exception(f'Found duplicate positioning for {c} in {prerequisites}')
                     positions_dict[c] = (p_list[0], position_order)
                     position_order += 1
-                    if position[1] == '.' and positions_dict[c][0] != IngredientInCombination.ZoneLocation.ANY:
-                        new_prerequisites = re.subn((c_short_name if c_short_name else c) + r' ([^,\.]+)\.', '', new_prerequisites, 1, re.IGNORECASE)[0].strip()
+                    if position[1] == '.' and not avoid_deleting_sentence:
+                        if re.search(r'(?:[^\w]|^)and(?:[^\w]|$)', position[0], re.IGNORECASE):
+                            new_prerequisites = re.subn(r'\s?' + (c_short_name if c_short_name else c) + r'[^,\.]*[^\w]and[^\w]', '', new_prerequisites, 1, re.IGNORECASE)[0].strip()
+                        else:
+                            new_prerequisites = re.subn(r'\s?' + (c_short_name if c_short_name else c) + r' ([^,\.]+)\.', '', new_prerequisites, 1, re.IGNORECASE)[0].strip()
                 elif len(p_list) > 1:
                     raise Exception(f'Found {len(p_list)} positions for {c} in {prerequisites}')
         description = combosdata[card_set][1]

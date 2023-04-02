@@ -61,10 +61,10 @@ def find_combos() -> list[tuple[str, frozenset[str], frozenset[str], str, str, s
         id = combos_reverse_id[card_set]
         features = frozenset(combosdb[card_set])
         prerequisites = combosdata[card_set][0]
-        mana_match = re.match(r'^(.*?)\s*((?:\{' + MANA_SYMBOL + r'\})+) available[^\w].*$', prerequisites, re.IGNORECASE)
+        mana_match = re.match(r'^(.*?)\s*((?:\{' + MANA_SYMBOL + r'\})+) available (?:each turn)?\.(.*)$', prerequisites, re.IGNORECASE)
         mana = ''
         if mana_match:
-            prerequisites = mana_match.group(1)
+            prerequisites = mana_match.group(1) + mana_match.group(3)
             mana = mana_match.group(2).upper()
         new_prerequisites = prerequisites
         positions_dict = dict[str, tuple[IngredientInCombination.ZoneLocation, int]]()

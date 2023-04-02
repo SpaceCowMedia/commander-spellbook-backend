@@ -26,13 +26,26 @@ class ImportedVariantBulkSaveItem:
 def sorted_prereq_search_terms(prereq: str, card_set: set[str]):
     pre_lower = prereq.lower()
     terms = card_set | {'all permanents', 'all other permanents', 'all other cards', 'all cards'}
-    return sorted((c for c in terms if c.lower() in pre_lower), key=lambda x: pre_lower.index(x.lower()))
+    found_terms = list[tuple[str, int]]()
+    for term in terms:
+        lower_term = term.lower()
+        if lower_term in pre_lower:
+            found_terms.append((term, pre_lower.index(lower_term)))
+        elif ',' in term:
+            lower_term = lower_term.partition(',')[0] + ' '
+            if lower_term in pre_lower:
+                found_terms.append((term, pre_lower.index(lower_term)))
+    return [item[0] for item in sorted(found_terms, key=lambda item: item[1])]
 
 
 def find_card_in_prereq(card_name: str, prerequisites: str):
     regex = r'(.*?)' + re.escape(card_name) + r'(.*?)(\.|[^\w](?:with|if|when|who|named by|does|has|naming|power|attached|as)[^\w]|$)'
     negated_regex = r'(?:[^\w](?:with|if|when|who|named by|does|has|naming|power|attached|on)[^\w])'
-    matches = [(item[1].strip(), item[2].strip()) for sentence in prerequisites.split('.') for item in re.findall(regex, sentence + '.', re.IGNORECASE) if not re.search(negated_regex, item[0], re.IGNORECASE) and item[2].strip().lower() not in {'who', 'named by', 'does', 'has', 'naming', 'power', 'attached'}]
+    matches = []
+    for sentence in prerequisites.split('.'):
+        for item in re.findall(regex, sentence + '.', re.IGNORECASE):
+            if not re.search(negated_regex, item[0], re.IGNORECASE) and item[2].strip(' .,;').lower() not in {'who', 'named by', 'does', 'has', 'naming', 'power', 'attached'}:
+                matches.append((item[1].strip(), item[2].strip()))
     return matches
 
 
@@ -61,7 +74,8 @@ def find_combos() -> list[tuple[str, frozenset[str], frozenset[str], str, str, s
         id = combos_reverse_id[card_set]
         features = frozenset(combosdb[card_set])
         prerequisites = combosdata[card_set][0]
-        mana_match = re.match(r'^(.*?)\s*((?:\{' + MANA_SYMBOL + r'\})+) available (?:each turn)?\.(.*)$', prerequisites, re.IGNORECASE)
+        mana_regex = r'^(.*?)\s*((?:\{' + MANA_SYMBOL + r'\})+) available(?: each turn)?\.(.*)$'
+        mana_match = re.match(mana_regex, prerequisites, re.IGNORECASE)
         mana = ''
         if mana_match:
             prerequisites = mana_match.group(1) + mana_match.group(3)
@@ -71,8 +85,9 @@ def find_combos() -> list[tuple[str, frozenset[str], frozenset[str], str, str, s
         position_order = 0
         for c in sorted_prereq_search_terms(prerequisites, card_set):
             positions = find_card_in_prereq(c, prerequisites)
+            c_short_name = None
             if len(positions) == 0 and ',' in c:
-                c_short_name = c.split(',', 2)[0]
+                c_short_name = c.partition(',')[0]
                 positions = find_card_in_prereq(c_short_name, prerequisites)
             for position in positions:
                 p_list = list[IngredientInCombination.ZoneLocation]()
@@ -96,7 +111,7 @@ def find_combos() -> list[tuple[str, frozenset[str], frozenset[str], str, str, s
                     positions_dict[c] = (p_list[0], position_order)
                     position_order += 1
                     if position[1] == '.' and positions_dict[c][0] != IngredientInCombination.ZoneLocation.ANY:
-                        new_prerequisites = re.subn(c + r' ([^,\.]+)\.', '', new_prerequisites, 1, re.IGNORECASE)[0].strip()
+                        new_prerequisites = re.subn((c_short_name if c_short_name else c) + r' ([^,\.]+)\.', '', new_prerequisites, 1, re.IGNORECASE)[0].strip()
                 elif len(p_list) > 1:
                     raise Exception(f'Found {len(p_list)} positions for {c} in {prerequisites}')
         description = combosdata[card_set][1]

@@ -1,3 +1,4 @@
+import re
 from django.db.models import Prefetch, Case, When, Count
 from django.forms import ModelForm
 from django.contrib import admin, messages
@@ -5,6 +6,7 @@ from spellbook.models import Card, Template, Feature, Combo, CardInCombo, Templa
 from spellbook.variants.combo_graph import MAX_CARDS_IN_COMBO
 from spellbook.variants.variant_data import RestoreData
 from spellbook.variants.variants_generator import restore_variant
+from spellbook.models.validators import MANA_SYMBOL
 from .utils import SearchMultipleRelatedMixin
 
 
@@ -20,7 +22,10 @@ class ComboForm(ModelForm):
         ), '-updated')
 
     def clean_mana_needed(self):
-        return self.cleaned_data['mana_needed'].upper() if self.cleaned_data['mana_needed'] else self.cleaned_data['mana_needed']
+        if self.cleaned_data['mana_needed']:
+            result = re.sub(r'\{' + MANA_SYMBOL + r'\}', lambda m: m.group(0).upper(), self.cleaned_data['mana_needed'], flags=re.IGNORECASE)
+            return result
+        return self.cleaned_data['mana_needed']
 
 
 class IngredientInComboForm(ModelForm):

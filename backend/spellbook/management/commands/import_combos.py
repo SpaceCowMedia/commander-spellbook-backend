@@ -31,25 +31,47 @@ def sorted_prereq_search_terms(prereq: str, card_set: set[str]):
         lower_term = term.lower()
         if lower_term in pre_lower:
             found_terms.append((term, pre_lower.index(lower_term)))
+            continue
+        if '//' in term:
+            complete_lower_term = lower_term
+            lower_term = complete_lower_term.partition('//')[0].strip() + ' '
+            if lower_term in pre_lower:
+                found_terms.append((term, pre_lower.index(lower_term)))
+                continue
+            if ',' in lower_term:
+                lower_term = lower_term.partition(',')[0] + ' '
+                if lower_term in pre_lower:
+                    found_terms.append((term, pre_lower.index(lower_term)))
+                    continue
+            lower_term = complete_lower_term.partition('//')[2].strip() + ' '
+            if lower_term in pre_lower:
+                found_terms.append((term, pre_lower.index(lower_term)))
+                continue
+            if ',' in lower_term:
+                lower_term = lower_term.partition(',')[0] + ' '
+                if lower_term in pre_lower:
+                    found_terms.append((term, pre_lower.index(lower_term)))
+                    continue
         elif ',' in term:
             lower_term = lower_term.partition(',')[0] + ' '
             if lower_term in pre_lower:
                 found_terms.append((term, pre_lower.index(lower_term)))
+                continue
     return [item[0] for item in sorted(found_terms, key=lambda item: item[1])]
 
 
 def find_card_in_prereq(card_name: str, prerequisites: str):
-    regex = r'(.*?)' + re.escape(card_name) + r'(.*?)(\.|[^\w](?:with|if|when|who|named by|does|has|naming|power|attached|as)[^\w]|$)'
-    negated_regex = r'(?:[^\w](?:with|if|when|who|named by|does|has|naming|power|attached|on)[^\w])'
+    regex = r'(.*?)' + re.escape(card_name) + r'(.*?)(\.|[^\w](?:with|if|when|who|named by|does|has|naming|power|attached|as|from)[^\w]|$)'
+    negated_regex = r'(?:[^\w](?:with|if|when|who|named by|does|has|naming|power|attached|on|from|opponent)[^\w])'
     matches = []
     for sentence in prerequisites.split('.'):
         for item in re.findall(regex, sentence + '.', re.IGNORECASE):
-            if not re.search(negated_regex, item[0], re.IGNORECASE) and item[2].strip(' .,;').lower() not in {'who', 'named by', 'does', 'has', 'naming', 'power', 'attached'}:
+            if not re.search(negated_regex, item[0], re.IGNORECASE) and item[2].strip(' .,;').lower() not in {'who', 'named by', 'does', 'has', 'naming', 'power', 'attached', 'from'}:
                 matches.append((item[1].strip(), item[2].strip()))
     return matches
 
 
-def find_combos() -> list[tuple[str, frozenset[str], frozenset[str], str, str, str, dict[str, tuple[IngredientInCombination.ZoneLocation, int]]]]:
+def find_combos() -> list[tuple[str, frozenset[str], frozenset[str], str, str, str, dict[str, tuple[IngredientInCombination.ZoneLocation, int, int]]]]:
     """Fetches the combos from the google sheet.
     Result format: id, cards, produced, prerequisite, description, mana"""
     combosdb = dict[frozenset[str], frozenset[str]]()
@@ -74,19 +96,34 @@ def find_combos() -> list[tuple[str, frozenset[str], frozenset[str], str, str, s
         id = combos_reverse_id[card_set]
         features = frozenset(combosdb[card_set])
         prerequisites = combosdata[card_set][0]
-        mana_regex = r'^(.*?)\s*((?:\{' + MANA_SYMBOL + r'\})+) available(?: each turn)?\.(.*)$'
+        mana_regex = r'^(.*?)\s*((?:\{' + MANA_SYMBOL + r'\})+) available([^\.]*)\.(.*)$'
         mana_match = re.match(mana_regex, prerequisites, re.IGNORECASE)
         mana = ''
         if mana_match:
-            prerequisites = mana_match.group(1) + mana_match.group(3)
-            mana = mana_match.group(2).upper()
+            prerequisites = mana_match.group(1) + mana_match.group(4)
+            mana = mana_match.group(2).upper() + mana_match.group(3)
         new_prerequisites = prerequisites
-        positions_dict = dict[str, tuple[IngredientInCombination.ZoneLocation, int]]()
+        positions_dict = dict[str, tuple[IngredientInCombination.ZoneLocation, int, int]]()
         position_order = 0
         for c in sorted_prereq_search_terms(prerequisites, card_set):
+            half = 0
             positions = find_card_in_prereq(c, prerequisites)
             c_short_name = None
-            if len(positions) == 0 and ',' in c:
+            if len(positions) == 0 and '//' in c:
+                c_short_name = c.partition('//')[0].strip()
+                half = 1
+                positions = find_card_in_prereq(c_short_name, prerequisites)
+                if len(positions) == 0 and ',' in c_short_name:
+                    c_short_name = c_short_name.partition(',')[0]
+                    positions = find_card_in_prereq(c_short_name, prerequisites)
+                if len(positions) == 0:
+                    c_short_name = c.partition('//')[2].strip()
+                    half = 2
+                    positions = find_card_in_prereq(c_short_name, prerequisites)
+                    if len(positions) == 0 and ',' in c_short_name:
+                        c_short_name = c_short_name.partition(',')[0]
+                        positions = find_card_in_prereq(c_short_name, prerequisites)
+            elif len(positions) == 0 and ',' in c:
                 c_short_name = c.partition(',')[0]
                 positions = find_card_in_prereq(c_short_name, prerequisites)
             for position in positions:
@@ -112,7 +149,7 @@ def find_combos() -> list[tuple[str, frozenset[str], frozenset[str], str, str, s
                 if len(p_list) == 1:
                     if c in positions_dict:
                         raise Exception(f'Found duplicate positioning for {c} in {prerequisites}')
-                    positions_dict[c] = (p_list[0], position_order)
+                    positions_dict[c] = (p_list[0], position_order, half)
                     position_order += 1
                     if position[1] == '.' and not avoid_deleting_sentence:
                         if re.search(r'(?:[^\w]|^)and(?:[^\w]|$)', position[0], re.IGNORECASE):
@@ -211,19 +248,25 @@ class Command(BaseCommand):
                     self.stdout.write(f'{i+1}/{len(x)}\n' if (i + 1) % 100 == 0 else '.', ending='')
                     cards_from_combo = {combo_card_name_to_card[c] for c in _cards}
                     used_cards = list[CardInCombo]()
-                    for c, (p, _) in sorted(positions.items(), key=lambda x: x[1][1]):
+                    used_cards_types = dict[Card, str]()
+                    for c, (p, _, half) in sorted(positions.items(), key=lambda x: x[1][1]):
                         if c in _cards:
-                            used_cards.append(CardInCombo(card=combo_card_name_to_card[c], zone_location=p))
+                            actual_card = combo_card_name_to_card[c]
+                            used_cards.append(CardInCombo(card=actual_card, zone_location=p))
+                            actual_card_name = actual_card.name.lower()
+                            used_cards_types[actual_card] = combo_card_name_to_scryfall[actual_card_name]['type_line']
+                            if half > 0:
+                                used_cards_types[actual_card] = used_cards_types[actual_card].partition('//')[0 if half == 1 else 2].strip()
                         elif c == 'all permanents':
                             for card in cards_from_combo:
-                                type_line = combo_card_name_to_scryfall[card.name.lower()]['type_line']
+                                type_line = used_cards_types.get(card, combo_card_name_to_scryfall[card.name.lower()]['type_line'])
                                 if any(t in type_line for t in ('Creature', 'Planeswalker', 'Artifact', 'Enchantment', 'Battle', 'Land')):
                                     if card in [c.card for c in used_cards]:
                                         raise ValueError(f'Card {card} already used')
                                     used_cards.append(CardInCombo(card=card, zone_location=p))
                         elif c == 'all other permanents':
                             for card in cards_from_combo:
-                                type_line = combo_card_name_to_scryfall[card.name.lower()]['type_line']
+                                type_line = used_cards_types.get(card, combo_card_name_to_scryfall[card.name.lower()]['type_line'])
                                 if any(t in type_line for t in ('Creature', 'Planeswalker', 'Artifact', 'Enchantment', 'Battle', 'Land')):
                                     if card not in [c.card for c in used_cards]:
                                         used_cards.append(CardInCombo(card=card, zone_location=p))

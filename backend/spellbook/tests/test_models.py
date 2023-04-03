@@ -23,25 +23,24 @@ def populate_db():
     t1 = Template.objects.create(name='TA', scryfall_query='tou>5')
     c1.features.add(f1)
     b1.needs.add(f1)
-    CardInCombo.objects.create(card=c2, combo=b1, order=1, zone_location=IngredientInCombination.ZoneLocation.HAND, card_state='Some state.')
-    CardInCombo.objects.create(card=c3, combo=b1, order=2, zone_location=IngredientInCombination.ZoneLocation.BATTLEFIELD, card_state='Some state.')
+    CardInCombo.objects.create(card=c2, combo=b1, order=1, zone_locations=IngredientInCombination.ZoneLocation.HAND, card_state='Some state.')
+    CardInCombo.objects.create(card=c3, combo=b1, order=2, zone_locations=IngredientInCombination.ZoneLocation.BATTLEFIELD, card_state='Some state.')
     b1.produces.add(f2)
     b1.produces.add(f3)
     b2.needs.add(f2)
     b2.removes.add(f3)
-    TemplateInCombo.objects.create(template=t1, combo=b2, order=1, zone_location=IngredientInCombination.ZoneLocation.GRAVEYARD, card_state='Some state.')
+    TemplateInCombo.objects.create(template=t1, combo=b2, order=1, zone_locations=IngredientInCombination.ZoneLocation.GRAVEYARD, card_state='Some state.')
     b2.produces.add(f4)
-    CardInCombo.objects.create(card=c4, combo=b3, order=1, zone_location=IngredientInCombination.ZoneLocation.HAND, card_state='Some state.')
-    CardInCombo.objects.create(card=c5, combo=b3, order=2, zone_location=IngredientInCombination.ZoneLocation.BATTLEFIELD, card_state='Some state.')
-    CardInCombo.objects.create(card=c6, combo=b3, order=3, zone_location=IngredientInCombination.ZoneLocation.COMMAND_ZONE, card_state='Some state.')
-    CardInCombo.objects.create(card=c7, combo=b3, order=4, zone_location=IngredientInCombination.ZoneLocation.LIBRARY, card_state='Some state.')
+    CardInCombo.objects.create(card=c4, combo=b3, order=1, zone_locations=IngredientInCombination.ZoneLocation.HAND, card_state='Some state.')
+    CardInCombo.objects.create(card=c5, combo=b3, order=2, zone_locations=IngredientInCombination.ZoneLocation.BATTLEFIELD + IngredientInCombination.ZoneLocation.HAND + IngredientInCombination.ZoneLocation.COMMAND_ZONE, card_state='Some state.')
+    CardInCombo.objects.create(card=c6, combo=b3, order=3, zone_locations=IngredientInCombination.ZoneLocation.COMMAND_ZONE, card_state='Some state.')
+    CardInCombo.objects.create(card=c7, combo=b3, order=4, zone_locations=IngredientInCombination.ZoneLocation.LIBRARY, card_state='Some state.')
     b4.produces.add(f1)
-    CardInCombo.objects.create(card=c8, combo=b4, order=1, zone_location=IngredientInCombination.ZoneLocation.HAND, card_state='Some state.')
-    CardInCombo.objects.create(card=c1, combo=b4, order=2, zone_location=IngredientInCombination.ZoneLocation.BATTLEFIELD, card_state='Some state.')
+    CardInCombo.objects.create(card=c8, combo=b4, order=1, zone_locations=IngredientInCombination.ZoneLocation.HAND, card_state='Some state.')
+    CardInCombo.objects.create(card=c1, combo=b4, order=2, zone_locations=IngredientInCombination.ZoneLocation.BATTLEFIELD, card_state='Some state.')
 
 
 class CardTests(TestCase):
-
     def setUp(self) -> None:
         populate_db()
 

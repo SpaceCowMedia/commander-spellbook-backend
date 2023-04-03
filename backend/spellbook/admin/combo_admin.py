@@ -8,10 +8,10 @@ from spellbook.variants.variant_data import RestoreData
 from spellbook.variants.variants_generator import restore_variant
 from spellbook.models.validators import MANA_SYMBOL
 from .utils import SearchMultipleRelatedMixin
+from .ingredient_admin import IngredientInCombinationForm
 
 
 class ComboForm(ModelForm):
-
     def variants_for_editors(self):
         if self.instance.pk is None:
             return Variant.objects.none()
@@ -28,7 +28,7 @@ class ComboForm(ModelForm):
         return self.cleaned_data['mana_needed']
 
 
-class IngredientInComboForm(ModelForm):
+class IngredientInComboForm(IngredientInCombinationForm):
     def clean(self):
         if hasattr(self.cleaned_data['combo'], 'ingredient_count'):
             self.cleaned_data['combo'].ingredient_count += 1
@@ -39,7 +39,7 @@ class IngredientInComboForm(ModelForm):
 
 
 class CardInComboAdminInline(admin.TabularInline):
-    fields = ['card', 'zone_location', 'card_state']
+    fields = ['card', 'zone_locations', 'card_state']
     form = IngredientInComboForm
     model = CardInCombo
     extra = 0
@@ -50,7 +50,7 @@ class CardInComboAdminInline(admin.TabularInline):
 
 
 class TemplateInComboAdminInline(admin.TabularInline):
-    fields = ['template', 'zone_location', 'card_state']
+    fields = ['template', 'zone_locations', 'card_state']
     form = IngredientInComboForm
     model = TemplateInCombo
     extra = 0
@@ -148,7 +148,7 @@ class ComboAdmin(SearchMultipleRelatedMixin, admin.ModelAdmin):
                 template_in_variants_to_update.extend(requires_set)
             update_fields = ['status', 'mana_needed', 'other_prerequisites', 'description', 'identity']
             Variant.objects.bulk_update(variants_to_update, update_fields)
-            update_fields = ['zone_location', 'card_state', 'order']
+            update_fields = ['zone_locations', 'card_state', 'order']
             CardInVariant.objects.bulk_update(card_in_variants_to_update, update_fields)
             TemplateInVariant.objects.bulk_update(template_in_variants_to_update, update_fields)
             messages.info(request, f'{count} "New" or "Restore" variants were updated for this combo.')

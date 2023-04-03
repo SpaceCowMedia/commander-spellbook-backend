@@ -8,7 +8,6 @@ def list_of_tuples_of_lists_to_set(list_of_tuples_of_lists: list[tuple[list]]) -
 
 
 class ListUtilsTests(TestCase):
-
     def test_rotate(self):
         self.assertEqual(rotate([1, 2, 3], 0), [1, 2, 3])
         self.assertEqual(rotate([1, 2, 3], 1), [3, 1, 2])
@@ -77,7 +76,6 @@ class ListUtilsTests(TestCase):
 
 
 class VariantTrieTests(TestCase):
-
     def test_ingredients_to_key(self):
         trie = VariantTrie()
         self.assertEqual(trie.key_to_ingredients(trie.ingredients_to_key([1, 2, 3, 4], [])), ([1, 2, 3, 4], []))

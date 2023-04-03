@@ -10,11 +10,13 @@ from spellbook.models import Card, Template, Feature, Variant, CardInVariant, Te
 from spellbook.variants.combo_graph import MAX_CARDS_IN_COMBO
 from spellbook.utils import launch_job_command
 from .utils import SearchMultipleRelatedMixin, IdentityFilter
+from .ingredient_admin import IngredientInCombinationForm
 
 
 class CardInVariantAdminInline(admin.TabularInline):
     readonly_fields = ['card_name']
-    fields = ['card_name', 'zone_location', 'card_state']
+    fields = ['card_name', 'zone_locations', 'card_state']
+    form = IngredientInCombinationForm
     model = CardInVariant
     extra = 0
     verbose_name = 'Card'
@@ -35,7 +37,8 @@ class CardInVariantAdminInline(admin.TabularInline):
 
 class TemplateInVariantAdminInline(admin.TabularInline):
     readonly_fields = ['template']
-    fields = ['template', 'zone_location', 'card_state']
+    fields = ['template', 'zone_locations', 'card_state']
+    form = IngredientInCombinationForm
     model = TemplateInVariant
     extra = 0
     verbose_name = 'Template'

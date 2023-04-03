@@ -2,23 +2,6 @@ from rest_framework import serializers
 from spellbook.models import Card, Template, Feature, IngredientInCombination, Combo, CardInCombo, TemplateInCombo, Variant, CardInVariant, TemplateInVariant
 
 
-class ChoiceField(serializers.ChoiceField):
-    def to_representation(self, obj):
-        if obj == '' and self.allow_blank:
-            return obj
-        return self._choices[obj]
-
-    def to_internal_value(self, data):
-        # To support inserts with the value
-        if data == '' and self.allow_blank:
-            return ''
-
-        for key, val in self._choices.items():
-            if val == data:
-                return key
-        self.fail('invalid_choice', input=data)
-
-
 class CardSerializer(serializers.ModelSerializer):
     class Meta:
         model = Card
@@ -47,20 +30,20 @@ class TemplateSerializer(serializers.ModelSerializer):
 
 class CardInComboSerializer(serializers.ModelSerializer):
     card = CardSerializer(many=False, read_only=True)
-    zone_location = ChoiceField(choices=IngredientInCombination.ZoneLocation.choices)
+    zone_locations = serializers.MultipleChoiceField(choices=IngredientInCombination.ZoneLocation.choices)
 
     class Meta:
         model = CardInCombo
-        fields = ['card', 'zone_location', 'card_state']
+        fields = ['card', 'zone_locations', 'card_state']
 
 
 class TemplateInComboSerializer(serializers.ModelSerializer):
     template = TemplateSerializer(many=False, read_only=True)
-    zone_location = ChoiceField(choices=IngredientInCombination.ZoneLocation.choices)
+    zone_locations = serializers.MultipleChoiceField(choices=IngredientInCombination.ZoneLocation.choices)
 
     class Meta:
         model = TemplateInCombo
-        fields = ['template', 'zone_location', 'card_state']
+        fields = ['template', 'zone_locations', 'card_state']
 
 
 class ComboDetailSerializer(serializers.ModelSerializer):
@@ -90,20 +73,20 @@ class ComboSerializer(serializers.ModelSerializer):
 
 class CardInVariantSerializer(serializers.ModelSerializer):
     card = CardSerializer(many=False, read_only=True)
-    zone_location = ChoiceField(choices=IngredientInCombination.ZoneLocation.choices)
+    zone_locations = serializers.MultipleChoiceField(choices=IngredientInCombination.ZoneLocation.choices)
 
     class Meta:
         model = CardInVariant
-        fields = ['card', 'zone_location', 'card_state']
+        fields = ['card', 'zone_locations', 'card_state']
 
 
 class TemplateInVariantSerializer(serializers.ModelSerializer):
     template = TemplateSerializer(many=False, read_only=True)
-    zone_location = ChoiceField(choices=IngredientInCombination.ZoneLocation.choices)
+    zone_locations = serializers.MultipleChoiceField(choices=IngredientInCombination.ZoneLocation.choices)
 
     class Meta:
         model = TemplateInVariant
-        fields = ['template', 'zone_location', 'card_state']
+        fields = ['template', 'zone_locations', 'card_state']
 
 
 class VariantSerializer(serializers.ModelSerializer):

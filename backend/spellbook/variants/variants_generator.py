@@ -7,7 +7,7 @@ from django.db import transaction
 from .list_utils import merge_identities, includes_any
 from .variant_data import RestoreData, Data, debug_queries
 from .combo_graph import Graph
-from spellbook.models import Combo, Job, Variant, CardInVariant, TemplateInVariant
+from spellbook.models import Combo, Job, Variant, CardInVariant, TemplateInVariant, IngredientInCombination
 
 
 def log_into_job(job: Job, message: str, reset=False):
@@ -106,11 +106,13 @@ def restore_variant(
     for card_in_variant in used_cards:
         card_in_variant.order = 0
         card_in_variant.card_state = ''
+        card_in_variant.zone_locations = ''.join(choice for choice, _ in IngredientInCombination.ZoneLocation.choices)
         uses[card_in_variant.card.id] = card_in_variant
     requires = dict[int, TemplateInVariant]()
     for template_in_variant in required_templates:
         template_in_variant.order = 0
         template_in_variant.card_state = ''
+        template_in_variant.zone_locations = ''.join(choice for choice, _ in IngredientInCombination.ZoneLocation.choices)
         requires[template_in_variant.template.id] = template_in_variant
     for combo in included_combos:
         for card_in_combo in data.combo_to_cards[combo.id]:
@@ -118,19 +120,19 @@ def restore_variant(
             if len(to_edit.card_state) > 0:
                 to_edit.card_state += ' '
             to_edit.card_state += card_in_combo.card_state
+            to_edit.zone_locations = ''.join(location for location in to_edit.zone_locations if location in card_in_combo.zone_locations)
         for template_in_combo in data.combo_to_templates[combo.id]:
             to_edit = requires[template_in_combo.template.id]
             if len(to_edit.card_state) > 0:
                 to_edit.card_state += ' '
             to_edit.card_state += template_in_combo.card_state
+            to_edit.zone_locations = ''.join(location for location in to_edit.zone_locations if location in template_in_combo.zone_locations)
     for i, combo in enumerate(chain(included_combos, generator_combos)):
         for card_in_combo in data.combo_to_cards[combo.id]:
             to_edit = uses[card_in_combo.card.id]
-            to_edit.zone_location = card_in_combo.zone_location
             to_edit.order += i
         for template_in_combo in data.combo_to_templates[combo.id]:
             to_edit = requires[template_in_combo.template.id]
-            to_edit.zone_location = template_in_combo.zone_location
             to_edit.order += i
 
     def uses_list():
@@ -225,11 +227,11 @@ def perform_bulk_saves(to_create: list[VariantBulkSaveItem], to_update: list[Var
         Variant.objects.bulk_update((v.variant for v in to_update if v.should_update), fields=update_fields)
     CardInVariant.objects.bulk_create(c for v in to_create for c in v.uses)
     if to_update:
-        update_fields = ['zone_location', 'card_state', 'order']
+        update_fields = ['zone_locations', 'card_state', 'order']
         CardInVariant.objects.bulk_update((c for v in to_update if v.should_update for c in v.uses), fields=update_fields)
     TemplateInVariant.objects.bulk_create(t for v in to_create for t in v.requires)
     if to_update:
-        update_fields = ['zone_location', 'card_state', 'order']
+        update_fields = ['zone_locations', 'card_state', 'order']
         TemplateInVariant.objects.bulk_update((t for v in to_update if v.should_update for t in v.requires), fields=update_fields)
     OfTable = Variant.of.through
     if to_update:

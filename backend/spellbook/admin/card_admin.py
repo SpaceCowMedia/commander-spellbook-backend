@@ -23,3 +23,8 @@ class CardAdmin(admin.ModelAdmin):
         if obj is not None and obj.oracle_id is not None:
             return readonly_fields + ['name', 'oracle_id', 'identity', 'legal', 'spoiler']
         return readonly_fields
+
+    def has_delete_permission(self, request, obj=None):
+        if obj is None:
+            return False
+        return super().has_delete_permission(request, obj) and not obj.used_in_combos.exists() and not obj.used_in_variants.exists()

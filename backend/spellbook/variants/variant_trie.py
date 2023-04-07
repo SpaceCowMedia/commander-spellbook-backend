@@ -89,6 +89,15 @@ class VariantTrie():
             result.append((sorted(cards), sorted(templates)))
         return result
 
+    def is_satisfied_by(self, cards: list[cardid], templates: list[templateid]) -> bool:
+        key = self.ingredients_to_key(cards, templates)
+        if len(key) > self.max_depth:
+            return False
+        for rotation in all_rotations(key):
+            if rotation in self.trie:
+                return True
+        return False
+
     def __str__(self):
         return str(self.trie)
 

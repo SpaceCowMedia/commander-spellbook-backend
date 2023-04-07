@@ -1,3 +1,4 @@
+from collections import deque
 from typing import Iterable, Optional
 from enum import Enum
 from dataclasses import dataclass
@@ -97,7 +98,7 @@ class VariantIngredients:
 
 
 class Graph:
-    def __init__(self, data: Data, feature_variant_limit=1000):
+    def __init__(self, data: Data, feature_variant_limit=10000000):
         if data is not None:
             self.data = data
             self.feature_variant_limit = feature_variant_limit
@@ -199,17 +200,20 @@ class Graph:
         for feature_node in templates + cards:
             feature_node.state = NodeState.VISITED
             self.to_reset_nodes.add(feature_node)
+        card_ids = [c.card.id for c in cards]
+        template_ids = [t.template.id for t in templates]
         card_nodes = set(cards)
         template_nodes = set(templates)
         feature_nodes: set[FeatureNode] = set()
-        combo_nodes_to_visit: set[ComboNode] = set()
+        combo_nodes_to_visit: deque[ComboNode] = deque()
+        combo_nodes_to_visit_with_new_features: deque[ComboNode] = deque()
         combo_nodes: set[ComboNode] = set()
         for card in cards:
             for combo in card.combos:
                 if combo.state == NodeState.NOT_VISITED:
                     combo.state = NodeState.VISITING
                     self.to_reset_nodes.add(combo)
-                    combo_nodes_to_visit.add(combo)
+                    combo_nodes_to_visit.append(combo)
             for feature in card.features:
                 if feature.state == NodeState.NOT_VISITED:
                     feature.state = NodeState.VISITED
@@ -219,28 +223,35 @@ class Graph:
                         if feature_combo.state == NodeState.NOT_VISITED:
                             feature_combo.state = NodeState.VISITING
                             self.to_reset_nodes.add(feature_combo)
-                            combo_nodes_to_visit.add(feature_combo)
-        flag = True
-        while flag:
-            flag = False
-            for combo in combo_nodes_to_visit:
-                if all((c in card_nodes for c in combo.cards)) and all((t in template_nodes for t in combo.templates)) and all((f in feature_nodes for f in combo.features_needed)):
-                    combo.state = NodeState.VISITED
-                    self.to_reset_nodes.add(combo)
-                    combo_nodes.add(combo)
-                    combo_nodes_to_visit.remove(combo)
-                    for feature in combo.features_produced:
-                        if feature.state == NodeState.NOT_VISITED:
-                            feature.state = NodeState.VISITED
-                            self.to_reset_nodes.add(feature)
-                            feature_nodes.add(feature)
-                            for feature_combo in feature.needed_by_combos:
-                                if feature_combo.state == NodeState.NOT_VISITED:
-                                    feature_combo.state = NodeState.VISITING
-                                    self.to_reset_nodes.add(feature_combo)
-                                    combo_nodes_to_visit.add(feature_combo)
-                    flag = True
-                    break
+                            combo_nodes_to_visit.append(feature_combo)
+        while combo_nodes_to_visit:
+            combo = combo_nodes_to_visit.popleft()
+            if any((c not in card_nodes for c in combo.cards)) or any((t not in template_nodes for t in combo.templates)):
+                continue
+            satisfied = False
+            if combo.trie is not None:
+                if combo.trie.is_satisfied_by(card_ids, template_ids):
+                    satisfied = True
+            else:
+                if all((f in feature_nodes for f in combo.features_needed)):
+                    satisfied = True
+            if satisfied:
+                combo.state = NodeState.VISITED
+                combo_nodes.add(combo)
+                for feature in combo.features_produced:
+                    if feature.state == NodeState.NOT_VISITED:
+                        feature.state = NodeState.VISITED
+                        self.to_reset_nodes.add(feature)
+                        feature_nodes.add(feature)
+                        for feature_combo in feature.needed_by_combos:
+                            if feature_combo.state == NodeState.NOT_VISITED:
+                                feature_combo.state = NodeState.VISITING
+                                self.to_reset_nodes.add(feature_combo)
+                                combo_nodes_to_visit.append(feature_combo)
+                        combo_nodes_to_visit.extend(combo_nodes_to_visit_with_new_features)
+                        combo_nodes_to_visit_with_new_features.clear()
+            else:
+                combo_nodes_to_visit_with_new_features.append(combo)
         return VariantIngredients(
             cards=[cn.card for cn in card_nodes],
             templates=[tn.template for tn in template_nodes],

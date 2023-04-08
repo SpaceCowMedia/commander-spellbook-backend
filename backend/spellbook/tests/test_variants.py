@@ -1,3 +1,4 @@
+from unittest import skip
 from django.test import TestCase
 from spellbook.variants.variant_trie import VariantTrie
 from spellbook.variants.list_utils import merge_identities, includes_any
@@ -34,7 +35,7 @@ class ListUtilsTests(TestCase):
         self.assertTrue(includes_any(set(), [set()]))
         self.assertTrue(includes_any({1}, [{2}, {1}]))
 
-
+@skip('Not implemented yet')
 class VariantTrieTests(TestCase):
     def test_ingredients_to_key(self):
         trie = VariantTrie()

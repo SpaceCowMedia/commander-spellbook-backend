@@ -1,6 +1,6 @@
 from unittest import skip
 from django.test import TestCase
-from spellbook.variants.variant_trie import VariantTrie
+from spellbook.variants.variant_set import VariantSet
 from spellbook.variants.list_utils import merge_identities, includes_any
 
 
@@ -35,67 +35,67 @@ class ListUtilsTests(TestCase):
         self.assertTrue(includes_any(set(), [set()]))
         self.assertTrue(includes_any({1}, [{2}, {1}]))
 
-@skip('Not implemented yet')
-class VariantTrieTests(TestCase):
+
+class VariantSetTests(TestCase):
     def test_ingredients_to_key(self):
-        trie = VariantTrie()
-        self.assertEqual(trie.key_to_ingredients(trie.ingredients_to_key([1, 2, 3, 4], [])), ([1, 2, 3, 4], []))
-        self.assertEqual(trie.key_to_ingredients(trie.ingredients_to_key([1, 2, 3, 4], [1, 2, 3])), ([1, 2, 3, 4], [1, 2, 3]))
-        self.assertEqual(trie.key_to_ingredients(trie.ingredients_to_key([], [1, 2, 3])), ([], [1, 2, 3]))
-        self.assertEqual(trie.key_to_ingredients(trie.ingredients_to_key([], [])), ([], []))
-        self.assertEqual(trie.key_to_ingredients(trie.ingredients_to_key([1], [1])), ([1], [1]))
+        variant_set = VariantSet()
+        self.assertEqual(variant_set.key_to_ingredients(variant_set.ingredients_to_key([1, 2, 3, 4], [])), ([1, 2, 3, 4], []))
+        self.assertEqual(variant_set.key_to_ingredients(variant_set.ingredients_to_key([1, 2, 3, 4], [1, 2, 3])), ([1, 2, 3, 4], [1, 2, 3]))
+        self.assertEqual(variant_set.key_to_ingredients(variant_set.ingredients_to_key([], [1, 2, 3])), ([], [1, 2, 3]))
+        self.assertEqual(variant_set.key_to_ingredients(variant_set.ingredients_to_key([], [])), ([], []))
+        self.assertEqual(variant_set.key_to_ingredients(variant_set.ingredients_to_key([1], [1])), ([1], [1]))
 
-    def test_variant_trie_add(self):
-        trie = VariantTrie()
-        trie.add([1, 2, 3, 4], [1, 2, 3])
-        self.assertEqual(trie.variants(), [([1, 2, 3, 4], [1, 2, 3])])
-        trie.add([1, 2, 3, 4], [1, 2, 3])
-        self.assertEqual(trie.variants(), [([1, 2, 3, 4], [1, 2, 3])])
-        trie.add([1, 2, 3, 4], [1, 2, 3, 4])
-        self.assertEqual(trie.variants(), [([1, 2, 3, 4], [1, 2, 3])])
-        trie.add([1, 2, 3, 4, 5], [1, 2, 3])
-        self.assertEqual(trie.variants(), [([1, 2, 3, 4], [1, 2, 3])])
-        trie.add([1, 2, 3, 4, 5, 6], [1, 2])
-        self.assertEqual(trie.variants(), [([1, 2, 3, 4], [1, 2, 3]), ([1, 2, 3, 4, 5, 6], [1, 2])])
-        trie.add([1, 2, 3, 4, 5], [1, 2])
-        self.assertEqual(trie.variants(), [([1, 2, 3, 4], [1, 2, 3]), ([1, 2, 3, 4, 5], [1, 2])])
-        trie.add([2, 3, 4], [1, 2, 3])
-        self.assertEqual(trie.variants(), [([1, 2, 3, 4, 5], [1, 2]), ([2, 3, 4], [1, 2, 3])])
-        trie.add([2, 4], [])
-        self.assertEqual(trie.variants(), [([2, 4], [])])
+    def test_variant_set_add(self):
+        variant_set = VariantSet()
+        variant_set.add([1, 2, 3, 4], [1, 2, 3])
+        self.assertEqual(list_of_tuples_of_lists_to_set(variant_set.variants()), {((1, 2, 3, 4), (1, 2, 3))})
+        variant_set.add([1, 2, 3, 4], [1, 2, 3])
+        self.assertEqual(list_of_tuples_of_lists_to_set(variant_set.variants()), {((1, 2, 3, 4), (1, 2, 3))})
+        variant_set.add([1, 2, 3, 4], [1, 2, 3, 4])
+        self.assertEqual(list_of_tuples_of_lists_to_set(variant_set.variants()), {((1, 2, 3, 4), (1, 2, 3))})
+        variant_set.add([1, 2, 3, 4, 5], [1, 2, 3])
+        self.assertEqual(list_of_tuples_of_lists_to_set(variant_set.variants()), {((1, 2, 3, 4), (1, 2, 3))})
+        variant_set.add([1, 2, 3, 4, 5, 6], [1, 2])
+        self.assertEqual(list_of_tuples_of_lists_to_set(variant_set.variants()), {((1, 2, 3, 4), (1, 2, 3)), ((1, 2, 3, 4, 5, 6), (1, 2))})
+        variant_set.add([1, 2, 3, 4, 5], [1, 2])
+        self.assertEqual(list_of_tuples_of_lists_to_set(variant_set.variants()), {((1, 2, 3, 4), (1, 2, 3)), ((1, 2, 3, 4, 5), (1, 2))})
+        variant_set.add([2, 3, 4], [1, 2, 3])
+        self.assertEqual(list_of_tuples_of_lists_to_set(variant_set.variants()), {((1, 2, 3, 4, 5), (1, 2)), ((2, 3, 4), (1, 2, 3))})
+        variant_set.add([2, 4], [])
+        self.assertEqual(list_of_tuples_of_lists_to_set(variant_set.variants()), {((2, 4), ())})
 
-    def test_variant_trie_or(self):
-        trie = VariantTrie()
-        trie.add([1, 2, 3, 4], [1, 2, 3])
-        trie.add([1, 2, 3, 4, 5], [1, 2])
-        trie2 = VariantTrie()
-        trie2.add([1, 2, 3], [1, 2, 3, 4])
-        trie2.add([1, 2, 3, 4, 5], [1])
+    def test_variant_set_or(self):
+        variant_set = VariantSet()
+        variant_set.add([1, 2, 3, 4], [1, 2, 3])
+        variant_set.add([1, 2, 3, 4, 5], [1, 2])
+        variant_set2 = VariantSet()
+        variant_set2.add([1, 2, 3], [1, 2, 3, 4])
+        variant_set2.add([1, 2, 3, 4, 5], [1])
 
-        trie3 = trie | trie2
-        self.assertSetEqual(list_of_tuples_of_lists_to_set(trie3.variants()), list_of_tuples_of_lists_to_set([([1, 2, 3, 4], [1, 2, 3]), ([1, 2, 3, 4, 5], [1]), ([1, 2, 3], [1, 2, 3, 4])]))
-        trie4 = trie2 | trie
-        self.assertSetEqual(list_of_tuples_of_lists_to_set(trie3.variants()), list_of_tuples_of_lists_to_set(trie4.variants()))
+        variant_set3 = variant_set | variant_set2
+        self.assertSetEqual(list_of_tuples_of_lists_to_set(variant_set3.variants()), list_of_tuples_of_lists_to_set([([1, 2, 3, 4], [1, 2, 3]), ([1, 2, 3, 4, 5], [1]), ([1, 2, 3], [1, 2, 3, 4])]))
+        variant_set4 = variant_set2 | variant_set
+        self.assertSetEqual(list_of_tuples_of_lists_to_set(variant_set3.variants()), list_of_tuples_of_lists_to_set(variant_set4.variants()))
 
-        self.assertIsNotNone(VariantTrie.or_tries([]))
-        trie5 = VariantTrie.or_tries([trie])
-        self.assertIsNotNone(trie5)
-        self.assertFalse(trie5 is trie)
+        self.assertIsNotNone(VariantSet.or_sets([]))
+        variant_set5 = VariantSet.or_sets([variant_set])
+        self.assertIsNotNone(variant_set5)
+        self.assertFalse(variant_set5 is variant_set)
 
-    def test_variant_trie_and(self):
-        trie = VariantTrie()
-        trie.add([1, 2, 3, 4], [1, 2, 3])
-        trie.add([1, 2, 3, 4, 5], [1, 2])
-        trie2 = VariantTrie()
-        trie2.add([1, 2, 3], [1, 2, 3, 4])
-        trie2.add([1, 2, 3, 4, 5], [1])
+    def test_variant_set_and(self):
+        variant_set = VariantSet()
+        variant_set.add([1, 2, 3, 4], [1, 2, 3])
+        variant_set.add([1, 2, 3, 4, 5], [1, 2])
+        variant_set2 = VariantSet()
+        variant_set2.add([1, 2, 3], [1, 2, 3, 4])
+        variant_set2.add([1, 2, 3, 4, 5], [1])
 
-        trie3 = trie & trie2
-        self.assertEqual(list_of_tuples_of_lists_to_set(trie3.variants()), list_of_tuples_of_lists_to_set([([1, 2, 3, 4], [1, 2, 3, 4]), ([1, 2, 3, 4, 5], [1, 2])]))
-        trie4 = trie2 & trie
-        self.assertSetEqual(list_of_tuples_of_lists_to_set(trie3.variants()), list_of_tuples_of_lists_to_set(trie4.variants()))
+        variant_set3 = variant_set & variant_set2
+        self.assertEqual(list_of_tuples_of_lists_to_set(variant_set3.variants()), list_of_tuples_of_lists_to_set([([1, 2, 3, 4], [1, 2, 3, 4]), ([1, 2, 3, 4, 5], [1, 2])]))
+        variant_set4 = variant_set2 & variant_set
+        self.assertSetEqual(list_of_tuples_of_lists_to_set(variant_set3.variants()), list_of_tuples_of_lists_to_set(variant_set4.variants()))
 
-        self.assertIsNotNone(VariantTrie.and_tries([]))
-        trie5 = VariantTrie.and_tries([trie])
-        self.assertIsNotNone(trie5)
-        self.assertFalse(trie5 is trie)
+        self.assertIsNotNone(VariantSet.and_sets([]))
+        variant_set5 = VariantSet.and_sets([variant_set])
+        self.assertIsNotNone(variant_set5)
+        self.assertFalse(variant_set5 is variant_set)

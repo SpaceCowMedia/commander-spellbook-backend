@@ -7,7 +7,7 @@ from spellbook.models.feature import Feature
 from spellbook.models.combo import Combo
 from spellbook.models.template import Template
 from .variant_data import Data
-from .variant_trie import VariantTrie
+from .variant_set import VariantSet
 
 
 MAX_CARDS_IN_COMBO = 5
@@ -22,7 +22,7 @@ class NodeState(Enum):
 class Node:
     def __init__(self):
         self.state: NodeState = NodeState.NOT_VISITED
-        self.trie: Optional[VariantTrie] = None
+        self.variant_set: Optional[VariantSet] = None
 
     def __str__(self) -> str:
         return f'{self.__class__} of {self._item()}'
@@ -104,12 +104,12 @@ class Graph:
             self.feature_variant_limit = feature_variant_limit
             self.cnodes = dict[int, CardNode]((card.id, CardNode(card, [], [])) for card in data.cards)
             for c in self.cnodes.values():
-                c.trie = VariantTrie(limit=MAX_CARDS_IN_COMBO)
-                c.trie.add([c.card.id], [])
+                c.variant_set = VariantSet(limit=MAX_CARDS_IN_COMBO)
+                c.variant_set.add([c.card.id], [])
             self.tnodes = dict[int, TemplateNode]((template.id, TemplateNode(template, [])) for template in data.templates)
             for t in self.tnodes.values():
-                t.trie = VariantTrie(limit=MAX_CARDS_IN_COMBO)
-                t.trie.add([], [t.template.id])
+                t.variant_set = VariantSet(limit=MAX_CARDS_IN_COMBO)
+                t.variant_set.add([], [t.template.id])
             self.fnodes = dict[int, FeatureNode]()
             for feature in data.features:
                 node = FeatureNode(feature,
@@ -151,50 +151,50 @@ class Graph:
         # Reset step
         self.reset()
         # Down step
-        trie = self._combo_nodes_down(combo)
+        variant_set = self._combo_nodes_down(combo)
         # Up step
-        for cards, templates in trie.variants():
+        for cards, templates in variant_set.variants():
             self.reset()
             yield self._card_nodes_up([self.cnodes[i] for i in cards], [self.tnodes[i] for i in templates])
 
-    def _combo_nodes_down(self, combo: ComboNode) -> VariantTrie:
-        if combo.trie is not None:
+    def _combo_nodes_down(self, combo: ComboNode) -> VariantSet:
+        if combo.variant_set is not None:
             combo.state = NodeState.VISITED
             self.to_reset_nodes.add(combo)
-            return combo.trie
+            return combo.variant_set
         combo.state = NodeState.VISITING
         self.to_reset_nodes.add(combo)
-        card_tries = [c.trie for c in combo.cards]
-        template_tries = [t.trie for t in combo.templates]
-        needed_features_tries: list[VariantTrie] = []
+        card_variant_sets = [c.variant_set for c in combo.cards]
+        template_variant_sets = [t.variant_set for t in combo.templates]
+        needed_features_variant_sets: list[VariantSet] = []
         for f in combo.features_needed:
             if f.state == NodeState.VISITING:
-                return VariantTrie()
-            needed_features_tries.append(self._feature_nodes_down(f))
-        combo.trie = VariantTrie.and_tries(card_tries + template_tries + needed_features_tries, limit=MAX_CARDS_IN_COMBO)
+                return VariantSet()
+            needed_features_variant_sets.append(self._feature_nodes_down(f))
+        combo.variant_set = VariantSet.and_sets(card_variant_sets + template_variant_sets + needed_features_variant_sets, limit=MAX_CARDS_IN_COMBO)
         combo.state = NodeState.VISITED
-        return combo.trie
+        return combo.variant_set
 
-    def _feature_nodes_down(self, feature: FeatureNode) -> VariantTrie:
-        if feature.trie is not None:
+    def _feature_nodes_down(self, feature: FeatureNode) -> VariantSet:
+        if feature.variant_set is not None:
             feature.state = NodeState.VISITED
             self.to_reset_nodes.add(feature)
-            return feature.trie
+            return feature.variant_set
         feature.state = NodeState.VISITING
         self.to_reset_nodes.add(feature)
-        card_tries = [c.trie for c in feature.cards]
-        produced_combos_tries: list[VariantTrie] = []
+        card_variant_sets = [c.variant_set for c in feature.cards]
+        produced_combos_variant_sets: list[VariantSet] = []
         for c in feature.produced_by_combos:
             if c.state == NodeState.VISITING:
                 continue
-            produced_combos_tries.append(self._combo_nodes_down(c))
-        tries = card_tries + produced_combos_tries
-        possible_variants_count = sum(len(t) for t in tries)
+            produced_combos_variant_sets.append(self._combo_nodes_down(c))
+        variant_sets = card_variant_sets + produced_combos_variant_sets
+        possible_variants_count = sum(len(t) for t in variant_sets)
         if possible_variants_count > self.feature_variant_limit:
             raise Exception(f'Feature "{feature.feature.name}" has too many variants, around {possible_variants_count}.')
-        feature.trie = VariantTrie.or_tries(tries, limit=MAX_CARDS_IN_COMBO)
+        feature.variant_set = VariantSet.or_sets(variant_sets, limit=MAX_CARDS_IN_COMBO)
         feature.state = NodeState.VISITED
-        return feature.trie
+        return feature.variant_set
 
     def _card_nodes_up(self, cards: list[CardNode], templates: list[TemplateNode]) -> VariantIngredients:
         for feature_node in templates + cards:
@@ -227,8 +227,8 @@ class Graph:
         while combo_nodes_to_visit:
             combo = combo_nodes_to_visit.popleft()
             satisfied = False
-            if combo.trie is not None:
-                if combo.trie.is_satisfied_by(card_ids, template_ids):
+            if combo.variant_set is not None:
+                if combo.variant_set.is_satisfied_by(card_ids, template_ids):
                     satisfied = True
                 else:
                     continue

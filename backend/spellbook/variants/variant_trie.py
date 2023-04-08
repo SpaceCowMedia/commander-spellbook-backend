@@ -9,7 +9,7 @@ DEFAULT_MAX_DEPTH = 100
 
 class VariantTrie():
     def __init__(self, limit: int = DEFAULT_MAX_DEPTH):
-        self.trie = object() # TODO: implement using settries
+        self.trie = object()  # TODO: implement using settries
         self.max_depth = limit
 
     def ingredients_to_key(self, cards: list[cardid], templates: list[templateid]) -> frozenset[str]:
@@ -34,25 +34,25 @@ class VariantTrie():
     def _add(self, key: frozenset[str]):
         if len(key) == 0 or len(key) > self.max_depth:
             return
-        raise NotImplementedError() # TODO: implement
+        raise NotImplementedError()  # TODO: implement
 
     def is_satisfied_by(self, cards: list[cardid], templates: list[templateid]) -> bool:
         key = self.ingredients_to_key(cards, templates)
         if len(key) > self.max_depth:
             return False
-        raise NotImplementedError() # TODO: implement
+        raise NotImplementedError()  # TODO: implement
 
     def __copy__(self) -> 'VariantTrie':
-        raise NotImplementedError() # TODO: implement
+        raise NotImplementedError()  # TODO: implement
 
     def _keys(self) -> frozenset[frozenset[str]]:
-        raise NotImplementedError() # TODO: implement
+        raise NotImplementedError()  # TODO: implement
 
     def __str__(self) -> str:
-        raise NotImplementedError() # TODO: implement
+        raise NotImplementedError()  # TODO: implement
 
     def __len__(self) -> int:
-        raise NotImplementedError() # TODO: implement
+        raise NotImplementedError()  # TODO: implement
 
     def __or__(self, other: 'VariantTrie'):
         result = self.copy()

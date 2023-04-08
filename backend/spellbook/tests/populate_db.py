@@ -1,6 +1,7 @@
 import uuid
 from spellbook.models import Combo, CardInCombo, TemplateInCombo, Card, Feature, Template, IngredientInCombination
 
+
 def populate_db():
     c1 = Card.objects.create(name='A', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000001'), identity='W', legal=True, spoiler=False)
     c2 = Card.objects.create(name='B', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000002'), identity='U', legal=True, spoiler=False)

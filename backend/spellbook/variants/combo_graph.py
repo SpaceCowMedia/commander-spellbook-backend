@@ -226,13 +226,15 @@ class Graph:
                             combo_nodes_to_visit.append(feature_combo)
         while combo_nodes_to_visit:
             combo = combo_nodes_to_visit.popleft()
-            if any((c not in card_nodes for c in combo.cards)) or any((t not in template_nodes for t in combo.templates)):
-                continue
             satisfied = False
             if combo.trie is not None:
                 if combo.trie.is_satisfied_by(card_ids, template_ids):
                     satisfied = True
+                else:
+                    continue
             else:
+                if any((c not in card_nodes for c in combo.cards)) or any((t not in template_nodes for t in combo.templates)):
+                    continue
                 if all((f in feature_nodes for f in combo.features_needed)):
                     satisfied = True
             if satisfied:

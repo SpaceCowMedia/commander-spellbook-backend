@@ -2,4 +2,3 @@ Django==4.1.7
 djangorestframework==3.14.0
 django-filter==23.1
 django-sortedm2m==3.1.1
-pygtrie==2.5.0

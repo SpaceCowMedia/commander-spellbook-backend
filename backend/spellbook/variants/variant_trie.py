@@ -1,6 +1,4 @@
-from pygtrie import Trie
 from itertools import product
-from .list_utils import all_rotations, merge_sort_unique
 
 cardid = int
 templateid = int
@@ -11,14 +9,13 @@ DEFAULT_MAX_DEPTH = 100
 
 class VariantTrie():
     def __init__(self, limit: int = DEFAULT_MAX_DEPTH):
-        self.trie = Trie()
-        self.shadow = Trie()
+        self.trie = object() # TODO: implement using settries
         self.max_depth = limit
 
-    def ingredients_to_key(self, cards: list[cardid], templates: list[templateid]) -> list[str]:
-        return merge_sort_unique([f'C{c_id}' for c_id in cards], [f'T{t_id}' for t_id in templates])
+    def ingredients_to_key(self, cards: list[cardid], templates: list[templateid]) -> frozenset[str]:
+        return frozenset([f'C{c_id}' for c_id in cards] + [f'T{t_id}' for t_id in templates])
 
-    def key_to_ingredients(self, key: list[str]) -> tuple[list[cardid], list[templateid]]:
+    def key_to_ingredients(self, key: frozenset[str]) -> tuple[list[cardid], list[templateid]]:
         cards = list[cardid]()
         templates = list[templateid]()
         for item in key:
@@ -32,51 +29,49 @@ class VariantTrie():
         base_key = self.ingredients_to_key(cards, templates)
         if len(base_key) > self.max_depth:
             return
-        keys = all_rotations(base_key)
-        self._add(keys)
+        self._add(base_key)
 
-    def _add(self, all_rotations: list[list[str]]):
-        if len(all_rotations) == 0:
+    def _add(self, key: frozenset[str]):
+        if len(key) == 0 or len(key) > self.max_depth:
             return
-        if any(len(r) > self.max_depth for r in all_rotations):
-            return
-        for key in all_rotations:
-            prefix = self.trie.longest_prefix(key)
-            if prefix.is_set:
-                return
-        self.shadow[all_rotations[0]] = all_rotations
-        for key in all_rotations:
-            if self.trie.has_subtrie(key):
-                for subkey in self.trie.keys(prefix=key):
-                    del self.shadow[self.trie[subkey][0]]
-                    for rotated_subkey in self.trie[subkey]:
-                        del self.trie[rotated_subkey]
-            self.trie[key] = all_rotations
+        raise NotImplementedError() # TODO: implement
 
-    def _keys(self) -> list[list[str]]:
-        return self.shadow.keys()
+    def is_satisfied_by(self, cards: list[cardid], templates: list[templateid]) -> bool:
+        key = self.ingredients_to_key(cards, templates)
+        if len(key) > self.max_depth:
+            return False
+        raise NotImplementedError() # TODO: implement
 
-    def _values(self) -> list[list[list[str]]]:
-        return self.shadow.values()
+    def __copy__(self) -> 'VariantTrie':
+        raise NotImplementedError() # TODO: implement
 
-    def __or__(self, other):
+    def _keys(self) -> frozenset[frozenset[str]]:
+        raise NotImplementedError() # TODO: implement
+
+    def __str__(self) -> str:
+        raise NotImplementedError() # TODO: implement
+
+    def __len__(self) -> int:
+        raise NotImplementedError() # TODO: implement
+
+    def __or__(self, other: 'VariantTrie'):
         result = self.copy()
-        for value in other._values():
-            result._add(value)
+        for key in other._keys():
+            result._add(key)
         return result
 
     def __add__(self, other):
         return self.__or__(other)
 
-    def __and__(self, other):
+    def __and__(self, other: 'VariantTrie'):
         result = VariantTrie(limit=self.max_depth)
         left_keys = list(self._keys())
         right_keys = list(other._keys())
         for left_key, right_key in product(left_keys, right_keys):
-            key = merge_sort_unique(left_key, right_key)
+            key = left_key | right_key
             if len(key) > self.max_depth:
                 continue
-            result._add(all_rotations(key))
+            result._add(key)
         return result
 
     def __mul__(self, other):
@@ -87,27 +82,6 @@ class VariantTrie():
         for key in self._keys():
             cards, templates = self.key_to_ingredients(key)
             result.append((sorted(cards), sorted(templates)))
-        return result
-
-    def is_satisfied_by(self, cards: list[cardid], templates: list[templateid]) -> bool:
-        key = self.ingredients_to_key(cards, templates)
-        if len(key) > self.max_depth:
-            return False
-        for rotation in all_rotations(key):
-            if rotation in self.trie:
-                return True
-        return False
-
-    def __str__(self):
-        return str(self.trie)
-
-    def __len__(self):
-        return len(self.trie)
-
-    def __copy__(self):
-        result = VariantTrie(limit=self.max_depth)
-        result.trie = self.trie.copy()
-        result.shadow = self.shadow.copy()
         return result
 
     def copy(self):

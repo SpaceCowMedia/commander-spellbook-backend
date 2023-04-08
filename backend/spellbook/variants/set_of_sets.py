@@ -2,6 +2,7 @@ from typing import TypeVar, Generic, Iterable
 
 T = TypeVar('T')
 
+
 class SetOfSets(Generic[T]):
     def __init__(self, sets: set[frozenset[T]] = set[frozenset[T]]()):
         self.sets = sets
@@ -19,7 +20,7 @@ class SetOfSets(Generic[T]):
         return False
 
     def remove_subset_of(self, set: frozenset[T]):
-        self.sets = {s for s in self.sets if not s.issubset(set)}    
+        self.sets = {s for s in self.sets if not s.issubset(set)}
 
     def remove_superset_of(self, set: frozenset[T]):
         self.sets = {s for s in self.sets if not s.issuperset(set)}

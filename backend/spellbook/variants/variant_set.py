@@ -1,5 +1,5 @@
 from itertools import product
-from .set_of_sets import SetOfSets
+from .minimal_set_of_sets import SetOfSets
 
 cardid = int
 templateid = int
@@ -35,9 +35,6 @@ class VariantSet():
     def _add(self, key: frozenset[str]):
         if len(key) == 0 or len(key) > self.max_depth:
             return
-        if self.sets.contains_subset_of(key):
-            return
-        self.sets.remove_superset_of(key)
         self.sets.add(key)
 
     def is_satisfied_by(self, cards: list[cardid], templates: list[templateid]) -> bool:

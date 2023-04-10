@@ -1,4 +1,5 @@
 import uuid
+from django.contrib.auth.models import User
 from spellbook.models import Combo, CardInCombo, TemplateInCombo, Card, Feature, Template, IngredientInCombination
 
 

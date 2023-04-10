@@ -149,7 +149,7 @@ class VariantAdmin(SearchMultipleRelatedMixin, admin.ModelAdmin):
 
     def generate(self, request: HttpRequest):
         if request.method == 'POST' and request.user.is_authenticated:
-            if (launch_job_command('generate_variants', timezone.timedelta(minutes=30), request.user)):
+            if (launch_job_command('generate_variants', request.user)):
                 messages.info(request, 'Variant generation job started.')
             else:
                 messages.warning(request, 'Variant generation is already running.')
@@ -157,7 +157,7 @@ class VariantAdmin(SearchMultipleRelatedMixin, admin.ModelAdmin):
 
     def export(self, request: HttpRequest):
         if request.method == 'POST' and request.user.is_authenticated:
-            if (launch_job_command('export_variants', timezone.timedelta(minutes=1), request.user)):
+            if (launch_job_command('export_variants', request.user)):
                 messages.info(request, 'Variant exporting job started.')
             else:
                 messages.warning(request, 'Variant exporting is already running.')

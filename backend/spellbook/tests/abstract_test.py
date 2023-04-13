@@ -5,5 +5,5 @@ from .populate_db import populate_db
 
 class AbstractModelTests(TestCase):
     def setUp(self) -> None:
-        populate_db()
         settings.ASYNC_GENERATION = False
+        populate_db()

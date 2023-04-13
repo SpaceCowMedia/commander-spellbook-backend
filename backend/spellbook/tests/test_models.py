@@ -2,7 +2,7 @@ from django.utils import timezone
 from django.contrib.auth.models import User
 from .inspection import count_methods
 from .abstract_test import AbstractModelTests
-from spellbook.models import Card, Feature, Template, Combo, Job, Variant
+from spellbook.models import Card, Feature, Template, Combo, Job, IngredientInCombination
 from spellbook.models.scryfall import SCRYFALL_API_ROOT, SCRYFALL_WEBSITE_CARD_SEARCH
 from spellbook.utils import launch_job_command
 
@@ -87,10 +87,10 @@ class ComboTests(AbstractModelTests):
         self.assertEqual(c.mana_needed, '{W}{W}')
         self.assertEqual(c.other_prerequisites, 'Some requisites.')
         self.assertFalse(c.generator)
-        cic = sorted(c.cardincombo_set.all(), key=lambda x: x.order)
-        self.assertEqual(list(c.cards()), list(map(lambda x: x.card, cic)))
-        tic = sorted(c.templateincombo_set.all(), key=lambda x: x.order)
-        self.assertEqual(list(c.templates()), list(map(lambda x: x.template, tic)))
+        self.assertEqual(c.cardincombo_set.count(), 2)
+        self.assertEqual(c.cardincombo_set.get(card__name='B').zone_locations, IngredientInCombination.ZoneLocation.HAND)
+        self.assertEqual(c.cardincombo_set.get(card__name='C').zone_locations, IngredientInCombination.ZoneLocation.BATTLEFIELD)
+        self.assertEqual(c.templateincombo_set.count(), 0)
         c = Combo.objects.get(description='2')
         self.assertEqual(c.description, '2')
         self.assertEqual(c.uses.count(), 0)
@@ -101,10 +101,16 @@ class ComboTests(AbstractModelTests):
         self.assertEqual(c.mana_needed, '{U}{U}')
         self.assertEqual(c.other_prerequisites, 'Some requisites.')
         self.assertTrue(c.generator)
-        cic = sorted(c.cardincombo_set.all(), key=lambda x: x.order)
-        self.assertEqual(list(c.cards()), list(map(lambda x: x.card, cic)))
-        tic = sorted(c.templateincombo_set.all(), key=lambda x: x.order)
-        self.assertEqual(list(c.templates()), list(map(lambda x: x.template, tic)))
+        self.assertEqual(c.cardincombo_set.count(), 0)
+        self.assertEqual(c.templateincombo_set.count(), 1)
+        self.assertEqual(c.templateincombo_set.get(template__name='TA').zone_locations, IngredientInCombination.ZoneLocation.GRAVEYARD)
+
+    def test_ingredients(self):
+        for c in Combo.objects.all():
+            cic = sorted(c.cardincombo_set.all(), key=lambda x: x.order)
+            self.assertEqual(list(c.cards()), list(map(lambda x: x.card, cic)))
+            tic = sorted(c.templateincombo_set.all(), key=lambda x: x.order)
+            self.assertEqual(list(c.templates()), list(map(lambda x: x.template, tic)))
 
     def test_query_string(self):
         c = Combo.objects.get(description='1')
@@ -148,3 +154,7 @@ class JobTests(AbstractModelTests):
 
     def test_method_count(self):
         self.assertEqual(count_methods(Job), 2)
+
+
+class VariantTests(AbstractModelTests):
+    pass

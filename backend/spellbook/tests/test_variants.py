@@ -1,5 +1,6 @@
 from unittest import skip
 from django.test import TestCase
+from spellbook.variants.minimal_set_of_sets import MinimalSetOfSets
 from spellbook.variants.variant_set import VariantSet
 from spellbook.variants.list_utils import merge_identities, includes_any
 
@@ -34,6 +35,51 @@ class ListUtilsTests(TestCase):
         self.assertTrue(includes_any({1, 2, 3}, [{1, 2, 3, 4}, {2}]))
         self.assertTrue(includes_any(set(), [set()]))
         self.assertTrue(includes_any({1}, [{2}, {1}]))
+
+
+class MinimalSetOfSetsTests(TestCase):
+
+    def test_init(self):
+        self.assertEqual(set(MinimalSetOfSets()), set())
+        self.assertEqual(set(MinimalSetOfSets({frozenset({1})})), {frozenset({1})})
+        self.assertEqual(set(MinimalSetOfSets({frozenset({1}), frozenset({2})})), {frozenset({1}), frozenset({2})})
+        self.assertEqual(set(MinimalSetOfSets({frozenset({1, 2, 3})})), {frozenset({1, 2, 3})})
+
+    def test_contains_subset(self):
+        self.assertFalse(MinimalSetOfSets().contains_subset_of({1}))
+        self.assertTrue(MinimalSetOfSets({frozenset({1})}).contains_subset_of({1}))
+        self.assertFalse(MinimalSetOfSets({frozenset({1, 2})}).contains_subset_of({1}))
+        self.assertTrue(MinimalSetOfSets({frozenset({1, 2})}).contains_subset_of({1, 2}))
+        self.assertTrue(MinimalSetOfSets({frozenset({1, 2})}).contains_subset_of({1, 2, 3}))
+        self.assertTrue(MinimalSetOfSets({frozenset({1, 2}), frozenset({1, 2, 4})}).contains_subset_of({1, 2, 3}))
+        self.assertTrue(MinimalSetOfSets({frozenset({1, 2}), frozenset({1, 2, 4})}).contains_subset_of({1, 2, 3, 4}))
+        self.assertFalse(MinimalSetOfSets({frozenset({1, 2, 6}), frozenset({1, 2, 4})}).contains_subset_of({1, 2, 3, 5}))
+        self.assertTrue(MinimalSetOfSets({frozenset({2}), frozenset({1, 2, 4})}).contains_subset_of({1, 2, 3}))
+        self.assertTrue(MinimalSetOfSets({frozenset({2}), frozenset({1, 2, 4})}).contains_subset_of({1, 2, 3, 4}))
+
+    def test_remove_superset_of(self):
+        pass # TODO: implement
+
+    def test_add(self):
+        pass # TODO: implement
+
+    def test_remove(self):
+        pass # TODO: implement
+
+    def test_union(self):
+        pass # TODO: implement
+
+    def test_len(self):
+        pass # TODO: implement
+
+    def test_iter(self):
+        pass # TODO: implement
+
+    def test_contains(self):
+        pass # TODO: implement
+
+    def test_copy(self):
+        pass # TODO: implement
 
 
 class VariantSetTests(TestCase):

@@ -2,6 +2,11 @@ from rest_framework import serializers
 from spellbook.models import Card, Template, Feature, IngredientInCombination, Combo, CardInCombo, TemplateInCombo, Variant, CardInVariant, TemplateInVariant
 
 
+class MultipleChoiceField(serializers.MultipleChoiceField):
+    def to_representation(self, obj):
+        return list(super().to_representation(obj))
+
+
 class CardSerializer(serializers.ModelSerializer):
     class Meta:
         model = Card
@@ -30,7 +35,7 @@ class TemplateSerializer(serializers.ModelSerializer):
 
 class CardInComboSerializer(serializers.ModelSerializer):
     card = CardSerializer(many=False, read_only=True)
-    zone_locations = serializers.MultipleChoiceField(choices=IngredientInCombination.ZoneLocation.choices)
+    zone_locations = MultipleChoiceField(choices=IngredientInCombination.ZoneLocation.choices)
 
     class Meta:
         model = CardInCombo
@@ -39,7 +44,7 @@ class CardInComboSerializer(serializers.ModelSerializer):
 
 class TemplateInComboSerializer(serializers.ModelSerializer):
     template = TemplateSerializer(many=False, read_only=True)
-    zone_locations = serializers.MultipleChoiceField(choices=IngredientInCombination.ZoneLocation.choices)
+    zone_locations = MultipleChoiceField(choices=IngredientInCombination.ZoneLocation.choices)
 
     class Meta:
         model = TemplateInCombo
@@ -73,7 +78,7 @@ class ComboSerializer(serializers.ModelSerializer):
 
 class CardInVariantSerializer(serializers.ModelSerializer):
     card = CardSerializer(many=False, read_only=True)
-    zone_locations = serializers.MultipleChoiceField(choices=IngredientInCombination.ZoneLocation.choices)
+    zone_locations = MultipleChoiceField(choices=IngredientInCombination.ZoneLocation.choices)
 
     class Meta:
         model = CardInVariant
@@ -82,7 +87,7 @@ class CardInVariantSerializer(serializers.ModelSerializer):
 
 class TemplateInVariantSerializer(serializers.ModelSerializer):
     template = TemplateSerializer(many=False, read_only=True)
-    zone_locations = serializers.MultipleChoiceField(choices=IngredientInCombination.ZoneLocation.choices)
+    zone_locations = MultipleChoiceField(choices=IngredientInCombination.ZoneLocation.choices)
 
     class Meta:
         model = TemplateInVariant

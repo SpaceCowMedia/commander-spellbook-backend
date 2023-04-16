@@ -1,11 +1,10 @@
-from .minimal_set_of_sets_interface import MinimalSetOfSets
-from typing import TypeVar
+from typing import TypeVar, Generic
 
 
 T = TypeVar('T')
 
 
-class SetOfSets(MinimalSetOfSets[T]):
+class MinimalSetOfSets(Generic[T]):
     def __init__(self, sets: set[frozenset[T]] = None):
         if sets is None:
             sets = set[frozenset[T]]()
@@ -47,13 +46,13 @@ class SetOfSets(MinimalSetOfSets[T]):
         return repr(self.sets)
 
     def __copy__(self):
-        return SetOfSets(self.sets.copy())
+        return MinimalSetOfSets(self.sets.copy())
 
     def copy(self):
         return self.__copy__()
 
     @classmethod
-    def union(cls, *sets: 'SetOfSets[T]'):
+    def union(cls, *sets: 'MinimalSetOfSets[T]'):
         set_union = cls()
         for s in sets:
             for item in s:

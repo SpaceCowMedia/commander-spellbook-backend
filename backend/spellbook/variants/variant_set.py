@@ -1,5 +1,5 @@
 from itertools import product
-from .minimal_set_of_sets import SetOfSets
+from .minimal_set_of_sets import MinimalSetOfSets
 
 cardid = int
 templateid = int
@@ -10,7 +10,7 @@ DEFAULT_MAX_DEPTH = 100
 
 class VariantSet():
     def __init__(self, limit: int = DEFAULT_MAX_DEPTH):
-        self.sets = SetOfSets[str]()
+        self.sets = MinimalSetOfSets[str]()
         self.max_depth = limit
 
     def ingredients_to_key(self, cards: list[cardid], templates: list[templateid]) -> frozenset[str]:

@@ -2,14 +2,14 @@ from django.utils import timezone
 from django.contrib.auth.models import User
 from .inspection import count_methods
 from .abstract_test import AbstractModelTests
-from spellbook.models import Card, Feature, Template, Combo, Job, IngredientInCombination
+from spellbook.models import Card, Feature, Template, Combo, Job, IngredientInCombination, Variant
 from spellbook.models.scryfall import SCRYFALL_API_ROOT, SCRYFALL_WEBSITE_CARD_SEARCH
 from spellbook.utils import launch_job_command
 
 
 class CardTests(AbstractModelTests):
     def test_card_fields(self):
-        c = Card.objects.get(name='A')
+        c = Card.objects.get(id=self.c1_id)
         self.assertEqual(c.name, 'A')
         self.assertEqual(str(c.oracle_id), '00000000-0000-0000-0000-000000000001')
         self.assertEqual(c.features.count(), 1)
@@ -18,11 +18,11 @@ class CardTests(AbstractModelTests):
         self.assertFalse(c.spoiler)
 
     def test_query_string(self):
-        c = Card.objects.get(name='A')
+        c = Card.objects.get(id=self.c1_id)
         self.assertEqual(c.query_string(), 'q=%21%22A%22')
 
     def test_scryfall_link(self):
-        c = Card.objects.get(name='A')
+        c = Card.objects.get(id=self.c1_id)
         self.assertIn(SCRYFALL_WEBSITE_CARD_SEARCH, c.scryfall_link())
         self.assertIn(c.query_string(), c.scryfall_link())
         self.assertIn('<a', c.scryfall_link())
@@ -33,10 +33,12 @@ class CardTests(AbstractModelTests):
 
 class FeatureTests(AbstractModelTests):
     def test_feature_fields(self):
-        f = Feature.objects.get(name='FA')
+        f = Feature.objects.get(id=self.f1_id)
         self.assertEqual(f.name, 'FA')
         self.assertEqual(f.description, 'Feature A')
         self.assertEqual(f.cards.count(), 1)
+        self.assertTrue(f.utility)
+        f = Feature.objects.get(id=self.f2_id)
         self.assertFalse(f.utility)
 
     def test_method_count(self):
@@ -45,21 +47,21 @@ class FeatureTests(AbstractModelTests):
 
 class TemplateTests(AbstractModelTests):
     def test_template_fields(self):
-        t = Template.objects.get(name='TA')
+        t = Template.objects.get(id=self.t1_id)
         self.assertEqual(t.name, 'TA')
         self.assertEqual(t.scryfall_query, 'tou>5')
 
     def test_query_string(self):
-        t = Template.objects.get(name='TA')
+        t = Template.objects.get(id=self.t1_id)
         self.assertIn('q=tou%3E5', t.query_string())
 
     def test_scryfall_api_url(self):
-        t = Template.objects.get(name='TA')
+        t = Template.objects.get(id=self.t1_id)
         self.assertIn(SCRYFALL_API_ROOT, t.scryfall_api())
         self.assertIn(t.query_string(), t.scryfall_api())
 
     def test_scryfall_link(self):
-        t = Template.objects.get(name='TA')
+        t = Template.objects.get(id=self.t1_id)
         self.assertIn(SCRYFALL_WEBSITE_CARD_SEARCH, t.scryfall_link())
         self.assertIn(t.query_string(), t.scryfall_link())
         self.assertIn('<a', t.scryfall_link())
@@ -77,7 +79,7 @@ class TemplateTests(AbstractModelTests):
 
 class ComboTests(AbstractModelTests):
     def test_combo_fields(self):
-        c = Combo.objects.get(description='1')
+        c = Combo.objects.get(id=self.b1_id)
         self.assertEqual(c.description, '1')
         self.assertEqual(c.uses.count(), 2)
         self.assertEqual(c.needs.count(), 1)
@@ -91,7 +93,7 @@ class ComboTests(AbstractModelTests):
         self.assertEqual(c.cardincombo_set.get(card__name='B').zone_locations, IngredientInCombination.ZoneLocation.HAND)
         self.assertEqual(c.cardincombo_set.get(card__name='C').zone_locations, IngredientInCombination.ZoneLocation.BATTLEFIELD)
         self.assertEqual(c.templateincombo_set.count(), 0)
-        c = Combo.objects.get(description='2')
+        c = Combo.objects.get(id=self.b2_id)
         self.assertEqual(c.description, '2')
         self.assertEqual(c.uses.count(), 0)
         self.assertEqual(c.needs.count(), 1)
@@ -113,7 +115,7 @@ class ComboTests(AbstractModelTests):
             self.assertEqual(list(c.templates()), list(map(lambda x: x.template, tic)))
 
     def test_query_string(self):
-        c = Combo.objects.get(description='1')
+        c = Combo.objects.get(id=self.c1_id)
         self.assertIn('%21%22B%22', c.query_string())
         self.assertIn('%21%22C%22', c.query_string())
         self.assertIn('+or+', c.query_string())
@@ -157,4 +159,14 @@ class JobTests(AbstractModelTests):
 
 
 class VariantTests(AbstractModelTests):
-    pass # TODO: Implement
+    def setUp(self):
+        super().setUp()
+        launch_job_command('generate_variants', None)
+        self.v1_id = '8399093d22bab4d65f3308b67bcf3b133c846368db75240c9a4e4da65001c72a'
+        self.v2_id = '46d403c537532b3639ce1cc7f366d2244be6b7b226610309aface1e5370315a1'
+        self.v3_id = 'f47363e02ad5ed889c6f81eb45b102a32c4a9eade5f75afdb9e257bf01a70b99'
+        self.v4_id = '6c960b8440d43c902e417905d72740fbd0865f7547ae6d8a23935b6686b2740a'
+
+    def test_variant_fields(self):
+        v = Variant.objects.get(id=self.v1_id)
+        print(v)

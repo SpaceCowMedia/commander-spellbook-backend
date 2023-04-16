@@ -5,6 +5,7 @@ from .abstract_test import AbstractModelTests
 from spellbook.models import Card, Feature, Template, Combo, Job, IngredientInCombination, Variant
 from spellbook.models.scryfall import SCRYFALL_API_ROOT, SCRYFALL_WEBSITE_CARD_SEARCH
 from spellbook.utils import launch_job_command
+from spellbook.variants.variants_generator import id_from_cards_and_templates_ids
 
 
 class CardTests(AbstractModelTests):
@@ -162,11 +163,43 @@ class VariantTests(AbstractModelTests):
     def setUp(self):
         super().setUp()
         launch_job_command('generate_variants', None)
-        self.v1_id = '8399093d22bab4d65f3308b67bcf3b133c846368db75240c9a4e4da65001c72a'
-        self.v2_id = '46d403c537532b3639ce1cc7f366d2244be6b7b226610309aface1e5370315a1'
-        self.v3_id = 'f47363e02ad5ed889c6f81eb45b102a32c4a9eade5f75afdb9e257bf01a70b99'
-        self.v4_id = '6c960b8440d43c902e417905d72740fbd0865f7547ae6d8a23935b6686b2740a'
+        self.v1_id = id_from_cards_and_templates_ids([self.c8_id, self.c1_id], [self.t1_id])
+        self.v2_id = id_from_cards_and_templates_ids([self.c3_id, self.c1_id, self.c2_id], [self.t1_id])
+        self.v3_id = id_from_cards_and_templates_ids([self.c5_id, self.c6_id, self.c2_id, self.c3_id], [self.t1_id])
+        self.v4_id = id_from_cards_and_templates_ids([self.c8_id, self.c1_id], [])
 
     def test_variant_fields(self):
         v = Variant.objects.get(id=self.v1_id)
-        print(v)
+        self.assertSetEqual(set(v.uses.values_list('id', flat=True)), {self.c8_id, self.c1_id})
+        self.assertSetEqual(set(v.cards().values_list('id', flat=True)), {self.c8_id, self.c1_id})
+        self.assertSetEqual(set(v.requires.values_list('id', flat=True)), {self.t1_id})
+        self.assertSetEqual(set(v.templates().values_list('id', flat=True)), {self.t1_id})
+        self.assertSetEqual(set(v.produces.values_list('id', flat=True)), {self.f4_id, self.f2_id})
+        self.assertSetEqual(set(v.includes.values_list('id', flat=True)), {self.b4_id, self.b2_id})
+        self.assertSetEqual(set(v.of.values_list('id', flat=True)), {self.b2_id})
+        self.assertEqual(v.status, Variant.Status.NEW)
+        self.assertIn('{U}{U}', v.mana_needed)
+        self.assertIn('{R}{R}', v.mana_needed)
+        self.assertIn('Some requisites.', v.other_prerequisites)
+        self.assertIn('2', v.description)
+        self.assertIn('4', v.description)
+        self.assertEqual(v.identity, 'W')
+        self.assertEqual(v.generated_by.id, Job.objects.get(name='generate_variants').id)
+        self.assertEqual(v.legal, True)
+        self.assertEqual(v.spoiler, False)
+
+    def test_ingredients(self):
+        for v in Variant.objects.all():
+            civ = sorted(v.cardinvariant_set.all(), key=lambda x: x.order)
+            self.assertEqual(list(v.cards()), list(map(lambda x: x.card, civ)))
+            tiv = sorted(v.templateinvariant_set.all(), key=lambda x: x.order)
+            self.assertEqual(list(v.templates()), list(map(lambda x: x.template, tiv)))
+
+    def test_query_string(self):
+        c = Variant.objects.get(id=self.v1_id)
+        self.assertIn('%21%22A%22', c.query_string())
+        self.assertIn('%21%22H%22', c.query_string())
+        self.assertIn('+or+', c.query_string())
+
+    def test_method_count(self):
+        self.assertEqual(count_methods(Variant), 3)

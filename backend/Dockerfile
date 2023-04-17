@@ -20,9 +20,6 @@ RUN pip install --upgrade pip
 
 # install dependencies
 COPY ./requirements.txt .
-RUN echo -e '\n\
-gunicorn\n\
-psycopg2\n' >> requirements.txt
 RUN pip wheel --no-cache-dir --no-deps --wheel-dir /usr/src/app/wheels -r requirements.txt
 
 # lint
@@ -55,6 +52,7 @@ RUN apk --update add libpq --no-cache
 COPY --from=builder /usr/src/app/wheels /wheels
 COPY --from=builder /usr/src/app/requirements.txt .
 RUN pip install --no-cache /wheels/*
+RUN pip install --no-cache psycopg[binary] gunicorn
 
 # copy project
 COPY --chown=app:app . $APP_HOME

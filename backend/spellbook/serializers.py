@@ -16,7 +16,7 @@ class CardSerializer(serializers.ModelSerializer):
 class FeatureSerializer(serializers.ModelSerializer):
     class Meta:
         model = Feature
-        fields = ['id', 'name', 'description']
+        fields = ['id', 'name', 'description', 'utility']
 
 
 class CardDetailSerializer(serializers.ModelSerializer):

@@ -39,11 +39,25 @@ class ListUtilsTests(TestCase):
 
 class MinimalSetOfSetsTests(TestCase):
 
+    def setUp(self) -> None:
+        self.aset = MinimalSetOfSets({
+            frozenset({1, 2, 3}),
+            frozenset({1, 2, 3, 4}),
+            frozenset({3, 4, 5}),
+            frozenset({3, 4, 5, 6}),
+            frozenset(range(10)),
+        })
+        return super().setUp()
+
     def test_init(self):
         self.assertEqual(set(MinimalSetOfSets()), set())
         self.assertEqual(set(MinimalSetOfSets({frozenset({1})})), {frozenset({1})})
         self.assertEqual(set(MinimalSetOfSets({frozenset({1}), frozenset({2})})), {frozenset({1}), frozenset({2})})
         self.assertEqual(set(MinimalSetOfSets({frozenset({1, 2, 3})})), {frozenset({1, 2, 3})})
+        self.assertEqual(set(self.aset), {
+            frozenset({1, 2, 3}),
+            frozenset({3, 4, 5}),
+        })
 
     def test_contains_subset(self):
         self.assertFalse(MinimalSetOfSets().contains_subset_of({1}))
@@ -56,30 +70,71 @@ class MinimalSetOfSetsTests(TestCase):
         self.assertFalse(MinimalSetOfSets({frozenset({1, 2, 6}), frozenset({1, 2, 4})}).contains_subset_of({1, 2, 3, 5}))
         self.assertTrue(MinimalSetOfSets({frozenset({2}), frozenset({1, 2, 4})}).contains_subset_of({1, 2, 3}))
         self.assertTrue(MinimalSetOfSets({frozenset({2}), frozenset({1, 2, 4})}).contains_subset_of({1, 2, 3, 4}))
-
-    def test_remove_superset_of(self):
-        pass # TODO: implement
+        self.assertTrue(self.aset.contains_subset_of(frozenset(range(100))))
+        self.assertFalse(self.aset.contains_subset_of(frozenset(range(7, 10))))
 
     def test_add(self):
-        pass # TODO: implement
-
-    def test_remove(self):
-        pass # TODO: implement
+        self.aset.add(frozenset({1, 2, 3, 4, 5}))
+        self.assertEqual(set(self.aset), {frozenset({1, 2, 3}), frozenset({3, 4, 5})})
+        self.aset.add(frozenset(range(50, 100)))
+        self.assertEqual(set(self.aset), {frozenset({1, 2, 3}), frozenset({3, 4, 5}), frozenset(range(50, 100))})
+        self.aset.add(frozenset(range(50, 100)))
+        self.assertEqual(set(self.aset), {frozenset({1, 2, 3}), frozenset({3, 4, 5}), frozenset(range(50, 100))})
+        self.aset.add(frozenset({1, 2, 3, 4}))
+        self.assertEqual(set(self.aset), {frozenset({1, 2, 3}), frozenset({3, 4, 5}), frozenset(range(50, 100))})
+        self.aset.add(frozenset({3}))
+        self.aset.add(frozenset({69}))
+        self.assertEqual(set(self.aset), {frozenset({3}), frozenset({69})})
+        self.aset.add(frozenset({}))
+        self.assertEqual(set(self.aset), {frozenset({})})
 
     def test_union(self):
-        pass # TODO: implement
+        self.assertEqual(self.aset, MinimalSetOfSets.union(MinimalSetOfSets(), self.aset))
+        self.assertEqual(self.aset, MinimalSetOfSets.union(self.aset, MinimalSetOfSets()))
+        self.assertEqual(self.aset, MinimalSetOfSets.union(self.aset, self.aset))
+        other = MinimalSetOfSets({
+            frozenset({1, 2, 3, 4, 5}),
+            frozenset(range(50, 100)),
+            frozenset({3}),
+        })
+        self.assertEqual(set(MinimalSetOfSets.union(self.aset, other)), {
+            frozenset({3}),
+            frozenset(range(50, 100)),
+        })
 
     def test_len(self):
-        pass # TODO: implement
+        self.aset.add(frozenset({1, 2, 3, 4, 5}))
+        self.assertEqual(len(self.aset), 2)
+        self.aset.add(frozenset(range(50, 100)))
+        self.assertEqual(len(self.aset), 3)
+        self.aset.add(frozenset(range(50, 100)))
+        self.assertEqual(len(self.aset), 3)
+        self.aset.add(frozenset({1, 2, 3, 4}))
+        self.assertEqual(len(self.aset), 3)
+        self.aset.add(frozenset({3}))
+        self.aset.add(frozenset({69}))
+        self.assertEqual(len(self.aset), 2)
+        self.aset.add(frozenset({}))
+        self.assertEqual(len(self.aset), 1)
 
     def test_iter(self):
-        pass # TODO: implement
+        self.assertEqual(set(self.aset), {frozenset({1, 2, 3}), frozenset({3, 4, 5})})
+        self.assertListEqual(list(self.aset), [frozenset({1, 2, 3}), frozenset({3, 4, 5})])
+        self.assertEqual(tuple(self.aset), (frozenset({1, 2, 3}), frozenset({3, 4, 5})))
 
     def test_contains(self):
-        pass # TODO: implement
+        self.assertIn(frozenset({1, 2, 3}), self.aset)
+        self.assertIn(frozenset({3, 4, 5}), self.aset)
+        self.assertNotIn(frozenset({1, 2, 3, 4}), self.aset)
+        self.assertNotIn(frozenset({1, 2, 3, 4, 5}), self.aset)
+        self.assertNotIn(frozenset({1}), self.aset)
 
     def test_copy(self):
-        pass # TODO: implement
+        self.assertEqual(self.aset, self.aset.copy())
+        c = self.aset.copy()
+        c.add(frozenset({}))
+        self.assertNotEqual(self.aset, c)
+        self.assertNotEqual(len(self.aset), len(c))
 
 
 class VariantSetTests(TestCase):

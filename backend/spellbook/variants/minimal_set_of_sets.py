@@ -6,9 +6,10 @@ T = TypeVar('T')
 
 class MinimalSetOfSets(Generic[T]):
     def __init__(self, sets: set[frozenset[T]] = None):
-        if sets is None:
-            sets = set[frozenset[T]]()
-        self._sets = sets
+        self._sets = set[frozenset[T]]()
+        if sets is not None:
+            for s in sets:
+                self.add(s)
 
     def contains_subset_of(self, aset: frozenset[T]) -> bool:
         for s in self._sets:
@@ -16,16 +17,13 @@ class MinimalSetOfSets(Generic[T]):
                 return True
         return False
 
-    def remove_superset_of(self, aset: frozenset[T]):
+    def _remove_superset_of(self, aset: frozenset[T]):
         self._sets = {s for s in self._sets if not s.issuperset(aset)}
 
     def add(self, aset: frozenset[T]):
         if not self.contains_subset_of(aset):
-            self.remove_superset_of(aset)
+            self._remove_superset_of(aset)
             self._sets.add(aset)
-
-    def remove(self, aset: frozenset[T]):
-        self._sets.remove(aset)
 
     def __iter__(self):
         return iter(self._sets)
@@ -43,10 +41,17 @@ class MinimalSetOfSets(Generic[T]):
         return repr(self._sets)
 
     def __copy__(self):
-        return MinimalSetOfSets(self._sets.copy())
+        m = MinimalSetOfSets()
+        m._sets = self._sets.copy()
+        return m
 
     def copy(self):
         return self.__copy__()
+
+    def __eq__(self, other):
+        if isinstance(other, MinimalSetOfSets):
+            return self._sets == other._sets
+        return False
 
     @classmethod
     def union(cls, *sets: 'MinimalSetOfSets[T]'):

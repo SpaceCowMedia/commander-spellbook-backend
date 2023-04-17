@@ -14,9 +14,6 @@ class MinimalSetOfSets(Generic[T]):
     def add(self, aset: frozenset[T]):
         pass
 
-    def remove(self, aset: frozenset[T]):
-        pass
-
     def __iter__(self):
         return iter(())
 
@@ -37,6 +34,9 @@ class MinimalSetOfSets(Generic[T]):
 
     def copy(self):
         return self.__copy__()
+
+    def __eq__(self, other):
+        return False
 
     @classmethod
     def union(cls, *sets: 'MinimalSetOfSets[T]'):

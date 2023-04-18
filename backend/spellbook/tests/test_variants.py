@@ -211,19 +211,17 @@ class VariantDataTests(AbstractModelTests):
 
 class VariantSetTests(TestCase):
     def test_ingredients_to_key(self):
-        variant_set = VariantSet()
-        self.assertEqual(variant_set.key_to_ingredients(variant_set.ingredients_to_key([1, 2, 3, 4], [])), ([1, 2, 3, 4], []))
-        self.assertEqual(variant_set.key_to_ingredients(variant_set.ingredients_to_key([1, 2, 3, 4], [1, 2, 3])), ([1, 2, 3, 4], [1, 2, 3]))
-        self.assertEqual(variant_set.key_to_ingredients(variant_set.ingredients_to_key([], [1, 2, 3])), ([], [1, 2, 3]))
-        self.assertEqual(variant_set.key_to_ingredients(variant_set.ingredients_to_key([], [])), ([], []))
-        self.assertEqual(variant_set.key_to_ingredients(variant_set.ingredients_to_key([1], [1])), ([1], [1]))
+        self.assertEqual(VariantSet.key_to_ingredients(VariantSet.ingredients_to_key([1, 2, 3, 4], [])), ([1, 2, 3, 4], []))
+        self.assertEqual(VariantSet.key_to_ingredients(VariantSet.ingredients_to_key([1, 2, 3, 4], [1, 2, 3])), ([1, 2, 3, 4], [1, 2, 3]))
+        self.assertEqual(VariantSet.key_to_ingredients(VariantSet.ingredients_to_key([], [1, 2, 3])), ([], [1, 2, 3]))
+        self.assertEqual(VariantSet.key_to_ingredients(VariantSet.ingredients_to_key([], [])), ([], []))
+        self.assertEqual(VariantSet.key_to_ingredients(VariantSet.ingredients_to_key([1], [1])), ([1], [1]))
     
     def test_key_to_ingredients(self):
-        variant_set = VariantSet()
-        self.assertEqual(variant_set.ingredients_to_key(*variant_set.key_to_ingredients(frozenset())), frozenset())
-        self.assertEqual(variant_set.ingredients_to_key(*variant_set.key_to_ingredients(frozenset({'C1', 'C2', 'T1'}))), frozenset({'C1', 'C2', 'T1'}))
-        self.assertEqual(variant_set.ingredients_to_key(*variant_set.key_to_ingredients(frozenset({'C1', 'C2', 'T1', 'T2'}))), frozenset({'C1', 'C2', 'T1', 'T2'}))
-        self.assertEqual(variant_set.ingredients_to_key(*variant_set.key_to_ingredients(frozenset({'C1', 'C2', 'T1', 'T3'}))), frozenset({'C1', 'C2', 'T1', 'T3'}))
+        self.assertEqual(VariantSet.ingredients_to_key(*VariantSet.key_to_ingredients(frozenset())), frozenset())
+        self.assertEqual(VariantSet.ingredients_to_key(*VariantSet.key_to_ingredients(frozenset({'C1', 'C2', 'T1'}))), frozenset({'C1', 'C2', 'T1'}))
+        self.assertEqual(VariantSet.ingredients_to_key(*VariantSet.key_to_ingredients(frozenset({'C1', 'C2', 'T1', 'T2'}))), frozenset({'C1', 'C2', 'T1', 'T2'}))
+        self.assertEqual(VariantSet.ingredients_to_key(*VariantSet.key_to_ingredients(frozenset({'C1', 'C2', 'T1', 'T3'}))), frozenset({'C1', 'C2', 'T1', 'T3'}))
 
     def test_variant_set_add(self):
         variant_set = VariantSet()
@@ -291,8 +289,8 @@ class VariantSetTests(TestCase):
             self.assertFalse(variant_set5 is variant_set)
 
         with self.subTest('test commutativity and operator overloading'):
-            self.assertEqual((variant_set | variant_set2).variants(), (variant_set2 + variant_set).variants())
-            self.assertEqual(VariantSet.or_sets([variant_set, variant_set2, variant_set3]).variants(), (variant_set2 + variant_set + variant_set3).variants())
+            self.assertEqual(list_of_tuples_of_lists_to_set((variant_set | variant_set2).variants()), list_of_tuples_of_lists_to_set((variant_set2 + variant_set).variants()))
+            self.assertEqual(list_of_tuples_of_lists_to_set(VariantSet.or_sets([variant_set, variant_set2, variant_set3]).variants()), list_of_tuples_of_lists_to_set((variant_set2 + variant_set + variant_set3).variants()))
 
     def test_variant_set_and(self):
         variant_set = VariantSet()
@@ -318,8 +316,8 @@ class VariantSetTests(TestCase):
             self.assertFalse(variant_set5 is variant_set)
 
         with self.subTest('test commutativity and operator overloading'):
-            self.assertEqual((variant_set & variant_set2).variants(), (variant_set2 * variant_set).variants())
-            self.assertEqual(VariantSet.and_sets([variant_set, variant_set2, variant_set3]).variants(), (variant_set2 * variant_set * variant_set3).variants())
+            self.assertEqual(list_of_tuples_of_lists_to_set((variant_set & variant_set2).variants()), list_of_tuples_of_lists_to_set((variant_set2 * variant_set).variants()))
+            self.assertEqual(list_of_tuples_of_lists_to_set(VariantSet.and_sets([variant_set, variant_set2, variant_set3]).variants()), list_of_tuples_of_lists_to_set((variant_set2 * variant_set * variant_set3).variants()))
 
     def test_copy(self):
         variant_set = VariantSet()

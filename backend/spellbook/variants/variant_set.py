@@ -13,10 +13,12 @@ class VariantSet():
         self.sets = MinimalSetOfSets[str]()
         self.max_depth = limit
 
-    def ingredients_to_key(self, cards: list[cardid], templates: list[templateid]) -> frozenset[str]:
+    @classmethod
+    def ingredients_to_key(cls, cards: list[cardid], templates: list[templateid]) -> frozenset[str]:
         return frozenset([f'C{c_id}' for c_id in cards] + [f'T{t_id}' for t_id in templates])
 
-    def key_to_ingredients(self, key: frozenset[str]) -> tuple[list[cardid], list[templateid]]:
+    @classmethod
+    def key_to_ingredients(cls, key: frozenset[str]) -> tuple[list[cardid], list[templateid]]:
         cards = list[cardid]()
         templates = list[templateid]()
         for item in key:

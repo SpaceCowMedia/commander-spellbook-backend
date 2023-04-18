@@ -284,13 +284,15 @@ class VariantSetTests(TestCase):
         variant_set3 = variant_set | variant_set2
         self.assertSetEqual(list_of_tuples_of_lists_to_set(variant_set3.variants()), list_of_tuples_of_lists_to_set([([2, 3], [2]), ([1, 2, 3, 4, 5], [1])]))
 
-        self.assertIsNotNone(VariantSet.or_sets([]))
-        variant_set5 = VariantSet.or_sets([variant_set])
-        self.assertIsNotNone(variant_set5)
-        self.assertFalse(variant_set5 is variant_set)
+        with self.subTest('edge cases test'):
+            self.assertIsNotNone(VariantSet.or_sets([]))
+            variant_set5 = VariantSet.or_sets([variant_set])
+            self.assertIsNotNone(variant_set5)
+            self.assertFalse(variant_set5 is variant_set)
 
-        self.assertEqual((variant_set | variant_set2).variants(), (variant_set2 + variant_set).variants())
-        self.assertEqual(VariantSet.or_sets([variant_set, variant_set2, variant_set3]).variants(), (variant_set2 + variant_set + variant_set3).variants())
+        with self.subTest('test commutativity and operator overloading'):
+            self.assertEqual((variant_set | variant_set2).variants(), (variant_set2 + variant_set).variants())
+            self.assertEqual(VariantSet.or_sets([variant_set, variant_set2, variant_set3]).variants(), (variant_set2 + variant_set + variant_set3).variants())
 
     def test_variant_set_and(self):
         variant_set = VariantSet()
@@ -309,13 +311,15 @@ class VariantSetTests(TestCase):
         variant_set3 = variant_set & variant_set2
         self.assertSetEqual(list_of_tuples_of_lists_to_set(variant_set3.variants()), list_of_tuples_of_lists_to_set([([1, 2, 3, 4], [1, 2, 3]), ([1, 2, 3, 4, 5], [1, 2])]))
 
-        self.assertIsNotNone(VariantSet.and_sets([]))
-        variant_set5 = VariantSet.and_sets([variant_set])
-        self.assertIsNotNone(variant_set5)
-        self.assertFalse(variant_set5 is variant_set)
+        with self.subTest('edge cases test'):
+            self.assertIsNotNone(VariantSet.and_sets([]))
+            variant_set5 = VariantSet.and_sets([variant_set])
+            self.assertIsNotNone(variant_set5)
+            self.assertFalse(variant_set5 is variant_set)
 
-        self.assertEqual((variant_set & variant_set2).variants(), (variant_set2 * variant_set).variants())
-        self.assertEqual(VariantSet.and_sets([variant_set, variant_set2, variant_set3]).variants(), (variant_set2 * variant_set * variant_set3).variants())
+        with self.subTest('test commutativity and operator overloading'):
+            self.assertEqual((variant_set & variant_set2).variants(), (variant_set2 * variant_set).variants())
+            self.assertEqual(VariantSet.and_sets([variant_set, variant_set2, variant_set3]).variants(), (variant_set2 * variant_set * variant_set3).variants())
 
     def test_copy(self):
         variant_set = VariantSet()

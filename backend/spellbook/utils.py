@@ -1,12 +1,28 @@
 import sys
 import subprocess
 import pathlib
-from datetime import timedelta
+import logging
 from django.utils import timezone
 from django.core.management import call_command
-from django.db.models import Avg, F
 from django.conf import settings
 from spellbook.models import Job
+
+
+class StreamToLogger(object):
+    """
+    Fake file-like stream object that redirects writes to a logger instance.
+    """
+    def __init__(self, logger, level):
+       self.logger = logger
+       self.level = level
+       self.linebuf = ''
+
+    def write(self, buf):
+       for line in buf.rstrip().splitlines():
+          self.logger.log(self.level, line.rstrip())
+
+    def flush(self):
+        pass 
 
 
 def launch_command_async(command: str, args: list[str] = []):
@@ -31,16 +47,24 @@ def launch_job_command(command: str, user, args: list[str] = []) -> bool:
         duration=None,
         user=user)
     if job is not None:
+        logger = logging.getLogger(command)
         try:
             if settings.ASYNC_GENERATION:
                 launch_command_async(command, ['--id', str(job.id)] + args)
             else:
-                call_command(command, *args, id=job.id)
+                call_command(
+                    command,
+                    *args,
+                    id=job.id,
+                    stdout=StreamToLogger(logger, logging.INFO),
+                    stderr=StreamToLogger(logger, logging.ERROR)
+                )
         except Exception as e:
             job.termination = timezone.now()
             job.status = Job.Status.FAILURE
             job.message = str(e)
             job.save()
+            logger.error(e)
             if settings.DEBUG:
                 raise e
         return True

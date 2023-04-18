@@ -1,8 +1,9 @@
 import json
+import logging
 from types import SimpleNamespace
 from django.test import Client
 from django.core.management import call_command
-from spellbook.utils import launch_job_command
+from spellbook.utils import launch_job_command, StreamToLogger
 from spellbook.models import Card, Feature, Template, Combo, CardInCombo, TemplateInCombo, Variant, CardInVariant, TemplateInVariant
 from .abstract_test import AbstractModelTests
 from website.models import PROPERTY_KEYS
@@ -255,7 +256,13 @@ class VariantViewsTests(AbstractModelTests):
 class WebsitePropertiesViewTests(AbstractModelTests):
     def setUp(self):
         super().setUp()
-        call_command('seed_website_properties')
+        command = 'seed_website_properties'
+        logger = logging.getLogger(command)
+        call_command(
+            command,
+            stdout=StreamToLogger(logger, logging.INFO),
+            stderr=StreamToLogger(logger, logging.ERROR)
+        )
 
     def test_website_properties_view(self):
         c = Client()
@@ -266,3 +273,20 @@ class WebsitePropertiesViewTests(AbstractModelTests):
         self.assertEqual(len(result.results), len(PROPERTY_KEYS))
         result_keys = {r.key for r in result.results}
         self.assertEqual(result_keys, set(PROPERTY_KEYS))
+
+
+class FindMyCombosViewTests(AbstractModelTests):
+    def setUp(self) -> None:
+        super().setUp()
+        launch_job_command('generate_variants', None)
+        Variant.objects.update(status=Variant.Status.OK)
+
+    def test_find_my_combos_view(self):
+        c = Client()
+        response = c.get('/find-my-combos', follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get('Content-Type'), 'application/json')
+        result = json.loads(response.content, object_hook=json_to_python_lambda)
+        self.assertEqual(len(result.included), 0)
+        self.assertEqual(len(result.almost_included), 0)
+        self.assertEqual(len(result.almost_included_by_adding_colors), 0)

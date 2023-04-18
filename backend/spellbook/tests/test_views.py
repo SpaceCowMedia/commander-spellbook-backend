@@ -283,10 +283,33 @@ class FindMyCombosViewTests(AbstractModelTests):
 
     def test_find_my_combos_view(self):
         c = Client()
-        response = c.get('/find-my-combos', follow=True)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.get('Content-Type'), 'application/json')
-        result = json.loads(response.content, object_hook=json_to_python_lambda)
-        self.assertEqual(len(result.included), 0)
-        self.assertEqual(len(result.almost_included), 0)
-        self.assertEqual(len(result.almost_included_by_adding_colors), 0)
+        with self.subTest('empty input'):
+            response = c.get('/find-my-combos', follow=True, headers={'Content-Type': 'text/plain'})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.get('Content-Type'), 'application/json')
+            result = json.loads(response.content, object_hook=json_to_python_lambda)
+            self.assertEqual(result.identity, 'C')
+            self.assertEqual(len(result.included), 0)
+            self.assertEqual(len(result.almost_included), 0)
+            self.assertEqual(len(result.almost_included_by_adding_colors), 0)
+        with self.subTest('single card'):
+            deck_list = 'A'
+            identity = Card.objects.get(name='A').identity
+            response = c.generic('GET', '/find-my-combos', data=deck_list, follow=True, headers={'Content-Type': 'text/plain'})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.get('Content-Type'), 'application/json')
+            result = json.loads(response.content, object_hook=json_to_python_lambda)
+            self.assertEqual(result.identity, identity)
+            self.assertEqual(len(result.included), 0)
+            self.assertEqual(len(result.almost_included), 2)
+            self.assertEqual(len(result.almost_included_by_adding_colors), 1)
+            for v in result.almost_included:
+                self.assertTrue(set(v.identity).issubset(set(identity)))
+                v = Variant.objects.get(id=v.id)
+                self.assertEqual(v.status, Variant.Status.OK)
+                self.assertIn('A', set(v.uses.values_list('name', flat=True)))
+            for v in result.almost_included_by_adding_colors:
+                self.assertTrue(set(v.identity).issuperset(set(identity)))
+                v = Variant.objects.get(id=v.id)
+                self.assertEqual(v.status, Variant.Status.OK)
+                self.assertIn('A', set(v.uses.values_list('name', flat=True)))

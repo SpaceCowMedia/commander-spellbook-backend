@@ -17,7 +17,7 @@ class SpellbookQueryFilter(filters.BaseFilterBackend):
         """
         params = request.query_params.get(self.search_param, '')
         params = params.replace('\x00', '')  # strip null characters
-        return params.split()
+        return params
 
     def filter_queryset(self, request, queryset, view):
         search_terms = self.get_search_terms(request)
@@ -33,7 +33,7 @@ class SpellbookQueryFilter(filters.BaseFilterBackend):
 
     def to_html(self, request, queryset, view):
         term = self.get_search_terms(request)
-        term = ' '.join(term) if term else ''
+        term = term if term else ''
         context = {
             'param': self.search_param,
             'term': term

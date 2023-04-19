@@ -1,0 +1,70 @@
+from django.template import loader
+from rest_framework import filters
+from rest_framework.compat import coreapi, coreschema, distinct
+from django.utils.encoding import force_str
+
+
+class SpellbookQueryFilter(filters.BaseFilterBackend):
+    search_param = 'q'
+    template = 'rest_framework/filters/search.html'
+    search_title = 'Search'
+    search_description = 'A search query.'
+
+    def get_search_terms(self, request) -> list[str]:
+        """
+        Search terms are set by a ?q=... query parameter,
+        and may be whitespace delimited.
+        """
+        params = request.query_params.get(self.search_param, '')
+        params = params.replace('\x00', '')  # strip null characters
+        return params.split()
+
+    def filter_queryset(self, request, queryset, view):
+        search_terms = self.get_search_terms(request)
+
+        if not search_terms:
+            return queryset
+
+        base = queryset
+        # TODO: implement search
+        print(search_terms)
+        queryset = distinct(queryset, base)
+        return queryset
+
+    def to_html(self, request, queryset, view):
+        term = self.get_search_terms(request)
+        term = ' '.join(term) if term else ''
+        context = {
+            'param': self.search_param,
+            'term': term
+        }
+        template = loader.get_template(self.template)
+        return template.render(context)
+
+    def get_schema_fields(self, view):
+        assert coreapi is not None, 'coreapi must be installed to use `get_schema_fields()`'
+        assert coreschema is not None, 'coreschema must be installed to use `get_schema_fields()`'
+        return [
+            coreapi.Field(
+                name=self.search_param,
+                required=False,
+                location='query',
+                schema=coreschema.String(
+                    title=force_str(self.search_title),
+                    description=force_str(self.search_description)
+                )
+            )
+        ]
+
+    def get_schema_operation_parameters(self, view):
+        return [
+            {
+                'name': self.search_param,
+                'required': False,
+                'in': 'query',
+                'description': force_str(self.search_description),
+                'schema': {
+                    'type': 'string',
+                },
+            },
+        ]

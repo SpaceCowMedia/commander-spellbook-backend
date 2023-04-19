@@ -1,51 +1,11 @@
 from collections import defaultdict
-from rest_framework import viewsets, parsers
+from rest_framework import parsers
 from rest_framework.decorators import api_view, parser_classes
 from rest_framework.response import Response
 from rest_framework.request import Request
-from spellbook.models import Card, Template, Feature, Combo, Variant, CardInVariant
+from spellbook.models import Card, Variant, CardInVariant
 from spellbook.variants.list_utils import merge_identities
-from spellbook.serializers import CardDetailSerializer, FeatureSerializer, ComboDetailSerializer, TemplateSerializer, VariantSerializer
-
-
-class VariantViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Variant.objects.filter(status=Variant.Status.OK).prefetch_related(
-        'cardinvariant_set__card',
-        'templateinvariant_set__template',
-        'cardinvariant_set',
-        'templateinvariant_set',
-        'produces',
-        'of',
-        'includes')
-    serializer_class = VariantSerializer
-
-
-class FeatureViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Feature.objects.all()
-    serializer_class = FeatureSerializer
-
-
-class ComboViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Combo.objects.prefetch_related(
-        'cardincombo_set__card',
-        'templateincombo_set__template',
-        'cardincombo_set',
-        'templateincombo_set',
-        'produces',
-        'needs')
-    serializer_class = ComboDetailSerializer
-
-
-class CardViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Card.objects.prefetch_related(
-        'features',
-    )
-    serializer_class = CardDetailSerializer
-
-
-class TemplateViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Template.objects.all()
-    serializer_class = TemplateSerializer
+from spellbook.serializers import VariantSerializer
 
 
 class DeckListParser(parsers.BaseParser):
@@ -57,9 +17,9 @@ class DeckListParser(parsers.BaseParser):
     def parse(self, stream, media_type=None, parser_context=None):
         parser_context = parser_context or {}
         encoding = parser_context.get('encoding', 'UTF-8')
-        lines = stream.read().decode(encoding).splitlines()
+        lines = stream.read().decode(encoding).splitlines()[:500]
         result = set[Card]()
-        for line in lines[:500]:
+        for line in lines:
             line = line.strip().lower()
             if line and line in self.cards_dict:
                 result.add(self.cards_dict[line])

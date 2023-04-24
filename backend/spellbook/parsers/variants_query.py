@@ -3,6 +3,7 @@ from django.db.models import Q, QuerySet, Count, Case, When, Value
 from django.db.models.functions import Length
 from collections import namedtuple, defaultdict
 from typing import Callable
+from .color_parser import parse_identity
 
 
 QueryValue = namedtuple('QueryValue', ['prefix', 'operator', 'value'])
@@ -46,7 +47,9 @@ def identity_search(q: QuerySet, values: list[QueryValue]) -> QuerySet:
         identity = ''
         not_in_identity = ''
         if not value_is_digit:
-            upper_value = value.value.upper()
+            upper_value = parse_identity(value.value)
+            if upper_value is None:
+                raise NotSupportedError(f'Invalid color identity: {value.value}')
             for color in 'WURBG':
                 if color in upper_value:
                     identity += color

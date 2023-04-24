@@ -102,8 +102,6 @@ def prerequisites_search(q: QuerySet, values: list[QueryValue]) -> QuerySet:
         match value.operator:
             case ':':
                 prerequisites_query &= Q(other_prerequisites__icontains=value.value)
-            case '=':
-                prerequisites_query &= Q(other_prerequisites__iexact=value.value)
             case _:
                 raise NotSupportedError(f'Operator {value.operator} is not supported for prerequisites search.')
         if value.prefix == '-':
@@ -114,10 +112,27 @@ def prerequisites_search(q: QuerySet, values: list[QueryValue]) -> QuerySet:
     return q
 
 
+def steps_search(q: QuerySet, values: list[QueryValue]) -> QuerySet:
+    for value in values:
+        steps_query = Q()
+        match value.operator:
+            case ':':
+                steps_query &= Q(description__icontains=value.value)
+            case _:
+                raise NotSupportedError(f'Operator {value.operator} is not supported for prerequisites search.')
+        if value.prefix == '-':
+            steps_query = ~steps_query
+        elif value.prefix != '':
+            raise NotSupportedError(f'Prefix {value.prefix} is not supported for prerequisites search.')
+        q = q.filter(steps_query)
+    return q
+
+
 keyword_map: dict[str, Callable[[QuerySet, list[QueryValue]], QuerySet]] = {
     'card': card_search,
     'coloridentity': identity_search,
     'prerequisites': prerequisites_search,
+    'steps': steps_search,
 }
 
 
@@ -134,6 +149,8 @@ alias_map: dict[str, str] = {
     'prerequisite': 'prerequisites',
     'prereq': 'prerequisites',
     'pre': 'prerequisites',
+    'step': 'steps',
+    'description': 'steps',
 }
 
 

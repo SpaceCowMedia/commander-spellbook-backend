@@ -128,11 +128,28 @@ def steps_search(q: QuerySet, values: list[QueryValue]) -> QuerySet:
     return q
 
 
+def spellbook_id_search(q: QuerySet, values: list[QueryValue]) -> QuerySet:
+    for value in values:
+        spellbook_id_query = Q()
+        match value.operator:
+            case ':' | '=':
+                spellbook_id_query &= Q(id__istartswith=value.value)
+            case _:
+                raise NotSupportedError(f'Operator {value.operator} is not supported for spellbook id search.')
+        if value.prefix == '-':
+            spellbook_id_query = ~spellbook_id_query
+        elif value.prefix != '':
+            raise NotSupportedError(f'Prefix {value.prefix} is not supported for spellbook id search.')
+        q = q.filter(spellbook_id_query)
+    return q
+
+
 keyword_map: dict[str, Callable[[QuerySet, list[QueryValue]], QuerySet]] = {
     'card': card_search,
     'coloridentity': identity_search,
     'prerequisites': prerequisites_search,
     'steps': steps_search,
+    'spellbookid': spellbook_id_search,
 }
 
 

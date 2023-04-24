@@ -129,6 +129,32 @@ def steps_search(q: QuerySet, values: list[QueryValue]) -> QuerySet:
 
 
 def results_search(q: QuerySet, values: list[QueryValue]) -> QuerySet:
+    q = q.annotate(results_count=Count('produces', distinct=True))
+    for value in values:
+        results_query = Q()
+        value_is_digit = value.value.isdigit()
+        match value.operator:
+            case ':' if not value_is_digit:
+                results_query &= Q(produces__name__icontains=value.value)
+            case '=' if not value_is_digit:
+                results_query &= Q(produces__name__iexact=value.value)
+            case '<' if value_is_digit:
+                results_query &= Q(results_count__lt=value.value)
+            case '<=' if value_is_digit:
+                results_query &= Q(results_count__lte=value.value)
+            case '>' if value_is_digit:
+                results_query &= Q(results_count__gt=value.value)
+            case '>=' if value_is_digit:
+                results_query &= Q(results_count__gte=value.value)
+            case '=' if value_is_digit:
+                results_query &= Q(results_count=value.value)
+            case _:
+                raise NotSupportedError(f'Operator {value.operator} is not supported for results search with {"numbers" if value_is_digit else "strings"}.')
+        if value.prefix == '-':
+            results_query = ~results_query
+        elif value.prefix != '':
+            raise NotSupportedError(f'Prefix {value.prefix} is not supported for results search.')
+        q = q.filter(results_query)
     return q
 
 

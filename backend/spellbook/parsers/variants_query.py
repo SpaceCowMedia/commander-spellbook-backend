@@ -57,9 +57,9 @@ def identity_search(q: QuerySet, values: list[QueryValue]) -> QuerySet:
                     not_in_identity += color
         match value.operator:
             case ':' if not value_is_digit:
-                value_query &= Q(identity=identity)
+                value_query &= Q(identity=identity or 'C')
             case '=' if not value_is_digit:
-                value_query &= Q(identity=identity)
+                value_query &= Q(identity=identity or 'C')
             case '<' if not value_is_digit:
                 value_query &= Q(identity_count__lt=len(identity))
                 for color in not_in_identity:
@@ -128,6 +128,10 @@ def steps_search(q: QuerySet, values: list[QueryValue]) -> QuerySet:
     return q
 
 
+def results_search(q: QuerySet, values: list[QueryValue]) -> QuerySet:
+    return q
+
+
 def spellbook_id_search(q: QuerySet, values: list[QueryValue]) -> QuerySet:
     spellbook_id_query = Q()
     for value in values:
@@ -149,6 +153,7 @@ keyword_map: dict[str, Callable[[QuerySet, list[QueryValue]], QuerySet]] = {
     'coloridentity': identity_search,
     'prerequisites': prerequisites_search,
     'steps': steps_search,
+    'results': results_search,
     'spellbookid': spellbook_id_search,
 }
 
@@ -169,6 +174,7 @@ alias_map: dict[str, str] = {
     'step': 'steps',
     'description': 'steps',
     'desc': 'steps',
+    'result': 'results',
     'sid': 'spellbookid',
 }
 

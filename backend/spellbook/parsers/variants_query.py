@@ -129,18 +129,18 @@ def steps_search(q: QuerySet, values: list[QueryValue]) -> QuerySet:
 
 
 def spellbook_id_search(q: QuerySet, values: list[QueryValue]) -> QuerySet:
+    spellbook_id_query = Q()
     for value in values:
-        spellbook_id_query = Q()
         match value.operator:
+            case ':' | '=' if value.prefix == '':
+                spellbook_id_query |= Q(id__istartswith=value.value)
+            case ':' | '=' if value.prefix == '-':
+                spellbook_id_query &= ~Q(id__istartswith=value.value)
             case ':' | '=':
-                spellbook_id_query &= Q(id__istartswith=value.value)
+                raise NotSupportedError(f'Prefix {value.prefix} is not supported for spellbook id search.')
             case _:
                 raise NotSupportedError(f'Operator {value.operator} is not supported for spellbook id search.')
-        if value.prefix == '-':
-            spellbook_id_query = ~spellbook_id_query
-        elif value.prefix != '':
-            raise NotSupportedError(f'Prefix {value.prefix} is not supported for spellbook id search.')
-        q = q.filter(spellbook_id_query)
+    q = q.filter(spellbook_id_query)
     return q
 
 
@@ -168,6 +168,8 @@ alias_map: dict[str, str] = {
     'pre': 'prerequisites',
     'step': 'steps',
     'description': 'steps',
+    'desc': 'steps',
+    'sid': 'spellbookid',
 }
 
 

@@ -162,7 +162,7 @@ def results_search(q: QuerySet, values: list[QueryValue]) -> QuerySet:
 def tag_search(q: QuerySet, values: list[QueryValue]) -> QuerySet:
     # TODO: Add support for more tags:
     # - winning https://github.com/SpaceCowMedia/commander-spellbook-site/issues/183
-    # - risky https://github.com/SpaceCowMedia/commander-spellbook-site/issues/184
+    # - risky 
     for value in values:
         tag_query = Q()
         if value.operator != ':':
@@ -180,6 +180,8 @@ def tag_search(q: QuerySet, values: list[QueryValue]) -> QuerySet:
                 tag_query &= Q(produces__name='Lock')
             case 'infinite':
                 tag_query &= Q(produces__name='Infinite')
+            case 'risky':
+                tag_query &= Q(produces__name='Risky')
             case _:
                 raise NotSupportedError(f'Value {value.value} is not supported for tag search.')
         if value.prefix == '-':

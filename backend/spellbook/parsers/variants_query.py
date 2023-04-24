@@ -1,5 +1,6 @@
 import re
-from django.db.models import Q, QuerySet, Count
+from django.db.models import Q, QuerySet, Count, Case, When, Value
+from django.db.models.functions import Length
 from collections import namedtuple, defaultdict
 from typing import Callable
 
@@ -37,13 +38,77 @@ def card_search(q: QuerySet, cards: list[QueryValue]) -> QuerySet:
     return q
 
 
+def identity_search(q: QuerySet, values: list[QueryValue]) -> QuerySet:
+    q = q.annotate(identity_count=Case(When(identity='C', then=Value(0)), default=Length('identity')))
+    for value in values:
+        value_query = Q()
+        value_is_digit = value.value.isdigit()
+        identity = ''
+        not_in_identity = ''
+        if not value_is_digit:
+            upper_value = value.value.upper()
+            for color in 'WURBG':
+                if color in upper_value:
+                    identity += color
+                else:
+                    not_in_identity += color
+        match value.operator:
+            case ':' if not value_is_digit:
+                value_query &= Q(identity=identity)
+            case '=' if not value_is_digit:
+                value_query &= Q(identity=identity)
+            case '<' if not value_is_digit:
+                value_query &= Q(identity_count__lt=len(identity))
+                for color in not_in_identity:
+                    value_query &= ~Q(identity__contains=color)
+            case '<=' if not value_is_digit:
+                value_query &= Q(identity_count__lte=len(identity))
+                for color in not_in_identity:
+                    value_query &= ~Q(identity__contains=color)
+            case '>' if not value_is_digit:
+                value_query &= Q(identity_count__gt=len(identity))
+                for color in identity:
+                    value_query &= Q(identity__contains=color)
+            case '>=' if not value_is_digit:
+                value_query &= Q(identity_count__gte=len(identity))
+                for color in identity:
+                    value_query &= Q(identity__contains=color)
+            case '=' if value_is_digit:
+                value_query &= Q(identity_count=value.value)
+            case '<' if value_is_digit:
+                value_query &= Q(identity_count__lt=value.value)
+            case '<=' if value_is_digit:
+                value_query &= Q(identity_count__lte=value.value)
+            case '>' if value_is_digit:
+                value_query &= Q(identity_count__gt=value.value)
+            case '>=' if value_is_digit:
+                value_query &= Q(identity_count__gte=value.value)
+            case _:
+                raise NotSupportedError(f'Operator {value.operator} is not supported for identity search with {"numbers" if value_is_digit else "strings"}.')
+        if value.prefix == '-':
+            value_query = ~value_query
+        elif value.prefix != '':
+            raise NotSupportedError(f'Prefix {value.prefix} is not supported for identity search.')
+        q = q.filter(value_query)
+    return q
+
+
 keyword_map: dict[str, Callable[[QuerySet, list[QueryValue]], QuerySet]] = {
     'card': card_search,
+    'coloridentity': identity_search,
 }
 
 
 alias_map: dict[str, str] = {
     'cards': 'card',
+    'color_identity': 'coloridentity',
+    'color': 'coloridentity',
+    'colors': 'coloridentity',
+    'commander': 'coloridentity',
+    'id': 'coloridentity',
+    'ids': 'coloridentity',
+    'c': 'coloridentity',
+    'ci': 'coloridentity',
 }
 
 

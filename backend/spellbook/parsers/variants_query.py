@@ -3,6 +3,7 @@ from django.db.models import Q, QuerySet, Count, Case, When, Value
 from django.db.models.functions import Length
 from collections import namedtuple, defaultdict
 from typing import Callable
+from spellbook.models import IngredientInCombination
 from .color_parser import parse_identity
 
 
@@ -158,6 +159,28 @@ def results_search(q: QuerySet, values: list[QueryValue]) -> QuerySet:
     return q
 
 
+def tag_search(q: QuerySet, values: list[QueryValue]) -> QuerySet:
+    for value in values:
+        tag_query = Q()
+        if value.operator != ':':
+            raise NotSupportedError(f'Operator {value.operator} is not supported for tag search.')
+        match value.value.lower():
+            case 'preview' | 'previewed' | 'spoiler' | 'spoiled':
+                tag_query &= Q(spoiler=True)
+            case 'banned':
+                tag_query &= Q(legal=False)
+            case 'commander':
+                tag_query &= Q(cardinvariant__zone_locations=IngredientInCombination.ZoneLocation.COMMAND_ZONE)
+            case _:
+                raise NotSupportedError(f'Value {value.value} is not supported for tag search.')
+        if value.prefix == '-':
+            tag_query = ~tag_query
+        elif value.prefix != '':
+            raise NotSupportedError(f'Prefix {value.prefix} is not supported for tag search.')
+        q = q.filter(tag_query)
+    return q
+
+
 def spellbook_id_search(q: QuerySet, values: list[QueryValue]) -> QuerySet:
     spellbook_id_query = Q()
     for value in values:
@@ -181,6 +204,7 @@ keyword_map: dict[str, Callable[[QuerySet, list[QueryValue]], QuerySet]] = {
     'steps': steps_search,
     'results': results_search,
     'spellbookid': spellbook_id_search,
+    'is': tag_search,
 }
 
 

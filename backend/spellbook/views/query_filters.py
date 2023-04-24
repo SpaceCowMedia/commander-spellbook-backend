@@ -1,7 +1,9 @@
 from django.template import loader
 from rest_framework import filters
 from rest_framework.compat import coreapi, coreschema, distinct
+from django.core.exceptions import ValidationError
 from django.utils.encoding import force_str
+from spellbook.parsers import variants_query_parser, NotSupportedError
 
 
 class SpellbookQueryFilter(filters.BaseFilterBackend):
@@ -10,7 +12,7 @@ class SpellbookQueryFilter(filters.BaseFilterBackend):
     search_title = 'Search'
     search_description = 'A search query.'
 
-    def get_search_terms(self, request) -> list[str]:
+    def get_search_terms(self, request) -> str:
         """
         Search terms are set by a ?q=... query parameter,
         and may be whitespace delimited.
@@ -26,10 +28,15 @@ class SpellbookQueryFilter(filters.BaseFilterBackend):
             return queryset
 
         base = queryset
-        # TODO: implement search
-        print(search_terms)
-        queryset = distinct(queryset, base)
-        return queryset
+        try:
+            filtered_queryset = variants_query_parser(queryset, search_terms)
+            queryset = filtered_queryset.filter(legal=True)
+            if not queryset.exists():
+                queryset = filtered_queryset
+            queryset = distinct(queryset, base)
+            return queryset
+        except NotSupportedError:
+            return queryset.none()
 
     def to_html(self, request, queryset, view):
         term = self.get_search_terms(request)

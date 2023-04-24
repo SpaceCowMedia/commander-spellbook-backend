@@ -160,6 +160,12 @@ def results_search(q: QuerySet, values: list[QueryValue]) -> QuerySet:
 
 
 def tag_search(q: QuerySet, values: list[QueryValue]) -> QuerySet:
+    # TODO: Add support for more tags:
+    # - winning https://github.com/SpaceCowMedia/commander-spellbook-site/issues/183
+    # - mandatory https://github.com/SpaceCowMedia/commander-spellbook-site/issues/224
+    # - lock https://github.com/SpaceCowMedia/commander-spellbook-site/issues/224
+    # - infinite https://github.com/SpaceCowMedia/commander-spellbook-site/issues/185
+    # - risky https://github.com/SpaceCowMedia/commander-spellbook-site/issues/184
     for value in values:
         tag_query = Q()
         if value.operator != ':':
@@ -205,6 +211,12 @@ keyword_map: dict[str, Callable[[QuerySet, list[QueryValue]], QuerySet]] = {
     'results': results_search,
     'spellbookid': spellbook_id_search,
     'is': tag_search,
+    # TODO: Add support for more keywords:
+    # - include banned/spoiler
+    # - exclude banned/spoiler https://github.com/SpaceCowMedia/commander-spellbook-site/issues/162
+    # - commander: name https://github.com/SpaceCowMedia/commander-spellbook-site/issues/145
+    # - sort
+    # - order
 }
 
 

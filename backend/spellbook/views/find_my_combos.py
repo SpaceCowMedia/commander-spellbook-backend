@@ -29,6 +29,8 @@ class DeckListParser(parsers.BaseParser):
 @api_view()
 @parser_classes([DeckListParser])
 def find_my_combos(request: Request) -> Response:
+    # TODO: special case for commander specific combos
+    # as in https://github.com/SpaceCowMedia/commander-spellbook-site/issues/339
     cards: set[Card] = request.data
     variant_to_cards = defaultdict[Variant, set[Card]](set)
     for civ in CardInVariant.objects \

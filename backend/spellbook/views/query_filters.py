@@ -1,7 +1,6 @@
 from django.template import loader
 from rest_framework import filters
-from rest_framework.compat import coreapi, coreschema, distinct
-from django.core.exceptions import ValidationError
+from rest_framework.compat import coreapi, coreschema
 from django.utils.encoding import force_str
 from spellbook.parsers import variants_query_parser, NotSupportedError
 
@@ -27,13 +26,11 @@ class SpellbookQueryFilter(filters.BaseFilterBackend):
         if not search_terms:
             return queryset
 
-        base = queryset
         try:
             filtered_queryset = variants_query_parser(queryset, search_terms)
             queryset = filtered_queryset.filter(legal=True)
             if not queryset.exists():
                 queryset = filtered_queryset
-            queryset = distinct(queryset, base)
             return queryset
         except NotSupportedError:
             return queryset.none()

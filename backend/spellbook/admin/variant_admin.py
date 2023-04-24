@@ -9,7 +9,8 @@ from django.contrib import admin, messages
 from spellbook.models import Card, Template, Feature, Variant, CardInVariant, TemplateInVariant
 from spellbook.variants.combo_graph import MAX_CARDS_IN_COMBO
 from spellbook.utils import launch_job_command
-from .utils import SearchMultipleRelatedMixin, IdentityFilter
+from spellbook.parsers import variants_query_parser
+from .utils import IdentityFilter
 from .ingredient_admin import IngredientInCombinationForm
 
 
@@ -92,7 +93,7 @@ class VariantForm(ModelForm):
 
 
 @admin.register(Variant)
-class VariantAdmin(SearchMultipleRelatedMixin, admin.ModelAdmin):
+class VariantAdmin(admin.ModelAdmin):
     form = VariantForm
     readonly_fields = ['produces_link', 'of_link', 'includes_link', 'id', 'identity', 'legal', 'spoiler', 'scryfall_link']
     fieldsets = [
@@ -113,8 +114,8 @@ class VariantAdmin(SearchMultipleRelatedMixin, admin.ModelAdmin):
     ]
     list_filter = ['status', CardsCountListFilter, IdentityFilter, 'legal', 'spoiler']
     list_display = ['display_name', 'status', 'identity']
-    search_fields = ['=id', 'uses__name', 'produces__name', 'requires__name']
     actions = [set_restore, set_draft, set_new, set_not_working]
+    search_fields = ['id']
 
     @admin.display(description='produces')
     def produces_link(self, obj):
@@ -183,3 +184,7 @@ class VariantAdmin(SearchMultipleRelatedMixin, admin.ModelAdmin):
                 Prefetch('uses', queryset=Card.objects.order_by('cardinvariant').only('name'), to_attr='prefetched_uses'),
                 Prefetch('requires', queryset=Template.objects.order_by('templateinvariant').only('name'), to_attr='prefetched_requires'),
                 Prefetch('produces', queryset=Feature.objects.only('name'), to_attr='prefetched_produces'))
+
+    def get_search_results(self, request: HttpRequest, queryset, search_term: str) -> tuple[object, bool]:
+        result = variants_query_parser(queryset, search_term)
+        return result, False

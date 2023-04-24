@@ -4,12 +4,12 @@ from django.db.models import Count, Prefetch
 from django.forms import ModelForm
 from django.http import HttpRequest
 from django.shortcuts import redirect
-from django.utils import timezone
+from django.core.exceptions import ValidationError
 from django.contrib import admin, messages
 from spellbook.models import Card, Template, Feature, Variant, CardInVariant, TemplateInVariant
 from spellbook.variants.combo_graph import MAX_CARDS_IN_COMBO
 from spellbook.utils import launch_job_command
-from spellbook.parsers import variants_query_parser
+from spellbook.parsers import variants_query_parser, NotSupportedError
 from .utils import IdentityFilter
 from .ingredient_admin import IngredientInCombinationForm
 
@@ -186,5 +186,9 @@ class VariantAdmin(admin.ModelAdmin):
                 Prefetch('produces', queryset=Feature.objects.only('name'), to_attr='prefetched_produces'))
 
     def get_search_results(self, request: HttpRequest, queryset, search_term: str) -> tuple[object, bool]:
-        result = variants_query_parser(queryset, search_term)
-        return result, False
+        try:
+            result = variants_query_parser(queryset, search_term)
+            return result, False
+        except NotSupportedError as e:
+            messages.warning(request, str(e))
+            return queryset, False

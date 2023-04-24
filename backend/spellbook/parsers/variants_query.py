@@ -96,9 +96,28 @@ def identity_search(q: QuerySet, values: list[QueryValue]) -> QuerySet:
     return q
 
 
+def prerequisites_search(q: QuerySet, values: list[QueryValue]) -> QuerySet:
+    for value in values:
+        prerequisites_query = Q()
+        match value.operator:
+            case ':':
+                prerequisites_query &= Q(other_prerequisites__icontains=value.value)
+            case '=':
+                prerequisites_query &= Q(other_prerequisites__iexact=value.value)
+            case _:
+                raise NotSupportedError(f'Operator {value.operator} is not supported for prerequisites search.')
+        if value.prefix == '-':
+            prerequisites_query = ~prerequisites_query
+        elif value.prefix != '':
+            raise NotSupportedError(f'Prefix {value.prefix} is not supported for prerequisites search.')
+        q = q.filter(prerequisites_query)
+    return q
+
+
 keyword_map: dict[str, Callable[[QuerySet, list[QueryValue]], QuerySet]] = {
     'card': card_search,
     'coloridentity': identity_search,
+    'prerequisites': prerequisites_search,
 }
 
 
@@ -112,6 +131,9 @@ alias_map: dict[str, str] = {
     'ids': 'coloridentity',
     'c': 'coloridentity',
     'ci': 'coloridentity',
+    'prerequisite': 'prerequisites',
+    'prereq': 'prerequisites',
+    'pre': 'prerequisites',
 }
 
 

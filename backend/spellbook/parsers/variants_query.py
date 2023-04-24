@@ -225,7 +225,6 @@ def commander_name_search(q: QuerySet, cards: list[QueryValue]) -> QuerySet:
     return q
 
 
-
 keyword_map: dict[str, Callable[[QuerySet, list[QueryValue]], QuerySet]] = {
     'card': card_search,
     'coloridentity': identity_search,

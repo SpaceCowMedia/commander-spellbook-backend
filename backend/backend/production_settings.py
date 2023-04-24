@@ -109,7 +109,7 @@ DATABASES = {
         "PORT": os.environ.get("SQL_PORT", "5432"),
         "OPTIONS": {
             "server_side_binding": True,
-        },
+        } if 'postgres' in os.environ.get("SQL_ENGINE", '') else {},
     }
 }
 

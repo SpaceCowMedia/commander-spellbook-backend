@@ -177,7 +177,7 @@ def tag_search(q: QuerySet, values: list[QueryValue]) -> QuerySet:
                 tag_query &= Q(produces__name='Lock')
             case 'infinite':
                 tag_query &= Q(produces__name='Infinite')
-            case 'risky':
+            case 'risky' | 'allin':
                 tag_query &= Q(produces__name='Risky')
             case 'winning' | 'gamewinning':
                 tag_query &= Q(produces__name='Win the game')
@@ -207,6 +207,25 @@ def spellbook_id_search(q: QuerySet, values: list[QueryValue]) -> QuerySet:
     return q
 
 
+def commander_name_search(q: QuerySet, cards: list[QueryValue]) -> QuerySet:
+    for card in cards:
+        commander_name_query = Q()
+        match card.operator:
+            case ':':
+                commander_name_query &= Q(cardinvariant__zone_locations__contains=IngredientInCombination.ZoneLocation.COMMAND_ZONE, cardinvariant__card__name__icontains=card.value)
+            case '=':
+                commander_name_query &= Q(cardinvariant__zone_locations__contains=IngredientInCombination.ZoneLocation.COMMAND_ZONE, cardinvariant__card__name__iexact=card.value)
+            case _:
+                raise NotSupportedError(f'Operator {card.operator} is not supported for commander name search.')
+        if card.prefix == '-':
+            commander_name_query = ~commander_name_query
+        elif card.prefix != '':
+            raise NotSupportedError(f'Prefix {card.prefix} is not supported for commander name search.')
+        q = q.filter(commander_name_query)
+    return q
+
+
+
 keyword_map: dict[str, Callable[[QuerySet, list[QueryValue]], QuerySet]] = {
     'card': card_search,
     'coloridentity': identity_search,
@@ -215,10 +234,10 @@ keyword_map: dict[str, Callable[[QuerySet, list[QueryValue]], QuerySet]] = {
     'results': results_search,
     'spellbookid': spellbook_id_search,
     'is': tag_search,
+    'commander': commander_name_search,
     # TODO: Add support for more keywords:
     # - include banned/spoiler
     # - exclude banned/spoiler https://github.com/SpaceCowMedia/commander-spellbook-site/issues/162
-    # - commander: name https://github.com/SpaceCowMedia/commander-spellbook-site/issues/145
     # - sort
     # - order
 }
@@ -229,7 +248,6 @@ alias_map: dict[str, str] = {
     'color_identity': 'coloridentity',
     'color': 'coloridentity',
     'colors': 'coloridentity',
-    'commander': 'coloridentity',
     'id': 'coloridentity',
     'ids': 'coloridentity',
     'c': 'coloridentity',

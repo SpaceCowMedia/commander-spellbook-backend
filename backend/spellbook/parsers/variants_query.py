@@ -11,7 +11,6 @@ QueryValue = namedtuple('QueryValue', ['prefix', 'operator', 'value'])
 
 
 def card_search(q: QuerySet, cards: list[QueryValue]) -> QuerySet:
-    q = q.annotate(uses_count=Count('uses', distinct=True))
     for card in cards:
         card_query = Q()
         value_is_digit = card.value.isdigit()
@@ -21,15 +20,15 @@ def card_search(q: QuerySet, cards: list[QueryValue]) -> QuerySet:
             case '=' if not value_is_digit:
                 card_query &= Q(uses__name__iexact=card.value)
             case '<' if value_is_digit:
-                card_query &= Q(uses_count__lt=card.value)
+                card_query &= Q(cards_count__lt=card.value)
             case '>' if value_is_digit:
-                card_query &= Q(uses_count__gt=card.value)
+                card_query &= Q(cards_count__gt=card.value)
             case '<=' if value_is_digit:
-                card_query &= Q(uses_count__lte=card.value)
+                card_query &= Q(cards_count__lte=card.value)
             case '>=' if value_is_digit:
-                card_query &= Q(uses_count__gte=card.value)
+                card_query &= Q(cards_count__gte=card.value)
             case '=' if value_is_digit:
-                card_query &= Q(uses_count=card.value)
+                card_query &= Q(cards_count=card.value)
             case _:
                 raise NotSupportedError(f'Operator {card.operator} is not supported for card search with {"numbers" if value_is_digit else "strings"}.')
         if card.prefix == '-':
@@ -41,7 +40,6 @@ def card_search(q: QuerySet, cards: list[QueryValue]) -> QuerySet:
 
 
 def identity_search(q: QuerySet, values: list[QueryValue]) -> QuerySet:
-    q = q.annotate(identity_count=Case(When(identity='C', then=Value(0)), default=Length('identity')))
     for value in values:
         value_query = Q()
         value_is_digit = value.value.isdigit()
@@ -130,7 +128,6 @@ def steps_search(q: QuerySet, values: list[QueryValue]) -> QuerySet:
 
 
 def results_search(q: QuerySet, values: list[QueryValue]) -> QuerySet:
-    q = q.annotate(results_count=Count('produces', distinct=True))
     for value in values:
         results_query = Q()
         value_is_digit = value.value.isdigit()
@@ -225,6 +222,35 @@ def commander_name_search(q: QuerySet, cards: list[QueryValue]) -> QuerySet:
     return q
 
 
+def sort(q: QuerySet, values: list[QueryValue]) -> QuerySet:
+    sort_criteria = []
+    for value in values:
+        if value.operator != ':':
+            raise NotSupportedError(f'Operator {value.operator} is not supported for sort.')
+        order_field = ''
+        match value.value.lower():
+            case 'colors' | 'ci' | 'identity' | 'color' | 'coloridentity':
+                order_field = 'identity_count'
+            case 'results':
+                order_field = 'results_count'
+            case 'cards':
+                order_field = 'cards_count'
+            case 'created' | 'date' | 'added':
+                order_field = 'created'
+            case 'updated':
+                order_field = 'updated'
+            case _:
+                raise NotSupportedError(f'Value {value.value} is not supported for sort.')
+        if value.prefix == '-':
+            order_field = f'-{order_field}'
+        elif value.prefix != '':
+            raise NotSupportedError(f'Prefix {value.prefix} is not supported for sort.')
+        sort_criteria.append(order_field)
+    if sort_criteria:
+        q = q.order_by(*sort_criteria)
+    return q
+
+
 keyword_map: dict[str, Callable[[QuerySet, list[QueryValue]], QuerySet]] = {
     'card': card_search,
     'coloridentity': identity_search,
@@ -234,11 +260,10 @@ keyword_map: dict[str, Callable[[QuerySet, list[QueryValue]], QuerySet]] = {
     'spellbookid': spellbook_id_search,
     'is': tag_search,
     'commander': commander_name_search,
+    'sort': sort,
     # TODO: Add support for more keywords:
     # - include banned/spoiler
     # - exclude banned/spoiler https://github.com/SpaceCowMedia/commander-spellbook-site/issues/162
-    # - sort
-    # - order
 }
 
 
@@ -276,7 +301,10 @@ def variants_query_parser(base: QuerySet, query_string: str) -> QuerySet:
     query_string = query_string.strip()
     regex_matches = re.finditer(QUERY_REGEX, query_string)
     parsed_queries = defaultdict[str, list[QueryValue]](list)
-    queryset = base
+    queryset = base \
+        .alias(cards_count=Count('uses')) \
+        .alias(identity_count=Case(When(identity='C', then=Value(0)), default=Length('identity'))) \
+        .alias(results_count=Count('produces', distinct=True))
     for regex_match in regex_matches:
         group_dict = regex_match.groupdict()
         if group_dict['card_short'] or group_dict['card_long']:

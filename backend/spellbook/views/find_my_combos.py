@@ -6,32 +6,63 @@ from rest_framework.request import Request
 from spellbook.models import Card, Variant, CardInVariant
 from spellbook.variants.list_utils import merge_identities
 from spellbook.serializers import VariantSerializer
+from dataclasses import dataclass
 
 
-class DeckListParser(parsers.BaseParser):
+@dataclass
+class Deck:
+    cards: set[Card]
+    commanders: set[Card]
+
+
+class PlainTextDeckListParser(parsers.BaseParser):
     media_type = 'text/plain'
 
     def __init__(self):
         self.cards_dict = {c.name.lower(): c for c in Card.objects.all()}
 
-    def parse(self, stream, media_type=None, parser_context=None):
+    def parse(self, stream, media_type=None, parser_context=None) -> Deck:
         parser_context = parser_context or {}
         encoding = parser_context.get('encoding', 'UTF-8')
         lines = stream.read().decode(encoding).splitlines()[:500]
-        result = set[Card]()
+        main_cards = set[Card]()
         for line in lines:
             line = line.strip().lower()
             if line and line in self.cards_dict:
-                result.add(self.cards_dict[line])
-        return result
+                main_cards.add(self.cards_dict[line])
+        return Deck(cards=main_cards, commanders=set())
+
+
+class JsonDeckListParser(parsers.JSONParser):
+    def __init__(self):
+        self.cards_dict = {c.name.lower(): c for c in Card.objects.all()}
+
+    def parse(self, stream, media_type=None, parser_context=None) -> Deck:
+        json = super().parse(stream, media_type, parser_context)
+        main_cards = set[Card]()
+        commanders = set[Card]()
+        if 'commanders' in json:
+            for commander in json['commanders'][:2]:
+                commander = commander.strip().lower()
+                if isinstance(commander, str) and commander in self.cards_dict:
+                    commanders.add(self.cards_dict[commander])
+        if 'main' in json:
+            for card in json['main'][:500]:
+                card = card.strip().lower()
+                if isinstance(card, str) and card in self.cards_dict:
+                    main_cards.add(self.cards_dict[card])
+        return Deck(cards=main_cards, commanders=commanders)
 
 
 @api_view()
-@parser_classes([DeckListParser])
+@parser_classes([PlainTextDeckListParser, JsonDeckListParser])
 def find_my_combos(request: Request) -> Response:
     # TODO: special case for commander specific combos
     # as in https://github.com/SpaceCowMedia/commander-spellbook-site/issues/339
-    cards: set[Card] = request.data
+    deck: Deck | dict = request.data
+    if isinstance(deck, dict):
+        deck = Deck(cards=set(), commanders=set())
+    cards = deck.cards.union(deck.commanders)
     variant_to_cards = defaultdict[Variant, set[Card]](set)
     for civ in CardInVariant.objects \
         .filter(variant__status=Variant.Status.OK, variant__uses__in=cards) \

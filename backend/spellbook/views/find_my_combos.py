@@ -1,4 +1,5 @@
 from collections import defaultdict
+from django.db.models import Q
 from rest_framework import parsers
 from rest_framework.decorators import api_view, parser_classes
 from rest_framework.response import Response
@@ -43,22 +44,22 @@ class JsonDeckListParser(parsers.JSONParser):
         commanders = set[Card]()
         if 'commanders' in json:
             for commander in json['commanders'][:2]:
-                commander = commander.strip().lower()
-                if isinstance(commander, str) and commander in self.cards_dict:
-                    commanders.add(self.cards_dict[commander])
+                if isinstance(commander, str):
+                    commander = commander.strip().lower()
+                    if commander in self.cards_dict:
+                        commanders.add(self.cards_dict[commander])
         if 'main' in json:
             for card in json['main'][:500]:
-                card = card.strip().lower()
-                if isinstance(card, str) and card in self.cards_dict:
-                    main_cards.add(self.cards_dict[card])
+                if isinstance(card, str):
+                    card = card.strip().lower()
+                    if card in self.cards_dict:
+                        main_cards.add(self.cards_dict[card])
         return Deck(cards=main_cards, commanders=commanders)
 
 
-@api_view()
-@parser_classes([PlainTextDeckListParser, JsonDeckListParser])
+@api_view(http_method_names=['GET', 'POST'])
+@parser_classes([JsonDeckListParser, PlainTextDeckListParser])
 def find_my_combos(request: Request) -> Response:
-    # TODO: special case for commander specific combos
-    # as in https://github.com/SpaceCowMedia/commander-spellbook-site/issues/339
     deck: Deck | dict = request.data
     if isinstance(deck, dict):
         deck = Deck(cards=set(), commanders=set())
@@ -66,9 +67,17 @@ def find_my_combos(request: Request) -> Response:
     variant_to_cards = defaultdict[Variant, set[Card]](set)
     for civ in CardInVariant.objects \
         .filter(variant__status=Variant.Status.OK, variant__uses__in=cards) \
+        .exclude(~Q(variant__cardinvariant__card__in=deck.commanders), variant__cardinvariant__zone_locations=CardInVariant.ZoneLocation.COMMAND_ZONE) \
         .prefetch_related(
             'card',
-            'variant'):
+            'variant',
+            'variant__cardinvariant_set__card',
+            'variant__templateinvariant_set__template',
+            'variant__cardinvariant_set',
+            'variant__templateinvariant_set',
+            'variant__produces',
+            'variant__of',
+            'variant__includes'):
         variant_to_cards[civ.variant].add(civ.card)
     included_variants = []
     almost_included_variants = []

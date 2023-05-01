@@ -284,7 +284,7 @@ class FindMyCombosViewTests(AbstractModelTests):
         launch_job_command('generate_variants', None)
         Variant.objects.update(status=Variant.Status.OK)
 
-    def test_find_my_combos_view(self):
+    def test_find_my_combos_views(self):
         c = Client()
         for content_type in ['text/plain', 'application/json']:
             with self.subTest('empty input'):
@@ -309,7 +309,7 @@ class FindMyCombosViewTests(AbstractModelTests):
                 self.assertEqual(result.identity, identity)
                 self.assertEqual(len(result.included), 0)
                 self.assertEqual(len(result.almost_included), 2)
-                self.assertEqual(len(result.almost_included_by_adding_colors), 1)
+                self.assertEqual(len(result.almost_included_by_adding_colors), 2)
                 for v in result.almost_included:
                     self.assertTrue(set(v.identity).issubset(set(identity)))
                     v = Variant.objects.get(id=v.id)
@@ -326,9 +326,11 @@ class FindMyCombosViewTests(AbstractModelTests):
                     for card_set in itertools.combinations(Card.objects.values_list('name', flat=True), card_count):
                         card_set = set(card_set)
                         deck_list = list(card_set)
+                        commander_list = []
                         random.shuffle(deck_list)
                         if 'json' in content_type:
-                            deck_list_str = json.dumps({'main': deck_list})
+                            commander_list = []
+                            deck_list_str = json.dumps({'main': deck_list, 'commanders': commander_list})
                         else:
                             deck_list_str = '\n'.join(deck_list)
                         identity = merge_identities([Card.objects.get(name=c).identity for c in deck_list])

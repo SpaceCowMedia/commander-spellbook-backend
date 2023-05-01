@@ -89,7 +89,7 @@ class ComboTests(AbstractModelTests):
         self.assertEqual(c.removes.count(), 0)
         self.assertEqual(c.mana_needed, '{W}{W}')
         self.assertEqual(c.other_prerequisites, 'Some requisites.')
-        self.assertFalse(c.generator)
+        self.assertTrue(c.generator)
         self.assertEqual(c.cardincombo_set.count(), 2)
         self.assertEqual(c.cardincombo_set.get(card__name='B').zone_locations, IngredientInCombination.ZoneLocation.HAND)
         self.assertEqual(c.cardincombo_set.get(card__name='C').zone_locations, IngredientInCombination.ZoneLocation.BATTLEFIELD)

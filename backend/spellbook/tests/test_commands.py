@@ -37,14 +37,16 @@ class CleanJobsTest(AbstractModelTests):
         self.v2_id = id_from_cards_and_templates_ids([self.c3_id, self.c1_id, self.c2_id], [self.t1_id])
         self.v3_id = id_from_cards_and_templates_ids([self.c5_id, self.c6_id, self.c2_id, self.c3_id], [self.t1_id])
         self.v4_id = id_from_cards_and_templates_ids([self.c8_id, self.c1_id], [])
-        self.assertEqual(Variant.objects.count(), 4)
+        self.v5_id = id_from_cards_and_templates_ids([self.c3_id, self.c1_id, self.c2_id], [])
+        self.v6_id = id_from_cards_and_templates_ids([self.c5_id, self.c6_id, self.c2_id, self.c3_id], [])
+        self.assertEqual(Variant.objects.count(), 6)
         for v in Variant.objects.all():
             self.assertEqual(v.status, Variant.Status.NEW)
         j = Job.objects.get(name='generate_variants')
         self.assertEqual(j.status, Job.Status.SUCCESS)
         self.assertEqual(j.started_by, u)
         variant_ids = {v.id for v in Variant.objects.all()}
-        self.assertEqual(variant_ids, {self.v1_id, self.v2_id, self.v3_id, self.v4_id})
+        self.assertEqual(variant_ids, {self.v1_id, self.v2_id, self.v3_id, self.v4_id, self.v5_id, self.v6_id})
 
     def test_export_variants(self):
         launch_job_command('generate_variants', None)
@@ -58,4 +60,4 @@ class CleanJobsTest(AbstractModelTests):
         launch_job_command('export_variants', None, ['--file', file_path])
         with open(file_path) as f:
             data = json.load(f)
-        self.assertEqual(len(data['variants']), 4)
+        self.assertEqual(len(data['variants']), 6)

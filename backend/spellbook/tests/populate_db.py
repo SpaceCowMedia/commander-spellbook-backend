@@ -16,7 +16,7 @@ def populate_db(self):
     f2 = Feature.objects.create(name='FB', description='Feature B', utility=False)
     f3 = Feature.objects.create(name='FC', description='Feature C', utility=False)
     f4 = Feature.objects.create(name='FD', description='Feature D', utility=False)
-    b1 = Combo.objects.create(mana_needed='{W}{W}', other_prerequisites='Some requisites.', description='1', generator=False)
+    b1 = Combo.objects.create(mana_needed='{W}{W}', other_prerequisites='Some requisites.', description='1', generator=True)
     b2 = Combo.objects.create(mana_needed='{U}{U}', other_prerequisites='Some requisites.', description='2', generator=True)
     b3 = Combo.objects.create(mana_needed='{B}{B}', other_prerequisites='Some requisites.', description='3', generator=False)
     b4 = Combo.objects.create(mana_needed='{R}{R}', other_prerequisites='Some requisites.', description='4', generator=True)

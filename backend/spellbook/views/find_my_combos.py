@@ -39,21 +39,19 @@ class JsonDeckListParser(parsers.JSONParser):
         self.cards_dict = {c.name.lower(): c for c in Card.objects.all()}
 
     def parse(self, stream, media_type=None, parser_context=None) -> Deck:
-        json = super().parse(stream, media_type, parser_context)
+        json: dict[str, list[str]] = super().parse(stream, media_type, parser_context)
         main_cards = set[Card]()
         commanders = set[Card]()
-        if 'commanders' in json:
-            for commander in json['commanders'][:2]:
-                if isinstance(commander, str):
-                    commander = commander.strip().lower()
-                    if commander in self.cards_dict:
-                        commanders.add(self.cards_dict[commander])
-        if 'main' in json:
-            for card in json['main'][:500]:
-                if isinstance(card, str):
-                    card = card.strip().lower()
-                    if card in self.cards_dict:
-                        main_cards.add(self.cards_dict[card])
+        for commander in json.get('commanders', [])[:2]:
+            if isinstance(commander, str):
+                commander = commander.strip().lower()
+                if commander in self.cards_dict:
+                    commanders.add(self.cards_dict[commander])
+        for card in json.get('main', [])[:500]:
+            if isinstance(card, str):
+                card = card.strip().lower()
+                if card in self.cards_dict:
+                    main_cards.add(self.cards_dict[card])
         return Deck(cards=main_cards, commanders=commanders)
 
 
@@ -65,9 +63,8 @@ def find_my_combos(request: Request) -> Response:
         deck = Deck(cards=set(), commanders=set())
     cards = deck.cards.union(deck.commanders)
     variant_to_cards = defaultdict[Variant, set[Card]](set)
-    for civ in CardInVariant.objects \
+    variants_query = CardInVariant.objects \
         .filter(variant__status=Variant.Status.OK, variant__uses__in=cards) \
-        .exclude(~Q(variant__cardinvariant__card__in=deck.commanders), variant__cardinvariant__zone_locations=CardInVariant.ZoneLocation.COMMAND_ZONE) \
         .prefetch_related(
             'card',
             'variant',
@@ -77,7 +74,10 @@ def find_my_combos(request: Request) -> Response:
             'variant__templateinvariant_set',
             'variant__produces',
             'variant__of',
-            'variant__includes'):
+            'variant__includes')
+    if deck.commanders:
+        variants_query = variants_query.exclude(~Q(variant__cardinvariant__card__in=deck.commanders), variant__cardinvariant__zone_locations=CardInVariant.ZoneLocation.COMMAND_ZONE)
+    for civ in variants_query:
         variant_to_cards[civ.variant].add(civ.card)
     included_variants = []
     almost_included_variants = []

@@ -6,7 +6,7 @@ from types import SimpleNamespace
 from django.test import Client
 from django.core.management import call_command
 from spellbook.utils import launch_job_command, StreamToLogger
-from spellbook.models import Card, Feature, Template, Combo, CardInCombo, TemplateInCombo, Variant, CardInVariant, TemplateInVariant
+from spellbook.models import Card, Feature, Template, Combo, CardInCombo, TemplateInCombo, Variant, CardInVariant, TemplateInVariant, IngredientInCombination
 from .abstract_test import AbstractModelTests
 from website.models import PROPERTY_KEYS
 from spellbook.variants.list_utils import merge_identities
@@ -320,43 +320,51 @@ class FindMyCombosViewTests(AbstractModelTests):
                     v = Variant.objects.get(id=v.id)
                     self.assertEqual(v.status, Variant.Status.OK)
                     self.assertIn('A', set(v.uses.values_list('name', flat=True)))
-            variant_set_dict : list[tuple[frozenset[str], Variant]] = [(frozenset(v.uses.values_list('name', flat=True)), v) for v in Variant.objects.filter(status=Variant.Status.OK)]
-            for card_count in range(2, Card.objects.count()):
-                with self.subTest(f'{card_count} cards'):
-                    for card_set in itertools.combinations(Card.objects.values_list('name', flat=True), card_count):
-                        card_set = set(card_set)
-                        deck_list = list(card_set)
-                        commander_list = []
-                        random.shuffle(deck_list)
-                        if 'json' in content_type:
-                            commander_list = []
-                            deck_list_str = json.dumps({'main': deck_list, 'commanders': commander_list})
-                        else:
-                            deck_list_str = '\n'.join(deck_list)
-                        identity = merge_identities([Card.objects.get(name=c).identity for c in deck_list])
-                        response = c.generic('GET', '/find-my-combos', data=deck_list_str, follow=True, headers={'Content-Type': content_type})
-                        self.assertEqual(response.status_code, 200)
-                        self.assertEqual(response.get('Content-Type'), 'application/json')
-                        result = json.loads(response.content, object_hook=json_to_python_lambda)
-                        self.assertEqual(result.identity, identity)
-                        included = [v for k, v in variant_set_dict if k.issubset(card_set)]
-                        almost_included = [v for k, v in variant_set_dict if k.intersection(card_set) and not k.issubset(card_set)]
-                        almost_included_within_identity = [v for v in almost_included if set(v.identity).issubset(set(identity))]
-                        self.assertEqual(len(result.included), len(included))
-                        self.assertEqual(len(result.almost_included), len(almost_included_within_identity))
-                        self.assertEqual(len(result.almost_included_by_adding_colors), len(almost_included) - len(almost_included_within_identity))
-                        for v in result.included:
-                            self.assertTrue(set(v.identity).issubset(set(identity)))
-                            v = Variant.objects.get(id=v.id)
-                            self.assertEqual(v.status, Variant.Status.OK)
-                            self.assertTrue(set(v.uses.values_list('name', flat=True)).issubset(card_set))
-                        for v in result.almost_included:
-                            self.assertTrue(set(v.identity).issubset(set(identity)))
-                            v = Variant.objects.get(id=v.id)
-                            self.assertEqual(v.status, Variant.Status.OK)
-                            self.assertTrue(set(v.uses.values_list('name', flat=True)).intersection(card_set))
-                        for v in result.almost_included_by_adding_colors:
-                            self.assertFalse(set(v.identity).issubset(set(identity)))
-                            v = Variant.objects.get(id=v.id)
-                            self.assertEqual(v.status, Variant.Status.OK)
-                            self.assertTrue(set(v.uses.values_list('name', flat=True)).intersection(card_set))
+            variants = Variant.objects.filter(status=Variant.Status.OK).prefetch_related('cardinvariant_set', 'cardinvariant_set__card')
+            variants_cards = {v.id: {c.card.name for c in v.cardinvariant_set.all()} for v in variants}
+            variants_commanders = {v.id: {c.card.name for c in v.cardinvariant_set.filter(zone_locations=IngredientInCombination.ZoneLocation.COMMAND_ZONE)} for v in variants}
+            card_names = Card.objects.values_list('name', flat=True)
+            for card_count in [2, 4, 7, Card.objects.count()]:
+                for commander_count in range(min(4, card_count + 1)):
+                    with self.subTest(f'{card_count} cards with {commander_count} commanders'):
+                        for card_set in itertools.combinations(card_names, card_count):
+                            for commander_set in itertools.combinations(card_set, commander_count):
+                                card_set: set[str] = set(card_set)
+                                commander_set: set[str] = set(commander_set)
+                                deck_list = list(card_set - commander_set)
+                                commander_list = list(commander_set)
+                                random.shuffle(deck_list)
+                                random.shuffle(commander_list)
+                                if 'json' in content_type:
+                                    deck_list_str = json.dumps({'main': deck_list, 'commanders': commander_list})
+                                else:
+                                    deck_list = commander_list + deck_list
+                                    commander_list = [] # TODO: implement commander support for text/plain
+                                    deck_list_str = '\n'.join(deck_list)
+                                identity = merge_identities([Card.objects.get(name=c).identity for c in deck_list + commander_list])
+                                response = c.generic('GET', '/find-my-combos', data=deck_list_str, follow=True, headers={'Content-Type': content_type})
+                                self.assertEqual(response.status_code, 200)
+                                self.assertEqual(response.get('Content-Type'), 'application/json')
+                                result = json.loads(response.content, object_hook=json_to_python_lambda)
+                                self.assertEqual(result.identity, identity)
+                                included = [v for v in variants if variants_cards[v.id].issubset(card_set) and variants_commanders[v.id].issubset(commander_set)]
+                                almost_included = [v for v in variants if variants_cards[v.id].intersection(card_set) and not variants_cards[v.id].issubset(card_set) and variants_commanders[v.id].issubset(commander_set)]
+                                almost_included_within_identity = [v for v in almost_included if set(v.identity).issubset(set(identity))]
+                                self.assertEqual(len(result.included), len(included))
+                                self.assertEqual(len(result.almost_included), len(almost_included_within_identity))
+                                self.assertEqual(len(result.almost_included_by_adding_colors), len(almost_included) - len(almost_included_within_identity))
+                                for v in result.included:
+                                    self.assertTrue(set(v.identity).issubset(set(identity)))
+                                    v = Variant.objects.get(id=v.id)
+                                    self.assertEqual(v.status, Variant.Status.OK)
+                                    self.assertTrue(set(v.uses.values_list('name', flat=True)).issubset(card_set))
+                                for v in result.almost_included:
+                                    self.assertTrue(set(v.identity).issubset(set(identity)))
+                                    v = Variant.objects.get(id=v.id)
+                                    self.assertEqual(v.status, Variant.Status.OK)
+                                    self.assertTrue(set(v.uses.values_list('name', flat=True)).intersection(card_set))
+                                for v in result.almost_included_by_adding_colors:
+                                    self.assertFalse(set(v.identity).issubset(set(identity)))
+                                    v = Variant.objects.get(id=v.id)
+                                    self.assertEqual(v.status, Variant.Status.OK)
+                                    self.assertTrue(set(v.uses.values_list('name', flat=True)).intersection(card_set))

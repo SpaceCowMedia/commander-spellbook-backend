@@ -42,7 +42,7 @@ class JsonDeckListParser(parsers.JSONParser):
         json: dict[str, list[str]] = super().parse(stream, media_type, parser_context)
         main_cards = set[Card]()
         commanders = set[Card]()
-        for commander in json.get('commanders', [])[:2]:
+        for commander in json.get('commanders', [])[:500]:
             if isinstance(commander, str):
                 commander = commander.strip().lower()
                 if commander in self.cards_dict:

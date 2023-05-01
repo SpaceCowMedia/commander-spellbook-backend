@@ -1,6 +1,5 @@
 from django.template import loader
 from rest_framework import filters
-from rest_framework.compat import coreapi, coreschema
 from django.utils.encoding import force_str
 from spellbook.parsers import variants_query_parser, NotSupportedError
 
@@ -38,21 +37,6 @@ class SpellbookQueryFilter(filters.BaseFilterBackend):
         }
         template = loader.get_template(self.template)
         return template.render(context)
-
-    def get_schema_fields(self, view):
-        assert coreapi is not None, 'coreapi must be installed to use `get_schema_fields()`'
-        assert coreschema is not None, 'coreschema must be installed to use `get_schema_fields()`'
-        return [
-            coreapi.Field(
-                name=self.search_param,
-                required=False,
-                location='query',
-                schema=coreschema.String(
-                    title=force_str(self.search_title),
-                    description=force_str(self.search_description)
-                )
-            )
-        ]
 
     def get_schema_operation_parameters(self, view):
         return [

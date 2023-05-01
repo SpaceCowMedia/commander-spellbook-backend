@@ -23,9 +23,6 @@ class SpellbookQueryFilter(filters.BaseFilterBackend):
     def filter_queryset(self, request, queryset, view):
         search_terms = self.get_search_terms(request)
 
-        if not search_terms:
-            return queryset
-
         try:
             filtered_queryset = variants_query_parser(queryset, search_terms)
             queryset = filtered_queryset.filter(legal=True)

@@ -261,9 +261,6 @@ keyword_map: dict[str, Callable[[QuerySet, list[QueryValue]], QuerySet]] = {
     'is': tag_search,
     'commander': commander_name_search,
     'sort': sort,
-    # TODO: Add support for more keywords:
-    # - include banned/spoiler
-    # - exclude banned/spoiler https://github.com/SpaceCowMedia/commander-spellbook-site/issues/162
 }
 
 

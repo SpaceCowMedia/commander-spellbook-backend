@@ -24,10 +24,7 @@ class SpellbookQueryFilter(filters.BaseFilterBackend):
         search_terms = self.get_search_terms(request)
 
         try:
-            filtered_queryset = variants_query_parser(queryset, search_terms)
-            queryset = filtered_queryset.filter(legal=True)
-            if not queryset.exists():
-                queryset = filtered_queryset
+            queryset = variants_query_parser(queryset, search_terms)
             return queryset
         except NotSupportedError:
             return queryset.none()

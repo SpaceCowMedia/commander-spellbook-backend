@@ -27,11 +27,19 @@ class PlainTextDeckListParser(parsers.BaseParser):
         encoding = parser_context.get('encoding', 'UTF-8')
         lines = stream.read().decode(encoding).splitlines()[:500]
         main_cards = set[Card]()
+        commanders = set[Card]()
+        current_set = main_cards
         for line in lines:
-            line = line.strip().lower()
-            if line and line in self.cards_dict:
-                main_cards.add(self.cards_dict[line])
-        return Deck(cards=main_cards, commanders=set())
+            line: str = line.strip().lower()
+            if not line:
+                continue
+            elif line.startswith('// Command'):
+                current_set = commanders
+            elif line.startswith('//'):
+                current_set = main_cards
+            elif line in self.cards_dict:
+                current_set.add(self.cards_dict[line])
+        return Deck(cards=main_cards, commanders=commanders)
 
 
 class JsonDeckListParser(parsers.JSONParser):

@@ -338,9 +338,7 @@ class FindMyCombosViewTests(AbstractModelTests):
                                 if 'json' in content_type:
                                     deck_list_str = json.dumps({'main': deck_list, 'commanders': commander_list})
                                 else:
-                                    deck_list = commander_list + deck_list
-                                    commander_list = [] # TODO: implement commander support for text/plain
-                                    deck_list_str = '\n'.join(deck_list)
+                                    deck_list_str = '\n'.join(['// Command'] + commander_list + ['// Main'] +  deck_list)
                                 identity = merge_identities([Card.objects.get(name=c).identity for c in deck_list + commander_list])
                                 response = c.generic('GET', '/find-my-combos', data=deck_list_str, follow=True, headers={'Content-Type': content_type})
                                 self.assertEqual(response.status_code, 200)

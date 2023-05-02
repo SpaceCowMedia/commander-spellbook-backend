@@ -177,7 +177,7 @@ def tag_search(q: QuerySet, values: list[QueryValue]) -> QuerySet:
             case 'risky' | 'allin':
                 tag_query &= Q(produces__name='Risky')
             case 'winning' | 'gamewinning':
-                tag_query &= Q(produces__name='Win the game')
+                tag_query &= Q(produces__name='Win the game') | Q(produces__name='Win the game at the beginning of your next upkeep')
             case _:
                 raise NotSupportedError(f'Value {value.value} is not supported for tag search.')
         if value.prefix == '-':

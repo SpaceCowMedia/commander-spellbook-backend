@@ -143,10 +143,12 @@ def find_combos() -> list[tuple[str, frozenset[str], frozenset[str], str, str, s
                 if re.search(r'(?:[^\w]|^)any zone(?:[^\w]|$)', position[0], re.IGNORECASE):
                     p_list = [''.join(choice[0] for choice in IngredientInCombination.ZoneLocation.choices)]
                 if re.search(r'(?:[^\w]|^)or(?:[^\w]|$)', position[0], re.IGNORECASE) or re.search(r'(?:[^\w]|^)with the other(?:[^\w]|$)', position[0], re.IGNORECASE):
-                    if len(p_list) > 1:
+                    if re.search(r'(?:[\w]|^)and/or(?:[^\w]|$)', position[0], re.IGNORECASE):
+                        continue
+                    elif len(p_list) > 1:
                         p_list = [''.join(p_list)]
                     elif not re.search(r'(?:[^\w]|^)instant or sorcery(?:[^\w]|$)', position[0], re.IGNORECASE):
-                        raise Exception(f'Found invalid "or" in {prerequisites}')
+                        raise Exception(f'Found invalid "or" in "{prerequisites}"')
                 if len(p_list) == 1:
                     if c in positions_dict:
                         raise Exception(f'Found duplicate positioning for {c} in {prerequisites}')

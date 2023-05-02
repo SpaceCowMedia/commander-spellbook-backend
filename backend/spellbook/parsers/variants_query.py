@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from spellbook.models import IngredientInCombination
 from .color_parser import parse_identity
 
+
 @dataclass
 class QueryValue:
     prefix: str

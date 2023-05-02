@@ -1,8 +1,9 @@
 from django.db import models
+from .validators import FIRST_CAPITAL_LETTER_VALIDATOR
 
 
 class Feature(models.Model):
-    name = models.CharField(max_length=255, unique=True, blank=False, help_text='Short name for a produced effect', verbose_name='name of feature')
+    name = models.CharField(max_length=255, unique=True, blank=False, help_text='Short name for a produced effect', verbose_name='name of feature', validators=[FIRST_CAPITAL_LETTER_VALIDATOR])
     description = models.TextField(blank=True, help_text='Long description of a produced effect', verbose_name='description of feature')
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, editable=False)

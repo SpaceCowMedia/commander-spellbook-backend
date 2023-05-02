@@ -1,13 +1,17 @@
 import re
 from django.db.models import Q, QuerySet, Count, Case, When, Value
 from django.db.models.functions import Length
-from collections import namedtuple, defaultdict
+from collections import defaultdict
 from typing import Callable
+from dataclasses import dataclass
 from spellbook.models import IngredientInCombination
 from .color_parser import parse_identity
 
-
-QueryValue = namedtuple('QueryValue', ['prefix', 'operator', 'value'])
+@dataclass
+class QueryValue:
+    prefix: str
+    operator: str
+    value: str
 
 
 def card_search(q: QuerySet, cards: list[QueryValue]) -> QuerySet:

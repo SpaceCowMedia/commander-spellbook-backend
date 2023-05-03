@@ -166,6 +166,11 @@ def find_combos() -> list[tuple[str, frozenset[str], frozenset[str], str, str, s
     return result
 
 
+def format_feature_name(feature: str) -> str:
+    feature = feature.strip()
+    return feature[0].upper() + feature[1:]
+
+
 class Command(BaseCommand):
     help = 'Tries to import combos from the google sheet'
 
@@ -318,7 +323,7 @@ class Command(BaseCommand):
                         cic.combo = combo
                     next_id += 1
                     produces_dict = {}
-                    for name in (p.strip().capitalize() for p in produced):
+                    for name in (format_feature_name(p) for p in produced):
                         if name in produces_dict:
                             continue
                         if name in existing_feature_names:

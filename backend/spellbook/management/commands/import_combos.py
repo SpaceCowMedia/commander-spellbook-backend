@@ -318,7 +318,7 @@ class Command(BaseCommand):
                         cic.combo = combo
                     next_id += 1
                     produces_dict = {}
-                    for name in (p.strip().title() for p in produced):
+                    for name in (p.strip().capitalize() for p in produced):
                         if name in produces_dict:
                             continue
                         if name in existing_feature_names:

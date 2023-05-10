@@ -1,9 +1,10 @@
 from collections import defaultdict
 from django.db.models import Q
 from rest_framework import parsers
-from rest_framework.decorators import api_view, parser_classes
+from rest_framework.decorators import api_view, parser_classes, permission_classes
 from rest_framework.response import Response
 from rest_framework.request import Request
+from rest_framework.permissions import AllowAny
 from spellbook.models import Card, Variant, CardInVariant
 from spellbook.variants.list_utils import merge_identities
 from spellbook.serializers import VariantSerializer
@@ -65,6 +66,7 @@ class JsonDeckListParser(parsers.JSONParser):
 
 @api_view(http_method_names=['GET', 'POST'])
 @parser_classes([JsonDeckListParser, PlainTextDeckListParser])
+@permission_classes([AllowAny])
 def find_my_combos(request: Request) -> Response:
     deck: Deck | dict = request.data
     if isinstance(deck, dict):

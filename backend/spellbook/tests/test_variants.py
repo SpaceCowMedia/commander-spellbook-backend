@@ -209,6 +209,7 @@ class VariantDataTests(AbstractModelTests):
             Variant.objects.all().count()
             self.assertEqual(debug_queries() - q, 1)
 
+
 class VariantSetTests(TestCase):
     def test_ingredients_to_key(self):
         self.assertEqual(VariantSet.key_to_ingredients(VariantSet.ingredients_to_key([1, 2, 3, 4], [])), ([1, 2, 3, 4], []))
@@ -216,7 +217,7 @@ class VariantSetTests(TestCase):
         self.assertEqual(VariantSet.key_to_ingredients(VariantSet.ingredients_to_key([], [1, 2, 3])), ([], [1, 2, 3]))
         self.assertEqual(VariantSet.key_to_ingredients(VariantSet.ingredients_to_key([], [])), ([], []))
         self.assertEqual(VariantSet.key_to_ingredients(VariantSet.ingredients_to_key([1], [1])), ([1], [1]))
-    
+
     def test_key_to_ingredients(self):
         self.assertEqual(VariantSet.ingredients_to_key(*VariantSet.key_to_ingredients(frozenset())), frozenset())
         self.assertEqual(VariantSet.ingredients_to_key(*VariantSet.key_to_ingredients(frozenset({'C1', 'C2', 'T1'}))), frozenset({'C1', 'C2', 'T1'}))
@@ -277,7 +278,7 @@ class VariantSetTests(TestCase):
         self.assertSetEqual(list_of_tuples_of_lists_to_set(variant_set3.variants()), list_of_tuples_of_lists_to_set([([1, 2, 3, 4], [1, 2, 3]), ([1, 2, 3, 4, 5], [1]), ([1, 2, 3], [1, 2, 3, 4])]))
         variant_set4 = variant_set2 | variant_set
         self.assertSetEqual(list_of_tuples_of_lists_to_set(variant_set3.variants()), list_of_tuples_of_lists_to_set(variant_set4.variants()))
-    
+
         variant_set2.add([2, 3], [2])
         variant_set3 = variant_set | variant_set2
         self.assertSetEqual(list_of_tuples_of_lists_to_set(variant_set3.variants()), list_of_tuples_of_lists_to_set([([2, 3], [2]), ([1, 2, 3, 4, 5], [1])]))

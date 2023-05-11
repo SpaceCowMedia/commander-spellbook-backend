@@ -1,6 +1,6 @@
-from itertools import combinations_with_replacement
 from django.test import TestCase
-from spellbook.models.validators import *
+from spellbook.models.validators import MANA_SYMBOL, MANA_REGEX, ORACLE_SYMBOL, DOUBLE_SQUARE_BRACKET_TEXT_REGEX, SYMBOLS_TEXT_REGEX, IDENTITY_REGEX, SCRYFALL_QUERY_REGEX
+
 
 class TestValidators(TestCase):
     def test_mana_symbol(self):
@@ -104,7 +104,6 @@ class TestValidators(TestCase):
         self.assertNotRegexpMatches('[[]]', DOUBLE_SQUARE_BRACKET_TEXT_REGEX)
         self.assertNotRegexpMatches('[[', DOUBLE_SQUARE_BRACKET_TEXT_REGEX)
 
-
     def test_oracle_symbol(self):
         regex = f'^{ORACLE_SYMBOL}$'
         self.assertRegexpMatches('T', regex)
@@ -142,7 +141,6 @@ class TestValidators(TestCase):
         self.assertNotRegexpMatches('WU/P', regex)
         self.assertNotRegexpMatches('J', regex)
 
-
     def test_symbols_text(self):
         self.assertRegexpMatches('{T}: Add {W}{U}{B}{R}{G}.', SYMBOLS_TEXT_REGEX)
         self.assertRegexpMatches('{T}', SYMBOLS_TEXT_REGEX)
@@ -174,7 +172,6 @@ class TestValidators(TestCase):
             self.assertRegexpMatches(identity, IDENTITY_REGEX)
             if len(identity) > 1:
                 self.assertNotRegexpMatches(identity[::-1], IDENTITY_REGEX)
-
 
     def test_scryfall_query(self):
         self.assertRegexpMatches('c:rg', SCRYFALL_QUERY_REGEX)

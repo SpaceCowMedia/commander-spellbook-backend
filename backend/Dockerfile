@@ -22,11 +22,6 @@ RUN pip install --upgrade pip
 COPY ./requirements.txt .
 RUN pip wheel --no-cache-dir --no-deps --wheel-dir /usr/src/app/wheels -r requirements.txt
 
-# lint
-RUN pip install flake8
-COPY . .
-RUN flake8 --ignore=E501,F401,E128,W601 .
-
 
 #########
 # FINAL #

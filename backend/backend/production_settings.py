@@ -69,6 +69,12 @@ REST_FRAMEWORK = {
     }
 }
 
+if TESTING:
+    REST_FRAMEWORK['DEFAULT_THROTTLE_RATES'] = {
+        "anon": "10000/minute",
+        "user": "10000/minute",
+    }
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,

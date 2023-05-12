@@ -21,102 +21,265 @@ jobs:
       SECRET_KEY: ci_build_secret
       DB_USER: ci_build_user
       DB_PASSWORD: ci_build_password
-    outputs:
-      version: ${{ steps.semver.outputs.version }}
-      should-release: ${{ steps.semver.outputs.should-release }}
-      is-prerelease: ${{ steps.semver.outputs.is-github-prerelease }}
+    # outputs:
+    #   version: ${{ steps.semver.outputs.version }}
+    #   should-release: ${{ steps.semver.outputs.should-release }}
+    #   is-prerelease: ${{ steps.semver.outputs.is-github-prerelease }}
     steps:
-      - id: semver
-        name: Checkout
-        uses: EasyDesk/action-semver-checkout@v1
-      - name: Install dependencies and print Django version
-        run: |
-          pip install -r requirements.txt
-          python manage.py version
-        working-directory: backend
-      - run: docker compose -f docker-compose.yml build --no-cache
-        working-directory: backend
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
+      - name: Checkout 🛎️
+        uses: actions/checkout@v3
+
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      -
+        name: Build and export
+        uses: docker/build-push-action@v4
         with:
-          python-version: '3.11'
-      - name: Install Linter
-        run: pip install flake8
-      - name: Lint
-        working-directory: backend
-        run: flake8 --ignore=E501,F401,E128,W601 .
+          push: false
+          load: true
+          context: ./backend
+          file: ./backend/Dockerfile
+          tags: spellbook-backend:latest
+          outputs: type=docker,dest=/tmp/spellbook-backend.tar
+      -
+        name: Upload web artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: spellbook-backend
+          path: /tmp/spellbook-backend.tar
+
+
   test:
-    strategy:
-      matrix:
-        python-version: ['3.11', '3.10']
-        os: [ubuntu-latest, windows-latest, macos-latest]
-      max-parallel: 2
-    runs-on: ${{ matrix.os }}
-    needs: build
+    runs-on: ubuntu-latest
     defaults:
       run:
         shell: bash
+    needs: build
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
+      - name: Checkout 🛎️
+        uses: actions/checkout@v3
+        
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Download web artifact
+        uses: actions/download-artifact@v3
         with:
-          python-version: ${{ matrix.python-version }}
-      - name: Install dependencies
-        run: pip install -r requirements.txt
+          name: spellbook-backend
+          path: /tmp
+
+      -
+        name: Load image
+        run: |
+          docker load --input /tmp/spellbook-backend.tar
+          docker image ls -a
+
+      - name: Docker Compose
+        run: docker-compose -f docker-compose.yml up -d --no-build
         working-directory: backend
+
       - name: Unit Test
-        run: python manage.py test --no-input --parallel auto
+        run: docker exec -i backend_web_1 python manage.py test --no-input --parallel auto
         working-directory: backend
-  release:
+
+
+  push-ecr-sha:
     runs-on: ubuntu-latest
-    needs: [test, build, lint]
-    if: needs.build.outputs.should-release == 'true'
-    concurrency: release
+    needs: test
+    environment: scm-production
     steps:
-      - name: Release
-        uses: EasyDesk/action-semver-release@v1
+      - name: Checkout 🛎️
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
         with:
-          version: ${{ needs.build.outputs.version }}
-          prerelease: ${{ needs.build.outputs.is-prerelease }}
-          prefix: CSB
-  deploy:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Download web artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: spellbook-backend
+          path: /tmp
+
+      -
+        name: Load image
+        run: |
+          docker load --input /tmp/spellbook-backend.tar
+          docker image ls -a
+
+      - name: Push image to Amazon ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ secrets.AWS_ECR_REPO_NAME }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker tag spellbook-backend:latest $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+  run-migration:
     runs-on: ubuntu-latest
-    needs: release
-    concurrency: deploy
-    environment: production
-    env:
-      SECRET_KEY: ${{ secrets.ENV_SECRET_KEY }}
-      DB_USER: ${{ secrets.ENV_DB_USER }}
-      DB_PASSWORD: ${{ secrets.ENV_DB_PASSWORD }}
-      AWS_S3_ACCESS_KEY_ID: ${{ secrets.ENV_AWS_S3_ACCESS_KEY_ID }}
-      AWS_S3_SECRET_ACCESS_KEY: ${{ secrets.ENV_AWS_S3_SECRET_ACCESS_KEY }}
-      AWS_S3_REGION: ${{ secrets.ENV_AWS_S3_REGION }}
-      AWS_S3_BUCKET: ${{ secrets.ENV_AWS_S3_BUCKET }}
-    defaults:
-      run:
-        working-directory: backend
+    needs: push-ecr-sha
+    environment: scm-production
     steps:
-      - uses: actions/checkout@v3
-      - name: Setup Docker context for production
+
+      - name: Checkout 🛎️
+        uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Config kube
+        working-directory: backend/.kubernetes/migration
+        run: aws eks --region us-east-2 update-kubeconfig --name spellbook-prod-cluster --kubeconfig spellbookkubeconfig.yaml
+
+      - name: Install and configure kubectl
         run: |
-          docker context create production --docker 'host=ssh://${{ secrets.USERNAME }}@${{ secrets.HOST }}'
-          docker context use production
-      - name: Setup ssh credentials for user
+          VERSION=$(curl --silent https://storage.googleapis.com/kubernetes-release/release/stable.txt)
+          curl https://storage.googleapis.com/kubernetes-release/release/$VERSION/bin/linux/amd64/kubectl \
+              --progress-bar \
+              --location \
+              --remote-name
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/
+
+      - name: Setup Kustomize
+        uses: imranismail/setup-kustomize@v2
+
+      - name: Run Kustomize to set image to sha
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ secrets.AWS_ECR_REPO_NAME }}
+          IMAGE_TAG: ${{ github.sha }}
+        working-directory: backend/.kubernetes/migration
         run: |
-          eval `ssh-agent -s`
-          echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> $GITHUB_ENV
-          echo "SSH_AGENT_PID=$SSH_AGENT_PID" >> $GITHUB_ENV
-          echo '${{ secrets.SSH_KEY }}' | tr -d '\r' | ssh-add - &> /dev/null
-      - name: Setup ssh credentials for server
+          image_name=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          kustomize edit set image $image_name
+
+
+      - name: Run migration
+        working-directory: backend/.kubernetes/migration
         run: |
-          mkdir -p "$HOME/.ssh"
-          echo '${{ secrets.HOST }} ${{ secrets.SSH_SERVER_CERT }}' >> "$HOME/.ssh/known_hosts"
-      - name: Build Docker images on remote host
-        run: docker --context production compose -f docker-compose.yml -f docker-compose.ssl.yml -f docker-compose.aws.yml build --no-cache
-      - name: Start Docker containers on remote host
-        run: docker --context production compose -f docker-compose.yml -f docker-compose.ssl.yml -f docker-compose.aws.yml up -d
-      - name: Check if containers are running
-        run: docker --context production ps
+          export KUBECONFIG=spellbookkubeconfig.yaml
+
+          kubectl delete job spellbook-migration -n spellbook || true
+
+          kubectl apply -k .
+
+          kubectl wait --for=condition=complete job/spellbook-migration -n spellbook &
+          completion_pid=$!
+
+          kubectl wait --for=condition=failed job/spellbook-migration -n spellbook && exit 1 &
+          failure_pid=$!
+
+          exit_code=0
+
+          if wait -n $completion_pid $failure_pid; then
+            echo "Job completed successfully"
+          else
+            echo "Job failed"
+            exit_code=1
+          fi
+
+          echo "Job logs:"
+          kubectl logs job/spellbook-migration -n spellbook
+
+          echo "Deleting job..."
+          kubectl delete job/spellbook-migration -n spellbook
+
+          exit $exit_code
+
+
+  push-ecr-latest:
+    runs-on: ubuntu-latest
+    needs: run-migration
+    environment: scm-production
+    steps:
+      - name: Checkout 🛎️
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Download web artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: spellbook-backend
+          path: /tmp
+
+      -
+        name: Load image
+        run: |
+          docker load --input /tmp/spellbook-backend.tar
+          docker image ls -a
+
+      - name: Push image to Amazon ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ secrets.AWS_ECR_REPO_NAME }}
+          IMAGE_TAG: latest
+        run: |
+          docker tag spellbook-backend:latest $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+      
+
+  rollout-pods:
+    runs-on: ubuntu-latest
+    needs: push-ecr-latest
+    environment: scm-production
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Config kube
+        run: aws eks --region us-east-2 update-kubeconfig --name spellbook-prod-cluster --kubeconfig spellbookkubeconfig.yaml
+
+      - name: Install and configure kubectl
+        run: |
+          VERSION=$(curl --silent https://storage.googleapis.com/kubernetes-release/release/stable.txt)
+          curl https://storage.googleapis.com/kubernetes-release/release/$VERSION/bin/linux/amd64/kubectl \
+              --progress-bar \
+              --location \
+              --remote-name
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/
+
+      - name: Rollout pods
+        run: |
+          export KUBECONFIG=spellbookkubeconfig.yaml
+          kubectl rollout restart deployment/spellbook-api -n spellbook

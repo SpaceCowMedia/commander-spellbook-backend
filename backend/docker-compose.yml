@@ -6,35 +6,38 @@ services:
       context: .
       target: demo
       args:
-        SECRET_KEY: ${SECRET_KEY:?}
+        SECRET_KEY: tmp_key
     image: spellbook-backend
-    expose:
-      - 8000
+    ports:
+      - 8000:80
     depends_on:
+      db:
+        condition: service_healthy
+    links:
       - db
     volumes:
       - static_volume:/home/app/web/staticfiles:rw
     environment:
       SQL_ENGINE: django.db.backends.postgresql
-      SQL_DATABASE: spellbook_db_prod
-      SQL_USER: ${DB_USER:?}
-      SQL_PASSWORD: ${DB_PASSWORD:?}
+      SQL_DATABASE: spellbook_db_test
+      SQL_USER: test_user
+      SQL_PASSWORD: test_password
       SQL_HOST: db
       SQL_PORT: 5432
       DATABASE: postgres
     restart: always
-  nginx:
-    build:
-      context: ./nginx
-      target: base
-    image: spellbook-nginx
-    ports:
-      - 80:80
-    depends_on:
-      - web
-    volumes:
-      - static_volume:/home/app/web/staticfiles:ro
-    restart: always
+  # nginx:
+  #   build:
+  #     context: ./nginx
+  #     target: base
+  #   image: spellbook-nginx
+  #   ports:
+  #     - 80:80
+  #   depends_on:
+  #     - web
+  #   volumes:
+  #     - static_volume:/home/app/web/staticfiles:ro
+  #   restart: always
   db:
     image: postgres:14-alpine
     volumes:
@@ -43,9 +46,14 @@ services:
       - 5432
     environment:
       PGPORT: 5432
-      POSTGRES_USER: ${DB_USER:?}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:?}
-      POSTGRES_DB: spellbook_db_prod
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_password
+      POSTGRES_DB: spellbook_db_test
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready", "-q", "-d", "spellbook_db_test", "-U", "test_user" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     restart: always
 volumes:
   static_volume:

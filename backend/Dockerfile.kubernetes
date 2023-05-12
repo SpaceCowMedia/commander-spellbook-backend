@@ -1,0 +1,32 @@
+# pull official base image
+FROM python:3.11.2-alpine as builder
+
+# set work directory
+WORKDIR /usr/src/app
+
+# set environment variables
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
+
+# install dependencies
+RUN apk --update add gcc python3-dev musl-dev postgresql-dev --no-cache
+RUN apk --update add libpq --no-cache
+
+# pip
+RUN pip install --upgrade pip
+
+# install dependencies
+COPY . /usr/src/app/
+RUN echo -e '\n\
+gunicorn\n\
+psycopg2\n' >> requirements.txt
+RUN pip install -r requirements.txt
+
+ARG SECRET_KEY
+ENV SECRET_KEY=${SECRET_KEY}
+ENV DJANGO_SETTINGS_MODULE=backend.production_settings
+
+EXPOSE 8000
+
+CMD gunicorn backend.wsgi:application --bind 0.0.0.0:8000 --workers=3
+

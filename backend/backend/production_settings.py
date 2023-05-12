@@ -20,7 +20,9 @@ mimetypes.add_type("text/css", ".css", True)
 
 TESTING = sys.argv[1:2] == ['test']
 
-SECRET_KEY = os.environ['SECRET_KEY']
+SECRET_KEY = os.environ['SECRET_KEY'] if not TESTING else "test"
+
+
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False

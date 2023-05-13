@@ -116,7 +116,7 @@ class ComboTests(AbstractModelTests):
             self.assertEqual(list(c.templates()), list(map(lambda x: x.template, tic)))
 
     def test_query_string(self):
-        c = Combo.objects.get(id=self.c1_id)
+        c = Combo.objects.get(id=self.b1_id)
         self.assertIn('%21%22B%22', c.query_string())
         self.assertIn('%21%22C%22', c.query_string())
         self.assertIn('+or+', c.query_string())

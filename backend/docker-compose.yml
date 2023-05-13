@@ -6,7 +6,7 @@ services:
       context: .
       target: demo
       args:
-        SECRET_KEY: tmp_key
+        SECRET_KEY: ${SECRET_KEY:-tmp_key}
     image: spellbook-backend
     ports:
       - 8000:80
@@ -26,18 +26,7 @@ services:
       SQL_PORT: 5432
       DATABASE: postgres
     restart: always
-  # nginx:
-  #   build:
-  #     context: ./nginx
-  #     target: base
-  #   image: spellbook-nginx
-  #   ports:
-  #     - 80:80
-  #   depends_on:
-  #     - web
-  #   volumes:
-  #     - static_volume:/home/app/web/staticfiles:ro
-  #   restart: always
+
   db:
     image: postgres:14-alpine
     volumes:

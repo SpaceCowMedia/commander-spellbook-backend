@@ -175,7 +175,7 @@ class ComboViewsTests(AbstractModelTests):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get('Content-Type'), 'application/json')
         result = json.loads(response.content, object_hook=json_to_python_lambda)
-        self.assertEqual(result.id, self.c1_id)
+        self.assertEqual(result.id, self.b1_id)
         self.combo_assertions(result)
 
 

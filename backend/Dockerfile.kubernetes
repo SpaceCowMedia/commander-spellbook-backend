@@ -5,8 +5,7 @@ FROM python:3.11.2-alpine as builder
 WORKDIR /usr/src/app
 
 # set environment variables
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 
 # install dependencies
 RUN apk --update add gcc python3-dev musl-dev postgresql-dev --no-cache

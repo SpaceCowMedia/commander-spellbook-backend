@@ -135,12 +135,20 @@ jobs:
     if: needs.build.outputs.should-release == 'true'
     concurrency: release
     steps:
+      - name: Download image artifact ⬇
+        uses: actions/download-artifact@v3
+        with:
+          name: spellbook-backend
+          path: release
       - name: Release 📧
         uses: EasyDesk/action-semver-release@v1
         with:
           version: ${{ needs.build.outputs.version }}
           prerelease: ${{ needs.build.outputs.is-prerelease }}
           prefix: CSB
+          files: |
+            release/*
+
 
 
   push-ecr-current-version:

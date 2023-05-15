@@ -143,4 +143,5 @@ temp/
 *.crt
 *.key
 
+# Kubernetes secret file
 kubesecret.yaml

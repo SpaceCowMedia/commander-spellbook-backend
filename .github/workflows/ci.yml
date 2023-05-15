@@ -143,7 +143,7 @@ jobs:
           prefix: CSB
 
 
-  delivery-production:
+  push-ecr-current-version:
     runs-on: ubuntu-latest
     needs: [build, release]
     concurrency: production
@@ -186,7 +186,7 @@ jobs:
 
   run-migrations:
     runs-on: ubuntu-latest
-    needs: delivery-production
+    needs: push-ecr-current-version
     environment: scm-production
     steps:
 

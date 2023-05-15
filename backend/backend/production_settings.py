@@ -14,11 +14,10 @@ SECRET_KEY = os.environ['SECRET_KEY'] if not TESTING else "test"
 DEBUG = False
 
 # Security settings
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ['.commanderspellbook.com']
 CSRF_TRUSTED_ORIGINS = [
     'https://commanderspellbook.com',
     'http://localhost',
-    'https://backend.commanderspellbook.com',
 ]
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 

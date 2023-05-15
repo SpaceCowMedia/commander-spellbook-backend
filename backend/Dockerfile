@@ -87,7 +87,7 @@ gunicorn backend.wsgi:application --bind 0.0.0.0:8000\n' > entrypoint.prod.sh
 
 FROM base AS production
 
-ADD nginx/production.conf /etc/nginx/nginx.conf
+ADD ./nginx/production.conf /etc/nginx/nginx.conf
 
 RUN echo -e 'python manage.py collectstatic --no-input --clear\n\
 sleep 3\n\

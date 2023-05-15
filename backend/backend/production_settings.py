@@ -1,5 +1,5 @@
 import os
-from .settings import * # noqa: F403
+from .settings import *  # noqa: F403
 from .settings import BASE_DIR, REST_FRAMEWORK
 import sys
 import mimetypes

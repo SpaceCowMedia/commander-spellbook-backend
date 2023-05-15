@@ -18,7 +18,7 @@ RUN apk --update add gcc python3-dev musl-dev postgresql-dev --no-cache
 RUN pip install --upgrade pip
 
 # install dependencies
-COPY ./requirements.txt .
+COPY requirements.txt .
 RUN pip wheel --no-cache-dir --no-deps --wheel-dir /usr/src/app/wheels -r requirements.txt
 
 
@@ -87,7 +87,7 @@ gunicorn backend.wsgi:application --bind 0.0.0.0:8000\n' > entrypoint.prod.sh
 
 FROM base AS production
 
-ADD ./nginx/production.conf /etc/nginx/nginx.conf
+ADD nginx/production.conf /etc/nginx/nginx.conf
 
 RUN echo -e 'python manage.py collectstatic --no-input --clear\n\
 sleep 3\n\

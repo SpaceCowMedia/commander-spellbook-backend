@@ -1,6 +1,17 @@
 version: '3.8'
 
 services:
+  nginx:
+    image: nginx:1.23-alpine
+    ports:
+      - 80:80
+    depends_on:
+      - web
+    volumes:
+      - static_volume:/home/app/web/staticfiles:ro
+      - ./nginx/demo.conf:/etc/nginx/templates/default.conf.template
+    restart: always
+
   web:
     build:
       context: .
@@ -8,8 +19,8 @@ services:
       args:
         SECRET_KEY: ${SECRET_KEY:-tmp_key}
     image: spellbook-backend
-    ports:
-      - 8000:80
+    expose:
+      - 8000
     depends_on:
       db:
         condition: service_healthy
@@ -39,11 +50,12 @@ services:
       POSTGRES_PASSWORD: test_password
       POSTGRES_DB: spellbook_db_test
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready", "-q", "-d", "spellbook_db_test", "-U", "test_user" ]
+      test: ["CMD-SHELL", "pg_isready -q -d spellbook_db_test -U test_user" ]
       interval: 5s
       timeout: 5s
       retries: 5
     restart: always
+
 volumes:
   static_volume:
   postgres_data:

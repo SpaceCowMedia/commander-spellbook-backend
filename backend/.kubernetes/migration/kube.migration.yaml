@@ -10,7 +10,7 @@ spec:
       - name: spellbook-migration
         image: 083767677168.dkr.ecr.us-east-2.amazonaws.com/spellbook-prod-ecr
         command: ["/bin/sh","-c"]
-        args: ["python manage.py migrate"]
+        args: ["python manage.py migrate; python manage.py seed_website_properties; python manage.py clean_jobs;"]
         env:
           - name: SECRET_KEY
             valueFrom:

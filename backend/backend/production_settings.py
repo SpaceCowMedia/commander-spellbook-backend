@@ -12,7 +12,7 @@ DEBUG = False
 
 # Security settings
 ALLOWED_HOSTS = [
-    '.commanderspellbook.com', 
+    '.commanderspellbook.com',
     'localhost'
 ]
 CSRF_TRUSTED_ORIGINS = [

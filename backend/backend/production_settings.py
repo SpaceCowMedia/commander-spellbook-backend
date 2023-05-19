@@ -2,9 +2,6 @@ import os
 from .settings import *  # noqa: F403
 from .settings import BASE_DIR, REST_FRAMEWORK
 import sys
-import mimetypes
-
-mimetypes.add_type("text/css", ".css", True)
 
 TESTING = sys.argv[1:2] == ['test']
 
@@ -14,7 +11,7 @@ SECRET_KEY = os.environ['SECRET_KEY'] if not TESTING else "test"
 DEBUG = False
 
 # Security settings
-ALLOWED_HOSTS = ['.commanderspellbook.com']
+ALLOWED_HOSTS = ['.commanderspellbook.com', 'localhost']
 CSRF_TRUSTED_ORIGINS = [
     'https://commanderspellbook.com',
     'http://localhost',

@@ -50,8 +50,8 @@ RUN pip install --no-cache psycopg[binary] gunicorn
 # copy project
 COPY --chown=app:app . $APP_HOME
 
-# # change to the app user
-# USER app
+# change to the app user
+USER app
 
 ARG SECRET_KEY
 ENV SECRET_KEY=${SECRET_KEY}
@@ -63,7 +63,7 @@ ENV DJANGO_SETTINGS_MODULE=backend.production_settings
 # run entrypoint.prod.sh
 EXPOSE 80
 ENTRYPOINT ["/bin/sh", "entrypoint.prod.sh"]
-RUN echo -e 'gunicorn backend.wsgi:application --bind 0.0.0.0:8000 --workers=3\n' > entrypoint.prod.sh
+RUN echo -e 'gunicorn backend.wsgi:application --bind 0.0.0.0:8000\n' > entrypoint.prod.sh
 
 
 #########
@@ -89,11 +89,9 @@ FROM base AS production
 
 ADD nginx/production.conf /etc/nginx/nginx.conf
 
+# Switch to user root in order to run nginx on port 80
+USER root
+
 RUN echo -e 'python manage.py collectstatic --no-input --clear\n\
-sleep 3\n\
 nginx\n\
-python manage.py migrate --noinput\n\
-python manage.py clean_jobs\n\
-python manage.py export_variants\n\
-python manage.py seed_website_properties\n\
-gunicorn backend.wsgi:application --bind 0.0.0.0:8000\n' > entrypoint.prod.sh
+gunicorn backend.wsgi:application --bind 0.0.0.0:8000 --workers=3\n' > entrypoint.prod.sh

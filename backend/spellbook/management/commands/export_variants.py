@@ -60,7 +60,7 @@ class Command(BaseCommand):
                     json.dump(result, f)
                     json.dump(result, fz)
                 self.stdout.write('Done')
-            
+
             if options['s3']:
                 self.stdout.write('Uploading to S3...')
                 from utils.s3_upload import upload_dictionary_aws

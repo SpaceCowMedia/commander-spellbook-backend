@@ -198,12 +198,8 @@ jobs:
         with:
           name: spellbook-backend-migrations
           path: /tmp/migrations
-      - name: Debug step # TODO: delete
-        run: |
-          echo ${{ steps.migration-artifacts.outputs.download-path }}
-          ls /tmp/migrations
       - name: Configure kubernetes 🐙
-        working-directory: /tmp/migrations
+        working-directory: ${{ steps.migration-artifacts.outputs.download-path }}
         run: aws eks --region ${{ secrets.AWS_REGION }} update-kubeconfig --name spellbook-prod-cluster --kubeconfig spellbookkubeconfig.yaml
       - name: Install and configure kubectl 🐙
         uses: azure/setup-kubectl@v3
@@ -214,11 +210,11 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: ${{ secrets.AWS_ECR_REPO_NAME }}
           IMAGE_TAG: ${{ needs.build.outputs.version }}
-        working-directory: /tmp/migrations
+        working-directory: ${{ steps.migration-artifacts.outputs.download-path }}
         run: |
           kustomize edit set image $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
       - name: Run migrations 🚶‍♂️
-        working-directory: /tmp/migrations
+        working-directory: ${{ steps.migration-artifacts.outputs.download-path }}
         run: |
           export KUBECONFIG=spellbookkubeconfig.yaml
           kubectl delete job spellbook-migration -n spellbook || true
@@ -248,6 +244,7 @@ jobs:
           docker tag spellbook-backend:latest $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
       - name: Rollout pods 🚀
+        working-directory: ${{ steps.migration-artifacts.outputs.download-path }}
         run: |
           export KUBECONFIG=spellbookkubeconfig.yaml
           kubectl rollout restart deployment/spellbook-api -n spellbook

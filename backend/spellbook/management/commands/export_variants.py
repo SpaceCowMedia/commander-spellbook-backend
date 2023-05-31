@@ -9,6 +9,10 @@ from django.contrib.contenttypes.models import ContentType
 from django.conf import settings
 from spellbook.models import Variant, Job
 from spellbook.serializers import VariantSerializer
+from ..s3_upload import upload_json_to_aws
+
+
+DEFAULT_VARIANTS_FILE_NAME = 'variants.json'
 
 
 def prepare_variant(variant: Variant):
@@ -24,7 +28,7 @@ class Command(BaseCommand):
             '--file',
             type=Path,
             dest='file',
-            default=settings.STATIC_BULK_FOLDER / 'variants.json'
+            default=settings.STATIC_BULK_FOLDER / DEFAULT_VARIANTS_FILE_NAME
         )
         parser.add_argument(
             '--id',
@@ -46,13 +50,19 @@ class Command(BaseCommand):
                 raise CommandError('Job with id %s does not exist' % options['job_id'])
         try:
             self.stdout.write('Fetching variants from db...')
+            variants_source = Variant.objects \
+                .filter(status=Variant.Status.OK) \
+                .prefetch_related('uses', 'requires', 'produces', 'of', 'includes')
             result = {
                 'timestamp': timezone.now().isoformat(),
-                'variants': [prepare_variant(v) for v in Variant.objects.prefetch_related('uses', 'requires', 'produces', 'of', 'includes').filter(status=Variant.Status.OK)],
+                'variants': [prepare_variant(v) for v in variants_source],
             }
 
-            if options['file'] is not None:
-
+            if options['s3']:
+                self.stdout.write('Uploading to S3...')
+                upload_json_to_aws(result, DEFAULT_VARIANTS_FILE_NAME)
+                self.stdout.write('Done')
+            elif options['file'] is not None:
                 output: Path = options['file'].resolve()
                 self.stdout.write(f'Exporting variants to {output}...')
                 output.parent.mkdir(parents=True, exist_ok=True)
@@ -60,12 +70,8 @@ class Command(BaseCommand):
                     json.dump(result, f)
                     json.dump(result, fz)
                 self.stdout.write('Done')
-
-            if options['s3']:
-                self.stdout.write('Uploading to S3...')
-                from utils.s3_upload import upload_dictionary_aws
-                upload_dictionary_aws(result, 'variants.json')
-                self.stdout.write('Done')
+            else:
+                raise Exception('No file specified')
 
             if job is not None:
                 job.termination = timezone.now()

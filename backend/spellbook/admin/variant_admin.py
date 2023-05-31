@@ -119,21 +119,24 @@ class VariantAdmin(admin.ModelAdmin):
 
     @admin.display(description='produces')
     def produces_link(self, obj):
-        features = obj.produces.all()
-        html = '<a href="{}">{}</a>'
-        return format_html(html, reverse('admin:spellbook_feature_changelist') + '?produced_by_variants__id=' + str(obj.id), '; '.join([str(feature) for feature in features]))
+        features = list(obj.produces.all())
+        format_for_each = '{}<br>'
+        html = f'<a href="{{}}">{format_for_each * len(features)}</a>'
+        return format_html(html, reverse('admin:spellbook_feature_changelist') + '?produced_by_variants__id=' + str(obj.id), *features)
 
     @admin.display(description='of')
     def of_link(self, obj):
-        combos = obj.of.all()
-        html = '<a href="{}">{}</a>'
-        return format_html(html, reverse('admin:spellbook_combo_changelist') + '?variants__id=' + str(obj.id), '; '.join([str(combo) for combo in combos]))
+        combos = list(obj.of.all())
+        format_for_each = '{}<br>'
+        html = f'<a href="{{}}">{format_for_each * len(combos)}</a>'
+        return format_html(html, reverse('admin:spellbook_combo_changelist') + '?variants__id=' + str(obj.id), *combos)
 
     @admin.display(description='includes')
     def includes_link(self, obj):
-        combos = obj.includes.all()
-        html = '<a href="{}">{}</a>'
-        return format_html(html, reverse('admin:spellbook_combo_changelist') + '?included_in_variants__id=' + str(obj.id), '; '.join([str(combo) for combo in combos]))
+        combos = list(obj.includes.all())
+        format_for_each = '{}<br>'
+        html = f'<a href="{{}}">{format_for_each * len(combos)}</a>'
+        return format_html(html, reverse('admin:spellbook_combo_changelist') + '?included_in_variants__id=' + str(obj.id), *combos)
 
     def get_inlines(self, request, obj: Variant):
         inlines = []
@@ -150,7 +153,7 @@ class VariantAdmin(admin.ModelAdmin):
 
     def generate(self, request: HttpRequest):
         if request.method == 'POST' and request.user.is_authenticated:
-            if (launch_job_command('generate_variants', request.user)):
+            if launch_job_command('generate_variants', request.user):
                 messages.info(request, 'Variant generation job started.')
             else:
                 messages.warning(request, 'Variant generation is already running.')
@@ -158,7 +161,9 @@ class VariantAdmin(admin.ModelAdmin):
 
     def export(self, request: HttpRequest):
         if request.method == 'POST' and request.user.is_authenticated:
-            if (launch_job_command('export_variants', request.user)):
+            from ..management.s3_upload import can_upload_to_s3
+            args = ['--s3'] if can_upload_to_s3() else []
+            if launch_job_command('export_variants', request.user, args):
                 messages.info(request, 'Variant exporting job started.')
             else:
                 messages.warning(request, 'Variant exporting is already running.')

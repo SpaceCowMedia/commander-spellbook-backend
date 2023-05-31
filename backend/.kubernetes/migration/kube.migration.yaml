@@ -47,5 +47,20 @@ spec:
               secretKeyRef:
                 name: api-secrets
                 key: db-port
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: api-secrets
+                key: aws-access-key-id
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: api-secrets
+                key: aws-secret-access-key
+          - name: AWS_S3_BUCKET
+            valueFrom:
+              secretKeyRef:
+                name: api-secrets
+                key: aws-s3-bucket
       restartPolicy: Never
   backoffLimit: 0

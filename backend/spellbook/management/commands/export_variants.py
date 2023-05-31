@@ -31,6 +31,11 @@ class Command(BaseCommand):
             type=int,
             dest='job_id',
         )
+        parser.add_argument(
+            '--s3',
+            action='store_true',
+            dest='s3',
+        )
 
     def handle(self, *args, **options):
         job = None
@@ -40,20 +45,28 @@ class Command(BaseCommand):
             except Job.DoesNotExist:
                 raise CommandError('Job with id %s does not exist' % options['job_id'])
         try:
-            if options['file'] is None:
-                raise Exception('No file specified')
-            output: Path = options['file'].resolve()
             self.stdout.write('Fetching variants from db...')
             result = {
                 'timestamp': timezone.now().isoformat(),
                 'variants': [prepare_variant(v) for v in Variant.objects.prefetch_related('uses', 'requires', 'produces', 'of', 'includes').filter(status=Variant.Status.OK)],
             }
-            self.stdout.write(f'Exporting variants to {output}...')
-            output.parent.mkdir(parents=True, exist_ok=True)
-            with output.open('w', encoding='utf8') as f, gzip.open(str(output) + '.gz', mode='wt', encoding='utf8') as fz:
-                json.dump(result, f)
-                json.dump(result, fz)
-            self.stdout.write('Done')
+
+            if options['file'] is not None:
+
+                output: Path = options['file'].resolve()
+                self.stdout.write(f'Exporting variants to {output}...')
+                output.parent.mkdir(parents=True, exist_ok=True)
+                with output.open('w', encoding='utf8') as f, gzip.open(str(output) + '.gz', mode='wt', encoding='utf8') as fz:
+                    json.dump(result, f)
+                    json.dump(result, fz)
+                self.stdout.write('Done')
+            
+            if options['s3']:
+                self.stdout.write('Uploading to S3...')
+                from utils.s3_upload import upload_dictionary_aws
+                upload_dictionary_aws(result, 'variants.json')
+                self.stdout.write('Done')
+
             if job is not None:
                 job.termination = timezone.now()
                 job.status = Job.Status.SUCCESS

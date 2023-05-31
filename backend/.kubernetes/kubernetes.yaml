@@ -30,13 +30,20 @@ spec:
             httpGet:
               path: /
               port: 80
+              httpHeaders:
+              - name: Host
+                value: commanderspellbook.com
             initialDelaySeconds: 30
             periodSeconds: 10
             timeoutSeconds: 5
+            
           livenessProbe:
             httpGet:
               path: /
               port: 80
+              httpHeaders:
+              - name: Host
+                value: commanderspellbook.com
             initialDelaySeconds: 40
             periodSeconds: 20
             timeoutSeconds: 5

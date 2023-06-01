@@ -1,33 +1,20 @@
 version: '3.8'
 
 services:
-  nginx:
-    image: nginx:1.23-alpine
-    ports:
-      - 80:80
-    depends_on:
-      - web
-    volumes:
-      - static_volume:/home/app/web/staticfiles:ro
-      - ./nginx/demo.conf:/etc/nginx/templates/default.conf.template
-    restart: always
-
   web:
     build:
       context: .
-      target: demo
+      target: production
       args:
         SECRET_KEY: ${SECRET_KEY:-tmp_key}
     image: spellbook-backend
-    expose:
-      - 8000
+    ports:
+      - 80:80
     depends_on:
       db:
         condition: service_healthy
     links:
       - db
-    volumes:
-      - static_volume:/home/app/web/staticfiles:rw
     environment:
       SQL_ENGINE: django.db.backends.postgresql
       SQL_DATABASE: spellbook_db_test
@@ -57,5 +44,4 @@ services:
     restart: always
 
 volumes:
-  static_volume:
   postgres_data:

@@ -1,0 +1,66 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: spellbook-migration
+  namespace: spellbook
+spec:
+  template:
+    spec:
+      containers:
+      - name: spellbook-migration
+        image: 083767677168.dkr.ecr.us-east-2.amazonaws.com/spellbook-prod-ecr
+        command: ["/bin/sh","-c"]
+        args: ["python manage.py migrate --noinput; python manage.py seed_website_properties; python manage.py clean_jobs;"]
+        env:
+          - name: SECRET_KEY
+            valueFrom:
+              secretKeyRef:
+                name: api-secrets
+                key: django-secret
+          - name: KUBE_SQL_ENGINE
+            valueFrom:
+              secretKeyRef:
+                name: api-secrets
+                key: db-engine
+          - name: KUBE_SQL_DATABASE
+            valueFrom:
+              secretKeyRef:
+                name: api-secrets
+                key: db-name
+          - name: KUBE_SQL_USER
+            valueFrom:
+              secretKeyRef:
+                name: api-secrets
+                key: db-user
+          - name: KUBE_SQL_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: api-secrets
+                key: db-password
+          - name: KUBE_SQL_HOST
+            valueFrom:
+              secretKeyRef:
+                name: api-secrets
+                key: db-host
+          - name: KUBE_SQL_PORT
+            valueFrom:
+              secretKeyRef:
+                name: api-secrets
+                key: db-port
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: api-secrets
+                key: aws-access-key-id
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: api-secrets
+                key: aws-secret-access-key
+          - name: AWS_S3_BUCKET
+            valueFrom:
+              secretKeyRef:
+                name: api-secrets
+                key: aws-s3-bucket
+      restartPolicy: Never
+  backoffLimit: 0

@@ -1,0 +1,71 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: spellbook-update
+  namespace: spellbook
+spec:
+  schedule: '0 0 * * *'
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: updater-image
+              image: 083767677168.dkr.ecr.us-east-2.amazonaws.com/spellbook-prod-ecr
+              imagePullPolicy: IfNotPresent
+              command:
+                - /bin/sh
+                - -c
+                - python manage.py update_cards; python manage.py import_combos; python manage.py export_variants --s3;
+              env:
+                - name: SECRET_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: api-secrets
+                      key: django-secret
+                - name: KUBE_SQL_ENGINE
+                  valueFrom:
+                    secretKeyRef:
+                      name: api-secrets
+                      key: db-engine
+                - name: KUBE_SQL_DATABASE
+                  valueFrom:
+                    secretKeyRef:
+                      name: api-secrets
+                      key: db-name
+                - name: KUBE_SQL_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: api-secrets
+                      key: db-user
+                - name: KUBE_SQL_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: api-secrets
+                      key: db-password
+                - name: KUBE_SQL_HOST
+                  valueFrom:
+                    secretKeyRef:
+                      name: api-secrets
+                      key: db-host
+                - name: KUBE_SQL_PORT
+                  valueFrom:
+                    secretKeyRef:
+                      name: api-secrets
+                      key: db-port
+                - name: AWS_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: api-secrets
+                      key: aws-access-key-id
+                - name: AWS_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: api-secrets
+                      key: aws-secret-access-key
+                - name: AWS_S3_BUCKET
+                  valueFrom:
+                    secretKeyRef:
+                      name: api-secrets
+                      key: aws-s3-bucket
+          restartPolicy: OnFailure

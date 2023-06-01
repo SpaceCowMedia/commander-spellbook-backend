@@ -2,10 +2,9 @@
 **/*.sqlite3
 docker-*.yml
 Dockerfile
+Dockerfile.*
 **/*.md
-nginx/
 __pycache__
 ./temp
 *_data.json
-**/test*.py
 backend/debug_settings.py

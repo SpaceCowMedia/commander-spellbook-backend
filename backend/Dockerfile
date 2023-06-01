@@ -53,8 +53,9 @@ COPY --chown=app:app . $APP_HOME
 # change to the app user
 USER app
 
-ARG SECRET_KEY
-ENV SECRET_KEY=${SECRET_KEY}
+# Set environment variables
+ARG VERSION=0.0.0
+ENV VERSION=${VERSION}
 ENV DJANGO_SETTINGS_MODULE=backend.production_settings
 
 # RUN python manage.py collectstatic --no-input --clear

@@ -6,7 +6,7 @@ services:
       context: .
       target: production
       args:
-        SECRET_KEY: ${SECRET_KEY:-tmp_key}
+        VERSION: production
     image: spellbook-backend
     ports:
       - 80:80
@@ -23,6 +23,7 @@ services:
       SQL_HOST: db
       SQL_PORT: 5432
       DATABASE: postgres
+      SECRET_KEY: demo-secret-key
     restart: always
 
   db:

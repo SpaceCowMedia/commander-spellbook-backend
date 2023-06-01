@@ -17,7 +17,7 @@ services:
       context: .
       target: demo
       args:
-        SECRET_KEY: ${SECRET_KEY:-tmp_key}
+        VERSION: demo
     image: spellbook-backend
     expose:
       - 8000
@@ -36,6 +36,7 @@ services:
       SQL_HOST: db
       SQL_PORT: 5432
       DATABASE: postgres
+      SECRET_KEY: demo-secret-key
     restart: always
 
   db:

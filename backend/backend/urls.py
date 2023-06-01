@@ -15,6 +15,11 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.conf import settings
+
+admin.site.site_header = f'Spellbook Admin Panel {settings.VERSION}'
+admin.site.site_title = f'Spellbook Admin {settings.VERSION}'
+admin.site.index_title = 'Spellbook Admin Index'
 
 # Wire up our API using automatic URL routing.
 # Additionally, we include login URLs for the browsable API.

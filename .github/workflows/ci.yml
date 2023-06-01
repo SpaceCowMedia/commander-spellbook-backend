@@ -20,7 +20,7 @@ jobs:
     env:
       SECRET_KEY: ci_build_secret_key
     outputs:
-      version: ${{ steps.semver.outputs.version-without-v }}
+      version: ${{ steps.semver.outputs.version }}
       should-release: ${{ steps.semver.outputs.should-release }}
       is-prerelease: ${{ steps.semver.outputs.is-github-prerelease }}
     steps:
@@ -50,7 +50,7 @@ jobs:
           context: backend
           tags: spellbook-backend:latest
           target: production
-          build-args: VERSION=${{ steps.semver.outputs.version-without-v }}
+          build-args: VERSION=${{ steps.semver.outputs.version }}
           outputs: type=docker,dest=/tmp/spellbook-backend.tar
       - name: Upload image artifact 📦
         uses: actions/upload-artifact@v3

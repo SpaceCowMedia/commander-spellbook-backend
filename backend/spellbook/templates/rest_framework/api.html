@@ -2,6 +2,8 @@
 
 {% load static %}
 
+{% block title %}{% if name %}{{ name }} – {% endif %}Commander Spellbook {{ spellbook_version }}{% endblock %}
+
 {% block style %}
     {{ block.super }}
     <link rel="icon" type="image/x-icon" href="{% static 'spellbook/favicon.ico' %}">

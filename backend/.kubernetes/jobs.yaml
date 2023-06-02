@@ -16,7 +16,7 @@ spec:
               command:
                 - /bin/sh
                 - -c
-                - python manage.py update_cards; python manage.py import_combos; python manage.py export_variants --s3;
+                - python manage.py update_cards; python manage.py import_combos --s3; python manage.py export_variants --s3;
               env:
                 - name: SECRET_KEY
                   valueFrom:

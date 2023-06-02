@@ -364,6 +364,7 @@ class Command(BaseCommand):
             self.log_job(job, 'Saving variant id map...done')
 
             if options['s3']:
+                self.log_job(job, 'Uploading variant map...')
                 upload_json_to_aws(variant_id_map, 'variant_id_map.json')
                 self.log_job(job, 'Uploading variant map...done')
 

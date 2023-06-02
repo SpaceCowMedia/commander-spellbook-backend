@@ -10,7 +10,7 @@ from django.conf import settings
 from spellbook.models import Variant, Job
 from spellbook.serializers import VariantSerializer
 from ..s3_upload import upload_json_to_aws
-
+import humps
 
 DEFAULT_VARIANTS_FILE_NAME = 'variants.json'
 
@@ -57,6 +57,8 @@ class Command(BaseCommand):
                 'timestamp': timezone.now().isoformat(),
                 'variants': [prepare_variant(v) for v in variants_source],
             }
+
+            result = humps.camelize(result)
 
             if options['s3']:
                 self.stdout.write('Uploading to S3...')

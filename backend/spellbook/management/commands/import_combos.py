@@ -14,6 +14,7 @@ from spellbook.variants.variants_generator import id_from_cards_and_templates_id
 from spellbook.models import Feature, Card, Job, Combo, CardInCombo, Variant, IngredientInCombination
 from spellbook.models.validators import MANA_SYMBOL
 from ..scryfall import scryfall, update_cards
+from spellbook.management.s3_upload import upload_json_to_aws
 
 
 @dataclass(frozen=True)
@@ -173,6 +174,13 @@ def format_feature_name(feature: str) -> str:
 
 class Command(BaseCommand):
     help = 'Tries to import combos from the google sheet'
+
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '--s3',
+            action='store_true',
+            dest='s3',
+        )
 
     def log_job(self, job, message, style=lambda x: x):
         self.stdout.write(style(message))
@@ -354,6 +362,11 @@ class Command(BaseCommand):
                 json.dump(variant_id_map, f)
                 json.dump(variant_id_map, fz)
             self.log_job(job, 'Saving variant id map...done')
+
+            if options['s3']:
+                upload_json_to_aws(variant_id_map, 'variant_id_map.json')
+                self.log_job(job, 'Uploading variant map...done')
+
             self.log_job(job, 'Generating variants...')
             added, restored, deleted = generate_variants(job)
             self.log_job(job, f'Generating variants...done. Added {added} variants, restored {restored} variants, deleted {deleted} variants.')

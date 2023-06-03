@@ -77,7 +77,7 @@ class Variant(models.Model, ScryfallLinkMixin):
             return f'New variant with unique id <{self.id}>'
         produces = list(self.produces.all()[:4])
         return ' + '.join([str(card) for card in self.cards()] + [str(template) for template in self.templates()]) \
-            + ' ➡ ' + ' + '.join([str(feature) for feature in produces[:3]]) \
+            + ' 🡆 ' + ' + '.join([str(feature) for feature in produces[:3]]) \
             + ('...' if len(produces) > 3 else '')
 
 

@@ -119,7 +119,7 @@ class ComboAdmin(SearchMultipleRelatedMixin, admin.ModelAdmin):
 
     def display_name(self, obj):
         return ' + '.join([card.name for card in obj.prefetched_uses] + [feature.name for feature in obj.prefetched_needs] + [template.name for template in obj.prefetched_requires]) \
-            + ' ➡ ' + ' + '.join([feature.name for feature in obj.prefetched_produces[:3]]) \
+            + ' 🡆 ' + ' + '.join([feature.name for feature in obj.prefetched_produces[:3]]) \
             + ('...' if len(obj.prefetched_produces) > 3 else '')
 
     def save_related(self, request, form, formsets, change):

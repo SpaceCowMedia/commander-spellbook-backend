@@ -61,7 +61,7 @@ class Combo(models.Model, ScryfallLinkMixin):
         if self.pk is None:
             return 'New, unsaved combo'
         return self.ingredients() \
-            + ' ➡ ' + ' + '.join([str(feature) for feature in self.produces.all()]) \
+            + ' 🡆 ' + ' + '.join([str(feature) for feature in self.produces.all()]) \
             + (' - ' + ' - '.join([str(feature) for feature in self.removes.all()]) if self.removes.exists() else '')
 
     def ingredients(self):

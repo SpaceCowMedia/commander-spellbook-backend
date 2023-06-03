@@ -85,8 +85,8 @@ class PayoffFilter(admin.SimpleListFilter):
 
 
 class VariantRelatedFilter(admin.SimpleListFilter):
-    title = 'is unused by variants'
-    parameter_name = 'unused'
+    title = 'how is used by variants'
+    parameter_name = 'in_variants'
 
     def lookups(self, request, model_admin):
         return [('unused', 'Unused'), ('overlapping', 'Overlapping')]

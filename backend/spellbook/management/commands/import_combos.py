@@ -10,6 +10,7 @@ from django.utils import timezone
 from django.conf import settings
 from django.db import transaction
 from django.db.models import Max, Count
+from djangorestframework_camel_case.util import camelize
 from spellbook.variants.variants_generator import id_from_cards_and_templates_ids, generate_variants
 from spellbook.models import Feature, Card, Job, Combo, CardInCombo, Variant, IngredientInCombination
 from spellbook.models.validators import MANA_SYMBOL
@@ -371,9 +372,10 @@ class Command(BaseCommand):
                 ProducesTable.objects.bulk_create(ProducesTable(combo=item.combo, feature=f) for item in bulk_combo_dict.values() for f in item.produces)
                 self.log_job(job, 'Saving combos...done')
 
+            camelized_json = camelize(variant_id_map)
             if options['s3']:
                 self.log_job(job, 'Uploading variant id map...')
-                upload_json_to_aws(variant_id_map, 'variant_id_map.json')
+                upload_json_to_aws(camelized_json, 'variant_id_map.json')
                 self.log_job(job, 'Uploading variant id map...done')
             else:
                 self.log_job(job, 'Saving variant id map...')
@@ -381,8 +383,8 @@ class Command(BaseCommand):
                 output = variant_id_map_file.resolve()
                 output.parent.mkdir(parents=True, exist_ok=True)
                 with output.open('w', encoding='utf8') as f, gzip.open(str(output) + '.gz', mode='wt', encoding='utf8') as fz:
-                    json.dump(variant_id_map, f)
-                    json.dump(variant_id_map, fz)
+                    json.dump(camelized_json, f)
+                    json.dump(camelized_json, fz)
                 self.log_job(job, 'Saving variant id map...done')
 
             self.log_job(job, 'Generating variants...')

@@ -2,7 +2,6 @@ import os
 import json
 import gzip
 import logging
-import humps
 
 ACCESS_KEY = os.environ.get('AWS_ACCESS_KEY_ID', None)
 SECRET_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY', None)
@@ -23,7 +22,6 @@ def can_upload_to_s3() -> bool:
 
 
 def upload_json_to_aws(data, s3_file_name):
-    data = humps.camelize(data)
     try:
         import boto3
         from botocore.exceptions import NoCredentialsError

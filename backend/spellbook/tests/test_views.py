@@ -5,14 +5,16 @@ import random
 from types import SimpleNamespace
 from django.test import Client
 from django.core.management import call_command
+from djangorestframework_camel_case.util import underscoreize
 from spellbook.utils import launch_job_command, StreamToLogger
 from spellbook.models import Card, Feature, Template, Combo, CardInCombo, TemplateInCombo, Variant, CardInVariant, TemplateInVariant, IngredientInCombination
-from .abstract_test import AbstractModelTests
 from website.models import PROPERTY_KEYS
 from spellbook.variants.list_utils import merge_identities
+from .abstract_test import AbstractModelTests
 
 
 def json_to_python_lambda(d):
+    d = underscoreize(d)
     return SimpleNamespace(**d)
 
 

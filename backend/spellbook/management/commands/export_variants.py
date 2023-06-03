@@ -7,6 +7,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.contrib.admin.models import LogEntry, CHANGE
 from django.contrib.contenttypes.models import ContentType
 from django.conf import settings
+from djangorestframework_camel_case.util import camelize
 from spellbook.models import Variant, Job
 from spellbook.serializers import VariantSerializer
 from ..s3_upload import upload_json_to_aws
@@ -57,17 +58,18 @@ class Command(BaseCommand):
                 'variants': [prepare_variant(v) for v in variants_source],
             }
 
+            camelized_json = camelize(result)
             if options['s3']:
                 self.stdout.write('Uploading to S3...')
-                upload_json_to_aws(result, DEFAULT_VARIANTS_FILE_NAME)
+                upload_json_to_aws(camelized_json, DEFAULT_VARIANTS_FILE_NAME)
                 self.stdout.write('Done')
             elif options['file'] is not None:
                 output: Path = options['file'].resolve()
                 self.stdout.write(f'Exporting variants to {output}...')
                 output.parent.mkdir(parents=True, exist_ok=True)
                 with output.open('w', encoding='utf8') as f, gzip.open(str(output) + '.gz', mode='wt', encoding='utf8') as fz:
-                    json.dump(result, f)
-                    json.dump(result, fz)
+                    json.dump(camelized_json, f)
+                    json.dump(camelized_json, fz)
                 self.stdout.write('Done')
             else:
                 raise Exception('No file specified')

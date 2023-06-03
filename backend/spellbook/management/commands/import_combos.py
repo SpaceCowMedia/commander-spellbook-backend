@@ -354,19 +354,20 @@ class Command(BaseCommand):
                 ProducesTable = Combo.produces.through
                 ProducesTable.objects.bulk_create(ProducesTable(combo=item.combo, feature=f) for item in bulk_combo_dict.values() for f in item.produces)
                 self.log_job(job, 'Saving combos...done')
-            self.log_job(job, 'Saving variant id map...')
-            variant_id_map_file: Path = settings.STATIC_BULK_FOLDER / 'variant_id_map.json'
-            output = variant_id_map_file.resolve()
-            output.parent.mkdir(parents=True, exist_ok=True)
-            with output.open('w', encoding='utf8') as f, gzip.open(str(output) + '.gz', mode='wt', encoding='utf8') as fz:
-                json.dump(variant_id_map, f)
-                json.dump(variant_id_map, fz)
-            self.log_job(job, 'Saving variant id map...done')
 
             if options['s3']:
-                self.log_job(job, 'Uploading variant map...')
+                self.log_job(job, 'Uploading variant id map...')
                 upload_json_to_aws(variant_id_map, 'variant_id_map.json')
-                self.log_job(job, 'Uploading variant map...done')
+                self.log_job(job, 'Uploading variant id map...done')
+            else:
+                self.log_job(job, 'Saving variant id map...')
+                variant_id_map_file: Path = settings.STATIC_BULK_FOLDER / 'variant_id_map.json'
+                output = variant_id_map_file.resolve()
+                output.parent.mkdir(parents=True, exist_ok=True)
+                with output.open('w', encoding='utf8') as f, gzip.open(str(output) + '.gz', mode='wt', encoding='utf8') as fz:
+                    json.dump(variant_id_map, f)
+                    json.dump(variant_id_map, fz)
+                self.log_job(job, 'Saving variant id map...done')
 
             self.log_job(job, 'Generating variants...')
             added, restored, deleted = generate_variants(job)

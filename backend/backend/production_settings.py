@@ -1,7 +1,7 @@
 import os
+import sys
 from .settings import *  # noqa: F403
 from .settings import BASE_DIR, REST_FRAMEWORK
-import sys
 
 TESTING = sys.argv[1:2] == ['test']
 

@@ -74,6 +74,29 @@ class VariantViewsTests(AbstractModelTests):
         for i in range(variants_count):
             self.variant_assertions(result.results[i])
 
+    def test_variants_list_view_query(self):
+        c = Client()
+        for card in Card.objects.all():
+            prefix_without_spaces = card.name.partition(' ')[0]
+            queries=[
+                prefix_without_spaces,
+                f'"{prefix_without_spaces}"',
+                f'"{card.name}"',
+                f'card:{prefix_without_spaces}',
+                f'card:"{prefix_without_spaces}"',
+                f'card:"{card.name}"',
+            ]
+            for q in queries:
+                with self.subTest(f'query by card name: {card.name} included with query {q}'):
+                    response = c.get('/variants', data={'q': q}, follow=True)
+                    self.assertEqual(response.status_code, 200)
+                    self.assertEqual(response.get('Content-Type'), 'application/json')
+                    result = json.loads(response.content, object_hook=json_to_python_lambda)
+                    variants_count = Variant.objects.filter(uses__id=card.id).distinct().count()
+                    self.assertEqual(len(result.results), variants_count)
+                    for i in range(variants_count):
+                        self.variant_assertions(result.results[i])
+
     def test_variants_detail_view(self):
         c = Client()
         response = c.get('/variants/{}'.format(self.v1_id), follow=True)

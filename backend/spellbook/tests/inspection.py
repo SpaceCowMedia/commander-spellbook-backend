@@ -1,5 +1,7 @@
 import itertools
 from types import FunctionType
+from djangorestframework_camel_case.util import underscoreize
+from types import SimpleNamespace
 
 
 def listMethods(cls):
@@ -22,3 +24,8 @@ def list_subclass_methods(cls, is_narrow):
 
 def count_methods(cls,):
     return len(list_subclass_methods(cls, is_narrow=False))
+
+
+def json_to_python_lambda(d):
+    d = underscoreize(d)
+    return SimpleNamespace(**d)

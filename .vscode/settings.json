@@ -6,5 +6,6 @@
         "statusBarItem.remoteBackground": "#ab47bd",
         "statusBarItem.remoteForeground": "#e7e7e7"
     },
-    "peacock.color": "#ab47bd"
+    "peacock.color": "#ab47bd",
+    "terminal.integrated.cwd": "backend"
 }

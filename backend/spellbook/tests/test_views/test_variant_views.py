@@ -78,7 +78,7 @@ class VariantViewsTests(AbstractModelTests):
         c = Client()
         for card in Card.objects.all():
             prefix_without_spaces = card.name.partition(' ')[0]
-            queries=[
+            queries = [
                 prefix_without_spaces,
                 f'"{prefix_without_spaces}"',
                 f'"{card.name}"',

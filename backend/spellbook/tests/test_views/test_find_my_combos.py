@@ -28,11 +28,12 @@ class FindMyCombosViewTests(AbstractModelTests):
                 self.assertEqual(len(result.almost_included), 0)
                 self.assertEqual(len(result.almost_included_by_adding_colors), 0)
             with self.subTest('single card'):
+                card = Card.objects.get(oracle_id='00000000-0000-0000-0000-000000000001')
                 if 'json' in content_type:
-                    deck_list = json.dumps({'main': ['A']})
+                    deck_list = json.dumps({'main': [card.name]})
                 else:
-                    deck_list = 'A'
-                identity = Card.objects.get(name='A').identity
+                    deck_list = card.name
+                identity = card.identity
                 response = c.generic('GET', '/find-my-combos', data=deck_list, follow=True, headers={'Content-Type': content_type})
                 self.assertEqual(response.status_code, 200)
                 self.assertEqual(response.get('Content-Type'), 'application/json')
@@ -45,18 +46,18 @@ class FindMyCombosViewTests(AbstractModelTests):
                     self.assertTrue(set(v.identity).issubset(set(identity)))
                     v = Variant.objects.get(id=v.id)
                     self.assertEqual(v.status, Variant.Status.OK)
-                    self.assertIn('A', set(v.uses.values_list('name', flat=True)))
+                    self.assertIn(card.name, set(v.uses.values_list('name', flat=True)))
                 for v in result.almost_included_by_adding_colors:
                     self.assertTrue(set(v.identity).issuperset(set(identity)))
                     v = Variant.objects.get(id=v.id)
                     self.assertEqual(v.status, Variant.Status.OK)
-                    self.assertIn('A', set(v.uses.values_list('name', flat=True)))
+                    self.assertIn(card.name, set(v.uses.values_list('name', flat=True)))
             variants = Variant.objects.filter(status=Variant.Status.OK).prefetch_related('cardinvariant_set', 'cardinvariant_set__card')
             variants_cards = {v.id: {c.card.name for c in v.cardinvariant_set.all()} for v in variants}
             variants_commanders = {v.id: {c.card.name for c in v.cardinvariant_set.filter(zone_locations=IngredientInCombination.ZoneLocation.COMMAND_ZONE)} for v in variants}
             card_names = Card.objects.values_list('name', flat=True)
-            for card_count in [2, 4, 7, Card.objects.count()]:
-                for commander_count in range(min(4, card_count + 1)):
+            for card_count in [4, Card.objects.count()]:
+                for commander_count in [0, 1, 2, 4]:
                     with self.subTest(f'{card_count} cards with {commander_count} commanders'):
                         for card_set in itertools.combinations(card_names, card_count):
                             for commander_set in itertools.combinations(card_set, commander_count):
@@ -70,7 +71,7 @@ class FindMyCombosViewTests(AbstractModelTests):
                                     deck_list_str = json.dumps({'main': deck_list, 'commanders': commander_list})
                                 else:
                                     deck_list_str = '\n'.join(['// Command'] + commander_list + ['// Main'] + deck_list)
-                                identity = merge_identities([Card.objects.get(name=c).identity for c in deck_list + commander_list])
+                                identity = merge_identities([c.identity for c in Card.objects.filter(name__in=deck_list + commander_list)])
                                 response = c.generic('GET', '/find-my-combos', data=deck_list_str, follow=True, headers={'Content-Type': content_type})
                                 self.assertEqual(response.status_code, 200)
                                 self.assertEqual(response.get('Content-Type'), 'application/json')

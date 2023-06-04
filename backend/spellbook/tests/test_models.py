@@ -1,3 +1,4 @@
+from urllib.parse import quote_plus
 from django.utils import timezone
 from django.contrib.auth.models import User
 from .inspection import count_methods
@@ -11,7 +12,7 @@ from spellbook.variants.variants_generator import id_from_cards_and_templates_id
 class CardTests(AbstractModelTests):
     def test_card_fields(self):
         c = Card.objects.get(id=self.c1_id)
-        self.assertEqual(c.name, 'A')
+        self.assertEqual(c.name, 'A A')
         self.assertEqual(str(c.oracle_id), '00000000-0000-0000-0000-000000000001')
         self.assertEqual(c.features.count(), 1)
         self.assertEqual(c.identity, 'W')
@@ -20,7 +21,7 @@ class CardTests(AbstractModelTests):
 
     def test_query_string(self):
         c = Card.objects.get(id=self.c1_id)
-        self.assertEqual(c.query_string(), 'q=%21%22A%22')
+        self.assertEqual(f'q=%21%22{quote_plus(c.name)}%22', c.query_string())
 
     def test_scryfall_link(self):
         c = Card.objects.get(id=self.c1_id)
@@ -55,6 +56,7 @@ class TemplateTests(AbstractModelTests):
     def test_query_string(self):
         t = Template.objects.get(id=self.t1_id)
         self.assertIn('q=tou%3E5', t.query_string())
+        self.assertTrue(t.query_string().startswith('q='))
 
     def test_scryfall_api_url(self):
         t = Template.objects.get(id=self.t1_id)
@@ -91,8 +93,8 @@ class ComboTests(AbstractModelTests):
         self.assertEqual(c.other_prerequisites, 'Some requisites.')
         self.assertTrue(c.generator)
         self.assertEqual(c.cardincombo_set.count(), 2)
-        self.assertEqual(c.cardincombo_set.get(card__name='B').zone_locations, IngredientInCombination.ZoneLocation.HAND)
-        self.assertEqual(c.cardincombo_set.get(card__name='C').zone_locations, IngredientInCombination.ZoneLocation.BATTLEFIELD)
+        self.assertEqual(c.cardincombo_set.get(card__oracle_id='00000000-0000-0000-0000-000000000002').zone_locations, IngredientInCombination.ZoneLocation.HAND)
+        self.assertEqual(c.cardincombo_set.get(card__oracle_id='00000000-0000-0000-0000-000000000003').zone_locations, IngredientInCombination.ZoneLocation.BATTLEFIELD)
         self.assertEqual(c.templateincombo_set.count(), 0)
         c = Combo.objects.get(id=self.b2_id)
         self.assertEqual(c.description, '2')
@@ -117,9 +119,10 @@ class ComboTests(AbstractModelTests):
 
     def test_query_string(self):
         c = Combo.objects.get(id=self.b1_id)
-        self.assertIn('%21%22B%22', c.query_string())
-        self.assertIn('%21%22C%22', c.query_string())
+        for card in c.uses.all():
+            self.assertIn(f'%21%22{quote_plus(card.name)}%22', c.query_string())
         self.assertIn('+or+', c.query_string())
+        self.assertTrue(c.query_string().startswith('q='))
 
     def test_method_count(self):
         self.assertEqual(count_methods(Combo), 4)
@@ -196,10 +199,11 @@ class VariantTests(AbstractModelTests):
             self.assertEqual(list(v.templates()), list(map(lambda x: x.template, tiv)))
 
     def test_query_string(self):
-        c = Variant.objects.get(id=self.v1_id)
-        self.assertIn('%21%22A%22', c.query_string())
-        self.assertIn('%21%22H%22', c.query_string())
-        self.assertIn('+or+', c.query_string())
+        v = Variant.objects.get(id=self.v1_id)
+        for card in v.uses.all():
+            self.assertIn(f'%21%22{quote_plus(card.name)}%22', v.query_string())
+        self.assertIn('+or+', v.query_string())
+        self.assertTrue(v.query_string().startswith('q='))
 
     def test_method_count(self):
         self.assertEqual(count_methods(Variant), 3)

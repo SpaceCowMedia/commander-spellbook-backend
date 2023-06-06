@@ -96,6 +96,7 @@ class VariantViewsTests(AbstractModelTests):
                     self.assertEqual(len(result.results), variants_count)
                     for i in range(variants_count):
                         self.variant_assertions(result.results[i])
+        # TODO: add tests for other query types
 
     def test_variants_detail_view(self):
         c = Client()

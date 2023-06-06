@@ -3,6 +3,20 @@ from spellbook.models import Card
 from .utils import IdentityFilter
 
 
+class ManagedByScryfallFilter(admin.SimpleListFilter):
+    title = 'managed by Scryfall'
+    parameter_name = 'has_oracle_id'
+
+    def lookups(self, request, model_admin):
+        return [(True, 'Yes'), (False, 'No')]
+
+    def queryset(self, request, queryset):
+        if self.value() == 'True':
+            return queryset.exclude(oracle_id__isnull=True)
+        elif self.value() == 'False':
+            return queryset.filter(oracle_id__isnull=True)
+
+
 @admin.register(Card)
 class CardAdmin(admin.ModelAdmin):
     readonly_fields = ['scryfall_link']
@@ -13,7 +27,7 @@ class CardAdmin(admin.ModelAdmin):
             'description': 'Scryfall data is updated periodically.'}),
     ]
     # inlines = [FeatureInline]
-    list_filter = [IdentityFilter, 'legal']
+    list_filter = [IdentityFilter, 'legal', ManagedByScryfallFilter]
     search_fields = ['name', 'features__name']
     autocomplete_fields = ['features']
     list_display = ['name', 'identity', 'id']

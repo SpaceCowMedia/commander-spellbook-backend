@@ -12,7 +12,7 @@ from django.db import transaction
 from django.db.models import Max, Count
 from djangorestframework_camel_case.util import camelize
 from spellbook.variants.variants_generator import id_from_cards_and_templates_ids, generate_variants
-from spellbook.models import Feature, Card, Job, Combo, CardInCombo, Variant, IngredientInCombination
+from spellbook.models import Feature, Card, Job, Combo, CardInCombo, Variant, IngredientInCombination, CardInVariant
 from spellbook.models.validators import MANA_SYMBOL
 from ..scryfall import scryfall, update_cards
 from spellbook.management.s3_upload import upload_json_to_aws
@@ -282,11 +282,11 @@ class Command(BaseCommand):
             self.log_job(job, 'Found {} combos'.format(len(x)))
             combo_card_name_to_card, combo_card_name_to_scryfall = self.update_and_load_cards(job, x)
             self.log_job(job, 'Importing combos...')
+            variant_id_map = dict[int, str]()
+            bulk_combo_dict = dict[str, ImportedVariantBulkSaveItem]()
+            existing_unique_ids = {id_from_cards_and_templates_ids([c.id for c in combo.uses.all()], []) for combo in Combo.objects.prefetch_related('uses')}
             with transaction.atomic(durable=True):
-                bulk_combo_dict = dict[str, ImportedVariantBulkSaveItem]()
-                existing_unique_ids = {id_from_cards_and_templates_ids([c.id for c in combo.uses.all()], []) for combo in Combo.objects.prefetch_related('uses')}
                 existing_feature_names = {f.name: f for f in Feature.objects.all()}
-                variant_id_map = dict[int, str]()
                 next_id = (Combo.objects.aggregate(Max('id'))['id__max'] or 0) + 1
                 for i, (old_id, _cards, produced, prerequisite, description, mana_needed, positions) in enumerate(x):
                     self.stdout.write(f'{i+1}/{len(x)}\n' if (i + 1) % 100 == 0 else '.', ending='')
@@ -401,8 +401,27 @@ class Command(BaseCommand):
             self.log_job(job, 'Generating variants...')
             added, restored, deleted = generate_variants(job)
             self.log_job(job, f'Generating variants...done. Added {added} variants, restored {restored} variants, deleted {deleted} variants.')
-            Variant.objects.annotate(includes_count=Count('includes')).filter(id__in=bulk_combo_dict.keys(), includes_count=1).update(status=Variant.Status.OK)
-            Variant.objects.annotate(includes_count=Count('includes')).filter(id__in=bulk_combo_dict.keys(), includes_count__gt=1).update(status=Variant.Status.DRAFT)
+            annotated_variants = Variant.objects.annotate(includes_count=Count('includes'))
+            annotated_variants.filter(id__in=bulk_combo_dict.keys(), includes_count=1).update(status=Variant.Status.OK)
+            bulk_civ_to_update = list[CardInVariant]()
+            bulk_variants_to_update = list[Variant]()
+            for suspicious_variant in annotated_variants.filter(id__in=bulk_combo_dict.keys(), includes_count__gt=1):
+                self.log_job(job, f'Variant {suspicious_variant} has multiple includes')
+                source_combo = bulk_combo_dict[suspicious_variant.id]
+                suspicious_variant.description = source_combo.combo.description
+                suspicious_variant.mana_needed = source_combo.combo.mana_needed
+                suspicious_variant.other_prerequisites = source_combo.combo.other_prerequisites
+                used_cards = {c.card: c for c in source_combo.uses}
+                for used_card in suspicious_variant.cardinvariant_set.all():
+                    if used_card.card in used_cards:
+                        cic = used_cards[used_card.card]
+                        used_card.zone_locations = cic.zone_locations
+                        used_card.card_state = cic.card_state
+                        bulk_civ_to_update.append(used_card)
+                suspicious_variant.status = Variant.Status.OK
+                bulk_variants_to_update.append(suspicious_variant)
+            CardInVariant.objects.bulk_update(bulk_civ_to_update, ['zone_locations', 'card_state'])
+            Variant.objects.bulk_update(bulk_variants_to_update, ['description', 'mana_needed', 'other_prerequisites', 'status'])
             self.log_job(job, f'Successfully imported {len(bulk_combo_dict)}/{len(x)} combos. The rest was already present.', self.style.SUCCESS)
             job.termination = timezone.now()
             job.status = Job.Status.SUCCESS

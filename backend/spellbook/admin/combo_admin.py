@@ -1,5 +1,5 @@
 import re
-from django.db.models import Prefetch, Case, When, Count
+from django.db.models import Prefetch, Case, When, Count, Q
 from django.forms import ModelForm
 from django.contrib import admin, messages
 from spellbook.models import Card, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, CardInVariant, TemplateInVariant
@@ -89,7 +89,7 @@ class VariantRelatedFilter(admin.SimpleListFilter):
     parameter_name = 'in_variants'
 
     def lookups(self, request, model_admin):
-        return [('unused', 'Unused'), ('overlapping', 'Overlapping')]
+        return [('unused', 'Unused'), ('overlapping', 'Overlapping'), ('redundant', 'Potentially redundant')]
 
     def queryset(self, request, queryset):
         if self.value() is None:
@@ -98,6 +98,8 @@ class VariantRelatedFilter(admin.SimpleListFilter):
             return queryset.filter(included_in_variants__isnull=True).distinct()
         elif self.value() == 'overlapping':
             return queryset.annotate(possible_overlaps=Count('variants__of', distinct=True)).filter(possible_overlaps__gt=1).distinct()
+        elif self.value() == 'redundant':
+            return queryset.annotate(possible_redundancies=Count('variants__includes', distinct=True, filter=Q(variants__generated_by__name='import_combos'))).filter(possible_redundancies__gt=1).distinct()
 
 
 @admin.register(Combo)

@@ -1,3 +1,4 @@
+from math import prod
 from collections import deque
 from typing import Iterable, Optional
 from enum import Enum
@@ -8,9 +9,6 @@ from spellbook.models.combo import Combo
 from spellbook.models.template import Template
 from .variant_data import Data
 from .variant_set import VariantSet
-
-
-MAX_CARDS_IN_COMBO = 5
 
 
 class NodeState(Enum):
@@ -98,17 +96,19 @@ class VariantIngredients:
 
 
 class Graph:
-    def __init__(self, data: Data, feature_variant_limit=10000000):
+    def __init__(self, data: Data, feature_variant_limit=10000, combo_variants_limit=10000, cards_in_variant_limit=5):
         if data is not None:
             self.data = data
             self.feature_variant_limit = feature_variant_limit
+            self.combo_variants_limit = combo_variants_limit
+            self.cards_in_variant_limit = cards_in_variant_limit
             self.cnodes = dict[int, CardNode]((card.id, CardNode(card, [], [])) for card in data.cards)
             for c in self.cnodes.values():
-                c.variant_set = VariantSet(limit=MAX_CARDS_IN_COMBO)
+                c.variant_set = VariantSet(limit=self.cards_in_variant_limit)
                 c.variant_set.add([c.card.id], [])
             self.tnodes = dict[int, TemplateNode]((template.id, TemplateNode(template, [])) for template in data.templates)
             for t in self.tnodes.values():
-                t.variant_set = VariantSet(limit=MAX_CARDS_IN_COMBO)
+                t.variant_set = VariantSet(limit=self.cards_in_variant_limit)
                 t.variant_set.add([], [t.template.id])
             self.fnodes = dict[int, FeatureNode]()
             for feature in data.features:
@@ -171,7 +171,11 @@ class Graph:
             if f.state == NodeState.VISITING:
                 return VariantSet()
             needed_features_variant_sets.append(self._feature_nodes_down(f))
-        combo.variant_set = VariantSet.and_sets(card_variant_sets + template_variant_sets + needed_features_variant_sets, limit=MAX_CARDS_IN_COMBO)
+        variant_sets = card_variant_sets + template_variant_sets + needed_features_variant_sets
+        variants_count_proxy = prod(len(vs) for vs in variant_sets)
+        if variants_count_proxy > self.combo_variants_limit:
+            raise Exception(f'Combo {combo.combo} has too many variants, approx. {variants_count_proxy}')
+        combo.variant_set = VariantSet.and_sets(variant_sets, limit=self.cards_in_variant_limit)
         combo.state = NodeState.VISITED
         return combo.variant_set
 
@@ -189,10 +193,10 @@ class Graph:
                 continue
             produced_combos_variant_sets.append(self._combo_nodes_down(c))
         variant_sets = card_variant_sets + produced_combos_variant_sets
-        possible_variants_count = sum(len(t) for t in variant_sets)
-        if possible_variants_count > self.feature_variant_limit:
-            raise Exception(f'Feature "{feature.feature.name}" has too many variants, around {possible_variants_count}.')
-        feature.variant_set = VariantSet.or_sets(variant_sets, limit=MAX_CARDS_IN_COMBO)
+        variants_count_proxy = sum(len(vs) for vs in variant_sets)
+        if variants_count_proxy > self.feature_variant_limit:
+            raise Exception(f'Feature "{feature.feature}" has too many variants, approx. {variants_count_proxy}')
+        feature.variant_set = VariantSet.or_sets(variant_sets, limit=self.cards_in_variant_limit)
         feature.state = NodeState.VISITED
         return feature.variant_set
 

@@ -4,10 +4,8 @@ from django.db.models import Count, Prefetch
 from django.forms import ModelForm
 from django.http import HttpRequest
 from django.shortcuts import redirect
-from django.core.exceptions import ValidationError
 from django.contrib import admin, messages
 from spellbook.models import Card, Template, Feature, Variant, CardInVariant, TemplateInVariant
-from spellbook.variants.combo_graph import MAX_CARDS_IN_COMBO
 from spellbook.utils import launch_job_command
 from spellbook.parsers import variants_query_parser, NotSupportedError
 from .utils import IdentityFilter
@@ -58,12 +56,15 @@ class CardsCountListFilter(admin.SimpleListFilter):
     parameter_name = 'cards_count'
 
     def lookups(self, request, model_admin):
-        return [(i, str(i)) for i in range(2, MAX_CARDS_IN_COMBO + 1)]
+        return [(i, str(i)) for i in range(2, 6)] + [('6+', '6+')]
 
     def queryset(self, request, queryset):
         if self.value() is not None:
+            queryset = queryset.annotate(cards_count=Count('uses', distinct=True) + Count('requires', distinct=True))
+            if self.value() == '6+':
+                return queryset.filter(cards_count__gte=6)
             value = int(self.value())
-            return queryset.annotate(cards_count=Count('uses', distinct=True) + Count('requires', distinct=True)).filter(cards_count=value)
+            return queryset.filter(cards_count=value)
         return queryset
 
 

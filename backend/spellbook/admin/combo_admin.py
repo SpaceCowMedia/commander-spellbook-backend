@@ -3,7 +3,6 @@ from django.db.models import Prefetch, Case, When, Count, Q
 from django.forms import ModelForm
 from django.contrib import admin, messages
 from spellbook.models import Card, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, CardInVariant, TemplateInVariant
-from spellbook.variants.combo_graph import MAX_CARDS_IN_COMBO
 from spellbook.variants.variant_data import RestoreData
 from spellbook.variants.variants_generator import restore_variant
 from spellbook.models.validators import MANA_SYMBOL
@@ -46,7 +45,6 @@ class CardInComboAdminInline(admin.TabularInline):
     verbose_name = 'Card'
     verbose_name_plural = 'Required Cards'
     autocomplete_fields = ['card']
-    max_num = MAX_CARDS_IN_COMBO
 
 
 class TemplateInComboAdminInline(admin.TabularInline):
@@ -57,7 +55,6 @@ class TemplateInComboAdminInline(admin.TabularInline):
     verbose_name = 'Template'
     verbose_name_plural = 'Required Templates'
     autocomplete_fields = ['template']
-    max_num = MAX_CARDS_IN_COMBO
 
 
 class FeatureInComboAdminInline(admin.TabularInline):
@@ -66,7 +63,6 @@ class FeatureInComboAdminInline(admin.TabularInline):
     verbose_name = 'Feature'
     verbose_name_plural = 'Required Features'
     autocomplete_fields = ['feature']
-    max_num = MAX_CARDS_IN_COMBO
 
 
 class PayoffFilter(admin.SimpleListFilter):

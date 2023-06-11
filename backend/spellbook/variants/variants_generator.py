@@ -36,10 +36,13 @@ def id_from_cards_and_templates_ids(cards: list[int], templates: list[int]) -> s
 
 
 def get_variants_from_graph(data: Data, job: Job = None) -> dict[str, VariantDefinition]:
-    logging.info('Computing all possible variants:')
+    def log(msg: str):
+        logging.info(msg)
+        log_into_job(job, msg)
+    log('Computing all possible variants:')
     combos = data.generator_combos
     result = dict[str, VariantDefinition]()
-    graph = Graph(data)
+    graph = Graph(data, log=log)
     total = len(combos)
     for i, combo in enumerate(combos):
         count = 0
@@ -66,8 +69,7 @@ def get_variants_from_graph(data: Data, job: Job = None) -> dict[str, VariantDef
             count += 1
         msg = f'{i + 1}/{total} combos processed (just processed combo {combo.id})'
         if count > 1 or i % 100 == 0 or i == total - 1:
-            logging.info(msg)
-            log_into_job(job, msg)
+            log(msg)
     return result
 
 

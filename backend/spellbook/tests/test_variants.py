@@ -4,6 +4,7 @@ from spellbook.variants.variant_set import VariantSet
 from spellbook.variants.variants_generator import id_from_cards_and_templates_ids
 from spellbook.variants.list_utils import merge_identities, includes_any
 from spellbook.variants.variant_data import Data, debug_queries
+from spellbook.variants.combo_graph import Graph
 from spellbook.utils import launch_job_command
 from spellbook.models import Variant, Combo, Feature, Card, Template
 from .abstract_test import AbstractModelTests
@@ -330,3 +331,52 @@ class VariantSetTests(TestCase):
         self.assertEqual(variant_set2.variants(), variant_set.variants())
         variant_set2.add([1, 2], [1, 2])
         self.assertNotEqual(variant_set2.variants(), variant_set.variants())
+
+
+class ComboGraphTest(AbstractModelTests):
+    def test_empty_graph(self):
+        Combo.objects.exclude(id=self.b2_id).delete()
+        combo_graph = Graph(Data())
+        self.assertCountEqual(combo_graph.variants(self.b2_id), [])
+
+    def test_graph(self):
+        combo_graph = Graph(Data())
+        variants = list(combo_graph.variants(self.b2_id))
+        self.assertEqual(variants, list(combo_graph.variants(self.b2_id)))
+        self.assertEqual(len(variants), 3)
+
+    def test_feature_limit(self):
+        combo_graph = Graph(Data(), feature_variant_limit=0, log=lambda _: None)
+        self.assertCountEqual(combo_graph.variants(self.b2_id), [])
+        combo_graph = Graph(Data(), feature_variant_limit=1, log=lambda _: None)
+        self.assertEqual(len(list(combo_graph.variants(self.b2_id))), 1)
+        combo_graph = Graph(Data(), feature_variant_limit=20, log=lambda _: None)
+        self.assertEqual(len(list(combo_graph.variants(self.b2_id))), 3)
+
+    def test_default_log(self):
+        def test():
+            combo_graph = Graph(Data(), feature_variant_limit=0, combo_variants_limit=0)
+            list(combo_graph.variants(self.b2_id))
+        self.assertRaises(Exception, test)
+
+    def test_combo_limit(self):
+        combo_graph = Graph(Data(), combo_variants_limit=0, log=lambda _: None)
+        self.assertCountEqual(combo_graph.variants(self.b2_id), [])
+        combo_graph = Graph(Data(), combo_variants_limit=1, log=lambda _: None)
+        self.assertEqual(len(list(combo_graph.variants(self.b2_id))), 1)
+        combo_graph = Graph(Data(), combo_variants_limit=20, log=lambda _: None)
+        self.assertEqual(len(list(combo_graph.variants(self.b2_id))), 3)
+
+    def test_card_limit(self):
+        combo_graph = Graph(Data(), cards_in_variant_limit=0, log=lambda _: None)
+        self.assertCountEqual(combo_graph.variants(self.b2_id), [])
+        combo_graph = Graph(Data(), cards_in_variant_limit=1, log=lambda _: None)
+        self.assertCountEqual(combo_graph.variants(self.b2_id), [])
+        combo_graph = Graph(Data(), cards_in_variant_limit=2, log=lambda _: None)
+        self.assertCountEqual(combo_graph.variants(self.b2_id), [])
+        combo_graph = Graph(Data(), cards_in_variant_limit=3, log=lambda _: None)
+        self.assertEqual(len(list(combo_graph.variants(self.b2_id))), 1)
+        combo_graph = Graph(Data(), cards_in_variant_limit=4, log=lambda _: None)
+        self.assertEqual(len(list(combo_graph.variants(self.b2_id))), 2)
+        combo_graph = Graph(Data(), cards_in_variant_limit=5, log=lambda _: None)
+        self.assertEqual(len(list(combo_graph.variants(self.b2_id))), 3)

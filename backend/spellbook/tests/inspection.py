@@ -26,6 +26,18 @@ def count_methods(cls,):
     return len(list_subclass_methods(cls, is_narrow=False))
 
 
+def parse(data):
+    if type(data) is list:
+        return list(map(parse, data))
+    elif type(data) is dict:
+        sns = SimpleNamespace()
+        for key, value in data.items():
+            setattr(sns, key, parse(value))
+        return sns
+    else:
+        return data
+
+
 def json_to_python_lambda(d):
     d = underscoreize(d)
-    return SimpleNamespace(**d)
+    return parse(d)

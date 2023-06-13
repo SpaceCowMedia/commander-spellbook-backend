@@ -14,6 +14,58 @@ class FindMyCombosViewTests(AbstractModelTests):
         super().setUp()
         launch_job_command('generate_variants', None)
         Variant.objects.update(status=Variant.Status.OK)
+        self.variants = Variant.objects.filter(status=Variant.Status.OK).prefetch_related('cardinvariant_set', 'cardinvariant_set__card')
+        self.variants_dict = {v.id: v for v in self.variants}
+        self.variants_cards = {v.id: {c.card.name for c in v.cardinvariant_set.all()} for v in self.variants}
+        self.variants_commanders = {v.id: {c.card.name for c in v.cardinvariant_set.filter(zone_locations=IngredientInCombination.ZoneLocation.COMMAND_ZONE)} for v in self.variants}
+
+    def _check_result(self,
+            result,
+            identity: str,
+            cards: set[str],
+            commanders: set[str]):
+        self.assertEqual(result.identity, identity)
+        identity_set = set(identity)
+        for v in result.included:
+            v = self.variants_dict[v.id]
+            self.assertEqual(v.status, Variant.Status.OK)
+            self.assertTrue(self.variants_cards[v.id].issubset(cards))
+            self.assertTrue(set(v.identity).issubset(identity_set))
+            self.assertTrue(self.variants_commanders[v.id].issubset(commanders))
+        for v in result.included_by_changing_commanders:
+            v = self.variants_dict[v.id]
+            self.assertEqual(v.status, Variant.Status.OK)
+            self.assertTrue(self.variants_cards[v.id].issubset(cards))
+            self.assertTrue(set(v.identity).issubset(identity_set))
+            self.assertFalse(self.variants_commanders[v.id].issubset(commanders))
+        for v in result.almost_included:
+            v = self.variants_dict[v.id]
+            self.assertEqual(v.status, Variant.Status.OK)
+            self.assertTrue(bool(self.variants_cards[v.id].intersection(cards)))
+            self.assertFalse(self.variants_cards[v.id].issubset(cards))
+            self.assertTrue(set(v.identity).issubset(identity_set))
+            self.assertTrue(self.variants_commanders[v.id].issubset(commanders))
+        for v in result.almost_included_by_adding_colors:
+            v = self.variants_dict[v.id]
+            self.assertEqual(v.status, Variant.Status.OK)
+            self.assertTrue(bool(self.variants_cards[v.id].intersection(cards)))
+            self.assertFalse(self.variants_cards[v.id].issubset(cards))
+            self.assertFalse(set(v.identity).issubset(identity_set))
+            self.assertTrue(self.variants_commanders[v.id].issubset(commanders))
+        for v in result.almost_included_by_changing_commanders:
+            v = self.variants_dict[v.id]
+            self.assertEqual(v.status, Variant.Status.OK)
+            self.assertTrue(bool(self.variants_cards[v.id].intersection(cards)))
+            self.assertFalse(self.variants_cards[v.id].issubset(cards))
+            self.assertTrue(set(v.identity).issubset(identity_set))
+            self.assertFalse(self.variants_commanders[v.id].issubset(commanders))
+        for v in result.almost_included_by_adding_colors_and_changing_commanders:
+            v = self.variants_dict[v.id]
+            self.assertEqual(v.status, Variant.Status.OK)
+            self.assertTrue(bool(self.variants_cards[v.id].intersection(cards)))
+            self.assertFalse(self.variants_cards[v.id].issubset(cards))
+            self.assertFalse(set(v.identity).issubset(identity_set))
+            self.assertFalse(self.variants_commanders[v.id].issubset(commanders))
 
     def test_find_my_combos_views(self):
         c = Client()
@@ -42,28 +94,16 @@ class FindMyCombosViewTests(AbstractModelTests):
                 self.assertEqual(len(result.included), 0)
                 self.assertEqual(len(result.almost_included), 2)
                 self.assertEqual(len(result.almost_included_by_adding_colors), 2)
-                for v in result.almost_included:
-                    self.assertTrue(set(v.identity).issubset(set(identity)))
-                    v = Variant.objects.get(id=v.id)
-                    self.assertEqual(v.status, Variant.Status.OK)
-                    self.assertIn(card.name, set(v.uses.values_list('name', flat=True)))
-                for v in result.almost_included_by_adding_colors:
-                    self.assertTrue(set(v.identity).issuperset(set(identity)))
-                    v = Variant.objects.get(id=v.id)
-                    self.assertEqual(v.status, Variant.Status.OK)
-                    self.assertIn(card.name, set(v.uses.values_list('name', flat=True)))
-            variants = Variant.objects.filter(status=Variant.Status.OK).prefetch_related('cardinvariant_set', 'cardinvariant_set__card')
-            variants_cards = {v.id: {c.card.name for c in v.cardinvariant_set.all()} for v in variants}
-            variants_commanders = {v.id: {c.card.name for c in v.cardinvariant_set.filter(zone_locations=IngredientInCombination.ZoneLocation.COMMAND_ZONE)} for v in variants}
-            card_names = Card.objects.values_list('name', flat=True)
+                self.assertEqual(len(result.almost_included_by_changing_commanders), 0)
+                self.assertEqual(len(result.almost_included_by_adding_colors_and_changing_commanders), 1)
+                self._check_result(result, identity, {card.name}, set())
+            card_names = list(Card.objects.values_list('name', flat=True))
             for card_count in [4, Card.objects.count()]:
                 for commander_count in [0, 1, 2, 4]:
                     with self.subTest(f'{card_count} cards with {commander_count} commanders'):
                         for card_set in itertools.combinations(card_names, card_count):
                             for commander_set in itertools.combinations(card_set, commander_count):
-                                card_set: set[str] = set(card_set)
-                                commander_set: set[str] = set(commander_set)
-                                deck_list = list(card_set - commander_set)
+                                deck_list = list(c for c in card_set if c not in commander_set)
                                 commander_list = list(commander_set)
                                 random.shuffle(deck_list)
                                 random.shuffle(commander_list)
@@ -77,24 +117,18 @@ class FindMyCombosViewTests(AbstractModelTests):
                                 self.assertEqual(response.get('Content-Type'), 'application/json')
                                 result = json.loads(response.content, object_hook=json_to_python_lambda)
                                 self.assertEqual(result.identity, identity)
-                                included = [v for v in variants if variants_cards[v.id].issubset(card_set) and variants_commanders[v.id].issubset(commander_set)]
-                                almost_included = [v for v in variants if variants_cards[v.id].intersection(card_set) and not variants_cards[v.id].issubset(card_set) and variants_commanders[v.id].issubset(commander_set)]
-                                almost_included_within_identity = [v for v in almost_included if set(v.identity).issubset(set(identity))]
-                                self.assertEqual(len(result.included), len(included))
-                                self.assertEqual(len(result.almost_included), len(almost_included_within_identity))
-                                self.assertEqual(len(result.almost_included_by_adding_colors), len(almost_included) - len(almost_included_within_identity))
-                                for v in result.included:
-                                    self.assertTrue(set(v.identity).issubset(set(identity)))
-                                    v = Variant.objects.get(id=v.id)
-                                    self.assertEqual(v.status, Variant.Status.OK)
-                                    self.assertTrue(set(v.uses.values_list('name', flat=True)).issubset(card_set))
-                                for v in result.almost_included:
-                                    self.assertTrue(set(v.identity).issubset(set(identity)))
-                                    v = Variant.objects.get(id=v.id)
-                                    self.assertEqual(v.status, Variant.Status.OK)
-                                    self.assertTrue(set(v.uses.values_list('name', flat=True)).intersection(card_set))
-                                for v in result.almost_included_by_adding_colors:
-                                    self.assertFalse(set(v.identity).issubset(set(identity)))
-                                    v = Variant.objects.get(id=v.id)
-                                    self.assertEqual(v.status, Variant.Status.OK)
-                                    self.assertTrue(set(v.uses.values_list('name', flat=True)).intersection(card_set))
+                                related = [v for v in self.variants if self.variants_cards[v.id].intersection(card_set)]
+                                included_within_commander = [v for v in related if self.variants_cards[v.id].issubset(card_set) and self.variants_commanders[v.id].issubset(commander_set)]
+                                included_outside_commander = [v for v in related if self.variants_cards[v.id].issubset(card_set) and not self.variants_commanders[v.id].issubset(commander_set)]
+                                related_but_not_included = [v for v in related if not self.variants_cards[v.id].issubset(card_set)]
+                                almost_included_within_identity_within_commanders = [v for v in related_but_not_included if set(v.identity).issubset(set(identity)) and self.variants_commanders[v.id].issubset(commander_set)]
+                                almost_included_within_commanders_but_not_identity = [v for v in related_but_not_included if not set(v.identity).issubset(set(identity)) and self.variants_commanders[v.id].issubset(commander_set)]
+                                almost_included_within_identity_but_not_commanders = [v for v in related_but_not_included if set(v.identity).issubset(set(identity)) and not self.variants_commanders[v.id].issubset(commander_set)]
+                                almost_included_outside_identity_outside_commanders = [v for v in related_but_not_included if not set(v.identity).issubset(set(identity)) and not self.variants_commanders[v.id].issubset(commander_set)]
+                                self.assertEqual(len(result.included), len(included_within_commander))
+                                self.assertEqual(len(result.included_by_changing_commanders), len(included_outside_commander))
+                                self.assertEqual(len(result.almost_included), len(almost_included_within_identity_within_commanders))
+                                self.assertEqual(len(result.almost_included_by_changing_commanders), len(almost_included_within_identity_but_not_commanders))
+                                self.assertEqual(len(result.almost_included_by_adding_colors), len(almost_included_within_commanders_but_not_identity))
+                                self.assertEqual(len(result.almost_included_by_adding_colors_and_changing_commanders), len(almost_included_outside_identity_outside_commanders))
+                                self._check_result(result, identity, set(card_set), set(commander_set))

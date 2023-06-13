@@ -46,7 +46,12 @@ def get_variants_from_graph(data: Data, job: Job = None) -> dict[str, VariantDef
     total = len(combos)
     for i, combo in enumerate(combos):
         count = 0
-        variants = graph.variants(combo.id)
+        card_limit = 5
+        variant_limit = 10000
+        if combo.kind == Combo.Kind.GENERATOR_WITH_MANY_CARDS:
+            card_limit = 100
+            variant_limit = 100
+        variants = graph.variants(combo.id, card_limit=card_limit, variant_limit=variant_limit)
         for variant in variants:
             cards_ids = [c.id for c in variant.cards]
             templates_ids = [t.id for t in variant.templates]

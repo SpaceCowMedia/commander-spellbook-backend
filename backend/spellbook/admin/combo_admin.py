@@ -107,13 +107,13 @@ class ComboAdmin(SearchMultipleRelatedMixin, admin.ModelAdmin):
         ('Generated', {'fields': ['scryfall_link']}),
         ('More Requirements', {'fields': ['mana_needed', 'other_prerequisites']}),
         ('Results', {'fields': ['produces', 'removes']}),
-        ('Description', {'fields': ['generator', 'description']}),
+        ('Description', {'fields': ['kind', 'description']}),
     ]
     inlines = [CardInComboAdminInline, FeatureInComboAdminInline, TemplateInComboAdminInline]
     filter_horizontal = ['uses', 'produces', 'needs', 'removes']
-    list_filter = ['generator', PayoffFilter, VariantRelatedFilter]
+    list_filter = ['kind', PayoffFilter, VariantRelatedFilter]
     search_fields = ['uses__name', 'requires__name', 'produces__name', 'needs__name']
-    list_display = ['display_name', 'generator', 'id']
+    list_display = ['display_name', 'kind', 'id']
 
     def display_name(self, obj):
         return ' + '.join([card.name for card in obj.prefetched_uses] + [feature.name for feature in obj.prefetched_needs] + [template.name for template in obj.prefetched_requires]) \

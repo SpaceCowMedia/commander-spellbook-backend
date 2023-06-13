@@ -8,6 +8,11 @@ from .validators import MANA_VALIDATOR, TEXT_VALIDATORS
 
 
 class Combo(models.Model, ScryfallLinkMixin):
+    class Kind(models.TextChoices):
+        GENERATOR = 'G'
+        UTILITY = 'U'
+        GENERATOR_WITH_MANY_CARDS = 'M'
+
     uses = models.ManyToManyField(
         to=Card,
         related_name='used_in_combos',
@@ -42,7 +47,7 @@ class Combo(models.Model, ScryfallLinkMixin):
     mana_needed = models.CharField(blank=True, max_length=200, default='', help_text='Mana needed for this combo. Use the {1}{W}{U}{B}{R}{G}{B/P}... format.', validators=[MANA_VALIDATOR])
     other_prerequisites = models.TextField(blank=True, default='', help_text='Other prerequisites for this combo.', validators=TEXT_VALIDATORS)
     description = models.TextField(blank=True, help_text='Long description of the combo, in steps', validators=TEXT_VALIDATORS)
-    generator = models.BooleanField(default=True, help_text='Is this combo a generator for variants?', verbose_name='is generator')
+    kind = models.CharField(choices=Kind.choices, default=Kind.GENERATOR, help_text='Is this combo a generator for variants?', verbose_name='kind', max_length=2)
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, editable=False)
 

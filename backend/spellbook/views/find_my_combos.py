@@ -34,7 +34,7 @@ class PlainTextDeckListParser(parsers.BaseParser):
             line: str = line.strip().lower()
             if not line:
                 continue
-            elif line.startswith('// Command'):
+            elif line.startswith('// command'):
                 current_set = commanders
             elif line.startswith('//'):
                 current_set = main_cards
@@ -73,6 +73,7 @@ def find_my_combos(request: Request) -> Response:
         deck = Deck(cards=set(), commanders=set())
     cards = deck.cards.union(deck.commanders)
     variant_to_cards = defaultdict[Variant, set[Card]](set)
+    variant_to_commanders = defaultdict[Variant, set[Card]](set)
     variants_query = CardInVariant.objects \
         .filter(variant__status=Variant.Status.OK, variant__uses__in=cards) \
         .prefetch_related(
@@ -85,28 +86,43 @@ def find_my_combos(request: Request) -> Response:
             'variant__produces',
             'variant__of',
             'variant__includes')
-    if deck.commanders:
-        variants_query = variants_query.exclude(~Q(variant__cardinvariant__card__in=deck.commanders), variant__cardinvariant__zone_locations=CardInVariant.ZoneLocation.COMMAND_ZONE)
     for civ in variants_query:
         variant_to_cards[civ.variant].add(civ.card)
+        if civ.zone_locations == CardInVariant.ZoneLocation.COMMAND_ZONE:
+            variant_to_commanders[civ.variant].add(civ.card)
     included_variants = []
+    included_variants_by_changing_commanders = []
     almost_included_variants = []
     almost_included_variants_by_adding_colors = []
+    almost_included_variants_by_changing_commanders = []
+    almost_included_variants_by_adding_colors_and_changing_commanders = []
 
     identity = merge_identities(c.identity for c in cards)
     identity_set = set(identity)
 
     for variant in variant_to_cards:
-        if variant_to_cards[variant].issubset(cards):
-            included_variants.append(VariantSerializer(variant).data)
-        elif variant_to_cards[variant].intersection(cards):
+        variant_cards = variant_to_cards[variant]
+        if variant_to_commanders[variant].issubset(deck.commanders):
+            if variant_cards.issubset(cards):
+                included_variants.append(VariantSerializer(variant).data)
+            elif variant_cards.intersection(cards):
+                if set(variant.identity).issubset(identity_set):
+                    almost_included_variants.append(VariantSerializer(variant).data)
+                else:
+                    almost_included_variants_by_adding_colors.append(VariantSerializer(variant).data)
+        elif variant_cards.issubset(cards):
+            included_variants_by_changing_commanders.append(VariantSerializer(variant).data)
+        elif variant_cards.intersection(cards):
             if set(variant.identity).issubset(identity_set):
-                almost_included_variants.append(VariantSerializer(variant).data)
+                almost_included_variants_by_changing_commanders.append(VariantSerializer(variant).data)
             else:
-                almost_included_variants_by_adding_colors.append(VariantSerializer(variant).data)
+                almost_included_variants_by_adding_colors_and_changing_commanders.append(VariantSerializer(variant).data)
     return Response({
         'identity': identity,
         'included': included_variants,
+        'included_by_changing_commanders': included_variants_by_changing_commanders,
         'almost_included': almost_included_variants,
         'almost_included_by_adding_colors': almost_included_variants_by_adding_colors,
+        'almost_included_by_changing_commanders': almost_included_variants_by_changing_commanders,
+        'almost_included_by_adding_colors_and_changing_commanders': almost_included_variants_by_adding_colors_and_changing_commanders,
     })

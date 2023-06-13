@@ -352,7 +352,7 @@ class Command(BaseCommand):
                         id=next_id,
                         other_prerequisites=prerequisite,
                         description=description,
-                        generator=True,
+                        kind=Combo.Kind.GENERATOR if len(used_cards) < 6 else Combo.Kind.GENERATOR_WITH_MANY_CARDS,
                         mana_needed=mana_needed,
                     )
                     for cic in used_cards:

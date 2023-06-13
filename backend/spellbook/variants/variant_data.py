@@ -14,7 +14,7 @@ class RestoreData:
         self.combos = Combo.objects.prefetch_related('uses', 'requires', 'needs', 'removes', 'produces')
         self.combo_to_cards = defaultdict[int, list[CardInCombo]](list)
         self.combo_to_templates = defaultdict[int, list[TemplateInCombo]](list)
-        self.generator_combos = list(self.combos.filter(generator=True))
+        self.generator_combos = list(self.combos.filter(kind__in=(Combo.Kind.GENERATOR, Combo.Kind.GENERATOR_WITH_MANY_CARDS)))
         for cic in CardInCombo.objects.select_related('card', 'combo').distinct():
             self.combo_to_cards[cic.combo.id].append(cic)
         for tic in TemplateInCombo.objects.select_related('template', 'combo').distinct():

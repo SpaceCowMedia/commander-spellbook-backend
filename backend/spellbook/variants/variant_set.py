@@ -5,13 +5,10 @@ cardid = int
 templateid = int
 
 
-DEFAULT_MAX_DEPTH = 100
-
-
 class VariantSet():
-    def __init__(self, limit: int = DEFAULT_MAX_DEPTH):
+    def __init__(self, limit: int = None):
         self.sets = MinimalSetOfSets[str]()
-        self.max_depth = limit
+        self.max_depth = limit if limit is not None else float('inf')
 
     @classmethod
     def ingredients_to_key(cls, cards: list[cardid], templates: list[templateid]) -> frozenset[str]:
@@ -93,20 +90,26 @@ class VariantSet():
         return self.__copy__()
 
     @classmethod
-    def or_sets(cls, sets: list['VariantSet'], limit: int = DEFAULT_MAX_DEPTH) -> 'VariantSet':
+    def or_sets(cls, sets: list['VariantSet'], limit: int = None) -> 'VariantSet':
         return VariantSet.aggregate_sets(sets, limit=limit, strategy=lambda x, y: x | y)
 
     @classmethod
-    def and_sets(cls, sets: list['VariantSet'], limit: int = DEFAULT_MAX_DEPTH) -> 'VariantSet':
+    def and_sets(cls, sets: list['VariantSet'], limit: int = None) -> 'VariantSet':
         return VariantSet.aggregate_sets(sets, limit=limit, strategy=lambda x, y: x & y)
 
     @classmethod
-    def aggregate_sets(cls, sets: list['VariantSet'], strategy, limit: int = DEFAULT_MAX_DEPTH) -> 'VariantSet':
+    def aggregate_sets(cls, sets: list['VariantSet'], strategy, limit: int = None) -> 'VariantSet':
         match len(sets):
             case 0: return VariantSet(limit=limit)
-            case 1: return sets[0].copy()
+            case 1:
+                result = sets[0].copy()
+                if limit is not None:
+                    result.max_depth = limit
+                return result
             case _:
-                result = sets[0]
+                result = sets[0].copy()
+                if limit is not None:
+                    result.max_depth = limit
                 for variant_set in sets[1:]:
                     result = strategy(result, variant_set)
                 return result

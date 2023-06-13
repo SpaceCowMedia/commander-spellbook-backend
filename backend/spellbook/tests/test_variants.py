@@ -345,11 +345,11 @@ class ComboGraphTest(AbstractModelTests):
         self.assertEqual(variants, list(combo_graph.variants(self.b2_id)))
         self.assertEqual(len(variants), 3)
 
-    def test_feature_limit(self):
+    def test_variant_limit(self):
         combo_graph = Graph(Data(), log=lambda _: None)
-        self.assertCountEqual(combo_graph.variants(self.b2_id, variant_limit=0), [])
+        self.assertRaises(Graph.GraphError, lambda: combo_graph.variants(self.b2_id, variant_limit=0))
         combo_graph = Graph(Data(), log=lambda _: None)
-        self.assertEqual(len(list(combo_graph.variants(self.b2_id, variant_limit=1))), 1)
+        self.assertRaises(Graph.GraphError, lambda: combo_graph.variants(self.b2_id, variant_limit=1))
         combo_graph = Graph(Data(), log=lambda _: None)
         self.assertEqual(len(list(combo_graph.variants(self.b2_id, variant_limit=20))), 3)
 

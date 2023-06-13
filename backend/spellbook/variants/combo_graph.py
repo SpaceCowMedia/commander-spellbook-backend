@@ -96,6 +96,9 @@ class VariantIngredients:
 
 
 class Graph:
+    class GraphError(Exception):
+        pass
+
     def __init__(self, data: Data, log=None):
         if data is not None:
             self.logger: Callable[[str]] = log if log is not None else lambda msg: self._error(msg)
@@ -153,7 +156,7 @@ class Graph:
         self._reset()
         # Down step
         variant_set = self._combo_nodes_down(combo, card_limit=card_limit, variant_limit=variant_limit)
-        # Up step
+        # Up steps
         result = list[VariantIngredients]()
         for cards, templates in variant_set.variants():
             self._reset()
@@ -177,8 +180,9 @@ class Graph:
         variant_sets = card_variant_sets + template_variant_sets + needed_features_variant_sets
         variants_count_proxy = prod(len(vs) for vs in variant_sets)
         if variants_count_proxy > variant_limit:
-            self.logger(f'Combo {combo.combo} has too many variants, approx. {variants_count_proxy}')
-            return VariantSet()
+            msg = f'Combo {combo.combo} has too many variants, approx. {variants_count_proxy}'
+            self.logger(msg)
+            raise Graph.GraphError(msg)
         combo.variant_set = VariantSet.and_sets(variant_sets, limit=card_limit)
         combo.state = NodeState.VISITED
         return combo.variant_set
@@ -199,8 +203,9 @@ class Graph:
         variant_sets = card_variant_sets + produced_combos_variant_sets
         variants_count_proxy = sum(len(vs) for vs in variant_sets)
         if variants_count_proxy > variant_limit:
-            self.logger(f'Feature "{feature.feature}" has too many variants, approx. {variants_count_proxy}')
-            return VariantSet()
+            msg = f'Feature "{feature.feature}" has too many variants, approx. {variants_count_proxy}'
+            self.logger(msg)
+            raise Graph.GraphError(msg)
         feature.variant_set = VariantSet.or_sets(variant_sets, limit=card_limit)
         feature.state = NodeState.VISITED
         return feature.variant_set

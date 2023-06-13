@@ -14,8 +14,8 @@ from djangorestframework_camel_case.util import camelize
 from spellbook.variants.variants_generator import id_from_cards_and_templates_ids, generate_variants
 from spellbook.models import Feature, Card, Job, Combo, CardInCombo, Variant, IngredientInCombination, CardInVariant
 from spellbook.models.validators import MANA_SYMBOL
-from ..scryfall import scryfall, update_cards
 from spellbook.management.s3_upload import upload_json_to_aws
+from ..scryfall import scryfall, update_cards
 
 
 @dataclass(frozen=True)
@@ -405,8 +405,9 @@ class Command(BaseCommand):
             annotated_variants.filter(id__in=bulk_combo_dict.keys(), includes_count=1).update(status=Variant.Status.OK)
             bulk_civ_to_update = list[CardInVariant]()
             bulk_variants_to_update = list[Variant]()
-            for suspicious_variant in annotated_variants.filter(id__in=bulk_combo_dict.keys(), includes_count__gt=1):
-                self.log_job(job, f'Variant {suspicious_variant} has multiple includes')
+            suspicious_variants = annotated_variants.filter(id__in=bulk_combo_dict.keys(), includes_count__gt=1)
+            self.log_job(job, f'There are {suspicious_variants.count()} variants with multiple includes. They are probably redundant.')
+            for suspicious_variant in suspicious_variants:
                 source_combo = bulk_combo_dict[suspicious_variant.id]
                 suspicious_variant.description = source_combo.combo.description
                 suspicious_variant.mana_needed = source_combo.combo.mana_needed

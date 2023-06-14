@@ -6,6 +6,7 @@ metadata:
 spec:
   template:
     spec:
+      serviceAccountName: app-service-account
       containers:
       - name: spellbook-migration
         image: 083767677168.dkr.ecr.us-east-2.amazonaws.com/spellbook-prod-ecr

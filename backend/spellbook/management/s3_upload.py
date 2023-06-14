@@ -3,8 +3,6 @@ import json
 import gzip
 import logging
 
-ACCESS_KEY = os.environ.get('AWS_ACCESS_KEY_ID', None)
-SECRET_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY', None)
 BUCKET = os.environ.get('AWS_S3_BUCKET', None)
 
 
@@ -12,21 +10,19 @@ def can_upload_to_s3() -> bool:
     try:
         import boto3
         try:
-            boto3.client('s3', aws_access_key_id=ACCESS_KEY,
-                        aws_secret_access_key=SECRET_KEY)
+            boto3.client('s3')
         except Exception:
             return False
     except ImportError:
         return False
-    return ACCESS_KEY is not None and SECRET_KEY is not None and BUCKET is not None
+    return BUCKET is not None
 
 
 def upload_json_to_aws(data, s3_file_name):
     try:
         import boto3
         from botocore.exceptions import NoCredentialsError
-        s3 = boto3.client('s3', aws_access_key_id=ACCESS_KEY,
-                        aws_secret_access_key=SECRET_KEY)
+        s3 = boto3.client('s3')
 
         string_object = json.dumps(data)
 

@@ -3,6 +3,8 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: spellbook
+  labels:
+    elbv2.k8s.aws/pod-readiness-gate-inject: enabled
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -21,6 +23,7 @@ spec:
       labels:
         app: spellbook-api
     spec:
+      serviceAccountName: app-service-account
       containers:
         - name: spellbook-api-app
           image: 083767677168.dkr.ecr.us-east-2.amazonaws.com/spellbook-prod-ecr
@@ -83,16 +86,6 @@ spec:
                 secretKeyRef:
                   name: api-secrets
                   key: db-port
-            - name: AWS_ACCESS_KEY_ID
-              valueFrom:
-                secretKeyRef:
-                  name: api-secrets
-                  key: aws-access-key-id
-            - name: AWS_SECRET_ACCESS_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: api-secrets
-                  key: aws-secret-access-key
             - name: AWS_S3_BUCKET
               valueFrom:
                 secretKeyRef:
@@ -165,7 +158,14 @@ spec:
                 name: spellbook-api-service
                 port:
                   number: 80
-
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: app-service-account
+  namespace: spellbook
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::083767677168:role/spellbook-application-role
 ---
 # Service Account for the Load Balancer Controller
 apiVersion: v1

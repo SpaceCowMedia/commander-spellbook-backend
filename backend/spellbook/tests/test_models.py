@@ -125,7 +125,7 @@ class ComboTests(AbstractModelTests):
         self.assertTrue(c.query_string().startswith('q='))
 
     def test_method_count(self):
-        self.assertEqual(count_methods(Combo), 4)
+        self.assertEqual(count_methods(Combo), 3)
 
 
 class JobTests(AbstractModelTests):

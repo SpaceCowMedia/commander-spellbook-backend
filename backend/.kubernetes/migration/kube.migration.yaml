@@ -6,6 +6,7 @@ metadata:
 spec:
   template:
     spec:
+      serviceAccountName: app-service-account
       containers:
       - name: spellbook-migration
         image: 083767677168.dkr.ecr.us-east-2.amazonaws.com/spellbook-prod-ecr
@@ -47,16 +48,6 @@ spec:
               secretKeyRef:
                 name: api-secrets
                 key: db-port
-          - name: AWS_ACCESS_KEY_ID
-            valueFrom:
-              secretKeyRef:
-                name: api-secrets
-                key: aws-access-key-id
-          - name: AWS_SECRET_ACCESS_KEY
-            valueFrom:
-              secretKeyRef:
-                name: api-secrets
-                key: aws-secret-access-key
           - name: AWS_S3_BUCKET
             valueFrom:
               secretKeyRef:

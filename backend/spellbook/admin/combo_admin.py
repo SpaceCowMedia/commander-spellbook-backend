@@ -3,6 +3,7 @@ from django.db.models import Prefetch, Case, When, Count, Q
 from django.forms import ModelForm
 from django.contrib import admin, messages
 from spellbook.models import Card, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, CardInVariant, TemplateInVariant
+from spellbook.models.utils import recipe
 from spellbook.variants.variant_data import RestoreData
 from spellbook.variants.variants_generator import restore_variant
 from spellbook.models.validators import MANA_SYMBOL
@@ -116,9 +117,8 @@ class ComboAdmin(SearchMultipleRelatedMixin, admin.ModelAdmin):
     list_display = ['display_name', 'kind', 'id']
 
     def display_name(self, obj):
-        return ' + '.join([card.name for card in obj.prefetched_uses] + [feature.name for feature in obj.prefetched_needs] + [template.name for template in obj.prefetched_requires]) \
-            + ' 🡆 ' + ' + '.join([feature.name for feature in obj.prefetched_produces[:3]]) \
-            + ('...' if len(obj.prefetched_produces) > 3 else '')
+        return recipe([card.name for card in obj.prefetched_uses] + [feature.name for feature in obj.prefetched_needs] + [template.name for template in obj.prefetched_requires],
+            [feature.name for feature in obj.prefetched_produces])
 
     def save_related(self, request, form, formsets, change):
         super().save_related(request, form, formsets, change)

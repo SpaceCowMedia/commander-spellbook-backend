@@ -8,6 +8,7 @@ from .ingredient import IngredientInCombination
 from .combo import Combo
 from .job import Job
 from .validators import TEXT_VALIDATORS, MANA_VALIDATOR, IDENTITY_VALIDATORS
+from .utils import recipe
 
 
 class Variant(models.Model, ScryfallLinkMixin):
@@ -76,9 +77,7 @@ class Variant(models.Model, ScryfallLinkMixin):
         if self.pk is None:
             return f'New variant with unique id <{self.id}>'
         produces = list(self.produces.all()[:4])
-        return ' + '.join([str(card) for card in self.cards()] + [str(template) for template in self.templates()]) \
-            + ' 🡆 ' + ' + '.join([str(feature) for feature in produces[:3]]) \
-            + ('...' if len(produces) > 3 else '')
+        return recipe([str(card) for card in self.cards()] + [str(template) for template in self.templates()], [str(feature) for feature in produces])
 
 
 class CardInVariant(IngredientInCombination):

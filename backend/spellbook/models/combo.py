@@ -5,6 +5,7 @@ from .feature import Feature
 from .template import Template
 from .ingredient import IngredientInCombination
 from .validators import MANA_VALIDATOR, TEXT_VALIDATORS
+from .utils import recipe
 
 
 class Combo(models.Model, ScryfallLinkMixin):
@@ -65,12 +66,9 @@ class Combo(models.Model, ScryfallLinkMixin):
     def __str__(self):
         if self.pk is None:
             return 'New, unsaved combo'
-        return self.ingredients() \
-            + ' 🡆 ' + ' + '.join([str(feature) for feature in self.produces.all()]) \
-            + (' - ' + ' - '.join([str(feature) for feature in self.removes.all()]) if self.removes.exists() else '')
-
-    def ingredients(self):
-        return ' + '.join([str(card) for card in self.cards()] + [str(feature) for feature in self.needs.all()] + [str(template) for template in self.templates()])
+        return recipe([str(card) for card in self.cards()] + [str(feature) for feature in self.needs.all()] + [str(template) for template in self.templates()],
+            [str(feature) for feature in self.produces.all()],
+            [str(feature) for feature in self.removes.all()])
 
 
 class CardInCombo(IngredientInCombination):

@@ -6,6 +6,7 @@ from django.http import HttpRequest
 from django.shortcuts import redirect
 from django.contrib import admin, messages
 from spellbook.models import Card, Template, Feature, Variant, CardInVariant, TemplateInVariant
+from spellbook.models.utils import recipe
 from spellbook.utils import launch_job_command
 from spellbook.parsers import variants_query_parser, NotSupportedError
 from .utils import IdentityFilter
@@ -148,9 +149,8 @@ class VariantAdmin(admin.ModelAdmin):
         return inlines
 
     def display_name(self, obj):
-        return ' + '.join([card.name for card in obj.prefetched_uses] + [template.name for template in obj.prefetched_requires]) \
-            + ' 🡆 ' + ' + '.join([str(feature) for feature in obj.prefetched_produces[:3]]) \
-            + ('...' if len(obj.prefetched_produces) > 3 else '')
+        return recipe([card.name for card in obj.prefetched_uses] + [template.name for template in obj.prefetched_requires],
+            [str(feature) for feature in obj.prefetched_produces])
 
     def generate(self, request: HttpRequest):
         if request.method == 'POST' and request.user.is_authenticated:

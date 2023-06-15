@@ -175,7 +175,7 @@ jobs:
       - name: Configure AWS credentials 🛠
         uses: aws-actions/configure-aws-credentials@v2
         with:
-          role-to-assume: arn:aws:iam::083767677168:role/spellbook-application-role
+          role-to-assume: arn:aws:iam::083767677168:role/spellbook-deploy
           role-session-name: github-actions
           aws-region: ${{ secrets.AWS_REGION }}
       - name: Login to Amazon ECR 📦

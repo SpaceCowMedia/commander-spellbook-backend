@@ -244,10 +244,13 @@ def sort(q: QuerySet, values: list[QueryValue]) -> QuerySet:
                 order_field = 'created'
             case 'updated':
                 order_field = 'updated'
+            case 'random' | 'rand' | 'shuffle':
+                order_field = '?'
             case _:
                 raise NotSupportedError(f'Value {value.value} is not supported for sort.')
         if value.prefix == '-':
-            order_field = f'-{order_field}'
+            if order_field != '?':
+                order_field = f'-{order_field}'
         elif value.prefix != '':
             raise NotSupportedError(f'Prefix {value.prefix} is not supported for sort.')
         sort_criteria.append(order_field)

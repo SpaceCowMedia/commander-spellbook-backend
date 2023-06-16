@@ -13,9 +13,6 @@ defaults:
   run:
     shell: bash
 
-
-permissions: write-all
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -166,6 +163,8 @@ jobs:
       group: production
       cancel-in-progress: false
     environment: scm-production
+    permissions:
+      id-token: write
     steps:
       - name: SetupDocker Buildx 🐳
         uses: docker/setup-buildx-action@v2

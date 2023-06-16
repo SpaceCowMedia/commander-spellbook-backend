@@ -1,14 +1,18 @@
+from django.db.models import QuerySet
 from django.template import loader
 from rest_framework import filters
 from django.utils.encoding import force_str
 from spellbook.parsers import variants_query_parser, NotSupportedError
 
 
-class SpellbookQueryFilter(filters.BaseFilterBackend):
+class AbstractQueryFilter(filters.BaseFilterBackend):
     search_param = 'q'
     template = 'rest_framework/filters/search.html'
     search_title = 'Search'
     search_description = 'A search query.'
+
+    def query_parser(self, queryset: QuerySet, search_terms: str):
+        raise NotImplementedError
 
     def get_search_terms(self, request) -> str:
         """
@@ -23,7 +27,7 @@ class SpellbookQueryFilter(filters.BaseFilterBackend):
         search_terms = self.get_search_terms(request)
 
         try:
-            queryset = variants_query_parser(queryset, search_terms)
+            queryset = self.query_parser(queryset, search_terms)
             return queryset
         except NotSupportedError:
             return queryset.none()
@@ -50,3 +54,15 @@ class SpellbookQueryFilter(filters.BaseFilterBackend):
                 },
             },
         ]
+
+
+class SpellbookQueryFilter(AbstractQueryFilter):
+    def query_parser(self, queryset, search_terms):
+        return variants_query_parser(queryset, search_terms)
+
+
+class CardQueryFilter(AbstractQueryFilter):
+    def query_parser(self, queryset, search_terms):
+        if search_terms == '?':
+            return queryset.order_by('?')
+        return queryset.filter(name__icontains=search_terms)

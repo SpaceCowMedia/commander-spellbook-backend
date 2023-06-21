@@ -13,6 +13,10 @@ defaults:
   run:
     shell: bash
 
+
+permissions: {}
+
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -140,6 +144,8 @@ jobs:
     needs: [build, lint, test, test-image]
     if: needs.build.outputs.should-release == 'true'
     concurrency: release
+    permissions:
+      contents: write
     steps:
       - name: Download image artifact ⬇
         uses: actions/download-artifact@v3

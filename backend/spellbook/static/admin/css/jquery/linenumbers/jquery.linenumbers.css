@@ -1,0 +1,44 @@
+div.editor {
+    display: inline-flex;
+    gap: 10px;
+    line-height: 25px;
+    border-radius: 2px;
+    padding: 10px 5px;
+    outline: lightgray solid 0.5px;
+}
+
+div.editor:focus-within {
+    outline: black solid 2px;
+}
+
+div.editor > textarea {
+    line-height: 25px;
+    overflow-y: hidden;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    min-width: 40px;
+    outline: none;
+    resize: horizontal;
+    max-height: none;
+}
+
+div.editor > div.line-numbers {
+    width: 20px;
+    text-align: right;
+    margin-bottom: 25px;
+}
+
+div.editor > .line-numbers > span.number {
+    counter-increment: linenumber;
+}
+
+div.editor > .line-numbers > span::before {
+    content: ' ';
+    white-space: pre;
+    display: block;
+}
+
+div.editor > .line-numbers > span.number::before {
+    content: counter(linenumber);
+}

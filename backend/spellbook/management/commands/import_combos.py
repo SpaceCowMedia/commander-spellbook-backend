@@ -79,8 +79,8 @@ def sorted_prereq_search_terms(prereq: str, card_set: set[str]) -> list[str]:
 
 
 def find_card_in_prereq(card_name: str, prerequisites: str) -> list[tuple[str, str, str]]:  # sentence, punctuation, following
-    regex = r'(.*?)' + re.escape(card_name) + r'(.*?)(\.|[^\w](?:with(?! the other)(?=(.+?)(?:\.|$))|if|when|who|named by|does|has|naming|power|attached|as|from)[^\w]|$)'
-    negated_regex = r'(?:[^\w](?:with|if|when|who|named by|does|has|naming|power|attached|on|from|opponent)[^\w])'
+    regex = r'(.*?)' + re.escape(card_name) + r'(.*?)(\.|[^\w](?:with(?! the other)(?=(.+?)(?:\.|$))|if|when|who|named by|does|has|naming|power|attached|as|from|increase)[^\w]|$)'
+    negated_regex = r'(?:[^\w](?:with|if|when|who|named by|does|has|naming|power|attached|on|from|opponent|increase)[^\w])'
     matches = []
     for sentence in prerequisites.split('.'):
         for item in re.findall(regex, sentence + '.', re.IGNORECASE):
@@ -350,8 +350,8 @@ class Command(BaseCommand):
                         continue
                     combo = Combo(
                         id=next_id,
-                        other_prerequisites=prerequisite,
-                        description=description,
+                        other_prerequisites=prerequisite.replace('. ', '.\n'),
+                        description=description.replace('. ', '.\n'),
                         kind=Combo.Kind.GENERATOR if len(used_cards) < 6 else Combo.Kind.GENERATOR_WITH_MANY_CARDS,
                         mana_needed=mana_needed,
                     )

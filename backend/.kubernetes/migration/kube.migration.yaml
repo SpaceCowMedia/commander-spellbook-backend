@@ -53,5 +53,9 @@ spec:
               secretKeyRef:
                 name: api-secrets
                 key: aws-s3-bucket
+          - name: THIS_POD_IP
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP
       restartPolicy: Never
   backoffLimit: 0

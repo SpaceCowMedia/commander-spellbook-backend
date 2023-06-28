@@ -15,6 +15,10 @@ ALLOWED_HOSTS = [
     '.commanderspellbook.com',
     'localhost'
 ]
+POD_IP = os.getenv('THIS_POD_IP', None)
+if POD_IP is not None:
+    ALLOWED_HOSTS.append(POD_IP)
+
 CSRF_TRUSTED_ORIGINS = [
     'https://*.commanderspellbook.com',
     'http://localhost',

@@ -48,7 +48,7 @@ class Command(BaseCommand):
                             v.legal = legal
                             v.spoiler = spoiler
                             updated_variants.append(v)
-                    Card.objects.bulk_update(cards_to_save, fields=['name', 'oracle_id', 'identity', 'legal', 'spoiler'])
+                    Card.objects.bulk_update(cards_to_save, fields=['name', 'name_unaccented', 'oracle_id', 'identity', 'legal', 'spoiler'])
                     Variant.objects.bulk_update(variants, fields=['identity', 'legal', 'spoiler'])
             job.termination = timezone.now()
             job.status = Job.Status.SUCCESS

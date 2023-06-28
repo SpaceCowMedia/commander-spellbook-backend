@@ -21,9 +21,9 @@ def card_search(q: QuerySet, cards: list[QueryValue]) -> QuerySet:
         value_is_digit = card.value.isdigit()
         match card.operator:
             case ':' if not value_is_digit:
-                card_query &= Q(uses__name__icontains=card.value)
+                card_query &= Q(uses__name__icontains=card.value) | Q(uses__name_unaccented__icontains=card.value)
             case '=' if not value_is_digit:
-                card_query &= Q(uses__name__iexact=card.value)
+                card_query &= Q(uses__name__iexact=card.value) | Q(uses__name_unaccented__iexact=card.value)
             case '<' if value_is_digit:
                 card_query &= Q(cards_count__lt=card.value)
             case '>' if value_is_digit:
@@ -292,7 +292,7 @@ alias_map: dict[str, str] = {
 }
 
 
-QUERY_REGEX = r'(?:\s|^)(?:(?P<card_short>[a-zA-Z]+)|"(?P<card_long>[^"]+)"|(?P<prefix>-?)(?P<key>[a-zA-Z]+)(?P<operator>:|=|<|>|<=|>=)(?:(?P<value_short>[a-zA-Z0-9]+)|"(?P<value_long>[^"]+)"))(?=\s|$)'
+QUERY_REGEX = r'(?:\s|^)(?:(?P<card_short>[a-zA-ZÀ-ÿ]+)|"(?P<card_long>[^"]+)"|(?P<prefix>-?)(?P<key>[a-zA-Z]+)(?P<operator>:|=|<|>|<=|>=)(?:(?P<value_short>[a-zA-Z0-9À-ÿ]+)|"(?P<value_long>[^"]+)"))(?=\s|$)'
 
 
 class NotSupportedError(Exception):

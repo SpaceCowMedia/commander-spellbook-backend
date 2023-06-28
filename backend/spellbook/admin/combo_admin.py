@@ -113,7 +113,7 @@ class ComboAdmin(SearchMultipleRelatedMixin, admin.ModelAdmin):
     inlines = [CardInComboAdminInline, FeatureInComboAdminInline, TemplateInComboAdminInline]
     filter_horizontal = ['uses', 'produces', 'needs', 'removes']
     list_filter = ['kind', PayoffFilter, VariantRelatedFilter]
-    search_fields = ['uses__name', 'requires__name', 'produces__name', 'needs__name']
+    search_fields = ['uses__name', 'uses__name_unaccented', 'requires__name', 'produces__name', 'needs__name']
     list_display = ['display_name', 'kind', 'id']
 
     def display_name(self, obj):

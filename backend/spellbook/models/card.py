@@ -2,14 +2,17 @@ from urllib.parse import urlencode
 from django.db import models
 from django.dispatch import receiver
 from django.db.models.signals import post_save
-from .mixins import ScryfallLinkMixin
-from .feature import Feature
 from ..variants.list_utils import merge_identities
+from .utils import strip_accents
+from .mixins import ScryfallLinkMixin, PreSaveModel
+from .feature import Feature
 from .validators import IDENTITY_VALIDATORS
 
 
-class Card(models.Model, ScryfallLinkMixin):
-    name = models.CharField(max_length=255, unique=True, blank=False, help_text='Card name', verbose_name='name of card')
+class Card(PreSaveModel, ScryfallLinkMixin):
+    MAX_CARD_NAME_LENGTH = 255
+    name = models.CharField(max_length=MAX_CARD_NAME_LENGTH, unique=True, blank=False, help_text='Card name', verbose_name='name of card')
+    name_unaccented = models.CharField(max_length=MAX_CARD_NAME_LENGTH, unique=True, blank=False, help_text='Card name without accents', verbose_name='name of card without accents', editable=False)
     oracle_id = models.UUIDField(unique=True, blank=True, null=True, help_text='Scryfall Oracle ID', verbose_name='Scryfall Oracle ID of card')
     features = models.ManyToManyField(
         to=Feature,
@@ -32,6 +35,9 @@ class Card(models.Model, ScryfallLinkMixin):
 
     def query_string(self):
         return urlencode({'q': f'!"{self.name}"'})
+
+    def pre_save(self):
+        self.name_unaccented = strip_accents(self.name)
 
 
 @receiver(post_save, sender=Card, dispatch_uid='update_variant_fields')

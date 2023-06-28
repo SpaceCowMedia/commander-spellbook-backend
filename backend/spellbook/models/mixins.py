@@ -1,4 +1,4 @@
-from typing import Iterable, List
+from typing import Iterable, List, Sequence
 from urllib.parse import urlencode
 from django.utils.html import format_html
 from django.db.models import Model, Manager
@@ -21,10 +21,10 @@ class PreSaveManager(Manager):
             obj.pre_save()
         return super().bulk_create(objs, *args, **kwargs)
 
-    def bulk_update(self, objs: Iterable, *args, **kwargs) -> int:
+    def bulk_update(self, objs: Iterable, fields: Sequence[str], *args, **kwargs) -> int:
         for obj in objs:
             obj.pre_save()
-        return super().bulk_update(objs, *args, **kwargs)
+        return super().bulk_update(objs, fields, *args, **kwargs)
 
 
 class PreSaveModel(Model):

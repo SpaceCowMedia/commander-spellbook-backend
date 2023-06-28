@@ -30,7 +30,22 @@ class CardTests(AbstractModelTests):
         self.assertIn('<a', c.scryfall_link())
 
     def test_method_count(self):
-        self.assertEqual(count_methods(Card), 2)
+        self.assertEqual(count_methods(Card), 3)
+
+    def test_name_unaccented(self):
+        c = Card.objects.create(name='à, è, ì, ò, ù, y, À, È, Ì, Ò, Ù, Y, á, é, í, ó, ú, ý, Á, É, Í, Ó, Ú, Ý, â, ê, î, ô, û, y, Â, Ê, Î, Ô, Û, Y, ä, ë, ï, ö, ü, ÿ, Ä, Ë, Ï, Ö, Ü, Ÿ', oracle_id='47d6f04b-a6fe-4274-bd27-888475158e82')
+        self.assertEqual(c.name_unaccented, ', '.join('aeiouyAEIOUY' * 4))
+        c.name = 'àààèèèìììòòòùùù'
+        c.save()
+        self.assertEqual(c.name_unaccented, 'aaaeeeiiiooouuu')
+        c.name = 'ààèèììòòùù'
+        Card.objects.bulk_update([c], ['name', 'name_unaccented'])
+        c.refresh_from_db()
+        self.assertEqual(c.name_unaccented, 'aaeeiioouu')
+        c.delete()
+        Card.objects.bulk_create([Card(name='àààèèèìììòòòùùù', oracle_id='47d6f04b-a6fe-4274-bd27-888475158e82')])
+        c = Card.objects.get(name='àààèèèìììòòòùùù')
+        self.assertEqual(c.name_unaccented, 'aaaeeeiiiooouuu')
 
 
 class FeatureTests(AbstractModelTests):

@@ -27,7 +27,7 @@ class ImportedVariantBulkSaveItem:
 
 def sorted_prereq_search_terms(prereq: str, card_set: set[str]) -> list[str]:
     pre_lower = prereq.lower()
-    terms = card_set | {'all permanents', 'all other permanents', 'all other cards', 'all cards'}
+    terms = card_set | {'all permanents', 'all other permanents', 'all other cards', 'all cards', 'both cards', 'both permanents'}
     found_terms = list[tuple[str, int]]()
     for term in terms:
         lower_term = term.lower()
@@ -291,53 +291,71 @@ class Command(BaseCommand):
                 for i, (old_id, _cards, produced, prerequisite, description, mana_needed, positions) in enumerate(x):
                     self.stdout.write(f'{i+1}/{len(x)}\n' if (i + 1) % 100 == 0 else '.', ending='')
                     cards_from_combo = {combo_card_name_to_card[c] for c in _cards}
-                    used_cards = list[CardInCombo]()
                     used_cards_types = dict[Card, str]()
-                    for c, (p, _, half, status) in sorted(positions.items(), key=lambda x: x[1][1]):
+                    for c, (p, _, half, status) in positions.items():
                         if c in _cards:
                             actual_card = combo_card_name_to_card[c]
-                            used_cards.append(CardInCombo(card=actual_card, zone_locations=p, card_state=status))
                             actual_card_name = actual_card.name.lower()
                             used_cards_types[actual_card] = combo_card_name_to_scryfall[actual_card_name]['type_line']
                             if half > 0:
                                 used_cards_types[actual_card] = used_cards_types[actual_card].partition('//')[0 if half == 1 else 2].strip()
+                    permanents_from_combo = {c for c in cards_from_combo if any(t in used_cards_types.get(c, combo_card_name_to_scryfall[c.name.lower()]['type_line']) for t in ('Creature', 'Planeswalker', 'Artifact', 'Enchantment', 'Battle', 'Land'))}
+                    cardincombo_list = list[CardInCombo]()
+                    for c, (p, _, half, status) in sorted(positions.items(), key=lambda x: x[1][1]):
+                        if c in _cards:
+                            actual_card = combo_card_name_to_card[c]
+                            cardincombo_list.append(CardInCombo(card=actual_card, zone_locations=p, card_state=status))
                         elif c == 'all permanents':
-                            for card in cards_from_combo:
-                                type_line = used_cards_types.get(card, combo_card_name_to_scryfall[card.name.lower()]['type_line'])
-                                if any(t in type_line for t in ('Creature', 'Planeswalker', 'Artifact', 'Enchantment', 'Battle', 'Land')):
-                                    if card in [c.card for c in used_cards]:
-                                        raise ValueError(f'Card {card} already used')
-                                    used_cards.append(CardInCombo(card=card, zone_locations=p, card_state=status))
+                            for card in permanents_from_combo:
+                                if card in [c.card for c in cardincombo_list]:
+                                    raise ValueError(f'Card {card} already used')
+                                cardincombo_list.append(CardInCombo(card=card, zone_locations=p, card_state=status))
+                        elif c == 'both permanents':
+                            if len(permanents_from_combo) != 2:
+                                raise ValueError(f'Expected 2 permanents, got {len(permanents_from_combo)}')
+                            for card in permanents_from_combo:
+                                if card in [c.card for c in cardincombo_list]:
+                                    raise ValueError(f'Card {card} already used')
+                                cardincombo_list.append(CardInCombo(card=card, zone_locations=p, card_state=status))
                         elif c == 'all other permanents':
-                            for card in cards_from_combo:
-                                type_line = used_cards_types.get(card, combo_card_name_to_scryfall[card.name.lower()]['type_line'])
-                                if any(t in type_line for t in ('Creature', 'Planeswalker', 'Artifact', 'Enchantment', 'Battle', 'Land')):
-                                    if card not in [c.card for c in used_cards]:
-                                        used_cards.append(CardInCombo(card=card, zone_locations=p, card_state=status))
+                            for card in permanents_from_combo:
+                                if card not in [c.card for c in cardincombo_list]:
+                                    cardincombo_list.append(CardInCombo(card=card, zone_locations=p, card_state=status))
                         elif c == 'all other cards':
                             for card in cards_from_combo:
-                                if card not in [c.card for c in used_cards]:
-                                    used_cards.append(CardInCombo(card=card, zone_locations=p, card_state=status))
+                                if card not in [c.card for c in cardincombo_list]:
+                                    cardincombo_list.append(CardInCombo(card=card, zone_locations=p, card_state=status))
                         elif c == 'all cards':
                             for card in cards_from_combo:
-                                if card in [c.card for c in used_cards]:
+                                if card in [c.card for c in cardincombo_list]:
                                     raise ValueError(f'Card {card} already used')
-                                used_cards.append(CardInCombo(card=card, zone_locations=p, card_state=status))
+                                cardincombo_list.append(CardInCombo(card=card, zone_locations=p, card_state=status))
+                        elif c == 'both cards':
+                            if len(cards_from_combo) != 2:
+                                raise ValueError(f'Expected 2 cards, got {len(cards_from_combo)}')
+                            for card in cards_from_combo:
+                                if card in [c.card for c in cardincombo_list]:
+                                    raise ValueError(f'Card {card} already used')
+                                cardincombo_list.append(CardInCombo(card=card, zone_locations=p, card_state=status))
                         else:
                             raise ValueError(f'Unknown card {c}')
                     for card in cards_from_combo:
-                        items = {i: (c.card, c.zone_locations) for i, c in enumerate(used_cards) if c.card == card}
-                        if len(items) == 0:
-                            used_cards.append(CardInCombo(card=card, zone_locations=IngredientInCombination.ZoneLocation.HAND, card_state=status))
+                        card_in_combos = [c for c in cardincombo_list if c.card == card]
+                        locations = [c.zone_locations for c in card_in_combos]
+                        if len(locations) == 0:
+                            self.log_job(job, f'Card {card} doesn\'t appear in prerequisites of combo {old_id}.', self.style.WARNING)
+                            cardincombo_list.append(CardInCombo(card=card, zone_locations=IngredientInCombination.ZoneLocation.HAND, card_state=status))
+                        elif len(locations) == 1:
+                            pass
                         else:
-                            first = next(iter(items.items()))
-                            if all(item == first[1] for item in items.values()):
-                                if len(items) > 1:
-                                    used_cards = [c for i, c in enumerate(used_cards) if i not in items or i == first[0]]
-                                continue
-                            elif len(items) > 1:
+                            first = locations[0]
+                            if all(item == first for item in locations):
+                                index = cardincombo_list.index(card_in_combos[0])
+                                cardincombo_list = list[CardInCombo](c for c in cardincombo_list if c.card != card)
+                                cardincombo_list.insert(index, card_in_combos[0])
+                            else:
                                 raise ValueError(f'Card {card} used multiple times')
-                    for i, card_in_combo in enumerate(used_cards):
+                    for i, card_in_combo in enumerate(cardincombo_list):
                         card_in_combo.order = i
                     id = id_from_cards_and_templates_ids([c.id for c in cards_from_combo], [])
                     old_id = int(old_id)
@@ -352,10 +370,10 @@ class Command(BaseCommand):
                         id=next_id,
                         other_prerequisites=prerequisite.replace('. ', '.\n'),
                         description=description.replace('. ', '.\n'),
-                        kind=Combo.Kind.GENERATOR if len(used_cards) < 6 else Combo.Kind.GENERATOR_WITH_MANY_CARDS,
+                        kind=Combo.Kind.GENERATOR if len(cardincombo_list) < 6 else Combo.Kind.GENERATOR_WITH_MANY_CARDS,
                         mana_needed=mana_needed,
                     )
-                    for cic in used_cards:
+                    for cic in cardincombo_list:
                         cic.combo = combo
                     next_id += 1
                     produces_dict = {}
@@ -372,7 +390,7 @@ class Command(BaseCommand):
                     produces = list(produces_dict.values())
                     bulk_item = ImportedVariantBulkSaveItem(
                         combo=combo,
-                        uses=used_cards,
+                        uses=cardincombo_list,
                         produces=produces,
                     )
                     bulk_combo_dict[id] = bulk_item

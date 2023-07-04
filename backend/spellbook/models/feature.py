@@ -17,7 +17,8 @@ class Feature(models.Model):
         constraints = [
             models.UniqueConstraint(
                 Lower('name'),
-                name='name_unique_ci'
+                name='name_unique_ci',
+                violation_error_message='Feature name should be unique, ignoring case.',
             ),
         ]
 

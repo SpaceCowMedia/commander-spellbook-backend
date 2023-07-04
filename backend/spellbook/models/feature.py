@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models.functions import Lower
 from .validators import FIRST_CAPITAL_LETTER_VALIDATOR
 
 
@@ -13,6 +14,12 @@ class Feature(models.Model):
         ordering = ['name']
         verbose_name = 'feature'
         verbose_name_plural = 'features'
+        constraints = [
+            models.UniqueConstraint(
+                Lower('name'),
+                name='name_unique_ci'
+            ),
+        ]
 
     def __str__(self):
         return self.name

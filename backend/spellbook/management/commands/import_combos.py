@@ -106,7 +106,7 @@ def find_combos() -> list[tuple[str, frozenset[str], frozenset[str], str, str, s
             if len(cards) <= 1:
                 continue
             combos_reverse_id[cards] = row[0]
-            pros = [token.replace('.', '') for token in row[14].lower().strip(' \t\n\r').split('. ')]
+            pros = [token.replace('.', '') for token in row[14].strip(' \t\n\r').split('. ')]
             combosdb[cards] = frozenset(pros)
             combosdata[cards] = (row[12], row[13])
     result = []
@@ -286,7 +286,7 @@ class Command(BaseCommand):
             bulk_combo_dict = dict[str, ImportedVariantBulkSaveItem]()
             existing_unique_ids = {id_from_cards_and_templates_ids([c.id for c in combo.uses.all()], []) for combo in Combo.objects.prefetch_related('uses')}
             with transaction.atomic(durable=True):
-                existing_feature_names = {f.name: f for f in Feature.objects.all()}
+                existing_feature_names = {f.name.lower(): f for f in Feature.objects.all()}
                 next_id = (Combo.objects.aggregate(Max('id'))['id__max'] or 0) + 1
                 for i, (old_id, _cards, produced, prerequisite, description, mana_needed, positions) in enumerate(x):
                     self.stdout.write(f'{i+1}/{len(x)}\n' if (i + 1) % 100 == 0 else '.', ending='')
@@ -380,13 +380,14 @@ class Command(BaseCommand):
                     for name in (format_feature_name(p) for p in produced):
                         if name in produces_dict:
                             continue
-                        if name in existing_feature_names:
-                            produces_dict[name] = existing_feature_names[name]
+                        name_lower = name.lower()
+                        if name_lower in existing_feature_names:
+                            produces_dict[name] = existing_feature_names[name_lower]
                         else:
                             feature = Feature(name=name)
                             feature.save()
                             produces_dict[name] = feature
-                            existing_feature_names[name] = feature
+                            existing_feature_names[name_lower] = feature
                     produces = list(produces_dict.values())
                     bulk_item = ImportedVariantBulkSaveItem(
                         combo=combo,

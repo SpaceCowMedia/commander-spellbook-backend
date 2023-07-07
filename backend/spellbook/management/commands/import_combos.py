@@ -33,18 +33,18 @@ def sorted_prereq_search_terms(prereq: str, card_set: set[str]) -> list[str]:
         lower_term = term.lower()
         regex = rf'(?:^|[^\w])({re.escape(lower_term)})(?:[^\w]|$)'
         search_result = re.search(regex, pre_lower)
+        first_occurrence = None
         if search_result:
-            found_terms.append((term, search_result.start(1)))
-            continue
+            first_occurrence = search_result.start(1)
         if '//' in term:
             complete_lower_term = lower_term
             split_over_slashes = complete_lower_term.partition('//')
             lower_term = split_over_slashes[0].strip()
             regex = rf'(?:^|[^\w])({re.escape(lower_term)})(?:[^\w]|$)'
             search_result = re.search(regex, pre_lower)
-            first_occurrence = None
             if search_result:
-                first_occurrence = search_result.start(1)
+                if first_occurrence is None or search_result.start(1) < first_occurrence:
+                    first_occurrence = search_result.start(1)
             if ',' in lower_term:
                 lower_term = lower_term.partition(',')[0]
                 regex = rf'(?:^|[^\w])({re.escape(lower_term)})(?:[^\w]|$)'
@@ -73,8 +73,10 @@ def sorted_prereq_search_terms(prereq: str, card_set: set[str]) -> list[str]:
             regex = rf'(?:^|[^\w])({re.escape(lower_term)})(?:[^\w]|$)'
             search_result = re.search(regex, pre_lower)
             if search_result:
-                found_terms.append((term, search_result.start(1)))
-                continue
+                if first_occurrence is None or search_result.start(1) < first_occurrence:
+                    first_occurrence = search_result.start(1)
+        if first_occurrence is not None:
+            found_terms.append((term, first_occurrence))
     return [item[0] for item in sorted(found_terms, key=lambda item: item[1])]
 
 
@@ -184,10 +186,12 @@ def find_combos() -> list[tuple[str, frozenset[str], frozenset[str], str, str, s
                     positions_dict[c] = (p_list[0], position_order, half, status)
                     position_order += 1
                     if position[1] == '.':
-                        if re.search(r'(?:[^\w]|^)and(?:[^\w]|$)', position[0], re.IGNORECASE):
-                            new_prerequisites = re.subn(r'\s?' + (c_short_name if c_short_name else c) + r'[^,\.]*[^\w]and[^\w]', '', new_prerequisites, 1, re.IGNORECASE)[0].strip()
+                        if re.search(r'(?:\w|^),(?:[^\w]|$)', position[0], re.IGNORECASE):
+                            new_prerequisites = re.subn(r'\s?' + re.escape(c_short_name if c_short_name else c) + r'[^,\.]*,[^\w](and[^\w])?', '', new_prerequisites, 1, re.IGNORECASE)[0].strip()
+                        elif re.search(r'(?:[^\w]|^)and(?:[^\w]|$)', position[0], re.IGNORECASE):
+                            new_prerequisites = re.subn(r'\s?' + re.escape(c_short_name if c_short_name else c) + r'[^,\.]*,?[^\w]and[^\w]', '', new_prerequisites, 1, re.IGNORECASE)[0].strip()
                         else:
-                            new_prerequisites = re.subn(r'\s?' + (c_short_name if c_short_name else c) + r' ([^,\.]+)\.', '', new_prerequisites, 1, re.IGNORECASE)[0].strip()
+                            new_prerequisites = re.subn(r'\s?' + re.escape(c_short_name if c_short_name else c) + r' ([^,\.]+)\.', '', new_prerequisites, 1, re.IGNORECASE)[0].strip()
                 elif len(p_list) > 1:
                     raise Exception(f'Found {len(p_list)} positions for {c} in {prerequisites}')
         description = combosdata[card_set][1]

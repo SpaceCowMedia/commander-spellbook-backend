@@ -140,23 +140,28 @@ def restore_variant(
                 to_edit.card_state += ' '
             to_edit.card_state += template_in_combo.card_state
             to_edit.zone_locations = ''.join(location for location in to_edit.zone_locations if location in template_in_combo.zone_locations)
+    # Ordering by descending replaceability and ascending order in combos
+    cards_ordering: dict[int, tuple[int, int]] = {c: (0, 0) for c in uses}
+    templates_ordering: dict[int, tuple[int, int]] = {t: (0, 0) for t in requires}
     for i, combo in enumerate(chain(included_combos, generator_combos)):
         for j, card_in_combo in enumerate(reversed(data.combo_to_cards[combo.id])):
-            to_edit = uses[card_in_combo.card.id]
-            to_edit.order += i * HIGHER_CARD_LIMIT + j
+            t = cards_ordering[card_in_combo.card.id]
+            cards_ordering[card_in_combo.card.id] = (t[0] + i, t[1] + j)
         for j, template_in_combo in enumerate(reversed(data.combo_to_templates[combo.id])):
-            to_edit = requires[template_in_combo.template.id]
-            to_edit.order += i * HIGHER_CARD_LIMIT + j
+            t = templates_ordering[template_in_combo.template.id]
+            templates_ordering[template_in_combo.template.id] = (t[0] + i, t[1] + j)
 
     def uses_list():
-        for i, v in enumerate(sorted(uses.values(), key=lambda v: v.order, reverse=True)):
-            v.order = i
-            yield v
+        for i, v in enumerate(sorted(cards_ordering, key=lambda k: cards_ordering[k], reverse=True)):
+            cic = uses[v]
+            cic.order = i
+            yield cic
 
     def requires_list():
-        for i, v in enumerate(sorted(requires.values(), key=lambda v: v.order, reverse=True)):
-            v.order = i
-            yield v
+        for i, v in enumerate(sorted(templates_ordering, key=lambda k: templates_ordering[k], reverse=True)):
+            tiv = requires[v]
+            tiv.order = i
+            yield tiv
 
     return list(uses_list()), list(requires_list())
 

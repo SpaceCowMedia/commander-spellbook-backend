@@ -19,6 +19,10 @@ class RestoreData:
             self.combo_to_cards[cic.combo.id].append(cic)
         for tic in TemplateInCombo.objects.select_related('template', 'combo').distinct():
             self.combo_to_templates[tic.combo.id].append(tic)
+        for combo_to_cards in self.combo_to_cards.values():
+            combo_to_cards.sort(key=lambda cic: cic.order)
+        for combo_to_templates in self.combo_to_templates.values():
+            combo_to_templates.sort(key=lambda tic: tic.order)
 
 
 class Data(RestoreData):

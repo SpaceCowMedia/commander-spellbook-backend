@@ -10,6 +10,12 @@ from .combo_graph import Graph
 from spellbook.models import Combo, Job, Variant, CardInVariant, TemplateInVariant, IngredientInCombination
 
 
+DEFAULT_CARD_LIMIT = 5
+DEFAULT_VARIANT_LIMIT = 10000
+HIGHER_CARD_LIMIT = 100
+LOWER_VARIANT_LIMIT = 100
+
+
 def log_into_job(job: Job, message: str, reset=False):
     if job:
         if reset:
@@ -46,11 +52,11 @@ def get_variants_from_graph(data: Data, job: Job = None) -> dict[str, VariantDef
     total = len(combos)
     for i, combo in enumerate(combos):
         count = 0
-        card_limit = 5
-        variant_limit = 10000
+        card_limit = DEFAULT_CARD_LIMIT
+        variant_limit = DEFAULT_VARIANT_LIMIT
         if combo.kind == Combo.Kind.GENERATOR_WITH_MANY_CARDS:
-            card_limit = 100
-            variant_limit = 100
+            card_limit = HIGHER_CARD_LIMIT
+            variant_limit = LOWER_VARIANT_LIMIT
         variants = graph.variants(combo.id, card_limit=card_limit, variant_limit=variant_limit)
         for variant in variants:
             cards_ids = [c.id for c in variant.cards]
@@ -135,30 +141,20 @@ def restore_variant(
             to_edit.card_state += template_in_combo.card_state
             to_edit.zone_locations = ''.join(location for location in to_edit.zone_locations if location in template_in_combo.zone_locations)
     for i, combo in enumerate(chain(included_combos, generator_combos)):
-        for card_in_combo in data.combo_to_cards[combo.id]:
+        for j, card_in_combo in enumerate(reversed(data.combo_to_cards[combo.id])):
             to_edit = uses[card_in_combo.card.id]
-            to_edit.order += i
-        for template_in_combo in data.combo_to_templates[combo.id]:
+            to_edit.order += i * HIGHER_CARD_LIMIT + j
+        for j, template_in_combo in enumerate(reversed(data.combo_to_templates[combo.id])):
             to_edit = requires[template_in_combo.template.id]
-            to_edit.order += i
+            to_edit.order += i * HIGHER_CARD_LIMIT + j
 
     def uses_list():
-        i = -1
-        prec = -1
-        for v in sorted(uses.values(), key=lambda v: v.order, reverse=True):
-            if v.order != prec:
-                i += 1
-                prec = v.order
+        for i, v in enumerate(sorted(uses.values(), key=lambda v: v.order, reverse=True)):
             v.order = i
             yield v
 
     def requires_list():
-        i = -1
-        prec = -1
-        for v in sorted(requires.values(), key=lambda v: v.order, reverse=True):
-            if v.order != prec:
-                i += 1
-                prec = v.order
+        for i, v in enumerate(sorted(requires.values(), key=lambda v: v.order, reverse=True)):
             v.order = i
             yield v
 

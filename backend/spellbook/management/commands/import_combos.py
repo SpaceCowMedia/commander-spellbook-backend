@@ -91,31 +91,36 @@ def find_card_in_prereq(card_name: str, prerequisites: str) -> list[tuple[str, s
     return matches
 
 
-def find_combos() -> list[tuple[str, frozenset[str], frozenset[str], str, str, str, dict[str, tuple[str, int, int, str]]]]:
+def find_combos() -> list[tuple[str, tuple[str, ...], frozenset[str], str, str, str, dict[str, tuple[str, int, int, str]]]]:
     """Fetches the combos from the google sheet.
     Result format: id, cards, produced, prerequisite, description, mana, dictionary of prerequistes positions (card name -> (position_code, order, half_number, status))"""
-    combosdb = dict[frozenset[str], frozenset[str]]()
-    combosdata = dict[frozenset[str], tuple[str, str]]()
+    combo_to_produces = dict[frozenset[str], frozenset[str]]()
+    combos_to_prerequisites = dict[frozenset[str], str]()
+    combos_to_description = dict[frozenset[str], str]()
     combos_reverse_id = dict[frozenset[str], str]()
+    combos_to_card_ordered = dict[frozenset[str], tuple[str, ...]]()
     # Commander Spellbook database fetching
     req = Request(
         'https://sheets.googleapis.com/v4/spreadsheets/1KqyDRZRCgy8YgMFnY0tHSw_3jC99Z0zFvJrPbfm66vA/values:batchGet?ranges=combos!A2:Q&key=AIzaSyBD_rcme5Ff37Evxa4eW5BFQZkmTbgpHew')
     with urlopen(req) as response:
         data = json.loads(response.read().decode())
         for row in data['valueRanges'][0]['values']:
-            cards = frozenset(map(lambda name: name.lower().strip(' \t\n\r'), filter(
-                lambda name: name is not None and len(name) > 0, row[1:11]))) - set([''])
+            card_list = [name.lower().strip(' \t\n\r') for name in row[1:11] if name is not None and len(name) > 0]
+            cards = tuple(dict.fromkeys(c for c in card_list if len(c) > 0))
+            cards_set = frozenset(cards)
             if len(cards) <= 1:
                 continue
-            combos_reverse_id[cards] = row[0]
+            combos_reverse_id[cards_set] = row[0]
             pros = [token.replace('.', '') for token in row[14].strip(' \t\n\r').split('. ')]
-            combosdb[cards] = frozenset(pros)
-            combosdata[cards] = (row[12], row[13])
+            combo_to_produces[cards_set] = frozenset(pros)
+            combos_to_prerequisites[cards_set] = row[12]
+            combos_to_description[cards_set] = row[13]
+            combos_to_card_ordered[cards_set] = cards
     result = []
-    for card_set in combosdb:
+    for card_set in combo_to_produces:
         id = combos_reverse_id[card_set]
-        features = frozenset(combosdb[card_set])
-        prerequisites = combosdata[card_set][0]
+        features = frozenset(combo_to_produces[card_set])
+        prerequisites = combos_to_prerequisites[card_set]
         mana_regex = r'^(.*?)\s*((?:\{' + MANA_SYMBOL + r'\})+) available([^\.]*)\.(.*)$'
         mana_match = re.match(mana_regex, prerequisites, re.IGNORECASE)
         mana = ''
@@ -194,8 +199,8 @@ def find_combos() -> list[tuple[str, frozenset[str], frozenset[str], str, str, s
                             new_prerequisites = re.subn(r'\s?' + re.escape(c_short_name if c_short_name else c) + r' ([^,\.]+)\.', '', new_prerequisites, 1, re.IGNORECASE)[0].strip()
                 elif len(p_list) > 1:
                     raise Exception(f'Found {len(p_list)} positions for {c} in {prerequisites}')
-        description = combosdata[card_set][1]
-        result.append((id, card_set, features, new_prerequisites, description, mana, positions_dict))
+        description = combos_to_description[card_set]
+        result.append((id, combos_to_card_ordered[card_set], features, new_prerequisites, description, mana, positions_dict))
     return result
 
 
@@ -294,7 +299,7 @@ class Command(BaseCommand):
                 next_id = (Combo.objects.aggregate(Max('id'))['id__max'] or 0) + 1
                 for i, (old_id, _cards, produced, prerequisite, description, mana_needed, positions) in enumerate(x):
                     self.stdout.write(f'{i+1}/{len(x)}\n' if (i + 1) % 100 == 0 else '.', ending='')
-                    cards_from_combo = {combo_card_name_to_card[c] for c in _cards}
+                    cards_from_combo = [combo_card_name_to_card[c] for c in _cards]
                     used_cards_types = dict[Card, str]()
                     for c, (p, _, half, status) in positions.items():
                         if c in _cards:
@@ -303,7 +308,7 @@ class Command(BaseCommand):
                             used_cards_types[actual_card] = combo_card_name_to_scryfall[actual_card_name]['type_line']
                             if half > 0:
                                 used_cards_types[actual_card] = used_cards_types[actual_card].partition('//')[0 if half == 1 else 2].strip()
-                    permanents_from_combo = {c for c in cards_from_combo if any(t in used_cards_types.get(c, combo_card_name_to_scryfall[c.name.lower()]['type_line']) for t in ('Creature', 'Planeswalker', 'Artifact', 'Enchantment', 'Battle', 'Land'))}
+                    permanents_from_combo = [c for c in cards_from_combo if any(t in used_cards_types.get(c, combo_card_name_to_scryfall[c.name.lower()]['type_line']) for t in ('Creature', 'Planeswalker', 'Artifact', 'Enchantment', 'Battle', 'Land'))]
                     cardincombo_list = list[CardInCombo]()
                     for c, (p, _, half, status) in sorted(positions.items(), key=lambda x: x[1][1]):
                         if c in _cards:
@@ -359,7 +364,7 @@ class Command(BaseCommand):
                                 cardincombo_list.insert(index, card_in_combos[0])
                             else:
                                 raise ValueError(f'Card {card} used multiple times')
-                    for i, card_in_combo in enumerate(cardincombo_list):
+                    for i, card_in_combo in enumerate(sorted(cardincombo_list, key=lambda c: cards_from_combo.index(c.card))):
                         card_in_combo.order = i
                     id = id_from_cards_and_templates_ids([c.id for c in cards_from_combo], [])
                     old_id = int(old_id)

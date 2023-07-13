@@ -158,6 +158,18 @@ def find_combos() -> list[tuple[str, tuple[str, ...], frozenset[str], str, str, 
                     p_list.append(IngredientInCombination.ZoneLocation.HAND)
                 if re.search(r'(?:[^\w]|^)battlefield(?:[^\w]|$)', position[0], re.IGNORECASE):
                     p_list.append(IngredientInCombination.ZoneLocation.BATTLEFIELD)
+                    if re.search(r'(?:[^\w]|^)tapped(?:[^\w]|$)', position[0], re.IGNORECASE):
+                        if status != '':
+                            raise Exception('Status already set')
+                        status = 'tapped'
+                    if re.search(r'(?:[^\w]|^)untapped(?:[^\w]|$)', position[0], re.IGNORECASE):
+                        if status != '':
+                            raise Exception('Status already set')
+                        status = 'untapped'
+                    if re.search(r'(?:[^\w]|^)face down(?:[^\w]|$)', position[0], re.IGNORECASE):
+                        if status != '':
+                            raise Exception('Status already set')
+                        status = 'face down'
                 if re.search(r'(?:[^\w]|^)command zone(?:[^\w]|$)', position[0], re.IGNORECASE):
                     p_list.append(IngredientInCombination.ZoneLocation.COMMAND_ZONE)
                 if re.search(r'(?:[^\w]|^)graveyard(?:[^\w]|$)', position[0], re.IGNORECASE):
@@ -165,6 +177,8 @@ def find_combos() -> list[tuple[str, tuple[str, ...], frozenset[str], str, str, 
                 if re.search(r'(?:[^\w]|^)exiled?(?:[^\w]|$)', position[0], re.IGNORECASE):
                     p_list.append(IngredientInCombination.ZoneLocation.EXILE)
                     if re.search(r'(?:[^\w]|^)by(?:[^\w]|$)', position[0], re.IGNORECASE):
+                        if status != '':
+                            raise Exception('Status already set')
                         after_by = re.split(r'(?:[^\w]|^)by(?:[^\w]|$)', position[0], maxsplit=2, flags=re.IGNORECASE)[1]
                         status = f'exiled by {after_by}'
                     if position[1] == 'with':

@@ -164,5 +164,25 @@
                 "order": 7
             },
         },
+        {
+            "name": "Wipe combos, features and variants",
+            "type": "python",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/backend",
+            "program": "manage.py",
+            "args": [
+                "shell",
+                "-c",
+                "from spellbook.models import *; Variant.objects.all().delete(); Combo.objects.all().delete(); Feature.objects.all().delete();"
+            ],
+            "preLaunchTask": "Apply migrations",
+            "django": true,
+            "justMyCode": true,
+            "presentation": {
+                "hidden": false,
+                "group": "Spellbook",
+                "order": 8
+            },
+        },
     ]
 }

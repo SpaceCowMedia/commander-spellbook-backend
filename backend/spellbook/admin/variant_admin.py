@@ -13,7 +13,7 @@ from .utils import IdentityFilter
 from .ingredient_admin import IngredientInCombinationForm
 
 
-class CardInVariantAdminInline(admin.StackedInline):
+class CardInVariantAdminInline(admin.TabularInline):
     readonly_fields = ['card_name']
     fields = ['card_name', 'zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state']
     form = IngredientInCombinationForm
@@ -36,7 +36,7 @@ class CardInVariantAdminInline(admin.StackedInline):
         return format_html(html, reverse('admin:spellbook_card_change', args=(card.id,)), card.name)
 
 
-class TemplateInVariantAdminInline(admin.StackedInline):
+class TemplateInVariantAdminInline(admin.TabularInline):
     readonly_fields = ['template']
     fields = ['template', 'zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state']
     form = IngredientInCombinationForm

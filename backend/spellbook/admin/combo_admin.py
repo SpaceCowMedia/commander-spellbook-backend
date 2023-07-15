@@ -38,7 +38,7 @@ class IngredientInComboForm(IngredientInCombinationForm):
         return super().clean()
 
 
-class CardInComboAdminInline(admin.StackedInline):
+class CardInComboAdminInline(admin.TabularInline):
     fields = ['card', 'zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state']
     form = IngredientInComboForm
     model = CardInCombo
@@ -49,7 +49,7 @@ class CardInComboAdminInline(admin.StackedInline):
     classes = ['ingredient']
 
 
-class TemplateInComboAdminInline(admin.StackedInline):
+class TemplateInComboAdminInline(admin.TabularInline):
     fields = ['template', 'zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state']
     form = IngredientInComboForm
     model = TemplateInCombo

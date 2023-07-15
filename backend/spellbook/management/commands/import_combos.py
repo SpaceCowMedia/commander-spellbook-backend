@@ -173,6 +173,10 @@ def find_combos() -> list[tuple[str, tuple[str, ...], frozenset[str], str, str, 
                         if battlefield_status != '':
                             raise Exception('Battlefield status already set')
                         battlefield_status = 'face down'
+                    if re.search(r'(?:[^\w]|^)face up(?:[^\w]|$)', position[0], re.IGNORECASE):
+                        if battlefield_status != '':
+                            raise Exception('Battlefield status already set')
+                        battlefield_status = 'face up'
                 if re.search(r'(?:[^\w]|^)command zone(?:[^\w]|$)', position[0], re.IGNORECASE):
                     p_list.append(IngredientInCombination.ZoneLocation.COMMAND_ZONE)
                 if re.search(r'(?:[^\w]|^)graveyard(?:[^\w]|$)', position[0], re.IGNORECASE):
@@ -208,8 +212,9 @@ def find_combos() -> list[tuple[str, tuple[str, ...], frozenset[str], str, str, 
                     positions_dict[c] = (p_list[0], position_order, half, (battlefield_status, exile_status, library_status, graveyard_status))
                     position_order += 1
                     if position[1] == '.':
+                        number_of_positions = len(p_list[0])
                         if re.search(r'(?:\w|^),(?:[^\w]|$)', position[0], re.IGNORECASE):
-                            new_prerequisites = re.subn(r'\s?' + re.escape(c_short_name if c_short_name else c) + r'[^,\.]*,[^\w](and[^\w])?', '', new_prerequisites, 1, re.IGNORECASE)[0].strip()
+                            new_prerequisites = re.subn(r'\s?' + re.escape(c_short_name if c_short_name else c) + rf'[^,\.]*(?:(?:,|[^\w]or[^\w])[^,\.]*){{0,{number_of_positions - 1}}},?[^\w](and[^\w])?', '', new_prerequisites, 1, re.IGNORECASE)[0].strip()
                         elif re.search(r'(?:[^\w]|^)and(?:[^\w]|$)', position[0], re.IGNORECASE):
                             new_prerequisites = re.subn(r'\s?' + re.escape(c_short_name if c_short_name else c) + r'[^,\.]*,?[^\w]and[^\w]', '', new_prerequisites, 1, re.IGNORECASE)[0].strip()
                         else:

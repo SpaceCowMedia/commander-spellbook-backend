@@ -1,3 +1,3 @@
 django.jQuery(function() {
-    django.jQuery("form").dirty({preventLeaving: true});
+    django.jQuery('form').dirty({preventLeaving: true});
 });

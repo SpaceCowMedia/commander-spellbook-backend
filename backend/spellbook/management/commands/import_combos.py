@@ -459,11 +459,14 @@ class Command(BaseCommand):
                     if used_card.card in used_cards:
                         cic = used_cards[used_card.card]
                         used_card.zone_locations = cic.zone_locations
-                        used_card.card_state = cic.card_state
+                        used_card.batlefield_card_state = cic.battlefield_card_state
+                        used_card.exile_card_state = cic.exile_card_state
+                        used_card.graveyard_card_state = cic.graveyard_card_state
+                        used_card.library_card_state = cic.library_card_state
                         bulk_civ_to_update.append(used_card)
                 suspicious_variant.status = Variant.Status.OK
                 bulk_variants_to_update.append(suspicious_variant)
-            CardInVariant.objects.bulk_update(bulk_civ_to_update, ['zone_locations', 'card_state'])
+            CardInVariant.objects.bulk_update(bulk_civ_to_update, ['zone_locations', 'batlefield_card_state', 'exile_card_state', 'graveyard_card_state', 'library_card_state'])
             Variant.objects.bulk_update(bulk_variants_to_update, ['description', 'mana_needed', 'other_prerequisites', 'status'])
             self.log_job(job, f'Successfully imported {len(bulk_combo_dict)}/{len(x)} combos. The rest was already present.', self.style.SUCCESS)
             job.termination = timezone.now()

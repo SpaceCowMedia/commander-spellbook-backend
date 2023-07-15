@@ -38,24 +38,26 @@ class IngredientInComboForm(IngredientInCombinationForm):
         return super().clean()
 
 
-class CardInComboAdminInline(admin.TabularInline):
-    fields = ['card', 'zone_locations', 'card_state']
+class CardInComboAdminInline(admin.StackedInline):
+    fields = ['card', 'zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state']
     form = IngredientInComboForm
     model = CardInCombo
     extra = 0
     verbose_name = 'Card'
     verbose_name_plural = 'Required Cards'
     autocomplete_fields = ['card']
+    classes = ['ingredient']
 
 
-class TemplateInComboAdminInline(admin.TabularInline):
-    fields = ['template', 'zone_locations', 'card_state']
+class TemplateInComboAdminInline(admin.StackedInline):
+    fields = ['template', 'zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state']
     form = IngredientInComboForm
     model = TemplateInCombo
     extra = 0
     verbose_name = 'Template'
     verbose_name_plural = 'Required Templates'
     autocomplete_fields = ['template']
+    classes = ['ingredient']
 
 
 class FeatureInComboAdminInline(admin.TabularInline):
@@ -146,7 +148,7 @@ class ComboAdmin(SearchMultipleRelatedMixin, admin.ModelAdmin):
                 template_in_variants_to_update.extend(requires_set)
             update_fields = ['status', 'mana_needed', 'other_prerequisites', 'description', 'identity']
             Variant.objects.bulk_update(variants_to_update, update_fields)
-            update_fields = ['zone_locations', 'card_state', 'order']
+            update_fields = ['zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'order']
             CardInVariant.objects.bulk_update(card_in_variants_to_update, update_fields)
             TemplateInVariant.objects.bulk_update(template_in_variants_to_update, update_fields)
             messages.info(request, f'{count} "New" or "Restore" variants were updated for this combo.')

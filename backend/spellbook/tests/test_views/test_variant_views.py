@@ -35,7 +35,10 @@ class VariantViewsTests(AbstractModelTests):
             self.assertEqual(card.spoiler, c.spoiler)
             vic = CardInVariant.objects.get(variant=v.id, card=c)
             self.assertEqual(set(u.zone_locations), set(vic.zone_locations))
-            self.assertEqual(u.card_state, vic.card_state)
+            self.assertEqual(u.battlefield_card_state, vic.battlefield_card_state)
+            self.assertEqual(u.exile_card_state, vic.exile_card_state)
+            self.assertEqual(u.library_card_state, vic.library_card_state)
+            self.assertEqual(u.graveyard_card_state, vic.graveyard_card_state)
         requires_list = [r.id for r in v.requires.all()]
         for r in variant_result.requires:
             template = r.template
@@ -47,7 +50,10 @@ class VariantViewsTests(AbstractModelTests):
             self.assertEqual(template.scryfall_api, t.scryfall_api())
             tiv = TemplateInVariant.objects.get(variant=v.id, template=t)
             self.assertEqual(set(r.zone_locations), set(tiv.zone_locations))
-            self.assertEqual(r.card_state, tiv.card_state)
+            self.assertEqual(r.battlefield_card_state, tiv.battlefield_card_state)
+            self.assertEqual(r.exile_card_state, tiv.exile_card_state)
+            self.assertEqual(r.library_card_state, tiv.library_card_state)
+            self.assertEqual(r.graveyard_card_state, tiv.graveyard_card_state)
         produces_list = [p.id for p in v.produces.all()]
         for p in variant_result.produces:
             self.assertIn(p.id, produces_list)

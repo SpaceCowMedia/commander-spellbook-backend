@@ -101,6 +101,22 @@ class VariantBulkSaveItem:
     produces: set[int]
 
 
+def update_state(dst: IngredientInCombination, src: IngredientInCombination):
+    dst.zone_locations = ''.join(location for location in dst.zone_locations if location in src.zone_locations)
+    if len(dst.battlefield_card_state) > 0:
+        dst.battlefield_card_state += ' '
+    dst.battlefield_card_state += src.battlefield_card_state
+    if len(dst.exile_card_state) > 0:
+        dst.exile_card_state += ' '
+    dst.exile_card_state += src.exile_card_state
+    if len(dst.graveyard_card_state) > 0:
+        dst.graveyard_card_state += ' '
+    dst.graveyard_card_state += src.graveyard_card_state
+    if len(dst.library_card_state) > 0:
+        dst.library_card_state += ' '
+    dst.library_card_state += src.library_card_state
+
+
 def restore_variant(
         variant: Variant,
         included_combos: list[Combo],
@@ -118,28 +134,28 @@ def restore_variant(
     uses = dict[int, CardInVariant]()
     for card_in_variant in used_cards:
         card_in_variant.order = 0
-        card_in_variant.card_state = ''
+        card_in_variant.battlefield_card_state = ''
+        card_in_variant.exile_card_state = ''
+        card_in_variant.graveyard_card_state = ''
+        card_in_variant.library_card_state = ''
         card_in_variant.zone_locations = ''.join(choice for choice, _ in IngredientInCombination.ZoneLocation.choices)
         uses[card_in_variant.card.id] = card_in_variant
     requires = dict[int, TemplateInVariant]()
     for template_in_variant in required_templates:
         template_in_variant.order = 0
-        template_in_variant.card_state = ''
+        template_in_variant.battlefield_card_state = ''
+        template_in_variant.exile_card_state = ''
+        template_in_variant.graveyard_card_state = ''
+        template_in_variant.library_card_state = ''
         template_in_variant.zone_locations = ''.join(choice for choice, _ in IngredientInCombination.ZoneLocation.choices)
         requires[template_in_variant.template.id] = template_in_variant
     for combo in included_combos:
         for card_in_combo in data.combo_to_cards[combo.id]:
             to_edit = uses[card_in_combo.card.id]
-            if len(to_edit.card_state) > 0:
-                to_edit.card_state += ' '
-            to_edit.card_state += card_in_combo.card_state
-            to_edit.zone_locations = ''.join(location for location in to_edit.zone_locations if location in card_in_combo.zone_locations)
+            update_state(to_edit, card_in_combo)
         for template_in_combo in data.combo_to_templates[combo.id]:
             to_edit = requires[template_in_combo.template.id]
-            if len(to_edit.card_state) > 0:
-                to_edit.card_state += ' '
-            to_edit.card_state += template_in_combo.card_state
-            to_edit.zone_locations = ''.join(location for location in to_edit.zone_locations if location in template_in_combo.zone_locations)
+            update_state(to_edit, template_in_combo)
     # Ordering by descending replaceability and ascending order in combos
     cards_ordering: dict[int, tuple[int, int]] = {c: (0, 0) for c in uses}
     templates_ordering: dict[int, tuple[int, int]] = {t: (0, 0) for t in requires}
@@ -235,11 +251,11 @@ def perform_bulk_saves(to_create: list[VariantBulkSaveItem], to_update: list[Var
         Variant.objects.bulk_update((v.variant for v in to_update if v.should_update), fields=update_fields)
     CardInVariant.objects.bulk_create(c for v in to_create for c in v.uses)
     if to_update:
-        update_fields = ['zone_locations', 'card_state', 'order']
+        update_fields = ['zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'order']
         CardInVariant.objects.bulk_update((c for v in to_update if v.should_update for c in v.uses), fields=update_fields)
     TemplateInVariant.objects.bulk_create(t for v in to_create for t in v.requires)
     if to_update:
-        update_fields = ['zone_locations', 'card_state', 'order']
+        update_fields = ['zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'order']
         TemplateInVariant.objects.bulk_update((t for v in to_update if v.should_update for t in v.requires), fields=update_fields)
     OfTable = Variant.of.through
     if to_update:

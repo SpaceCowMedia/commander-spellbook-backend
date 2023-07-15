@@ -13,15 +13,16 @@ from .utils import IdentityFilter
 from .ingredient_admin import IngredientInCombinationForm
 
 
-class CardInVariantAdminInline(admin.TabularInline):
+class CardInVariantAdminInline(admin.StackedInline):
     readonly_fields = ['card_name']
-    fields = ['card_name', 'zone_locations', 'card_state']
+    fields = ['card_name', 'zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state']
     form = IngredientInCombinationForm
     model = CardInVariant
     extra = 0
     verbose_name = 'Card'
     verbose_name_plural = 'Cards'
     can_delete = False
+    classes = ['ingredient']
 
     def has_add_permission(self, request, obj) -> bool:
         return False
@@ -35,15 +36,16 @@ class CardInVariantAdminInline(admin.TabularInline):
         return format_html(html, reverse('admin:spellbook_card_change', args=(card.id,)), card.name)
 
 
-class TemplateInVariantAdminInline(admin.TabularInline):
+class TemplateInVariantAdminInline(admin.StackedInline):
     readonly_fields = ['template']
-    fields = ['template', 'zone_locations', 'card_state']
+    fields = ['template', 'zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state']
     form = IngredientInCombinationForm
     model = TemplateInVariant
     extra = 0
     verbose_name = 'Template'
     verbose_name_plural = 'Templates'
     can_delete = False
+    classes = ['ingredient']
 
     def has_add_permission(self, request, obj) -> bool:
         return False

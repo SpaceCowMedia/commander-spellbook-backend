@@ -40,7 +40,10 @@ class ComboViewsTests(AbstractModelTests):
             self.assertEqual(card.spoiler, c.spoiler)
             cic = CardInCombo.objects.get(combo=b.id, card=c)
             self.assertEqual(set(u.zone_locations), set(cic.zone_locations))
-            self.assertEqual(u.card_state, cic.card_state)
+            self.assertEqual(u.battlefield_card_state, cic.battlefield_card_state)
+            self.assertEqual(u.exile_card_state, cic.exile_card_state)
+            self.assertEqual(u.library_card_state, cic.library_card_state)
+            self.assertEqual(u.graveyard_card_state, cic.graveyard_card_state)
         requires_list = [r.id for r in b.requires.all()]
         for r in combo_result.requires:
             template = r.template
@@ -52,7 +55,10 @@ class ComboViewsTests(AbstractModelTests):
             self.assertEqual(template.scryfall_api, t.scryfall_api())
             tic = TemplateInCombo.objects.get(combo=b.id, template=t)
             self.assertEqual(set(r.zone_locations), set(tic.zone_locations))
-            self.assertEqual(r.card_state, tic.card_state)
+            self.assertEqual(r.battlefield_card_state, tic.battlefield_card_state)
+            self.assertEqual(r.exile_card_state, tic.exile_card_state)
+            self.assertEqual(r.library_card_state, tic.library_card_state)
+            self.assertEqual(r.graveyard_card_state, tic.graveyard_card_state)
 
     def test_combos_list_view(self):
         c = Client()

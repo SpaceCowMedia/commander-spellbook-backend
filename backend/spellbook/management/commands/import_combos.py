@@ -91,9 +91,9 @@ def find_card_in_prereq(card_name: str, prerequisites: str) -> list[tuple[str, s
     return matches
 
 
-def find_combos() -> list[tuple[str, tuple[str, ...], frozenset[str], str, str, str, dict[str, tuple[str, int, int, str]]]]:
+def find_combos() -> list[tuple[str, tuple[str, ...], frozenset[str], str, str, str, dict[str, tuple[str, int, int, tuple[str, str, str, str]]]]]:
     """Fetches the combos from the google sheet.
-    Result format: id, cards, produced, prerequisite, description, mana, dictionary of prerequistes positions (card name -> (position_code, order, half_number, status))"""
+    Result format: id, cards, produced, prerequisite, description, mana, dictionary of prerequistes positions (card name -> (position_code, order, half_number, (battlefield_status, exile_status, library_status, graveyard_status)))"""
     combo_to_produces = dict[frozenset[str], frozenset[str]]()
     combos_to_prerequisites = dict[frozenset[str], str]()
     combos_to_description = dict[frozenset[str], str]()
@@ -128,11 +128,14 @@ def find_combos() -> list[tuple[str, tuple[str, ...], frozenset[str], str, str, 
             prerequisites = mana_match.group(1) + mana_match.group(4)
             mana = mana_match.group(2).upper() + mana_match.group(3)
         new_prerequisites = prerequisites
-        positions_dict = dict[str, tuple[str, int, int, str]]()
+        positions_dict = dict[str, tuple[str, int, int, tuple[str, str, str, str]]]()
         position_order = 0
         for c in sorted_prereq_search_terms(prerequisites, card_set):
             half = 0
-            status = ''
+            battlefield_status = ''
+            exile_status = ''
+            library_status = ''
+            graveyard_status = ''
             positions = find_card_in_prereq(c, prerequisites)
             c_short_name = None
             if len(positions) == 0 and '//' in c:
@@ -159,17 +162,17 @@ def find_combos() -> list[tuple[str, tuple[str, ...], frozenset[str], str, str, 
                 if re.search(r'(?:[^\w]|^)battlefield(?:[^\w]|$)', position[0], re.IGNORECASE):
                     p_list.append(IngredientInCombination.ZoneLocation.BATTLEFIELD)
                     if re.search(r'(?:[^\w]|^)tapped(?:[^\w]|$)', position[0], re.IGNORECASE):
-                        if status != '':
-                            raise Exception('Status already set')
-                        status = 'tapped'
+                        if battlefield_status != '':
+                            raise Exception('Battlefield status already set')
+                        battlefield_status = 'tapped'
                     if re.search(r'(?:[^\w]|^)untapped(?:[^\w]|$)', position[0], re.IGNORECASE):
-                        if status != '':
-                            raise Exception('Status already set')
-                        status = 'untapped'
+                        if battlefield_status != '':
+                            raise Exception('Battlefield status already set')
+                        battlefield_status = 'untapped'
                     if re.search(r'(?:[^\w]|^)face down(?:[^\w]|$)', position[0], re.IGNORECASE):
-                        if status != '':
-                            raise Exception('Status already set')
-                        status = 'face down'
+                        if battlefield_status != '':
+                            raise Exception('Battlefield status already set')
+                        battlefield_status = 'face down'
                 if re.search(r'(?:[^\w]|^)command zone(?:[^\w]|$)', position[0], re.IGNORECASE):
                     p_list.append(IngredientInCombination.ZoneLocation.COMMAND_ZONE)
                 if re.search(r'(?:[^\w]|^)graveyard(?:[^\w]|$)', position[0], re.IGNORECASE):
@@ -177,15 +180,15 @@ def find_combos() -> list[tuple[str, tuple[str, ...], frozenset[str], str, str, 
                 if re.search(r'(?:[^\w]|^)exiled?(?:[^\w]|$)', position[0], re.IGNORECASE):
                     p_list.append(IngredientInCombination.ZoneLocation.EXILE)
                     if re.search(r'(?:[^\w]|^)by(?:[^\w]|$)', position[0], re.IGNORECASE):
-                        if status != '':
-                            raise Exception('Status already set')
+                        if exile_status != '':
+                            raise Exception('Exile status already set')
                         after_by = re.split(r'(?:[^\w]|^)by(?:[^\w]|$)', position[0], maxsplit=2, flags=re.IGNORECASE)[1]
-                        status = f'exiled by {after_by}'
+                        exile_status = f'exiled by {after_by}'
                     if position[1] == 'with':
                         modification = position[2]
                         modification = re.sub(r'([^\w]|^)them([^\w]|$)', r'\1it\2', modification, flags=re.IGNORECASE)
                         modification = re.sub(r'([^\w]|^)(cage|kick) counters([^\w]|$)', r'\1a \2 counter\3', modification, flags=re.IGNORECASE)
-                        status += f'with {modification}'
+                        exile_status += f'with {modification}'
                 if re.search(r'(?:[^\w]|^)foretold(?:[^\w]|$)', position[0], re.IGNORECASE):
                     p_list.append(IngredientInCombination.ZoneLocation.EXILE)
                 if re.search(r'(?:[^\w]|^)library(?:[^\w]|$)', position[0], re.IGNORECASE):
@@ -202,7 +205,7 @@ def find_combos() -> list[tuple[str, tuple[str, ...], frozenset[str], str, str, 
                 if len(p_list) == 1:
                     if c in positions_dict:
                         raise Exception(f'Found duplicate positioning for {c} in {prerequisites}')
-                    positions_dict[c] = (p_list[0], position_order, half, status)
+                    positions_dict[c] = (p_list[0], position_order, half, (battlefield_status, exile_status, library_status, graveyard_status))
                     position_order += 1
                     if position[1] == '.':
                         if re.search(r'(?:\w|^),(?:[^\w]|$)', position[0], re.IGNORECASE):
@@ -315,7 +318,7 @@ class Command(BaseCommand):
                     self.stdout.write(f'{i+1}/{len(x)}\n' if (i + 1) % 100 == 0 else '.', ending='')
                     cards_from_combo = [combo_card_name_to_card[c] for c in _cards]
                     used_cards_types = dict[Card, str]()
-                    for c, (p, _, half, status) in positions.items():
+                    for c, (p, _, half, _) in positions.items():
                         if c in _cards:
                             actual_card = combo_card_name_to_card[c]
                             actual_card_name = actual_card.name.lower()
@@ -324,42 +327,42 @@ class Command(BaseCommand):
                                 used_cards_types[actual_card] = used_cards_types[actual_card].partition('//')[0 if half == 1 else 2].strip()
                     permanents_from_combo = [c for c in cards_from_combo if any(t in used_cards_types.get(c, combo_card_name_to_scryfall[c.name.lower()]['type_line']) for t in ('Creature', 'Planeswalker', 'Artifact', 'Enchantment', 'Battle', 'Land'))]
                     cardincombo_list = list[CardInCombo]()
-                    for c, (p, _, half, status) in sorted(positions.items(), key=lambda x: x[1][1]):
+                    for c, (p, _, half, (b_state, e_state, g_state, l_state)) in sorted(positions.items(), key=lambda x: x[1][1]):
                         if c in _cards:
                             actual_card = combo_card_name_to_card[c]
-                            cardincombo_list.append(CardInCombo(card=actual_card, zone_locations=p, card_state=status))
+                            cardincombo_list.append(CardInCombo(card=actual_card, zone_locations=p, battlefield_card_state=b_state, exile_card_state=e_state, graveyard_card_state=g_state, library_card_state=l_state))
                         elif c == 'all permanents':
                             for card in permanents_from_combo:
                                 if card in [c.card for c in cardincombo_list]:
                                     raise ValueError(f'Card {card} already used')
-                                cardincombo_list.append(CardInCombo(card=card, zone_locations=p, card_state=status))
+                                cardincombo_list.append(CardInCombo(card=card, zone_locations=p, battlefield_card_state=b_state, exile_card_state=e_state, graveyard_card_state=g_state, library_card_state=l_state))
                         elif c == 'both permanents':
                             if len(permanents_from_combo) != 2:
                                 raise ValueError(f'Expected 2 permanents, got {len(permanents_from_combo)}')
                             for card in permanents_from_combo:
                                 if card in [c.card for c in cardincombo_list]:
                                     raise ValueError(f'Card {card} already used')
-                                cardincombo_list.append(CardInCombo(card=card, zone_locations=p, card_state=status))
+                                cardincombo_list.append(CardInCombo(card=card, zone_locations=p, battlefield_card_state=b_state, exile_card_state=e_state, graveyard_card_state=g_state, library_card_state=l_state))
                         elif c == 'all other permanents':
                             for card in permanents_from_combo:
                                 if card not in [c.card for c in cardincombo_list]:
-                                    cardincombo_list.append(CardInCombo(card=card, zone_locations=p, card_state=status))
+                                    cardincombo_list.append(CardInCombo(card=card, zone_locations=p, battlefield_card_state=b_state, exile_card_state=e_state, graveyard_card_state=g_state, library_card_state=l_state))
                         elif c == 'all other cards':
                             for card in cards_from_combo:
                                 if card not in [c.card for c in cardincombo_list]:
-                                    cardincombo_list.append(CardInCombo(card=card, zone_locations=p, card_state=status))
+                                    cardincombo_list.append(CardInCombo(card=card, zone_locations=p, battlefield_card_state=b_state, exile_card_state=e_state, graveyard_card_state=g_state, library_card_state=l_state))
                         elif c == 'all cards':
                             for card in cards_from_combo:
                                 if card in [c.card for c in cardincombo_list]:
                                     raise ValueError(f'Card {card} already used')
-                                cardincombo_list.append(CardInCombo(card=card, zone_locations=p, card_state=status))
+                                cardincombo_list.append(CardInCombo(card=card, zone_locations=p, battlefield_card_state=b_state, exile_card_state=e_state, graveyard_card_state=g_state, library_card_state=l_state))
                         elif c == 'both cards':
                             if len(cards_from_combo) != 2:
                                 raise ValueError(f'Expected 2 cards, got {len(cards_from_combo)}')
                             for card in cards_from_combo:
                                 if card in [c.card for c in cardincombo_list]:
                                     raise ValueError(f'Card {card} already used')
-                                cardincombo_list.append(CardInCombo(card=card, zone_locations=p, card_state=status))
+                                cardincombo_list.append(CardInCombo(card=card, zone_locations=p, battlefield_card_state=b_state, exile_card_state=e_state, graveyard_card_state=g_state, library_card_state=l_state))
                         else:
                             raise ValueError(f'Unknown card {c}')
                     for card in cards_from_combo:
@@ -367,7 +370,7 @@ class Command(BaseCommand):
                         locations = [c.zone_locations for c in card_in_combos]
                         if len(locations) == 0:
                             self.log_job(job, f'Card {card} doesn\'t appear in prerequisites of combo {old_id}.', self.style.WARNING)
-                            cardincombo_list.append(CardInCombo(card=card, zone_locations=IngredientInCombination.ZoneLocation.HAND, card_state=status))
+                            cardincombo_list.append(CardInCombo(card=card, zone_locations=IngredientInCombination.ZoneLocation.HAND, battlefield_card_state=b_state, exile_card_state=e_state, graveyard_card_state=g_state, library_card_state=l_state))
                         elif len(locations) == 1:
                             pass
                         else:

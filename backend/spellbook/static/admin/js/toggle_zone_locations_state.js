@@ -9,25 +9,42 @@ django.jQuery(function() {
             const graveyardState = parent.find('th.column-graveyard_card_state, td.field-graveyard_card_state');
             function toggleZoneLocation(checkbox, state) {
                 if (checkbox.is(':checked')) {
-                    state.show();
+                    state.each(function(index) {
+                        const element = django.jQuery(this);
+                        element.show();
+                        if (index > 0) {
+                            // This should be done for td
+                            const correspondingCheckbox = checkbox.eq(index - 1);
+                            const innerInput = element.find('input');
+                            if (correspondingCheckbox.is(':checked')) {
+                                innerInput.css('visibility', 'visible');
+                            } else {
+                                innerInput.css('visibility', 'hidden');
+                            }
+                        }
+                    });
                 } else {
                     state.hide();
                 }
             }
-            let battlefield = parent.find('.field-zone_locations input[type="checkbox"][value="B"]').off(checkboxEvent).on(checkboxEvent, function() {
-                toggleZoneLocation(django.jQuery(this), battlefieldState);
+            let battlefield = parent.find('.field-zone_locations input[type="checkbox"][value="B"]');
+            battlefield.off(checkboxEvent).on(checkboxEvent, function() {
+                toggleZoneLocation(battlefield, battlefieldState);
             });
             toggleZoneLocation(battlefield, battlefieldState);
-            let exile = parent.find('.field-zone_locations input[type="checkbox"][value="E"]').off(checkboxEvent).on(checkboxEvent, function() {
-                toggleZoneLocation(django.jQuery(this), exileState);
+            let exile = parent.find('.field-zone_locations input[type="checkbox"][value="E"]');
+            exile.off(checkboxEvent).on(checkboxEvent, function() {
+                toggleZoneLocation(exile, exileState);
             });
             toggleZoneLocation(exile, exileState);
-            let library = parent.find('.field-zone_locations input[type="checkbox"][value="L"]').off(checkboxEvent).on(checkboxEvent, function() {
-                toggleZoneLocation(django.jQuery(this), libraryState);
+            let library = parent.find('.field-zone_locations input[type="checkbox"][value="L"]');
+            library.off(checkboxEvent).on(checkboxEvent, function() {
+                toggleZoneLocation(library, libraryState);
             });
             toggleZoneLocation(library, libraryState);
-            let graveyard = parent.find('.field-zone_locations input[type="checkbox"][value="G"]').off(checkboxEvent).on(checkboxEvent, function() {
-                toggleZoneLocation(django.jQuery(this), graveyardState);
+            let graveyard = parent.find('.field-zone_locations input[type="checkbox"][value="G"]');
+            graveyard.off(checkboxEvent).on(checkboxEvent, function() {
+                toggleZoneLocation(graveyard, graveyardState);
             });
             toggleZoneLocation(graveyard, graveyardState);
         }

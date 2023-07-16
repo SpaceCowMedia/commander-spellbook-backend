@@ -8,7 +8,7 @@ from spellbook.variants.variant_data import RestoreData
 from spellbook.variants.variants_generator import restore_variant
 from spellbook.models.validators import MANA_SYMBOL
 from .utils import SearchMultipleRelatedMixin
-from .ingredient_admin import IngredientInCombinationForm
+from .ingredient_admin import IngredientAdmin
 
 
 class ComboForm(ModelForm):
@@ -28,36 +28,20 @@ class ComboForm(ModelForm):
         return self.cleaned_data['mana_needed']
 
 
-class IngredientInComboForm(IngredientInCombinationForm):
-    def clean(self):
-        if hasattr(self.cleaned_data['combo'], 'ingredient_count'):
-            self.cleaned_data['combo'].ingredient_count += 1
-        else:
-            self.cleaned_data['combo'].ingredient_count = 1
-        self.instance.order = self.cleaned_data['combo'].ingredient_count
-        return super().clean()
-
-
-class CardInComboAdminInline(admin.TabularInline):
+class CardInComboAdminInline(IngredientAdmin):
     fields = ['card', 'zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state']
-    form = IngredientInComboForm
     model = CardInCombo
-    extra = 0
     verbose_name = 'Card'
     verbose_name_plural = 'Required Cards'
     autocomplete_fields = ['card']
-    classes = ['ingredient']
 
 
-class TemplateInComboAdminInline(admin.TabularInline):
+class TemplateInComboAdminInline(IngredientAdmin):
     fields = ['template', 'zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state']
-    form = IngredientInComboForm
     model = TemplateInCombo
-    extra = 0
     verbose_name = 'Template'
     verbose_name_plural = 'Required Templates'
     autocomplete_fields = ['template']
-    classes = ['ingredient']
 
 
 class FeatureInComboAdminInline(admin.TabularInline):

@@ -1,0 +1,11 @@
+.card-info-tooltip {
+    max-width: none;
+    max-height: none;
+}
+.card-info-tooltip>.ui-tooltip-content {
+    display: contents;
+}
+.card-info-tooltip>.ui-tooltip-content>img {
+    height: 10cm;
+    display: inline-block;
+}

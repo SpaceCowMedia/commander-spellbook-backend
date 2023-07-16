@@ -1,18 +1,6 @@
 {% load static %}
 
 {% block card_info_imports %}
+<link rel="stylesheet" href="{% static 'admin/css/card_info.css' %}">
 <script src="{% static 'admin/js/card_info.js' %}" type="text/javascript"></script>
-<style>
-    .card-info-tooltip {
-        max-width: none;
-        max-height: none;
-    }
-    .card-info-tooltip>.ui-tooltip-content {
-        display: contents;
-    }
-    .card-info-tooltip>.ui-tooltip-content>img {
-        height: 10cm;
-        display: inline-block;
-    }
-</style>
 {% endblock %}

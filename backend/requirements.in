@@ -1,4 +1,4 @@
-boto3==1.28.1
+boto3==1.28.3
 Django==4.2.3
 django-filter==23.2
 django-sortedm2m==3.1.1

@@ -1,5 +1,4 @@
 import json
-import hashlib
 import logging
 from itertools import chain
 from dataclasses import dataclass
@@ -36,9 +35,8 @@ class VariantDefinition:
 
 
 def id_from_cards_and_templates_ids(cards: list[int], templates: list[int]) -> str:
-    hash_algorithm = hashlib.sha256()
-    hash_algorithm.update(json.dumps({'c': sorted(cards), 't': sorted(templates)}).encode('utf-8'))
-    return hash_algorithm.hexdigest()
+    sorted_templates = sorted(templates)
+    return '+'.join(str(c) for c in sorted(cards)) + ('-' + '-'.join(str(t) for t in sorted_templates) if len(sorted_templates) > 0 else '')
 
 
 def get_variants_from_graph(data: Data, job: Job = None) -> dict[str, VariantDefinition]:

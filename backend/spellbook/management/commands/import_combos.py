@@ -81,7 +81,7 @@ def sorted_prereq_search_terms(prereq: str, card_set: set[str]) -> list[str]:
 
 
 def find_card_in_prereq(card_name: str, prerequisites: str) -> list[tuple[str, str, str]]:  # sentence, punctuation, following
-    regex = r'(.*?)' + re.escape(card_name) + r'(.*?)(\.|[^\w](?:with(?! the other)(?=(.+?)(?:\.|$))|if|when|who|named by|does|has|naming|power|attached|as|from|increase)[^\w]|$)'
+    regex = r'(.*?)' + re.escape(card_name) + r'(.*?)(\.|[^\w](?:with(?! the other)(?=(.+?)(?:\.|$))|if|when|who|named by|does|has|naming|power|attached|as|from|increase|under)[^\w]|$)'
     negated_regex = r'(?:[^\w](?:with|if|when|who|named by|does|has|naming|power|attached|on|from|opponent|increase)[^\w])'
     matches = []
     for sentence in prerequisites.split('.'):
@@ -211,7 +211,7 @@ def find_combos() -> list[tuple[str, tuple[str, ...], frozenset[str], str, str, 
                         raise Exception(f'Found duplicate positioning for {c} in {prerequisites}')
                     positions_dict[c] = (p_list[0], position_order, half, (battlefield_status, exile_status, library_status, graveyard_status))
                     position_order += 1
-                    if position[1] == '.':
+                    if position[1] == '.' or position[1] == 'with' and any(len(s) > 0 for s in [battlefield_status, exile_status, library_status, graveyard_status]):
                         number_of_positions = len(p_list[0])
                         if re.search(r'(?:\w|^),(?:[^\w]|$)', position[0], re.IGNORECASE):
                             new_prerequisites = re.subn(r'\s?' + re.escape(c_short_name if c_short_name else c) + rf'[^,\.]*(?:(?:,|[^\w]or[^\w])[^,\.]*){{0,{number_of_positions - 1}}},?[^\w](and[^\w])?', '', new_prerequisites, 1, re.IGNORECASE)[0].strip()
@@ -474,7 +474,7 @@ class Command(BaseCommand):
                         bulk_civ_to_update.append(used_card)
                 suspicious_variant.status = Variant.Status.OK
                 bulk_variants_to_update.append(suspicious_variant)
-            CardInVariant.objects.bulk_update(bulk_civ_to_update, ['zone_locations', 'batlefield_card_state', 'exile_card_state', 'graveyard_card_state', 'library_card_state'])
+            CardInVariant.objects.bulk_update(bulk_civ_to_update, ['zone_locations', 'battlefield_card_state', 'exile_card_state', 'graveyard_card_state', 'library_card_state'])
             Variant.objects.bulk_update(bulk_variants_to_update, ['description', 'mana_needed', 'other_prerequisites', 'status'])
             self.log_job(job, f'Successfully imported {len(bulk_combo_dict)}/{len(x)} combos. The rest was already present.', self.style.SUCCESS)
             job.termination = timezone.now()

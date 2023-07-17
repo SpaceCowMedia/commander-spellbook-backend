@@ -9,6 +9,7 @@ from spellbook.models import Card, Template, Feature, Variant, CardInVariant, Te
 from spellbook.models.utils import recipe
 from spellbook.utils import launch_job_command
 from spellbook.parsers import variants_query_parser, NotSupportedError
+from spellbook.variants.variants_generator import DEFAULT_CARD_LIMIT
 from .utils import IdentityFilter
 from .ingredient_admin import IngredientAdmin
 
@@ -51,15 +52,17 @@ class TemplateInVariantAdminInline(IngredientAdmin):
 class CardsCountListFilter(admin.SimpleListFilter):
     title = 'cards count'
     parameter_name = 'cards_count'
+    one_more_than_max = DEFAULT_CARD_LIMIT + 1
+    one_more_than_max_display = f'{one_more_than_max}+'
 
     def lookups(self, request, model_admin):
-        return [(i, str(i)) for i in range(2, 6)] + [('6+', '6+')]
+        return [(i, str(i)) for i in range(2, CardsCountListFilter.one_more_than_max)] + [(CardsCountListFilter.one_more_than_max_display, CardsCountListFilter.one_more_than_max_display)]
 
     def queryset(self, request, queryset):
         if self.value() is not None:
             queryset = queryset.annotate(cards_count=Count('uses', distinct=True) + Count('requires', distinct=True))
-            if self.value() == '6+':
-                return queryset.filter(cards_count__gte=6)
+            if self.value() == CardsCountListFilter.one_more_than_max_display:
+                return queryset.filter(cards_count__gte=CardsCountListFilter.one_more_than_max)
             value = int(self.value())
             return queryset.filter(cards_count=value)
         return queryset

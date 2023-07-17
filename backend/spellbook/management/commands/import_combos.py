@@ -11,7 +11,7 @@ from django.conf import settings
 from django.db import transaction
 from django.db.models import Max, Count
 from djangorestframework_camel_case.util import camelize
-from spellbook.variants.variants_generator import id_from_cards_and_templates_ids, generate_variants
+from spellbook.variants.variants_generator import id_from_cards_and_templates_ids, generate_variants, DEFAULT_CARD_LIMIT
 from spellbook.models import Feature, Card, Job, Combo, CardInCombo, Variant, IngredientInCombination, CardInVariant
 from spellbook.models.validators import MANA_SYMBOL
 from spellbook.management.s3_upload import upload_json_to_aws
@@ -401,7 +401,7 @@ class Command(BaseCommand):
                         id=next_id,
                         other_prerequisites=prerequisite.replace('. ', '.\n'),
                         description=description.replace('. ', '.\n'),
-                        kind=Combo.Kind.GENERATOR if len(cardincombo_list) < 6 else Combo.Kind.GENERATOR_WITH_MANY_CARDS,
+                        kind=Combo.Kind.GENERATOR if len(cardincombo_list) <= DEFAULT_CARD_LIMIT else Combo.Kind.GENERATOR_WITH_MANY_CARDS,
                         mana_needed=mana_needed,
                     )
                     for cic in cardincombo_list:

@@ -35,7 +35,7 @@ class ImportedVariantBulkSaveItem:
 
 def sorted_prereq_search_terms(prereq: str, card_set: set[str]) -> list[str]:
     pre_lower = prereq.lower()
-    terms = card_set | {'all permanents', 'all other permanents', 'all other cards', 'all cards', 'both cards', 'both permanents'}
+    terms = card_set | {'all permanents', 'all other permanents', 'all other cards', 'all cards', 'both cards', 'both permanents', 'all creatures', 'all other creatures'}
     found_terms = list[tuple[str, int]]()
     for term in terms:
         lower_term = term.lower()
@@ -353,6 +353,7 @@ class Command(BaseCommand):
                             if half > 0:
                                 used_cards_types[actual_card] = used_cards_types[actual_card].partition('//')[0 if half == 1 else 2].strip()
                     permanents_from_combo = [c for c in cards_from_combo if any(t in used_cards_types.get(c, combo_card_name_to_scryfall[c.name.lower()]['type_line']) for t in ('Creature', 'Planeswalker', 'Artifact', 'Enchantment', 'Battle', 'Land'))]
+                    creatures_from_combo = [c for c in cards_from_combo if 'Creature' in used_cards_types.get(c, combo_card_name_to_scryfall[c.name.lower()]['type_line'])]
                     cardincombo_list = list[CardInCombo]()
                     for c, (p, _, half, (b_state, e_state, g_state, l_state)) in sorted(positions.items(), key=lambda x: x[1][1]):
                         if c in _cards:
@@ -390,6 +391,15 @@ class Command(BaseCommand):
                                 if card in [c.card for c in cardincombo_list]:
                                     raise ValueError(f'Card {card} already used')
                                 cardincombo_list.append(CardInCombo(card=card, zone_locations=p, battlefield_card_state=b_state, exile_card_state=e_state, graveyard_card_state=g_state, library_card_state=l_state))
+                        elif c == 'all creatures':
+                            for card in creatures_from_combo:
+                                if card in [c.card for c in cardincombo_list]:
+                                    raise ValueError(f'Card {card} already used')
+                                cardincombo_list.append(CardInCombo(card=card, zone_locations=p, battlefield_card_state=b_state, exile_card_state=e_state, graveyard_card_state=g_state, library_card_state=l_state))
+                        elif c == 'all other creatures':
+                            for card in creatures_from_combo:
+                                if card not in [c.card for c in cardincombo_list]:
+                                    cardincombo_list.append(CardInCombo(card=card, zone_locations=p, battlefield_card_state=b_state, exile_card_state=e_state, graveyard_card_state=g_state, library_card_state=l_state))
                         else:
                             raise ValueError(f'Unknown card {c}')
                     for card in cards_from_combo:

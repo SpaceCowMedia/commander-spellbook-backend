@@ -84,6 +84,9 @@ class CardInVariant(IngredientInCombination):
     card = models.ForeignKey(to=Card, on_delete=models.CASCADE)
     variant = models.ForeignKey(to=Variant, on_delete=models.CASCADE)
 
+    def __str__(self):
+        return f'{self.card} in {self.variant.pk}'
+
     class Meta(IngredientInCombination.Meta):
         unique_together = [('card', 'variant')]
 
@@ -91,6 +94,9 @@ class CardInVariant(IngredientInCombination):
 class TemplateInVariant(IngredientInCombination):
     template = models.ForeignKey(to=Template, on_delete=models.CASCADE)
     variant = models.ForeignKey(to=Variant, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f'{self.template} in {self.variant.pk}'
 
     class Meta(IngredientInCombination.Meta):
         unique_together = [('template', 'variant')]

@@ -75,6 +75,9 @@ class CardInCombo(IngredientInCombination):
     card = models.ForeignKey(to=Card, on_delete=models.CASCADE)
     combo = models.ForeignKey(to=Combo, on_delete=models.CASCADE)
 
+    def __str__(self):
+        return f'{self.card} in combo {self.combo.pk}'
+
     class Meta(IngredientInCombination.Meta):
         unique_together = [('card', 'combo')]
 
@@ -82,6 +85,9 @@ class CardInCombo(IngredientInCombination):
 class TemplateInCombo(IngredientInCombination):
     template = models.ForeignKey(to=Template, on_delete=models.CASCADE)
     combo = models.ForeignKey(to=Combo, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f'{self.template} in combo {self.combo.pk}'
 
     class Meta(IngredientInCombination.Meta):
         unique_together = [('template', 'combo')]

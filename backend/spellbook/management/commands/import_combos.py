@@ -15,6 +15,7 @@ from spellbook.variants.variants_generator import id_from_cards_and_templates_id
 from spellbook.models import Feature, Card, Job, Combo, CardInCombo, Variant, IngredientInCombination, CardInVariant
 from spellbook.models.validators import MANA_SYMBOL
 from spellbook.management.s3_upload import upload_json_to_aws
+from spellbook.admin.utils import upper_oracle_symbols
 from ..scryfall import scryfall, update_cards
 
 
@@ -23,6 +24,13 @@ class ImportedVariantBulkSaveItem:
     combo: Combo
     uses: list[CardInCombo]
     produces: list[Feature]
+
+    def clean(self):
+        self.combo.clean_fields()
+        for use in self.uses:
+            use.clean_fields(exclude=['combo'])
+        for produce in self.produces:
+            produce.clean_fields()
 
 
 def sorted_prereq_search_terms(prereq: str, card_set: set[str]) -> list[str]:
@@ -82,13 +90,23 @@ def sorted_prereq_search_terms(prereq: str, card_set: set[str]) -> list[str]:
 
 def find_card_in_prereq(card_name: str, prerequisites: str) -> list[tuple[str, str, str]]:  # sentence, punctuation, following
     regex = r'(.*?)' + re.escape(card_name) + r'(.*?)(\.|[^\w](?:with(?! the other)(?=(.+?)(?:\.|$))|if|when|who|named by|does|has|naming|power|attached|as|from|increase|under)[^\w]|$)'
-    negated_regex = r'(?:[^\w](?:with|if|when|who|named by|does|has|naming|power|attached|on|from|opponent|increase)[^\w])'
+    negated_regex = r'(?:[^\w](?:with|if|when|who|named by|does|has|naming|power|attached|on|from|opponent|increase|remove)[^\w])'
     matches = []
     for sentence in prerequisites.split('.'):
-        for item in re.findall(regex, sentence + '.', re.IGNORECASE):
-            if not re.search(negated_regex, item[0], re.IGNORECASE) and item[2].strip(' .,;').lower() not in {'who', 'named by', 'does', 'has', 'naming', 'power', 'attached', 'from'}:
+        for item in re.findall(regex, sentence + '.', flags=re.IGNORECASE):
+            if not re.search(negated_regex, item[0], flags=re.IGNORECASE) and item[2].strip(' .,;').lower() not in {'who', 'named by', 'does', 'has', 'naming', 'power', 'attached', 'from'}:
                 matches.append((item[1].strip(), item[2].strip(), item[3].strip()))
     return matches
+
+
+def fix_oracle_symbols(text: str) -> str:
+    text = re.sub(r'\{(W)\/(R|G)\}', r'{\2/\1}', text, flags=re.IGNORECASE)
+    text = re.sub(r'\{(U)\/(W|G)\}', r'{\2/\1}', text, flags=re.IGNORECASE)
+    text = re.sub(r'\{(B)\/(W|U)\}', r'{\2/\1}', text, flags=re.IGNORECASE)
+    text = re.sub(r'\{(R)\/(U|B)\}', r'{\2/\1}', text, flags=re.IGNORECASE)
+    text = re.sub(r'\{(G)\/(B|R)\}', r'{\2/\1}', text, flags=re.IGNORECASE)
+    text = re.sub(r'\{(?:P(.)|(.)P)\}', r'{\1\2/P}', text, flags=re.IGNORECASE)
+    return text
 
 
 def find_combos() -> list[tuple[str, tuple[str, ...], frozenset[str], str, str, str, dict[str, tuple[str, int, int, tuple[str, str, str, str]]]]]:
@@ -121,8 +139,12 @@ def find_combos() -> list[tuple[str, tuple[str, ...], frozenset[str], str, str, 
         id = combos_reverse_id[card_set]
         features = frozenset(combo_to_produces[card_set])
         prerequisites = combos_to_prerequisites[card_set]
+        description = combos_to_description[card_set]
+        prerequisites = fix_oracle_symbols(prerequisites)
+        description = fix_oracle_symbols(description)
+        features = frozenset(fix_oracle_symbols(feature) for feature in features)
         mana_regex = r'^(.*?)\s*((?:\{' + MANA_SYMBOL + r'\})+) available([^\.]*)\.(.*)$'
-        mana_match = re.match(mana_regex, prerequisites, re.IGNORECASE)
+        mana_match = re.match(mana_regex, prerequisites, flags=re.IGNORECASE)
         mana = ''
         if mana_match:
             prerequisites = mana_match.group(1) + mana_match.group(4)
@@ -157,33 +179,33 @@ def find_combos() -> list[tuple[str, tuple[str, ...], frozenset[str], str, str, 
                 positions = find_card_in_prereq(c_short_name, prerequisites)
             for position in positions:
                 p_list = list[IngredientInCombination.ZoneLocation]()
-                if re.search(r'(?:[^\w]|^)hand(?:[^\w]|$)', position[0], re.IGNORECASE):
+                if re.search(r'(?:[^\w]|^)hand(?:[^\w]|$)', position[0], flags=re.IGNORECASE):
                     p_list.append(IngredientInCombination.ZoneLocation.HAND)
-                if re.search(r'(?:[^\w]|^)battlefield(?:[^\w]|$)', position[0], re.IGNORECASE):
+                if re.search(r'(?:[^\w]|^)battlefield(?:[^\w]|$)', position[0], flags=re.IGNORECASE):
                     p_list.append(IngredientInCombination.ZoneLocation.BATTLEFIELD)
-                    if re.search(r'(?:[^\w]|^)tapped(?:[^\w]|$)', position[0], re.IGNORECASE):
+                    if re.search(r'(?:[^\w]|^)tapped(?:[^\w]|$)', position[0], flags=re.IGNORECASE):
                         if battlefield_status != '':
                             raise Exception('Battlefield status already set')
                         battlefield_status = 'tapped'
-                    if re.search(r'(?:[^\w]|^)untapped(?:[^\w]|$)', position[0], re.IGNORECASE):
+                    if re.search(r'(?:[^\w]|^)untapped(?:[^\w]|$)', position[0], flags=re.IGNORECASE):
                         if battlefield_status != '':
                             raise Exception('Battlefield status already set')
                         battlefield_status = 'untapped'
-                    if re.search(r'(?:[^\w]|^)face down(?:[^\w]|$)', position[0], re.IGNORECASE):
+                    if re.search(r'(?:[^\w]|^)face down(?:[^\w]|$)', position[0], flags=re.IGNORECASE):
                         if battlefield_status != '':
                             raise Exception('Battlefield status already set')
                         battlefield_status = 'face down'
-                    if re.search(r'(?:[^\w]|^)face up(?:[^\w]|$)', position[0], re.IGNORECASE):
+                    if re.search(r'(?:[^\w]|^)face up(?:[^\w]|$)', position[0], flags=re.IGNORECASE):
                         if battlefield_status != '':
                             raise Exception('Battlefield status already set')
                         battlefield_status = 'face up'
-                if re.search(r'(?:[^\w]|^)command zone(?:[^\w]|$)', position[0], re.IGNORECASE):
+                if re.search(r'(?:[^\w]|^)command zone(?:[^\w]|$)', position[0], flags=re.IGNORECASE):
                     p_list.append(IngredientInCombination.ZoneLocation.COMMAND_ZONE)
-                if re.search(r'(?:[^\w]|^)graveyard(?:[^\w]|$)', position[0], re.IGNORECASE):
+                if re.search(r'(?:[^\w]|^)graveyard(?:[^\w]|$)', position[0], flags=re.IGNORECASE):
                     p_list.append(IngredientInCombination.ZoneLocation.GRAVEYARD)
-                if re.search(r'(?:[^\w]|^)exiled?(?:[^\w]|$)', position[0], re.IGNORECASE):
+                if re.search(r'(?:[^\w]|^)exiled?(?:[^\w]|$)', position[0], flags=re.IGNORECASE):
                     p_list.append(IngredientInCombination.ZoneLocation.EXILE)
-                    if re.search(r'(?:[^\w]|^)by(?:[^\w]|$)', position[0], re.IGNORECASE):
+                    if re.search(r'(?:[^\w]|^)by(?:[^\w]|$)', position[0], flags=re.IGNORECASE):
                         if exile_status != '':
                             raise Exception('Exile status already set')
                         after_by = re.split(r'(?:[^\w]|^)by(?:[^\w]|$)', position[0], maxsplit=2, flags=re.IGNORECASE)[1]
@@ -193,18 +215,18 @@ def find_combos() -> list[tuple[str, tuple[str, ...], frozenset[str], str, str, 
                         modification = re.sub(r'([^\w]|^)them([^\w]|$)', r'\1it\2', modification, flags=re.IGNORECASE)
                         modification = re.sub(r'([^\w]|^)(cage|kick) counters([^\w]|$)', r'\1a \2 counter\3', modification, flags=re.IGNORECASE)
                         exile_status += f'with {modification}'
-                if re.search(r'(?:[^\w]|^)foretold(?:[^\w]|$)', position[0], re.IGNORECASE):
+                if re.search(r'(?:[^\w]|^)foretold(?:[^\w]|$)', position[0], flags=re.IGNORECASE):
                     p_list.append(IngredientInCombination.ZoneLocation.EXILE)
-                if re.search(r'(?:[^\w]|^)library(?:[^\w]|$)', position[0], re.IGNORECASE):
+                if re.search(r'(?:[^\w]|^)library(?:[^\w]|$)', position[0], flags=re.IGNORECASE):
                     p_list.append(IngredientInCombination.ZoneLocation.LIBRARY)
-                if re.search(r'(?:[^\w]|^)any zone(?:[^\w]|$)', position[0], re.IGNORECASE):
+                if re.search(r'(?:[^\w]|^)any zone(?:[^\w]|$)', position[0], flags=re.IGNORECASE):
                     p_list = [''.join(choice[0] for choice in IngredientInCombination.ZoneLocation.choices)]
-                if re.search(r'(?:[^\w]|^)or(?:[^\w]|$)', position[0], re.IGNORECASE) or re.search(r'(?:[^\w]|^)with the other(?:[^\w]|$)', position[0], re.IGNORECASE):
-                    if re.search(r'(?:[\w]|^)and/or(?:[^\w]|$)', position[0], re.IGNORECASE):
-                        continue
+                if re.search(r'(?:[^\w]|^)or(?:[^\w]|$)', position[0], flags=re.IGNORECASE) or re.search(r'(?:[^\w]|^)with the other(?:[^\w]|$)', position[0], flags=re.IGNORECASE):
+                    if re.search(r'(?:[^\w]|^)and/or(?:[^\w]|$)', position[0], flags=re.IGNORECASE):
+                        p_list = [''.join(p_list)]
                     elif len(p_list) > 1:
                         p_list = [''.join(p_list)]
-                    elif not re.search(r'(?:[^\w]|^)instant or sorcery(?:[^\w]|$)', position[0], re.IGNORECASE):
+                    elif not re.search(r'(?:[^\w]|^)instant or sorcery(?:[^\w]|$)', position[0], flags=re.IGNORECASE):
                         raise Exception(f'Found invalid "or" in "{prerequisites}"')
                 if len(p_list) == 1:
                     if c in positions_dict:
@@ -213,15 +235,14 @@ def find_combos() -> list[tuple[str, tuple[str, ...], frozenset[str], str, str, 
                     position_order += 1
                     if position[1] == '.' or position[1] == 'with' and any(len(s) > 0 for s in [battlefield_status, exile_status, library_status, graveyard_status]):
                         number_of_positions = len(p_list[0])
-                        if re.search(r'(?:\w|^),(?:[^\w]|$)', position[0], re.IGNORECASE):
-                            new_prerequisites = re.subn(r'\s?' + re.escape(c_short_name if c_short_name else c) + rf'[^,\.]*(?:(?:,|[^\w]or[^\w])[^,\.]*){{0,{number_of_positions - 1}}},?[^\w](and[^\w])?', '', new_prerequisites, 1, re.IGNORECASE)[0].strip()
-                        elif re.search(r'(?:[^\w]|^)and(?:[^\w]|$)', position[0], re.IGNORECASE):
-                            new_prerequisites = re.subn(r'\s?' + re.escape(c_short_name if c_short_name else c) + r'[^,\.]*,?[^\w]and[^\w]', '', new_prerequisites, 1, re.IGNORECASE)[0].strip()
+                        if re.search(r'(?:\w|^),(?:[^\w]|$)', position[0], flags=re.IGNORECASE):
+                            new_prerequisites = re.subn(r'\s?' + re.escape(c_short_name if c_short_name else c) + rf'[^,\.]*(?:(?:,|[^\w]or[^\w])[^,\.]*){{0,{number_of_positions - 1}}},?[^\w](and[^\w])?', '', new_prerequisites, 1, flags=re.IGNORECASE)[0].strip()
+                        elif re.search(r'(?:[^\w]|^)and(?!/or)(?:[^\w]|$)', position[0], flags=re.IGNORECASE):
+                            new_prerequisites = re.subn(r'\s?' + re.escape(c_short_name if c_short_name else c) + r'[^,\.]*,?[^\w]and[^\w]', '', new_prerequisites, 1, flags=re.IGNORECASE)[0].strip()
                         else:
-                            new_prerequisites = re.subn(r'\s?' + re.escape(c_short_name if c_short_name else c) + r' ([^,\.]+)\.', '', new_prerequisites, 1, re.IGNORECASE)[0].strip()
+                            new_prerequisites = re.subn(r'\s?' + re.escape(c_short_name if c_short_name else c) + r' ([^,\.]+)\.', '', new_prerequisites, 1, flags=re.IGNORECASE)[0].strip()
                 elif len(p_list) > 1:
                     raise Exception(f'Found {len(p_list)} positions for {c} in {prerequisites}')
-        description = combos_to_description[card_set]
         result.append((id, combos_to_card_ordered[card_set], features, new_prerequisites, description, mana, positions_dict))
     return result
 
@@ -293,6 +314,7 @@ class Command(BaseCommand):
                 save_card = True
             if save_card:
                 self.stdout.write(f'Updating card {c.name}...')
+                c.clean_fields()
                 c.save()
                 oracle_cards_in_database[str(c.oracle_id)] = c
                 name_cards_in_database[c.name] = c
@@ -375,7 +397,16 @@ class Command(BaseCommand):
                         locations = [c.zone_locations for c in card_in_combos]
                         if len(locations) == 0:
                             self.log_job(job, f'Card {card} doesn\'t appear in prerequisites of combo {old_id}.', self.style.WARNING)
-                            cardincombo_list.append(CardInCombo(card=card, zone_locations=IngredientInCombination.ZoneLocation.HAND, battlefield_card_state=b_state, exile_card_state=e_state, graveyard_card_state=g_state, library_card_state=l_state))
+                            cardincombo_list.append(
+                                CardInCombo(
+                                    card=card,
+                                    zone_locations=IngredientInCombination.ZoneLocation.HAND,
+                                    battlefield_card_state=upper_oracle_symbols(b_state),
+                                    exile_card_state=upper_oracle_symbols(e_state),
+                                    graveyard_card_state=upper_oracle_symbols(g_state),
+                                    library_card_state=upper_oracle_symbols(l_state),
+                                )
+                            )
                         elif len(locations) == 1:
                             pass
                         else:
@@ -399,10 +430,10 @@ class Command(BaseCommand):
                         continue
                     combo = Combo(
                         id=next_id,
-                        other_prerequisites=prerequisite.replace('. ', '.\n'),
-                        description=description.replace('. ', '.\n'),
+                        other_prerequisites=upper_oracle_symbols(prerequisite).replace('. ', '.\n'),
+                        description=upper_oracle_symbols(description).replace('. ', '.\n'),
                         kind=Combo.Kind.GENERATOR if len(cardincombo_list) <= DEFAULT_CARD_LIMIT else Combo.Kind.GENERATOR_WITH_MANY_CARDS,
-                        mana_needed=mana_needed,
+                        mana_needed=upper_oracle_symbols(mana_needed),
                     )
                     for cic in cardincombo_list:
                         cic.combo = combo
@@ -415,7 +446,13 @@ class Command(BaseCommand):
                         if name_lower in existing_feature_names:
                             produces_dict[name] = existing_feature_names[name_lower]
                         else:
-                            feature = Feature(name=name)
+                            feature = Feature(name=upper_oracle_symbols(name))
+                            try:
+                                feature.clean_fields()
+                            except Exception as e:
+                                self.stdout.write(f'\nSkipping combo [{old_id}]:')
+                                self.stdout.write(str(e))
+                                continue
                             feature.save()
                             produces_dict[name] = feature
                             existing_feature_names[name_lower] = feature
@@ -425,6 +462,12 @@ class Command(BaseCommand):
                         uses=cardincombo_list,
                         produces=produces,
                     )
+                    try:
+                        bulk_item.clean()
+                    except Exception as e:
+                        self.stdout.write(f'\nSkipping combo [{old_id}]:')
+                        self.stdout.write(str(e))
+                        continue
                     bulk_combo_dict[id] = bulk_item
                 self.log_job(job, 'Saving combos...')
                 Combo.objects.bulk_create(b.combo for b in bulk_combo_dict.values())
@@ -472,7 +515,9 @@ class Command(BaseCommand):
                         used_card.graveyard_card_state = cic.graveyard_card_state
                         used_card.library_card_state = cic.library_card_state
                         bulk_civ_to_update.append(used_card)
+                        used_card.clean_fields()
                 suspicious_variant.status = Variant.Status.OK
+                suspicious_variant.clean_fields()
                 bulk_variants_to_update.append(suspicious_variant)
             CardInVariant.objects.bulk_update(bulk_civ_to_update, ['zone_locations', 'battlefield_card_state', 'exile_card_state', 'graveyard_card_state', 'library_card_state'])
             Variant.objects.bulk_update(bulk_variants_to_update, ['description', 'mana_needed', 'other_prerequisites', 'status'])

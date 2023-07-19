@@ -6,8 +6,7 @@ from spellbook.models import Card, Template, Feature, Combo, CardInCombo, Templa
 from spellbook.models.utils import recipe
 from spellbook.variants.variant_data import RestoreData
 from spellbook.variants.variants_generator import restore_variant
-from spellbook.models.validators import MANA_SYMBOL
-from .utils import SearchMultipleRelatedMixin
+from .utils import SearchMultipleRelatedMixin, upper_oracle_symbols
 from .ingredient_admin import IngredientAdmin
 
 
@@ -23,7 +22,7 @@ class ComboForm(ModelForm):
 
     def clean_mana_needed(self):
         if self.cleaned_data['mana_needed']:
-            result = re.sub(r'\{' + MANA_SYMBOL + r'\}', lambda m: m.group(0).upper(), self.cleaned_data['mana_needed'], flags=re.IGNORECASE)
+            result = upper_oracle_symbols(self.cleaned_data['mana_needed'])
             return result
         return self.cleaned_data['mana_needed']
 

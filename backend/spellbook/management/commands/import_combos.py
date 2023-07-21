@@ -270,7 +270,7 @@ def find_combos() -> list[tuple[str, tuple[str, ...], frozenset[str], str, str, 
                         elif re.search(r'(?:[^\w]|^)and(?!/or)(?:[^\w]|$)', after, flags=re.IGNORECASE):
                             new_prerequisites = before_beginning + re.subn(r'\s?' + escaped_name + r'[^,\.]*,?[^\w]and[^\w]', '', after_beginning, 1, flags=re.IGNORECASE)[0].strip()
                         else:
-                            new_prerequisites =  before_beginning + re.subn(r'\s?' + escaped_name + r' ([^,\.]+)\.', '', after_beginning, 1, flags=re.IGNORECASE)[0].strip()
+                            new_prerequisites = before_beginning + re.subn(r'\s?' + escaped_name + r' ([^,\.]+)\.', '', after_beginning, 1, flags=re.IGNORECASE)[0].strip()
                 elif len(p_list) > 1:
                     raise Exception(f'Found {len(p_list)} positions for {c} in {prerequisites}')
         result.append((id, combos_to_card_ordered[card_set], features, new_prerequisites, description, mana, positions_dict, positions_dict_default, must_be_commander))

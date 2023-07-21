@@ -3,7 +3,7 @@ import itertools
 import random
 from django.test import Client
 from spellbook.utils import launch_job_command
-from spellbook.models import Card, Variant, IngredientInCombination
+from spellbook.models import Card, Variant
 from spellbook.variants.list_utils import merge_identities
 from ..abstract_test import AbstractModelTests
 from ..inspection import json_to_python_lambda
@@ -17,7 +17,7 @@ class FindMyCombosViewTests(AbstractModelTests):
         self.variants = Variant.objects.filter(status=Variant.Status.OK).prefetch_related('cardinvariant_set', 'cardinvariant_set__card')
         self.variants_dict = {v.id: v for v in self.variants}
         self.variants_cards = {v.id: {c.card.name for c in v.cardinvariant_set.all()} for v in self.variants}
-        self.variants_commanders = {v.id: {c.card.name for c in v.cardinvariant_set.filter(zone_locations=IngredientInCombination.ZoneLocation.COMMAND_ZONE)} for v in self.variants}
+        self.variants_commanders = {v.id: {c.card.name for c in v.cardinvariant_set.filter(must_be_commander=True)} for v in self.variants}
 
     def _check_result(self,
             result,

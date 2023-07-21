@@ -172,7 +172,7 @@ def tag_search(q: QuerySet, values: list[QueryValue]) -> QuerySet:
             case 'banned':
                 tag_query &= Q(legal=False)
             case 'commander':
-                tag_query &= Q(cardinvariant__zone_locations=IngredientInCombination.ZoneLocation.COMMAND_ZONE)
+                tag_query &= Q(cardinvariant__must_be_commander=True)
             case 'mandatory':
                 tag_query &= Q(produces__name='Mandatory Loop')
             case 'lock':

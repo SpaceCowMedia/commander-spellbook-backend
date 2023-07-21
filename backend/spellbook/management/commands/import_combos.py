@@ -88,14 +88,17 @@ def sorted_prereq_search_terms(prereq: str, card_set: set[str]) -> list[str]:
     return [item[0] for item in sorted(found_terms, key=lambda item: item[1])]
 
 
-def find_card_in_prereq(card_name: str, prerequisites: str) -> list[tuple[str, str, str]]:  # sentence, punctuation, following
-    regex = r'(.*?)' + re.escape(card_name) + r'(.*?)(\.|[^\w](?:with(?! the other)(?=(.+?)(?:\.|$))|if|when|who|named by|does|has|naming|power|attached|as|from|increase|under)[^\w]|$)'
-    negated_regex = r'(?:[^\w](?:with|if|when|who|named by|does|has|naming|power|attached|on|from|opponent|increase|remove)[^\w])'
+def find_card_in_prereq(card_name: str, prerequisites: str) -> list[tuple[str, str, str, str, int]]:  # sentence, punctuation, following
+    regex = r'(.*?)' + re.escape(card_name) + r'(.*?)(\.|[^\w](?:with(?! the other)|if|when|who|named by|does|has|naming|power|attached|as|from|increase|under)[^\w]|$)'
+    negated_regex = r'(?:[^\w]|^)(?:with|if|when|who|named by|does|has|naming|power|attached|on|from|opponent|increase|remove)(?:[^\w]|$)'
     matches = []
-    for sentence in prerequisites.split('.'):
-        for item in re.findall(regex, sentence + '.', flags=re.IGNORECASE):
-            if not re.search(negated_regex, item[0], flags=re.IGNORECASE) and item[2].strip(' .,;').lower() not in {'who', 'named by', 'does', 'has', 'naming', 'power', 'attached', 'from'}:
-                matches.append((item[1].strip(), item[2].strip(), item[3].strip()))
+    for sentence_match in re.finditer(r'([^\.]*)\.', prerequisites):
+        sentence_start = sentence_match.start(1)
+        sentence = sentence_match[1]
+        for item in re.finditer(regex, sentence + '.', flags=re.IGNORECASE):
+            following = sentence[item.end():].split('.', 2)[0]
+            if not re.search(negated_regex, item[1].strip(), flags=re.IGNORECASE) and item[3].strip(' .,;').lower() not in {'who', 'named by', 'does', 'has', 'naming', 'power', 'attached', 'from'}:
+                matches.append((item[1].strip(), item[2].strip(), item[3].strip(), following, sentence_start + item.start(0)))
     return matches
 
 
@@ -109,9 +112,9 @@ def fix_oracle_symbols(text: str) -> str:
     return text
 
 
-def find_combos() -> list[tuple[str, tuple[str, ...], frozenset[str], str, str, str, dict[str, tuple[str, int, int, tuple[str, str, str, str]]]]]:
+def find_combos() -> list[tuple[str, tuple[str, ...], frozenset[str], str, str, str, dict[str, tuple[str, int, int, tuple[str, str, str, str]]], dict[str, tuple[str, int, int, tuple[str, str, str, str]]], set[str]]]:
     """Fetches the combos from the google sheet.
-    Result format: id, cards, produced, prerequisite, description, mana, dictionary of prerequistes positions (card name -> (position_code, order, half_number, (battlefield_status, exile_status, library_status, graveyard_status)))"""
+    Result format: id, cards, produced, prerequisite, description, mana, dictionary of prerequistes positions (card name -> (position_code, order, half_number, (battlefield_status, exile_status, library_status, graveyard_status)), dictionary of default positions, must_be_commander)"""
     combo_to_produces = dict[frozenset[str], frozenset[str]]()
     combos_to_prerequisites = dict[frozenset[str], str]()
     combos_to_description = dict[frozenset[str], str]()
@@ -151,6 +154,8 @@ def find_combos() -> list[tuple[str, tuple[str, ...], frozenset[str], str, str, 
             mana = mana_match.group(2).upper() + mana_match.group(3)
         new_prerequisites = prerequisites
         positions_dict = dict[str, tuple[str, int, int, tuple[str, str, str, str]]]()
+        positions_dict_default = dict[str, tuple[str, int, int, tuple[str, str, str, str]]]()
+        must_be_commander = set[str]()
         position_order = 0
         for c in sorted_prereq_search_terms(prerequisites, card_set):
             half = 0
@@ -158,92 +163,117 @@ def find_combos() -> list[tuple[str, tuple[str, ...], frozenset[str], str, str, 
             exile_status = ''
             library_status = ''
             graveyard_status = ''
-            positions = find_card_in_prereq(c, prerequisites)
+            positions = find_card_in_prereq(c, new_prerequisites)
             c_short_name = None
             if len(positions) == 0 and '//' in c:
                 c_short_name = c.partition('//')[0].strip()
                 half = 1
-                positions = find_card_in_prereq(c_short_name, prerequisites)
+                positions = find_card_in_prereq(c_short_name, new_prerequisites)
                 if len(positions) == 0 and ',' in c_short_name:
                     c_short_name = c_short_name.partition(',')[0]
-                    positions = find_card_in_prereq(c_short_name, prerequisites)
+                    positions = find_card_in_prereq(c_short_name, new_prerequisites)
                 if len(positions) == 0:
                     c_short_name = c.partition('//')[2].strip()
                     half = 2
-                    positions = find_card_in_prereq(c_short_name, prerequisites)
+                    positions = find_card_in_prereq(c_short_name, new_prerequisites)
                     if len(positions) == 0 and ',' in c_short_name:
                         c_short_name = c_short_name.partition(',')[0]
-                        positions = find_card_in_prereq(c_short_name, prerequisites)
+                        positions = find_card_in_prereq(c_short_name, new_prerequisites)
             elif len(positions) == 0 and ',' in c:
                 c_short_name = c.partition(',')[0]
-                positions = find_card_in_prereq(c_short_name, prerequisites)
-            for position in positions:
+                positions = find_card_in_prereq(c_short_name, new_prerequisites)
+            escaped_name = re.escape(c_short_name if c_short_name else c)
+            for (_, after, stop_sign, following, beginning_index) in positions:
                 p_list = list[IngredientInCombination.ZoneLocation]()
-                if re.search(r'(?:[^\w]|^)hand(?:[^\w]|$)', position[0], flags=re.IGNORECASE):
+                if re.search(r'(?:[^\w]|^)hand(?:[^\w]|$)', after, flags=re.IGNORECASE):
                     p_list.append(IngredientInCombination.ZoneLocation.HAND)
-                if re.search(r'(?:[^\w]|^)battlefield(?:[^\w]|$)', position[0], flags=re.IGNORECASE):
+                if re.search(r'(?:[^\w]|^)battlefield(?:[^\w]|$)', after, flags=re.IGNORECASE):
                     p_list.append(IngredientInCombination.ZoneLocation.BATTLEFIELD)
-                    if re.search(r'(?:[^\w]|^)tapped(?:[^\w]|$)', position[0], flags=re.IGNORECASE):
+                    if re.search(r'(?:[^\w]|^)tapped(?:[^\w]|$)', after, flags=re.IGNORECASE):
                         if battlefield_status != '':
                             raise Exception('Battlefield status already set')
                         battlefield_status = 'tapped'
-                    if re.search(r'(?:[^\w]|^)untapped(?:[^\w]|$)', position[0], flags=re.IGNORECASE):
+                    if re.search(r'(?:[^\w]|^)untapped(?:[^\w]|$)', after, flags=re.IGNORECASE):
                         if battlefield_status != '':
                             raise Exception('Battlefield status already set')
                         battlefield_status = 'untapped'
-                    if re.search(r'(?:[^\w]|^)face down(?:[^\w]|$)', position[0], flags=re.IGNORECASE):
+                    if re.search(r'(?:[^\w]|^)face down(?:[^\w]|$)', after, flags=re.IGNORECASE):
                         if battlefield_status != '':
                             raise Exception('Battlefield status already set')
                         battlefield_status = 'face down'
-                    if re.search(r'(?:[^\w]|^)face up(?:[^\w]|$)', position[0], flags=re.IGNORECASE):
+                    if re.search(r'(?:[^\w]|^)face up(?:[^\w]|$)', after, flags=re.IGNORECASE):
                         if battlefield_status != '':
                             raise Exception('Battlefield status already set')
                         battlefield_status = 'face up'
-                if re.search(r'(?:[^\w]|^)command zone(?:[^\w]|$)', position[0], flags=re.IGNORECASE):
+                if re.search(r'(?:[^\w]|^)command(?:er)? zone(?:[^\w]|$)', after, flags=re.IGNORECASE):
                     p_list.append(IngredientInCombination.ZoneLocation.COMMAND_ZONE)
-                if re.search(r'(?:[^\w]|^)graveyard(?:[^\w]|$)', position[0], flags=re.IGNORECASE):
+                if re.search(r'(?:[^\w]|^)graveyard(?:[^\w]|$)', after, flags=re.IGNORECASE):
                     p_list.append(IngredientInCombination.ZoneLocation.GRAVEYARD)
-                if re.search(r'(?:[^\w]|^)exiled?(?:[^\w]|$)', position[0], flags=re.IGNORECASE):
+                if re.search(r'(?:[^\w]|^)exiled?(?:[^\w]|$)', after, flags=re.IGNORECASE):
                     p_list.append(IngredientInCombination.ZoneLocation.EXILE)
-                    if re.search(r'(?:[^\w]|^)by(?:[^\w]|$)', position[0], flags=re.IGNORECASE):
+                    if re.search(r'(?:[^\w]|^)by(?:[^\w]|$)', after, flags=re.IGNORECASE):
                         if exile_status != '':
                             raise Exception('Exile status already set')
-                        after_by = re.split(r'(?:[^\w]|^)by(?:[^\w]|$)', position[0], maxsplit=2, flags=re.IGNORECASE)[1]
+                        after_by = re.split(r'(?:[^\w]|^)by(?:[^\w]|$)', after, maxsplit=2, flags=re.IGNORECASE)[1]
                         exile_status = f'exiled by {after_by}'
-                    if position[1] == 'with':
-                        modification = position[2]
+                    if stop_sign == 'with':
+                        modification = following
                         modification = re.sub(r'([^\w]|^)them([^\w]|$)', r'\1it\2', modification, flags=re.IGNORECASE)
                         modification = re.sub(r'([^\w]|^)(cage|kick) counters([^\w]|$)', r'\1a \2 counter\3', modification, flags=re.IGNORECASE)
                         exile_status += f'with {modification}'
-                if re.search(r'(?:[^\w]|^)foretold(?:[^\w]|$)', position[0], flags=re.IGNORECASE):
+                if re.search(r'(?:[^\w]|^)foretold(?:[^\w]|$)', after, flags=re.IGNORECASE):
                     p_list.append(IngredientInCombination.ZoneLocation.EXILE)
-                if re.search(r'(?:[^\w]|^)library(?:[^\w]|$)', position[0], flags=re.IGNORECASE):
+                if re.search(r'(?:[^\w]|^)library(?:[^\w]|$)', after, flags=re.IGNORECASE):
                     p_list.append(IngredientInCombination.ZoneLocation.LIBRARY)
-                if re.search(r'(?:[^\w]|^)any zone(?:[^\w]|$)', position[0], flags=re.IGNORECASE):
+                if re.search(r'(?:[^\w]|^)any zone(?:[^\w]|$)', after, flags=re.IGNORECASE):
                     p_list = [''.join(choice[0] for choice in IngredientInCombination.ZoneLocation.choices)]
-                if re.search(r'(?:[^\w]|^)or(?:[^\w]|$)', position[0], flags=re.IGNORECASE) or re.search(r'(?:[^\w]|^)with the other(?:[^\w]|$)', position[0], flags=re.IGNORECASE):
-                    if re.search(r'(?:[^\w]|^)and/or(?:[^\w]|$)', position[0], flags=re.IGNORECASE):
+                if re.search(r'(?:[^\w]|^)or(?:[^\w]|$)', after, flags=re.IGNORECASE) or re.search(r'(?:[^\w]|^)with the other(?:[^\w]|$)', after, flags=re.IGNORECASE):
+                    if re.search(r'(?:[^\w]|^)and/or(?:[^\w]|$)', after, flags=re.IGNORECASE):
                         p_list = [''.join(p_list)]
                     elif len(p_list) > 1:
                         p_list = [''.join(p_list)]
-                    elif not re.search(r'(?:[^\w]|^)instant or sorcery(?:[^\w]|$)', position[0], flags=re.IGNORECASE):
+                    elif not re.search(r'(?:[^\w]|^)instant or sorcery(?:[^\w]|$)', after, flags=re.IGNORECASE):
                         raise Exception(f'Found invalid "or" in "{prerequisites}"')
+                before_beginning = new_prerequisites[:beginning_index]
+                after_beginning = new_prerequisites[beginning_index:]
+                if re.search(r'(?:[^\w]|^)(is|are) (?:one of |the only )?your commanders?(?:[^\w]|$)', after, flags=re.IGNORECASE):
+                    if len(p_list) == 0 or len(p_list) == 1 and p_list[0] == IngredientInCombination.ZoneLocation.COMMAND_ZONE:
+                        if len(p_list) == 1:
+                            if c in positions_dict:
+                                raise Exception(f'Found duplicate positioning for commander {c} in {prerequisites}')
+                            positions_dict[c] = (p_list[0], position_order, half, (battlefield_status, exile_status, library_status, graveyard_status))
+                        must_be_commander.add(c)
+                        if re.search(r'(?:\w|^),(?:[^\w]|$)', after, flags=re.IGNORECASE):
+                            raise Exception(f'Too many commanders in combo {id} for {prerequisites}')
+                        elif re.search(r'(?:[^\w]|^)and(?!/or)(?:[^\w]|$)', after, flags=re.IGNORECASE) and len(p_list) == 0:
+                            new_prerequisites = before_beginning + re.subn(r'\s?' + escaped_name + r'[^,\.]*,?[^\w]and[^\w]', '', after_beginning, 1, flags=re.IGNORECASE)[0].strip()
+                        else:
+                            new_prerequisites = before_beginning + re.subn(r'\s?' + escaped_name + r' ([^,\.]+)\.', '', after_beginning, 1, flags=re.IGNORECASE)[0].strip()
+                        if c not in positions_dict:
+                            if c not in positions_dict_default:
+                                positions_dict_default[c] = (IngredientInCombination.ZoneLocation.COMMAND_ZONE, position_order, half, (battlefield_status, exile_status, library_status, graveyard_status))
+                                position_order += 1
+                            else:
+                                raise Exception(f'Found multiple default locations for {c} in {prerequisites}')
+                        continue
+                    else:
+                        raise Exception(f'Found commander and location together in combo {id} for {prerequisites}')
                 if len(p_list) == 1:
                     if c in positions_dict:
                         raise Exception(f'Found duplicate positioning for {c} in {prerequisites}')
                     positions_dict[c] = (p_list[0], position_order, half, (battlefield_status, exile_status, library_status, graveyard_status))
                     position_order += 1
-                    if position[1] == '.' or position[1] == 'with' and any(len(s) > 0 for s in [battlefield_status, exile_status, library_status, graveyard_status]):
+                    if stop_sign == '.' or stop_sign == 'with' and any(len(s) > 0 for s in [battlefield_status, exile_status, library_status, graveyard_status]):
                         number_of_positions = len(p_list[0])
-                        if re.search(r'(?:\w|^),(?:[^\w]|$)', position[0], flags=re.IGNORECASE):
-                            new_prerequisites = re.subn(r'\s?' + re.escape(c_short_name if c_short_name else c) + rf'[^,\.]*(?:(?:,|[^\w]or[^\w])[^,\.]*){{0,{number_of_positions - 1}}},?[^\w](and[^\w])?', '', new_prerequisites, 1, flags=re.IGNORECASE)[0].strip()
-                        elif re.search(r'(?:[^\w]|^)and(?!/or)(?:[^\w]|$)', position[0], flags=re.IGNORECASE):
-                            new_prerequisites = re.subn(r'\s?' + re.escape(c_short_name if c_short_name else c) + r'[^,\.]*,?[^\w]and[^\w]', '', new_prerequisites, 1, flags=re.IGNORECASE)[0].strip()
+                        if re.search(r'(?:\w|^),(?:[^\w]|$)', after, flags=re.IGNORECASE):
+                            new_prerequisites = before_beginning + re.subn(r'\s?' + escaped_name + rf'[^,\.]*(?:(?:,|[^\w]or[^\w])[^,\.]*){{0,{number_of_positions - 1}}},?[^\w](and[^\w])?', '', after_beginning, 1, flags=re.IGNORECASE)[0].strip()
+                        elif re.search(r'(?:[^\w]|^)and(?!/or)(?:[^\w]|$)', after, flags=re.IGNORECASE):
+                            new_prerequisites = before_beginning + re.subn(r'\s?' + escaped_name + r'[^,\.]*,?[^\w]and[^\w]', '', after_beginning, 1, flags=re.IGNORECASE)[0].strip()
                         else:
-                            new_prerequisites = re.subn(r'\s?' + re.escape(c_short_name if c_short_name else c) + r' ([^,\.]+)\.', '', new_prerequisites, 1, flags=re.IGNORECASE)[0].strip()
+                            new_prerequisites =  before_beginning + re.subn(r'\s?' + escaped_name + r' ([^,\.]+)\.', '', after_beginning, 1, flags=re.IGNORECASE)[0].strip()
                 elif len(p_list) > 1:
                     raise Exception(f'Found {len(p_list)} positions for {c} in {prerequisites}')
-        result.append((id, combos_to_card_ordered[card_set], features, new_prerequisites, description, mana, positions_dict))
+        result.append((id, combos_to_card_ordered[card_set], features, new_prerequisites, description, mana, positions_dict, positions_dict_default, must_be_commander))
     return result
 
 
@@ -341,7 +371,7 @@ class Command(BaseCommand):
             with transaction.atomic(durable=True):
                 existing_feature_names = {f.name.lower(): f for f in Feature.objects.all()}
                 next_id = (Combo.objects.aggregate(Max('id'))['id__max'] or 0) + 1
-                for i, (old_id, _cards, produced, prerequisite, description, mana_needed, positions) in enumerate(x):
+                for i, (old_id, _cards, produced, prerequisite, description, mana_needed, positions, default_positions, commanders) in enumerate(x):
                     self.stdout.write(f'{i+1}/{len(x)}\n' if (i + 1) % 100 == 0 else '.', ending='')
                     cards_from_combo = [combo_card_name_to_card[c] for c in _cards]
                     used_cards_types = dict[Card, str]()
@@ -356,67 +386,83 @@ class Command(BaseCommand):
                     creatures_from_combo = [c for c in cards_from_combo if 'Creature' in used_cards_types.get(c, combo_card_name_to_scryfall[c.name.lower()]['type_line'])]
                     cardincombo_list = list[CardInCombo]()
                     for c, (p, _, half, (b_state, e_state, g_state, l_state)) in sorted(positions.items(), key=lambda x: x[1][1]):
+                        def make_card_in_combo(card: Card, zone_locations: str = IngredientInCombination.ZoneLocation.HAND) -> CardInCombo:
+                            return CardInCombo(
+                                card=card,
+                                zone_locations=zone_locations,
+                                battlefield_card_state=upper_oracle_symbols(b_state),
+                                exile_card_state=upper_oracle_symbols(e_state),
+                                graveyard_card_state=upper_oracle_symbols(g_state),
+                                library_card_state=upper_oracle_symbols(l_state),
+                                must_be_commander=c in commanders or zone_locations == IngredientInCombination.ZoneLocation.COMMAND_ZONE,
+                            )
                         if c in _cards:
                             actual_card = combo_card_name_to_card[c]
-                            cardincombo_list.append(CardInCombo(card=actual_card, zone_locations=p, battlefield_card_state=b_state, exile_card_state=e_state, graveyard_card_state=g_state, library_card_state=l_state))
+                            cardincombo_list.append(make_card_in_combo(actual_card, zone_locations=p))
                         elif c == 'all permanents':
                             for card in permanents_from_combo:
                                 if card in [c.card for c in cardincombo_list]:
                                     raise ValueError(f'Card {card} already used')
-                                cardincombo_list.append(CardInCombo(card=card, zone_locations=p, battlefield_card_state=b_state, exile_card_state=e_state, graveyard_card_state=g_state, library_card_state=l_state))
+                                cardincombo_list.append(make_card_in_combo(card, zone_locations=p))
                         elif c == 'both permanents':
                             if len(permanents_from_combo) != 2:
                                 raise ValueError(f'Expected 2 permanents, got {len(permanents_from_combo)}')
                             for card in permanents_from_combo:
                                 if card in [c.card for c in cardincombo_list]:
                                     raise ValueError(f'Card {card} already used')
-                                cardincombo_list.append(CardInCombo(card=card, zone_locations=p, battlefield_card_state=b_state, exile_card_state=e_state, graveyard_card_state=g_state, library_card_state=l_state))
+                                cardincombo_list.append(make_card_in_combo(card, zone_locations=p))
                         elif c == 'all other permanents':
                             for card in permanents_from_combo:
                                 if card not in [c.card for c in cardincombo_list]:
-                                    cardincombo_list.append(CardInCombo(card=card, zone_locations=p, battlefield_card_state=b_state, exile_card_state=e_state, graveyard_card_state=g_state, library_card_state=l_state))
+                                    cardincombo_list.append(make_card_in_combo(card, zone_locations=p))
                         elif c == 'all other cards':
                             for card in cards_from_combo:
                                 if card not in [c.card for c in cardincombo_list]:
-                                    cardincombo_list.append(CardInCombo(card=card, zone_locations=p, battlefield_card_state=b_state, exile_card_state=e_state, graveyard_card_state=g_state, library_card_state=l_state))
+                                    cardincombo_list.append(make_card_in_combo(card, zone_locations=p))
                         elif c == 'all cards':
                             for card in cards_from_combo:
                                 if card in [c.card for c in cardincombo_list]:
                                     raise ValueError(f'Card {card} already used')
-                                cardincombo_list.append(CardInCombo(card=card, zone_locations=p, battlefield_card_state=b_state, exile_card_state=e_state, graveyard_card_state=g_state, library_card_state=l_state))
+                                cardincombo_list.append(make_card_in_combo(card, zone_locations=p))
                         elif c == 'both cards':
                             if len(cards_from_combo) != 2:
                                 raise ValueError(f'Expected 2 cards, got {len(cards_from_combo)}')
                             for card in cards_from_combo:
                                 if card in [c.card for c in cardincombo_list]:
                                     raise ValueError(f'Card {card} already used')
-                                cardincombo_list.append(CardInCombo(card=card, zone_locations=p, battlefield_card_state=b_state, exile_card_state=e_state, graveyard_card_state=g_state, library_card_state=l_state))
+                                cardincombo_list.append(make_card_in_combo(card, zone_locations=p))
                         elif c == 'all creatures':
                             for card in creatures_from_combo:
                                 if card in [c.card for c in cardincombo_list]:
                                     raise ValueError(f'Card {card} already used')
-                                cardincombo_list.append(CardInCombo(card=card, zone_locations=p, battlefield_card_state=b_state, exile_card_state=e_state, graveyard_card_state=g_state, library_card_state=l_state))
+                                cardincombo_list.append(make_card_in_combo(card, zone_locations=p))
                         elif c == 'all other creatures':
                             for card in creatures_from_combo:
                                 if card not in [c.card for c in cardincombo_list]:
-                                    cardincombo_list.append(CardInCombo(card=card, zone_locations=p, battlefield_card_state=b_state, exile_card_state=e_state, graveyard_card_state=g_state, library_card_state=l_state))
+                                    cardincombo_list.append(make_card_in_combo(card, zone_locations=p))
                         else:
                             raise ValueError(f'Unknown card {c}')
+                    for c, (p, _, half, (b_state, e_state, g_state, l_state)) in sorted(default_positions.items(), key=lambda x: x[1][1]):
+                        if c in _cards:
+                            card = combo_card_name_to_card[c]
+                            card_in_combos = [c for c in cardincombo_list if c.card == card]
+                            locations = [c.zone_locations for c in card_in_combos]
+                            if len(locations) == 0:
+                                cardincombo_list.append(make_card_in_combo(CardInCombo(
+                                    card=card,
+                                    zone_locations=p,
+                                    battlefield_card_state=upper_oracle_symbols(b_state),
+                                    exile_card_state=upper_oracle_symbols(e_state),
+                                    graveyard_card_state=upper_oracle_symbols(g_state),
+                                    library_card_state=upper_oracle_symbols(l_state),
+                                    must_be_commander=c in commanders or p == IngredientInCombination.ZoneLocation.COMMAND_ZONE,
+                                )))
                     for card in cards_from_combo:
                         card_in_combos = [c for c in cardincombo_list if c.card == card]
                         locations = [c.zone_locations for c in card_in_combos]
                         if len(locations) == 0:
                             self.log_job(job, f'Card {card} doesn\'t appear in prerequisites of combo {old_id}.', self.style.WARNING)
-                            cardincombo_list.append(
-                                CardInCombo(
-                                    card=card,
-                                    zone_locations=IngredientInCombination.ZoneLocation.HAND,
-                                    battlefield_card_state=upper_oracle_symbols(b_state),
-                                    exile_card_state=upper_oracle_symbols(e_state),
-                                    graveyard_card_state=upper_oracle_symbols(g_state),
-                                    library_card_state=upper_oracle_symbols(l_state),
-                                )
-                            )
+                            cardincombo_list.append(make_card_in_combo(card))
                         elif len(locations) == 1:
                             pass
                         else:

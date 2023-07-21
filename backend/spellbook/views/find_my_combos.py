@@ -88,7 +88,7 @@ def find_my_combos(request: Request) -> Response:
             'variant__includes')
     for civ in variants_query:
         variant_to_cards[civ.variant].add(civ.card)
-        if civ.zone_locations == CardInVariant.ZoneLocation.COMMAND_ZONE:
+        if civ.must_be_commander:
             variant_to_commanders[civ.variant].add(civ.card)
     included_variants = []
     included_variants_by_changing_commanders = []

@@ -89,14 +89,14 @@ def sorted_prereq_search_terms(prereq: str, card_set: set[str]) -> list[str]:
 
 
 def find_card_in_prereq(card_name: str, prerequisites: str) -> list[tuple[str, str, str, str, int]]:  # sentence, punctuation, following
-    regex = r'(.*?)' + re.escape(card_name) + r'(.*?)(\.|[^\w](?:with(?! the other)|if|when|who|named by|does|has|naming|power|attached|as|from|increase|under)[^\w]|$)'
-    negated_regex = r'(?:[^\w]|^)(?:with|if|when|who|named by|does|has|naming|power|attached|on|from|opponent|increase|remove)(?:[^\w]|$)'
+    regex = r'(.*?)' + re.escape(card_name) + r'(.*?)(\.|[^\w](?:with(?! the other)|named by|does|naming|attached|increase|lowest|toughness)[^\w]|$)'
+    negated_regex = r'(?:[^\w]|^)(?:with|if|when|who|named by|does|has|naming|power|attached|on|from|opponent|increase|remove|way|able|enough)(?:[^\w]|$)'
     matches = []
     for sentence_match in re.finditer(r'([^\.]*)\.', prerequisites):
         sentence_start = sentence_match.start(1)
-        sentence = sentence_match[1]
-        for item in re.finditer(regex, sentence + '.', flags=re.IGNORECASE):
-            following = sentence[item.end():].split('.', 2)[0]
+        sentence = sentence_match[1] + '.'
+        for item in re.finditer(regex, sentence, flags=re.IGNORECASE):
+            following = sentence[item.end():].partition('.')[0]
             if not re.search(negated_regex, item[1].strip(), flags=re.IGNORECASE) and item[3].strip(' .,;').lower() not in {'who', 'named by', 'does', 'has', 'naming', 'power', 'attached', 'from'}:
                 matches.append((item[1].strip(), item[2].strip(), item[3].strip(), following, sentence_start + item.start(0)))
     return matches
@@ -143,7 +143,7 @@ def find_combos() -> list[tuple[str, tuple[str, ...], frozenset[str], str, str, 
         features = frozenset(combo_to_produces[card_set])
         prerequisites = combos_to_prerequisites[card_set]
         description = combos_to_description[card_set]
-        prerequisites = fix_oracle_symbols(prerequisites)
+        prerequisites = fix_oracle_symbols(prerequisites.strip())
         if not prerequisites.endswith('.'):
             prerequisites += '.'
         description = fix_oracle_symbols(description)
@@ -235,7 +235,7 @@ def find_combos() -> list[tuple[str, tuple[str, ...], frozenset[str], str, str, 
                         p_list = [''.join(p_list)]
                     elif len(p_list) > 1:
                         p_list = [''.join(p_list)]
-                    elif not re.search(r'(?:[^\w]|^)instant or sorcery(?:[^\w]|$)', after, flags=re.IGNORECASE):
+                    elif not re.search(r'(?:[^\w]|^)(?:\d+|one|two|three|four|seven|instant) or (?:less|sorcery|\d+|one|two|greater|more)(?:[^\w]|$)', after, flags=re.IGNORECASE):
                         raise Exception(f'Found invalid "or" in "{prerequisites}"')
                 before_beginning = new_prerequisites[:beginning_index]
                 after_beginning = new_prerequisites[beginning_index:]
@@ -269,8 +269,8 @@ def find_combos() -> list[tuple[str, tuple[str, ...], frozenset[str], str, str, 
                     if stop_sign == '.' or stop_sign == 'with' and any(len(s) > 0 for s in [battlefield_status, exile_status, library_status, graveyard_status]):
                         next_cards = sorted_search_results[i + 1:]
                         number_of_positions = len(p_list[0])
-                        if any(re.search(r'(?:\w|^)(?:,?[^\w]and[^\w]|,)[^\w]*' + re.escape(nc_alias) + r'(?:[^\w]|$)', after, flags=re.IGNORECASE) for nc in next_cards for nc_alias in [nc.partition('//')[0].strip(), nc.partition('//')[2].strip(), nc.partition(',')[0].strip()] if len(nc_alias) > 0):
-                            new_prerequisites = before_beginning + re.subn(r'\s?' + escaped_name + rf'[^,\.]*(?:,?[^\w]and[^\w]|,)', '', after_beginning, 1, flags=re.IGNORECASE)[0].strip()
+                        if any(re.search(r'(?:\w|^)(?:,?(?:[^\w]|^)and[^\w]|,)[^\w]*' + re.escape(nc_alias) + r'(?:[^\w]|$)', after, flags=re.IGNORECASE) for nc in next_cards for nc_alias in [nc.partition('//')[0].strip(), nc.partition('//')[2].strip(), nc.partition(',')[0].strip()] if len(nc_alias) > 0):
+                            new_prerequisites = before_beginning + re.subn(r'\s?' + escaped_name + r'[^,\.]*?(?:,?[^\w]and[^\w]|,)', '', after_beginning, 1, flags=re.IGNORECASE)[0].strip()
                         elif re.search(r'(?:\w|^),(?:[^\w]|$)', after, flags=re.IGNORECASE):
                             new_prerequisites = before_beginning + re.subn(r'\s?' + escaped_name + rf'[^,\.]*(?:(?:,|[^\w]or[^\w])[^,\.]*){{0,{number_of_positions - 1}}},?[^\w](and[^\w])?', '', after_beginning, 1, flags=re.IGNORECASE)[0].strip()
                         elif re.search(r'(?:[^\w]|^)and(?!/or)(?:[^\w]|$)', after, flags=re.IGNORECASE):

@@ -89,12 +89,12 @@ def sorted_prereq_search_terms(prereq: str, card_set: set[str]) -> list[str]:
 
 
 def find_card_in_prereq(card_name: str, prerequisites: str) -> list[tuple[str, str, str, str, int]]:  # sentence, punctuation, following
-    regex = r'(.*?)' + re.escape(card_name) + r'(.*?)(\.|[^\w](?:with(?! the other)|named by|does|naming|attached|increase|lowest|toughness)[^\w]|$)'
-    negated_regex = r'(?:[^\w]|^)(?:with|if|when|who|named by|does|has|naming|power|attached|on|from|opponent|increase|remove|way|able|enough)(?:[^\w]|$)'
+    regex = r'(.*?)' + re.escape(card_name) + r'(.*?)(\.|[^\w](?:with(?! the other)|named by|does|naming|attached|increase|lowest|toughness|on it|from)[^\w]|$)'
+    negated_regex = r'(?:[^\w]|^)(?:with|if|when|who|named by|does|has|naming|power|attached|on|from|opponent|increase|remove|way|able|enough|sacrificed|storm|have (?:not )?cast)(?:[^\w]|$)'
     matches = []
     for sentence_match in re.finditer(r'([^\.]*)\.', prerequisites):
         sentence_start = sentence_match.start(1)
-        sentence = sentence_match[1] + '.'
+        sentence = sentence_match[1].strip() + '.'
         for item in re.finditer(regex, sentence, flags=re.IGNORECASE):
             following = sentence[item.end():].partition('.')[0]
             if not re.search(negated_regex, item[1].strip(), flags=re.IGNORECASE) and item[3].strip(' .,;').lower() not in {'who', 'named by', 'does', 'has', 'naming', 'power', 'attached', 'from'}:
@@ -186,7 +186,8 @@ def find_combos() -> list[tuple[str, tuple[str, ...], frozenset[str], str, str, 
                 c_short_name = c.partition(',')[0]
                 positions = find_card_in_prereq(c_short_name, new_prerequisites)
             escaped_name = re.escape(c_short_name if c_short_name else c)
-            for (_, after, stop_sign, following, beginning_index) in positions:
+            for (before, after, stop_sign, following, beginning_index) in positions:
+                force_keep_sentence = False
                 p_list = list[IngredientInCombination.ZoneLocation]()
                 if re.search(r'(?:[^\w]|^)hand(?:[^\w]|$)', after, flags=re.IGNORECASE):
                     p_list.append(IngredientInCombination.ZoneLocation.HAND)
@@ -231,11 +232,13 @@ def find_combos() -> list[tuple[str, tuple[str, ...], frozenset[str], str, str, 
                 if re.search(r'(?:[^\w]|^)any zone(?:[^\w]|$)', after, flags=re.IGNORECASE):
                     p_list = [''.join(choice[0] for choice in IngredientInCombination.ZoneLocation.choices)]
                 if re.search(r'(?:[^\w]|^)or(?:[^\w]|$)', after, flags=re.IGNORECASE) or re.search(r'(?:[^\w]|^)with the other(?:[^\w]|$)', after, flags=re.IGNORECASE):
-                    if re.search(r'(?:[^\w]|^)and/or(?:[^\w]|$)', after, flags=re.IGNORECASE):
+                    if re.search(r'(?:[^\w]|^)either(?:[^\w]|$)', before, flags=re.IGNORECASE):
+                        force_keep_sentence = True
+                    elif re.search(r'(?:[^\w]|^)and/or(?:[^\w]|$)', after, flags=re.IGNORECASE):
                         p_list = [''.join(p_list)]
                     elif len(p_list) > 1:
                         p_list = [''.join(p_list)]
-                    elif not re.search(r'(?:[^\w]|^)(?:\d+|one|two|three|four|seven|instant) or (?:less|sorcery|\d+|one|two|greater|more)(?:[^\w]|$)', after, flags=re.IGNORECASE):
+                    elif not re.search(r'(?:[^\w]|^)(?:\d+|one|two|three|four|five|six|seven|instant) or (?:less|sorcery|\d+|one|two|greater|more)(?:[^\w]|$)', after, flags=re.IGNORECASE):
                         raise Exception(f'Found invalid "or" in "{prerequisites}"')
                 before_beginning = new_prerequisites[:beginning_index]
                 after_beginning = new_prerequisites[beginning_index:]
@@ -266,7 +269,7 @@ def find_combos() -> list[tuple[str, tuple[str, ...], frozenset[str], str, str, 
                         raise Exception(f'Found duplicate positioning for {c} in {prerequisites}')
                     positions_dict[c] = (p_list[0], position_order, half, (battlefield_status, exile_status, library_status, graveyard_status))
                     position_order += 1
-                    if stop_sign == '.' or stop_sign == 'with' and any(len(s) > 0 for s in [battlefield_status, exile_status, library_status, graveyard_status]):
+                    if force_keep_sentence or stop_sign == '.' or stop_sign == 'with' and any(len(s) > 0 for s in [battlefield_status, exile_status, library_status, graveyard_status]):
                         next_cards = sorted_search_results[i + 1:]
                         number_of_positions = len(p_list[0])
                         if any(re.search(r'(?:\w|^)(?:,?(?:[^\w]|^)and[^\w]|,)[^\w]*' + re.escape(nc_alias) + r'(?:[^\w]|$)', after, flags=re.IGNORECASE) for nc in next_cards for nc_alias in [nc.partition('//')[0].strip(), nc.partition('//')[2].strip(), nc.partition(',')[0].strip()] if len(nc_alias) > 0):

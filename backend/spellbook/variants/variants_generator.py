@@ -290,6 +290,7 @@ def generate_variants(job: Job = None) -> tuple[int, int, int]:
     old_id_set = set(data.id_to_variant.keys())
     logging.info('Computing combos graph representation...')
     log_into_job(job, 'Computing combos graph representation...')
+    debug_queries()
     variants = get_variants_from_graph(data, job)
     logging.info(f'Saving {len(variants)} variants...')
     log_into_job(job, f'Saving {len(variants)} variants...')

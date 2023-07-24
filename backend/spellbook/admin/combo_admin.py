@@ -28,7 +28,7 @@ class ComboForm(ModelForm):
 
 
 class CardInComboAdminInline(IngredientAdmin):
-    fields = ['card', 'zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state']
+    fields = ['card', 'zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'must_be_commander']
     model = CardInCombo
     verbose_name = 'Card'
     verbose_name_plural = 'Required Cards'
@@ -36,7 +36,7 @@ class CardInComboAdminInline(IngredientAdmin):
 
 
 class TemplateInComboAdminInline(IngredientAdmin):
-    fields = ['template', 'zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state']
+    fields = ['template', 'zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'must_be_commander']
     model = TemplateInCombo
     verbose_name = 'Template'
     verbose_name_plural = 'Required Templates'
@@ -131,7 +131,7 @@ class ComboAdmin(SearchMultipleRelatedMixin, admin.ModelAdmin):
                 template_in_variants_to_update.extend(requires_set)
             update_fields = ['status', 'mana_needed', 'other_prerequisites', 'description', 'identity']
             Variant.objects.bulk_update(variants_to_update, update_fields)
-            update_fields = ['zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'order']
+            update_fields = ['zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'must_be_commander', 'order']
             CardInVariant.objects.bulk_update(card_in_variants_to_update, update_fields)
             TemplateInVariant.objects.bulk_update(template_in_variants_to_update, update_fields)
             messages.info(request, f'{count} "New" or "Restore" variants were updated for this combo.')

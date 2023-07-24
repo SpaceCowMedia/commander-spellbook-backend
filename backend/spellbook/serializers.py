@@ -39,7 +39,15 @@ class CardInComboSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CardInCombo
-        fields = ['card', 'zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state']
+        fields = [
+            'card',
+            'zone_locations',
+            'battlefield_card_state',
+            'exile_card_state',
+            'library_card_state',
+            'graveyard_card_state',
+            'must_be_commander',
+        ]
 
 
 class TemplateInComboSerializer(serializers.ModelSerializer):
@@ -48,7 +56,15 @@ class TemplateInComboSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = TemplateInCombo
-        fields = ['template', 'zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state']
+        fields = [
+            'template',
+            'zone_locations',
+            'battlefield_card_state',
+            'exile_card_state',
+            'library_card_state',
+            'graveyard_card_state',
+            'must_be_commander',
+        ]
 
 
 class ComboDetailSerializer(serializers.ModelSerializer):
@@ -67,7 +83,8 @@ class ComboDetailSerializer(serializers.ModelSerializer):
             'requires',
             'mana_needed',
             'other_prerequisites',
-            'description']
+            'description',
+        ]
 
 
 class ComboSerializer(serializers.ModelSerializer):
@@ -82,7 +99,15 @@ class CardInVariantSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CardInVariant
-        fields = ['card', 'zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state']
+        fields = [
+            'card',
+            'zone_locations',
+            'battlefield_card_state',
+            'exile_card_state',
+            'library_card_state',
+            'graveyard_card_state',
+            'must_be_commander',
+        ]
 
 
 class TemplateInVariantSerializer(serializers.ModelSerializer):
@@ -91,7 +116,15 @@ class TemplateInVariantSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = TemplateInVariant
-        fields = ['template', 'zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state']
+        fields = [
+            'template',
+            'zone_locations',
+            'battlefield_card_state',
+            'exile_card_state',
+            'library_card_state',
+            'graveyard_card_state',
+            'must_be_commander',
+        ]
 
 
 class VariantSerializer(serializers.ModelSerializer):
@@ -115,4 +148,5 @@ class VariantSerializer(serializers.ModelSerializer):
             'other_prerequisites',
             'description',
             'legal',
-            'spoiler']
+            'spoiler',
+        ]

@@ -5,7 +5,8 @@ from rest_framework.decorators import api_view, parser_classes, permission_class
 from rest_framework.response import Response
 from rest_framework.request import Request
 from rest_framework.permissions import AllowAny
-from spellbook.models import Card, Variant, CardInVariant
+from rest_framework.settings import api_settings
+from spellbook.models import Card, Variant
 from spellbook.variants.list_utils import merge_identities
 from spellbook.serializers import VariantSerializer
 from dataclasses import dataclass
@@ -13,22 +14,22 @@ from dataclasses import dataclass
 
 @dataclass
 class Deck:
-    cards: set[Card]
-    commanders: set[Card]
+    cards: set[int]
+    commanders: set[int]
 
 
 class PlainTextDeckListParser(parsers.BaseParser):
     media_type = 'text/plain'
 
     def __init__(self):
-        self.cards_dict = {c.name.lower(): c for c in Card.objects.all()}
+        self.cards_dict: dict[str, int] = {name.lower(): id for name, id in Card.objects.values_list('name', 'id')}
 
     def parse(self, stream, media_type=None, parser_context=None) -> Deck:
         parser_context = parser_context or {}
         encoding = parser_context.get('encoding', 'UTF-8')
         lines = stream.read().decode(encoding).splitlines()[:500]
-        main_cards = set[Card]()
-        commanders = set[Card]()
+        main_cards = set[int]()
+        commanders = set[int]()
         current_set = main_cards
         for line in lines:
             line: str = line.strip().lower()
@@ -45,12 +46,12 @@ class PlainTextDeckListParser(parsers.BaseParser):
 
 class JsonDeckListParser(parsers.JSONParser):
     def __init__(self):
-        self.cards_dict = {c.name.lower(): c for c in Card.objects.all()}
+        self.cards_dict: dict[str, int] = {name.lower(): id for name, id in Card.objects.values_list('name', 'id')}
 
     def parse(self, stream, media_type=None, parser_context=None) -> Deck:
         json: dict[str, list[str]] = super().parse(stream, media_type, parser_context)
-        main_cards = set[Card]()
-        commanders = set[Card]()
+        main_cards = set[int]()
+        commanders = set[int]()
         for commander in json.get('commanders', [])[:500]:
             if isinstance(commander, str):
                 commander = commander.strip().lower()
@@ -72,24 +73,21 @@ def find_my_combos(request: Request) -> Response:
     if isinstance(deck, dict):
         deck = Deck(cards=set(), commanders=set())
     cards = deck.cards.union(deck.commanders)
-    variant_to_cards = defaultdict[Variant, set[Card]](set)
-    variant_to_commanders = defaultdict[Variant, set[Card]](set)
-    variants_query = CardInVariant.objects \
-        .filter(variant__status=Variant.Status.OK, variant__uses__in=cards) \
-        .prefetch_related(
-            'card',
-            'variant',
-            'variant__cardinvariant_set__card',
-            'variant__templateinvariant_set__template',
-            'variant__cardinvariant_set',
-            'variant__templateinvariant_set',
-            'variant__produces',
-            'variant__of',
-            'variant__includes')
-    for civ in variants_query:
-        variant_to_cards[civ.variant].add(civ.card)
-        if civ.zone_locations == CardInVariant.ZoneLocation.COMMAND_ZONE:
-            variant_to_commanders[civ.variant].add(civ.card)
+    variant_to_cards = dict[Variant, set[int]]()
+    variant_to_commanders = dict[Variant, set[int]]()
+    variants_query = Variant.objects \
+        .filter(status=Variant.Status.OK, uses__in=cards) \
+        .prefetch_related('cardinvariant_set') \
+        .order_by('id')
+
+    pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
+    paginator = pagination_class()
+    variants_page = paginator.paginate_queryset(variants_query, request)
+
+    for v in variants_page:
+        cards_in_variant = list(v.cardinvariant_set.all())
+        variant_to_cards[v] = set(c.card_id for c in cards_in_variant)
+        variant_to_commanders[v] = set(c.card_id for c in cards_in_variant if c.must_be_commander)
     included_variants = []
     included_variants_by_changing_commanders = []
     almost_included_variants = []
@@ -97,27 +95,28 @@ def find_my_combos(request: Request) -> Response:
     almost_included_variants_by_changing_commanders = []
     almost_included_variants_by_adding_colors_and_changing_commanders = []
 
-    identity = merge_identities(c.identity for c in cards)
+    identity = merge_identities(identity for identity in Card.objects.filter(id__in=cards).values_list('identity', flat=True))
     identity_set = set(identity)
 
     for variant in variant_to_cards:
+        variant_data = VariantSerializer(variant).data
         variant_cards = variant_to_cards[variant]
         if variant_to_commanders[variant].issubset(deck.commanders):
             if variant_cards.issubset(cards):
-                included_variants.append(VariantSerializer(variant).data)
+                included_variants.append(variant_data)
             elif variant_cards.intersection(cards):
                 if set(variant.identity).issubset(identity_set):
-                    almost_included_variants.append(VariantSerializer(variant).data)
+                    almost_included_variants.append(variant_data)
                 else:
-                    almost_included_variants_by_adding_colors.append(VariantSerializer(variant).data)
+                    almost_included_variants_by_adding_colors.append(variant_data)
         elif variant_cards.issubset(cards):
-            included_variants_by_changing_commanders.append(VariantSerializer(variant).data)
+            included_variants_by_changing_commanders.append(variant_data)
         elif variant_cards.intersection(cards):
             if set(variant.identity).issubset(identity_set):
-                almost_included_variants_by_changing_commanders.append(VariantSerializer(variant).data)
+                almost_included_variants_by_changing_commanders.append(variant_data)
             else:
-                almost_included_variants_by_adding_colors_and_changing_commanders.append(VariantSerializer(variant).data)
-    return Response({
+                almost_included_variants_by_adding_colors_and_changing_commanders.append(variant_data)
+    return paginator.get_paginated_response({
         'identity': identity,
         'included': included_variants,
         'included_by_changing_commanders': included_variants_by_changing_commanders,

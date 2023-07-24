@@ -4,7 +4,6 @@ from django.db.models.functions import Length
 from collections import defaultdict
 from typing import Callable
 from dataclasses import dataclass
-from spellbook.models import IngredientInCombination
 from .color_parser import parse_identity
 
 
@@ -172,7 +171,7 @@ def tag_search(q: QuerySet, values: list[QueryValue]) -> QuerySet:
             case 'banned':
                 tag_query &= Q(legal=False)
             case 'commander':
-                tag_query &= Q(cardinvariant__zone_locations=IngredientInCombination.ZoneLocation.COMMAND_ZONE)
+                tag_query &= Q(cardinvariant__must_be_commander=True)
             case 'mandatory':
                 tag_query &= Q(produces__name='Mandatory Loop')
             case 'lock':
@@ -214,9 +213,9 @@ def commander_name_search(q: QuerySet, cards: list[QueryValue]) -> QuerySet:
         commander_name_query = Q()
         match card.operator:
             case ':':
-                commander_name_query &= Q(cardinvariant__zone_locations__contains=IngredientInCombination.ZoneLocation.COMMAND_ZONE, cardinvariant__card__name__icontains=card.value)
+                commander_name_query &= Q(cardinvariant__must_be_commander=True, cardinvariant__card__name__icontains=card.value)
             case '=':
-                commander_name_query &= Q(cardinvariant__zone_locations__contains=IngredientInCombination.ZoneLocation.COMMAND_ZONE, cardinvariant__card__name__iexact=card.value)
+                commander_name_query &= Q(cardinvariant__must_be_commander=True, cardinvariant__card__name__iexact=card.value)
             case _:
                 raise NotSupportedError(f'Operator {card.operator} is not supported for commander name search.')
         if card.prefix == '-':

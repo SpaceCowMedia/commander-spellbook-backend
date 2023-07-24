@@ -44,6 +44,7 @@ class ComboViewsTests(AbstractModelTests):
             self.assertEqual(u.exile_card_state, cic.exile_card_state)
             self.assertEqual(u.library_card_state, cic.library_card_state)
             self.assertEqual(u.graveyard_card_state, cic.graveyard_card_state)
+            self.assertEqual(u.must_be_commander, cic.must_be_commander)
         requires_list = [r.id for r in b.requires.all()]
         for r in combo_result.requires:
             template = r.template
@@ -59,6 +60,7 @@ class ComboViewsTests(AbstractModelTests):
             self.assertEqual(r.exile_card_state, tic.exile_card_state)
             self.assertEqual(r.library_card_state, tic.library_card_state)
             self.assertEqual(r.graveyard_card_state, tic.graveyard_card_state)
+            self.assertEqual(r.must_be_commander, tic.must_be_commander)
 
     def test_combos_list_view(self):
         c = Client()

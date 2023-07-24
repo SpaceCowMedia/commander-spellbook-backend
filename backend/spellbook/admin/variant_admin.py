@@ -1,3 +1,4 @@
+from django.utils.http import urlencode
 from django.utils.html import format_html
 from django.urls import reverse, path
 from django.db.models import Count, Prefetch
@@ -123,21 +124,21 @@ class VariantAdmin(admin.ModelAdmin):
         features = list(obj.produces.all())
         format_for_each = '{}<br>'
         html = f'<a href="{{}}">{format_for_each * len(features)}</a>'
-        return format_html(html, reverse('admin:spellbook_feature_changelist') + '?produced_by_variants__id=' + str(obj.id), *features)
+        return format_html(html, reverse('admin:spellbook_feature_changelist') + '?' + urlencode({'produced_by_variants__id': str(obj.id)}), *features)
 
     @admin.display(description='of')
     def of_link(self, obj):
         combos = list(obj.of.all())
         format_for_each = '{}<br>'
         html = f'<a href="{{}}">{format_for_each * len(combos)}</a>'
-        return format_html(html, reverse('admin:spellbook_combo_changelist') + '?variants__id=' + str(obj.id), *combos)
+        return format_html(html, reverse('admin:spellbook_combo_changelist') + '?' + urlencode({'variants__id': str(obj.id)}), *combos)
 
     @admin.display(description='includes')
     def includes_link(self, obj):
         combos = list(obj.includes.all())
         format_for_each = '{}<br>'
         html = f'<a href="{{}}">{format_for_each * len(combos)}</a>'
-        return format_html(html, reverse('admin:spellbook_combo_changelist') + '?included_in_variants__id=' + str(obj.id), *combos)
+        return format_html(html, reverse('admin:spellbook_combo_changelist') + '?' + urlencode({'included_in_variants__id': str(obj.id)}), *combos)
 
     def get_inlines(self, request, obj: Variant):
         inlines = []

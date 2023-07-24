@@ -79,7 +79,7 @@ def find_my_combos(request: Request) -> Response:
         .filter(status=Variant.Status.OK, uses__in=cards) \
         .prefetch_related('cardinvariant_set') \
         .order_by('id')
-    
+
     pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
     paginator = pagination_class()
     variants_page = paginator.paginate_queryset(variants_query, request)

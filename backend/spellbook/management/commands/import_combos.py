@@ -482,8 +482,8 @@ class Command(BaseCommand):
                                 cardincombo_list.insert(index, card_in_combos[0])
                             else:
                                 raise ValueError(f'Card {card} used multiple times')
-                    for i, card_in_combo in enumerate(sorted(cardincombo_list, key=lambda c: cards_from_combo.index(c.card))):
-                        card_in_combo.order = i
+                    for j, card_in_combo in enumerate(sorted(cardincombo_list, key=lambda c: cards_from_combo.index(c.card))):
+                        card_in_combo.order = j
                     id = id_from_cards_and_templates_ids([c.id for c in cards_from_combo], [])
                     old_id = int(old_id)
                     variant_id_map[old_id] = id

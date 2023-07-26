@@ -30,7 +30,7 @@ def scryfall():
                     if 'card_faces' in card and len(card['card_faces']) > 1:
                         for face in card['card_faces']:
                             card_db[face['name'].lower().strip(' \t\n\r')] = card
-    return card_db
+    return {name: obj for name, obj in card_db.items() if 'oracle_id' in obj}
 
 
 def update_cards(cards: list[Card], scryfall: dict[str, object], log=lambda t: print(t), log_warning=lambda t: print(t), log_error=lambda t: print(t)):

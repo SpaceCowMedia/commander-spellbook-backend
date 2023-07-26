@@ -89,7 +89,7 @@ def sorted_prereq_search_terms(prereq: str, card_set: set[str]) -> list[str]:
 
 
 def find_card_in_prereq(card_name: str, prerequisites: str) -> list[tuple[str, str, str, str, int]]:  # sentence, punctuation, following
-    regex = r'(.*?)' + re.escape(card_name) + r'(.*?)(\.|[^\w](?:with(?! the other)|named by|does|naming|attached|increase|lowest|toughness|on it|from)[^\w]|$)'
+    regex = r'(.*?)' + re.escape(card_name) + r'(.*?)(\.|[^\w](?:is paired|paired with|soulbonded with|soulbound with|named by|does|naming|attached|increase|lowest|toughness|on it|from|summoning sickness|selected the)[^\w]|$)'
     negated_regex = r'(?:[^\w]|^)(?:with|if|when|who|named by|does|has|naming|power|attached|on|from|opponent|increase|remove|way|able|enough|sacrificed|storm|have (?:not )?cast)(?:[^\w]|$)'
     matches = []
     for sentence_match in re.finditer(r'([^\.]*)\.', prerequisites):
@@ -195,19 +195,19 @@ def find_combos() -> list[tuple[str, tuple[str, ...], frozenset[str], str, str, 
                     p_list.append(IngredientInCombination.ZoneLocation.BATTLEFIELD)
                     if re.search(r'(?:[^\w]|^)tapped(?:[^\w]|$)', after, flags=re.IGNORECASE):
                         if battlefield_status != '':
-                            raise Exception('Battlefield status already set')
+                            raise Exception(f'Battlefield status already set for {c} in combo {id}')
                         battlefield_status = 'tapped'
                     if re.search(r'(?:[^\w]|^)untapped(?:[^\w]|$)', after, flags=re.IGNORECASE):
                         if battlefield_status != '':
-                            raise Exception('Battlefield status already set')
+                            raise Exception('Battlefield status already set for {c} in combo {id}')
                         battlefield_status = 'untapped'
                     if re.search(r'(?:[^\w]|^)face down(?:[^\w]|$)', after, flags=re.IGNORECASE):
                         if battlefield_status != '':
-                            raise Exception('Battlefield status already set')
+                            raise Exception('Battlefield status already set for {c} in combo {id}')
                         battlefield_status = 'face down'
                     if re.search(r'(?:[^\w]|^)face up(?:[^\w]|$)', after, flags=re.IGNORECASE):
                         if battlefield_status != '':
-                            raise Exception('Battlefield status already set')
+                            raise Exception('Battlefield status already set for {c} in combo {id}')
                         battlefield_status = 'face up'
                 if re.search(r'(?:[^\w]|^)command(?:er)? zone(?:[^\w]|$)', after, flags=re.IGNORECASE):
                     p_list.append(IngredientInCombination.ZoneLocation.COMMAND_ZONE)
@@ -217,7 +217,7 @@ def find_combos() -> list[tuple[str, tuple[str, ...], frozenset[str], str, str, 
                     p_list.append(IngredientInCombination.ZoneLocation.EXILE)
                     if re.search(r'(?:[^\w]|^)by(?:[^\w]|$)', after, flags=re.IGNORECASE):
                         if exile_status != '':
-                            raise Exception('Exile status already set')
+                            raise Exception('Exile status already set for {c} in combo {id}')
                         after_by = re.split(r'(?:[^\w]|^)by(?:[^\w]|$)', after, maxsplit=2, flags=re.IGNORECASE)[1]
                         exile_status = f'exiled by {after_by}'
                     if stop_sign == 'with':
@@ -239,18 +239,18 @@ def find_combos() -> list[tuple[str, tuple[str, ...], frozenset[str], str, str, 
                     elif len(p_list) > 1:
                         p_list = [''.join(p_list)]
                     elif not re.search(r'(?:[^\w]|^)(?:\d+|one|two|three|four|five|six|seven|instant) or (?:less|sorcery|\d+|one|two|greater|more)(?:[^\w]|$)', after, flags=re.IGNORECASE):
-                        raise Exception(f'Found invalid "or" in "{prerequisites}"')
+                        raise Exception(f'Found invalid "or" in "{prerequisites}" for {c} in combo {id}')
                 before_beginning = new_prerequisites[:beginning_index]
                 after_beginning = new_prerequisites[beginning_index:]
                 if re.search(r'(?:[^\w]|^)(is|are) (?:one of |the only )?your commanders?(?:[^\w]|$)', after, flags=re.IGNORECASE):
                     if len(p_list) == 0 or len(p_list) == 1 and p_list[0] == IngredientInCombination.ZoneLocation.COMMAND_ZONE:
                         if len(p_list) == 1:
                             if c in positions_dict:
-                                raise Exception(f'Found duplicate positioning for commander {c} in {prerequisites}')
+                                raise Exception(f'Found duplicate positioning for commander {c} in {prerequisites} for {c} in combo {id}')
                             positions_dict[c] = (p_list[0], position_order, half, (battlefield_status, exile_status, library_status, graveyard_status))
                         must_be_commander.add(c)
                         if re.search(r'(?:\w|^),(?:[^\w]|$)', after, flags=re.IGNORECASE):
-                            raise Exception(f'Too many commanders in combo {id} for {prerequisites}')
+                            raise Exception(f'Too many commanders in {prerequisites} for {c} in combo {id}')
                         elif re.search(r'(?:[^\w]|^)and(?!/or)(?:[^\w]|$)', after, flags=re.IGNORECASE) and len(p_list) == 0:
                             new_prerequisites = before_beginning + re.subn(r'\s?' + escaped_name + r'[^,\.]*,?[^\w]and[^\w]', '', after_beginning, 1, flags=re.IGNORECASE)[0].strip()
                         else:
@@ -260,13 +260,13 @@ def find_combos() -> list[tuple[str, tuple[str, ...], frozenset[str], str, str, 
                                 positions_dict_default[c] = (IngredientInCombination.ZoneLocation.COMMAND_ZONE, position_order, half, (battlefield_status, exile_status, library_status, graveyard_status))
                                 position_order += 1
                             else:
-                                raise Exception(f'Found multiple default locations for {c} in {prerequisites}')
+                                raise Exception(f'Found multiple default locations in {prerequisites} for {c} in combo {id}')
                         continue
                     else:
-                        raise Exception(f'Found commander and location together in combo {id} for {prerequisites}')
+                        raise Exception(f'Found commander and location together in {prerequisites} for {c} in combo {id}')
                 if len(p_list) == 1:
                     if c in positions_dict:
-                        raise Exception(f'Found duplicate positioning for {c} in {prerequisites}')
+                        raise Exception(f'Found duplicate positioning in {prerequisites} for {c} in combo {id}')
                     positions_dict[c] = (p_list[0], position_order, half, (battlefield_status, exile_status, library_status, graveyard_status))
                     position_order += 1
                     if force_keep_sentence or stop_sign == '.' or stop_sign == 'with' and any(len(s) > 0 for s in [battlefield_status, exile_status, library_status, graveyard_status]):
@@ -281,7 +281,7 @@ def find_combos() -> list[tuple[str, tuple[str, ...], frozenset[str], str, str, 
                         else:
                             new_prerequisites = before_beginning + re.subn(r'\s?' + escaped_name + r' ([^,\.]+)\.', '', after_beginning, 1, flags=re.IGNORECASE)[0].strip()
                 elif len(p_list) > 1:
-                    raise Exception(f'Found {len(p_list)} positions for {c} in {prerequisites}')
+                    raise Exception(f'Found {len(p_list)} positions in {prerequisites} for {c} in combo {id}')
         result.append((id, combos_to_card_ordered[card_set], features, new_prerequisites, description, mana, positions_dict, positions_dict_default, must_be_commander))
     return result
 
@@ -411,14 +411,14 @@ class Command(BaseCommand):
                         elif c == 'all permanents':
                             for card in permanents_from_combo:
                                 if card in [c.card for c in cardincombo_list]:
-                                    raise ValueError(f'Card {card} already used')
+                                    raise ValueError(f'Card {card} already used in combo {old_id}')
                                 cardincombo_list.append(make_card_in_combo(card, zone_locations=p))
                         elif c == 'both permanents':
                             if len(permanents_from_combo) != 2:
-                                raise ValueError(f'Expected 2 permanents, got {len(permanents_from_combo)}')
+                                raise ValueError(f'Expected 2 permanents, got {len(permanents_from_combo)} in combo {old_id}')
                             for card in permanents_from_combo:
                                 if card in [c.card for c in cardincombo_list]:
-                                    raise ValueError(f'Card {card} already used')
+                                    raise ValueError(f'Card {card} already used in combo {old_id}')
                                 cardincombo_list.append(make_card_in_combo(card, zone_locations=p))
                         elif c == 'all other permanents':
                             for card in permanents_from_combo:
@@ -431,26 +431,26 @@ class Command(BaseCommand):
                         elif c == 'all cards':
                             for card in cards_from_combo:
                                 if card in [c.card for c in cardincombo_list]:
-                                    raise ValueError(f'Card {card} already used')
+                                    raise ValueError(f'Card {card} already used in combo {old_id}')
                                 cardincombo_list.append(make_card_in_combo(card, zone_locations=p))
                         elif c == 'both cards':
                             if len(cards_from_combo) != 2:
-                                raise ValueError(f'Expected 2 cards, got {len(cards_from_combo)}')
+                                raise ValueError(f'Expected 2 cards, got {len(cards_from_combo)} in combo {old_id}')
                             for card in cards_from_combo:
                                 if card in [c.card for c in cardincombo_list]:
-                                    raise ValueError(f'Card {card} already used')
+                                    raise ValueError(f'Card {card} already used in combo {old_id}')
                                 cardincombo_list.append(make_card_in_combo(card, zone_locations=p))
                         elif c == 'all creatures':
                             for card in creatures_from_combo:
                                 if card in [c.card for c in cardincombo_list]:
-                                    raise ValueError(f'Card {card} already used')
+                                    raise ValueError(f'Card {card} already used in combo {old_id}')
                                 cardincombo_list.append(make_card_in_combo(card, zone_locations=p))
                         elif c == 'all other creatures':
                             for card in creatures_from_combo:
                                 if card not in [c.card for c in cardincombo_list]:
                                     cardincombo_list.append(make_card_in_combo(card, zone_locations=p))
                         else:
-                            raise ValueError(f'Unknown card {c}')
+                            raise ValueError(f'Unknown card {c} in combo {old_id}')
                     for c, (p, _, half, (b_state, e_state, g_state, l_state)) in sorted(default_positions.items(), key=lambda x: x[1][1]):
                         if c in _cards:
                             card = combo_card_name_to_card[c]
@@ -481,7 +481,8 @@ class Command(BaseCommand):
                                 cardincombo_list = list[CardInCombo](c for c in cardincombo_list if c.card != card)
                                 cardincombo_list.insert(index, card_in_combos[0])
                             else:
-                                raise ValueError(f'Card {card} used multiple times')
+                                continue
+                                raise ValueError(f'Card {card} used multiple times in combo {old_id}')
                     for j, card_in_combo in enumerate(sorted(cardincombo_list, key=lambda c: cards_from_combo.index(c.card))):
                         card_in_combo.order = j
                     id = id_from_cards_and_templates_ids([c.id for c in cards_from_combo], [])

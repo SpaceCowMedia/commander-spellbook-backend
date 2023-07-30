@@ -24,8 +24,9 @@ def scryfall():
             for card in data:
                 name = card['name'].lower().strip(' \t\n\r')
                 if name not in card_db \
-                    and ('paper' in card['games'] or 'mtgo' in card['games']) \
-                        and card['layout'] not in {'art_series', 'vanguard', 'scheme'}:
+                    and (any(card['legalities'][format] != 'not_legal' for format in ['commander', 'vintage', 'oathbreaker', 'brawl', 'predh']) \
+                         or any(game in card['games'] for game in ['paper', 'arena', 'mtgo'])) \
+                        and card['layout'] not in {'art_series', 'vanguard', 'scheme', 'token'}:
                     card_db[name] = card
                     if 'card_faces' in card and len(card['card_faces']) > 1:
                         for face in card['card_faces']:

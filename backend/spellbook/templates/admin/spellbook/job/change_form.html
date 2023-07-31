@@ -18,6 +18,7 @@
                 </tr>
             {% endfor %}
             {% with variants_count=original.variants.count %}
+            {% if variants_count > suggested_count %}
                 <tr class="form-row">
                     <td class="field-variant">
                         <p>
@@ -25,6 +26,7 @@
                         </p>
                     </td>
                 </tr>
+            {% endif %}
             {% endwith %}
         </tbody>
     </table>

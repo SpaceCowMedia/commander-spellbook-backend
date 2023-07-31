@@ -18,7 +18,7 @@
                 </tr>
             {% endfor %}
             {% with variants_count=original.variants.count %}
-            {% if variants_count > suggested_count %}
+            {% if variants_count > 0 %}
                 <tr class="form-row">
                     <td class="field-variant">
                         <p>

@@ -89,7 +89,7 @@
                 </tr>
             {% endfor %}
             {% with variants_count=adminform.form.variants_for_editors.count %}
-            {% if variants_count > suggested_count %}
+            {% if variants_count > 0 %}
                 <tr class="form-row">
                     <td class="field-variant">
                         <p>

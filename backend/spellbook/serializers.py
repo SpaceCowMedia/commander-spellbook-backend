@@ -77,6 +77,7 @@ class ComboDetailSerializer(serializers.ModelSerializer):
         model = Combo
         fields = [
             'id',
+            'kind',
             'produces',
             'needs',
             'uses',

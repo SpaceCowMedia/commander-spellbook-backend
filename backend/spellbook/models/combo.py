@@ -13,6 +13,7 @@ class Combo(models.Model, ScryfallLinkMixin):
         GENERATOR = 'G'
         UTILITY = 'U'
         GENERATOR_WITH_MANY_CARDS = 'M'
+        DRAFT = 'D'
 
     uses = models.ManyToManyField(
         to=Card,

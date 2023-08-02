@@ -68,7 +68,7 @@ class ComboViewsTests(AbstractModelTests):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get('Content-Type'), 'application/json')
         result = json.loads(response.content, object_hook=json_to_python_lambda)
-        combos_count = Combo.objects.count()
+        combos_count = Combo.objects.exclude(kind=Combo.Kind.DRAFT).count()
         self.assertEqual(len(result.results), combos_count)
         for i in range(combos_count):
             self.combo_assertions(result.results[i])

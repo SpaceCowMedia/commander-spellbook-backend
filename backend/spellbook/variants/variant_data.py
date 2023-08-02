@@ -11,7 +11,7 @@ from spellbook.models.variant import Variant, CardInVariant, TemplateInVariant
 
 class RestoreData:
     def __init__(self):
-        self.combos = Combo.objects.prefetch_related('uses', 'requires', 'needs', 'removes', 'produces')
+        self.combos = Combo.objects.prefetch_related('uses', 'requires', 'needs', 'removes', 'produces').filter(kind__in=(Combo.Kind.GENERATOR, Combo.Kind.GENERATOR_WITH_MANY_CARDS, Combo.Kind.UTILITY))
         self.combo_to_cards = defaultdict[int, list[CardInCombo]](list)
         self.combo_to_templates = defaultdict[int, list[TemplateInCombo]](list)
         self.generator_combos = list(self.combos.filter(kind__in=(Combo.Kind.GENERATOR, Combo.Kind.GENERATOR_WITH_MANY_CARDS)))

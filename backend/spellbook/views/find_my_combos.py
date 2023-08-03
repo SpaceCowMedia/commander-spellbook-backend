@@ -76,7 +76,7 @@ def find_my_combos(request: Request) -> Response:
     variant_to_cards = dict[Variant, set[int]]()
     variant_to_commanders = dict[Variant, set[int]]()
     variants_query = Variant.objects \
-        .filter(status=Variant.Status.OK, uses__in=cards) \
+        .filter(status__in=(Variant.Status.OK, Variant.Status.EXAMPLE), uses__in=cards) \
         .prefetch_related('cardinvariant_set') \
         .order_by('id')
 

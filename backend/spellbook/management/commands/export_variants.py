@@ -51,7 +51,7 @@ class Command(BaseCommand):
         try:
             self.stdout.write('Fetching variants from db...')
             variants_source = Variant.objects \
-                .filter(status=Variant.Status.OK) \
+                .filter(status__in=(Variant.Status.OK, Variant.Status.EXAMPLE)) \
                 .prefetch_related('uses', 'requires', 'produces', 'of', 'includes')
             result = {
                 'timestamp': timezone.now().isoformat(),

@@ -2,11 +2,6 @@ from rest_framework import serializers
 from spellbook.models import Card, Template, Feature, IngredientInCombination, Combo, CardInCombo, TemplateInCombo, Variant, CardInVariant, TemplateInVariant
 
 
-class MultipleChoiceField(serializers.MultipleChoiceField):
-    def to_representation(self, obj):
-        return list(super().to_representation(obj))
-
-
 class CardSerializer(serializers.ModelSerializer):
     class Meta:
         model = Card
@@ -35,7 +30,10 @@ class TemplateSerializer(serializers.ModelSerializer):
 
 class CardInComboSerializer(serializers.ModelSerializer):
     card = CardSerializer(many=False, read_only=True)
-    zone_locations = MultipleChoiceField(choices=IngredientInCombination.ZoneLocation.choices)
+    zone_locations = serializers.SerializerMethodField()
+
+    def get_zone_locations(self, obj):
+        return list(obj.zone_locations)
 
     class Meta:
         model = CardInCombo
@@ -52,7 +50,10 @@ class CardInComboSerializer(serializers.ModelSerializer):
 
 class TemplateInComboSerializer(serializers.ModelSerializer):
     template = TemplateSerializer(many=False, read_only=True)
-    zone_locations = MultipleChoiceField(choices=IngredientInCombination.ZoneLocation.choices)
+    zone_locations = serializers.SerializerMethodField()
+
+    def get_zone_locations(self, obj):
+        return list(obj.zone_locations)
 
     class Meta:
         model = TemplateInCombo
@@ -94,9 +95,47 @@ class ComboSerializer(serializers.ModelSerializer):
         fields = ['id']
 
 
-class CardInVariantSerializer(serializers.ModelSerializer):
+class IngredientInVariantSerializer(serializers.ModelSerializer):
+    zone_locations = serializers.SerializerMethodField()
+    battlefield_card_state = serializers.SerializerMethodField()
+    exile_card_state = serializers.SerializerMethodField()
+    library_card_state = serializers.SerializerMethodField()
+    graveyard_card_state = serializers.SerializerMethodField()
+    must_be_commander = serializers.SerializerMethodField()
+
+    def get_zone_locations(self, obj):
+        if obj.variant.status != Variant.Status.OK:
+            return None
+        return list(obj.zone_locations)
+
+    def get_battlefield_card_state(self, obj):
+        if obj.variant.status != Variant.Status.OK:
+            return None
+        return obj.battlefield_card_state
+
+    def get_exile_card_state(self, obj):
+        if obj.variant.status != Variant.Status.OK:
+            return None
+        return obj.exile_card_state
+
+    def get_library_card_state(self, obj):
+        if obj.variant.status != Variant.Status.OK:
+            return None
+        return obj.library_card_state
+
+    def get_graveyard_card_state(self, obj):
+        if obj.variant.status != Variant.Status.OK:
+            return None
+        return obj.graveyard_card_state
+
+    def get_must_be_commander(self, obj):
+        if obj.variant.status != Variant.Status.OK:
+            return None
+        return obj.must_be_commander
+
+
+class CardInVariantSerializer(IngredientInVariantSerializer):
     card = CardSerializer(many=False, read_only=True)
-    zone_locations = MultipleChoiceField(choices=IngredientInCombination.ZoneLocation.choices)
 
     class Meta:
         model = CardInVariant
@@ -111,9 +150,8 @@ class CardInVariantSerializer(serializers.ModelSerializer):
         ]
 
 
-class TemplateInVariantSerializer(serializers.ModelSerializer):
+class TemplateInVariantSerializer(IngredientInVariantSerializer):
     template = TemplateSerializer(many=False, read_only=True)
-    zone_locations = MultipleChoiceField(choices=IngredientInCombination.ZoneLocation.choices)
 
     class Meta:
         model = TemplateInVariant
@@ -134,11 +172,30 @@ class VariantSerializer(serializers.ModelSerializer):
     produces = FeatureSerializer(many=True, read_only=True)
     of = ComboSerializer(many=True, read_only=True)
     includes = ComboSerializer(many=True, read_only=True)
+    mana_needed = serializers.SerializerMethodField()
+    other_prerequisites = serializers.SerializerMethodField()
+    description = serializers.SerializerMethodField()
+
+    def get_mana_needed(self, obj):
+        if obj.status != Variant.Status.OK:
+            return None
+        return obj.mana_needed
+
+    def get_other_prerequisites(self, obj):
+        if obj.status != Variant.Status.OK:
+            return None
+        return obj.other_prerequisites
+
+    def get_description(self, obj):
+        if obj.status != Variant.Status.OK:
+            return None
+        return obj.description
 
     class Meta:
         model = Variant
         fields = [
             'id',
+            'status',
             'uses',
             'requires',
             'produces',

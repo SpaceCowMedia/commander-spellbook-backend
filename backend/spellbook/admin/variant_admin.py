@@ -89,6 +89,11 @@ def set_not_working(modeladmin, request, queryset):
     queryset.update(status=Variant.Status.NOT_WORKING)
 
 
+@admin.action(description='Mark selected variants as EXAMPLE')
+def set_example(modeladmin, request, queryset):
+    queryset.update(status=Variant.Status.EXAMPLE)
+
+
 class VariantForm(ModelForm):
     def clean_mana_needed(self):
         return self.cleaned_data['mana_needed'].upper() if self.cleaned_data['mana_needed'] else self.cleaned_data['mana_needed']
@@ -116,7 +121,7 @@ class VariantAdmin(admin.ModelAdmin):
     ]
     list_filter = ['status', CardsCountListFilter, IdentityFilter, 'legal', 'spoiler']
     list_display = ['display_name', 'status', 'identity']
-    actions = [set_restore, set_draft, set_new, set_not_working]
+    actions = [set_restore, set_draft, set_new, set_not_working, set_example]
     search_fields = ['id']
 
     @admin.display(description='produces')

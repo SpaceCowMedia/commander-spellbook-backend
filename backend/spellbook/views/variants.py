@@ -5,7 +5,7 @@ from .query_filters import SpellbookQueryFilter
 
 
 class VariantViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Variant.objects.filter(status=Variant.Status.OK).prefetch_related(
+    queryset = Variant.objects.filter(status__in=(Variant.Status.OK, Variant.Status.EXAMPLE)).prefetch_related(
         'cardinvariant_set__card',
         'templateinvariant_set__template',
         'cardinvariant_set',

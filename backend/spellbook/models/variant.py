@@ -15,9 +15,10 @@ class Variant(models.Model, ScryfallLinkMixin):
     class Status(models.TextChoices):
         NEW = 'N'
         DRAFT = 'D'
-        NOT_WORKING = 'NW'
         OK = 'OK'
+        EXAMPLE = 'E'
         RESTORE = 'R'
+        NOT_WORKING = 'NW'
 
     id = models.CharField(max_length=128, primary_key=True, unique=True, blank=False, help_text='Unique ID for this variant', editable=False)
     uses = models.ManyToManyField(

@@ -14,7 +14,7 @@ ORACLE_SYMBOL = r'(?:[WUBRG](?:\/P)?|[0-9CPXYZSTQEA½∞]|PW|CHAOS|TK|[1-9][0-9]
 SYMBOLS_TEXT_REGEX = r'^(?:[^\{]*\{' + ORACLE_SYMBOL + r'\})*[^\{]*$'
 SYMBOLS_TEXT_VALIDATOR = RegexValidator(regex=SYMBOLS_TEXT_REGEX, message='Symbols must be in the {1}{W}{U}{B}{R}{G}{B/P}{A}{E}{T}{Q}... format.')
 
-ORDINARY_CHARACTERS_REGEX = r'^[\x0A\x20-\x7E\x80\x95\x99\xA1\xA9\xAE\xB0\xB1-\xB3\xBC-\xFF]*$'
+ORDINARY_CHARACTERS_REGEX = r'^[\x0A\x0D\x20-\x7E\x80\x95\x99\xA1\xA9\xAE\xB0\xB1-\xB3\xBC-\xFF]*$'
 ORDINARY_CHARACTERS_VALIDATOR = RegexValidator(regex=ORDINARY_CHARACTERS_REGEX, message='Only ordinary characters are allowed.')
 
 TEXT_VALIDATORS = [DOUBLE_SQUARE_BRACKET_TEXT_VALIDATOR, SYMBOLS_TEXT_VALIDATOR, ORDINARY_CHARACTERS_VALIDATOR]

@@ -1,5 +1,5 @@
 boto3==1.28.20
-Django==4.2.3
+Django==4.2.4
 django-filter==23.2
 django-sortedm2m==3.1.1
 djangorestframework==3.14.0

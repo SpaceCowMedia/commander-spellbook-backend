@@ -1,0 +1,34 @@
+{% extends "admin/login.html" %}
+
+{% block extrahead %}
+    {{ block.super }}
+    <style>
+        hr {
+            margin: 20px;
+        }
+        a.button {
+            margin: 40px 0;
+            padding: 10px;
+            vertical-align: middle;
+            font-family: var(--font-family-primary);
+            font-weight: normal;
+            font-size: 0.8125rem;
+        }
+        #footer.buttons {
+            margin: 0 0;
+            text-align: center;
+            min-height: 80px;
+        }
+    </style>
+{% endblock %}
+
+{% block footer %}
+    {% if 'discord' in backends.backends %}
+    <div id="footer" class="buttons">
+        <hr>
+        <a class="button" href="{% url 'social:begin' 'discord' %}?next={{ request.path }}">Discord</a>
+    </div>
+    {% else %}
+        {{ block.super }}
+    {% endif %}
+{% endblock %}

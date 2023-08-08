@@ -25,5 +25,6 @@ admin.site.index_title = 'Spellbook Admin Index'
 # Additionally, we include login URLs for the browsable API.
 urlpatterns = [
     path('', include('spellbook.urls')),
+    path('', include('social_django.urls', namespace='social')),
     path('admin/', admin.site.urls),
 ]

@@ -45,6 +45,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'social_django',
+    'backend',
     'spellbook',
     'website',
     'django.contrib.admin',
@@ -77,7 +79,9 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                'spellbook.templates.context.add_version_to_context'
+                'spellbook.templates.context.add_version_to_context',
+                'social_django.context_processors.backends',
+                'social_django.context_processors.login_redirect',
             ],
         },
     },
@@ -95,6 +99,10 @@ DATABASES = {
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+
+# Social Auth PostgresSQL settings
+# https://python-social-auth.readthedocs.io/en/latest/configuration/django.html#database
+SOCIAL_AUTH_JSONFIELD_ENABLED = True
 
 
 # Password validation
@@ -114,6 +122,18 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
+
+
+# Authentication backends
+# https://python-social-auth.readthedocs.io/en/latest/backends/index.html
+SOCIAL_AUTH_DISCORD_KEY = os.getenv('DISCORD_CLIENTID', None)
+SOCIAL_AUTH_DISCORD_SECRET = os.getenv('DISCORD_CLIENTSECRET', None)
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+] + (
+    ['social_core.backends.discord.DiscordOAuth2'] if SOCIAL_AUTH_DISCORD_KEY else []
+)
+SOCIAL_AUTH_ADMIN_USER_SEARCH_FIELDS = ['username', 'first_name', 'last_name', 'email']
 
 
 # Internationalization

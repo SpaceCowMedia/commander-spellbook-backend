@@ -5,3 +5,4 @@ from .combo_admin import ComboAdmin
 from .variant_admin import VariantAdmin
 from .job_admin import JobAdmin
 from .log_admin import LogEntryAdmin
+from .variant_suggestion_admin import VariantSuggestionAdmin

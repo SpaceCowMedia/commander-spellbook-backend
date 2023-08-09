@@ -17,5 +17,10 @@
 
 {% block userlinks %}
     {{ block.super }}
-    <li><a href="{% url 'admin:index' %}">Admin Website</a></li>
+    {% if request.user.is_authenticated %}
+        <li><a href="{% url 'admin:index' %}">Go to Admin Website</a></li>
+    {% else %}
+        <li><a href="{% url 'social:begin' 'discord' %}?next={{ request.path }}">User Login</a></li>
+        <li><a href="{% url 'admin:login' %}">Admin Login</a></li>
+    {% endif %}
 {% endblock %}

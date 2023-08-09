@@ -135,6 +135,11 @@ AUTHENTICATION_BACKENDS = [
 )
 SOCIAL_AUTH_ADMIN_USER_SEARCH_FIELDS = ['username', 'first_name', 'last_name', 'email']
 
+# Discord settings
+# https://python-social-auth.readthedocs.io/en/latest/pipeline.html#authentication-pipeline
+SOCIAL_AUTH_DISCORD_SCOPE = ['identify', 'email', 'guilds']
+from backend.pipeline.discord import PIPELINE
+SOCIAL_AUTH_DISCORD_PIPELINE = PIPELINE
 
 # Internationalization
 # https://docs.djangoproject.com/en/4.0/topics/i18n/

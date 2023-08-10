@@ -16,7 +16,6 @@ class VariantSuggestion(models.Model, ScryfallLinkMixin):
         ACCEPTED = 'A'
         REJECTED = 'R'
 
-    id = models.CharField(max_length=128, primary_key=True, unique=True, blank=False, help_text='Unique ID for this variant suggestion', editable=False)
     uses = models.ManyToManyField(
         to=Card,
         related_name='used_in_variant_suggestions',
@@ -41,8 +40,8 @@ class VariantSuggestion(models.Model, ScryfallLinkMixin):
     updated = models.DateTimeField(auto_now=True, editable=False)
     identity = models.CharField(max_length=5, blank=False, null=False, help_text='Mana identity', verbose_name='mana identity', editable=False, validators=IDENTITY_VALIDATORS)
     suggested_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, editable=False, help_text='User that suggested this variant', related_name='variants')
-    legal = models.BooleanField(blank=False, help_text='Is this variant legal in Commander?', verbose_name='is legal')
-    spoiler = models.BooleanField(blank=False, help_text='Is this variant a spoiler?', verbose_name='is spoiler')
+    legal = models.BooleanField(blank=False, default=True, help_text='Is this variant legal in Commander?', verbose_name='is legal')
+    spoiler = models.BooleanField(blank=False, default=False, help_text='Is this variant a spoiler?', verbose_name='is spoiler')
 
     class Meta:
         ordering = ['-status', '-created']

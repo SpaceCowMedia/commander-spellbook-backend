@@ -33,15 +33,16 @@ class IngredientInCombinationForm(ModelForm):
             self.cleaned_data[key] = 1
         self.instance.order = self.cleaned_data[key]
 
-        locations = self.cleaned_data['zone_locations']
-        if IngredientInCombination.ZoneLocation.BATTLEFIELD not in locations:
-            self.cleaned_data['battlefield_card_state'] = ''
-        if IngredientInCombination.ZoneLocation.EXILE not in locations:
-            self.cleaned_data['exile_card_state'] = ''
-        if IngredientInCombination.ZoneLocation.LIBRARY not in locations:
-            self.cleaned_data['library_card_state'] = ''
-        if IngredientInCombination.ZoneLocation.GRAVEYARD not in locations:
-            self.cleaned_data['graveyard_card_state'] = ''
+        if 'zone_locations' in self.cleaned_data:
+            locations = self.cleaned_data['zone_locations']
+            if IngredientInCombination.ZoneLocation.BATTLEFIELD not in locations:
+                self.cleaned_data['battlefield_card_state'] = ''
+            if IngredientInCombination.ZoneLocation.EXILE not in locations:
+                self.cleaned_data['exile_card_state'] = ''
+            if IngredientInCombination.ZoneLocation.LIBRARY not in locations:
+                self.cleaned_data['library_card_state'] = ''
+            if IngredientInCombination.ZoneLocation.GRAVEYARD not in locations:
+                self.cleaned_data['graveyard_card_state'] = ''
         return super().clean()
 
 

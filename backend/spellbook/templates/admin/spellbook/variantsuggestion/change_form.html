@@ -73,34 +73,3 @@
     <!-- Emptied -->
 {% endblock %}
 
-{% block after-content %}
-    <table class="after-content">
-        <thead>
-            <tr>
-                <th class="column-variant">Variants</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for item in adminform.form.variants_for_editors|slice:suggested_slice %}
-                <tr class="form-row">
-                    <td class="field-variant">
-                        <p>
-                            <a href="{% url 'admin:spellbook_variant_change' item.id %}">[{{ item.get_status_display }}] {{ item }}</a>
-                        </p>
-                    </td>
-                </tr>
-            {% endfor %}
-            {% with variants_count=adminform.form.variants_for_editors.count %}
-            {% if variants_count > 0 %}
-                <tr class="form-row">
-                    <td class="field-variant">
-                        <p>
-                            <a href="{% url 'admin:spellbook_variant_changelist' %}?of__id={{ original.id }}">View all {{ variants_count }} variants of this combo...</a>
-                        </p>
-                    </td>
-                </tr>
-            {% endif %}
-            {% endwith %}
-        </tbody>
-    </table>
-{% endblock %}

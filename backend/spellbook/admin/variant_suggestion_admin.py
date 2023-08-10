@@ -1,5 +1,3 @@
-from django.utils.html import format_html
-from django.urls import reverse
 from django.db.models import Count, Prefetch
 from django.forms import ModelForm
 from django.contrib import admin
@@ -11,24 +9,19 @@ from .ingredient_admin import IngredientAdmin
 
 
 class CardInVariantSuggestionAdminInline(IngredientAdmin):
-    readonly_fields = ['card_name']
-    fields = ['card_name', 'zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state']
+    fields = ['card', 'zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state']
     model = CardInVariantSuggestion
     verbose_name = 'Card'
     verbose_name_plural = 'Cards'
-
-    def card_name(self, instance):
-        card = instance.card
-        html = '<a href="{}" class="card-name">{}</a>'
-        return format_html(html, reverse('admin:spellbook_card_change', args=(card.id,)), card.name)
+    autocomplete_fields = ['card']
 
 
 class TemplateInVariantAdminInline(IngredientAdmin):
-    readonly_fields = ['template']
     fields = ['template', 'zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state']
     model = TemplateInVariantSuggestion
     verbose_name = 'Template'
     verbose_name_plural = 'Templates'
+    autocomplete_fields = ['template']
 
 
 class CardsCountListFilter(admin.SimpleListFilter):
@@ -63,24 +56,28 @@ class VariantSuggestionForm(ModelForm):
 @admin.register(VariantSuggestion)
 class VariantSuggestionAdmin(admin.ModelAdmin):
     form = VariantSuggestionForm
-    readonly_fields = ['id', 'identity', 'legal', 'spoiler', 'scryfall_link']
+    readonly_fields = ['id', 'identity', 'legal', 'spoiler', 'scryfall_link', 'suggested_by']
     fieldsets = [
         ('Generated', {'fields': [
             'id',
+            'suggested_by',
             'identity',
             'legal',
             'spoiler',
             'scryfall_link']}),
         ('Editable', {'fields': [
             'status',
+            'produces',
             'mana_needed',
             'other_prerequisites',
             'description']})
     ]
+    inlines = [CardInVariantSuggestionAdminInline, TemplateInVariantAdminInline]
+    filter_horizontal = ['produces']
     list_filter = ['status', CardsCountListFilter, IdentityFilter, 'legal', 'spoiler']
     list_display = ['display_name', 'status', 'identity']
-    actions = [set_rejected]
     search_fields = ['id']
+    actions = [set_rejected]
 
     def display_name(self, obj):
         return recipe([card.name for card in obj.prefetched_uses] + [template.name for template in obj.prefetched_requires],

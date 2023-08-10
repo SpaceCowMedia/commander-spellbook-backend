@@ -50,17 +50,24 @@ PIPELINE = [
 ]
 
 
+ALLOWED_GUILDS = [
+    '673601282946236417'  # Commander Spellbook
+]
+
+
 def is_member_of_guild(backend, details, response, uid, user, *args, **kwargs):
     if backend.name == 'discord':
         api = f'https://{backend.HOSTNAME}/api/users/@me/guilds'
         headers = {
-            'Authorization': f'Bearer {response["access_token"]}'
+            'Authorization': f'Bearer {response["access_token"]}',
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
         }
         r = requests.get(api, headers=headers)
         if r.status_code == 200:
             guilds = r.json()
             for guild in guilds:
-                if guild['id'] == '673601282946236417':  # Commander Spellbook
+                if guild['id'] in ALLOWED_GUILDS:
                     return
             raise AuthException(backend, 'You must join the Commander Spellbook Discord server to use this site.')
         else:

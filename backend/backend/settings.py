@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/4.0/ref/settings/
 """
 import os
 from pathlib import Path
+from backend.social.discord import SOCIAL_AUTH_PIPELINE as DISCORD_AUTH_PIPELINE
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -124,22 +125,17 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
-# Authentication backends
+# Python Social Auth
 # https://python-social-auth.readthedocs.io/en/latest/backends/index.html
 SOCIAL_AUTH_DISCORD_KEY = os.getenv('DISCORD_CLIENTID', None)
 SOCIAL_AUTH_DISCORD_SECRET = os.getenv('DISCORD_CLIENTSECRET', None)
+
+SOCIAL_AUTH_ADMIN_USER_SEARCH_FIELDS = ['username', 'first_name', 'last_name', 'email']
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
 ] + (
-    ['social_core.backends.discord.DiscordOAuth2'] if SOCIAL_AUTH_DISCORD_KEY else []
+    ['backend.social.discord.DiscordOAuth2'] if SOCIAL_AUTH_DISCORD_KEY else []
 )
-SOCIAL_AUTH_ADMIN_USER_SEARCH_FIELDS = ['username', 'first_name', 'last_name', 'email']
-
-# Discord settings
-# https://python-social-auth.readthedocs.io/en/latest/pipeline.html#authentication-pipeline
-SOCIAL_AUTH_DISCORD_SCOPE = ['identify', 'email', 'guilds']
-from backend.pipeline.discord import PIPELINE
-SOCIAL_AUTH_DISCORD_PIPELINE = PIPELINE
 
 # Internationalization
 # https://docs.djangoproject.com/en/4.0/topics/i18n/

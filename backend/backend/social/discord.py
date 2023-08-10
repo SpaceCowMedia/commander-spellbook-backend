@@ -1,7 +1,8 @@
 import requests
 from social_core.exceptions import AuthException
+from social_core.backends.discord import DiscordOAuth2 as BaseDiscordOAuth2
 
-PIPELINE = [
+SOCIAL_AUTH_PIPELINE = [
     # Get the information we can about the user and return it in a simple
     # format to create the user instance later. In some cases the details are
     # already part of the auth response from the provider, but sometimes this
@@ -18,7 +19,7 @@ PIPELINE = [
     'social_core.pipeline.social_auth.auth_allowed',
 
     # Checks if the discord user has joined the Commander Spellbook server.
-    'backend.pipeline.discord.is_member_of_guild',
+    'backend.social.discord.is_member_of_guild',
 
     # Checks if the current social-account is already associated in the site.
     'social_core.pipeline.social_auth.social_user',
@@ -72,3 +73,13 @@ def is_member_of_guild(backend, details, response, uid, user, *args, **kwargs):
             raise AuthException(backend, 'You must join the Commander Spellbook Discord server to use this site.')
         else:
             raise AuthException(backend, 'Could not reach Discord API.')
+
+
+class DiscordOAuth2(BaseDiscordOAuth2):
+    def get_scope(self):
+        return super().get_scope() + ['email', 'guilds']
+
+    def pipeline(self, pipeline, pipeline_index=0, *args, **kwargs):
+        injected_pipeline = list(pipeline)
+        injected_pipeline.insert(3, 'backend.social.discord.is_member_of_guild')
+        return super().pipeline(tuple(injected_pipeline), pipeline_index, *args, **kwargs)

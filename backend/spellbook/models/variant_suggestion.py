@@ -1,5 +1,4 @@
 from django.db import models
-from django.db import models
 from sortedm2m.fields import SortedManyToManyField
 from .mixins import ScryfallLinkMixin
 from .card import Card
@@ -86,4 +85,3 @@ class TemplateInVariantSuggestion(IngredientInCombination):
 
     class Meta(IngredientInCombination.Meta):
         unique_together = [('template', 'variant')]
-

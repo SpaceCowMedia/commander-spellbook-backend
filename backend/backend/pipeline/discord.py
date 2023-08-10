@@ -49,6 +49,7 @@ PIPELINE = [
     'social_core.pipeline.user.user_details',
 ]
 
+
 def is_member_of_guild(backend, details, response, uid, user, *args, **kwargs):
     if backend.name == 'discord':
         api = f'https://{backend.HOSTNAME}/api/users/@me/guilds'
@@ -59,7 +60,7 @@ def is_member_of_guild(backend, details, response, uid, user, *args, **kwargs):
         if r.status_code == 200:
             guilds = r.json()
             for guild in guilds:
-                if guild['id'] == '673601282946236417': # Commander Spellbook
+                if guild['id'] == '673601282946236417':  # Commander Spellbook
                     return
             raise AuthException(backend, 'You must join the Commander Spellbook Discord server to use this site.')
         else:

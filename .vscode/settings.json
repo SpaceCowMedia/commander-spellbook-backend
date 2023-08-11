@@ -7,5 +7,6 @@
         "statusBarItem.remoteForeground": "#e7e7e7"
     },
     "peacock.color": "#ab47bd",
-    "terminal.integrated.cwd": "backend"
+    "terminal.integrated.cwd": "backend",
+    "python.analysis.typeCheckingMode": "basic"
 }

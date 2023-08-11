@@ -22,7 +22,8 @@ class Job(models.Model):
         on_delete=models.SET_NULL,
         help_text='User that started this job')
 
-    def start(name: str, duration: timezone.timedelta | None = None, user: User | None = None):
+    @classmethod
+    def start(cls, name: str, duration: timezone.timedelta | None = None, user: User | None = None):
         try:
             with transaction.atomic():
                 if Job.objects.filter(
@@ -31,7 +32,7 @@ class Job(models.Model):
                         status=Job.Status.PENDING).exists():
                     return None
                 if duration is None:
-                    past_runs_duration = Job.objects \
+                    past_runs_duration: timezone.timedelta = Job.objects \
                         .filter(name=name, status=Job.Status.SUCCESS) \
                         .order_by('-created')[:5] \
                         .annotate(duration=models.F('termination') - models.F('created')) \

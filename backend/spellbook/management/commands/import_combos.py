@@ -1,6 +1,7 @@
 import json
 import gzip
 import re
+from typing import Any
 from pathlib import Path
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -33,7 +34,7 @@ class ImportedVariantBulkSaveItem:
             produce.clean_fields()
 
 
-def sorted_prereq_search_terms(prereq: str, card_set: set[str]) -> list[str]:
+def sorted_prereq_search_terms(prereq: str, card_set: set[str] | frozenset[str]) -> list[str]:
     pre_lower = prereq.lower()
     terms = card_set | {'all permanents', 'all other permanents', 'all other cards', 'all cards', 'both cards', 'both permanents', 'all creatures', 'all other creatures'}
     found_terms = list[tuple[str, int]]()
@@ -306,7 +307,7 @@ class Command(BaseCommand):
         job.message += message + '\n'
         job.save(update_fields=['message'])
 
-    def update_and_load_cards(self, job, x) -> tuple[dict[str, Card], dict[str, object]]:
+    def update_and_load_cards(self, job, x) -> tuple[dict[str, Card], dict[str, Any]]:
         self.log_job(job, 'Fetching combos...done')
         self.log_job(job, 'Fetching scryfall dataset...')
         scryfall_db = scryfall()
@@ -320,7 +321,7 @@ class Command(BaseCommand):
         for i, card in enumerate(cards_from_combos):
             self.stdout.write(f'{i+1}/{len(cards_from_combos)} {card}')
             if card in scryfall_db:
-                data = scryfall_db[card]
+                data: Any = scryfall_db[card]
             else:
                 self.log_job(job, f'Card {card} not found in Scryfall JSON, fetching...')
                 scryreq = Request(
@@ -457,7 +458,7 @@ class Command(BaseCommand):
                             card_in_combos = [c for c in cardincombo_list if c.card == card]
                             locations = [c.zone_locations for c in card_in_combos]
                             if len(locations) == 0:
-                                cardincombo_list.append(make_card_in_combo(CardInCombo(
+                                cardincombo_list.append(CardInCombo(
                                     card=card,
                                     zone_locations=p,
                                     battlefield_card_state=upper_oracle_symbols(b_state),
@@ -465,13 +466,21 @@ class Command(BaseCommand):
                                     graveyard_card_state=upper_oracle_symbols(g_state),
                                     library_card_state=upper_oracle_symbols(l_state),
                                     must_be_commander=c in commanders or p == IngredientInCombination.ZoneLocation.COMMAND_ZONE,
-                                )))
+                                ))
                     for card in cards_from_combo:
                         card_in_combos = [c for c in cardincombo_list if c.card == card]
                         locations = [c.zone_locations for c in card_in_combos]
                         if len(locations) == 0:
                             self.log_job(job, f'Card {card} doesn\'t appear in prerequisites of combo {old_id}.', self.style.WARNING)
-                            cardincombo_list.append(make_card_in_combo(card))
+                            cardincombo_list.append(CardInCombo(
+                                card=card,
+                                zone_locations=IngredientInCombination.ZoneLocation.HAND,
+                                battlefield_card_state='',
+                                exile_card_state='',
+                                graveyard_card_state='',
+                                library_card_state='',
+                                must_be_commander=False,
+                            ))
                         elif len(locations) == 1:
                             pass
                         else:

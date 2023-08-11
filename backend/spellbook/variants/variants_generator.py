@@ -1,4 +1,3 @@
-import json
 import logging
 from itertools import chain
 from dataclasses import dataclass
@@ -6,7 +5,7 @@ from django.db import transaction
 from .list_utils import merge_identities, includes_any
 from .variant_data import RestoreData, Data, debug_queries
 from .combo_graph import Graph
-from spellbook.models import Combo, Job, Variant, CardInVariant, TemplateInVariant, IngredientInCombination
+from spellbook.models import Combo, Job, Variant, CardInVariant, TemplateInVariant, IngredientInCombination, id_from_cards_and_templates_ids
 
 
 DEFAULT_CARD_LIMIT = 5
@@ -34,12 +33,7 @@ class VariantDefinition:
     included_ids: set[int]
 
 
-def id_from_cards_and_templates_ids(cards: list[int], templates: list[int]) -> str:
-    sorted_templates = sorted(templates)
-    return '-'.join(str(c) for c in sorted(cards)) + ('--' + '--'.join(str(t) for t in sorted_templates) if len(sorted_templates) > 0 else '')
-
-
-def get_variants_from_graph(data: Data, job: Job = None) -> dict[str, VariantDefinition]:
+def get_variants_from_graph(data: Data, job: Job | None = None) -> dict[str, VariantDefinition]:
     def log(msg: str):
         logging.info(msg)
         log_into_job(job, msg)

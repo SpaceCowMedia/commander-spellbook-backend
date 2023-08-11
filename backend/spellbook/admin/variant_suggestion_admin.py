@@ -1,7 +1,9 @@
+from typing import Any
 from django.db.models import Count, Prefetch
 from django.forms import ModelForm
 from django.contrib import admin
-from spellbook.models import Card, Template, Feature, VariantSuggestion, CardInVariantSuggestion, TemplateInVariantSuggestion
+from django.core.exceptions import ValidationError
+from spellbook.models import Card, Template, Feature, VariantSuggestion, CardInVariantSuggestion, TemplateInVariantSuggestion, id_from_cards_and_templates_ids
 from spellbook.models.utils import recipe
 from spellbook.variants.variants_generator import DEFAULT_CARD_LIMIT
 from .utils import IdentityFilter
@@ -34,11 +36,12 @@ class CardsCountListFilter(admin.SimpleListFilter):
         return [(i, str(i)) for i in range(2, CardsCountListFilter.one_more_than_max)] + [(CardsCountListFilter.one_more_than_max_display, CardsCountListFilter.one_more_than_max_display)]
 
     def queryset(self, request, queryset):
-        if self.value() is not None:
+        value = self.value()
+        if value is not None:
             queryset = queryset.annotate(cards_count=Count('uses', distinct=True) + Count('requires', distinct=True))
-            if self.value() == CardsCountListFilter.one_more_than_max_display:
+            if value == CardsCountListFilter.one_more_than_max_display:
                 return queryset.filter(cards_count__gte=CardsCountListFilter.one_more_than_max)
-            value = int(self.value())
+            value = int(value)
             return queryset.filter(cards_count=value)
         return queryset
 
@@ -56,10 +59,11 @@ class VariantSuggestionForm(ModelForm):
 @admin.register(VariantSuggestion)
 class VariantSuggestionAdmin(admin.ModelAdmin):
     form = VariantSuggestionForm
-    readonly_fields = ['id', 'identity', 'legal', 'spoiler', 'scryfall_link', 'suggested_by']
+    readonly_fields = ['id', 'variant_id', 'identity', 'legal', 'spoiler', 'scryfall_link', 'suggested_by']
     fieldsets = [
         ('Generated', {'fields': [
             'id',
+            'variant_id',
             'suggested_by',
             'identity',
             'legal',
@@ -76,7 +80,6 @@ class VariantSuggestionAdmin(admin.ModelAdmin):
     filter_horizontal = ['produces']
     list_filter = ['status', CardsCountListFilter, IdentityFilter, 'legal', 'spoiler']
     list_display = ['display_name', 'status', 'identity']
-    search_fields = ['id']
     actions = [set_rejected]
 
     def display_name(self, obj):
@@ -86,6 +89,16 @@ class VariantSuggestionAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         return VariantSuggestion.objects \
             .prefetch_related(
-                Prefetch('uses', queryset=Card.objects.order_by('cardinvariant').only('name'), to_attr='prefetched_uses'),
-                Prefetch('requires', queryset=Template.objects.order_by('templateinvariant').only('name'), to_attr='prefetched_requires'),
+                Prefetch('uses', queryset=Card.objects.order_by('cardinvariantsuggestion').only('name'), to_attr='prefetched_uses'),
+                Prefetch('requires', queryset=Template.objects.order_by('templateinvariantsuggestion').only('name'), to_attr='prefetched_requires'),
                 Prefetch('produces', queryset=Feature.objects.only('name'), to_attr='prefetched_produces'))
+
+    def save_related(self, request: Any, form: Any, formsets: Any, change: Any) -> None:
+        if not change:
+            form.instance.suggested_by = request.user
+            form.instance.variant_id = id_from_cards_and_templates_ids(
+                [cis['card'].id for cis in formsets[0].cleaned_data],
+                [tis['template'].id for tis in formsets[1].cleaned_data],
+            )
+            form.instance.save()
+        super().save_related(request, form, formsets, change)

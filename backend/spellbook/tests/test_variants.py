@@ -1,12 +1,11 @@
 from django.test import TestCase
 from spellbook.variants.minimal_set_of_sets import MinimalSetOfSets
 from spellbook.variants.variant_set import VariantSet
-from spellbook.variants.variants_generator import id_from_cards_and_templates_ids
+from spellbook.models import Variant, Combo, Feature, Card, Template, id_from_cards_and_templates_ids
 from spellbook.variants.list_utils import merge_identities, includes_any
 from spellbook.variants.variant_data import Data, debug_queries
 from spellbook.variants.combo_graph import Graph
 from spellbook.utils import launch_job_command
-from spellbook.models import Variant, Combo, Feature, Card, Template
 from .abstract_test import AbstractModelTests
 
 

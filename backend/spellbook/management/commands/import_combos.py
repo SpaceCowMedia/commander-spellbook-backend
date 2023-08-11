@@ -12,8 +12,8 @@ from django.conf import settings
 from django.db import transaction
 from django.db.models import Max, Count
 from djangorestframework_camel_case.util import camelize
-from spellbook.variants.variants_generator import id_from_cards_and_templates_ids, generate_variants, DEFAULT_CARD_LIMIT
-from spellbook.models import Feature, Card, Job, Combo, CardInCombo, Variant, IngredientInCombination, CardInVariant
+from spellbook.models import Feature, Card, Job, Combo, CardInCombo, Variant, IngredientInCombination, CardInVariant, id_from_cards_and_templates_ids
+from spellbook.variants.variants_generator import generate_variants, DEFAULT_CARD_LIMIT
 from spellbook.models.validators import MANA_SYMBOL
 from spellbook.management.s3_upload import upload_json_to_aws
 from spellbook.admin.utils import upper_oracle_symbols

@@ -6,7 +6,7 @@ from django.contrib.auth.models import User
 from spellbook.models import Job, Variant
 from spellbook.utils import launch_job_command
 from .abstract_test import AbstractModelTests
-from spellbook.variants.variants_generator import id_from_cards_and_templates_ids
+from spellbook.models import id_from_cards_and_templates_ids
 
 
 class CleanJobsTest(AbstractModelTests):

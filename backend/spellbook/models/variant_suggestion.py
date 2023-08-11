@@ -20,6 +20,7 @@ class VariantSuggestion(models.Model, ScryfallLinkMixin):
         to=Card,
         related_name='used_in_variant_suggestions',
         help_text='Cards that this variant uses',
+        blank=False,
         through='CardInVariantSuggestion')
     requires = models.ManyToManyField(
         to=Template,
@@ -32,6 +33,7 @@ class VariantSuggestion(models.Model, ScryfallLinkMixin):
         to=Feature,
         related_name='produced_by_variant_suggestions',
         help_text='Features that this variant produces')
+    variant_id = models.CharField(max_length=128, unique=True, blank=False, help_text='Unique ID for this variant suggestion', editable=False)
     status = models.CharField(choices=Status.choices, default=Status.NEW, help_text='Suggestion status for editors', max_length=2)
     mana_needed = models.CharField(blank=True, max_length=200, default='', help_text='Mana needed for this combo. Use the {1}{W}{U}{B}{R}{G}{B/P}... format.', validators=[MANA_VALIDATOR])
     other_prerequisites = models.TextField(blank=True, default='', help_text='Other prerequisites for this variant.', validators=TEXT_VALIDATORS)

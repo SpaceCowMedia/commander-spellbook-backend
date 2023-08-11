@@ -6,7 +6,7 @@ from .abstract_test import AbstractModelTests
 from spellbook.models import Card, Feature, Template, Combo, Job, IngredientInCombination, Variant
 from spellbook.models.scryfall import SCRYFALL_API_ROOT, SCRYFALL_WEBSITE_CARD_SEARCH
 from spellbook.utils import launch_job_command
-from spellbook.variants.variants_generator import id_from_cards_and_templates_ids
+from spellbook.models import id_from_cards_and_templates_ids
 
 
 class CardTests(AbstractModelTests):

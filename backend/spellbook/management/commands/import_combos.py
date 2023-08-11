@@ -239,7 +239,7 @@ def find_combos() -> list[tuple[str, tuple[str, ...], frozenset[str], str, str, 
                         p_list = [''.join(p_list)]
                     elif len(p_list) > 1:
                         p_list = [''.join(p_list)]
-                    elif not re.search(r'(?:[^\w]|^)(?:\d+|one|two|three|four|five|six|seven|instant) or (?:less|sorcery|\d+|one|two|greater|more)(?:[^\w]|$)', after, flags=re.IGNORECASE):
+                    elif not re.search(r'(?:[^\w]|^)(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|instant) or (?:less|sorcery|\d+|one|two|greater|more)(?:[^\w]|$)', after, flags=re.IGNORECASE):
                         raise Exception(f'Found invalid "or" in "{prerequisites}" for {c} in combo {id}')
                 before_beginning = new_prerequisites[:beginning_index]
                 after_beginning = new_prerequisites[beginning_index:]

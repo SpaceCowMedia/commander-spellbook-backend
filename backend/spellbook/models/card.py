@@ -2,8 +2,7 @@ from urllib.parse import urlencode
 from django.db import models
 from django.dispatch import receiver
 from django.db.models.signals import post_save
-from ..variants.list_utils import merge_identities
-from .utils import strip_accents
+from .utils import strip_accents, merge_identities
 from .mixins import ScryfallLinkMixin, PreSaveModel
 from .feature import Feature
 from .validators import IDENTITY_VALIDATORS

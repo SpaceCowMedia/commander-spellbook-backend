@@ -6,8 +6,7 @@ from rest_framework.response import Response
 from rest_framework.request import Request
 from rest_framework.permissions import AllowAny
 from rest_framework.settings import api_settings
-from spellbook.models import Card, Variant
-from spellbook.variants.list_utils import merge_identities
+from spellbook.models import Card, Variant, merge_identities
 from spellbook.serializers import VariantSerializer
 from dataclasses import dataclass
 

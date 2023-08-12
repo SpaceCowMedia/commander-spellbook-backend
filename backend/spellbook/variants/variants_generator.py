@@ -2,10 +2,10 @@ import logging
 from itertools import chain
 from dataclasses import dataclass
 from django.db import transaction
-from .list_utils import merge_identities, includes_any
+from .list_utils import includes_any
 from .variant_data import RestoreData, Data, debug_queries
 from .combo_graph import Graph
-from spellbook.models import Combo, Job, Variant, CardInVariant, TemplateInVariant, IngredientInCombination, id_from_cards_and_templates_ids
+from spellbook.models import Combo, Job, Variant, CardInVariant, TemplateInVariant, IngredientInCombination, id_from_cards_and_templates_ids, merge_identities
 
 
 DEFAULT_CARD_LIMIT = 5

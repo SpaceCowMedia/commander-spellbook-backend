@@ -3,8 +3,7 @@ import itertools
 import random
 from django.test import Client
 from spellbook.utils import launch_job_command
-from spellbook.models import Card, Variant
-from spellbook.variants.list_utils import merge_identities
+from spellbook.models import Card, Variant, merge_identities
 from ..abstract_test import AbstractModelTests
 from ..inspection import json_to_python_lambda
 

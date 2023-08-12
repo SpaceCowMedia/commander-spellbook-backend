@@ -3,8 +3,7 @@ import uuid
 import datetime
 from urllib.request import Request, urlopen
 from django.utils import timezone
-from spellbook.models import Card
-from spellbook.variants.list_utils import merge_identities
+from spellbook.models import Card, merge_identities
 
 
 def scryfall():

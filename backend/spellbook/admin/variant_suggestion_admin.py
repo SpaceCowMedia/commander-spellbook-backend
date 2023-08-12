@@ -3,7 +3,7 @@ from django.db.models import Count, Prefetch
 from django.forms import ModelForm, ValidationError
 from django.forms.models import BaseInlineFormSet
 from django.contrib import admin
-from spellbook.models import Card, Template, Feature, VariantSuggestion, CardInVariantSuggestion, TemplateInVariantSuggestion, id_from_cards_and_templates_ids
+from spellbook.models import Card, Template, Feature, VariantSuggestion, CardInVariantSuggestion, TemplateInVariantSuggestion, id_from_cards_and_templates_ids, merge_identities
 from spellbook.models.utils import recipe
 from spellbook.variants.variants_generator import DEFAULT_CARD_LIMIT
 from .utils import IdentityFilter
@@ -17,9 +17,12 @@ class VariantSuggestionIngredientFormset(BaseInlineFormSet):
             return
         # The following code is executed only if there are no errors in the formset
         # It exploits a trick to communicate with the parent form and the other formsets
-        # It validates the uniqueness of the combination of cards and templates
+        # It also validates the uniqueness of the combination of cards and templates
         if hasattr(self.instance, '__templates__') and hasattr(self.instance, '__cards__'):
-            self.instance.variant_id = id_from_cards_and_templates_ids(self.instance.__cards__, self.instance.__templates__)
+            self.instance.variant_id = id_from_cards_and_templates_ids([c.id for c in self.instance.__cards__], [t.id for t in self.instance.__templates__])
+            self.instance.identity = merge_identities(c.identity for c in self.instance.__cards__)
+            self.instance.legal = all(c.legal for c in self.instance.__cards__)
+            self.instance.spoiler = any(c.spoiler for c in self.instance.__cards__)
             if VariantSuggestion.objects.filter(variant_id=self.instance.variant_id).exclude(pk=self.instance.pk).exists():
                 self.instance.__parent_form__.add_error(None, ValidationError('This combination of cards was already suggested.'))
                 raise ValidationError('')  # This is a hack to make the formset validation fail without displaying any error for this formset
@@ -27,15 +30,15 @@ class VariantSuggestionIngredientFormset(BaseInlineFormSet):
 
 class CardInVariantSuggestionFormset(VariantSuggestionIngredientFormset):
     def clean(self):
-        cards_ids = [form.cleaned_data['card'].id for form in self.forms if form.cleaned_data['card']]
-        self.instance.__cards__ = cards_ids
+        cards = [form.cleaned_data['card'] for form in self.forms if form.cleaned_data['card']]
+        self.instance.__cards__ = cards
         super().clean()
 
 
 class TemplateInVariantSuggestionFormset(VariantSuggestionIngredientFormset):
     def clean(self):
-        templates_ids = [form.cleaned_data['template'].id for form in self.forms if form.cleaned_data['template']]
-        self.instance.__templates__ = templates_ids
+        templates = [form.cleaned_data['template'] for form in self.forms if form.cleaned_data['template']]
+        self.instance.__templates__ = templates
         super().clean()
 
 

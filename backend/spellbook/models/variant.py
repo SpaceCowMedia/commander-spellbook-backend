@@ -64,9 +64,6 @@ class Variant(models.Model, ScryfallLinkMixin):
         ordering = ['-status', '-created']
         verbose_name = 'variant'
         verbose_name_plural = 'variants'
-        indexes = [
-            models.Index(fields=['id'], name='unique_variant_index')
-        ]
 
     def cards(self):
         return self.uses.order_by('cardinvariant')

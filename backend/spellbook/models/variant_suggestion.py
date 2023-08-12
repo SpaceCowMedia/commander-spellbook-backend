@@ -49,9 +49,6 @@ class VariantSuggestion(models.Model, ScryfallLinkMixin):
         ordering = ['-status', '-created']
         verbose_name = 'variant suggestion'
         verbose_name_plural = 'variant suggestions'
-        indexes = [
-            models.Index(fields=['id'], name='unique_suggestion_index')
-        ]
 
     def cards(self):
         return self.uses.order_by('cardinvariantsuggestion')

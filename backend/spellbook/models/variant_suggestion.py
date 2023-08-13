@@ -71,7 +71,7 @@ class VariantSuggestion(models.Model, ScryfallLinkMixin):
             return
         if self.id is None:
             if VariantSuggestion.objects.filter(variant_id=self.variant_id).exists():
-                raise ValidationError(f'This combination of cards was already suggested.')
+                raise ValidationError('This combination of cards was already suggested.')
             if Variant.objects.filter(id=self.variant_id).exists():
                 raise ValidationError(f'This combination of cards is already a variant with id {self.variant_id}.')
 

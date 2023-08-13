@@ -28,6 +28,7 @@ class VariantSuggestionIngredientFormset(BaseInlineFormSet):
                 self.instance.__parent_form__.add_error(None, e)
                 raise ValidationError('')  # This is a hack to make the formset validation fail without displaying any error for this inline formset
 
+
 class CardInVariantSuggestionFormset(VariantSuggestionIngredientFormset):
     def clean(self):
         cards = [form.cleaned_data['card'] for form in self.forms if form.cleaned_data['card']]

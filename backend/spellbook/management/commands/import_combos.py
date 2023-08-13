@@ -110,7 +110,8 @@ def fix_oracle_symbols(text: str) -> str:
     text = re.sub(r'\{(B)\/(W|U)\}', r'{\2/\1}', text, flags=re.IGNORECASE)
     text = re.sub(r'\{(R)\/(U|B)\}', r'{\2/\1}', text, flags=re.IGNORECASE)
     text = re.sub(r'\{(G)\/(B|R)\}', r'{\2/\1}', text, flags=re.IGNORECASE)
-    text = re.sub(r'\{(?:P(.)|(.)P)\}', r'{\1\2/P}', text, flags=re.IGNORECASE)
+    text = re.sub(r'\{(?:P(.{1,2})|(.{1,2})P)\}', r'{\1\2/P}', text, flags=re.IGNORECASE)
+    text = re.sub(r'\{(?:(.)(.)/P)\}', r'{\1/\2/P}', text, flags=re.IGNORECASE)
     return text
 
 

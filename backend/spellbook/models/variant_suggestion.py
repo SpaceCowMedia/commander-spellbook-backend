@@ -1,11 +1,13 @@
 from django.db import models
+from django.core.exceptions import ValidationError
+from django.contrib.auth.models import User
 from sortedm2m.fields import SortedManyToManyField
 from .mixins import ScryfallLinkMixin
 from .card import Card
 from .template import Template
 from .feature import Feature
+from .variant import Variant
 from .ingredient import IngredientInCombination
-from django.contrib.auth.models import User
 from .validators import TEXT_VALIDATORS, MANA_VALIDATOR, IDENTITY_VALIDATORS
 from .utils import recipe
 
@@ -33,7 +35,7 @@ class VariantSuggestion(models.Model, ScryfallLinkMixin):
         to=Feature,
         related_name='produced_by_variant_suggestions',
         help_text='Features that this variant produces')
-    variant_id = models.CharField(max_length=128, unique=True, blank=False, help_text='Unique ID for this variant suggestion', editable=False)
+    variant_id = models.CharField(max_length=128, unique=True, blank=False, help_text='Unique ID for this variant suggestion', editable=False, error_messages={'unique': 'This combination of cards was already suggested.'})
     status = models.CharField(choices=Status.choices, default=Status.NEW, help_text='Suggestion status for editors', max_length=2)
     mana_needed = models.CharField(blank=True, max_length=200, default='', help_text='Mana needed for this combo. Use the {1}{W}{U}{B}{R}{G}{B/P}... format.', validators=[MANA_VALIDATOR])
     other_prerequisites = models.TextField(blank=True, default='', help_text='Other prerequisites for this variant.', validators=TEXT_VALIDATORS)
@@ -61,6 +63,16 @@ class VariantSuggestion(models.Model, ScryfallLinkMixin):
             return f'New variant suggestion with unique id <{self.id}>'
         produces = list(self.produces.all()[:4])
         return recipe([str(card) for card in self.cards()] + [str(template) for template in self.templates()], [str(feature) for feature in produces])
+
+    def clean(self):
+        if self.variant_id is None:
+            raise ValidationError('Variant ID cannot be None')
+        if self.variant_id == '':
+            return
+        if VariantSuggestion.objects.filter(variant_id=self.variant_id).exists():
+            raise ValidationError(f'This combination of cards was already suggested.')
+        if Variant.objects.filter(id=self.variant_id).exists():
+            raise ValidationError(f'This combination of cards is already a variant with id {self.variant_id}.')
 
 
 class CardInVariantSuggestion(IngredientInCombination):

@@ -17,16 +17,16 @@ class VariantSuggestionIngredientFormset(BaseInlineFormSet):
             return
         # The following code is executed only if there are no errors in the formset
         # It exploits a trick to communicate with the parent form and the other formsets
-        # It also validates the uniqueness of the combination of cards and templates
         if hasattr(self.instance, '__templates__') and hasattr(self.instance, '__cards__'):
             self.instance.variant_id = id_from_cards_and_templates_ids([c.id for c in self.instance.__cards__], [t.id for t in self.instance.__templates__])
             self.instance.identity = merge_identities(c.identity for c in self.instance.__cards__)
             self.instance.legal = all(c.legal for c in self.instance.__cards__)
             self.instance.spoiler = any(c.spoiler for c in self.instance.__cards__)
-            if VariantSuggestion.objects.filter(variant_id=self.instance.variant_id).exclude(pk=self.instance.pk).exists():
-                self.instance.__parent_form__.add_error(None, ValidationError('This combination of cards was already suggested.'))
-                raise ValidationError('')  # This is a hack to make the formset validation fail without displaying any error for this formset
-
+            try:
+                self.instance.clean()
+            except ValidationError as e:
+                self.instance.__parent_form__.add_error(None, e)
+                raise ValidationError('')  # This is a hack to make the formset validation fail without displaying any error for this inline formset
 
 class CardInVariantSuggestionFormset(VariantSuggestionIngredientFormset):
     def clean(self):
@@ -49,6 +49,7 @@ class CardInVariantSuggestionAdminInline(IngredientAdmin):
     verbose_name = 'Card'
     verbose_name_plural = 'Cards'
     autocomplete_fields = ['card']
+    min_num = 2
 
 
 class TemplateInVariantAdminInline(IngredientAdmin):

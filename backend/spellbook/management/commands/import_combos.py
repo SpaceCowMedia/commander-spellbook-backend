@@ -7,6 +7,7 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 from dataclasses import dataclass
 from django.core.management.base import BaseCommand
+from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.conf import settings
 from django.db import transaction
@@ -531,7 +532,11 @@ class Command(BaseCommand):
                         uses=cardincombo_list,
                         produces=produces,
                     )
-                    bulk_item.clean()
+                    try:
+                        bulk_item.clean()
+                    except ValidationError as e:
+                        self.log_job(job, f'Combo {old_id} is invalid: {e}', self.style.ERROR)
+                        raise e
                     bulk_combo_dict[id] = bulk_item
                 self.log_job(job, 'Saving combos...')
                 Combo.objects.bulk_create(b.combo for b in bulk_combo_dict.values())

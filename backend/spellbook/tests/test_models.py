@@ -3,7 +3,7 @@ from django.utils import timezone
 from django.contrib.auth.models import User
 from .inspection import count_methods
 from .abstract_test import AbstractModelTests
-from spellbook.models import Card, Feature, Template, Combo, Job, IngredientInCombination, Variant
+from spellbook.models import Card, Feature, Template, Combo, Job, IngredientInCombination, Variant, VariantSuggestion
 from spellbook.models.scryfall import SCRYFALL_API_ROOT, SCRYFALL_WEBSITE_CARD_SEARCH
 from spellbook.utils import launch_job_command
 from spellbook.models import id_from_cards_and_templates_ids
@@ -222,3 +222,38 @@ class VariantTests(AbstractModelTests):
 
     def test_method_count(self):
         self.assertEqual(count_methods(Variant), 3)
+
+
+class VariantSuggestionTests(AbstractModelTests):
+    def test_variant_suggestion_fields(self):
+        s = VariantSuggestion.objects.get(id=self.s1_id)
+        self.assertSetEqual(set(s.uses.values_list('id', flat=True)), {self.c1_id, self.c2_id})
+        self.assertSetEqual(set(s.cards().values_list('id', flat=True)), {self.c1_id, self.c2_id})
+        self.assertSetEqual(set(s.requires.values_list('id', flat=True)), {self.t1_id})
+        self.assertSetEqual(set(s.templates().values_list('id', flat=True)), {self.t1_id})
+        self.assertSetEqual(set(s.produces.values_list('id', flat=True)), {self.f1_id, self.f2_id})
+        self.assertEqual(s.status, VariantSuggestion.Status.NEW)
+        self.assertEqual('{W}{W}', s.mana_needed)
+        self.assertEqual('Some requisites.', s.other_prerequisites)
+        self.assertEqual('1', s.description)
+        self.assertEqual('WU', s.identity)
+        self.assertEqual(s.suggested_by, None)
+        self.assertEqual(s.legal, True)
+        self.assertEqual(s.spoiler, False)
+
+    def test_ingredients(self):
+        for s in VariantSuggestion.objects.all():
+            cis = sorted(s.cardinvariantsuggestion_set.all(), key=lambda x: x.order)
+            self.assertEqual(list(s.cards()), list(map(lambda x: x.card, cis)))
+            tis = sorted(s.templateinvariantsuggestion_set.all(), key=lambda x: x.order)
+            self.assertEqual(list(s.templates()), list(map(lambda x: x.template, tis)))
+
+    def test_query_string(self):
+        s = VariantSuggestion.objects.get(id=self.s1_id)
+        for card in s.uses.all():
+            self.assertIn(f'%21%22{quote_plus(card.name)}%22', s.query_string())
+        self.assertIn('+or+', s.query_string())
+        self.assertTrue(s.query_string().startswith('q='))
+
+    def test_method_count(self):
+        self.assertEqual(count_methods(VariantSuggestion), 3)

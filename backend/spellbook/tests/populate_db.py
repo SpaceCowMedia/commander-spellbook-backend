@@ -1,6 +1,6 @@
 import uuid
 from django.contrib.auth.models import User
-from spellbook.models import Combo, CardInCombo, TemplateInCombo, Card, Feature, Template, IngredientInCombination
+from spellbook.models import Combo, CardInCombo, TemplateInCombo, Card, Feature, Template, IngredientInCombination, VariantSuggestion, CardInVariantSuggestion, TemplateInVariantSuggestion, id_from_cards_and_templates_ids
 
 
 def populate_db(self):
@@ -56,6 +56,14 @@ def populate_db(self):
     b7.produces.add(f5)
     b7.needs.add(f4)
 
+
+    s1 = VariantSuggestion.objects.create(variant_id=id_from_cards_and_templates_ids([c1.id, c2.id], [t1.id]), status=VariantSuggestion.Status.NEW, mana_needed='{W}{W}', other_prerequisites='Some requisites.', description='1', identity='WU', suggested_by=None, legal=True, spoiler=False)
+    CardInVariantSuggestion.objects.create(card=c1, variant=s1, order=1, zone_locations=IngredientInCombination.ZoneLocation.HAND)
+    CardInVariantSuggestion.objects.create(card=c2, variant=s1, order=2, zone_locations=IngredientInCombination.ZoneLocation.BATTLEFIELD, battlefield_card_state='tapped')
+    TemplateInVariantSuggestion.objects.create(template=t1, variant=s1, order=1, zone_locations=IngredientInCombination.ZoneLocation.GRAVEYARD, graveyard_card_state='on top')
+    s1.produces.add(f1, f2)
+
+
     # Save ids
     self.c1_id = c1.id
     self.c2_id = c2.id
@@ -77,3 +85,4 @@ def populate_db(self):
     self.b5_id = b5.id
     self.b6_id = b6.id
     self.b7_id = b7.id
+    self.s1_id = s1.id

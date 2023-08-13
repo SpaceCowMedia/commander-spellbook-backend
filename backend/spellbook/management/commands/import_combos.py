@@ -490,7 +490,6 @@ class Command(BaseCommand):
                                 cardincombo_list = list[CardInCombo](c for c in cardincombo_list if c.card != card)
                                 cardincombo_list.insert(index, card_in_combos[0])
                             else:
-                                continue
                                 raise ValueError(f'Card {card} used multiple times in combo {old_id}')
                     for j, card_in_combo in enumerate(sorted(cardincombo_list, key=lambda c: cards_from_combo.index(c.card))):
                         card_in_combo.order = j
@@ -522,12 +521,7 @@ class Command(BaseCommand):
                             produces_dict[name] = existing_feature_names[name_lower]
                         else:
                             feature = Feature(name=upper_oracle_symbols(name))
-                            try:
-                                feature.clean_fields()
-                            except Exception as e:
-                                self.stdout.write(f'\nSkipping combo [{old_id}]:')
-                                self.stdout.write(str(e))
-                                continue
+                            feature.clean_fields()
                             feature.save()
                             produces_dict[name] = feature
                             existing_feature_names[name_lower] = feature
@@ -537,12 +531,7 @@ class Command(BaseCommand):
                         uses=cardincombo_list,
                         produces=produces,
                     )
-                    try:
-                        bulk_item.clean()
-                    except Exception as e:
-                        self.stdout.write(f'\nSkipping combo [{old_id}]:')
-                        self.stdout.write(str(e))
-                        continue
+                    bulk_item.clean()
                     bulk_combo_dict[id] = bulk_item
                 self.log_job(job, 'Saving combos...')
                 Combo.objects.bulk_create(b.combo for b in bulk_combo_dict.values())

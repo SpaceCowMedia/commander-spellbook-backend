@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from spellbook.models import Card, Template, Feature, IngredientInCombination, Combo, CardInCombo, TemplateInCombo, Variant, CardInVariant, TemplateInVariant
+from spellbook.models import Card, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, CardInVariant, TemplateInVariant, VariantSuggestion, CardInVariantSuggestion, TemplateInVariantSuggestion
 
 
 class CardSerializer(serializers.ModelSerializer):
@@ -208,3 +208,66 @@ class VariantSerializer(serializers.ModelSerializer):
             'legal',
             'spoiler',
         ]
+
+
+class CardInVariantSuggestionSerializer(serializers.ModelSerializer):
+    card = CardSerializer(many=False, read_only=True)
+
+    class Meta:
+        model = CardInVariantSuggestion
+        fields = [
+            'card',
+            'zone_locations',
+            'battlefield_card_state',
+            'exile_card_state',
+            'library_card_state',
+            'graveyard_card_state',
+            'must_be_commander',
+        ]
+
+
+class TemplateInVariantSuggestionSerializer(serializers.ModelSerializer):
+    template = TemplateSerializer(many=False, read_only=True)
+
+    class Meta:
+        model = TemplateInVariantSuggestion
+        fields = [
+            'template',
+            'zone_locations',
+            'battlefield_card_state',
+            'exile_card_state',
+            'library_card_state',
+            'graveyard_card_state',
+            'must_be_commander',
+        ]
+
+
+class VariantSuggestionSerializer(serializers.ModelSerializer):
+    uses = CardInVariantSuggestionSerializer(source='cardinvariantsuggestion_set', many=True)
+    requires = TemplateInVariantSuggestionSerializer(source='templateinvariantsuggestion_set', many=True)
+
+    class Meta:
+        model = VariantSuggestion
+        fields = [
+            'id',
+            'variant_id',
+            'status',
+            'uses',
+            'requires',
+            'produces',
+            'mana_needed',
+            'other_prerequisites',
+            'description',
+            'identity',
+            'legal',
+            'spoiler',
+            'suggested_by',
+        ]
+        extra_kwargs = {
+            'variant_id': {'read_only': True},
+            'status': {'read_only': True},
+            'identity': {'read_only': True},
+            'legal': {'read_only': True},
+            'spoiler': {'read_only': True},
+            'suggested_by': {'read_only': True},
+        }

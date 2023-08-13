@@ -9,6 +9,7 @@ router.register(r'features', views.FeatureViewSet, basename='features')
 router.register(r'combos', views.ComboViewSet, basename='combos')
 router.register(r'cards', views.CardViewSet, basename='cards')
 router.register(r'templates', views.TemplateViewSet, basename='templates')
+router.register(r'variant-suggestions', views.VariantSuggestionViewSet, basename='variant-suggestions')
 router.add_api_view(r'find-my-combos', re_path(r'find-my-combos', views.find_my_combos, name='find-my-combos'))
 router.registry.extend(website_router.registry)
 

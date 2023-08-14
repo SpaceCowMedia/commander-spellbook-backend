@@ -4,7 +4,7 @@ from spellbook.models import VariantSuggestion
 from spellbook.serializers import VariantSuggestionSerializer
 
 
-class IsOwnerOrReadOnly(permissions.BasePermission):
+class IsNewAndOwnerOrReadOnly(permissions.BasePermission):
     """
     Object-level permission to only allow owners of an object to edit it.
     Assumes the model instance has an `owner` attribute.
@@ -14,11 +14,10 @@ class IsOwnerOrReadOnly(permissions.BasePermission):
         if request.method in permissions.SAFE_METHODS:
             return True
 
-        # Instance must have an attribute named `owner`.
-        return obj.suggested_by == request.user
+        return obj.status == VariantSuggestion.Status.NEW and obj.suggested_by == request.user
 
 
 class VariantSuggestionViewSet(ModelViewSet):
     queryset = VariantSuggestion.objects.all()
     serializer_class = VariantSuggestionSerializer
-    permission_classes = [permissions.DjangoModelPermissionsOrAnonReadOnly, IsOwnerOrReadOnly]
+    permission_classes = [permissions.DjangoModelPermissionsOrAnonReadOnly, IsNewAndOwnerOrReadOnly]

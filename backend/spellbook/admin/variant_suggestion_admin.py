@@ -1,65 +1,35 @@
 from typing import Any
 from django.db.models import Count, Prefetch
-from django.forms import ModelForm, ValidationError
-from django.forms.models import BaseInlineFormSet
+from django.forms import ModelForm
 from django.contrib import admin
-from spellbook.models import Card, Template, Feature, VariantSuggestion, CardInVariantSuggestion, TemplateInVariantSuggestion, id_from_cards_and_templates_ids, merge_identities
+from spellbook.models import Feature, VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, FeatureProducedInVariantSuggestion
 from spellbook.models.utils import recipe
 from spellbook.variants.variants_generator import DEFAULT_CARD_LIMIT
-from .utils import IdentityFilter
 from .ingredient_admin import IngredientAdmin
 
 
-class VariantSuggestionIngredientFormset(BaseInlineFormSet):
-    def clean(self) -> None:
-        super().clean()
-        if any(self.errors):
-            return
-        # The following code is executed only if there are no errors in the formset
-        # It exploits a trick to communicate with the parent form and the other formsets
-        if hasattr(self.instance, '__templates__') and hasattr(self.instance, '__cards__'):
-            self.instance.variant_id = id_from_cards_and_templates_ids([c.id for c in self.instance.__cards__], [t.id for t in self.instance.__templates__])
-            self.instance.identity = merge_identities(c.identity for c in self.instance.__cards__)
-            self.instance.legal = all(c.legal for c in self.instance.__cards__)
-            self.instance.spoiler = any(c.spoiler for c in self.instance.__cards__)
-            try:
-                self.instance.clean()
-            except ValidationError as e:
-                self.instance.__parent_form__.add_error(None, e)
-                raise ValidationError('')  # This is a hack to make the formset validation fail without displaying any error for this inline formset
-
-
-class CardInVariantSuggestionFormset(VariantSuggestionIngredientFormset):
-    def clean(self):
-        cards = [form.cleaned_data['card'] for form in self.forms if form.cleaned_data['card']]
-        self.instance.__cards__ = cards
-        super().clean()
-
-
-class TemplateInVariantSuggestionFormset(VariantSuggestionIngredientFormset):
-    def clean(self):
-        templates = [form.cleaned_data['template'] for form in self.forms if form.cleaned_data['template']]
-        self.instance.__templates__ = templates
-        super().clean()
-
-
-class CardInVariantSuggestionAdminInline(IngredientAdmin):
+class CardUsedInVariantSuggestionAdminInline(IngredientAdmin):
     fields = ['card', 'zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state']
-    model = CardInVariantSuggestion
-    formset = CardInVariantSuggestionFormset
+    model = CardUsedInVariantSuggestion
     verbose_name = 'Card'
     verbose_name_plural = 'Cards'
-    autocomplete_fields = ['card']
     min_num = 2
 
 
-class TemplateInVariantAdminInline(IngredientAdmin):
+class TemplateRequiredInVariantAdminInline(IngredientAdmin):
     fields = ['template', 'zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state']
-    model = TemplateInVariantSuggestion
-    formset = TemplateInVariantSuggestionFormset
+    model = TemplateRequiredInVariantSuggestion
     verbose_name = 'Template'
     verbose_name_plural = 'Templates'
-    autocomplete_fields = ['template']
+
+
+class FeatureProducedInVariantAdminInline(admin.TabularInline):
+    fields = ['feature']
+    model = FeatureProducedInVariantSuggestion
+    verbose_name = 'Feature'
+    verbose_name_plural = 'Features'
+    min_num = 1
+    extra = 0
 
 
 class CardsCountListFilter(admin.SimpleListFilter):
@@ -91,48 +61,37 @@ class VariantSuggestionForm(ModelForm):
     def clean_mana_needed(self):
         return self.cleaned_data['mana_needed'].upper() if self.cleaned_data['mana_needed'] else self.cleaned_data['mana_needed']
 
-    def clean(self):
-        super().clean()
-        self.instance.__parent_form__ = self
-
 
 @admin.register(VariantSuggestion)
 class VariantSuggestionAdmin(admin.ModelAdmin):
     form = VariantSuggestionForm
     save_as = True
-    readonly_fields = ['id', 'variant_id', 'identity', 'legal', 'spoiler', 'scryfall_link', 'suggested_by']
+    readonly_fields = ['id', 'suggested_by']
     fieldsets = [
         ('Generated', {'fields': [
             'id',
-            'variant_id',
-            'suggested_by',
-            'identity',
-            'legal',
-            'spoiler',
-            'scryfall_link']}),
+            'suggested_by']}),
         ('Editable', {'fields': [
             'status',
-            'produces',
             'mana_needed',
             'other_prerequisites',
             'description']})
     ]
-    inlines = [CardInVariantSuggestionAdminInline, TemplateInVariantAdminInline]
-    filter_horizontal = ['produces']
-    list_filter = ['status', CardsCountListFilter, IdentityFilter, 'legal', 'spoiler']
-    list_display = ['display_name', 'status', 'identity']
+    inlines = [CardUsedInVariantSuggestionAdminInline, TemplateRequiredInVariantAdminInline, FeatureProducedInVariantAdminInline]
+    list_filter = ['status', CardsCountListFilter]
+    list_display = ['display_name', 'status']
     actions = [set_rejected]
 
     def display_name(self, obj):
-        return recipe([card.name for card in obj.prefetched_uses] + [template.name for template in obj.prefetched_requires],
+        return recipe([str(card) for card in obj.prefetched_uses] + [str(template) for template in obj.prefetched_requires],
             [str(feature) for feature in obj.prefetched_produces])
 
     def get_queryset(self, request):
         return VariantSuggestion.objects \
             .prefetch_related(
-                Prefetch('uses', queryset=Card.objects.order_by('cardinvariantsuggestion').only('name'), to_attr='prefetched_uses'),
-                Prefetch('requires', queryset=Template.objects.order_by('templateinvariantsuggestion').only('name'), to_attr='prefetched_requires'),
-                Prefetch('produces', queryset=Feature.objects.only('name'), to_attr='prefetched_produces'))
+                Prefetch('uses', to_attr='prefetched_uses'),
+                Prefetch('requires', to_attr='prefetched_requires'),
+                Prefetch('produces', to_attr='prefetched_produces'))
 
     def save_model(self, request: Any, obj: Any, form: Any, change: Any) -> None:
         if not change:

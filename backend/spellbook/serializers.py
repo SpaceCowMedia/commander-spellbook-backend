@@ -1,5 +1,13 @@
+from django.db import transaction
+from django.contrib.auth.models import User
 from rest_framework import serializers
-from spellbook.models import Card, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, CardInVariant, TemplateInVariant, VariantSuggestion, CardInVariantSuggestion, TemplateInVariantSuggestion
+from spellbook.models import Card, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, CardInVariant, TemplateInVariant, VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, FeatureProducedInVariantSuggestion
+
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'username']
 
 
 class CardSerializer(serializers.ModelSerializer):
@@ -210,11 +218,9 @@ class VariantSerializer(serializers.ModelSerializer):
         ]
 
 
-class CardInVariantSuggestionSerializer(serializers.ModelSerializer):
-    card = CardSerializer(many=False, read_only=True)
-
+class CardUsedInVariantSuggestionSerializer(serializers.ModelSerializer):
     class Meta:
-        model = CardInVariantSuggestion
+        model = CardUsedInVariantSuggestion
         fields = [
             'card',
             'zone_locations',
@@ -226,11 +232,9 @@ class CardInVariantSuggestionSerializer(serializers.ModelSerializer):
         ]
 
 
-class TemplateInVariantSuggestionSerializer(serializers.ModelSerializer):
-    template = TemplateSerializer(many=False, read_only=True)
-
+class TemplateRequiredInVariantSuggestionSerializer(serializers.ModelSerializer):
     class Meta:
-        model = TemplateInVariantSuggestion
+        model = TemplateRequiredInVariantSuggestion
         fields = [
             'template',
             'zone_locations',
@@ -242,15 +246,24 @@ class TemplateInVariantSuggestionSerializer(serializers.ModelSerializer):
         ]
 
 
+class FeatureProducedInVariantSuggestionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FeatureProducedInVariantSuggestion
+        fields = [
+            'feature',
+        ]
+
+
 class VariantSuggestionSerializer(serializers.ModelSerializer):
-    uses = CardInVariantSuggestionSerializer(source='cardinvariantsuggestion_set', many=True)
-    requires = TemplateInVariantSuggestionSerializer(source='templateinvariantsuggestion_set', many=True)
+    uses = CardUsedInVariantSuggestionSerializer(many=True)
+    requires = TemplateRequiredInVariantSuggestionSerializer(many=True)
+    produces = FeatureProducedInVariantSuggestionSerializer(many=True)
+    suggested_by = UserSerializer(many=False, read_only=True)
 
     class Meta:
         model = VariantSuggestion
         fields = [
             'id',
-            'variant_id',
             'status',
             'uses',
             'requires',
@@ -258,16 +271,46 @@ class VariantSuggestionSerializer(serializers.ModelSerializer):
             'mana_needed',
             'other_prerequisites',
             'description',
-            'identity',
-            'legal',
-            'spoiler',
             'suggested_by',
         ]
         extra_kwargs = {
-            'variant_id': {'read_only': True},
             'status': {'read_only': True},
-            'identity': {'read_only': True},
-            'legal': {'read_only': True},
-            'spoiler': {'read_only': True},
-            'suggested_by': {'read_only': True},
         }
+
+    def create(self, validated_data):
+        uses_set = validated_data.pop('uses')
+        requires_set = validated_data.pop('requires')
+        produces_set = validated_data.pop('produces')
+        extended_kwargs = {
+            'suggested_by': self.context['request'].user,
+            **validated_data,
+        }
+        with transaction.atomic(durable=True):
+            instance = super().create(extended_kwargs)
+            for i, use in enumerate(uses_set):
+                CardUsedInVariantSuggestion.objects.create(variant=instance, order=i, **use)
+            for i, require in enumerate(requires_set):
+                TemplateRequiredInVariantSuggestion.objects.create(variant=instance, order=i, **require)
+            for produce in produces_set:
+                FeatureProducedInVariantSuggestion.objects.create(variant=instance, **produce)
+            return instance
+
+    def update(self, instance, validated_data):
+        uses_set = validated_data.pop('uses')
+        requires_set = validated_data.pop('requires')
+        produces_set = validated_data.pop('produces')
+        extended_kwargs = {
+            **validated_data,
+        }
+        with transaction.atomic(durable=True):
+            instance = super().update(instance, extended_kwargs)
+            instance.uses.all().delete()
+            for i, use in enumerate(uses_set):
+                CardUsedInVariantSuggestion.objects.create(variant=instance, order=i, **use)
+            instance.requires.all().delete()
+            for i, require in enumerate(requires_set):
+                TemplateRequiredInVariantSuggestion.objects.create(variant=instance, order=i, **require)
+            instance.produces.all().delete()
+            for produce in produces_set:
+                FeatureProducedInVariantSuggestion.objects.create(variant=instance, **produce)
+            return instance

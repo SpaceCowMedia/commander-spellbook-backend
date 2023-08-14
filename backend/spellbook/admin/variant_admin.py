@@ -60,11 +60,12 @@ class CardsCountListFilter(admin.SimpleListFilter):
         return [(i, str(i)) for i in range(2, CardsCountListFilter.one_more_than_max)] + [(CardsCountListFilter.one_more_than_max_display, CardsCountListFilter.one_more_than_max_display)]
 
     def queryset(self, request, queryset):
-        if self.value() is not None:
+        value = self.value()
+        if value is not None:
             queryset = queryset.annotate(cards_count=Count('uses', distinct=True) + Count('requires', distinct=True))
-            if self.value() == CardsCountListFilter.one_more_than_max_display:
+            if value == CardsCountListFilter.one_more_than_max_display:
                 return queryset.filter(cards_count__gte=CardsCountListFilter.one_more_than_max)
-            value = int(self.value())
+            value = int(value)
             return queryset.filter(cards_count=value)
         return queryset
 

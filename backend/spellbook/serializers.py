@@ -1,5 +1,6 @@
 from django.db import transaction
 from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
 from rest_framework import serializers
 from spellbook.models import Card, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, CardInVariant, TemplateInVariant, VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, FeatureProducedInVariantSuggestion
 
@@ -280,6 +281,10 @@ class VariantSuggestionSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         uses_set = validated_data.pop('uses')
         requires_set = validated_data.pop('requires')
+        try:
+            VariantSuggestion.validate([uses['card'] for uses in uses_set], [requires['template'] for requires in requires_set])
+        except ValidationError as e:
+            raise serializers.ValidationError(e.message)
         produces_set = validated_data.pop('produces')
         extended_kwargs = {
             'suggested_by': self.context['request'].user,

@@ -9,7 +9,7 @@ from .feature import Feature
 from .variant import Variant
 from .ingredient import IngredientInCombination
 from .validators import TEXT_VALIDATORS, MANA_VALIDATOR, FIRST_CAPITAL_LETTER_VALIDATOR, ORDINARY_CHARACTERS_VALIDATOR
-from .utils import recipe
+from .utils import recipe, id_from_cards_and_templates_ids
 
 
 class VariantSuggestion(models.Model):
@@ -36,6 +36,18 @@ class VariantSuggestion(models.Model):
             return f'New variant suggestion with unique id <{self.id}>'
         produces = list(self.produces.all()[:4])
         return recipe([str(use.card) for use in self.uses.all()] + [str(require.template) for require in self.requires.all()], [str(produce.feature) for produce in produces])
+
+    @classmethod
+    def validate(cls, cards: list[str], templates: list[str]):
+        card_entities = list(Card.objects.filter(name__in=cards))
+        template_entities = list(Template.objects.filter(name__in=templates))
+        if len(card_entities) == len(cards) \
+            and len(template_entities) == len(templates):
+            variant_id = id_from_cards_and_templates_ids([card.id for card in card_entities], [template.id for template in template_entities])
+            if Variant.objects.filter(id=variant_id).exists():
+                raise ValidationError('This variant already exists.')
+        if VariantSuggestion.objects.filter(uses__card__in=cards, requires__template__in=templates).exists():
+            raise ValidationError(f'This variant suggestion is redundant given suggestion.')
 
 
 class CardUsedInVariantSuggestion(IngredientInCombination):

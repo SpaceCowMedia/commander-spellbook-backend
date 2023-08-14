@@ -12,34 +12,35 @@
         {
             django.jQuery.fn.djangoAdminSelectCards = function() {
                 django.jQuery.each(this, function(i, element) {
-                    const s = django.jQuery(element).select2({
-                        ajax: {
-                            data: (params) => {
-                                return {
-                                    term: params.term,
-                                    page: params.page,
-                                    app_label: element.dataset.appLabel,
-                                    model_name: element.dataset.modelName,
-                                    field_name: element.dataset.fieldName
-                                };
-                            }
+                    const autocomplete = django.jQuery(element).autocomplete({
+                        source: function(request, response) {
+                            django.jQuery.ajax({
+                                url: 'https://api.scryfall.com/cards/autocomplete',
+                                dataType: 'json',
+                                data: {
+                                    q: request.term,
+                                    format: 'json'
+                                },
+                                success: function(data) {
+                                    response(data.data);
+                                }
+                            });
                         },
-                        templateResult: (data) => {
-                            const elem = django.jQuery(document.createElement('span'));
-                            elem.addClass('tooltip-in-dropdown');
-                            elem.text(data.text);
-                            card_info.setup_tooltip(data.text, elem);
-                            return elem;
-                        },
-                        templateSelection: (data) => {
-                            const elem = django.jQuery(document.createElement('span'));
-                            elem.text(data.text);
-                            card_info.setup_tooltip(data.text, elem);
-                            return elem;
-                        },
-                    }).on('select2:closing', function(e) {
-                        django.jQuery('.tooltip-in-dropdown').tooltip('close');                        
-                    });
+                        minLength: 3,
+                        open: function() {},
+                        close: function() {},
+                    })
+                    .autocomplete('instance');
+                    if (autocomplete) {
+                        autocomplete._renderItem = function(ul, item) {
+                            const newItem = django.jQuery('<li>')
+                                .attr('data-value', item.value)
+                                .append(item.label)
+                                .appendTo(ul);
+                            card_info.setup_tooltip(item.value, newItem);
+                            return newItem;
+                        };
+                    }
                 });
                 return this;
             };
@@ -47,11 +48,11 @@
             django.jQuery(function() {
                 // Initialize all autocomplete widgets except the one in the template
                 // form used when a new formset is added.
-                django.jQuery('.admin-autocomplete[data-field-name=card]').not('[name*=__prefix__]').djangoAdminSelectCards();
+                django.jQuery('td.field-card>input[type=text]').djangoAdminSelectCards();
             });
 
             document.addEventListener('formset:added', (event) => {
-                django.jQuery(event.target).find('.admin-autocomplete[data-field-name=card]').djangoAdminSelectCards();
+                django.jQuery(event.target).find('td.field-card>input[type=text]').djangoAdminSelectCards();
             });
         }
     </script>

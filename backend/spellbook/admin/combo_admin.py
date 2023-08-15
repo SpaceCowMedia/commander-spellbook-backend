@@ -36,6 +36,11 @@ class CardInComboAdminInline(IngredientAdmin):
     verbose_name_plural = 'Required Cards'
     autocomplete_fields = ['card']
 
+    def get_extra(self, request: HttpRequest, obj, **kwargs: Any) -> int:
+        if request.from_suggestion is not None:
+            return len(request.from_suggestion.uses_list)
+        return super().get_extra(request, obj, **kwargs)
+
 
 class TemplateInComboAdminInline(IngredientAdmin):
     fields = ['template', 'zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'must_be_commander']
@@ -43,6 +48,11 @@ class TemplateInComboAdminInline(IngredientAdmin):
     verbose_name = 'Template'
     verbose_name_plural = 'Required Templates'
     autocomplete_fields = ['template']
+
+    def get_extra(self, request: HttpRequest, obj, **kwargs: Any) -> int:
+        if request.from_suggestion is not None:
+            return len(request.from_suggestion.requires_list)
+        return super().get_extra(request, obj, **kwargs)
 
 
 class FeatureInComboAdminInline(admin.TabularInline):
@@ -169,6 +179,8 @@ class ComboAdmin(SearchMultipleRelatedMixin, admin.ModelAdmin):
                     if f not in found_produced_features_names:
                         messages.add_message(request, messages.WARNING, f'Could not find produced feature "{f}" in database.')
                 initial_data['produces'] = [feature.pk for feature in found_produced_features]
+                request.from_suggestion.uses_list = list(from_suggestion.uses.all())
+                request.from_suggestion.requires_list = list(from_suggestion.requires.all())
             except VariantSuggestion.DoesNotExist:
                 pass
         return initial_data
@@ -177,11 +189,39 @@ class ComboAdmin(SearchMultipleRelatedMixin, admin.ModelAdmin):
         formset_kwargs = super().get_formset_kwargs(request, obj, inline, prefix)
         if not obj.id and hasattr(request, 'from_suggestion') and request.from_suggestion is not None:
             if isinstance(inline, CardInComboAdminInline):
-                suggested_cards = request.from_suggestion.uses.all()
-                formset_kwargs['initial'] = [{
-                    'zone_locations': card.zone_locations,
-                    # TODO: set other fields
-                } for card in suggested_cards]
-                # TODO: set extra to len(suggested_cards)
-            # TODO: set template inlines
+                formset_kwargs['initial'] = []
+                suggested_used_cards = request.from_suggestion.uses_list
+                found_used_cards = list(Card.objects.filter(name__in=[suggested_card.card for suggested_card in suggested_used_cards]))
+                found_used_cards_names_to_id = {c.name: c.pk for c in found_used_cards}
+                for suggested_card in suggested_used_cards:
+                    if suggested_card.card not in found_used_cards_names_to_id:
+                        messages.add_message(request, messages.WARNING, f'Could not find used card "{suggested_card.card}" in database.')
+                    formset_kwargs['initial'].append({
+                        'card': found_used_cards_names_to_id.get(suggested_card.card, None),
+                        'zone_locations': suggested_card.zone_locations,
+                        'battlefield_card_state': suggested_card.battlefield_card_state,
+                        'exile_card_state': suggested_card.exile_card_state,
+                        'library_card_state': suggested_card.library_card_state,
+                        'graveyard_card_state': suggested_card.graveyard_card_state,
+                        'must_be_commander': suggested_card.must_be_commander,
+                    })
+                request.from_suggestion.uses_count = len(formset_kwargs['initial'])
+            elif isinstance(inline, TemplateInComboAdminInline):
+                formset_kwargs['initial'] = []
+                suggested_required_templates = request.from_suggestion.requires_list
+                found_required_templates = list(Template.objects.filter(name__in=[suggested_template.template for suggested_template in suggested_required_templates]))
+                found_required_templates_names_to_id = {t.name: t.pk for t in found_required_templates}
+                for suggested_template in suggested_required_templates:
+                    if suggested_template.template not in found_required_templates_names_to_id:
+                        messages.add_message(request, messages.WARNING, f'Could not find required template "{suggested_template.template}" in database.')
+                    formset_kwargs['initial'].append({
+                        'template': found_required_templates_names_to_id.get(suggested_template.template, None),
+                        'zone_locations': suggested_template.zone_locations,
+                        'battlefield_card_state': suggested_template.battlefield_card_state,
+                        'exile_card_state': suggested_template.exile_card_state,
+                        'library_card_state': suggested_template.library_card_state,
+                        'graveyard_card_state': suggested_template.graveyard_card_state,
+                        'must_be_commander': suggested_template.must_be_commander,
+                    })
+                request.from_suggestion.requires_count = len(formset_kwargs['initial'])
         return formset_kwargs

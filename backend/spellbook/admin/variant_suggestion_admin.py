@@ -9,7 +9,7 @@ from .ingredient_admin import IngredientAdmin
 
 
 class CardUsedInVariantSuggestionAdminInline(IngredientAdmin):
-    fields = ['card', 'zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state']
+    fields = ['card', 'zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'must_be_commander']
     model = CardUsedInVariantSuggestion
     verbose_name = 'Card'
     verbose_name_plural = 'Cards'
@@ -17,7 +17,7 @@ class CardUsedInVariantSuggestionAdminInline(IngredientAdmin):
 
 
 class TemplateRequiredInVariantAdminInline(IngredientAdmin):
-    fields = ['template', 'zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state']
+    fields = ['template', 'zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'must_be_commander']
     model = TemplateRequiredInVariantSuggestion
     verbose_name = 'Template'
     verbose_name_plural = 'Templates'

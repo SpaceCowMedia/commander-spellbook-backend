@@ -2,7 +2,7 @@ from typing import Any
 from django.db.models import Count, Prefetch
 from django.forms import ModelForm
 from django.contrib import admin
-from spellbook.models import Feature, VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, FeatureProducedInVariantSuggestion
+from spellbook.models import VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, FeatureProducedInVariantSuggestion
 from spellbook.models.utils import recipe
 from spellbook.variants.variants_generator import DEFAULT_CARD_LIMIT
 from .ingredient_admin import IngredientAdmin

@@ -182,7 +182,8 @@ class VariantAdmin(admin.ModelAdmin):
                     name='spellbook_variant_generate'),
                 path('export/',
                     self.admin_site.admin_view(view=self.export, cacheable=False),
-                    name='spellbook_variant_export')] + super().get_urls()
+                    name='spellbook_variant_export')
+        ] + super().get_urls()
 
     def has_add_permission(self, request):
         return False

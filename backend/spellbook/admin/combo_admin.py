@@ -1,8 +1,10 @@
-import re
+from typing import Any
+from django.contrib.admin.options import InlineModelAdmin
 from django.db.models import Prefetch, Case, When, Count, Q
 from django.forms import ModelForm
 from django.contrib import admin, messages
-from spellbook.models import Card, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, CardInVariant, TemplateInVariant
+from django.http.request import HttpRequest
+from spellbook.models import Card, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, CardInVariant, TemplateInVariant, VariantSuggestion
 from spellbook.models.utils import recipe
 from spellbook.variants.variant_data import RestoreData
 from spellbook.variants.variants_generator import restore_variant
@@ -149,3 +151,37 @@ class ComboAdmin(SearchMultipleRelatedMixin, admin.ModelAdmin):
                 Prefetch('requires', queryset=Template.objects.order_by('templateincombo').only('name'), to_attr='prefetched_requires'),
                 Prefetch('needs', queryset=Feature.objects.only('name'), to_attr='prefetched_needs'),
                 Prefetch('produces', queryset=Feature.objects.only('name'), to_attr='prefetched_produces'))
+
+    def get_changeform_initial_data(self, request: HttpRequest) -> dict[str, str]:
+        initial_data = super().get_changeform_initial_data(request)
+        from_suggestion_id = request.GET.get('from_variant_suggestion', None)
+        if from_suggestion_id:
+            try:
+                from_suggestion = VariantSuggestion.objects.get(pk=from_suggestion_id)
+                request.from_suggestion = from_suggestion
+                initial_data['description'] = from_suggestion.description
+                initial_data['mana_needed'] = from_suggestion.mana_needed
+                initial_data['other_prerequisites'] = from_suggestion.other_prerequisites
+                suggested_produced_features = list(from_suggestion.produces.values_list('feature', flat=True))
+                found_produced_features = list(Feature.objects.filter(name__in=suggested_produced_features))
+                found_produced_features_names = {f.name for f in found_produced_features}
+                for f in suggested_produced_features:
+                    if f not in found_produced_features_names:
+                        messages.add_message(request, messages.WARNING, f'Could not find produced feature "{f}" in database.')
+                initial_data['produces'] = [feature.pk for feature in found_produced_features]
+            except VariantSuggestion.DoesNotExist:
+                pass
+        return initial_data
+
+    def get_formset_kwargs(self, request: HttpRequest, obj: Any, inline: InlineModelAdmin, prefix: str) -> dict[str, Any]:
+        formset_kwargs = super().get_formset_kwargs(request, obj, inline, prefix)
+        if not obj.id and hasattr(request, 'from_suggestion') and request.from_suggestion is not None:
+            if isinstance(inline, CardInComboAdminInline):
+                suggested_cards = request.from_suggestion.uses.all()
+                formset_kwargs['initial'] = [{
+                    'zone_locations': card.zone_locations,
+                    # TODO: set other fields
+                } for card in suggested_cards]
+                # TODO: set extra to len(suggested_cards)
+            # TODO: set template inlines
+        return formset_kwargs

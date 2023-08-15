@@ -58,6 +58,12 @@
     </script>
 {% endblock %}
 
+{% block object-tools-items %}
+    <li>
+        <a href="{% url 'admin:spellbook_combo_add' %}?from_variant_suggestion={{ original.id }}" target="_blank">Accept as new combo</a>
+    </li>
+    {{ block.super }}
+{% endblock %}
 
 <!-- To put inlines at the top: -->
 {% block field_sets %}

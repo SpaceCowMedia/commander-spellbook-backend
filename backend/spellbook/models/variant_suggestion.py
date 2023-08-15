@@ -41,13 +41,12 @@ class VariantSuggestion(models.Model):
     def validate(cls, cards: list[str], templates: list[str]):
         card_entities = list(Card.objects.filter(name__in=cards))
         template_entities = list(Template.objects.filter(name__in=templates))
-        if len(card_entities) == len(cards) \
-            and len(template_entities) == len(templates):
+        if len(card_entities) == len(cards) and len(template_entities) == len(templates):
             variant_id = id_from_cards_and_templates_ids([card.id for card in card_entities], [template.id for template in template_entities])
             if Variant.objects.filter(id=variant_id).exists():
                 raise ValidationError('This variant already exists.')
         if VariantSuggestion.objects.filter(uses__card__in=cards, requires__template__in=templates).exists():
-            raise ValidationError(f'This variant suggestion is redundant given suggestion.')
+            raise ValidationError('This variant suggestion is redundant given suggestion.')
 
 
 class CardUsedInVariantSuggestion(IngredientInCombination):

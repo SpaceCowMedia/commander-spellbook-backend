@@ -177,12 +177,13 @@ class VariantAdmin(admin.ModelAdmin):
         return redirect('admin:spellbook_job_changelist')
 
     def get_urls(self):
-        return [path('generate/',
-                    self.admin_site.admin_view(view=self.generate, cacheable=False),
-                    name='spellbook_variant_generate'),
-                path('export/',
-                    self.admin_site.admin_view(view=self.export, cacheable=False),
-                    name='spellbook_variant_export')
+        return [
+            path('generate/',
+                self.admin_site.admin_view(view=self.generate, cacheable=False),
+                name='spellbook_variant_generate'),
+            path('export/',
+                self.admin_site.admin_view(view=self.export, cacheable=False),
+                name='spellbook_variant_export')
         ] + super().get_urls()
 
     def has_add_permission(self, request):

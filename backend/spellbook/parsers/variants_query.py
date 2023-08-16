@@ -306,7 +306,7 @@ def variants_query_parser(base: QuerySet, query_string: str) -> QuerySet:
     regex_matches = re.finditer(QUERY_REGEX, query_string)
     parsed_queries = defaultdict[str, list[QueryValue]](list)
     queryset = base \
-        .alias(cards_count=Count('uses')) \
+        .alias(cards_count=Count('uses', distinct=True)) \
         .alias(identity_count=Case(When(identity='C', then=Value(0)), default=Length('identity'))) \
         .alias(results_count=Count('produces', distinct=True))
     for regex_match in regex_matches:

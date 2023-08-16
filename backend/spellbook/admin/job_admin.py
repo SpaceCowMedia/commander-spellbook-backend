@@ -35,4 +35,4 @@ class JobAdmin(admin.ModelAdmin):
         return False
 
     def get_queryset(self, request):
-        return super().get_queryset(request).annotate(variants_count=Count('variants'))
+        return super().get_queryset(request).annotate(variants_count=Count('variants', distinct=True))

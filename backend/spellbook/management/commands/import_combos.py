@@ -564,7 +564,7 @@ class Command(BaseCommand):
             self.log_job(job, 'Generating variants...')
             added, restored, deleted = generate_variants(job)
             self.log_job(job, f'Generating variants...done. Added {added} variants, restored {restored} variants, deleted {deleted} variants.')
-            annotated_variants = Variant.objects.annotate(includes_count=Count('includes'))
+            annotated_variants = Variant.objects.annotate(includes_count=Count('includes', distinct=True))
             annotated_variants.filter(id__in=bulk_combo_dict.keys(), includes_count=1).update(status=Variant.Status.OK)
             bulk_civ_to_update = list[CardInVariant]()
             bulk_variants_to_update = list[Variant]()

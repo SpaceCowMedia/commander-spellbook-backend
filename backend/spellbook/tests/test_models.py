@@ -7,6 +7,7 @@ from spellbook.models import Card, Feature, Template, Combo, Job, IngredientInCo
 from spellbook.models.scryfall import SCRYFALL_API_ROOT, SCRYFALL_WEBSITE_CARD_SEARCH
 from spellbook.utils import launch_job_command
 from spellbook.models import id_from_cards_and_templates_ids
+from django.core.exceptions import ValidationError
 
 
 class CardTests(AbstractModelTests):
@@ -240,4 +241,26 @@ class VariantSuggestionTests(AbstractModelTests):
         self.assertEqual(s.suggested_by, None)
 
     def test_method_count(self):
-        self.assertEqual(count_methods(VariantSuggestion), 1)
+        self.assertEqual(count_methods(VariantSuggestion), 2)
+
+    def test_validate_against_redundancy(self):
+        s1 = VariantSuggestion.objects.get(id=self.s1_id)
+        self.assertRaises(ValidationError, lambda: VariantSuggestion.validate(
+            list(s1.uses.values_list('card', flat=True)),
+            list(s1.requires.values_list('template', flat=True))))
+
+    def test_validate_against_already_present(self):
+        launch_job_command('generate_variants', None)
+        self.v1_id = id_from_cards_and_templates_ids([self.c8_id, self.c1_id], [self.t1_id])
+        v1 = Variant.objects.get(id=self.v1_id)
+        self.assertRaises(ValidationError, lambda: VariantSuggestion.validate(
+            list(v1.uses.values_list('name', flat=True)),
+            list(v1.requires.values_list('name', flat=True))))
+
+    def test_validate_success(self):
+        launch_job_command('generate_variants', None)
+        self.v1_id = id_from_cards_and_templates_ids([self.c8_id, self.c1_id], [self.t1_id])
+        v1 = Variant.objects.get(id=self.v1_id)
+        VariantSuggestion.validate(
+            list(v1.uses.values_list('name', flat=True)[:1]),
+            list(v1.requires.values_list('name', flat=True)))

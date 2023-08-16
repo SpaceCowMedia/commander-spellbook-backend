@@ -45,8 +45,19 @@ class VariantSuggestion(models.Model):
             variant_id = id_from_cards_and_templates_ids([card.id for card in card_entities], [template.id for template in template_entities])
             if Variant.objects.filter(id=variant_id).exists():
                 raise ValidationError('This variant already exists.')
-        if VariantSuggestion.objects.filter(uses__card__in=cards, requires__template__in=templates).exists():
-            raise ValidationError('This variant suggestion is redundant given suggestion.')
+        q = VariantSuggestion.objects \
+            .annotate(
+                uses_count=models.Count('uses', distinct=True),
+                requires_count=models.Count('requires', distinct=True)) \
+            .filter(
+                uses_count=len(cards),
+                requires_count=len(templates))
+        for card in cards:
+            q = q.filter(uses__card=card)
+        for template in templates:
+            q = q.filter(requires__template=template)
+        if q.exists():
+            raise ValidationError('This variant suggestion is redundant. Another suggestion with the same cards and templates already exists')
 
 
 class CardUsedInVariantSuggestion(IngredientInCombination):

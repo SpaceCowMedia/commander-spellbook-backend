@@ -7,6 +7,7 @@ from ..abstract_test import AbstractModelTests
 from ..inspection import json_to_python_lambda
 from django.contrib.auth.models import User, Permission
 
+
 class VariantSuggestionsTests(AbstractModelTests):
     def suggestion_assertions(self, suggestion_result):
         vs = VariantSuggestion.objects.get(id=suggestion_result.id)
@@ -57,51 +58,51 @@ class VariantSuggestionsTests(AbstractModelTests):
 
     def test_new_suggestion(self):
         post_data = {
-                "uses": [
-                    {
-                        "card": "A card",
-                        "zoneLocations": "HBGEL",
-                        "battlefieldCardState": "bstate",
-                        "exileCardState": "estate",
-                        "libraryCardState": "lstate",
-                        "graveyardCardState": "gstate",
-                        "mustBeCommander": False
-                    },
-                    {
-                        "card": "Another card",
-                        "zoneLocations": "HC",
-                        "battlefieldCardState": "",
-                        "exileCardState": "",
-                        "libraryCardState": "",
-                        "graveyardCardState": "",
-                        "mustBeCommander": True
-                    },
-                ],
-                "requires": [
-                    {
-                        "template": "A template",
-                        "zoneLocations": "H",
-                        "battlefieldCardState": "",
-                        "exileCardState": "",
-                        "libraryCardState": "",
-                        "graveyardCardState": "",
-                        "mustBeCommander": False
-                    }
-                ],
-                "produces": [
-                    {
-                        "feature": "First produced feature"
-                    },
-                    {
-                        "feature": "Second produced feature"
-                    }
-                ],
-                "manaNeeded": "{1}{W}{U}{B}{R}{G}",
-                "otherPrerequisites": "other prereqs",
-                "description": "a description"
-            }
+            "uses": [
+                {
+                    "card": "A card",
+                    "zoneLocations": "HBGEL",
+                    "battlefieldCardState": "bstate",
+                    "exileCardState": "estate",
+                    "libraryCardState": "lstate",
+                    "graveyardCardState": "gstate",
+                    "mustBeCommander": False
+                },
+                {
+                    "card": "Another card",
+                    "zoneLocations": "HC",
+                    "battlefieldCardState": "",
+                    "exileCardState": "",
+                    "libraryCardState": "",
+                    "graveyardCardState": "",
+                    "mustBeCommander": True
+                },
+            ],
+            "requires": [
+                {
+                    "template": "A template",
+                    "zoneLocations": "H",
+                    "battlefieldCardState": "",
+                    "exileCardState": "",
+                    "libraryCardState": "",
+                    "graveyardCardState": "",
+                    "mustBeCommander": False
+                }
+            ],
+            "produces": [
+                {
+                    "feature": "First produced feature"
+                },
+                {
+                    "feature": "Second produced feature"
+                }
+            ],
+            "manaNeeded": "{1}{W}{U}{B}{R}{G}",
+            "otherPrerequisites": "other prereqs",
+            "description": "a description"
+        }
         response = self.client.post(
-            '/variant-suggestions/', 
+            '/variant-suggestions/',
             post_data,
             content_type='application/json',
             follow=True)
@@ -110,7 +111,7 @@ class VariantSuggestionsTests(AbstractModelTests):
         login = self.client.login(username='testuser', password='12345')
         self.assertTrue(login)
         response = self.client.post(
-            '/variant-suggestions/', 
+            '/variant-suggestions/',
             post_data,
             content_type='application/json',
             follow=True)
@@ -118,7 +119,7 @@ class VariantSuggestionsTests(AbstractModelTests):
         permissions = Permission.objects.filter(codename__in=['view_variantsuggestion', 'add_variantsuggestion', 'change_variantsuggestion'])
         self.user.user_permissions.add(*permissions)
         response = self.client.post(
-            '/variant-suggestions/', 
+            '/variant-suggestions/',
             post_data,
             content_type='application/json',
             follow=True)

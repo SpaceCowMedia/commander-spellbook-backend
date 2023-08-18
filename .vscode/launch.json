@@ -65,7 +65,8 @@
             "cwd": "${workspaceFolder}/backend",
             "program": "manage.py",
             "args": [
-                "test"
+                "test",
+                // "spellbook.tests.test_models"
             ],
             "preLaunchTask": "Apply migrations",
             "django": true,

@@ -53,7 +53,7 @@ class VariantSuggestionsTests(AbstractModelTests):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get('Content-Type'), 'application/json')
         result = json.loads(response.content, object_hook=json_to_python_lambda)
-        self.assertEqual(result.id, 1)
+        self.assertEqual(result.id, self.s1_id)
         self.suggestion_assertions(result)
 
     def test_new_suggestion(self):

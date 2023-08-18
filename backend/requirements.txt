@@ -6,9 +6,9 @@
 #
 asgiref==3.7.2
     # via django
-boto3==1.28.20
+boto3==1.28.30
     # via -r requirements.in
-botocore==1.31.20
+botocore==1.31.30
     # via
     #   boto3
     #   s3transfer
@@ -73,8 +73,6 @@ social-auth-app-django==5.2.0
 social-auth-core==4.4.2
     # via social-auth-app-django
 sqlparse==0.4.4
-    # via django
-tzdata==2023.3
     # via django
 urllib3==1.26.16
     # via

@@ -57,5 +57,15 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: status.podIP
+          - name: DISCORD_CLIENTID
+            valueFrom:
+              secretKeyRef:
+                name: api-secrets
+                key: discord-client-id
+          - name: DISCORD_CLIENTSECRET
+            valueFrom:
+              secretKeyRef:
+                name: api-secrets
+                key: discord-client-secret
       restartPolicy: Never
   backoffLimit: 0

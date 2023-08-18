@@ -20,7 +20,9 @@
     {% if request.user.is_authenticated %}
         <li><a href="{% url 'admin:index' %}">Editor Dashboard</a></li>
     {% else %}
-        <li><a href="{% url 'social:begin' 'discord' %}?next={{ request.path }}">Discord Login</a></li>
+        {% if 'discord' in backends.backends %}
+            <li><a href="{% url 'social:begin' 'discord' %}?next={{ request.path }}">Discord Login</a></li>
+        {% endif %}
         <li><a href="{% url 'admin:login' %}">Admin Login</a></li>
     {% endif %}
 {% endblock %}

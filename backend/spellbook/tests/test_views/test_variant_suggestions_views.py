@@ -126,7 +126,9 @@ class VariantSuggestionsTests(AbstractModelTests):
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.get('Content-Type'), 'application/json')
         result = json.loads(response.content, object_hook=json_to_python_lambda)
-        self.assertEqual(result.id, VariantSuggestion.objects.count())
+        self.assertGreater(result.id, 0)
+        self.assertEqual(result.status, 'N')
+        self.assertTrue(VariantSuggestion.objects.filter(id=result.id).exists())
         self.suggestion_assertions(result)
 
     def setUp(self) -> None:

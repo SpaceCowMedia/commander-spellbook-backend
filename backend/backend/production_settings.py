@@ -16,16 +16,22 @@ ALLOWED_HOSTS = [
     'localhost'
 ]
 
-POD_IP = os.getenv('THIS_POD_IP', None)
-if POD_IP is not None:
-    ALLOWED_HOSTS.append(POD_IP)
-
 CSRF_TRUSTED_ORIGINS = [
     'https://*.commanderspellbook.com',
     'http://localhost',
 ]
 
+SOCIAL_AUTH_ALLOWED_REDIRECT_HOSTS = ALLOWED_HOSTS
+SESSION_COOKIE_DOMAIN = ALLOWED_HOSTS
+
+# Reverse proxy settings
+USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# Pod settings
+POD_IP = os.getenv('THIS_POD_IP', None)
+if POD_IP is not None:
+    ALLOWED_HOSTS.append(POD_IP)
 
 # Production settings
 STATIC_ROOT = BASE_DIR / "staticfiles"

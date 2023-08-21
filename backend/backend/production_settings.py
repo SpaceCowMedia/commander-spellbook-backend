@@ -22,7 +22,6 @@ CSRF_TRUSTED_ORIGINS = [
 ]
 
 SOCIAL_AUTH_ALLOWED_REDIRECT_HOSTS = ALLOWED_HOSTS
-SESSION_COOKIE_DOMAIN = [domain.removeprefix('.') for domain in ALLOWED_HOSTS]
 
 # Reverse proxy settings
 USE_X_FORWARDED_HOST = True

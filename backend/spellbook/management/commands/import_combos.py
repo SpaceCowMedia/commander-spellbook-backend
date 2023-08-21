@@ -228,6 +228,13 @@ def find_combos() -> list[tuple[str, tuple[str, ...], frozenset[str], str, str, 
                         modification = re.sub(r'([^\w]|^)them([^\w]|$)', r'\1it\2', modification, flags=re.IGNORECASE)
                         modification = re.sub(r'([^\w]|^)(cage|kick) counters([^\w]|$)', r'\1a \2 counter\3', modification, flags=re.IGNORECASE)
                         exile_status += f'with {modification}'
+                if re.search(r'(?:[^\w]|^)encoded?(?:[^\w]|$)', after, flags=re.IGNORECASE):
+                    p_list.append(IngredientInCombination.ZoneLocation.EXILE)
+                    if re.search(r'(?:[^\w]|^)on(?:[^\w]|$)', after, flags=re.IGNORECASE):
+                        if exile_status != '':
+                            raise Exception('Exile status already set for {c} in combo {id}')
+                        after_by = re.split(r'(?:[^\w]|^)on(?:[^\w]|$)', after, maxsplit=2, flags=re.IGNORECASE)[1]
+                        exile_status = f'encoded on {after_by}'
                 if re.search(r'(?:[^\w]|^)foretold(?:[^\w]|$)', after, flags=re.IGNORECASE):
                     p_list.append(IngredientInCombination.ZoneLocation.EXILE)
                 if re.search(r'(?:[^\w]|^)library(?:[^\w]|$)', after, flags=re.IGNORECASE):

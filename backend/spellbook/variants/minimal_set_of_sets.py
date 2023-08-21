@@ -5,7 +5,7 @@ T = TypeVar('T')
 
 
 class MinimalSetOfSets(Generic[T]):
-    def __init__(self, sets: set[frozenset[T]] = None):
+    def __init__(self, sets: set[frozenset[T]] | None = None):
         self._sets = set[frozenset[T]]()
         if sets is not None:
             for s in sets:

@@ -37,7 +37,7 @@ class CardInComboAdminInline(IngredientAdmin):
     autocomplete_fields = ['card']
 
     def get_extra(self, request: HttpRequest, obj, **kwargs: Any) -> int:
-        if request.from_suggestion is not None:
+        if hasattr(request, 'from_suggestion') and request.from_suggestion is not None:
             return len(request.from_suggestion.uses_list)
         return super().get_extra(request, obj, **kwargs)
 
@@ -50,7 +50,7 @@ class TemplateInComboAdminInline(IngredientAdmin):
     autocomplete_fields = ['template']
 
     def get_extra(self, request: HttpRequest, obj, **kwargs: Any) -> int:
-        if request.from_suggestion is not None:
+        if hasattr(request, 'from_suggestion') and request.from_suggestion is not None:
             return len(request.from_suggestion.requires_list)
         return super().get_extra(request, obj, **kwargs)
 

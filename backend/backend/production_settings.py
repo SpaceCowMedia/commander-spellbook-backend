@@ -24,7 +24,6 @@ CSRF_TRUSTED_ORIGINS = [
 SOCIAL_AUTH_ALLOWED_REDIRECT_HOSTS = [
     'commanderspellbook.com',
     'localhost',
-    'backend.commanderspellbook.com',
     'dev.commanderspellbook.com'
 ]
 

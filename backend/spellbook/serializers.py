@@ -2,7 +2,7 @@ from django.db import transaction
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from rest_framework import serializers
-from spellbook.models import Card, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, CardInVariant, TemplateInVariant, VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, FeatureProducedInVariantSuggestion
+from spellbook.models import Card, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, CardInVariant, TemplateInVariant, VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, FeatureProducedInVariantSuggestion, IngredientInCombination
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -219,7 +219,24 @@ class VariantSerializer(serializers.ModelSerializer):
         ]
 
 
-class CardUsedInVariantSuggestionSerializer(serializers.ModelSerializer):
+class StringMultipleChoiceField(serializers.MultipleChoiceField):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.keys = {k: i for i, k in enumerate(self.choices.keys())}
+
+    def to_internal_value(self, data):
+        choices = {choice for choice in super().to_internal_value(data) if choice is not None}
+        return ''.join(sorted(choices, key=lambda x: self.keys[x]))
+
+    def to_representation(self, value):
+        return list(sorted(super().to_representation(value), key=lambda x: self.keys[x]))
+
+
+class IngredientInVariantSuggestionSerializer(serializers.ModelSerializer):
+    zone_locations = StringMultipleChoiceField(choices=IngredientInCombination.ZoneLocation.choices)
+
+
+class CardUsedInVariantSuggestionSerializer(IngredientInVariantSuggestionSerializer):
     class Meta:
         model = CardUsedInVariantSuggestion
         fields = [
@@ -233,7 +250,7 @@ class CardUsedInVariantSuggestionSerializer(serializers.ModelSerializer):
         ]
 
 
-class TemplateRequiredInVariantSuggestionSerializer(serializers.ModelSerializer):
+class TemplateRequiredInVariantSuggestionSerializer(IngredientInVariantSuggestionSerializer):
     class Meta:
         model = TemplateRequiredInVariantSuggestion
         fields = [

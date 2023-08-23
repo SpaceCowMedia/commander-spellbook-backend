@@ -21,12 +21,6 @@ CSRF_TRUSTED_ORIGINS = [
     'http://localhost',
 ]
 
-SOCIAL_AUTH_ALLOWED_REDIRECT_HOSTS = [
-    'commanderspellbook.com',
-    'localhost',
-    'dev.commanderspellbook.com'
-]
-
 # Reverse proxy settings
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')

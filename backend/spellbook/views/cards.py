@@ -1,7 +1,7 @@
 from rest_framework import viewsets
 from spellbook.models import Card
 from spellbook.serializers import CardDetailSerializer
-from .query_filters import CardQueryFilter
+from .query_filters import NameAutocompleteQueryFilter
 
 
 class CardViewSet(viewsets.ReadOnlyModelViewSet):
@@ -9,4 +9,4 @@ class CardViewSet(viewsets.ReadOnlyModelViewSet):
         'features',
     )
     serializer_class = CardDetailSerializer
-    filter_backends = [CardQueryFilter]
+    filter_backends = [NameAutocompleteQueryFilter]

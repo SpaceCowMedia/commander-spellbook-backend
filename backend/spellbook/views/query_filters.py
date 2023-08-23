@@ -1,4 +1,4 @@
-from django.db.models import QuerySet
+from django.db.models import QuerySet, Case, Value, When, Q
 from django.template import loader
 from rest_framework import filters
 from django.utils.encoding import force_str
@@ -61,8 +61,32 @@ class SpellbookQueryFilter(AbstractQueryFilter):
         return variants_query_parser(queryset, search_terms)
 
 
-class CardQueryFilter(AbstractQueryFilter):
+class AutocompleteQueryFilter(AbstractQueryFilter):
+    fields = []
+
     def query_parser(self, queryset, search_terms):
         if search_terms == '?':
             return queryset.order_by('?')
-        return queryset.filter(name__icontains=search_terms)
+        annotations = {}
+        filters = Q()
+        for field in self.fields:
+            filters |= Q(**{f'{field}__icontains': search_terms})
+            annotations[f'{field}_match_score'] = Case(
+                When(**{f'{field}__iexact': search_terms}, then=Value(0)),
+                When(**{f'{field}__istartswith': search_terms}, then=Value(1)),
+                default=Value(10),
+            )
+        order_by = [match_score for match_score in annotations.keys()] + [field for field in self.fields]
+        return queryset.filter(filters).annotate(**annotations).order_by(*order_by)
+
+
+class NameAutocompleteQueryFilter(AutocompleteQueryFilter):
+    fields = ['name']
+
+
+class NameAndDescriptionAutocompleteQueryFilter(AutocompleteQueryFilter):
+    fields = ['name', 'description']
+
+
+class NameAndScryfallAutocompleteQueryFilter(AutocompleteQueryFilter):
+    fields = ['name', 'scryfall_query']

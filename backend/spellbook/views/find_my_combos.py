@@ -1,5 +1,3 @@
-from collections import defaultdict
-from django.db.models import Q
 from rest_framework import parsers
 from rest_framework.decorators import api_view, parser_classes, permission_classes
 from rest_framework.response import Response

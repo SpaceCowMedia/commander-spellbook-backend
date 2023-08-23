@@ -1,8 +1,6 @@
 import json
 import logging
-from django.test import Client
-from spellbook.utils import launch_job_command
-from spellbook.models import Card, Template, Feature, Variant, CardInVariant, TemplateInVariant, VariantSuggestion
+from spellbook.models import VariantSuggestion
 from ..abstract_test import AbstractModelTests
 from ..inspection import json_to_python_lambda
 from django.contrib.auth.models import User, Permission
@@ -85,6 +83,16 @@ class VariantSuggestionsTests(AbstractModelTests):
                     "battlefieldCardState": "",
                     "exileCardState": "",
                     "libraryCardState": "",
+                    "graveyardCardState": "",
+                    "mustBeCommander": False
+                },
+                {
+                    "template": "Another template",
+                    "scryfall_query": "pow=2",
+                    "zoneLocations": list("GL"),
+                    "battlefieldCardState": "",
+                    "exileCardState": "",
+                    "libraryCardState": "in library",
                     "graveyardCardState": "",
                     "mustBeCommander": False
                 }

@@ -1,14 +1,11 @@
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.contrib.auth.models import User
-from sortedm2m.fields import SortedManyToManyField
-from .mixins import ScryfallLinkMixin
 from .card import Card
 from .template import Template
-from .feature import Feature
 from .variant import Variant
 from .ingredient import IngredientInCombination
-from .validators import TEXT_VALIDATORS, MANA_VALIDATOR, FIRST_CAPITAL_LETTER_VALIDATOR, ORDINARY_CHARACTERS_VALIDATOR, SCRYFALL_QUERY_HELP, SCRYFALL_QUERY_VALIDATOR, FIRST_CAPITAL_LETTER_VALIDATOR
+from .validators import TEXT_VALIDATORS, MANA_VALIDATOR, FIRST_CAPITAL_LETTER_VALIDATOR, ORDINARY_CHARACTERS_VALIDATOR, SCRYFALL_QUERY_HELP, SCRYFALL_QUERY_VALIDATOR
 from .utils import recipe, id_from_cards_and_templates_ids
 
 

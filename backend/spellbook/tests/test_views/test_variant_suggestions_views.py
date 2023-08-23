@@ -61,7 +61,7 @@ class VariantSuggestionsTests(AbstractModelTests):
             "uses": [
                 {
                     "card": "A card",
-                    "zoneLocations": "HBGEL",
+                    "zoneLocations": list("HBGEL"),
                     "battlefieldCardState": "bstate",
                     "exileCardState": "estate",
                     "libraryCardState": "lstate",
@@ -70,7 +70,7 @@ class VariantSuggestionsTests(AbstractModelTests):
                 },
                 {
                     "card": "Another card",
-                    "zoneLocations": "HC",
+                    "zoneLocations": list("HC"),
                     "battlefieldCardState": "",
                     "exileCardState": "",
                     "libraryCardState": "",
@@ -81,7 +81,7 @@ class VariantSuggestionsTests(AbstractModelTests):
             "requires": [
                 {
                     "template": "A template",
-                    "zoneLocations": "H",
+                    "zoneLocations": list("H"),
                     "battlefieldCardState": "",
                     "exileCardState": "",
                     "libraryCardState": "",

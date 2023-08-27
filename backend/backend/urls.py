@@ -26,6 +26,6 @@ admin.site.index_title = 'Spellbook Admin Index'
 urlpatterns = [
     path('', include('spellbook.urls')),
     path('', include('social_django.urls', namespace='social')),
-    path('api-auth/', include('rest_framework.urls', namespace='rest_framework')),
+    path('auth/', include('rest_framework.urls', namespace='rest_framework')),
     path('admin/', admin.site.urls),
 ]

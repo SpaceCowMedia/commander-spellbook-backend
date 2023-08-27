@@ -2,6 +2,7 @@ import os
 import sys
 from .settings import *  # noqa: F403, F401
 from .settings import BASE_DIR, REST_FRAMEWORK
+from urllib.parse import urlparse
 
 TESTING = sys.argv[1:2] == ['test']
 
@@ -11,15 +12,17 @@ SECRET_KEY = os.environ['SECRET_KEY'] if not TESTING else "test"
 DEBUG = False
 
 # Security settings
-ALLOWED_HOSTS = [
-    '.commanderspellbook.com',
-    'localhost'
-]
 
 CSRF_TRUSTED_ORIGINS = [
     'https://*.commanderspellbook.com',
     'http://localhost',
+    'http://127.0.0.1',
 ]
+
+ALLOWED_HOSTS = [hostname.removeprefix('*') for hostname in (urlparse(origin).hostname for origin in CSRF_TRUSTED_ORIGINS) if hostname is not None]
+
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = True
 
 # Reverse proxy settings
 USE_X_FORWARDED_HOST = True
@@ -33,8 +36,6 @@ if POD_IP is not None:
 # Production settings
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATIC_BULK_FOLDER = STATIC_ROOT / 'bulk'
-CSRF_COOKIE_SECURE = True
-SESSION_COOKIE_SECURE = True
 CONN_MAX_AGE = 60 * 60
 
 # Database

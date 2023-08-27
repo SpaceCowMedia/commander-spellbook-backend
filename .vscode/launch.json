@@ -31,6 +31,33 @@
             }
         },
         {
+            "name": "Start Server (Production)",
+            "type": "python",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/backend",
+            "program": "manage.py",
+            "args": [
+                "runserver",
+                "8000",
+                "--settings=backend.production_settings"
+            ],
+            "envFile": "${workspaceFolder}/backend/.env",
+            "preLaunchTask": "Clean pending jobs",
+            "django": true,
+            "justMyCode": false,
+            "presentation": {
+                "hidden": false,
+                "group": "Django",
+                "order": 1
+            },
+            "serverReadyAction" : {
+                "action": "openExternally",
+                "pattern": "Starting development server at (https?://[a-z0-9\\.:]+/?)",
+                "uriFormat": "%s",
+                "killOnServerStop": true
+            }
+        },
+        {
             "name": "Profile Server",
             "type": "python",
             "request": "launch",

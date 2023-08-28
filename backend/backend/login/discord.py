@@ -40,8 +40,8 @@ class DiscordOAuth2(BaseDiscordOAuth2):
 
     def pipeline(self, pipeline, pipeline_index=0, *args, **kwargs):
         injected_pipeline = list(pipeline)
-        injected_pipeline.insert(3, 'backend.social.discord.is_member_of_guild')
-        injected_pipeline.append('backend.social.discord.set_default_permissions')
+        injected_pipeline.insert(3, 'backend.login.discord.is_member_of_guild')
+        injected_pipeline.append('backend.login.discord.set_default_permissions')
         create_user_index = injected_pipeline.index('social_core.pipeline.user.create_user')
         injected_pipeline.insert(create_user_index - 1, 'social_core.pipeline.social_auth.associate_by_email')
         return super().pipeline(tuple(injected_pipeline), pipeline_index, *args, **kwargs)

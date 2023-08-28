@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/4.0/ref/settings/
 """
 import os
 from pathlib import Path
+from datetime import timedelta
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -52,6 +53,8 @@ INSTALLED_APPS = [
     'django.contrib.admin',
     'sortedm2m',
     'rest_framework',
+    'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
     'django_filters',
 ]
 
@@ -130,12 +133,24 @@ SOCIAL_AUTH_DISCORD_KEY = os.getenv('DISCORD_CLIENTID', None)
 SOCIAL_AUTH_DISCORD_SECRET = os.getenv('DISCORD_CLIENTSECRET', None)
 
 SOCIAL_AUTH_ADMIN_USER_SEARCH_FIELDS = ['username', 'first_name', 'last_name', 'email']
+SOCIAL_AUTH_STRATEGY = 'backend.login.jwt.SimpleJwtDjangoStrategy'
 SOCIAL_AUTH_LOGIN_REDIRECT_URL = '/'
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
 ] + (
-    ['backend.social.discord.DiscordOAuth2'] if SOCIAL_AUTH_DISCORD_KEY else []
+    ['backend.login.discord.DiscordOAuth2'] if SOCIAL_AUTH_DISCORD_KEY else []
 )
+
+# Simple JWT
+# https://django-rest-framework-simplejwt.readthedocs.io/en/latest/settings.html
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=5),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'UPDATE_LAST_LOGIN': True,
+    'ISSUER': 'spellbook',
+    'LEEWAY': timedelta(seconds=5),
+    'TOKEN_OBTAIN_SERIALIZER': 'backend.login.jwt.TokenObtainPairSerializer',
+}
 
 # Internationalization
 # https://docs.djangoproject.com/en/4.0/topics/i18n/
@@ -168,6 +183,11 @@ REST_FRAMEWORK = {
         'djangorestframework_camel_case.parser.CamelCaseFormParser',
         'djangorestframework_camel_case.parser.CamelCaseMultiPartParser',
         'djangorestframework_camel_case.parser.CamelCaseJSONParser',
+    ],
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.BasicAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
     # Use Django's standard `django.contrib.auth` permissions,
     # or allow read-only access for unauthenticated users.

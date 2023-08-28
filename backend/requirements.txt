@@ -29,14 +29,19 @@ django==4.2.4
     #   -r requirements.in
     #   django-filter
     #   djangorestframework
+    #   djangorestframework-simplejwt
     #   social-auth-app-django
 django-filter==23.2
     # via -r requirements.in
 django-sortedm2m==3.1.1
     # via -r requirements.in
 djangorestframework==3.14.0
-    # via -r requirements.in
+    # via
+    #   -r requirements.in
+    #   djangorestframework-simplejwt
 djangorestframework-camel-case==1.4.2
+    # via -r requirements.in
+djangorestframework-simplejwt==5.3.0
     # via -r requirements.in
 idna==3.4
     # via requests
@@ -51,7 +56,9 @@ oauthlib==3.2.2
 pycparser==2.21
     # via cffi
 pyjwt==2.8.0
-    # via social-auth-core
+    # via
+    #   djangorestframework-simplejwt
+    #   social-auth-core
 python-dateutil==2.8.2
     # via botocore
 python3-openid==3.2.0
@@ -73,6 +80,8 @@ social-auth-app-django==5.2.0
 social-auth-core==4.4.2
     # via social-auth-app-django
 sqlparse==0.4.4
+    # via django
+tzdata==2023.3
     # via django
 urllib3==1.26.16
     # via

@@ -134,6 +134,7 @@ SOCIAL_AUTH_DISCORD_SECRET = os.getenv('DISCORD_CLIENTSECRET', None)
 
 SOCIAL_AUTH_ADMIN_USER_SEARCH_FIELDS = ['username', 'first_name', 'last_name', 'email']
 SOCIAL_AUTH_STRATEGY = 'backend.login.jwt.SimpleJwtDjangoStrategy'
+SOCIAL_AUTH_FIELDS_STORED_IN_SESSION = ['code']
 SOCIAL_AUTH_LOGIN_REDIRECT_URL = '/'
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',

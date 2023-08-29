@@ -25,6 +25,11 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^https://\w+\.commanderspellbook\.com$",
 ]
 
+SOCIAL_AUTH_ALLOWED_REDIRECT_HOSTS = [
+    'commanderspellbook.com',
+    'dev.commanderspellbook.com',
+]
+
 CSRF_COOKIE_SECURE = True
 SESSION_COOKIE_SECURE = True
 

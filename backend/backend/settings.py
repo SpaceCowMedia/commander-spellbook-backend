@@ -41,6 +41,10 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
     r'https?://localhost:\d+',
     r'https?://127.0.0.1:\d+',
 ]
+SOCIAL_AUTH_ALLOWED_REDIRECT_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+]
 
 # Application definition
 

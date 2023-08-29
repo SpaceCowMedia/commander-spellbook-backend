@@ -21,6 +21,10 @@ CSRF_TRUSTED_ORIGINS = [
 
 ALLOWED_HOSTS = [hostname.removeprefix('*') for hostname in (urlparse(origin).hostname for origin in CSRF_TRUSTED_ORIGINS) if hostname is not None]
 
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https://\w+\.commanderspellbook\.com$",
+]
+
 CSRF_COOKIE_SECURE = True
 SESSION_COOKIE_SECURE = True
 

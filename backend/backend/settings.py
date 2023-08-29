@@ -37,6 +37,10 @@ CSRF_TRUSTED_ORIGINS = [
     'http://localhost',
     'https://*.ngrok.io',
 ]
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r'https?://localhost:\d+',
+    r'https?://127.0.0.1:\d+',
+]
 
 # Application definition
 
@@ -46,6 +50,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'corsheaders',
     'social_django',
     'backend',
     'spellbook',
@@ -59,6 +64,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',

@@ -114,7 +114,7 @@ class VariantSuggestionsTests(AbstractModelTests):
             post_data,
             content_type='application/json',
             follow=True)
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 401)
         self.user = User.objects.create_user(username='testuser', password='12345')
         login = self.client.login(username='testuser', password='12345')
         self.assertTrue(login)

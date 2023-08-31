@@ -50,23 +50,19 @@ class TokenObtainPairSerializer(BaseTokenObtainPairSerializer):
 
 class SimpleJwtDjangoStrategy(DjangoStrategy):
     session_key = 'code'
-
-    def __init__(self, storage, request=None, tpl=None):
-        super().__init__(storage, request, tpl)
-        self.session_set(self.session_key, self.session_key in self.request_data())
+    login_code = None
 
     def authenticate(self, backend, *args, **kwargs):
         user = super().authenticate(backend, *args, **kwargs)
-        if user is not None and self.session_get(self.session_key):
-            self.session_set(self.session_key, str(LoginCode.for_user(user)))
+        if user is not None and self.session_pop(self.session_key) is not None:
+            self.login_code = str(LoginCode.for_user(user))
         return user
 
     def redirect(self, url):
-        login_code = self.session_pop(self.session_key)
-        if login_code:
+        if self.login_code:
             scheme, netloc, path, query_string, fragment = urlsplit(url)
             query_params = parse_qsl(query_string)
-            query_params.append(('code', login_code))
+            query_params.append(('code', self.login_code))
             query_string = urlencode(query_params)
             url = urlunsplit((scheme, netloc, path, query_string, fragment))
         return super().redirect(url)

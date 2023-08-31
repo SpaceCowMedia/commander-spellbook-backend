@@ -40,12 +40,28 @@
             ],
         },
         {
-            "label": "Profile Prelaunch",
+            "label": "Flush expired tokens",
+            "type": "shell",
+            "command": "python backend/manage.py flushexpiredtokens",
+            "group": "none",
+            "dependsOn": [
+                "Apply migrations"
+            ],
+        },
+        {
+            "label": "Prelaunch",
             "group": "none",
             "dependsOn": [
                 "Apply migrations",
-                "Create temporary directories",
-                "Clean pending jobs"
+                "Clean pending jobs",
+                "Flush expired tokens"
+            ],
+        },
+        {
+            "label": "Profile Prelaunch",
+            "group": "none",
+            "dependsOn": [
+                "Prelaunch",
             ],
         }
     ]

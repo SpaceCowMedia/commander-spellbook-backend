@@ -15,7 +15,7 @@
                 "8000"
             ],
             "envFile": "${workspaceFolder}/backend/.env",
-            "preLaunchTask": "Clean pending jobs",
+            "preLaunchTask": "Prelaunch",
             "django": true,
             "justMyCode": false,
             "presentation": {
@@ -42,7 +42,7 @@
                 "--settings=backend.production_settings"
             ],
             "envFile": "${workspaceFolder}/backend/.env",
-            "preLaunchTask": "Clean pending jobs",
+            "preLaunchTask": "Prelaunch",
             "django": true,
             "justMyCode": false,
             "presentation": {
@@ -113,7 +113,7 @@
             "args": [
                 "generate_variants"
             ],
-            "preLaunchTask": "Clean pending jobs",
+            "preLaunchTask": "Prelaunch",
             "django": true,
             "justMyCode": true,
             "presentation": {
@@ -131,7 +131,7 @@
             "args": [
                 "-o", "${workspaceFolder}/backend/temp/profiles/generate_variants.prof", "manage.py", "generate_variants"
             ],
-            "preLaunchTask": "Clean pending jobs",
+            "preLaunchTask": "Profile Prelaunch",
             "django": true,
             "justMyCode": true,
             "presentation": {
@@ -149,7 +149,7 @@
             "args": [
                 "export_variants"
             ],
-            "preLaunchTask": "Clean pending jobs",
+            "preLaunchTask": "Prelaunch",
             "django": true,
             "justMyCode": true,
             "presentation": {
@@ -167,7 +167,7 @@
             "args": [
                 "import_combos"
             ],
-            "preLaunchTask": "Clean pending jobs",
+            "preLaunchTask": "Prelaunch",
             "django": true,
             "justMyCode": true,
             "presentation": {
@@ -185,7 +185,7 @@
             "args": [
                 "update_cards"
             ],
-            "preLaunchTask": "Clean pending jobs",
+            "preLaunchTask": "Prelaunch",
             "django": true,
             "justMyCode": true,
             "presentation": {

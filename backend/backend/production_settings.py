@@ -17,17 +17,20 @@ CSRF_TRUSTED_ORIGINS = [
     'https://*.commanderspellbook.com',
     'http://localhost',
     'http://127.0.0.1',
+    'http://localhost:3000',
 ]
 
 ALLOWED_HOSTS = [hostname.removeprefix('*') for hostname in (urlparse(origin).hostname for origin in CSRF_TRUSTED_ORIGINS) if hostname is not None]
 
 CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^https://\w+\.commanderspellbook\.com$",
+    r'https?://localhost:\d+',
 ]
 
 SOCIAL_AUTH_ALLOWED_REDIRECT_HOSTS = [
     'commanderspellbook.com',
     'dev.commanderspellbook.com',
+    'localhost:3000',
 ]
 
 CSRF_COOKIE_SECURE = True

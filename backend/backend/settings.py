@@ -35,6 +35,7 @@ VERSION = os.getenv('VERSION', 'dev')
 ALLOWED_HOSTS = ['*']
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost',
+    'http://localhost:3000',
     'https://*.ngrok.io',
 ]
 CORS_ALLOWED_ORIGIN_REGEXES = [
@@ -43,6 +44,7 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
 ]
 SOCIAL_AUTH_ALLOWED_REDIRECT_HOSTS = [
     'localhost',
+    'localhost:3000',
     '127.0.0.1',
 ]
 

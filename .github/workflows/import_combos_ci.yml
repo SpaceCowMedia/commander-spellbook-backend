@@ -6,9 +6,6 @@ on:
       - "*"
     tags:
       - "*"
-    paths:
-      - "backend/spellbook/management/commands/import_combos.py"
-      - ".github/workflows/import_combos_ci.yml"
   workflow_dispatch:
   schedule:
     - cron: "0 0 * * *"

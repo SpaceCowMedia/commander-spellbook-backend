@@ -1,3 +1,4 @@
+import logging
 from django.utils import timezone
 from django.db import models, transaction, OperationalError
 from django.contrib.auth.models import User
@@ -45,7 +46,8 @@ class Job(models.Model):
                     name=name,
                     expected_termination=timezone.now() + duration,
                     started_by=user)
-        except OperationalError:
+        except OperationalError as e:
+            logging.exception(e, stack_info=True)
             return None
 
     class Meta:

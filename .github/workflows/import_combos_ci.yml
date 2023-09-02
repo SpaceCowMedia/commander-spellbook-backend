@@ -32,6 +32,9 @@ jobs:
       - name: Install dependencies 🧶
         run: pip install -r requirements.txt
         working-directory: backend
+      - name: Run migrations 🚢
+        run: python manage.py migrate
+        working-directory: backend
       - name: Import combos 🧙
         run: python manage.py import_combos
         working-directory: backend

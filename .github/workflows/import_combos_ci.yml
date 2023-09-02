@@ -1,0 +1,38 @@
+name: Import Combos CI
+
+on:
+  push:
+    branches:
+      - "*"
+    tags:
+      - "*"
+    paths:
+      - "backend/spellbook/management/commands/import_combos.py"
+      - ".github/workflows/import_combos.yml"
+  workflow_dispatch:
+  schedule:
+    - cron: "0 0 * * *"
+
+
+defaults:
+  run:
+    shell: bash
+
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      SECRET_KEY: not-used
+    steps:
+      - id: semver
+        name: Checkout 🛎️
+        uses: EasyDesk/action-semver-checkout@v1
+      - name: Setup Python 🐍
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Install dependencies 🧶
+        run: pip install -r requirements.txt
+      - name: Import combos 🧙
+        run: python manage.py import_combos

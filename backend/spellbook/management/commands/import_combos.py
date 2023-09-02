@@ -92,14 +92,15 @@ def sorted_prereq_search_terms(prereq: str, card_set: set[str] | frozenset[str])
 
 def find_card_in_prereq(card_name: str, prerequisites: str) -> list[tuple[str, str, str, str, int]]:  # sentence, punctuation, following
     regex = r'(.*?)' + re.escape(card_name) + r'(.*?)(\.|[^\w](?:is paired|paired with|soulbonded with|soulbound with|named by|does|naming|attached|increase|lowest|toughness|on it|from|summoning sickness|selected the)[^\w]|$)'
-    negated_regex = r'(?:[^\w]|^)(?:with|if|when|who|named by|does|has|naming|power|attached|on|from|opponent|increase|remove|way|able|enough|sacrificed|storm|have (?:not )?cast)(?:[^\w]|$)'
+    negated_regex = r'(?:[^\w]|^)(?:with|if|when|who|named by|does|has|naming|power|attached|from|opponent|increase|remove|way|able|enough|sacrificed|storm|have (?:not )?cast|number of cards|\d+ counters|at least)(?:[^\w]|$)'
     matches = []
     for sentence_match in re.finditer(r'([^\.]*)\.', prerequisites):
         sentence_start = sentence_match.start(1)
         sentence = sentence_match[1].strip() + '.'
         for item in re.finditer(regex, sentence, flags=re.IGNORECASE):
             following = sentence[item.end():].partition('.')[0]
-            if not re.search(negated_regex, item[1].strip(), flags=re.IGNORECASE) and item[3].strip(' .,;').lower() not in {'who', 'named by', 'does', 'has', 'naming', 'power', 'attached', 'from'}:
+            item_without_card = re.sub(re.escape(card_name), '~', item[0].strip(), flags=re.IGNORECASE)
+            if not re.search(negated_regex, item_without_card, flags=re.IGNORECASE) and item[3].strip(' .,;').lower() not in {'who', 'named by', 'does', 'has', 'naming', 'power', 'attached', 'from'}:
                 matches.append((item[1].strip(), item[2].strip(), item[3].strip(), following, sentence_start + item.start(0)))
     return matches
 

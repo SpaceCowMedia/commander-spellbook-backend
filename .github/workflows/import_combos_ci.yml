@@ -34,5 +34,7 @@ jobs:
           python-version: '3.11'
       - name: Install dependencies 🧶
         run: pip install -r requirements.txt
+        working-directory: backend
       - name: Import combos 🧙
         run: python manage.py import_combos
+        working-directory: backend

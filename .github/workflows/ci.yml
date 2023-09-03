@@ -35,6 +35,7 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
+          cache: pip
       - name: Install dependencies 🧶
         run: pip install -r requirements.txt
         working-directory: backend
@@ -77,6 +78,7 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
+          cache: pip
       - name: Install Linter 🧴
         run: pip install flake8
       - name: Lint 🧹
@@ -107,6 +109,7 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
+          cache: pip
       - name: Install dependencies 🧶
         run: pip install -r requirements.txt
         working-directory: backend

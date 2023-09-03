@@ -1,6 +1,5 @@
 from django.contrib.auth import get_user_model
 from rest_framework import permissions, viewsets, serializers, mixins
-from rest_framework.settings import api_settings
 
 
 class IsSelf(permissions.BasePermission):
@@ -25,11 +24,11 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class UserViewSet(
-    mixins.RetrieveModelMixin,
-    mixins.UpdateModelMixin,
-    mixins.DestroyModelMixin,
-    mixins.ListModelMixin,
-    viewsets.GenericViewSet):
+        mixins.RetrieveModelMixin,
+        mixins.UpdateModelMixin,
+        mixins.DestroyModelMixin,
+        mixins.ListModelMixin,
+        viewsets.GenericViewSet):
     serializer_class = UserSerializer
     permission_classes = [IsSelf]
 

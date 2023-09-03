@@ -20,6 +20,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from common.hybridrouter import HybridRouter
 from spellbook.urls import router as spellbook_router
 from website.urls import router as website_router
+from . import views
 
 admin.site.site_header = f'Spellbook Admin Panel {settings.VERSION}'
 admin.site.site_title = f'Spellbook Admin {settings.VERSION}'
@@ -28,6 +29,7 @@ admin.site.index_title = 'Spellbook Admin Index'
 router = HybridRouter()
 router.register_router(spellbook_router)
 router.register_router(website_router)
+router.register(r'users', views.UserViewSet, basename='users')
 
 # Wire up our API using automatic URL routing.
 # Additionally, we include login URLs for the browsable API.

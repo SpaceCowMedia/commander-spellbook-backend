@@ -5,24 +5,8 @@ import logging
 from django.utils import timezone
 from django.core.management import call_command
 from django.conf import settings
+from common.stream import StreamToLogger
 from spellbook.models import Job
-
-
-class StreamToLogger(object):
-    """
-    Fake file-like stream object that redirects writes to a logger instance.
-    """
-    def __init__(self, logger, level):
-        self.logger = logger
-        self.level = level
-        self.linebuf = ''
-
-    def write(self, buf):
-        for line in buf.rstrip().splitlines():
-            self.logger.log(self.level, line.rstrip())
-
-    def flush(self):
-        pass
 
 
 def launch_command_async(command: str, args: list[str] = []):

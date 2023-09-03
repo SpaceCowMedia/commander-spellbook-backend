@@ -2,7 +2,7 @@ import json
 from django.test import Client
 from spellbook.models import Card, Feature, Template, Combo, CardInCombo, TemplateInCombo
 from ..abstract_test import AbstractModelTests
-from ..inspection import json_to_python_lambda
+from common.inspection import json_to_python_lambda
 
 
 class ComboViewsTests(AbstractModelTests):

@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand
-from website.models import WebsiteProperty, PROPERTY_KEYS
+from ...models import WebsiteProperty, PROPERTY_KEYS
 
 
 class Command(BaseCommand):

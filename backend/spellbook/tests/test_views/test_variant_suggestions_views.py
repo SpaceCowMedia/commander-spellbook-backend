@@ -2,7 +2,7 @@ import json
 import logging
 from spellbook.models import VariantSuggestion
 from ..abstract_test import AbstractModelTests
-from ..inspection import json_to_python_lambda
+from common.inspection import json_to_python_lambda
 from django.contrib.auth.models import User, Permission
 
 

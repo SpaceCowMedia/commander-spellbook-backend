@@ -5,7 +5,7 @@ from django.test import Client
 from spellbook.utils import launch_job_command
 from spellbook.models import Card, Variant, merge_identities
 from ..abstract_test import AbstractModelTests
-from ..inspection import json_to_python_lambda
+from common.inspection import json_to_python_lambda
 
 
 class FindMyCombosViewTests(AbstractModelTests):

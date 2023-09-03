@@ -1,7 +1,7 @@
 from urllib.parse import quote_plus
 from django.utils import timezone
 from django.contrib.auth.models import User
-from .inspection import count_methods
+from common.inspection import count_methods
 from .abstract_test import AbstractModelTests
 from spellbook.models import Card, Feature, Template, Combo, Job, IngredientInCombination, Variant, VariantSuggestion
 from spellbook.models.scryfall import SCRYFALL_API_ROOT, SCRYFALL_WEBSITE_CARD_SEARCH

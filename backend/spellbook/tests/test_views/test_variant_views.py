@@ -4,7 +4,7 @@ from django.test import Client
 from spellbook.utils import launch_job_command
 from spellbook.models import Card, Template, Feature, Variant, CardInVariant, TemplateInVariant
 from ..abstract_test import AbstractModelTests
-from ..inspection import json_to_python_lambda
+from common.inspection import json_to_python_lambda
 
 
 class VariantViewsTests(AbstractModelTests):

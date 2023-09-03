@@ -38,3 +38,4 @@ jobs:
       - name: Import combos 🧙
         run: python manage.py import_combos
         working-directory: backend
+        continue-on-error: true

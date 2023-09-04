@@ -105,7 +105,8 @@ def find_card_in_prereq(card_name: str, prerequisites: str) -> list[tuple[str, s
     return matches
 
 
-def fix_oracle_symbols(text: str) -> str:
+def sanitize_string(text: str) -> str:
+    text = re.sub(r'\xa0', ' ', text)
     text = re.sub(r'\{(W)\/(R|G)\}', r'{\2/\1}', text, flags=re.IGNORECASE)
     text = re.sub(r'\{(U)\/(W|G)\}', r'{\2/\1}', text, flags=re.IGNORECASE)
     text = re.sub(r'\{(B)\/(W|U)\}', r'{\2/\1}', text, flags=re.IGNORECASE)
@@ -147,11 +148,11 @@ def find_combos() -> list[tuple[str, tuple[str, ...], frozenset[str], str, str, 
         features = frozenset(combo_to_produces[card_set])
         prerequisites = combos_to_prerequisites[card_set]
         description = combos_to_description[card_set]
-        prerequisites = fix_oracle_symbols(prerequisites.strip())
+        prerequisites = sanitize_string(prerequisites.strip())
         if not prerequisites.endswith('.'):
             prerequisites += '.'
-        description = fix_oracle_symbols(description)
-        features = frozenset(fix_oracle_symbols(feature) for feature in features)
+        description = sanitize_string(description)
+        features = frozenset(sanitize_string(feature) for feature in features)
         mana_regex = r'^(.*?)\s*((?:\{' + MANA_SYMBOL + r'\})+) available([^\.]*)\.(.*)$'
         mana_match = re.match(mana_regex, prerequisites, flags=re.IGNORECASE)
         mana = ''

@@ -18,7 +18,7 @@
 {% block userlinks %}
     {{ block.super }}
     {% if request.user.is_authenticated %}
-        <li><a href="{% url 'admin:index' %}">Editor Dashboard</a></li>
+        <li><a href="{% url 'admin:index' %}">Admin Dashboard</a></li>
     {% else %}
         {% if 'discord' in backends.backends %}
             <li><a href="{% url 'social:begin' 'discord' %}?next={{ request.path }}">Discord Login</a></li>

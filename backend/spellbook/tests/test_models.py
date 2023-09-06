@@ -164,7 +164,8 @@ class JobTests(AbstractModelTests):
                 name='a job name',
                 status=Job.Status.SUCCESS,
                 expected_termination=timezone.now() + timezone.timedelta(minutes=10),
-                termination=timezone.now() + timezone.timedelta(minutes=5)),
+                termination=timezone.now() + timezone.timedelta(minutes=5)
+            ),
         ])
         j = Job.start('a job name')
         self.assertIsNotNone(j)
@@ -174,8 +175,45 @@ class JobTests(AbstractModelTests):
         self.assertIsNotNone(j.expected_termination)
         self.assertGreater(j.expected_termination, timezone.now() + timezone.timedelta(minutes=5))
 
+    def test_get_or_start(self):
+        job = Job.objects.create(
+            name='a job name',
+            status=Job.Status.SUCCESS,
+            expected_termination=timezone.now() + timezone.timedelta(minutes=10),
+            termination=timezone.now() + timezone.timedelta(minutes=5)
+        )
+        j = Job.get_or_start('a job name', id=-1, duration=timezone.timedelta(minutes=5))
+        self.assertIsNone(j)
+        j = Job.get_or_start('a job name', id=job.id, duration=timezone.timedelta(minutes=5))
+        self.assertEqual(j, job)
+        j = Job.get_or_start('a job name', duration=timezone.timedelta(minutes=5))
+        self.assertIsNotNone(j)
+        self.assertEqual(j.name, 'a job name')
+        self.assertIsNone(j.started_by)
+        self.assertEqual(j.status, Job.Status.PENDING)
+        self.assertIsNotNone(j.expected_termination)
+
+    def test_get_or_start_without_duration(self):
+        job = Job.objects.create(
+            name='a job name',
+            status=Job.Status.SUCCESS,
+            expected_termination=timezone.now() + timezone.timedelta(minutes=10),
+            termination=timezone.now() + timezone.timedelta(minutes=5)
+        )
+        j = Job.get_or_start('a job name', id=-1)
+        self.assertIsNone(j)
+        j = Job.get_or_start('a job name', id=job.id)
+        self.assertEqual(j, job)
+        j = Job.get_or_start('a job name')
+        self.assertIsNotNone(j)
+        self.assertEqual(j.name, 'a job name')
+        self.assertIsNone(j.started_by)
+        self.assertEqual(j.status, Job.Status.PENDING)
+        self.assertIsNotNone(j.expected_termination)
+        self.assertGreater(j.expected_termination, timezone.now() + timezone.timedelta(minutes=5))
+
     def test_method_count(self):
-        self.assertEqual(count_methods(Job), 2)
+        self.assertEqual(count_methods(Job), 3)
 
 
 class VariantTests(AbstractModelTests):

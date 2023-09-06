@@ -19,7 +19,7 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        job = Job.get_or_start('generate_variants', options['job_id'])        
+        job = Job.get_or_start('generate_variants', options['job_id'])
         if job is None and options['job_id'] is not None:
             raise CommandError('Job with id %s does not exist' % options['job_id'])
         elif job is None:

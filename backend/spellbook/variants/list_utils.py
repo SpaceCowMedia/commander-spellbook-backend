@@ -1,6 +1,6 @@
-from typing import TypeVar, Iterable, Set
+from typing import TypeVar, Iterable
 
-T = TypeVar('T', int, str, float, complex)
+T = TypeVar('T')
 
 
 def includes_any(v: frozenset[T], others: Iterable[frozenset[T]]) -> bool:

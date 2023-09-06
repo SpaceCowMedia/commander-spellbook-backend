@@ -42,12 +42,11 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        job = None
-        if options['job_id']:
-            try:
-                job = Job.objects.get(id=options['job_id'])
-            except Job.DoesNotExist:
-                raise CommandError('Job with id %s does not exist' % options['job_id'])
+        job = Job.get_or_start('export_variants', options['job_id'])
+        if job is None and options['job_id'] is not None:
+            raise CommandError('Job with id %s does not exist' % options['job_id'])
+        elif job is None:
+            raise CommandError('Job with name export_variants already running')
         try:
             self.stdout.write('Fetching variants from db...')
             variants_source = Variant.objects \
@@ -74,19 +73,17 @@ class Command(BaseCommand):
             else:
                 raise Exception('No file specified')
 
-            if job is not None:
-                job.termination = timezone.now()
-                job.status = Job.Status.SUCCESS
-                v = result['variants']
-                job.message = f'Successfully exported {len(v)} variants'
-                job.save()
-                if job.started_by is not None:
-                    LogEntry(
-                        user=job.started_by,
-                        content_type=ContentType.objects.get_for_model(Variant),
-                        object_repr='Exported Variants',
-                        action_flag=CHANGE
-                    ).save()
+            job.termination = timezone.now()
+            job.status = Job.Status.SUCCESS
+            job.message = 'Successfully exported %i variants' % len(result['variants'])
+            job.save()
+            if job.started_by is not None:
+                LogEntry(
+                    user=job.started_by,
+                    content_type=ContentType.objects.get_for_model(Variant),
+                    object_repr='Exported Variants',
+                    action_flag=CHANGE
+                ).save()
         except Exception as e:
             self.stdout.write(self.style.ERROR(traceback.format_exc()))
             message = f'Failed to export variants: {e}'

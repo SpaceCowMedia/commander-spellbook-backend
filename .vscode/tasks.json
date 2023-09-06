@@ -40,9 +40,9 @@
             ],
         },
         {
-            "label": "Flush expired tokens",
+            "label": "Flush",
             "type": "shell",
-            "command": "python backend/manage.py flushexpiredtokens",
+            "command": "python backend/manage.py flush",
             "group": "none",
             "dependsOn": [
                 "Apply migrations"
@@ -54,7 +54,7 @@
             "dependsOn": [
                 "Apply migrations",
                 "Clean pending jobs",
-                "Flush expired tokens"
+                "Flush"
             ],
         },
         {

@@ -50,6 +50,15 @@ class Job(models.Model):
             logging.exception(e, stack_info=True)
             return None
 
+    @classmethod
+    def get_or_start(cls, name: str, id: int | None = None, duration: timezone.timedelta | None = None):
+        if id is not None:
+            try:
+                return Job.objects.get(id=id)
+            except Job.DoesNotExist:
+                return None
+        return cls.start(name=name, duration=duration)
+
     class Meta:
         ordering = ['-created', 'name']
         verbose_name = 'job'

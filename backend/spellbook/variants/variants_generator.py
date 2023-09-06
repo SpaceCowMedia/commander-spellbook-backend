@@ -14,7 +14,7 @@ HIGHER_CARD_LIMIT = 100
 LOWER_VARIANT_LIMIT = 100
 
 
-def log_into_job(job: Job, message: str, reset=False):
+def log_into_job(job: Job | None, message: str, reset=False):
     if job:
         if reset:
             job.message = message
@@ -213,7 +213,7 @@ def create_variant(
         data: Data,
         id: str,
         variant_def: VariantDefinition,
-        job: Job = None):
+        job: Job | None = None):
     variant = Variant(
         id=id,
         generated_by=job)
@@ -275,7 +275,7 @@ def perform_bulk_saves(to_create: list[VariantBulkSaveItem], to_update: list[Var
             feature_id=f) for v in chain(to_create, to_update) for f in v.produces)
 
 
-def generate_variants(job: Job = None) -> tuple[int, int, int]:
+def generate_variants(job: Job | None = None) -> tuple[int, int, int]:
     logging.info('Fetching data...')
     log_into_job(job, 'Fetching data...')
     data = Data()

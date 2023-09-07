@@ -10,6 +10,7 @@ from django.conf import settings
 from djangorestframework_camel_case.util import camelize
 from spellbook.models import Variant, Job
 from spellbook.serializers import VariantSerializer
+from spellbook.views.variants import VariantViewSet
 from ..s3_upload import upload_json_to_aws
 
 DEFAULT_VARIANTS_FILE_NAME = 'variants.json'
@@ -49,9 +50,7 @@ class Command(BaseCommand):
             raise CommandError('Job with name export_variants already running')
         try:
             self.stdout.write('Fetching variants from db...')
-            variants_source = Variant.objects \
-                .filter(status__in=(Variant.Status.OK, Variant.Status.EXAMPLE)) \
-                .prefetch_related('uses', 'requires', 'produces', 'of', 'includes')
+            variants_source = VariantViewSet.queryset
             result = {
                 'timestamp': timezone.now().isoformat(),
                 'variants': [prepare_variant(v) for v in variants_source],

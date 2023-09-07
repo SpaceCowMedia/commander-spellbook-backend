@@ -7,6 +7,7 @@ from rest_framework.settings import api_settings
 from spellbook.models import Card, Variant, merge_identities
 from spellbook.serializers import VariantSerializer
 from dataclasses import dataclass
+from .variants import VariantViewSet
 
 
 @dataclass
@@ -72,9 +73,8 @@ def find_my_combos(request: Request) -> Response:
     cards = deck.cards.union(deck.commanders)
     variant_to_cards = dict[Variant, set[int]]()
     variant_to_commanders = dict[Variant, set[int]]()
-    variants_query = Variant.objects \
-        .filter(status__in=(Variant.Status.OK, Variant.Status.EXAMPLE), uses__in=cards) \
-        .prefetch_related('cardinvariant_set') \
+    variants_query = VariantViewSet.queryset \
+        .filter(uses__in=cards) \
         .order_by('id')
 
     pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
@@ -95,7 +95,7 @@ def find_my_combos(request: Request) -> Response:
     identity = merge_identities(identity for identity in Card.objects.filter(id__in=cards).values_list('identity', flat=True))
     identity_set = set(identity)
 
-    for variant in variant_to_cards:
+    for variant in variants_page:
         variant_data = VariantSerializer(variant).data
         variant_cards = variant_to_cards[variant]
         if variant_to_commanders[variant].issubset(deck.commanders):

@@ -112,12 +112,12 @@ class ComboDetailSerializer(serializers.ModelSerializer):
     @classmethod
     def prefetch_related(cls, queryset: QuerySet[Combo]):
         return queryset.prefetch_related(
-        'cardincombo_set__card',
-        'templateincombo_set__template',
-        'cardincombo_set',
-        'templateincombo_set',
-        'produces',
-        'needs')
+            'cardincombo_set__card',
+            'templateincombo_set__template',
+            'cardincombo_set',
+            'templateincombo_set',
+            'produces',
+            'needs')
 
 
 class ComboSerializer(serializers.ModelSerializer):

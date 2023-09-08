@@ -49,6 +49,7 @@ class TemplateSerializer(serializers.ModelSerializer):
     def prefetch_related(cls, queryset: QuerySet[Template]):
         return queryset.all()
 
+
 class CardInComboSerializer(serializers.ModelSerializer):
     card = CardSerializer(many=False, read_only=True)
     zone_locations = serializers.SerializerMethodField()

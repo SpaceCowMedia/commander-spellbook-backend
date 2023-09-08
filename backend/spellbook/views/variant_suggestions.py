@@ -18,6 +18,6 @@ class IsNewAndOwnerOrReadOnly(permissions.BasePermission):
 
 
 class VariantSuggestionViewSet(ModelViewSet):
-    queryset = VariantSuggestion.objects.all()
+    queryset = VariantSuggestionSerializer.prefetch_related(VariantSuggestion.objects)
     serializer_class = VariantSuggestionSerializer
     permission_classes = [permissions.DjangoModelPermissionsOrAnonReadOnly, IsNewAndOwnerOrReadOnly]

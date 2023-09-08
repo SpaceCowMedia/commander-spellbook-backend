@@ -5,6 +5,6 @@ from .query_filters import NameAndDescriptionAutocompleteQueryFilter
 
 
 class FeatureViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Feature.objects.all()
+    queryset = FeatureSerializer.prefetch_related(Feature.objects)
     serializer_class = FeatureSerializer
     filter_backends = [NameAndDescriptionAutocompleteQueryFilter]

@@ -23,6 +23,10 @@ class FeatureSerializer(serializers.ModelSerializer):
         model = Feature
         fields = ['id', 'name', 'description', 'utility']
 
+    @classmethod
+    def prefetch_related(cls, queryset: QuerySet[Feature]):
+        return queryset.all()
+
 
 class CardDetailSerializer(serializers.ModelSerializer):
     features = FeatureSerializer(many=True, read_only=True)
@@ -41,6 +45,9 @@ class TemplateSerializer(serializers.ModelSerializer):
         model = Template
         fields = ['id', 'name', 'scryfall_query', 'scryfall_api']
 
+    @classmethod
+    def prefetch_related(cls, queryset: QuerySet[Template]):
+        return queryset.all()
 
 class CardInComboSerializer(serializers.ModelSerializer):
     card = CardSerializer(many=False, read_only=True)
@@ -363,3 +370,12 @@ class VariantSuggestionSerializer(serializers.ModelSerializer):
             for produce in produces_set:
                 FeatureProducedInVariantSuggestion.objects.create(variant=instance, **produce)
             return instance
+
+    @classmethod
+    def prefetch_related(cls, queryset: QuerySet[VariantSuggestion]):
+        return queryset.prefetch_related(
+            'uses',
+            'requires',
+            'produces',
+            'suggested_by',
+        )

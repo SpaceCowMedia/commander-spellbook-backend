@@ -5,8 +5,6 @@ from .query_filters import NameAutocompleteQueryFilter
 
 
 class CardViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Card.objects.prefetch_related(
-        'features',
-    )
+    queryset = CardDetailSerializer.prefetch_related(Card.objects)
     serializer_class = CardDetailSerializer
     filter_backends = [NameAutocompleteQueryFilter]

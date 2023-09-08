@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.db.models import QuerySet
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from rest_framework import serializers
@@ -29,6 +30,10 @@ class CardDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Card
         fields = ['id', 'name', 'oracle_id', 'identity', 'legal', 'spoiler', 'features']
+
+    @classmethod
+    def prefetch_related(cls, queryset: QuerySet[Card]):
+        return queryset.prefetch_related('features')
 
 
 class TemplateSerializer(serializers.ModelSerializer):
@@ -96,6 +101,16 @@ class ComboDetailSerializer(serializers.ModelSerializer):
             'other_prerequisites',
             'description',
         ]
+
+    @classmethod
+    def prefetch_related(cls, queryset: QuerySet[Combo]):
+        return queryset.prefetch_related(
+        'cardincombo_set__card',
+        'templateincombo_set__template',
+        'cardincombo_set',
+        'templateincombo_set',
+        'produces',
+        'needs')
 
 
 class ComboSerializer(serializers.ModelSerializer):
@@ -217,6 +232,17 @@ class VariantSerializer(serializers.ModelSerializer):
             'legal',
             'spoiler',
         ]
+
+    @classmethod
+    def prefetch_related(cls, queryset: QuerySet[Variant]):
+        return queryset.prefetch_related(
+            'cardinvariant_set__card',
+            'templateinvariant_set__template',
+            'cardinvariant_set',
+            'templateinvariant_set',
+            'produces',
+            'of',
+            'includes')
 
 
 class StringMultipleChoiceField(serializers.MultipleChoiceField):

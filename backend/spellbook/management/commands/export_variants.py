@@ -50,7 +50,7 @@ class Command(BaseCommand):
             raise CommandError('Job with name export_variants already running')
         try:
             self.stdout.write('Fetching variants from db...')
-            variants_source = VariantViewSet.queryset
+            variants_source = VariantViewSet().get_queryset()
             result = {
                 'timestamp': timezone.now().isoformat(),
                 'variants': [prepare_variant(v) for v in variants_source],

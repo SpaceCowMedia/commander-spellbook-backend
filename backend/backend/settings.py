@@ -46,6 +46,7 @@ SOCIAL_AUTH_ALLOWED_REDIRECT_HOSTS = [
     'localhost',
     'localhost:3000',
     '127.0.0.1',
+    'dev.commanderspellbook.com',
 ]
 
 # Application definition

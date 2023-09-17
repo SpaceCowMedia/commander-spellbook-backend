@@ -92,7 +92,7 @@ def sorted_prereq_search_terms(prereq: str, card_set: set[str] | frozenset[str])
 
 def find_card_in_prereq(card_name: str, prerequisites: str) -> list[tuple[str, str, str, str, int]]:  # sentence, punctuation, following
     regex = r'(.*?)' + re.escape(card_name) + r'(.*?)(\.|[^\w](?:is paired|paired with|soulbonded with|soulbound with|named by|does|naming|attached|increase|lowest|toughness|on it|from|summoning sickness|selected the)[^\w]|$)'
-    negated_regex = r'(?:[^\w]|^)(?:if|when|who|named by|does|has|naming|power|attached|from|opponent|increase|remove|way|able|enough|sacrificed|storm|have (?:not )?cast|number of cards|\d+ counters|at least)(?:[^\w]|$)'
+    negated_regex = r'(?:[^\w]|^)(?:if|when|who|named by|does|has|naming|attached|from|opponent|increase|remove|way|able|enough|sacrificed|storm|have (?:not )?cast|number of cards|\d+ counters|at least)(?:[^\w]|$)'
     matches = []
     for sentence_match in re.finditer(r'([^\.]*)\.', prerequisites):
         sentence_start = sentence_match.start(1)

@@ -178,7 +178,7 @@ jobs:
       - name: SetupDocker Buildx 🐳
         uses: docker/setup-buildx-action@v3
       - name: Configure AWS credentials 🛠
-        uses: aws-actions/configure-aws-credentials@v3
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::083767677168:role/spellbook-deploy
           role-session-name: github-actions

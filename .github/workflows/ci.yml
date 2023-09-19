@@ -44,7 +44,7 @@ jobs:
         working-directory: backend
 
       - name: Setup Docker Buildx 🐳
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
 
       - name: Build and export image 🏗️
         uses: docker/build-push-action@v4
@@ -125,7 +125,7 @@ jobs:
       - name: Checkout 🛎️
         uses: actions/checkout@v4
       - name: Setup Docker Buildx 🐳
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
       - name: Download image artifact ⬇
         uses: actions/download-artifact@v3
         with:
@@ -176,7 +176,7 @@ jobs:
       id-token: write
     steps:
       - name: SetupDocker Buildx 🐳
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
       - name: Configure AWS credentials 🛠
         uses: aws-actions/configure-aws-credentials@v3
         with:

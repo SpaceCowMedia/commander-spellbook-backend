@@ -285,7 +285,8 @@ class VariantSuggestionTests(AbstractModelTests):
         s1 = VariantSuggestion.objects.get(id=self.s1_id)
         self.assertRaises(ValidationError, lambda: VariantSuggestion.validate(
             list(s1.uses.values_list('card', flat=True)),
-            list(s1.requires.values_list('template', flat=True))))
+            list(s1.requires.values_list('template', flat=True)),
+            ['result']))
 
     def test_validate_against_already_present(self):
         launch_job_command('generate_variants', None)
@@ -293,7 +294,20 @@ class VariantSuggestionTests(AbstractModelTests):
         v1 = Variant.objects.get(id=self.v1_id)
         self.assertRaises(ValidationError, lambda: VariantSuggestion.validate(
             list(v1.uses.values_list('name', flat=True)),
-            list(v1.requires.values_list('name', flat=True))))
+            list(v1.requires.values_list('name', flat=True)),
+            ['result']))
+
+    def test_validate_against_empty_results(self):
+        self.assertRaises(ValidationError, lambda: VariantSuggestion.validate(
+            ['a'],
+            ['b'],
+            []))
+
+    def test_validate_against_empty_cards(self):
+        self.assertRaises(ValidationError, lambda: VariantSuggestion.validate(
+            [],
+            ['b'],
+            ['result']))
 
     def test_validate_success(self):
         launch_job_command('generate_variants', None)
@@ -301,4 +315,5 @@ class VariantSuggestionTests(AbstractModelTests):
         v1 = Variant.objects.get(id=self.v1_id)
         VariantSuggestion.validate(
             list(v1.uses.values_list('name', flat=True)[:1]),
-            list(v1.requires.values_list('name', flat=True)))
+            list(v1.requires.values_list('name', flat=True)),
+            ['result'])

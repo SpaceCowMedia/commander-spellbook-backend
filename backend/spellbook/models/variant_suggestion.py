@@ -35,7 +35,11 @@ class VariantSuggestion(models.Model):
         return recipe([str(use.card) for use in self.uses.all()] + [str(require.template) for require in self.requires.all()], [str(produce.feature) for produce in produces])
 
     @classmethod
-    def validate(cls, cards: list[str], templates: list[str]):
+    def validate(cls, cards: list[str], templates: list[str], produces: list[str]):
+        if len(cards) == 0:
+            raise ValidationError('You must specify at least one card.')
+        if len(produces) == 0:
+            raise ValidationError('You must specify at least one feature.')
         card_entities = list(Card.objects.filter(name__in=cards))
         template_entities = list(Template.objects.filter(name__in=templates))
         if len(card_entities) == len(cards) and len(template_entities) == len(templates):

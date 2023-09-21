@@ -13,7 +13,7 @@ class CardUsedInVariantSuggestionAdminInline(IngredientAdmin):
     model = CardUsedInVariantSuggestion
     verbose_name = 'Card'
     verbose_name_plural = 'Cards'
-    min_num = 2
+    min_num = 1
 
 
 class TemplateRequiredInVariantAdminInline(IngredientAdmin):

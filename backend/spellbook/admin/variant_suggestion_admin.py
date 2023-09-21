@@ -6,6 +6,7 @@ from spellbook.models import VariantSuggestion, CardUsedInVariantSuggestion, Tem
 from spellbook.models.utils import recipe
 from spellbook.variants.variants_generator import DEFAULT_CARD_LIMIT
 from .ingredient_admin import IngredientAdmin
+from .utils import upper_oracle_symbols
 
 
 class CardUsedInVariantSuggestionAdminInline(IngredientAdmin):
@@ -59,7 +60,10 @@ def set_rejected(modeladmin, request, queryset):
 
 class VariantSuggestionForm(ModelForm):
     def clean_mana_needed(self):
-        return self.cleaned_data['mana_needed'].upper() if self.cleaned_data['mana_needed'] else self.cleaned_data['mana_needed']
+        if self.cleaned_data['mana_needed']:
+            result = upper_oracle_symbols(self.cleaned_data['mana_needed'])
+            return result
+        return self.cleaned_data['mana_needed']
 
 
 @admin.register(VariantSuggestion)

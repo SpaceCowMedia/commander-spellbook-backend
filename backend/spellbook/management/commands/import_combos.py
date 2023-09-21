@@ -92,7 +92,7 @@ def sorted_prereq_search_terms(prereq: str, card_set: set[str] | frozenset[str])
 
 def find_card_in_prereq(card_name: str, prerequisites: str) -> list[tuple[str, str, str, str, int]]:  # sentence, punctuation, following
     regex = r'(.*?)' + re.escape(card_name) + r'(.*?)(\.|[^\w](?:is paired|paired with|soulbonded with|soulbound with|named by|does|naming|attached|increase|lowest|toughness|on it|from|summoning sickness|selected the)[^\w]|$)'
-    negated_regex = r'(?:[^\w]|^)(?:if|when|who|named by|does|has|naming|attached|opponent|increase|remove|way|able|enough|sacrificed|storm count\w*|have (?:not )?cast|number of cards|\d+ counters|at least)(?:[^\w]|$)'
+    negated_regex = r'(?:[^\w]|^)(?:if|when|who|named by|does|has|naming|attached|opponent|increase|remove|way|able|enough|sacrificed|storm count\w*|have (?:not )?cast|number of cards|\d+ counters|(?:one more|another) copy)(?:[^\w]|$)'
     matches = []
     for sentence_match in re.finditer(r'([^\.]*)\.', prerequisites):
         sentence_start = sentence_match.start(1)
@@ -244,7 +244,7 @@ def find_combos() -> list[tuple[str, tuple[str, ...], frozenset[str], str, str, 
                 if re.search(r'(?:[^\w]|^)any zone(?:[^\w]|$)', after, flags=re.IGNORECASE):
                     p_list = [''.join(choice[0] for choice in IngredientInCombination.ZoneLocation.choices)]
                 if re.search(r'(?:[^\w]|^)or(?:[^\w]|$)', after, flags=re.IGNORECASE) or re.search(r'(?:[^\w]|^)with the other(?:[^\w]|$)', after, flags=re.IGNORECASE):
-                    if re.search(r'(?:[^\w]|^)either(?:[^\w]|$)', before, flags=re.IGNORECASE):
+                    if re.search(r'(?:[^\w]|^)either(?:[^\w]|$)', before, flags=re.IGNORECASE) or re.search(r'(?:[^\w]|^)counters? on(?:[^\w]|$)', before, flags=re.IGNORECASE):
                         force_keep_sentence = True
                     elif re.search(r'(?:[^\w]|^)and/or(?:[^\w]|$)', after, flags=re.IGNORECASE):
                         p_list = [''.join(p_list)]

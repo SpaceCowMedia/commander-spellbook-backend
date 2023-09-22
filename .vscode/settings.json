@@ -8,5 +8,10 @@
     },
     "peacock.color": "#ab47bd",
     "terminal.integrated.cwd": "backend",
-    "python.analysis.typeCheckingMode": "basic"
+    "python.analysis.typeCheckingMode": "basic",
+    "python.testing.pytestArgs": [
+        "backend"
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true
 }

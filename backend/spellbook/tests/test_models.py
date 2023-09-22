@@ -3,7 +3,7 @@ from django.utils import timezone
 from django.contrib.auth.models import User
 from common.inspection import count_methods
 from .abstract_test import AbstractModelTests
-from spellbook.models import Card, Feature, Template, Combo, Job, IngredientInCombination, Variant, VariantSuggestion
+from spellbook.models import Card, Feature, Template, Combo, Job, IngredientInCombination, Variant, VariantSuggestion, CardUsedInVariantSuggestion
 from spellbook.models.scryfall import SCRYFALL_API_ROOT, SCRYFALL_WEBSITE_CARD_SEARCH
 from spellbook.utils import launch_job_command
 from spellbook.models import id_from_cards_and_templates_ids
@@ -317,3 +317,8 @@ class VariantSuggestionTests(AbstractModelTests):
             list(v1.uses.values_list('name', flat=True)[:1]),
             list(v1.requires.values_list('name', flat=True)),
             ['result'])
+
+    def test_card_in_variant_suggestion_validation(self):
+        s = VariantSuggestion.objects.get(id=self.s1_id)
+        c = CardUsedInVariantSuggestion(card='A card', variant=s, order=1, zone_locations=IngredientInCombination.ZoneLocation.COMMAND_ZONE)
+        self.assertRaises(ValidationError, lambda: c.full_clean())

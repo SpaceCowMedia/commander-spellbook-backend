@@ -6,9 +6,6 @@ from django.utils import timezone
 from django.core.management import call_command
 from django.conf import settings
 from common.stream import StreamToLogger
-from django.core.exceptions import NON_FIELD_ERRORS, ValidationError
-from rest_framework.fields import get_error_detail
-from rest_framework.serializers import ValidationError as DRFValidationError, ErrorDetail as DRFErrorDetail
 from spellbook.models import Job
 
 
@@ -56,19 +53,3 @@ def launch_job_command(command: str, user, args: list[str] = []) -> bool:
                 raise e
         return True
     return False
-
-def convert_validation_exception(exc: ValidationError | list[ValidationError] | dict[str, ValidationError] | dict[str, ValidationError]) -> DRFValidationError:
-    if isinstance(exc, dict):
-        return DRFValidationError({key: convert_validation_exception(value) for key, value in exc.items()})
-    exc_list = exc if isinstance(exc, list) else [exc]
-    errors = []
-    for exc in exc_list:
-        try:
-            error_dict = exc.error_dict
-            non_field_errors = error_dict.pop(NON_FIELD_ERRORS, [])
-            wrapper = ValidationError(non_field_errors)
-            errors.append(get_error_detail(wrapper))
-        except AttributeError:
-            pass
-        errors.append(get_error_detail(exc))
-    return DRFValidationError(errors)

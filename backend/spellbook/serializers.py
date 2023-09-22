@@ -1,11 +1,8 @@
-from collections import defaultdict
 from django.db import transaction
-from django.db.models import QuerySet, Model
+from django.db.models import QuerySet
 from django.contrib.auth.models import User
-from django.core.exceptions import ValidationError
 from rest_framework import serializers
 from spellbook.models import Card, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, CardInVariant, TemplateInVariant, VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, FeatureProducedInVariantSuggestion, IngredientInCombination
-from spellbook.utils import convert_validation_exception
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -271,6 +268,10 @@ class StringMultipleChoiceField(serializers.MultipleChoiceField):
 class IngredientInVariantSuggestionSerializer(serializers.ModelSerializer):
     zone_locations = StringMultipleChoiceField(choices=IngredientInCombination.ZoneLocation.choices, allow_empty=False)
 
+    def validate(self, attrs):
+        IngredientInCombination.clean_data(attrs)
+        return super().validate(attrs)
+
 
 class CardUsedInVariantSuggestionSerializer(IngredientInVariantSuggestionSerializer):
     class Meta:
@@ -332,6 +333,14 @@ class VariantSuggestionSerializer(serializers.ModelSerializer):
             'status': {'read_only': True},
         }
 
+    def validate(self, attrs):
+        VariantSuggestion.validate(
+            [uses['card'] for uses in attrs['uses']],
+            [requires['template'] for requires in attrs['requires']],
+            [produce['feature'] for produce in attrs['produces']],
+        )
+        return super().validate(attrs)
+
     @transaction.atomic(durable=True)
     def create(self, validated_data):
         uses_key = 'uses'
@@ -344,37 +353,13 @@ class VariantSuggestionSerializer(serializers.ModelSerializer):
             'suggested_by': self.context['request'].user,
             **validated_data,
         }
-        try:
-            VariantSuggestion.validate(
-                [uses['card'] for uses in uses_set],
-                [requires['template'] for requires in requires_set],
-                [produce['feature'] for produce in produces_set],
-            )
-        except ValidationError as exc:
-            raise convert_validation_exception(exc)
-        children : defaultdict[str, list[Model]] = defaultdict(list)
         instance = super().create(extended_kwargs)
         for i, use in enumerate(uses_set):
-            child = CardUsedInVariantSuggestion(variant=instance, order=i, **use)
-            children[uses_key].append(child)
+            CardUsedInVariantSuggestion.objects.create(variant=instance, order=i, **use)
         for i, require in enumerate(requires_set):
-            child = TemplateRequiredInVariantSuggestion(variant=instance, order=i, **require)
-            children[requires_key].append(child)
+            TemplateRequiredInVariantSuggestion.objects.create(variant=instance, order=i, **require)
         for produce in produces_set:
-            child = FeatureProducedInVariantSuggestion(variant=instance, **produce)
-            children[produces_key].append(child)
-        errors: defaultdict[str, list[ValidationError]] = defaultdict(list)
-        for key, childldren in children.items():
-            for child in childldren:
-                try:
-                    child.full_clean()
-                    errors[key].append(None)
-                except ValidationError as exc:
-                    errors[key].append(exc)
-        if errors:
-            raise convert_validation_exception(errors)
-        for child in children:
-            child.save()
+            FeatureProducedInVariantSuggestion.objects.create(variant=instance, **produce)
         return instance
 
     @transaction.atomic(durable=True)
@@ -385,38 +370,16 @@ class VariantSuggestionSerializer(serializers.ModelSerializer):
         extended_kwargs = {
             **validated_data,
         }
-        try:
-            VariantSuggestion.validate(
-                [uses['card'] for uses in uses_set],
-                [requires['template'] for requires in requires_set],
-                [produce['feature'] for produce in produces_set],
-            )
-        except ValidationError as exc:
-            raise convert_validation_exception(exc)
-        children: list[Model] = []
         instance = super().update(instance, extended_kwargs)
-        for i, use in enumerate(uses_set):
-            child = CardUsedInVariantSuggestion(variant=instance, order=i, **use)
-            children.append(child)
-        for i, require in enumerate(requires_set):
-            child = TemplateRequiredInVariantSuggestion(variant=instance, order=i, **require)
-            children.append(child)
-        for produce in produces_set:
-            child = FeatureProducedInVariantSuggestion(variant=instance, **produce)
-            children.append(child)
-        errors = []
-        for child in children:
-            try:
-                child.full_clean()
-            except ValidationError as exc:
-                errors.append(exc)
-        if errors:
-            raise convert_validation_exception(errors)
         instance.uses.all().delete()
+        for i, use in enumerate(uses_set):
+            CardUsedInVariantSuggestion.objects.create(variant=instance, order=i, **use)
         instance.requires.all().delete()
+        for i, require in enumerate(requires_set):
+            TemplateRequiredInVariantSuggestion.objects.create(variant=instance, order=i, **require)
         instance.produces.all().delete()
-        for child in children:
-            child.save()
+        for produce in produces_set:
+            FeatureProducedInVariantSuggestion.objects.create(variant=instance, **produce)
         return instance
 
     @classmethod

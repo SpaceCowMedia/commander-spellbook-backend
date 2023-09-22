@@ -20,15 +20,19 @@ class IngredientInCombination(models.Model):
     must_be_commander = models.BooleanField(default=False, help_text='Does the card have to be a commander?', verbose_name='must be commander')
 
     def clean(self) -> None:
-        if self.zone_locations == IngredientInCombination.ZoneLocation.COMMAND_ZONE and not self.must_be_commander:
+        self.clean_data(vars(self))
+
+    @classmethod
+    def clean_data(cls, data: dict) -> None:
+        if data['zone_locations'] == IngredientInCombination.ZoneLocation.COMMAND_ZONE and not data['must_be_commander']:
             raise ValidationError('Any card that can only start in command zone must be a commander. Please check the "must be commander" checkbox.')
-        if IngredientInCombination.ZoneLocation.BATTLEFIELD not in self.zone_locations and self.battlefield_card_state:
+        if IngredientInCombination.ZoneLocation.BATTLEFIELD not in data['zone_locations'] and data['battlefield_card_state']:
             raise ValidationError('Battlefield card state is only valid if the card starts on the battlefield.')
-        if IngredientInCombination.ZoneLocation.EXILE not in self.zone_locations and self.exile_card_state:
+        if IngredientInCombination.ZoneLocation.EXILE not in data['zone_locations'] and data['exile_card_state']:
             raise ValidationError('Exile card state is only valid if the card starts in exile.')
-        if IngredientInCombination.ZoneLocation.LIBRARY not in self.zone_locations and self.library_card_state:
+        if IngredientInCombination.ZoneLocation.LIBRARY not in data['zone_locations'] and data['library_card_state']:
             raise ValidationError('Library card state is only valid if the card starts in the library.')
-        if IngredientInCombination.ZoneLocation.GRAVEYARD not in self.zone_locations and self.graveyard_card_state:
+        if IngredientInCombination.ZoneLocation.GRAVEYARD not in data['zone_locations'] and data['graveyard_card_state']:
             raise ValidationError('Graveyard card state is only valid if the card starts in the graveyard.')
 
     class Meta:

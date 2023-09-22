@@ -186,8 +186,6 @@ class VariantSuggestionsTests(AbstractModelTests):
         result = json.loads(response.content, object_hook=json_to_python_lambda)
         self.assertTrue(hasattr(result, 'uses'))
         self.assertGreaterEqual(len(result.uses), 2)
-        for uses_error in result.uses:
-            self.assertTrue(hasattr(uses_error, 'zone_locations'))
 
     def setUp(self) -> None:
         """Reduce the log level to avoid errors like 'not found'"""

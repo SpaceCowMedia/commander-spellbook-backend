@@ -40,6 +40,15 @@ class VariantSuggestion(models.Model):
             raise ValidationError('You must specify at least one card.')
         if len(produces) == 0:
             raise ValidationError('You must specify at least one feature.')
+        unique_card_names = {card.lower() for card in cards}
+        if len(unique_card_names) != len(cards):
+            raise ValidationError('You cannot specify the same card more than once.')
+        unique_template_names = {template.lower() for template in templates}
+        if len(unique_template_names) != len(templates):
+            raise ValidationError('You cannot specify the same template more than once.')
+        unique_feature_names = {feature.lower() for feature in produces}
+        if len(unique_feature_names) != len(produces):
+            raise ValidationError('You cannot specify the same feature more than once.')
         card_entities = list(Card.objects.filter(name__in=cards))
         template_entities = list(Template.objects.filter(name__in=templates))
         if len(card_entities) == len(cards) and len(template_entities) == len(templates):

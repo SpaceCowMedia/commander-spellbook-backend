@@ -139,6 +139,54 @@ class VariantSuggestionsTests(AbstractModelTests):
         self.assertTrue(VariantSuggestion.objects.filter(id=result.id).exists())
         self.suggestion_assertions(result)
 
+    def test_new_suggestion_with_wrong_fields(self):
+        post_data = {
+            "uses": [
+                {
+                    "card": "A card",
+                    "zoneLocations": list("H"),
+                    "battlefieldCardState": "asd",
+                    "exileCardState": "",
+                    "libraryCardState": "",
+                    "graveyardCardState": "",
+                    "mustBeCommander": False
+                },
+                {
+                    "card": "Another card",
+                    "zoneLocations": list("C"),
+                    "battlefieldCardState": "",
+                    "exileCardState": "",
+                    "libraryCardState": "",
+                    "graveyardCardState": "",
+                    "mustBeCommander": False
+                },
+            ],
+            "requires": [],
+            "produces": [
+                {
+                    "feature": "first produced feature"
+                },
+            ],
+            "manaNeeded": "",
+            "otherPrerequisites": "",
+            "description": "1"
+        }
+        self.user = User.objects.create_user(username='testuser', password='12345')
+        login = self.client.login(username='testuser', password='12345')
+        self.assertTrue(login)
+        permissions = Permission.objects.filter(codename__in=['view_variantsuggestion', 'add_variantsuggestion', 'change_variantsuggestion'])
+        self.user.user_permissions.add(*permissions)
+        response = self.client.post(
+            '/variant-suggestions/',
+            post_data,
+            content_type='application/json',
+            follow=True)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.get('Content-Type'), 'application/json')
+        result = json.loads(response.content, object_hook=json_to_python_lambda)
+        self.assertTrue(hasattr(result, 'uses'))
+        self.assertGreaterEqual(len(result.uses), 2)
+
     def setUp(self) -> None:
         """Reduce the log level to avoid errors like 'not found'"""
         super().setUp()

@@ -11,7 +11,7 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.conf import settings
 from django.db import transaction
-from django.db.models import Max, Count
+from django.db.models import Count
 from djangorestframework_camel_case.util import camelize
 from spellbook.models import Feature, Card, Job, Combo, CardInCombo, Variant, IngredientInCombination, CardInVariant, id_from_cards_and_templates_ids
 from spellbook.variants.variants_generator import generate_variants, DEFAULT_CARD_LIMIT
@@ -391,7 +391,6 @@ class Command(BaseCommand):
             existing_unique_ids = {id_from_cards_and_templates_ids([c.id for c in combo.uses.all()], []) for combo in Combo.objects.prefetch_related('uses')}
             with transaction.atomic(durable=True):
                 existing_feature_names = {f.name.lower(): f for f in Feature.objects.all()}
-                next_id = (Combo.objects.aggregate(Max('id'))['id__max'] or 0) + 1
                 for i, (old_id, _cards, produced, prerequisite, description, mana_needed, positions, default_positions, commanders) in enumerate(x):
                     self.stdout.write(f'{i+1}/{len(x)}\n' if (i + 1) % 100 == 0 else '.', ending='')
                     cards_from_combo = [combo_card_name_to_card[c] for c in _cards]
@@ -514,7 +513,6 @@ class Command(BaseCommand):
                         self.stdout.write(f'\nSkipping combo [{id}] {cards_from_combo}: already present in imported variants')
                         continue
                     combo = Combo(
-                        id=next_id,
                         other_prerequisites=upper_oracle_symbols(prerequisite).replace('. ', '.\n'),
                         description=upper_oracle_symbols(description).replace('. ', '.\n'),
                         kind=Combo.Kind.GENERATOR if len(cardincombo_list) <= DEFAULT_CARD_LIMIT else Combo.Kind.GENERATOR_WITH_MANY_CARDS,
@@ -522,7 +520,6 @@ class Command(BaseCommand):
                     )
                     for cic in cardincombo_list:
                         cic.combo = combo
-                    next_id += 1
                     produces_dict = {}
                     for name in (format_feature_name(p) for p in produced):
                         if name in produces_dict:
@@ -549,7 +546,8 @@ class Command(BaseCommand):
                         raise e
                     bulk_combo_dict[id] = bulk_item
                 self.log_job(job, 'Saving combos...')
-                Combo.objects.bulk_create(b.combo for b in bulk_combo_dict.values())
+                for b in bulk_combo_dict.values():
+                    b.combo.save()
                 CardInCombo.objects.bulk_create(b for item in bulk_combo_dict.values() for b in item.uses)
                 ProducesTable = Combo.produces.through
                 ProducesTable.objects.bulk_create(ProducesTable(combo=item.combo, feature=f) for item in bulk_combo_dict.values() for f in item.produces)

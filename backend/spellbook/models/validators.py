@@ -3,6 +3,9 @@ from django.core.validators import RegexValidator, MinLengthValidator
 FIRST_CAPITAL_LETTER_REGEX = r'^[A-Z]'
 FIRST_CAPITAL_LETTER_VALIDATOR = RegexValidator(regex=FIRST_CAPITAL_LETTER_REGEX, message='Must start with a capital letter.')
 
+NO_TRAILING_PUNCTUATION_REGEX = r'[A-Za-z0-9]$'
+NO_TRAILING_PUNCTUATION_VALIDATOR = RegexValidator(regex=NO_TRAILING_PUNCTUATION_REGEX, message='Must not end with punctuation.')
+
 MANA_SYMBOL = r'(?:[WUBRG](?:\/P)?|[0-9CPXYZS∞]|[1-9][0-9]{1,2}|(?:2\/[WUBRG]|W\/U|W\/B|U\/B|U\/R|B\/R|B\/G|R\/G|R\/W|G\/W|G\/U)(?:\/P)?)'
 MANA_REGEX = r'^(?:(?:\{' + MANA_SYMBOL + r'\})[^\{\}\[\]]*)*$'
 MANA_VALIDATOR = RegexValidator(regex=MANA_REGEX, message='Mana needed must be in the {1}{W}{U}{B}{R}{G}{B/P}... format, and must start with mana symbols, but can contain normal text later.')
@@ -18,6 +21,7 @@ ORDINARY_CHARACTERS_REGEX = r'^[\x0A\x0D\x20-\x7E\x80\x95\x99\xA1\xA9\xAE\xB0\xB
 ORDINARY_CHARACTERS_VALIDATOR = RegexValidator(regex=ORDINARY_CHARACTERS_REGEX, message='Only ordinary characters are allowed.')
 
 TEXT_VALIDATORS = [DOUBLE_SQUARE_BRACKET_TEXT_VALIDATOR, SYMBOLS_TEXT_VALIDATOR, ORDINARY_CHARACTERS_VALIDATOR]
+NAME_VALIDATORS = [FIRST_CAPITAL_LETTER_VALIDATOR, NO_TRAILING_PUNCTUATION_VALIDATOR, *TEXT_VALIDATORS]
 
 IDENTITY_REGEX = r'^(?:W?U?B?R?G?|C)$'
 IDENTITY_VALIDATORS = [RegexValidator(regex=IDENTITY_REGEX, message='Can be any combination of one or more letters in [W,U,B,R,G], in order, otherwise C for colorless.'), MinLengthValidator(1)]

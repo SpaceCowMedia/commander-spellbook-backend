@@ -2,10 +2,11 @@ from django.db import models
 from django.core.exceptions import ValidationError
 from django.contrib.auth.models import User
 from .card import Card
+from .feature import Feature
 from .template import Template
 from .variant import Variant
 from .ingredient import IngredientInCombination
-from .validators import TEXT_VALIDATORS, MANA_VALIDATOR, FIRST_CAPITAL_LETTER_VALIDATOR, ORDINARY_CHARACTERS_VALIDATOR, SCRYFALL_QUERY_HELP, SCRYFALL_QUERY_VALIDATOR
+from .validators import TEXT_VALIDATORS, MANA_VALIDATOR, SCRYFALL_QUERY_HELP, SCRYFALL_QUERY_VALIDATOR, NAME_VALIDATORS
 from .utils import recipe, id_from_cards_and_templates_ids
 
 
@@ -71,7 +72,7 @@ class VariantSuggestion(models.Model):
 
 
 class CardUsedInVariantSuggestion(IngredientInCombination):
-    card = models.CharField(max_length=128, blank=False, help_text='Card name', verbose_name='card name', validators=[ORDINARY_CHARACTERS_VALIDATOR])
+    card = models.CharField(max_length=Card.MAX_CARD_NAME_LENGTH, blank=False, help_text='Card name', verbose_name='card name')
     variant = models.ForeignKey(to=VariantSuggestion, on_delete=models.CASCADE, related_name='uses')
 
     def __str__(self):
@@ -82,7 +83,7 @@ class CardUsedInVariantSuggestion(IngredientInCombination):
 
 
 class TemplateRequiredInVariantSuggestion(IngredientInCombination):
-    template = models.CharField(max_length=128, blank=False, help_text='Template name', verbose_name='template name', validators=[ORDINARY_CHARACTERS_VALIDATOR])
+    template = models.CharField(max_length=Template.MAX_TEMPLATE_NAME_LENGTH, blank=False, help_text='Template name', verbose_name='template name', validators=NAME_VALIDATORS)
     scryfall_query = models.CharField(max_length=255, blank=True, null=True, verbose_name='Scryfall query', help_text=SCRYFALL_QUERY_HELP, validators=[SCRYFALL_QUERY_VALIDATOR])
     variant = models.ForeignKey(to=VariantSuggestion, on_delete=models.CASCADE, related_name='requires')
 
@@ -94,7 +95,7 @@ class TemplateRequiredInVariantSuggestion(IngredientInCombination):
 
 
 class FeatureProducedInVariantSuggestion(models.Model):
-    feature = models.CharField(max_length=128, blank=False, help_text='Feature name', verbose_name='feature name', validators=[ORDINARY_CHARACTERS_VALIDATOR, FIRST_CAPITAL_LETTER_VALIDATOR])
+    feature = models.CharField(max_length=Feature.MAX_FEATURE_NAME_LENGTH, blank=False, help_text='Feature name', verbose_name='feature name', validators=NAME_VALIDATORS)
     variant = models.ForeignKey(to=VariantSuggestion, on_delete=models.CASCADE, related_name='produces')
 
     def __str__(self):

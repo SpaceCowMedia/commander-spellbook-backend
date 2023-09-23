@@ -1,12 +1,13 @@
 from urllib.parse import urlencode
 from django.db import models
 from django.utils.html import format_html
-from .validators import SCRYFALL_QUERY_HELP, SCRYFALL_QUERY_VALIDATOR, FIRST_CAPITAL_LETTER_VALIDATOR
+from .validators import SCRYFALL_QUERY_HELP, SCRYFALL_QUERY_VALIDATOR, NAME_VALIDATORS
 from .scryfall import SCRYFALL_API_CARD_SEARCH, SCRYFALL_WEBSITE_CARD_SEARCH, SCRYFALL_LEGAL_IN_COMMANDER
 
 
 class Template(models.Model):
-    name = models.CharField(max_length=255, blank=False, verbose_name='template name', help_text='short description of the template in natural language', validators=[FIRST_CAPITAL_LETTER_VALIDATOR])
+    MAX_TEMPLATE_NAME_LENGTH = 255
+    name = models.CharField(max_length=MAX_TEMPLATE_NAME_LENGTH, blank=False, verbose_name='template name', help_text='short description of the template in natural language', validators=NAME_VALIDATORS)
     scryfall_query = models.CharField(max_length=255, blank=False, verbose_name='Scryfall query', help_text=SCRYFALL_QUERY_HELP, validators=[SCRYFALL_QUERY_VALIDATOR])
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, editable=False)

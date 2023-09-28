@@ -12,6 +12,9 @@
         {
             django.jQuery.fn.djangoAdminSelectCards = function() {
                 django.jQuery.each(this, function(i, element) {
+                    if (element.id.includes('__prefix__')) {
+                        return;
+                    }
                     const autocomplete = django.jQuery(element).autocomplete({
                         source: function(request, response) {
                             django.jQuery.ajax({

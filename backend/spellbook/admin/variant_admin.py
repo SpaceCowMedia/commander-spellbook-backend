@@ -17,7 +17,7 @@ from .ingredient_admin import IngredientAdmin
 
 class CardInVariantAdminInline(IngredientAdmin):
     readonly_fields = ['card_name']
-    fields = ['card_name', 'zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state']
+    fields = ['card_name', *IngredientAdmin.fields]
     model = CardInVariant
     verbose_name = 'Card'
     verbose_name_plural = 'Cards'
@@ -37,7 +37,7 @@ class CardInVariantAdminInline(IngredientAdmin):
 
 class TemplateInVariantAdminInline(IngredientAdmin):
     readonly_fields = ['template']
-    fields = ['template', 'zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state']
+    fields = ['template', *IngredientAdmin.fields]
     model = TemplateInVariant
     verbose_name = 'Template'
     verbose_name_plural = 'Templates'

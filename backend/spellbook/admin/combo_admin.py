@@ -30,7 +30,7 @@ class ComboForm(ModelForm):
 
 
 class CardInComboAdminInline(IngredientAdmin):
-    fields = ['card', 'zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'must_be_commander']
+    fields = ['card', *IngredientAdmin.fields]
     model = CardInCombo
     verbose_name = 'Card'
     verbose_name_plural = 'Required Cards'
@@ -43,7 +43,7 @@ class CardInComboAdminInline(IngredientAdmin):
 
 
 class TemplateInComboAdminInline(IngredientAdmin):
-    fields = ['template', 'zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'must_be_commander']
+    fields = ['template', *IngredientAdmin.fields]
     model = TemplateInCombo
     verbose_name = 'Template'
     verbose_name_plural = 'Required Templates'

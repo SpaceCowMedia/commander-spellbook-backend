@@ -10,7 +10,7 @@ from .utils import upper_oracle_symbols
 
 
 class CardUsedInVariantSuggestionAdminInline(IngredientAdmin):
-    fields = ['card', 'zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'must_be_commander']
+    fields = ['card', *IngredientAdmin.fields]
     model = CardUsedInVariantSuggestion
     verbose_name = 'Card'
     verbose_name_plural = 'Cards'
@@ -18,7 +18,7 @@ class CardUsedInVariantSuggestionAdminInline(IngredientAdmin):
 
 
 class TemplateRequiredInVariantAdminInline(IngredientAdmin):
-    fields = ['template', 'scryfall_query', 'zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'must_be_commander']
+    fields = ['template', 'scryfall_query', *IngredientAdmin.fields]
     model = TemplateRequiredInVariantSuggestion
     verbose_name = 'Template'
     verbose_name_plural = 'Templates'

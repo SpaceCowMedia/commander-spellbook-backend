@@ -11,6 +11,10 @@ from .utils import recipe, id_from_cards_and_templates_ids
 
 
 class VariantSuggestion(models.Model):
+    max_cards = 10
+    max_templates = 5
+    max_features = 100
+
     class Status(models.TextChoices):
         NEW = 'N'
         ACCEPTED = 'A'
@@ -41,6 +45,12 @@ class VariantSuggestion(models.Model):
             raise ValidationError('You must specify at least one card.')
         if len(produces) == 0:
             raise ValidationError('You must specify at least one feature.')
+        if len(cards) > cls.max_cards:
+            raise ValidationError(f'You cannot specify more than {cls.max_cards} cards.')
+        if len(templates) > cls.max_templates:
+            raise ValidationError(f'You cannot specify more than {cls.max_templates} templates.')
+        if len(produces) > cls.max_features:
+            raise ValidationError(f'You cannot specify more than {cls.max_features} features.')
         unique_card_names = {card.lower() for card in cards}
         if len(unique_card_names) != len(cards):
             raise ValidationError('You cannot specify the same card more than once.')
@@ -68,7 +78,7 @@ class VariantSuggestion(models.Model):
         for template in templates:
             q = q.filter(requires__template=template)
         if q.exists():
-            raise ValidationError('This variant suggestion is redundant. Another suggestion with the same cards and templates already exists')
+            raise ValidationError('This variant suggestion is redundant. Another suggestion with the same cards and templates already exists.')
 
 
 class CardUsedInVariantSuggestion(IngredientInCombination):

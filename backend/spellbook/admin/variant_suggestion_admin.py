@@ -15,6 +15,7 @@ class CardUsedInVariantSuggestionAdminInline(IngredientAdmin):
     verbose_name = 'Card'
     verbose_name_plural = 'Cards'
     min_num = 1
+    max_num = VariantSuggestion.max_cards
 
 
 class TemplateRequiredInVariantAdminInline(IngredientAdmin):
@@ -22,6 +23,7 @@ class TemplateRequiredInVariantAdminInline(IngredientAdmin):
     model = TemplateRequiredInVariantSuggestion
     verbose_name = 'Template'
     verbose_name_plural = 'Templates'
+    max_num = VariantSuggestion.max_templates
 
 
 class FeatureProducedInVariantAdminInline(admin.TabularInline):
@@ -30,6 +32,7 @@ class FeatureProducedInVariantAdminInline(admin.TabularInline):
     verbose_name = 'Feature'
     verbose_name_plural = 'Features'
     min_num = 1
+    max_num = VariantSuggestion.max_features
     extra = 0
 
 

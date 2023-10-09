@@ -24,7 +24,7 @@ defusedxml==0.7.1
     # via
     #   python3-openid
     #   social-auth-core
-django==4.2.5
+django==4.2.6
     # via
     #   -r requirements.in
     #   django-cors-headers

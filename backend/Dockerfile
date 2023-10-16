@@ -3,7 +3,7 @@
 ###########
 
 # pull official base image
-FROM python:3.11.5-alpine as builder
+FROM python:3.12.0-alpine as builder
 
 # set work directory
 WORKDIR /usr/src/app
@@ -12,7 +12,7 @@ WORKDIR /usr/src/app
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 
 # install psycopg2 dependencies
-RUN apk --update add gcc python3-dev musl-dev postgresql-dev --no-cache
+RUN apk --update add gcc python3-dev musl-dev postgresql-dev libffi-dev --no-cache
 
 # pip
 RUN pip install --upgrade pip
@@ -27,7 +27,7 @@ RUN pip wheel --no-cache-dir --no-deps --wheel-dir /usr/src/app/wheels -r requir
 #########
 
 # pull official base image
-FROM python:3.11.5-alpine AS base
+FROM python:3.12.0-alpine AS base
 
 # create the app user
 RUN addgroup -S app && adduser -S app -G app

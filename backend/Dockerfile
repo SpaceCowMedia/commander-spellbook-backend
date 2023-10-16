@@ -12,7 +12,7 @@ WORKDIR /usr/src/app
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 
 # install psycopg2 dependencies
-RUN apk --update add gcc python3-dev musl-dev postgresql-dev libffi --no-cache
+RUN apk --update add gcc python3-dev musl-dev postgresql-dev libffi-dev --no-cache
 
 # pip
 RUN pip install --upgrade pip

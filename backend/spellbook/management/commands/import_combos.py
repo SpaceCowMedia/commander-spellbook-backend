@@ -7,7 +7,6 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 from dataclasses import dataclass
 from django.core.management.base import BaseCommand
-from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.conf import settings
 from django.db import transaction
@@ -393,158 +392,158 @@ class Command(BaseCommand):
                 existing_feature_names = {f.name.lower(): f for f in Feature.objects.all()}
                 for i, (old_id, _cards, produced, prerequisite, description, mana_needed, positions, default_positions, commanders) in enumerate(x):
                     self.stdout.write(f'{i+1}/{len(x)}\n' if (i + 1) % 100 == 0 else '.', ending='')
-                    cards_from_combo = [combo_card_name_to_card[c] for c in _cards]
-                    used_cards_types = dict[Card, str]()
-                    for c, (p, _, half, _) in positions.items():
-                        if c in _cards:
-                            actual_card = combo_card_name_to_card[c]
-                            actual_card_name = actual_card.name.lower()
-                            used_cards_types[actual_card] = combo_card_name_to_scryfall[actual_card_name]['type_line']
-                            if half > 0:
-                                used_cards_types[actual_card] = used_cards_types[actual_card].partition('//')[0 if half == 1 else 2].strip()
-                    permanents_from_combo = [c for c in cards_from_combo if any(t in used_cards_types.get(c, combo_card_name_to_scryfall[c.name.lower()]['type_line']) for t in ('Creature', 'Planeswalker', 'Artifact', 'Enchantment', 'Battle', 'Land'))]
-                    creatures_from_combo = [c for c in cards_from_combo if 'Creature' in used_cards_types.get(c, combo_card_name_to_scryfall[c.name.lower()]['type_line'])]
-                    cardincombo_list = list[CardInCombo]()
-                    for c, (p, _, half, (b_state, e_state, g_state, l_state)) in sorted(positions.items(), key=lambda x: x[1][1]):
-                        def make_card_in_combo(card: Card, zone_locations: str = IngredientInCombination.ZoneLocation.HAND) -> CardInCombo:
-                            return CardInCombo(
-                                card=card,
-                                zone_locations=zone_locations,
-                                battlefield_card_state=upper_oracle_symbols(b_state),
-                                exile_card_state=upper_oracle_symbols(e_state),
-                                graveyard_card_state=upper_oracle_symbols(g_state),
-                                library_card_state=upper_oracle_symbols(l_state),
-                                must_be_commander=c in commanders or zone_locations == IngredientInCombination.ZoneLocation.COMMAND_ZONE,
-                            )
-                        if c in _cards:
-                            actual_card = combo_card_name_to_card[c]
-                            cardincombo_list.append(make_card_in_combo(actual_card, zone_locations=p))
-                        elif c == 'all permanents':
-                            for card in permanents_from_combo:
-                                if card in [c.card for c in cardincombo_list]:
-                                    raise ValueError(f'Card {card} already used in combo {old_id}')
-                                cardincombo_list.append(make_card_in_combo(card, zone_locations=p))
-                        elif c == 'both permanents':
-                            if len(permanents_from_combo) != 2:
-                                raise ValueError(f'Expected 2 permanents, got {len(permanents_from_combo)} in combo {old_id}')
-                            for card in permanents_from_combo:
-                                if card in [c.card for c in cardincombo_list]:
-                                    raise ValueError(f'Card {card} already used in combo {old_id}')
-                                cardincombo_list.append(make_card_in_combo(card, zone_locations=p))
-                        elif c == 'all other permanents':
-                            for card in permanents_from_combo:
-                                if card not in [c.card for c in cardincombo_list]:
-                                    cardincombo_list.append(make_card_in_combo(card, zone_locations=p))
-                        elif c == 'all other cards':
-                            for card in cards_from_combo:
-                                if card not in [c.card for c in cardincombo_list]:
-                                    cardincombo_list.append(make_card_in_combo(card, zone_locations=p))
-                        elif c == 'all cards':
-                            for card in cards_from_combo:
-                                if card in [c.card for c in cardincombo_list]:
-                                    raise ValueError(f'Card {card} already used in combo {old_id}')
-                                cardincombo_list.append(make_card_in_combo(card, zone_locations=p))
-                        elif c == 'both cards':
-                            if len(cards_from_combo) != 2:
-                                raise ValueError(f'Expected 2 cards, got {len(cards_from_combo)} in combo {old_id}')
-                            for card in cards_from_combo:
-                                if card in [c.card for c in cardincombo_list]:
-                                    raise ValueError(f'Card {card} already used in combo {old_id}')
-                                cardincombo_list.append(make_card_in_combo(card, zone_locations=p))
-                        elif c == 'all creatures':
-                            for card in creatures_from_combo:
-                                if card in [c.card for c in cardincombo_list]:
-                                    raise ValueError(f'Card {card} already used in combo {old_id}')
-                                cardincombo_list.append(make_card_in_combo(card, zone_locations=p))
-                        elif c == 'all other creatures':
-                            for card in creatures_from_combo:
-                                if card not in [c.card for c in cardincombo_list]:
-                                    cardincombo_list.append(make_card_in_combo(card, zone_locations=p))
-                        else:
-                            raise ValueError(f'Unknown card {c} in combo {old_id}')
-                    for c, (p, _, half, (b_state, e_state, g_state, l_state)) in sorted(default_positions.items(), key=lambda x: x[1][1]):
-                        if c in _cards:
-                            card = combo_card_name_to_card[c]
-                            card_in_combos = [c for c in cardincombo_list if c.card == card]
-                            locations = [c.zone_locations for c in card_in_combos]
-                            if len(locations) == 0:
-                                cardincombo_list.append(CardInCombo(
+                    try:
+                        cards_from_combo = [combo_card_name_to_card[c] for c in _cards]
+                        used_cards_types = dict[Card, str]()
+                        for c, (p, _, half, _) in positions.items():
+                            if c in _cards:
+                                actual_card = combo_card_name_to_card[c]
+                                actual_card_name = actual_card.name.lower()
+                                used_cards_types[actual_card] = combo_card_name_to_scryfall[actual_card_name]['type_line']
+                                if half > 0:
+                                    used_cards_types[actual_card] = used_cards_types[actual_card].partition('//')[0 if half == 1 else 2].strip()
+                        permanents_from_combo = [c for c in cards_from_combo if any(t in used_cards_types.get(c, combo_card_name_to_scryfall[c.name.lower()]['type_line']) for t in ('Creature', 'Planeswalker', 'Artifact', 'Enchantment', 'Battle', 'Land'))]
+                        creatures_from_combo = [c for c in cards_from_combo if 'Creature' in used_cards_types.get(c, combo_card_name_to_scryfall[c.name.lower()]['type_line'])]
+                        cardincombo_list = list[CardInCombo]()
+                        for c, (p, _, half, (b_state, e_state, g_state, l_state)) in sorted(positions.items(), key=lambda x: x[1][1]):
+                            def make_card_in_combo(card: Card, zone_locations: str = IngredientInCombination.ZoneLocation.HAND) -> CardInCombo:
+                                return CardInCombo(
                                     card=card,
-                                    zone_locations=p,
+                                    zone_locations=zone_locations,
                                     battlefield_card_state=upper_oracle_symbols(b_state),
                                     exile_card_state=upper_oracle_symbols(e_state),
                                     graveyard_card_state=upper_oracle_symbols(g_state),
                                     library_card_state=upper_oracle_symbols(l_state),
-                                    must_be_commander=c in commanders or p == IngredientInCombination.ZoneLocation.COMMAND_ZONE,
-                                ))
-                    for card in cards_from_combo:
-                        card_in_combos = [c for c in cardincombo_list if c.card == card]
-                        locations = [c.zone_locations for c in card_in_combos]
-                        if len(locations) == 0:
-                            self.log_job(job, f'Card {card} doesn\'t appear in prerequisites of combo {old_id}.', self.style.WARNING)
-                            cardincombo_list.append(CardInCombo(
-                                card=card,
-                                zone_locations=IngredientInCombination.ZoneLocation.HAND,
-                                battlefield_card_state='',
-                                exile_card_state='',
-                                graveyard_card_state='',
-                                library_card_state='',
-                                must_be_commander=False,
-                            ))
-                        elif len(locations) == 1:
-                            pass
-                        else:
-                            first = locations[0]
-                            if all(item == first for item in locations):
-                                index = cardincombo_list.index(card_in_combos[0])
-                                cardincombo_list = list[CardInCombo](c for c in cardincombo_list if c.card != card)
-                                cardincombo_list.insert(index, card_in_combos[0])
+                                    must_be_commander=c in commanders or zone_locations == IngredientInCombination.ZoneLocation.COMMAND_ZONE,
+                                )
+                            if c in _cards:
+                                actual_card = combo_card_name_to_card[c]
+                                cardincombo_list.append(make_card_in_combo(actual_card, zone_locations=p))
+                            elif c == 'all permanents':
+                                for card in permanents_from_combo:
+                                    if card in [c.card for c in cardincombo_list]:
+                                        raise ValueError(f'Card {card} already used in combo {old_id}')
+                                    cardincombo_list.append(make_card_in_combo(card, zone_locations=p))
+                            elif c == 'both permanents':
+                                if len(permanents_from_combo) != 2:
+                                    raise ValueError(f'Expected 2 permanents, got {len(permanents_from_combo)} in combo {old_id}')
+                                for card in permanents_from_combo:
+                                    if card in [c.card for c in cardincombo_list]:
+                                        raise ValueError(f'Card {card} already used in combo {old_id}')
+                                    cardincombo_list.append(make_card_in_combo(card, zone_locations=p))
+                            elif c == 'all other permanents':
+                                for card in permanents_from_combo:
+                                    if card not in [c.card for c in cardincombo_list]:
+                                        cardincombo_list.append(make_card_in_combo(card, zone_locations=p))
+                            elif c == 'all other cards':
+                                for card in cards_from_combo:
+                                    if card not in [c.card for c in cardincombo_list]:
+                                        cardincombo_list.append(make_card_in_combo(card, zone_locations=p))
+                            elif c == 'all cards':
+                                for card in cards_from_combo:
+                                    if card in [c.card for c in cardincombo_list]:
+                                        raise ValueError(f'Card {card} already used in combo {old_id}')
+                                    cardincombo_list.append(make_card_in_combo(card, zone_locations=p))
+                            elif c == 'both cards':
+                                if len(cards_from_combo) != 2:
+                                    raise ValueError(f'Expected 2 cards, got {len(cards_from_combo)} in combo {old_id}')
+                                for card in cards_from_combo:
+                                    if card in [c.card for c in cardincombo_list]:
+                                        raise ValueError(f'Card {card} already used in combo {old_id}')
+                                    cardincombo_list.append(make_card_in_combo(card, zone_locations=p))
+                            elif c == 'all creatures':
+                                for card in creatures_from_combo:
+                                    if card in [c.card for c in cardincombo_list]:
+                                        raise ValueError(f'Card {card} already used in combo {old_id}')
+                                    cardincombo_list.append(make_card_in_combo(card, zone_locations=p))
+                            elif c == 'all other creatures':
+                                for card in creatures_from_combo:
+                                    if card not in [c.card for c in cardincombo_list]:
+                                        cardincombo_list.append(make_card_in_combo(card, zone_locations=p))
                             else:
-                                raise ValueError(f'Card {card} used multiple times in combo {old_id}')
-                    for j, card_in_combo in enumerate(sorted(cardincombo_list, key=lambda c: cards_from_combo.index(c.card))):
-                        card_in_combo.order = j
-                    id = id_from_cards_and_templates_ids([c.id for c in cards_from_combo], [])
-                    old_id = int(old_id)
-                    variant_id_map[old_id] = id
-                    if id in existing_unique_ids:
-                        self.stdout.write(f'\nSkipping combo [{id}] {cards_from_combo}: already present in variants')
-                        continue
-                    if id in bulk_combo_dict:
-                        self.stdout.write(f'\nSkipping combo [{id}] {cards_from_combo}: already present in imported variants')
-                        continue
-                    combo = Combo(
-                        other_prerequisites=upper_oracle_symbols(prerequisite).replace('. ', '.\n'),
-                        description=upper_oracle_symbols(description).replace('. ', '.\n'),
-                        kind=Combo.Kind.GENERATOR if len(cardincombo_list) <= DEFAULT_CARD_LIMIT else Combo.Kind.GENERATOR_WITH_MANY_CARDS,
-                        mana_needed=upper_oracle_symbols(mana_needed),
-                    )
-                    for cic in cardincombo_list:
-                        cic.combo = combo
-                    produces_dict = {}
-                    for name in (format_feature_name(p) for p in produced):
-                        if name in produces_dict:
+                                raise ValueError(f'Unknown card {c} in combo {old_id}')
+                        for c, (p, _, half, (b_state, e_state, g_state, l_state)) in sorted(default_positions.items(), key=lambda x: x[1][1]):
+                            if c in _cards:
+                                card = combo_card_name_to_card[c]
+                                card_in_combos = [c for c in cardincombo_list if c.card == card]
+                                locations = [c.zone_locations for c in card_in_combos]
+                                if len(locations) == 0:
+                                    cardincombo_list.append(CardInCombo(
+                                        card=card,
+                                        zone_locations=p,
+                                        battlefield_card_state=upper_oracle_symbols(b_state),
+                                        exile_card_state=upper_oracle_symbols(e_state),
+                                        graveyard_card_state=upper_oracle_symbols(g_state),
+                                        library_card_state=upper_oracle_symbols(l_state),
+                                        must_be_commander=c in commanders or p == IngredientInCombination.ZoneLocation.COMMAND_ZONE,
+                                    ))
+                        for card in cards_from_combo:
+                            card_in_combos = [c for c in cardincombo_list if c.card == card]
+                            locations = [c.zone_locations for c in card_in_combos]
+                            if len(locations) == 0:
+                                self.log_job(job, f'Card {card} doesn\'t appear in prerequisites of combo {old_id}.', self.style.WARNING)
+                                cardincombo_list.append(CardInCombo(
+                                    card=card,
+                                    zone_locations=IngredientInCombination.ZoneLocation.HAND,
+                                    battlefield_card_state='',
+                                    exile_card_state='',
+                                    graveyard_card_state='',
+                                    library_card_state='',
+                                    must_be_commander=False,
+                                ))
+                            elif len(locations) == 1:
+                                pass
+                            else:
+                                first = locations[0]
+                                if all(item == first for item in locations):
+                                    index = cardincombo_list.index(card_in_combos[0])
+                                    cardincombo_list = list[CardInCombo](c for c in cardincombo_list if c.card != card)
+                                    cardincombo_list.insert(index, card_in_combos[0])
+                                else:
+                                    raise ValueError(f'Card {card} used multiple times in combo {old_id}')
+                        for j, card_in_combo in enumerate(sorted(cardincombo_list, key=lambda c: cards_from_combo.index(c.card))):
+                            card_in_combo.order = j
+                        id = id_from_cards_and_templates_ids([c.id for c in cards_from_combo], [])
+                        old_id = int(old_id)
+                        variant_id_map[old_id] = id
+                        if id in existing_unique_ids:
+                            self.stdout.write(f'\nSkipping combo [{id}] {cards_from_combo}: already present in variants')
                             continue
-                        name_lower = name.lower()
-                        if name_lower in existing_feature_names:
-                            produces_dict[name] = existing_feature_names[name_lower]
-                        else:
-                            feature = Feature(name=upper_oracle_symbols(name))
-                            feature.clean_fields()
-                            feature.save()
-                            produces_dict[name] = feature
-                            existing_feature_names[name_lower] = feature
-                    produces = list(produces_dict.values())
-                    bulk_item = ImportedVariantBulkSaveItem(
-                        combo=combo,
-                        uses=cardincombo_list,
-                        produces=produces,
-                    )
-                    try:
+                        if id in bulk_combo_dict:
+                            self.stdout.write(f'\nSkipping combo [{id}] {cards_from_combo}: already present in imported variants')
+                            continue
+                        combo = Combo(
+                            other_prerequisites=upper_oracle_symbols(prerequisite).replace('. ', '.\n'),
+                            description=upper_oracle_symbols(description).replace('. ', '.\n'),
+                            kind=Combo.Kind.GENERATOR if len(cardincombo_list) <= DEFAULT_CARD_LIMIT else Combo.Kind.GENERATOR_WITH_MANY_CARDS,
+                            mana_needed=upper_oracle_symbols(mana_needed),
+                        )
+                        for cic in cardincombo_list:
+                            cic.combo = combo
+                        produces_dict = {}
+                        for name in (format_feature_name(p) for p in produced):
+                            if name in produces_dict:
+                                continue
+                            name_lower = name.lower()
+                            if name_lower in existing_feature_names:
+                                produces_dict[name] = existing_feature_names[name_lower]
+                            else:
+                                feature = Feature(name=upper_oracle_symbols(name))
+                                feature.clean_fields()
+                                feature.save()
+                                produces_dict[name] = feature
+                                existing_feature_names[name_lower] = feature
+                        produces = list(produces_dict.values())
+                        bulk_item = ImportedVariantBulkSaveItem(
+                            combo=combo,
+                            uses=cardincombo_list,
+                            produces=produces,
+                        )
                         bulk_item.clean()
-                    except ValidationError as e:
+                        bulk_combo_dict[id] = bulk_item
+                    except Exception as e:
                         self.log_job(job, f'Combo {old_id} is invalid: {e}', self.style.ERROR)
                         raise e
-                    bulk_combo_dict[id] = bulk_item
                 self.log_job(job, 'Saving combos...')
                 for b in bulk_combo_dict.values():
                     b.combo.save()

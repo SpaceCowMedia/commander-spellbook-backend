@@ -14,6 +14,7 @@ DEBUG = False
 # Security settings
 
 CSRF_TRUSTED_ORIGINS = [
+    'https://commanderspellbook.com',
     'https://*.commanderspellbook.com',
     'http://localhost',
     'http://127.0.0.1',
@@ -23,6 +24,7 @@ CSRF_TRUSTED_ORIGINS = [
 ALLOWED_HOSTS = [hostname.removeprefix('*') for hostname in (urlparse(origin).hostname for origin in CSRF_TRUSTED_ORIGINS) if hostname is not None]
 
 CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https://commanderspellbook\.com$",
     r"^https://\w+\.commanderspellbook\.com$",
     r'https?://localhost:\d+',
 ]

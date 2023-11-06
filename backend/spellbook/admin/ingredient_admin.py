@@ -1,4 +1,4 @@
-from django.forms import ModelForm, MultipleChoiceField, ValidationError, CheckboxSelectMultiple
+from django.forms import ModelForm, MultipleChoiceField, ValidationError, CheckboxSelectMultiple, Textarea
 from django.contrib import admin
 from spellbook.models import IngredientInCombination
 
@@ -20,6 +20,10 @@ class MultipleChoiceFieldAsCharField(MultipleChoiceField):
         super().validate(value)
         if len(value) > len(self.choices):
             raise ValidationError('Too many choices.')
+
+
+def _textarea():
+    return Textarea(attrs={'rows': 1, 'cols': 25, 'style': 'resize: vertical; min-height: 2em;'})
 
 
 class IngredientInCombinationForm(ModelForm):
@@ -44,6 +48,14 @@ class IngredientInCombinationForm(ModelForm):
             if IngredientInCombination.ZoneLocation.LIBRARY not in locations:
                 self.cleaned_data['library_card_state'] = ''
         return super().clean()
+
+    class Meta:
+        widgets = {
+            'battlefield_card_state': _textarea(),
+            'exile_card_state': _textarea(),
+            'graveyard_card_state': _textarea(),
+            'library_card_state': _textarea(),
+        }
 
 
 class IngredientAdmin(admin.TabularInline):

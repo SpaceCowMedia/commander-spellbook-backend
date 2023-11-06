@@ -20,7 +20,7 @@ class AbstractQueryFilter(filters.BaseFilterBackend):
         and may be whitespace delimited.
         """
         params = request.query_params.get(self.search_param, '')
-        params = params.replace('\x00', '')  # strip null characters
+        params = params.replace('\x00', '')  # remove null characters
         return params
 
     def filter_queryset(self, request, queryset, view):

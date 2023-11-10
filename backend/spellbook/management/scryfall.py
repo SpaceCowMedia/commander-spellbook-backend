@@ -1,17 +1,22 @@
 import json
 import uuid
 import datetime
+from decimal import Decimal
 from urllib.request import Request, urlopen
 from django.utils import timezone
 from spellbook.models import Card, merge_identities
 
 
+def standardize_name(name: str) -> str:
+    return name.lower().strip(' \t\n\r')
+
+
 def scryfall():
+    # Scryfall card database fetching
     req = Request(
         'https://api.scryfall.com/bulk-data/oracle-cards?format=json'
     )
-    # Scryfall card database fetching
-    card_db = dict[str, object]()
+    card_db = dict[str, dict]()
     with urlopen(req) as response:
         data = json.loads(response.read().decode())
         req = Request(
@@ -21,18 +26,32 @@ def scryfall():
         with urlopen(req) as response:
             data = json.loads(response.read().decode())
             for card in data:
-                name = card['name'].lower().strip(' \t\n\r')
+                name = standardize_name(card['name'])
                 if name not in card_db \
                     and (any(card['legalities'][format] != 'not_legal' for format in ['commander', 'vintage', 'oathbreaker', 'brawl', 'predh']) or any(game in card['games'] for game in ['paper', 'arena', 'mtgo'])) \
                         and card['layout'] not in {'art_series', 'vanguard', 'scheme', 'token'}:
                     card_db[name] = card
                     if 'card_faces' in card and len(card['card_faces']) > 1:
                         for face in card['card_faces']:
-                            card_db[face['name'].lower().strip(' \t\n\r')] = card
+                            card_db[standardize_name(face['name'])] = card
+
+    # EDHREC card database fetching
+    req = Request(
+        'https://json.edhrec.com/static/prices'
+    )
+    with urlopen(req) as response:
+        data = json.loads(response.read().decode())
+        # Avoid conflicts with scryfall data
+        for card in card_db.values():
+            card.pop('prices', None)
+        for name, prices in data.items():
+            name = standardize_name(name)
+            if name in card_db:
+                card_db[name]['prices'] = prices
     return {name: obj for name, obj in card_db.items() if 'oracle_id' in obj}
 
 
-def update_cards(cards: list[Card], scryfall: dict[str, object], log=lambda t: print(t), log_warning=lambda t: print(t), log_error=lambda t: print(t)):
+def update_cards(cards: list[Card], scryfall: dict[str, dict], log=lambda t: print(t), log_warning=lambda t: print(t), log_error=lambda t: print(t)):
     oracle_db = {card_object['oracle_id']: card_object for card_object in scryfall.values()}
     existing_names = {card.name: card for card in cards}
     existing_oracle_ids = {card.oracle_id: card for card in cards if card.oracle_id is not None}
@@ -41,7 +60,7 @@ def update_cards(cards: list[Card], scryfall: dict[str, object], log=lambda t: p
         updated = False
         if card.oracle_id is None:
             log(f'Card {card.name} lacks an oracle_id: attempting to find it by name...')
-            card_name = card.name.lower().strip(' \t\n\r')
+            card_name = standardize_name(card.name)
             if card_name in scryfall:
                 card.oracle_id = uuid.UUID(hex=scryfall[card_name]['oracle_id'])
                 if card.oracle_id in existing_oracle_ids:
@@ -62,19 +81,63 @@ def update_cards(cards: list[Card], scryfall: dict[str, object], log=lambda t: p
                 else:
                     card.name = card_in_db['name']
                     updated = True
+
+            def card_fields(card: Card) -> tuple:
+                return (
+                    card.identity,
+                    card.spoiler,
+                    card.type_line,
+                    card.oracle_text,
+                    card.legal_commander,
+                    card.legal_pauper_commander_main,
+                    card.legal_pauper_commander_commander,
+                    card.legal_oathbreaker,
+                    card.legal_predh,
+                    card.legal_brawl,
+                    card.legal_vintage,
+                    card.legal_legacy,
+                    card.legal_modern,
+                    card.legal_pioneer,
+                    card.legal_standard,
+                    card.legal_pauper,
+                    card.price_tcgplayer,
+                    card.price_cardkingdom,
+                    card.price_cardmarket,
+                )
+            fields_before = card_fields(card)
             card_identity = merge_identities(card_in_db['color_identity'])
-            if card.identity != card_identity:
-                card.identity = card_identity
-                updated = True
-            card_legal = card_in_db['legalities']['commander'] != 'banned'
-            if card.legal != card_legal:
-                card.legal = card_legal
-                updated = True
+            card.identity = card_identity
             card_spoiler = card_in_db['legalities']['commander'] != 'legal' \
                 and not card_in_db['reprint'] \
                 and datetime.datetime.strptime(card_in_db['released_at'], '%Y-%m-%d').date() > timezone.now().date()
-            if card.spoiler != card_spoiler:
-                card.spoiler = card_spoiler
+            card.type_line = card_in_db['type_line']
+            if 'card_faces' in card_in_db:
+                card.oracle_text = '\n\n'.join(face['oracle_text'] for face in card_in_db['card_faces'])
+            else:
+                card.oracle_text = card_in_db['oracle_text']
+            card.spoiler = card_spoiler
+            card_legalities = card_in_db['legalities']
+            card.legal_commander = card_legalities['commander'] == 'legal'
+            card.legal_pauper_commander_main = card_legalities['paupercommander'] == 'legal'
+            card.legal_pauper_commander_commander = card_legalities['paupercommander'] == 'legal'
+            card.legal_oathbreaker = card_legalities['oathbreaker'] == 'legal'
+            card.legal_predh = card_legalities['predh'] == 'legal'
+            card.legal_brawl = card_legalities['brawl'] == 'legal'
+            card.legal_vintage = card_legalities['vintage'] == 'legal'
+            card.legal_legacy = card_legalities['legacy'] == 'legal'
+            card.legal_modern = card_legalities['modern'] == 'legal'
+            card.legal_pioneer = card_legalities['pioneer'] == 'legal'
+            card.legal_standard = card_legalities['standard'] == 'legal'
+            card.legal_pauper = card_legalities['pauper'] == 'legal'
+            card_prices = card_in_db['prices']
+            p = card_prices['tcgplayer']['price'] if card_prices['tcgplayer'] is not None else 0.0
+            card.price_tcgplayer = round(Decimal.from_float(p), 2)
+            p = card_prices['cardkingdom']['price'] if card_prices['cardkingdom'] is not None else 0.0
+            card.price_cardkingdom = round(Decimal.from_float(p), 2)
+            p = card_prices['cardmarket']['price'] if card_prices['cardmarket'] is not None else 0.0
+            card.price_cardmarket = round(Decimal.from_float(p), 2)
+            fields_after = card_fields(card)
+            if fields_before != fields_after:
                 updated = True
         else:
             log_warning(f'Card {card.name} with oracle id {oracle_id} not found in scryfall dataset. Oracle id has been removed.')

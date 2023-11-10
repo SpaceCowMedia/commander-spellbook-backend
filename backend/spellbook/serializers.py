@@ -2,7 +2,7 @@ from django.db import transaction
 from django.db.models import QuerySet
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from spellbook.models import Card, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, CardInVariant, TemplateInVariant, VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, FeatureProducedInVariantSuggestion, IngredientInCombination
+from spellbook.models import Playable, Card, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, CardInVariant, TemplateInVariant, VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, FeatureProducedInVariantSuggestion, IngredientInCombination
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -14,7 +14,7 @@ class UserSerializer(serializers.ModelSerializer):
 class CardSerializer(serializers.ModelSerializer):
     class Meta:
         model = Card
-        fields = ['id', 'name', 'oracle_id', 'identity', 'legal', 'spoiler']
+        fields = ['id', 'name', 'oracle_id', 'identity', 'spoiler']
 
 
 class FeatureSerializer(serializers.ModelSerializer):
@@ -27,12 +27,82 @@ class FeatureSerializer(serializers.ModelSerializer):
         return queryset.all()
 
 
+class LegalitiesSerializer(serializers.ModelSerializer):
+    commander = serializers.BooleanField(source='legal_commander')
+    pauper_commander_main = serializers.BooleanField(source='legal_pauper_commander_main')
+    pauper_commander_commander = serializers.BooleanField(source='legal_pauper_commander_commander')
+    oathbreaker = serializers.BooleanField(source='legal_oathbreaker')
+    predh = serializers.BooleanField(source='legal_predh')
+    brawl = serializers.BooleanField(source='legal_brawl')
+    vintage = serializers.BooleanField(source='legal_vintage')
+    legacy = serializers.BooleanField(source='legal_legacy')
+    modern = serializers.BooleanField(source='legal_modern')
+    pioneer = serializers.BooleanField(source='legal_pioneer')
+    standard = serializers.BooleanField(source='legal_standard')
+    pauper = serializers.BooleanField(source='legal_pauper')
+
+    class Meta:
+        abstract = True
+        model = Playable
+        fields = [
+            'commander',
+            'pauper_commander_main',
+            'pauper_commander_commander',
+            'oathbreaker',
+            'predh',
+            'brawl',
+            'vintage',
+            'legacy',
+            'modern',
+            'pioneer',
+            'standard',
+            'pauper',
+        ]
+
+
+class PricesSerializer(serializers.ModelSerializer):
+    tcgplayer = serializers.DecimalField(source='price_tcgplayer', max_digits=10, decimal_places=2)
+    cardkingdom = serializers.DecimalField(source='price_cardkingdom', max_digits=10, decimal_places=2)
+    cardmarket = serializers.DecimalField(source='price_cardmarket', max_digits=10, decimal_places=2)
+
+    class Meta:
+        model = Playable
+        fields = [
+            'tcgplayer',
+            'cardkingdom',
+            'cardmarket',
+        ]
+
+
+class CardLegalitiesSerializer(LegalitiesSerializer):
+    class Meta(LegalitiesSerializer.Meta):
+        model = Card
+
+
+class CardPricesSerializer(PricesSerializer):
+    class Meta(PricesSerializer.Meta):
+        model = Card
+
+
 class CardDetailSerializer(serializers.ModelSerializer):
     features = FeatureSerializer(many=True, read_only=True)
+    legalities = CardLegalitiesSerializer(source='*', read_only=True)
+    prices = CardPricesSerializer(source='*', read_only=True)
 
     class Meta:
         model = Card
-        fields = ['id', 'name', 'oracle_id', 'identity', 'legal', 'spoiler', 'features']
+        fields = [
+            'id',
+            'name',
+            'oracle_id',
+            'identity',
+            'type_line',
+            'oracle_text',
+            'spoiler',
+            'features',
+            'legalities',
+            'prices',
+        ]
 
     @classmethod
     def prefetch_related(cls, queryset: QuerySet[Card]):
@@ -197,6 +267,16 @@ class TemplateInVariantSerializer(IngredientInVariantSerializer):
         ]
 
 
+class VariantLegalitiesSerializer(LegalitiesSerializer):
+    class Meta(LegalitiesSerializer.Meta):
+        model = Variant
+
+
+class VariantPricesSerializer(PricesSerializer):
+    class Meta(PricesSerializer.Meta):
+        model = Variant
+
+
 class VariantSerializer(serializers.ModelSerializer):
     uses = CardInVariantSerializer(source='cardinvariant_set', many=True, read_only=True)
     requires = TemplateInVariantSerializer(source='templateinvariant_set', many=True, read_only=True)
@@ -206,6 +286,8 @@ class VariantSerializer(serializers.ModelSerializer):
     mana_needed = serializers.SerializerMethodField()
     other_prerequisites = serializers.SerializerMethodField()
     description = serializers.SerializerMethodField()
+    legalities = VariantLegalitiesSerializer(source='*', read_only=True)
+    prices = VariantPricesSerializer(source='*', read_only=True)
 
     def get_mana_needed(self, obj):
         if obj.status != Variant.Status.OK:
@@ -236,8 +318,9 @@ class VariantSerializer(serializers.ModelSerializer):
             'mana_needed',
             'other_prerequisites',
             'description',
-            'legal',
             'spoiler',
+            'legalities',
+            'prices',
         ]
 
     @classmethod

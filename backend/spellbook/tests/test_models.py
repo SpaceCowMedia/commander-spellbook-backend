@@ -17,7 +17,7 @@ class CardTests(AbstractModelTests):
         self.assertEqual(str(c.oracle_id), '00000000-0000-0000-0000-000000000001')
         self.assertEqual(c.features.count(), 1)
         self.assertEqual(c.identity, 'W')
-        self.assertTrue(c.legal)
+        self.assertTrue(c.legal_commander)
         self.assertFalse(c.spoiler)
 
     def test_query_string(self):
@@ -242,7 +242,7 @@ class VariantTests(AbstractModelTests):
         self.assertIn('4', v.description)
         self.assertEqual(v.identity, 'W')
         self.assertEqual(v.generated_by.id, Job.objects.get(name='generate_variants').id)
-        self.assertEqual(v.legal, True)
+        self.assertEqual(v.legal_commander, True)
         self.assertEqual(v.spoiler, False)
 
     def test_ingredients(self):

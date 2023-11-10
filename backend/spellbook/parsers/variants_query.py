@@ -5,6 +5,7 @@ from collections import defaultdict
 from typing import Callable
 from dataclasses import dataclass
 from .color_parser import parse_identity
+# TODO: search using new fields
 
 
 @dataclass
@@ -168,8 +169,6 @@ def tag_search(q: QuerySet, values: list[QueryValue]) -> QuerySet:
         match value.value.lower():
             case 'preview' | 'previewed' | 'spoiler' | 'spoiled':
                 tag_query &= Q(spoiler=True)
-            case 'banned':
-                tag_query &= Q(legal=False)
             case 'commander':
                 tag_query &= Q(cardinvariant__must_be_commander=True)
             case 'mandatory':

@@ -122,7 +122,6 @@ def restore_variant(
     variant.description = '\n'.join(c.description for c in included_combos if len(c.description) > 0)
     variant.status = Variant.Status.NEW
     variant.identity = merge_identities(c.card.identity for c in used_cards)
-    variant.legal = all(c.card.legal for c in used_cards)
     variant.spoiler = any(c.card.spoiler for c in used_cards)
     uses = dict[int, CardInVariant]()
     for card_in_variant in used_cards:
@@ -242,7 +241,7 @@ def create_variant(
 def perform_bulk_saves(to_create: list[VariantBulkSaveItem], to_update: list[VariantBulkSaveItem]):
     Variant.objects.bulk_create(v.variant for v in to_create)
     if to_update:
-        update_fields = ['status', 'mana_needed', 'other_prerequisites', 'description', 'identity', 'legal', 'spoiler']
+        update_fields = ['status', 'mana_needed', 'other_prerequisites', 'description', 'identity', 'spoiler']
         Variant.objects.bulk_update((v.variant for v in to_update if v.should_update), fields=update_fields)
     CardInVariant.objects.bulk_create(c for v in to_create for c in v.uses)
     if to_update:

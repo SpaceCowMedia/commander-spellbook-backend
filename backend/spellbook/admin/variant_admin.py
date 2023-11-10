@@ -103,24 +103,36 @@ class VariantForm(ModelForm):
 @admin.register(Variant)
 class VariantAdmin(admin.ModelAdmin):
     form = VariantForm
-    readonly_fields = ['produces_link', 'of_link', 'includes_link', 'id', 'identity', 'legal', 'spoiler', 'scryfall_link']
+    generated_readonly_fields = [
+        'id',
+        'produces_link',
+        'of_link',
+        'includes_link',
+        'identity',
+        'spoiler',
+        'scryfall_link'
+    ]
+    readonly_fields = generated_readonly_fields + Variant.legalities_fields() + Variant.prices_fields()
     fieldsets = [
-        ('Generated', {'fields': [
-            'id',
-            'produces_link',
-            'of_link',
-            'includes_link',
-            'identity',
-            'legal',
-            'spoiler',
-            'scryfall_link']}),
+        ('Generated', {'fields': generated_readonly_fields}),
         ('Editable', {'fields': [
             'status',
             'mana_needed',
             'other_prerequisites',
-            'description']})
+            'description',
+        ]}),
+        ('Legalities', {
+            'fields': Variant.legalities_fields(),
+            'classes': ['collapse'],
+            'description': 'Legalities are updated during generation.'
+        }),
+        ('Prices', {
+            'fields': Variant.prices_fields(),
+            'classes': ['collapse'],
+            'description': 'Prices are updated during generation.'
+        }),
     ]
-    list_filter = ['status', CardsCountListFilter, IdentityFilter, 'legal', 'spoiler']
+    list_filter = ['status', CardsCountListFilter, IdentityFilter, 'legal_commander', 'spoiler']
     list_display = ['display_name', 'status', 'identity']
     actions = [set_restore, set_draft, set_new, set_not_working, set_example]
     search_fields = ['id']

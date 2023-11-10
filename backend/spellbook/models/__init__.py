@@ -1,3 +1,4 @@
+from .playable import Playable
 from .feature import Feature
 from .card import Card
 from .template import Template

@@ -1,5 +1,6 @@
 from django.db import models
 from sortedm2m.fields import SortedManyToManyField
+from .playable import Playable
 from .mixins import ScryfallLinkMixin
 from .card import Card
 from .template import Template
@@ -11,7 +12,7 @@ from .validators import TEXT_VALIDATORS, MANA_VALIDATOR, IDENTITY_VALIDATORS
 from .utils import recipe
 
 
-class Variant(models.Model, ScryfallLinkMixin):
+class Variant(Playable, ScryfallLinkMixin):
     class Status(models.TextChoices):
         NEW = 'N'
         DRAFT = 'D'
@@ -61,7 +62,6 @@ class Variant(models.Model, ScryfallLinkMixin):
     updated = models.DateTimeField(auto_now=True, editable=False)
     identity = models.CharField(max_length=5, blank=False, null=False, help_text='Mana identity', verbose_name='mana identity', editable=False, validators=IDENTITY_VALIDATORS)
     generated_by = models.ForeignKey(Job, on_delete=models.SET_NULL, null=True, blank=True, editable=False, help_text='Job that generated this variant', related_name='variants')
-    legal = models.BooleanField(blank=False, editable=False, help_text='Is this variant legal in Commander?', verbose_name='is legal')
     spoiler = models.BooleanField(blank=False, editable=False, help_text='Is this variant a spoiler?', verbose_name='is spoiler')
 
     class Meta:

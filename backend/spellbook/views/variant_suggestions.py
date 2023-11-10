@@ -1,5 +1,6 @@
 from rest_framework.viewsets import ModelViewSet
 from rest_framework import permissions
+from django_filters.rest_framework import DjangoFilterBackend
 from spellbook.models import VariantSuggestion
 from spellbook.serializers import VariantSuggestionSerializer
 
@@ -21,3 +22,5 @@ class VariantSuggestionViewSet(ModelViewSet):
     queryset = VariantSuggestionSerializer.prefetch_related(VariantSuggestion.objects)
     serializer_class = VariantSuggestionSerializer
     permission_classes = [permissions.DjangoModelPermissionsOrAnonReadOnly, IsNewAndOwnerOrReadOnly]
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['suggested_by']

@@ -29,6 +29,8 @@ class CardAdmin(admin.ModelAdmin):
             'fields': [
                 'scryfall_link',
                 'oracle_id',
+                'type_line',
+                'oracle_text',
                 'identity',
                 'spoiler'
             ],
@@ -47,7 +49,7 @@ class CardAdmin(admin.ModelAdmin):
     ]
     # inlines = [FeatureInline]
     list_filter = [IdentityFilter, 'legal_commander', ManagedByScryfallFilter]
-    search_fields = ['name', 'features__name']
+    search_fields = ['name', 'features__name', 'type_line', 'oracle_text']
     autocomplete_fields = ['features']
     list_display = ['name', 'identity', 'id']
 
@@ -55,7 +57,7 @@ class CardAdmin(admin.ModelAdmin):
         readonly_fields = list(super().get_readonly_fields(request, obj))
         if obj is not None and obj.oracle_id is not None:
             return readonly_fields \
-                + ['name', 'oracle_id', 'identity', 'spoiler'] \
+                + ['scryfall_link', 'oracle_id', 'type_line', 'oracle_text', 'identity', 'spoiler'] \
                 + Card.legalities_fields() \
                 + Card.prices_fields()
         return readonly_fields

@@ -14,8 +14,8 @@ class Card(Playable, PreSaveModel, ScryfallLinkMixin):
     oracle_id = models.UUIDField(unique=True, blank=True, null=True, help_text='Scryfall Oracle ID', verbose_name='Scryfall Oracle ID of card')
     name = models.CharField(max_length=MAX_CARD_NAME_LENGTH, unique=True, blank=False, help_text='Card name', verbose_name='name of card')
     name_unaccented = models.CharField(max_length=MAX_CARD_NAME_LENGTH, unique=True, blank=False, help_text='Card name without accents', verbose_name='name of card without accents', editable=False)
-    type_line = models.CharField(max_length=MAX_CARD_NAME_LENGTH, blank=True, default='', help_text='Card type line', verbose_name='type line of card')  # TODO: use these in search
-    oracle_text = models.TextField(blank=True, default='', help_text='Card oracle text', verbose_name='oracle text of card')  # TODO: use these in search
+    type_line = models.CharField(max_length=MAX_CARD_NAME_LENGTH, blank=True, default='', help_text='Card type line', verbose_name='type line of card')
+    oracle_text = models.TextField(blank=True, default='', help_text='Card oracle text', verbose_name='oracle text of card')
     features = models.ManyToManyField(
         to=Feature,
         related_name='cards',

@@ -321,6 +321,7 @@ class VariantSuggestionSerializer(serializers.ModelSerializer):
         fields = [
             'id',
             'status',
+            'notes',
             'uses',
             'requires',
             'produces',

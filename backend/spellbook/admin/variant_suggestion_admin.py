@@ -80,6 +80,7 @@ class VariantSuggestionAdmin(admin.ModelAdmin):
             'suggested_by']}),
         ('Editable', {'fields': [
             'status',
+            'notes',
             'mana_needed',
             'other_prerequisites',
             'description']})

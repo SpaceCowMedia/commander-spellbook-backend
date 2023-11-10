@@ -184,7 +184,7 @@ def update_variant(
         status: Variant.Status,
         restore=False):
     variant = data.id_to_variant[id]
-    ok = status in (Variant.Status.OK, Variant.Status.EXAMPLE) or \
+    ok = status in Variant.public_statuses() or \
         status != Variant.Status.NOT_WORKING and not includes_any(v=frozenset(variant_def.card_ids), others=data.not_working_variants)
     uses, requires = [], []
     if restore:

@@ -20,6 +20,10 @@ class Variant(models.Model, ScryfallLinkMixin):
         RESTORE = 'R'
         NOT_WORKING = 'NW'
 
+    @classmethod
+    def public_statuses(cls):
+        return (cls.Status.OK, cls.Status.EXAMPLE)
+
     id = models.CharField(max_length=128, primary_key=True, unique=True, blank=False, help_text='Unique ID for this variant', editable=False)
     uses = models.ManyToManyField(
         to=Card,

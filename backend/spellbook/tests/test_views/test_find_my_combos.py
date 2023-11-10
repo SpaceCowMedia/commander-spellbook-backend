@@ -14,7 +14,7 @@ class FindMyCombosViewTests(AbstractModelTests):
         launch_job_command('generate_variants', None)
         Variant.objects.update(status=Variant.Status.OK)
         Variant.objects.filter(id__in=random.sample(list(Variant.objects.values_list('id', flat=True)), 3)).update(status=Variant.Status.EXAMPLE)
-        self.variants = Variant.objects.filter(status__in=(Variant.Status.OK, Variant.Status.EXAMPLE)).prefetch_related('cardinvariant_set', 'cardinvariant_set__card')
+        self.variants = Variant.objects.filter(status__in=Variant.public_statuses()).prefetch_related('cardinvariant_set', 'cardinvariant_set__card')
         self.variants_dict = {v.id: v for v in self.variants}
         self.variants_cards = {v.id: {c.card.name for c in v.cardinvariant_set.all()} for v in self.variants}
         self.variants_commanders = {v.id: {c.card.name for c in v.cardinvariant_set.filter(must_be_commander=True)} for v in self.variants}
@@ -28,40 +28,40 @@ class FindMyCombosViewTests(AbstractModelTests):
         identity_set = set(identity)
         for v in result.results.included:
             v = self.variants_dict[v.id]
-            self.assertIn(v.status, (Variant.Status.OK, Variant.Status.EXAMPLE))
+            self.assertIn(v.status, Variant.public_statuses())
             self.assertTrue(self.variants_cards[v.id].issubset(cards))
             self.assertTrue(set(v.identity).issubset(identity_set))
             self.assertTrue(self.variants_commanders[v.id].issubset(commanders))
         for v in result.results.included_by_changing_commanders:
             v = self.variants_dict[v.id]
-            self.assertIn(v.status, (Variant.Status.OK, Variant.Status.EXAMPLE))
+            self.assertIn(v.status, Variant.public_statuses())
             self.assertTrue(self.variants_cards[v.id].issubset(cards))
             self.assertTrue(set(v.identity).issubset(identity_set))
             self.assertFalse(self.variants_commanders[v.id].issubset(commanders))
         for v in result.results.almost_included:
             v = self.variants_dict[v.id]
-            self.assertIn(v.status, (Variant.Status.OK, Variant.Status.EXAMPLE))
+            self.assertIn(v.status, Variant.public_statuses())
             self.assertTrue(bool(self.variants_cards[v.id].intersection(cards)))
             self.assertFalse(self.variants_cards[v.id].issubset(cards))
             self.assertTrue(set(v.identity).issubset(identity_set))
             self.assertTrue(self.variants_commanders[v.id].issubset(commanders))
         for v in result.results.almost_included_by_adding_colors:
             v = self.variants_dict[v.id]
-            self.assertIn(v.status, (Variant.Status.OK, Variant.Status.EXAMPLE))
+            self.assertIn(v.status, Variant.public_statuses())
             self.assertTrue(bool(self.variants_cards[v.id].intersection(cards)))
             self.assertFalse(self.variants_cards[v.id].issubset(cards))
             self.assertFalse(set(v.identity).issubset(identity_set))
             self.assertTrue(self.variants_commanders[v.id].issubset(commanders))
         for v in result.results.almost_included_by_changing_commanders:
             v = self.variants_dict[v.id]
-            self.assertIn(v.status, (Variant.Status.OK, Variant.Status.EXAMPLE))
+            self.assertIn(v.status, Variant.public_statuses())
             self.assertTrue(bool(self.variants_cards[v.id].intersection(cards)))
             self.assertFalse(self.variants_cards[v.id].issubset(cards))
             self.assertTrue(set(v.identity).issubset(identity_set))
             self.assertFalse(self.variants_commanders[v.id].issubset(commanders))
         for v in result.results.almost_included_by_adding_colors_and_changing_commanders:
             v = self.variants_dict[v.id]
-            self.assertIn(v.status, (Variant.Status.OK, Variant.Status.EXAMPLE))
+            self.assertIn(v.status, Variant.public_statuses())
             self.assertTrue(bool(self.variants_cards[v.id].intersection(cards)))
             self.assertFalse(self.variants_cards[v.id].issubset(cards))
             self.assertFalse(set(v.identity).issubset(identity_set))

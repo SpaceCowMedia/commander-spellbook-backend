@@ -57,7 +57,7 @@ class CleanJobsTest(AbstractModelTests):
         with open(file_path) as f:
             data = json.load(f)
         self.assertEqual(len(data['variants']), 0)
-        for export_status in [Variant.Status.OK, Variant.Status.EXAMPLE]:
+        for export_status in Variant.public_statuses():
             with self.subTest(export_status=export_status):
                 Variant.objects.update(status=export_status)
                 launch_job_command('export_variants', None, ['--file', file_path])

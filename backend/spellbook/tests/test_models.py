@@ -260,7 +260,7 @@ class VariantTests(AbstractModelTests):
         self.assertTrue(v.query_string().startswith('q='))
 
     def test_method_count(self):
-        self.assertEqual(count_methods(Variant), 3)
+        self.assertEqual(count_methods(Variant), 4)
 
 
 class VariantSuggestionTests(AbstractModelTests):

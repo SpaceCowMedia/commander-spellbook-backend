@@ -7,6 +7,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.contrib.admin.models import LogEntry, CHANGE
 from django.contrib.contenttypes.models import ContentType
 from django.conf import settings
+from django.db import transaction
 from djangorestframework_camel_case.util import camelize
 from spellbook.models import Variant, Job
 from spellbook.serializers import VariantSerializer
@@ -50,11 +51,12 @@ class Command(BaseCommand):
             raise CommandError('Job with name export_variants already running')
         try:
             self.stdout.write('Fetching variants from db...')
-            variants_source = VariantViewSet().get_queryset()
-            result = {
-                'timestamp': timezone.now().isoformat(),
-                'variants': [prepare_variant(v) for v in variants_source],
-            }
+            with transaction.atomic(durable=True):
+                variants_source = VariantViewSet().get_queryset()
+                result = {
+                    'timestamp': timezone.now().isoformat(),
+                    'variants': [prepare_variant(v) for v in variants_source],
+                }
 
             camelized_json = camelize(result)
             if options['s3']:

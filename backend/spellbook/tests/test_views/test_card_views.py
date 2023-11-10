@@ -11,6 +11,8 @@ class CardViewsTests(AbstractModelTests):
         self.assertEqual(card_result.id, c.id)
         self.assertEqual(card_result.name, c.name)
         self.assertEqual(card_result.oracle_id, str(c.oracle_id))
+        self.assertEqual(card_result.type_line, c.type_line)
+        self.assertEqual(card_result.oracle_text, c.oracle_text)
         self.assertEqual(card_result.identity, c.identity)
         self.assertEqual(card_result.legalities.commander, c.legal_commander)
         self.assertEqual(card_result.legalities.pauper_commander_main, c.legal_pauper_commander_main)

@@ -3,7 +3,6 @@ import gzip
 import re
 from typing import Any
 from pathlib import Path
-from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 from dataclasses import dataclass
 from django.core.management.base import BaseCommand
@@ -17,7 +16,7 @@ from spellbook.variants.variants_generator import generate_variants, DEFAULT_CAR
 from spellbook.models.validators import MANA_SYMBOL
 from spellbook.management.s3_upload import upload_json_to_aws
 from spellbook.admin.utils import upper_oracle_symbols
-from ..scryfall import scryfall, update_cards
+from ..scryfall import scryfall, update_cards, fuzzy_restore_card
 
 
 @dataclass(frozen=True)
@@ -334,11 +333,8 @@ class Command(BaseCommand):
                 data: Any = scryfall_db[card]
             else:
                 self.log_job(job, f'Card {card} not found in Scryfall JSON, fetching...')
-                scryreq = Request(
-                    'https://api.scryfall.com/cards/named?' + urlencode({'fuzzy': card}))
-                with urlopen(scryreq) as response:
-                    data = json.loads(response.read().decode())
-                    scryfall_db[card] = data
+                fuzzy_restore_card(scryfall_db, card)
+                data: Any = scryfall_db[card]
                 self.log_job(job, f'Card {card} fetched')
             save_card = False
             if data['oracle_id'] in oracle_cards_in_database:

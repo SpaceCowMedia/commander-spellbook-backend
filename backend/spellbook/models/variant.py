@@ -8,7 +8,7 @@ from .feature import Feature
 from .ingredient import IngredientInCombination
 from .combo import Combo
 from .job import Job
-from .validators import TEXT_VALIDATORS, MANA_VALIDATOR, IDENTITY_VALIDATORS
+from .validators import TEXT_VALIDATORS, MANA_VALIDATOR
 from .utils import recipe
 
 
@@ -60,9 +60,7 @@ class Variant(Playable, ScryfallLinkMixin):
     description = models.TextField(blank=True, help_text='Long description, in steps', validators=TEXT_VALIDATORS)
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, editable=False)
-    identity = models.CharField(max_length=5, blank=False, null=False, help_text='Mana identity', verbose_name='mana identity', editable=False, validators=IDENTITY_VALIDATORS)
     generated_by = models.ForeignKey(Job, on_delete=models.SET_NULL, null=True, blank=True, editable=False, help_text='Job that generated this variant', related_name='variants')
-    spoiler = models.BooleanField(blank=False, editable=False, help_text='Is this variant a spoiler?', verbose_name='is spoiler')
 
     class Meta:
         ordering = ['-status', '-created']

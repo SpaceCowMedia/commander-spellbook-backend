@@ -5,7 +5,7 @@ from django.db import transaction
 from .list_utils import includes_any
 from .variant_data import RestoreData, Data, debug_queries
 from .combo_graph import Graph
-from spellbook.models import Combo, Job, Variant, CardInVariant, TemplateInVariant, IngredientInCombination, id_from_cards_and_templates_ids, merge_identities
+from spellbook.models import Combo, Job, Variant, CardInVariant, TemplateInVariant, IngredientInCombination, id_from_cards_and_templates_ids, Playable
 
 
 DEFAULT_CARD_LIMIT = 5
@@ -121,8 +121,7 @@ def restore_variant(
     variant.mana_needed = ' '.join(c.mana_needed for c in included_combos if len(c.mana_needed) > 0)
     variant.description = '\n'.join(c.description for c in included_combos if len(c.description) > 0)
     variant.status = Variant.Status.NEW
-    variant.identity = merge_identities(c.card.identity for c in used_cards)
-    variant.spoiler = any(c.card.spoiler for c in used_cards)
+    variant.update([c.card for c in used_cards])
     uses = dict[int, CardInVariant]()
     for card_in_variant in used_cards:
         card_in_variant.order = 0
@@ -180,7 +179,7 @@ def update_variant(
         data: Data,
         id: str,
         variant_def: VariantDefinition,
-        status: Variant.Status,
+        status: Variant.Status | str,
         restore=False):
     variant = data.id_to_variant[id]
     ok = status in Variant.public_statuses() or \
@@ -241,7 +240,7 @@ def create_variant(
 def perform_bulk_saves(to_create: list[VariantBulkSaveItem], to_update: list[VariantBulkSaveItem]):
     Variant.objects.bulk_create(v.variant for v in to_create)
     if to_update:
-        update_fields = ['status', 'mana_needed', 'other_prerequisites', 'description', 'identity', 'spoiler']
+        update_fields = ['status', 'mana_needed', 'other_prerequisites', 'description'] + Playable.all_fields()
         Variant.objects.bulk_update((v.variant for v in to_update if v.should_update), fields=update_fields)
     CardInVariant.objects.bulk_create(c for v in to_create for c in v.uses)
     if to_update:

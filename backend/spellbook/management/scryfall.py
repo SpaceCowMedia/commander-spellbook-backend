@@ -3,6 +3,7 @@ import uuid
 import datetime
 from decimal import Decimal
 from urllib.request import Request, urlopen
+from urllib.parse import urlencode
 from django.utils import timezone
 from spellbook.models import Card, merge_identities
 
@@ -49,6 +50,21 @@ def scryfall():
             if name in card_db:
                 card_db[name]['prices'] = prices
     return {name: obj for name, obj in card_db.items() if 'oracle_id' in obj}
+
+
+def fuzzy_restore_card(scryfall: dict, name: str):
+    if name in scryfall:
+        return
+    req = Request(
+        'https://api.scryfall.com/cards/named?' + urlencode({'fuzzy': name}))
+    with urlopen(req) as response:
+        data = json.loads(response.read().decode())
+        actual_name = standardize_name(data['name'])
+        if actual_name in scryfall:
+            scryfall[name] = scryfall[actual_name]
+            return
+        else:
+            raise Exception(f'Card {name} not found in scryfall dataset, even after fuzzy search')
 
 
 def update_cards(cards: list[Card], scryfall: dict[str, dict], log=lambda t: print(t), log_warning=lambda t: print(t), log_error=lambda t: print(t)):

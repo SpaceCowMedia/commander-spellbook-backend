@@ -6,7 +6,6 @@ from .playable import Playable
 from .utils import strip_accents, merge_identities
 from .mixins import ScryfallLinkMixin, PreSaveModel
 from .feature import Feature
-from .validators import IDENTITY_VALIDATORS
 
 
 class Card(Playable, PreSaveModel, ScryfallLinkMixin):
@@ -21,8 +20,6 @@ class Card(Playable, PreSaveModel, ScryfallLinkMixin):
         related_name='cards',
         help_text='Features provided by this single card effects or characteristics',
         blank=True)
-    identity = models.CharField(max_length=5, blank=False, null=False, default='C', help_text='Card mana identity', verbose_name='mana identity of card', validators=IDENTITY_VALIDATORS)
-    spoiler = models.BooleanField(default=False, help_text='Is this card from an upcoming set?', verbose_name='is spoiler')
     added = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, editable=False)
 

@@ -98,7 +98,6 @@ jobs:
           - macos-latest
       max-parallel: 2
     runs-on: ${{ matrix.os }}
-    needs: build
     defaults:
       run:
         shell: bash

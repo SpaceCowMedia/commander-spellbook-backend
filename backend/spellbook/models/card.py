@@ -1,9 +1,7 @@
 from urllib.parse import urlencode
 from django.db import models
-from django.dispatch import receiver
-from django.db.models.signals import post_save
 from .playable import Playable
-from .utils import strip_accents, merge_identities
+from .utils import strip_accents
 from .mixins import ScryfallLinkMixin, PreSaveModel
 from .feature import Feature
 
@@ -36,27 +34,3 @@ class Card(Playable, PreSaveModel, ScryfallLinkMixin):
 
     def pre_save(self):
         self.name_unaccented = strip_accents(self.name)
-
-
-@receiver(post_save, sender=Card, dispatch_uid='update_variant_fields')
-def update_variant_fields(sender, instance, created, raw, **kwargs):
-    from .variant import Variant
-    if raw:
-        return
-    if created:
-        return
-    variants_to_save = []
-    for variant in instance.used_in_variants.all():
-        save = False
-        if not variant.spoiler and instance.spoiler:
-            variant.spoiler = True
-            save = True
-        elif variant.spoiler and not instance.spoiler:
-            variant.spoiler = any(card.spoiler for card in variant.uses.all())
-            save = True
-        if instance.identity != variant.identity:
-            variant.identity = merge_identities(card.identity for card in variant.uses.all())
-            save = True
-        if save:
-            variants_to_save.append(variant)
-    Variant.objects.bulk_update(variants_to_save, ['spoiler', 'identity'])

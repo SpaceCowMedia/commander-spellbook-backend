@@ -7,8 +7,8 @@ from .utils import merge_identities
 
 class Playable(models.Model):
     @classmethod
-    def all_fields(cls):
-        return [field.name for field in cls._meta.get_fields()]
+    def playable_fields(cls):
+        return ['identity', 'spoiler'] + cls.legalities_fields() + cls.prices_fields()
     identity = models.CharField(max_length=5, blank=False, null=False, default='C', help_text='mana identity', verbose_name='mana identity', validators=IDENTITY_VALIDATORS)
     spoiler = models.BooleanField(default=False, help_text='Is this from an upcoming set?', verbose_name='is spoiler')
 
@@ -40,7 +40,9 @@ class Playable(models.Model):
     class Meta:
         abstract = True
 
-    def update(self, playables: Iterable['Playable']) -> None:
+    def update(self, playables: Iterable['Playable']) -> bool:
+        '''Update this playable with the given playables. Return True if any field was changed, False otherwise.'''
+        old_values = {field: getattr(self, field) for field in self.playable_fields()}
         self.identity = merge_identities(playable.identity for playable in playables)
         self.spoiler = any(playable.spoiler for playable in playables)
         self.legal_commander = all(playable.legal_commander for playable in playables)
@@ -58,3 +60,5 @@ class Playable(models.Model):
         self.price_tcgplayer = sum(playable.price_tcgplayer for playable in playables)
         self.price_cardkingdom = sum(playable.price_cardkingdom for playable in playables)
         self.price_cardmarket = sum(playable.price_cardmarket for playable in playables)
+        new_values = {field: getattr(self, field) for field in self.playable_fields()}
+        return old_values != new_values

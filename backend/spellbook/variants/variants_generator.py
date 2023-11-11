@@ -240,7 +240,7 @@ def create_variant(
 def perform_bulk_saves(to_create: list[VariantBulkSaveItem], to_update: list[VariantBulkSaveItem]):
     Variant.objects.bulk_create(v.variant for v in to_create)
     if to_update:
-        update_fields = ['status', 'mana_needed', 'other_prerequisites', 'description'] + Playable.all_fields()
+        update_fields = ['status', 'mana_needed', 'other_prerequisites', 'description'] + Playable.playable_fields()
         Variant.objects.bulk_update((v.variant for v in to_update if v.should_update), fields=update_fields)
     CardInVariant.objects.bulk_create(c for v in to_create for c in v.uses)
     if to_update:

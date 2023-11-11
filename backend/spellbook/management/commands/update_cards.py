@@ -1,8 +1,7 @@
 import traceback
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from django.db import transaction
-from spellbook.models import Job, Card
+from spellbook.models import Job, Card, Variant
 from ..scryfall import scryfall, update_cards
 
 
@@ -33,15 +32,26 @@ class Command(BaseCommand):
                 lambda x: self.log_job(job, x, self.style.WARNING),
                 lambda x: self.log_job(job, x, self.style.ERROR),
             )
-            updated_count = len(cards_to_save)
-            if updated_count > 0:
-                with transaction.atomic(durable=True):
-                    # TODO: Update variants
-                    Card.objects.bulk_update(cards_to_save, fields=['name', 'name_unaccented', 'oracle_id', 'identity', 'spoiler', 'oracle_text', 'type_line'] + Card.legalities_fields() + Card.prices_fields())
+            updated_cards_count = len(cards_to_save)
+            updated_variants_count = 0
+            Card.objects.bulk_update(cards_to_save, fields=['name', 'name_unaccented', 'oracle_id', 'identity', 'spoiler', 'oracle_text', 'type_line'] + Card.legalities_fields() + Card.prices_fields())
+            self.log_job(job, 'Updating cards...done', self.style.SUCCESS)
+            if updated_cards_count > 0:
+                self.log_job(job, 'Updating variants...')
+                variants = list(Variant.objects.prefetch_related('uses').filter(uses__in=cards_to_save))
+                variants_to_save = []
+                for variant in variants:
+                    if variant.update(variant.uses.all()):
+                        variants_to_save.append(variant)
+                updated_variants_count = len(variants_to_save)
+                Variant.objects.bulk_update(variants_to_save, fields=Variant.playable_fields())
+                self.log_job(job, 'Updating variants...done', self.style.SUCCESS)
             job.termination = timezone.now()
             job.status = Job.Status.SUCCESS
-            self.log_job(job, 'Updating cards...done', self.style.SUCCESS)
-            self.log_job(job, f'Successfully updated {updated_count} cards' if updated_count > 0 else 'Everything is up to date', self.style.SUCCESS)
+            if updated_cards_count > 0:
+                self.log_job(job, f'Successfully updated {updated_cards_count} cards and {updated_variants_count} variants', self.style.SUCCESS)
+            else:
+                self.log_job(job, 'No cards to update', self.style.SUCCESS)
             job.save()
         except Exception as e:
             self.stdout.write(self.style.ERROR(traceback.format_exc()))

@@ -4,13 +4,14 @@ from django.db.models.functions import Length
 from collections import defaultdict
 from typing import Callable
 from dataclasses import dataclass
+from spellbook.models import Variant
 from .color_parser import parse_identity
-# TODO: search using new fields
 
 
 @dataclass
 class QueryValue:
     prefix: str
+    key: str
     operator: str
     value: str
 
@@ -169,6 +170,20 @@ def commander_name_search(commander_name_value: QueryValue) -> Q:
     return commander_name_query
 
 
+def legality_search(legality_value: QueryValue) -> Q:
+    if legality_value.operator != ':':
+        raise NotSupportedError(f'Operator {legality_value.operator} is not supported for legality search.')
+    format = legality_value.value.lower()
+    supported_formats = {f.removeprefix('legal_') for f in Variant.legalities_fields()}
+    if format not in supported_formats:
+        raise NotSupportedError(f'Format {format} is not supported for legality search.')
+    q = Q(**{f'legal_{format}': True})
+    match legality_value.key.lower():
+        case 'banned':
+            q = ~q
+    return q
+
+
 keyword_map: dict[str, Callable[[QueryValue], Q]] = {
     'card': card_search,
     'coloridentity': identity_search,
@@ -178,6 +193,7 @@ keyword_map: dict[str, Callable[[QueryValue], Q]] = {
     'spellbookid': spellbook_id_search,
     'is': tag_search,
     'commander': commander_name_search,
+    'legal': legality_search,
 }
 
 
@@ -198,6 +214,8 @@ alias_map: dict[str, str] = {
     'desc': 'steps',
     'result': 'results',
     'sid': 'spellbookid',
+    'format': 'legal',
+    'banned': 'legal',
 }
 
 
@@ -223,14 +241,17 @@ def variants_query_parser(base: QuerySet, query_string: str) -> QuerySet:
         group_dict = regex_match.groupdict()
         if group_dict['card_short'] or group_dict['card_long']:
             card_term = group_dict['card_short'] or group_dict['card_long']
-            parsed_queries['card'].append(QueryValue('', ':', card_term))
+            parsed_queries['card'].append(QueryValue('', '', ':', card_term))
         elif group_dict['key']:
             key = group_dict['key']
+            original_key = key
             if key in alias_map:
                 key = alias_map[key]
             if key not in keyword_map:
                 raise NotSupportedError(f'Key {key} is not supported for query.')
-            parsed_queries[key].append(QueryValue(group_dict['prefix'], group_dict['operator'], group_dict['value_short'] or group_dict['value_long']))
+            parsed_queries[key].append(QueryValue(group_dict['prefix'], original_key, group_dict['operator'], group_dict['value_short'] or group_dict['value_long']))
+    if len(parsed_queries) > 20:
+        raise NotSupportedError('Too many search terms.')
     for key, values in parsed_queries.items():
         for value in values:
             q = keyword_map[key](value)

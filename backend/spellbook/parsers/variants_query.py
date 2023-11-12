@@ -184,6 +184,35 @@ def legality_search(legality_value: QueryValue) -> Q:
     return q
 
 
+def price_search(price_value: QueryValue) -> Q:
+    match price_value.key.lower():
+        case 'usd' | 'price':
+            store = 'cardkingdom'
+        case 'eur':
+            store = 'cardmarket'
+        case other:
+            store = other
+    supported_stores = {s.removeprefix('price_') for s in Variant.prices_fields()}
+    if store not in supported_stores:
+        raise NotSupportedError(f'Store {store} is not supported for price search.')
+    if not price_value.value.isdigit():
+        raise NotSupportedError(f'Value {price_value.value} is not supported for price search.')
+    match price_value.operator:
+        case ':' | '=':
+            q = Q(**{f'price_{store}': price_value.value})
+        case '<':
+            q = Q(**{f'price_{store}__lt': price_value.value})
+        case '<=':
+            q = Q(**{f'price_{store}__lte': price_value.value})
+        case '>':
+            q = Q(**{f'price_{store}__gt': price_value.value})
+        case '>=':
+            q = Q(**{f'price_{store}__gte': price_value.value})
+        case _:
+            raise NotSupportedError(f'Operator {price_value.operator} is not supported for price search.')
+    return q
+
+
 keyword_map: dict[str, Callable[[QueryValue], Q]] = {
     'card': card_search,
     'coloridentity': identity_search,
@@ -194,6 +223,7 @@ keyword_map: dict[str, Callable[[QueryValue], Q]] = {
     'is': tag_search,
     'commander': commander_name_search,
     'legal': legality_search,
+    'price': price_search,
 }
 
 
@@ -216,6 +246,9 @@ alias_map: dict[str, str] = {
     'sid': 'spellbookid',
     'format': 'legal',
     'banned': 'legal',
+    'usd': 'price',
+    'eur': 'price',
+    **{s.removeprefix('price_'): 'price' for s in Variant.prices_fields()},
 }
 
 

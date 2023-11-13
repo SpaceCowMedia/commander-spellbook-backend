@@ -87,7 +87,7 @@ class VariantSuggestionAdmin(admin.ModelAdmin):
     ]
     inlines = [CardUsedInVariantSuggestionAdminInline, TemplateRequiredInVariantAdminInline, FeatureProducedInVariantAdminInline]
     list_filter = ['status', CardsCountListFilter]
-    list_display = ['display_name', 'status']
+    list_display = ['display_name', 'id', 'status']
     actions = [set_rejected]
 
     def display_name(self, obj):

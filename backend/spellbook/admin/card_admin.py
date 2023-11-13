@@ -1,5 +1,9 @@
+from typing import Any
 from django.contrib import admin
-from spellbook.models import Card
+from django.db.models import Count, Q
+from django.db.models.query import QuerySet
+from django.http.request import HttpRequest
+from spellbook.models import Card, Variant
 from .utils import IdentityFilter
 
 
@@ -51,7 +55,7 @@ class CardAdmin(admin.ModelAdmin):
     list_filter = [IdentityFilter, 'legal_commander', ManagedByScryfallFilter]
     search_fields = ['name', 'features__name', 'type_line', 'oracle_text']
     autocomplete_fields = ['features']
-    list_display = ['name', 'identity', 'id']
+    list_display = ['name', 'id', 'identity', 'variants_count']
 
     def get_readonly_fields(self, request, obj):
         readonly_fields = list(super().get_readonly_fields(request, obj))
@@ -66,3 +70,11 @@ class CardAdmin(admin.ModelAdmin):
         if obj is None:
             return False
         return super().has_delete_permission(request, obj) and not obj.used_in_combos.exists() and not obj.used_in_variants.exists()
+
+    def get_queryset(self, request: HttpRequest) -> QuerySet[Any]:
+        return super().get_queryset(request) \
+            .annotate(variants_count=Count('used_in_variants', distinct=True, filter=Q(used_in_variants__status__in=Variant.public_statuses())))
+
+    @admin.display(ordering='variants_count')
+    def variants_count(self, obj: Any) -> int:
+        return obj.variants_count

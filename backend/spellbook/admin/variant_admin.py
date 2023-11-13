@@ -133,7 +133,7 @@ class VariantAdmin(admin.ModelAdmin):
         }),
     ]
     list_filter = ['status', CardsCountListFilter, IdentityFilter, 'legal_commander', 'spoiler']
-    list_display = ['display_name', 'status', 'identity']
+    list_display = ['display_name', 'id', 'status', 'identity']
     actions = [set_restore, set_draft, set_new, set_not_working, set_example]
     search_fields = ['id']
 

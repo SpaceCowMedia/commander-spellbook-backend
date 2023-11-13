@@ -111,7 +111,7 @@ class ComboAdmin(SearchMultipleRelatedMixin, admin.ModelAdmin):
     filter_horizontal = ['uses', 'produces', 'needs', 'removes']
     list_filter = ['kind', PayoffFilter, VariantRelatedFilter]
     search_fields = ['uses__name', 'uses__name_unaccented', 'requires__name', 'produces__name', 'needs__name']
-    list_display = ['display_name', 'kind', 'id']
+    list_display = ['display_name', 'id', 'kind']
 
     def display_name(self, obj):
         return recipe([card.name for card in obj.prefetched_uses] + [feature.name for feature in obj.prefetched_needs] + [template.name for template in obj.prefetched_requires],

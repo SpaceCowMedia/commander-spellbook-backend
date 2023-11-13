@@ -17,5 +17,5 @@ class FeatureAdmin(admin.ModelAdmin):
     ]
     inlines = [CardInFeatureAdminInline]
     search_fields = ['name', 'cards__name']
-    list_display = ['name', 'utility', 'id']
+    list_display = ['name', 'id', 'utility']
     list_filter = ['utility']

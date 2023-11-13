@@ -92,8 +92,8 @@ const card_info = {
                         next(html);
                     });
                 },
-                show: "fade",
-                hide: "fade",
+                show: 200,
+                hide: 200,
                 position: { my: "left+20 center", at: "right center", collision: "flipfit" },
                 track: true,
                 create: function(ev, ui) {

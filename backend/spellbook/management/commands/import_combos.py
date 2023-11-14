@@ -543,9 +543,9 @@ class Command(BaseCommand):
                 self.log_job(job, 'Saving combos...')
                 for b in bulk_combo_dict.values():
                     b.combo.save()
-                CardInCombo.objects.bulk_create(b for item in bulk_combo_dict.values() for b in item.uses)
+                CardInCombo.objects.bulk_create([b for item in bulk_combo_dict.values() for b in item.uses])
                 ProducesTable = Combo.produces.through
-                ProducesTable.objects.bulk_create(ProducesTable(combo=item.combo, feature=f) for item in bulk_combo_dict.values() for f in item.produces)
+                ProducesTable.objects.bulk_create([ProducesTable(combo=item.combo, feature=f) for item in bulk_combo_dict.values() for f in item.produces])
                 self.log_job(job, 'Saving combos...done')
 
             camelized_json = camelize(variant_id_map)

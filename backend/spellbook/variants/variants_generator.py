@@ -238,39 +238,39 @@ def create_variant(
 
 
 def perform_bulk_saves(to_create: list[VariantBulkSaveItem], to_update: list[VariantBulkSaveItem]):
-    Variant.objects.bulk_create(v.variant for v in to_create)
+    Variant.objects.bulk_create([v.variant for v in to_create])
     if to_update:
         update_fields = ['status', 'mana_needed', 'other_prerequisites', 'description'] + Playable.playable_fields()
-        Variant.objects.bulk_update((v.variant for v in to_update if v.should_update), fields=update_fields)
-    CardInVariant.objects.bulk_create(c for v in to_create for c in v.uses)
+        Variant.objects.bulk_update([v.variant for v in to_update if v.should_update], fields=update_fields)
+    CardInVariant.objects.bulk_create([c for v in to_create for c in v.uses])
     if to_update:
         update_fields = ['zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'must_be_commander', 'order']
-        CardInVariant.objects.bulk_update((c for v in to_update if v.should_update for c in v.uses), fields=update_fields)
-    TemplateInVariant.objects.bulk_create(t for v in to_create for t in v.requires)
+        CardInVariant.objects.bulk_update([c for v in to_update if v.should_update for c in v.uses], fields=update_fields)
+    TemplateInVariant.objects.bulk_create([t for v in to_create for t in v.requires])
     if to_update:
         update_fields = ['zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'must_be_commander', 'order']
-        TemplateInVariant.objects.bulk_update((t for v in to_update if v.should_update for t in v.requires), fields=update_fields)
+        TemplateInVariant.objects.bulk_update([t for v in to_update if v.should_update for t in v.requires], fields=update_fields)
     OfTable = Variant.of.through
     if to_update:
         OfTable.objects.all().delete()
-    OfTable.objects.bulk_create(
+    OfTable.objects.bulk_create([
         OfTable(
             variant_id=v.variant.id,
-            combo_id=c) for v in chain(to_create, to_update) for c in v.of)
+            combo_id=c) for v in chain(to_create, to_update) for c in v.of])
     IncludesTable = Variant.includes.through
     if to_update:
         IncludesTable.objects.all().delete()
-    IncludesTable.objects.bulk_create(
+    IncludesTable.objects.bulk_create([
         IncludesTable(
             variant_id=v.variant.id,
-            combo_id=c) for v in chain(to_create, to_update) for c in v.includes)
+            combo_id=c) for v in chain(to_create, to_update) for c in v.includes])
     ProducesTable = Variant.produces.through
     if to_update:
         ProducesTable.objects.all().delete()
-    ProducesTable.objects.bulk_create(
+    ProducesTable.objects.bulk_create([
         ProducesTable(
             variant_id=v.variant.id,
-            feature_id=f) for v in chain(to_create, to_update) for f in v.produces)
+            feature_id=f) for v in chain(to_create, to_update) for f in v.produces])
 
 
 def generate_variants(job: Job | None = None) -> tuple[int, int, int]:

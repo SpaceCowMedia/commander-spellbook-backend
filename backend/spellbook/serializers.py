@@ -284,6 +284,7 @@ class VariantSerializer(serializers.ModelSerializer):
     of = ComboSerializer(many=True, read_only=True)
     includes = ComboSerializer(many=True, read_only=True)
     mana_needed = serializers.SerializerMethodField()
+    mana_value_needed = serializers.SerializerMethodField()
     other_prerequisites = serializers.SerializerMethodField()
     description = serializers.SerializerMethodField()
     legalities = VariantLegalitiesSerializer(source='*', read_only=True)
@@ -293,6 +294,11 @@ class VariantSerializer(serializers.ModelSerializer):
         if obj.status != Variant.Status.OK:
             return None
         return obj.mana_needed
+
+    def get_mana_value_needed(self, obj):
+        if obj.status != Variant.Status.OK:
+            return None
+        return obj.mana_value_needed
 
     def get_other_prerequisites(self, obj):
         if obj.status != Variant.Status.OK:
@@ -316,6 +322,7 @@ class VariantSerializer(serializers.ModelSerializer):
             'includes',
             'identity',
             'mana_needed',
+            'mana_value_needed',
             'other_prerequisites',
             'description',
             'spoiler',

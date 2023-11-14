@@ -34,7 +34,7 @@ class Command(BaseCommand):
             )
             updated_cards_count = len(cards_to_save)
             updated_variants_count = 0
-            Card.objects.bulk_update(cards_to_save, fields=['name', 'name_unaccented', 'oracle_id', 'identity', 'spoiler', 'oracle_text', 'type_line'] + Card.legalities_fields() + Card.prices_fields())
+            Card.objects.bulk_update(cards_to_save, fields=['name', 'name_unaccented', 'oracle_id', 'identity', 'spoiler', 'oracle_text', 'type_line', 'latest_printing_set', 'reprinted'] + Card.legalities_fields() + Card.prices_fields())
             self.log_job(job, 'Updating cards...done', self.style.SUCCESS)
             if updated_cards_count > 0:
                 self.log_job(job, 'Updating variants...')

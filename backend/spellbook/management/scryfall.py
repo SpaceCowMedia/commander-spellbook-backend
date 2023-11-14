@@ -119,6 +119,8 @@ def update_cards(cards: list[Card], scryfall: dict[str, dict], log=lambda t: pri
                     card.price_tcgplayer,
                     card.price_cardkingdom,
                     card.price_cardmarket,
+                    card.latest_printing_set,
+                    card.reprinted,
                 )
             fields_before = card_fields(card)
             card_identity = merge_identities(card_in_db['color_identity'])
@@ -152,6 +154,8 @@ def update_cards(cards: list[Card], scryfall: dict[str, dict], log=lambda t: pri
             card.price_cardkingdom = round(Decimal.from_float(p), 2)
             p = card_prices['cardmarket']['price'] if card_prices['cardmarket'] is not None else 0.0
             card.price_cardmarket = round(Decimal.from_float(p), 2)
+            card.latest_printing_set = card_in_db['set'].lower()
+            card.reprinted = card_in_db['reprint']
             fields_after = card_fields(card)
             if fields_before != fields_after:
                 updated = True

@@ -4,17 +4,19 @@ from django.dispatch import receiver
 from django.db.models.signals import post_save
 from .playable import Playable
 from .utils import strip_accents
-from .mixins import ScryfallLinkMixin, PreSaveModel
+from .mixins import ScryfallLinkMixin, PreSaveModelMixin
 from .feature import Feature
 
 
-class Card(Playable, PreSaveModel, ScryfallLinkMixin):
+class Card(Playable, PreSaveModelMixin, ScryfallLinkMixin):
     MAX_CARD_NAME_LENGTH = 255
     oracle_id = models.UUIDField(unique=True, blank=True, null=True, help_text='Scryfall Oracle ID', verbose_name='Scryfall Oracle ID of card')
     name = models.CharField(max_length=MAX_CARD_NAME_LENGTH, unique=True, blank=False, help_text='Card name', verbose_name='name of card')
     name_unaccented = models.CharField(max_length=MAX_CARD_NAME_LENGTH, unique=True, blank=False, help_text='Card name without accents', verbose_name='name of card without accents', editable=False)
     type_line = models.CharField(max_length=MAX_CARD_NAME_LENGTH, blank=True, default='', help_text='Card type line', verbose_name='type line of card')
     oracle_text = models.TextField(blank=True, default='', help_text='Card oracle text', verbose_name='oracle text of card')
+    latest_printing_set = models.CharField(max_length=10, blank=True, default='', help_text='Set code of latest printing of card', verbose_name='latest printing set of card')
+    reprinted = models.BooleanField(default=False, help_text='Whether this card has been reprinted', verbose_name='reprinted card')
     features = models.ManyToManyField(
         to=Feature,
         related_name='cards',

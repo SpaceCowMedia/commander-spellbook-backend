@@ -1,7 +1,7 @@
 from django.db import models
 from sortedm2m.fields import SortedManyToManyField
 from .playable import Playable
-from .mixins import ScryfallLinkMixin
+from .mixins import ScryfallLinkMixin, PreSaveModelMixin
 from .card import Card
 from .template import Template
 from .feature import Feature
@@ -9,10 +9,10 @@ from .ingredient import IngredientInCombination
 from .combo import Combo
 from .job import Job
 from .validators import TEXT_VALIDATORS, MANA_VALIDATOR
-from .utils import recipe
+from .utils import recipe, mana_value
 
 
-class Variant(Playable, ScryfallLinkMixin):
+class Variant(Playable, PreSaveModelMixin, ScryfallLinkMixin):
     class Status(models.TextChoices):
         NEW = 'N'
         DRAFT = 'D'
@@ -56,6 +56,7 @@ class Variant(Playable, ScryfallLinkMixin):
         editable=False)
     status = models.CharField(choices=Status.choices, default=Status.NEW, help_text='Variant status for editors', max_length=2)
     mana_needed = models.CharField(blank=True, max_length=200, default='', help_text='Mana needed for this combo. Use the {1}{W}{U}{B}{R}{G}{B/P}... format.', validators=[MANA_VALIDATOR])
+    mana_value_needed = models.IntegerField(editable=False, default=0, help_text='Mana value needed for this combo. Calculated from mana_needed.')
     other_prerequisites = models.TextField(blank=True, default='', help_text='Other prerequisites for this variant.', validators=TEXT_VALIDATORS)
     description = models.TextField(blank=True, help_text='Long description, in steps', validators=TEXT_VALIDATORS)
     created = models.DateTimeField(auto_now_add=True, editable=False)
@@ -78,6 +79,9 @@ class Variant(Playable, ScryfallLinkMixin):
             return f'New variant with unique id <{self.id}>'
         produces = list(self.produces.all()[:4])
         return recipe([str(card) for card in self.cards()] + [str(template) for template in self.templates()], [str(feature) for feature in produces])
+
+    def pre_save(self):
+        self.mana_value_needed = mana_value(self.mana_needed)
 
 
 class CardInVariant(IngredientInCombination):

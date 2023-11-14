@@ -1,5 +1,11 @@
+import re
 import unicodedata
 from typing import Iterable
+from .validators import MANA_SYMBOL
+
+
+MANA_SEARCH_REGEX = r'\{(' + MANA_SYMBOL + r')\}'
+MANA_PREFIX_REGEX = r'(^(?:\s*' + MANA_SEARCH_REGEX + r')*)'
 
 
 def recipe(ingredients: list[str], results: list[str], negative_results: list[str] = []):
@@ -23,3 +29,21 @@ def merge_identities(identities: Iterable[str]):
     i = set(''.join(identities).upper())
     i.discard('C')
     return ''.join([color for color in 'WUBRG' if color in i]) or 'C'
+
+
+def mana_value(mana: str) -> int:
+    value = 0
+    mana_cut_match = re.search(MANA_PREFIX_REGEX, mana, flags=re.IGNORECASE)
+    if mana_cut_match:
+        mana_cut = mana_cut_match.group(0)
+        for mana in re.findall(MANA_SEARCH_REGEX, mana_cut, flags=re.IGNORECASE):
+            match mana:
+                case n if mana.isdigit():
+                    value += int(n)
+                case 'X' | 'Y' | 'Z':
+                    pass
+                case '∞':
+                    value += 1_000_000
+                case _:
+                    value += 1
+    return value

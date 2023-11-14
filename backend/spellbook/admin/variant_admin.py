@@ -110,7 +110,8 @@ class VariantAdmin(admin.ModelAdmin):
         'includes_link',
         'identity',
         'spoiler',
-        'scryfall_link'
+        'scryfall_link',
+        'mana_value_needed',
     ]
     readonly_fields = generated_readonly_fields + Variant.legalities_fields() + Variant.prices_fields()
     fieldsets = [

@@ -2,9 +2,12 @@ from django.db import models
 from django.core.validators import RegexValidator
 
 
+FEATURED_SET_CODES = 'featured_set_codes'
+
+
 PROPERTY_KEYS = [
     'featured_combos_title',
-    'featured_set_codes',
+    FEATURED_SET_CODES,
 ]
 
 

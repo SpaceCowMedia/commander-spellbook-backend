@@ -16,18 +16,18 @@ class ScryfallLinkMixin:
 
 
 class PreSaveManager(Manager):
-    def bulk_create(self, objs: Iterable['PreSaveModel'], *args, **kwargs) -> List:
+    def bulk_create(self, objs: Iterable['PreSaveModelMixin'], *args, **kwargs) -> List:
         for obj in objs:
             obj.pre_save()
         return super().bulk_create(objs, *args, **kwargs)
 
-    def bulk_update(self, objs: Iterable['PreSaveModel'], fields: Sequence[str], *args, **kwargs) -> int:
+    def bulk_update(self, objs: Iterable['PreSaveModelMixin'], fields: Sequence[str], *args, **kwargs) -> int:
         for obj in objs:
             obj.pre_save()
         return super().bulk_update(objs, fields, *args, **kwargs)
 
 
-class PreSaveModel(Model):
+class PreSaveModelMixin(Model):
     objects = PreSaveManager()
 
     def pre_save(self) -> None:

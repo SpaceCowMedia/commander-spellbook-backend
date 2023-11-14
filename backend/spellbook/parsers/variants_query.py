@@ -148,7 +148,7 @@ def tag_search(tag_value: QueryValue) -> Q:
             tag_query = Q(produces__name__in=['Win the game', 'Win the game at the beginning of your next upkeep'])
         case 'featured':
             featured_sets = {s.strip().lower() for s in WebsiteProperty.objects.get(key=FEATURED_SET_CODES).value.split(',')}
-            tag_query = Q(uses__latest_reprint_set__in=featured_sets, uses__reprinted=False)
+            tag_query = Q(uses__latest_printing_set__in=featured_sets, uses__reprinted=False)
         case _:
             raise NotSupportedError(f'Value {tag_value.value} is not supported for tag search.')
     return tag_query

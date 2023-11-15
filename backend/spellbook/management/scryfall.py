@@ -106,7 +106,7 @@ def update_cards(cards: list[Card], scryfall: dict[str, dict], log=lambda t: pri
                     card.oracle_text,
                     card.legal_commander,
                     card.legal_pauper_commander_main,
-                    card.legal_pauper_commander_commander,
+                    card.legal_pauper_commander,
                     card.legal_oathbreaker,
                     card.legal_predh,
                     card.legal_brawl,
@@ -137,7 +137,7 @@ def update_cards(cards: list[Card], scryfall: dict[str, dict], log=lambda t: pri
             card_legalities = card_in_db['legalities']
             card.legal_commander = card_legalities['commander'] == 'legal'
             card.legal_pauper_commander_main = card_legalities['paupercommander'] == 'legal'
-            card.legal_pauper_commander_commander = card_legalities['paupercommander'] == 'legal'
+            card.legal_pauper_commander = card_legalities['paupercommander'] in ('legal', 'restricted')
             card.legal_oathbreaker = card_legalities['oathbreaker'] == 'legal'
             card.legal_predh = card_legalities['predh'] == 'legal'
             card.legal_brawl = card_legalities['brawl'] == 'legal'

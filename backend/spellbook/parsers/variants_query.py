@@ -256,7 +256,7 @@ alias_map: dict[str, str] = {
 }
 
 
-QUERY_REGEX = r'(?:\s|^)(?:(?P<card_short>[a-zA-ZÀ-ÿ]+)|"(?P<card_long>[^"]+)"|(?P<prefix>-?)(?P<key>[a-zA-Z]+)(?P<operator>:|=|<|>|<=|>=)(?:(?P<value_short>[a-zA-Z0-9À-ÿ]+)|"(?P<value_long>[^"]+)"))(?=\s|$)'
+QUERY_REGEX = r'(?:\s|^)(?:(?P<card_short>[a-zA-ZÀ-ÿ_]+)|"(?P<card_long>[^"]+)"|(?P<prefix>-?)(?P<key>[a-zA-Z_]+)(?P<operator>:|=|<|>|<=|>=)(?:(?P<value_short>[a-zA-Z0-9À-ÿ_]+)|"(?P<value_long>[^"]+)"))(?=\s|$)'
 
 
 class NotSupportedError(Exception):

@@ -30,7 +30,7 @@ class VariantViewsTests(AbstractModelTests):
             self.assertEqual(variant_result.description, v.description)
         self.assertEqual(variant_result.legalities.commander, v.legal_commander)
         self.assertEqual(variant_result.legalities.pauper_commander_main, v.legal_pauper_commander_main)
-        self.assertEqual(variant_result.legalities.pauper_commander_commander, v.legal_pauper_commander_commander)
+        self.assertEqual(variant_result.legalities.pauper_commander, v.legal_pauper_commander)
         self.assertEqual(variant_result.legalities.oathbreaker, v.legal_oathbreaker)
         self.assertEqual(variant_result.legalities.predh, v.legal_predh)
         self.assertEqual(variant_result.legalities.brawl, v.legal_brawl)

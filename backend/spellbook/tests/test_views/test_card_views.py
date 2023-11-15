@@ -16,7 +16,7 @@ class CardViewsTests(AbstractModelTests):
         self.assertEqual(card_result.identity, c.identity)
         self.assertEqual(card_result.legalities.commander, c.legal_commander)
         self.assertEqual(card_result.legalities.pauper_commander_main, c.legal_pauper_commander_main)
-        self.assertEqual(card_result.legalities.pauper_commander_commander, c.legal_pauper_commander_commander)
+        self.assertEqual(card_result.legalities.pauper_commander, c.legal_pauper_commander)
         self.assertEqual(card_result.legalities.oathbreaker, c.legal_oathbreaker)
         self.assertEqual(card_result.legalities.predh, c.legal_predh)
         self.assertEqual(card_result.legalities.brawl, c.legal_brawl)

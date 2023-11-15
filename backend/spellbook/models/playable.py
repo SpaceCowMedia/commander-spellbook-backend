@@ -18,7 +18,7 @@ class Playable(models.Model):
         return [field.name for field in cls._meta.get_fields() if field.name.startswith('legal_')]
     legal_commander = models.BooleanField(default=True, help_text='Is this legal in Commander?', verbose_name='is legal in Commander')
     legal_pauper_commander_main = models.BooleanField(default=True, help_text='Is this legal in Pauper Commander main deck?', verbose_name='is legal in Pauper Commander main deck')
-    legal_pauper_commander_commander = models.BooleanField(default=True, help_text='Is this legal in Pauper Commander as commander?', verbose_name='is legal in Pauper Commander as commander')
+    legal_pauper_commander = models.BooleanField(default=True, help_text='Is this legal in Pauper Commander as commander?', verbose_name='is legal in Pauper Commander as commander')
     legal_oathbreaker = models.BooleanField(default=True, help_text='Is this legal in Oathbreaker?', verbose_name='is legal in Oathbreaker')
     legal_predh = models.BooleanField(default=True, help_text='Is this legal in PreDH Commander?', verbose_name='is legal in Pre-Modern Commander')
     legal_brawl = models.BooleanField(default=True, help_text='Is this legal in Brawl?', verbose_name='is legal in Brawl')
@@ -47,7 +47,7 @@ class Playable(models.Model):
         self.spoiler = any(playable.spoiler for playable in playables)
         self.legal_commander = all(playable.legal_commander for playable in playables)
         self.legal_pauper_commander_main = all(playable.legal_pauper_commander_main for playable in playables)
-        self.legal_pauper_commander_commander = all(playable.legal_pauper_commander_commander for playable in playables)
+        self.legal_pauper_commander = all(playable.legal_pauper_commander for playable in playables)
         self.legal_oathbreaker = all(playable.legal_oathbreaker for playable in playables)
         self.legal_predh = all(playable.legal_predh for playable in playables)
         self.legal_brawl = all(playable.legal_brawl for playable in playables)

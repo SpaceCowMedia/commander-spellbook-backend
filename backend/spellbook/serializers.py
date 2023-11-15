@@ -30,7 +30,7 @@ class FeatureSerializer(serializers.ModelSerializer):
 class LegalitiesSerializer(serializers.ModelSerializer):
     commander = serializers.BooleanField(source='legal_commander')
     pauper_commander_main = serializers.BooleanField(source='legal_pauper_commander_main')
-    pauper_commander_commander = serializers.BooleanField(source='legal_pauper_commander_commander')
+    pauper_commander = serializers.BooleanField(source='legal_pauper_commander')
     oathbreaker = serializers.BooleanField(source='legal_oathbreaker')
     predh = serializers.BooleanField(source='legal_predh')
     brawl = serializers.BooleanField(source='legal_brawl')
@@ -47,7 +47,7 @@ class LegalitiesSerializer(serializers.ModelSerializer):
         fields = [
             'commander',
             'pauper_commander_main',
-            'pauper_commander_commander',
+            'pauper_commander',
             'oathbreaker',
             'predh',
             'brawl',

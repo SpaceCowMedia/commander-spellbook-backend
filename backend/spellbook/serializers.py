@@ -3,6 +3,7 @@ from django.db.models import QuerySet
 from django.contrib.auth.models import User
 from rest_framework import serializers
 from spellbook.models import Playable, Card, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, CardInVariant, TemplateInVariant, VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, FeatureProducedInVariantSuggestion, IngredientInCombination
+from spellbook.models.utils import sanitize_apostrophes_and_quotes
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -481,3 +482,9 @@ class VariantSuggestionSerializer(serializers.ModelSerializer):
             'produces',
             'suggested_by',
         )
+
+    def to_internal_value(self, data: dict):
+        description = data.get('description', None)
+        if description is not None and isinstance(description, str):
+            data['description'] = sanitize_apostrophes_and_quotes(description)
+        return super().to_internal_value(data)

@@ -6,6 +6,11 @@ from .validators import MANA_SYMBOL
 
 MANA_SEARCH_REGEX = r'\{(' + MANA_SYMBOL + r')\}'
 MANA_PREFIX_REGEX = r'(^(?:\s*' + MANA_SEARCH_REGEX + r')*)'
+SANITIZATION_REPLACEMENTS = {
+    'ʹʻʼʾˈ՚′＇ꞌ': '\'',  # apostrophes
+    'ʻʼ‘’❛❜': '\'',  # quotes
+    '“”″❞〝〞ˮ': '"',  # double quotes
+}
 
 
 def recipe(ingredients: list[str], results: list[str], negative_results: list[str] = []):
@@ -16,7 +21,7 @@ def recipe(ingredients: list[str], results: list[str], negative_results: list[st
         + ('...' if len(negative_results) > 3 else '')
 
 
-def strip_accents(s):
+def strip_accents(s: str) -> str:
     return ''.join(c for c in unicodedata.normalize('NFD', s) if unicodedata.category(c) != 'Mn')
 
 
@@ -47,3 +52,10 @@ def mana_value(mana: str) -> int:
                 case _:
                     value += 1
     return value
+
+
+def sanitize_apostrophes_and_quotes(s: str) -> str:
+    for chars, replacement in SANITIZATION_REPLACEMENTS.items():
+        for c in chars:
+            s = s.replace(c, replacement)
+    return s

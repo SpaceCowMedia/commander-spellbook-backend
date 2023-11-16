@@ -187,6 +187,79 @@ class VariantSuggestionsTests(AbstractModelTests):
         self.assertTrue(hasattr(result, 'uses'))
         self.assertGreaterEqual(len(result.uses), 2)
 
+    def test_new_suggestion_sanitization(self):
+        post_data = {
+            "uses": [
+                {
+                    "card": "A card",
+                    "zoneLocations": list("HBGEL"),
+                    "battlefieldCardState": "bstate",
+                    "exileCardState": "estate",
+                    "libraryCardState": "lstate",
+                    "graveyardCardState": "gstate",
+                    "mustBeCommander": False
+                },
+                {
+                    "card": "Another card",
+                    "zoneLocations": list("HC"),
+                    "battlefieldCardState": "",
+                    "exileCardState": "",
+                    "libraryCardState": "",
+                    "graveyardCardState": "",
+                    "mustBeCommander": True
+                },
+            ],
+            "requires": [
+                {
+                    "template": "A template",
+                    "zoneLocations": list("H"),
+                    "battlefieldCardState": "",
+                    "exileCardState": "",
+                    "libraryCardState": "",
+                    "graveyardCardState": "",
+                    "mustBeCommander": False
+                },
+                {
+                    "template": "Another template",
+                    "scryfall_query": "pow=2",
+                    "zoneLocations": list("GL"),
+                    "battlefieldCardState": "",
+                    "exileCardState": "",
+                    "libraryCardState": "in library",
+                    "graveyardCardState": "",
+                    "mustBeCommander": False
+                }
+            ],
+            "produces": [
+                {
+                    "feature": "First produced feature"
+                },
+                {
+                    "feature": "Second produced feature"
+                }
+            ],
+            "manaNeeded": "{1}{W}{U}{B}{R}{G}",
+            "otherPrerequisites": "other prereqs",
+            "description": "A description with some apostrophes: `'ʼ and quotes: \"“ˮ"
+        }
+        self.user = User.objects.create_user(username='testuser', password='12345')
+        login = self.client.login(username='testuser', password='12345')
+        self.assertTrue(login)
+        permissions = Permission.objects.filter(codename__in=['view_variantsuggestion', 'add_variantsuggestion', 'change_variantsuggestion'])
+        self.user.user_permissions.add(*permissions)
+        response = self.client.post(
+            '/variant-suggestions/',
+            post_data,
+            content_type='application/json',
+            follow=True)
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.get('Content-Type'), 'application/json')
+        result = json.loads(response.content, object_hook=json_to_python_lambda)
+        self.assertGreater(result.id, 0)
+        self.assertEqual(result.status, 'N')
+        self.assertTrue(VariantSuggestion.objects.filter(id=result.id).exists())
+        self.suggestion_assertions(result)
+
     def setUp(self) -> None:
         """Reduce the log level to avoid errors like 'not found'"""
         super().setUp()

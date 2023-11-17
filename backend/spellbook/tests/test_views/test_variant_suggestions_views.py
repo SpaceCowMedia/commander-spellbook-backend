@@ -239,7 +239,7 @@ class VariantSuggestionsTests(AbstractModelTests):
                 }
             ],
             "manaNeeded": "{1}{W}{U}{B}{R}{G}",
-            "otherPrerequisites": "other prereqs",
+            "otherPrerequisites": "Other prereqs with some apostrophes: `'ʼ and quotes: \"“ˮ",
             "description": "A description with some apostrophes: `'ʼ and quotes: \"“ˮ"
         }
         self.user = User.objects.create_user(username='testuser', password='12345')

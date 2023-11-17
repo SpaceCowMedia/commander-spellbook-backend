@@ -487,4 +487,7 @@ class VariantSuggestionSerializer(serializers.ModelSerializer):
         description = data.get('description', None)
         if description is not None and isinstance(description, str):
             data['description'] = sanitize_apostrophes_and_quotes(description)
+        other_prerequisites = data.get('other_prerequisites', None)
+        if other_prerequisites is not None and isinstance(other_prerequisites, str):
+            data['other_prerequisites'] = sanitize_apostrophes_and_quotes(other_prerequisites)
         return super().to_internal_value(data)

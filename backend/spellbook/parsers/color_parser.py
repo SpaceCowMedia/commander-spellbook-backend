@@ -67,7 +67,7 @@ def parse_identity(value: str) -> str | None:
             return 'WUBG'
         case 'ARTIFICE' | 'YORE' | 'YORETILLER' | 'SANSGREEN':
             return 'WUBR'
-        case '5COLOR' | '5COLORS' | 'FIVECOLOR' | 'FIVECOLORS':
+        case '5COLOR' | '5COLORS' | 'FIVECOLOR' | 'FIVECOLORS' | 'PENTA' | 'PENTACOLOR':
             return 'WUBRG'
         case _:
             return None

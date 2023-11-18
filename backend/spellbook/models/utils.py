@@ -1,6 +1,6 @@
 import re
 import unicodedata
-from typing import Iterable
+from typing import Iterable, Callable
 from .validators import MANA_SYMBOL
 
 
@@ -59,3 +59,17 @@ def sanitize_apostrophes_and_quotes(s: str) -> str:
         for c in chars:
             s = s.replace(c, replacement)
     return s
+
+
+def apply_recursively_to_strings(data: dict, func: Callable[[str], str]):
+    for key, value in data.items():
+        if isinstance(value, str):
+            data[key] = func(value)
+        elif isinstance(value, dict):
+            apply_recursively_to_strings(value, func)
+        elif isinstance(value, list):
+            for i, item in enumerate(value):
+                if isinstance(item, str):
+                    value[i] = func(item)
+                elif isinstance(item, dict):
+                    apply_recursively_to_strings(item, func)

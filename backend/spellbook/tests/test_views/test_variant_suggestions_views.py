@@ -1,6 +1,7 @@
 import json
 import logging
 from spellbook.models import VariantSuggestion
+from spellbook.models.utils import apply_recursively_to_strings
 from ..abstract_test import AbstractModelTests
 from common.inspection import json_to_python_lambda
 from django.contrib.auth.models import User, Permission
@@ -191,36 +192,36 @@ class VariantSuggestionsTests(AbstractModelTests):
         post_data = {
             "uses": [
                 {
-                    "card": "A card",
+                    "card": "A card with some apostrophes: `'ʼ and quotes: \"“ˮ",
                     "zoneLocations": list("HBGEL"),
-                    "battlefieldCardState": "bstate",
-                    "exileCardState": "estate",
-                    "libraryCardState": "lstate",
-                    "graveyardCardState": "gstate",
+                    "battlefieldCardState": "state with some apostrophes: `'ʼ and quotes: \"“ˮ",
+                    "exileCardState": "state with some apostrophes: `'ʼ and quotes: \"“ˮ",
+                    "libraryCardState": "state with some apostrophes: `'ʼ and quotes: \"“ˮ",
+                    "graveyardCardState": "state with some apostrophes: `'ʼ and quotes: \"“ˮ",
                     "mustBeCommander": False
                 },
                 {
-                    "card": "Another card",
-                    "zoneLocations": list("HC"),
-                    "battlefieldCardState": "",
-                    "exileCardState": "",
-                    "libraryCardState": "",
-                    "graveyardCardState": "",
+                    "card": "Another card with some apostrophes: `'ʼ and quotes: \"“ˮ",
+                    "zoneLocations": list("HBGELC"),
+                    "battlefieldCardState": "state with some apostrophes: `'ʼ and quotes: \"“ˮ",
+                    "exileCardState": "state with some apostrophes: `'ʼ and quotes: \"“ˮ",
+                    "libraryCardState": "state with some apostrophes: `'ʼ and quotes: \"“ˮ",
+                    "graveyardCardState": "state with some apostrophes: `'ʼ and quotes: \"“ˮ",
                     "mustBeCommander": True
                 },
             ],
             "requires": [
                 {
-                    "template": "A template",
-                    "zoneLocations": list("H"),
-                    "battlefieldCardState": "",
-                    "exileCardState": "",
-                    "libraryCardState": "",
-                    "graveyardCardState": "",
+                    "template": "A template with some apostrophes: `'ʼ and quotes: \"“ˮ ok",
+                    "zoneLocations": list("HBELG"),
+                    "battlefieldCardState": "state with some apostrophes: `'ʼ and quotes: \"“ˮ",
+                    "exileCardState": "state with some apostrophes: `'ʼ and quotes: \"“ˮ",
+                    "libraryCardState": "state with some apostrophes: `'ʼ and quotes: \"“ˮ",
+                    "graveyardCardState": "state with some apostrophes: `'ʼ and quotes: \"“ˮ",
                     "mustBeCommander": False
                 },
                 {
-                    "template": "Another template",
+                    "template": "Another template with some apostrophes: `'ʼ and quotes: \"“ˮ ok",
                     "scryfall_query": "pow=2",
                     "zoneLocations": list("GL"),
                     "battlefieldCardState": "",
@@ -232,13 +233,13 @@ class VariantSuggestionsTests(AbstractModelTests):
             ],
             "produces": [
                 {
-                    "feature": "First produced feature"
+                    "feature": "First produced feature with some apostrophes: `'ʼ and quotes: \"“ˮ ok"
                 },
                 {
-                    "feature": "Second produced feature"
+                    "feature": "Second produced feature with some apostrophes: `'ʼ and quotes: \"“ˮ ok"
                 }
             ],
-            "manaNeeded": "{1}{W}{U}{B}{R}{G}",
+            "manaNeeded": "{1}{W}{U}{B}{R}{G} with some apostrophes: `'ʼ and quotes: \"“ˮ",
             "otherPrerequisites": "Other prereqs with some apostrophes: `'ʼ and quotes: \"“ˮ",
             "description": "A description with some apostrophes: `'ʼ and quotes: \"“ˮ"
         }
@@ -259,6 +260,13 @@ class VariantSuggestionsTests(AbstractModelTests):
         self.assertEqual(result.status, 'N')
         self.assertTrue(VariantSuggestion.objects.filter(id=result.id).exists())
         self.suggestion_assertions(result)
+
+        def assertStringSanity(s: str):
+            self.assertNotIn('ʹ', s)
+            self.assertNotIn('ʻ', s)
+            self.assertNotIn('ʼ', s)
+            return s
+        apply_recursively_to_strings(json.loads(response.content), assertStringSanity)
 
     def setUp(self) -> None:
         """Reduce the log level to avoid errors like 'not found'"""

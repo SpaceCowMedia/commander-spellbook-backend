@@ -2,7 +2,7 @@ from django.db import transaction
 from django.db.models import QuerySet
 from rest_framework import serializers
 from spellbook.models import CardUsedInVariantSuggestion, FeatureProducedInVariantSuggestion, TemplateRequiredInVariantSuggestion, VariantSuggestion, IngredientInCombination
-from spellbook.models.utils import sanitize_apostrophes_and_quotes
+from spellbook.models.utils import sanitize_apostrophes_and_quotes, apply_recursively_to_strings
 from .user_serializer import UserSerializer
 from .utils import StringMultipleChoiceField
 
@@ -135,10 +135,5 @@ class VariantSuggestionSerializer(serializers.ModelSerializer):
         )
 
     def to_internal_value(self, data: dict):
-        description = data.get('description', None)
-        if description is not None and isinstance(description, str):
-            data['description'] = sanitize_apostrophes_and_quotes(description)
-        other_prerequisites = data.get('other_prerequisites', None)
-        if other_prerequisites is not None and isinstance(other_prerequisites, str):
-            data['other_prerequisites'] = sanitize_apostrophes_and_quotes(other_prerequisites)
+        apply_recursively_to_strings(data, sanitize_apostrophes_and_quotes)
         return super().to_internal_value(data)

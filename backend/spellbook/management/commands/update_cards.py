@@ -1,5 +1,5 @@
 import traceback
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandParser
 from django.utils import timezone
 from spellbook.models import Job, Card, Variant
 from ..scryfall import scryfall, update_cards
@@ -13,8 +13,15 @@ class Command(BaseCommand):
         job.message += message + '\n'
         job.save()
 
+    def add_arguments(self, parser: CommandParser):
+        parser.add_argument(
+            '--force',
+            dest='force',
+            action='store_true',
+        )
+
     def handle(self, *args, **options):
-        job = Job.start('update_cards_data')
+        job = Job.start('update_cards')
         if job is None:
             self.stdout.write(self.style.ERROR('Job already running'))
             return
@@ -36,9 +43,14 @@ class Command(BaseCommand):
             updated_variants_count = 0
             Card.objects.bulk_update(cards_to_save, fields=['name', 'name_unaccented', 'oracle_id', 'identity', 'spoiler', 'oracle_text', 'type_line', 'latest_printing_set', 'reprinted'] + Card.legalities_fields() + Card.prices_fields())
             self.log_job(job, 'Updating cards...done', self.style.SUCCESS)
-            if updated_cards_count > 0:
+            if updated_cards_count > 0 or options['force']:
                 self.log_job(job, 'Updating variants...')
-                variants = list(Variant.objects.prefetch_related('uses').filter(uses__in=cards_to_save))
+                variants_query = Variant.objects.prefetch_related('uses')
+                if not options['force']:
+                    variants_query = variants_query.filter(uses__in=cards_to_save)
+                else:
+                    self.log_job(job, 'Forced update of all variants')
+                variants = list(variants_query)
                 variants_to_save = []
                 for variant in variants:
                     if variant.update(variant.uses.all()):
@@ -48,7 +60,7 @@ class Command(BaseCommand):
                 self.log_job(job, 'Updating variants...done', self.style.SUCCESS)
             job.termination = timezone.now()
             job.status = Job.Status.SUCCESS
-            if updated_cards_count > 0:
+            if updated_cards_count > 0 or updated_variants_count > 0:
                 self.log_job(job, f'Successfully updated {updated_cards_count} cards and {updated_variants_count} variants', self.style.SUCCESS)
             else:
                 self.log_job(job, 'No cards to update', self.style.SUCCESS)

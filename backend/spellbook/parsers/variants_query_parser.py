@@ -47,32 +47,30 @@ def identity_search(identity_value: QueryValue) -> Q:
         upper_value = parse_identity(identity_value.value)
         if upper_value is None:
             raise NotSupportedError(f'Invalid color identity: {identity_value.value}')
-        for color in 'WURBG':
+        for color in 'WUBRG':
             if color in upper_value:
                 identity += color
             else:
                 not_in_identity += color
     match identity_value.operator:
-        case ':' if not value_is_digit:
-            identity_query = Q(identity=identity or 'C')
         case '=' if not value_is_digit:
             identity_query = Q(identity=identity or 'C')
         case '<' if not value_is_digit:
             identity_query = Q(identity_count__lt=len(identity))
             for color in not_in_identity:
-                identity_query = ~Q(identity__contains=color)
-        case '<=' if not value_is_digit:
+                identity_query &= ~Q(identity__contains=color)
+        case ':' | '<=' if not value_is_digit:
             identity_query = Q(identity_count__lte=len(identity))
             for color in not_in_identity:
-                identity_query = ~Q(identity__contains=color)
+                identity_query &= ~Q(identity__contains=color)
         case '>' if not value_is_digit:
             identity_query = Q(identity_count__gt=len(identity))
             for color in identity:
-                identity_query = Q(identity__contains=color)
+                identity_query &= Q(identity__contains=color)
         case '>=' if not value_is_digit:
             identity_query = Q(identity_count__gte=len(identity))
             for color in identity:
-                identity_query = Q(identity__contains=color)
+                identity_query &= Q(identity__contains=color)
         case '=' if value_is_digit:
             identity_query = Q(identity_count=identity_value.value)
         case '<' if value_is_digit:
@@ -144,7 +142,7 @@ def tag_search(tag_value: QueryValue) -> Q:
             tag_query = Q(produces__name='Infinite')
         case 'risky' | 'allin':
             tag_query = Q(produces__name='Risky')
-        case 'winning' | 'gamewinning':
+        case 'winning' | 'gamewinning' | 'win':
             tag_query = Q(produces__name__in=['Win the game', 'Win the game at the beginning of your next upkeep'])
         case 'featured':
             featured_sets = {s.strip().lower() for s in WebsiteProperty.objects.get(key=FEATURED_SET_CODES).value.split(',')}

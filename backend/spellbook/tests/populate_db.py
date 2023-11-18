@@ -10,7 +10,7 @@ def populate_db(self):
     c5 = Card.objects.create(name='E E', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000005'), identity='G', legal_commander=False, spoiler=True)
     c6 = Card.objects.create(name='F F', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000006'), identity='WU', legal_commander=True, spoiler=False)
     c7 = Card.objects.create(name='G G', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000007'), identity='WB', legal_commander=True, spoiler=False)
-    c8 = Card.objects.create(name='H H', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000008'), identity='C', legal_commander=True, spoiler=False)
+    c8 = Card.objects.create(name='H-H', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000008'), identity='C', legal_commander=True, spoiler=False)
     f1 = Feature.objects.create(name='FA', description='Feature A', utility=True)
     f2 = Feature.objects.create(name='FB', description='Feature B', utility=False)
     f3 = Feature.objects.create(name='FC', description='Feature C', utility=False)

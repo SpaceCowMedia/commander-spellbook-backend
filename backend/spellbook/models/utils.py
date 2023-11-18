@@ -61,12 +61,16 @@ def sanitize_apostrophes_and_quotes(s: str) -> str:
     return s
 
 
-def apply_recursively_to_strings(data: dict | list | str, func: Callable[[str], str]):
+def apply_recursively_to_strings(data: dict | list, func: Callable[[str], str]) -> None:
     if isinstance(data, dict):
         for key, value in data.items():
-            data[key] = apply_recursively_to_strings(value, func)
+            if isinstance(value, str):
+                data[key] = func(value)
+            else:
+                apply_recursively_to_strings(value, func)
     elif isinstance(data, list):
         for i, value in enumerate(data):
-            data[i] = apply_recursively_to_strings(value, func)
-    elif isinstance(data, str):
-        return func(data)
+            if isinstance(value, str):
+                data[i] = func(value)
+            else:
+                apply_recursively_to_strings(value, func)

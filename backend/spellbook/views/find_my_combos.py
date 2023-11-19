@@ -1,3 +1,4 @@
+from django.db.models import Count, Q
 from rest_framework import parsers
 from rest_framework.decorators import api_view, parser_classes, permission_classes
 from rest_framework.response import Response
@@ -50,16 +51,20 @@ class JsonDeckListParser(parsers.JSONParser):
         json: dict[str, list[str]] = super().parse(stream, media_type, parser_context)
         main_cards = set[int]()
         commanders = set[int]()
-        for commander in json.get('commanders', [])[:500]:
-            if isinstance(commander, str):
-                commander = commander.strip().lower()
-                if commander in self.cards_dict:
-                    commanders.add(self.cards_dict[commander])
-        for card in json.get('main', [])[:500]:
-            if isinstance(card, str):
-                card = card.strip().lower()
-                if card in self.cards_dict:
-                    main_cards.add(self.cards_dict[card])
+        commanders_json = json.get('commanders', [])
+        if isinstance(commanders_json, list):
+            for commander in commanders_json[:500]:
+                if isinstance(commander, str):
+                    commander = commander.strip().lower()
+                    if commander in self.cards_dict:
+                        commanders.add(self.cards_dict[commander])
+        main_json = json.get('main', [])
+        if isinstance(main_json, list):
+            for card in main_json[:500]:
+                if isinstance(card, str):
+                    card = card.strip().lower()
+                    if card in self.cards_dict:
+                        main_cards.add(self.cards_dict[card])
         return Deck(cards=main_cards, commanders=commanders)
 
 
@@ -74,8 +79,11 @@ def find_my_combos(request: Request) -> Response:
     variant_to_cards = dict[Variant, set[int]]()
     variant_to_commanders = dict[Variant, set[int]]()
     variants_query = VariantViewSet().get_queryset() \
-        .filter(uses__in=cards) \
-        .order_by('id') \
+        .annotate(
+            matched_cards_count=Count('uses', distinct=True, filter=Q(uses__in=cards)),
+            unmatched_cards_count=Count('uses', distinct=True, filter=~Q(uses__in=cards))) \
+        .filter(matched_cards_count__gt=0, unmatched_cards_count__lte=1) \
+        .order_by('unmatched_cards_count', 'id') \
         .distinct()
     variants_query = VariantSerializer.prefetch_related(variants_query)
 

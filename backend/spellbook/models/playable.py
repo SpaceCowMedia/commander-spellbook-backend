@@ -40,7 +40,7 @@ class Playable(models.Model):
     class Meta:
         abstract = True
 
-    def update(self, playables: Iterable['Playable']) -> bool:
+    def update(self, playables: Iterable['Playable'], requires_commander: bool) -> bool:
         '''Update this playable with the given playables. Return True if any field was changed, False otherwise.'''
         old_values = {field: getattr(self, field) for field in self.playable_fields()}
         self.identity = merge_identities(playable.identity for playable in playables)
@@ -51,12 +51,12 @@ class Playable(models.Model):
         self.legal_oathbreaker = all(playable.legal_oathbreaker for playable in playables)
         self.legal_predh = all(playable.legal_predh for playable in playables)
         self.legal_brawl = all(playable.legal_brawl for playable in playables)
-        self.legal_vintage = all(playable.legal_vintage for playable in playables)
-        self.legal_legacy = all(playable.legal_legacy for playable in playables)
-        self.legal_modern = all(playable.legal_modern for playable in playables)
-        self.legal_pioneer = all(playable.legal_pioneer for playable in playables)
-        self.legal_standard = all(playable.legal_standard for playable in playables)
-        self.legal_pauper = all(playable.legal_pauper for playable in playables)
+        self.legal_vintage = not requires_commander and all(playable.legal_vintage for playable in playables)
+        self.legal_legacy = not requires_commander and all(playable.legal_legacy for playable in playables)
+        self.legal_modern = not requires_commander and all(playable.legal_modern for playable in playables)
+        self.legal_pioneer = not requires_commander and all(playable.legal_pioneer for playable in playables)
+        self.legal_standard = not requires_commander and all(playable.legal_standard for playable in playables)
+        self.legal_pauper = not requires_commander and all(playable.legal_pauper for playable in playables)
         self.price_tcgplayer = sum(playable.price_tcgplayer for playable in playables)
         self.price_cardkingdom = sum(playable.price_cardkingdom for playable in playables)
         self.price_cardmarket = sum(playable.price_cardmarket for playable in playables)

@@ -45,7 +45,7 @@ class Command(BaseCommand):
             self.log_job(job, 'Updating cards...done', self.style.SUCCESS)
             if updated_cards_count > 0 or options['force']:
                 self.log_job(job, 'Updating variants...')
-                variants_query = Variant.objects.prefetch_related('uses')
+                variants_query = Variant.objects.prefetch_related('uses', 'cardinvariant_set', 'templateinvariant_set')
                 if not options['force']:
                     variants_query = variants_query.filter(uses__in=cards_to_save)
                 else:
@@ -53,7 +53,9 @@ class Command(BaseCommand):
                 variants = list(variants_query)
                 variants_to_save = []
                 for variant in variants:
-                    if variant.update(variant.uses.all()):
+                    requires_commander = any(civ.must_be_commander for civ in variant.cardinvariant_set.all()) \
+                        or any(tiv.must_be_commander for tiv in variant.templateinvariant_set.all())
+                    if variant.update(variant.uses.all(), requires_commander):
                         variants_to_save.append(variant)
                 updated_variants_count = len(variants_to_save)
                 Variant.objects.bulk_update(variants_to_save, fields=Variant.playable_fields())

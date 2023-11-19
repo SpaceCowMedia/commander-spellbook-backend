@@ -121,7 +121,8 @@ def restore_variant(
     variant.mana_needed = ' '.join(c.mana_needed for c in included_combos if len(c.mana_needed) > 0)
     variant.description = '\n'.join(c.description for c in included_combos if len(c.description) > 0)
     variant.status = Variant.Status.NEW
-    variant.update([c.card for c in used_cards])
+    requires_commander = any(c.must_be_commander for c in used_cards) or any(t.must_be_commander for t in required_templates)
+    variant.update([c.card for c in used_cards], requires_commander)
     uses = dict[int, CardInVariant]()
     for card_in_variant in used_cards:
         card_in_variant.order = 0

@@ -47,9 +47,11 @@ def update_variant_fields(sender, instance, created, raw, **kwargs):
         return
     if created:
         return
-    variants = Variant.objects.prefetch_related('uses').filter(uses=instance)
+    variants = Variant.objects.prefetch_related('uses', 'cardinvariant_set', 'templateinvariant_set').filter(uses=instance)
     variants_to_save = []
     for variant in variants:
-        if variant.update(variant.uses.all()):
+        requires_commander = any(civ.must_be_commander for civ in variant.cardinvariant_set.all()) \
+            or any(tiv.must_be_commander for tiv in variant.templateinvariant_set.all())
+        if variant.update(variant.uses.all(), requires_commander):
             variants_to_save.append(variant)
     Variant.objects.bulk_update(variants_to_save, fields=Variant.playable_fields())

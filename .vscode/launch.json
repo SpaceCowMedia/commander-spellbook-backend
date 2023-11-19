@@ -183,7 +183,8 @@
             "cwd": "${workspaceFolder}/backend",
             "program": "manage.py",
             "args": [
-                "update_cards"
+                "update_cards",
+                "--force"
             ],
             "preLaunchTask": "Prelaunch",
             "django": true,

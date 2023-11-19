@@ -93,15 +93,16 @@ class FindMyCombosViewTests(AbstractModelTests):
                 self.assertEqual(result.results.identity, identity)
                 self.assertEqual(len(result.results.included), 0)
                 self.assertEqual(len(result.results.almost_included), 2)
-                self.assertEqual(len(result.results.almost_included_by_adding_colors), 2)
+                self.assertEqual(len(result.results.almost_included_by_adding_colors), 0)
                 self.assertEqual(len(result.results.almost_included_by_changing_commanders), 0)
-                self.assertEqual(len(result.results.almost_included_by_adding_colors_and_changing_commanders), 1)
+                self.assertEqual(len(result.results.almost_included_by_adding_colors_and_changing_commanders), 0)
                 self._check_result(result, identity, {card.name}, set())
             card_names = list(Card.objects.values_list('name', flat=True))
             for card_count in [4, Card.objects.count()]:
                 for commander_count in [0, 1, 2, 4]:
                     with self.subTest(f'{card_count} cards with {commander_count} commanders'):
                         for card_set in itertools.combinations(card_names, card_count):
+                            card_set = set(card_set)
                             for commander_set in itertools.combinations(card_set, commander_count):
                                 deck_list = list(c for c in card_set if c not in commander_set)
                                 commander_list = list(commander_set)
@@ -117,7 +118,7 @@ class FindMyCombosViewTests(AbstractModelTests):
                                 self.assertEqual(response.get('Content-Type'), 'application/json')
                                 result = json.loads(response.content, object_hook=json_to_python_lambda)
                                 self.assertEqual(result.results.identity, identity)
-                                related = [v for v in self.variants if self.variants_cards[v.id].intersection(card_set)]
+                                related = [v for v in self.variants if len(self.variants_cards[v.id]) > len(self.variants_cards[v.id].difference(card_set)) <= 1]
                                 included_within_commander = [v for v in related if self.variants_cards[v.id].issubset(card_set) and self.variants_commanders[v.id].issubset(commander_set)]
                                 included_outside_commander = [v for v in related if self.variants_cards[v.id].issubset(card_set) and not self.variants_commanders[v.id].issubset(commander_set)]
                                 related_but_not_included = [v for v in related if not self.variants_cards[v.id].issubset(card_set)]

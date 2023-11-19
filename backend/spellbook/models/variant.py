@@ -1,4 +1,6 @@
 from django.db import models
+from django.dispatch import receiver
+from django.db.models.signals import post_save
 from sortedm2m.fields import SortedManyToManyField
 from .playable import Playable
 from .mixins import ScryfallLinkMixin, PreSaveModelMixin
@@ -104,3 +106,13 @@ class TemplateInVariant(IngredientInCombination):
 
     class Meta(IngredientInCombination.Meta):
         unique_together = [('template', 'variant')]
+
+
+@receiver(post_save, sender=Variant.uses.through, dispatch_uid='update_variant_on_cards')
+@receiver(post_save, sender=Variant.requires.through, dispatch_uid='update_variant_on_templates')
+def update_variant_on_ingredient(sender, instance, **kwargs):
+    variant = instance.variant
+    requires_commander = any(civ.must_be_commander for civ in variant.cardinvariant_set.all()) \
+        or any(tiv.must_be_commander for tiv in variant.templateinvariant_set.all())
+    if variant.update(variant.uses.all(), requires_commander):
+        variant.save()

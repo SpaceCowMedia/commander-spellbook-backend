@@ -28,47 +28,86 @@
     </script>
     {% endif %}
     <script>
-        const autocomplete = django.jQuery('#id_name').autocomplete({
-            source: function(request, response) {
-                django.jQuery.ajax({
-                    url: 'https://api.scryfall.com/cards/autocomplete',
-                    dataType: 'json',
-                    data: {
-                        q: request.term,
-                        format: 'json'
-                    },
-                    success: function(data) {
-                        response(data.data);
-                    }
-                });
-            },
-            minLength: 3,
-            select: function(event, ui) {
-                let card = ui.item.value;
-                card_info
-                    .fetch_card_info(card)
-                    .then(function(data) {
-                        let oracle_id = data.oracle_id;
-                        django.jQuery('#id_oracle_id').val(oracle_id);
-
-                        let color_identity = new Set(Array.from(data.color_identity).map(i => i.toUpperCase()));
-                        let identity_result = '';
-                        for (const c of 'WUBRG') {
-                            if (color_identity.has(c)) {
-                                identity_result += c;
-                            }
+        const autocomplete = django.jQuery('#id_name')
+            .autocomplete({
+                source: function(request, response) {
+                    django.jQuery.ajax({
+                        url: 'https://api.scryfall.com/cards/autocomplete',
+                        dataType: 'json',
+                        data: {
+                            q: request.term,
+                            format: 'json'
+                        },
+                        success: function(data) {
+                            response(data.data);
                         }
-                        django.jQuery('#id_identity').val(identity_result || 'C');
-                        django.jQuery('#id_legal').prop('checked', Object.hasOwn(data.legalities, 'commander') && data.legalities.commander !== 'banned');
-                        card_info.update_card_oracle_image(
-                            document.getElementById('id_oracle_id').value,
-                            document.getElementById('card-images'));
                     });
-            },
-            open: function() {},
-            close: function() {},
-        })
-        .autocomplete('instance');
+                },
+                minLength: 3,
+                select: function(event, ui) {
+                    let card = ui.item.value;
+                    card_info
+                        .fetch_card_info(card)
+                        .then(function(data) {
+                            let oracle_id = data.oracle_id;
+                            django.jQuery('#id_oracle_id').val(oracle_id);
+
+                            let color_identity = new Set(Array.from(data.color_identity).map(i => i.toUpperCase()));
+                            let identity_result = '';
+                            for (const c of 'WUBRG') {
+                                if (color_identity.has(c)) {
+                                    identity_result += c;
+                                }
+                            }
+                            django.jQuery('#id_identity').val(identity_result || 'C');
+
+                            django.jQuery('#id_type_line').val(data.type_line);
+
+                            if (Object.hasOwn(data, 'card_faces')) {
+                                oracle_text = '';
+                                for (const face of data.card_faces) {
+                                    oracle_text += face.oracle_text + '\n\n';
+                                }
+                                django.jQuery('#id_oracle_text').val(oracle_text.trim());
+                            } else {
+                                django.jQuery('#id_oracle_text').val(data.oracle_text);
+                            }
+
+                            const formats = {
+                                'commander': data.legalities.commander == 'legal',
+                                'pauper_commander_main': data.legalities.paupercommander == 'legal',
+                                'pauper_commander': data.legalities.paupercommander == 'legal' || data.legalities.paupercommander == 'restricted',
+                                'oathbreaker': data.legalities.oathbreaker == 'legal',
+                                'predh': data.legalities.predh == 'legal',
+                                'brawl': data.legalities.brawl == 'legal',
+                                'vintage': data.legalities.vintage == 'legal',
+                                'legacy': data.legalities.legacy == 'legal',
+                                'modern': data.legalities.modern == 'legal',
+                                'pioneer': data.legalities.pioneer == 'legal',
+                                'standard': data.legalities.standard == 'legal',
+                                'pauper': data.legalities.pauper == 'legal',
+                            };
+                            for (const format in formats) {
+                                django.jQuery('#id_legal_' + format).prop('checked', formats[format]);
+                            }
+
+                            django.jQuery('#id_price_tcgplayer').val(data.prices.usd || 0);
+                            django.jQuery('#id_price_cardkingdom').val(data.prices.usd || 0);
+                            django.jQuery('#id_price_cardmarket').val(data.prices.eur || 0);
+
+                            const releasedAt = Date.parse(data['released_at']);
+                            const currentDate = new Date();
+                            django.jQuery('#id_spoiler').prop('checked', releasedAt > currentDate);
+
+                            card_info.update_card_oracle_image(
+                                document.getElementById('id_oracle_id').value,
+                                document.getElementById('card-images'));
+                        });
+                },
+                open: function() {},
+                close: function() {},
+            })
+            .autocomplete('instance');
         if (autocomplete) {
             autocomplete._renderItem = function(ul, item) {
                 const newItem = django.jQuery('<li>')

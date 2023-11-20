@@ -5,7 +5,9 @@
 #    pip-compile --resolver=backtracking
 #
 asgiref==3.7.2
-    # via django
+    # via
+    #   django
+    #   django-cors-headers
 boto3==1.28.84
     # via -r requirements.in
 botocore==1.31.84
@@ -32,7 +34,7 @@ django==4.2.7
     #   djangorestframework
     #   djangorestframework-simplejwt
     #   social-auth-app-django
-django-cors-headers==4.3.0
+django-cors-headers==4.3.1
     # via -r requirements.in
 django-filter==23.3
     # via -r requirements.in

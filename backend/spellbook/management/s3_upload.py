@@ -22,6 +22,10 @@ def upload_json_to_aws(data, s3_file_name):
     try:
         import boto3
         from botocore.exceptions import NoCredentialsError
+    except ImportError:
+        logging.exception("Could not import boto3", stack_info=True)
+        raise
+    try:
         s3 = boto3.client('s3')
 
         string_object = json.dumps(data)

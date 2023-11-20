@@ -25,7 +25,7 @@ class FindMyCombosViewTests(AbstractModelTests):
             cards: set[str],
             commanders: set[str]):
         self.assertEqual(result.results.identity, identity)
-        identity_set = set(identity)
+        identity_set = set(identity) | {'C'}
         for v in result.results.included:
             v = self.variants_dict[v.id]
             self.assertIn(v.status, Variant.public_statuses())
@@ -112,7 +112,8 @@ class FindMyCombosViewTests(AbstractModelTests):
                                     deck_list_str = json.dumps({'main': deck_list, 'commanders': commander_list})
                                 else:
                                     deck_list_str = '\n'.join(['// Command'] + commander_list + ['// Main'] + deck_list)
-                                identity = merge_identities([c.identity for c in Card.objects.filter(name__in=deck_list + commander_list)])
+                                identity = merge_identities(c.identity for c in Card.objects.filter(name__in=deck_list + commander_list))
+                                identity_set = set(identity) | {'C'}
                                 response = c.generic('GET', '/find-my-combos', data=deck_list_str, follow=True, headers={'Content-Type': content_type})
                                 self.assertEqual(response.status_code, 200)
                                 self.assertEqual(response.get('Content-Type'), 'application/json')
@@ -122,10 +123,10 @@ class FindMyCombosViewTests(AbstractModelTests):
                                 included_within_commander = [v for v in related if self.variants_cards[v.id].issubset(card_set) and self.variants_commanders[v.id].issubset(commander_set)]
                                 included_outside_commander = [v for v in related if self.variants_cards[v.id].issubset(card_set) and not self.variants_commanders[v.id].issubset(commander_set)]
                                 related_but_not_included = [v for v in related if not self.variants_cards[v.id].issubset(card_set)]
-                                almost_included_within_identity_within_commanders = [v for v in related_but_not_included if set(v.identity).issubset(set(identity)) and self.variants_commanders[v.id].issubset(commander_set)]
-                                almost_included_within_commanders_but_not_identity = [v for v in related_but_not_included if not set(v.identity).issubset(set(identity)) and self.variants_commanders[v.id].issubset(commander_set)]
-                                almost_included_within_identity_but_not_commanders = [v for v in related_but_not_included if set(v.identity).issubset(set(identity)) and not self.variants_commanders[v.id].issubset(commander_set)]
-                                almost_included_outside_identity_outside_commanders = [v for v in related_but_not_included if not set(v.identity).issubset(set(identity)) and not self.variants_commanders[v.id].issubset(commander_set)]
+                                almost_included_within_identity_within_commanders = [v for v in related_but_not_included if set(v.identity).issubset(identity_set) and self.variants_commanders[v.id].issubset(commander_set)]
+                                almost_included_within_commanders_but_not_identity = [v for v in related_but_not_included if not set(v.identity).issubset(identity_set) and self.variants_commanders[v.id].issubset(commander_set)]
+                                almost_included_within_identity_but_not_commanders = [v for v in related_but_not_included if set(v.identity).issubset(identity_set) and not self.variants_commanders[v.id].issubset(commander_set)]
+                                almost_included_outside_identity_outside_commanders = [v for v in related_but_not_included if not set(v.identity).issubset(identity_set) and not self.variants_commanders[v.id].issubset(commander_set)]
                                 self.assertEqual(len(result.results.included), len(included_within_commander))
                                 self.assertEqual(len(result.results.included_by_changing_commanders), len(included_outside_commander))
                                 self.assertEqual(len(result.results.almost_included), len(almost_included_within_identity_within_commanders))

@@ -31,9 +31,8 @@ def id_from_cards_and_templates_ids(cards: list[int], templates: list[int]) -> s
 
 
 def merge_identities(identities: Iterable[str]):
-    i = set(''.join(identities).upper())
-    i.discard('C')
-    return ''.join([color for color in 'WUBRG' if color in i]) or 'C'
+    identity_set = set(''.join(identities).upper())
+    return ''.join(color for color in 'WUBRG' if color in identity_set) or 'C'
 
 
 def mana_value(mana: str) -> int:

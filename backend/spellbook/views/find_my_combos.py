@@ -103,7 +103,7 @@ def find_my_combos(request: Request) -> Response:
     almost_included_variants_by_adding_colors_and_changing_commanders = []
 
     identity = merge_identities(identity for identity in Card.objects.filter(id__in=cards).values_list('identity', flat=True))
-    identity_set = set(identity)
+    identity_set = set(identity) | {'C'}
 
     for variant in variants_page:
         variant_data = VariantSerializer(variant).data

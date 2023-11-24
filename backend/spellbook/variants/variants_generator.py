@@ -93,10 +93,13 @@ class VariantBulkSaveItem:
     produces: set[int]
 
 
+DEFAULT_ZONE_LOCATIONS = IngredientInCombination._meta.get_field('zone_locations').get_default()
+
+
 def update_state(dst: IngredientInCombination, src: IngredientInCombination):
     dst.zone_locations = ''.join(location for location in dst.zone_locations if location in src.zone_locations)
     if dst.zone_locations == '':
-        dst.zone_locations = IngredientInCombination.zone_locations.default
+        dst.zone_locations = DEFAULT_ZONE_LOCATIONS
         dst.battlefield_card_state = ''
         dst.exile_card_state = ''
         dst.graveyard_card_state = ''
@@ -138,7 +141,7 @@ def restore_variant(
         card_in_variant.exile_card_state = ''
         card_in_variant.graveyard_card_state = ''
         card_in_variant.library_card_state = ''
-        card_in_variant.zone_locations = IngredientInCombination.zone_locations.default
+        card_in_variant.zone_locations = DEFAULT_ZONE_LOCATIONS
         card_in_variant.must_be_commander = False
         uses[card_in_variant.card.id] = card_in_variant
     requires = dict[int, TemplateInVariant]()
@@ -148,7 +151,7 @@ def restore_variant(
         template_in_variant.exile_card_state = ''
         template_in_variant.graveyard_card_state = ''
         template_in_variant.library_card_state = ''
-        template_in_variant.zone_locations = IngredientInCombination.zone_locations.default
+        template_in_variant.zone_locations = DEFAULT_ZONE_LOCATIONS
         template_in_variant.must_be_commander = False
         requires[template_in_variant.template.id] = template_in_variant
     for combo in included_combos:

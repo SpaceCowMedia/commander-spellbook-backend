@@ -5,7 +5,7 @@ from django.db import transaction
 from .list_utils import includes_any
 from .variant_data import RestoreData, Data, debug_queries
 from .combo_graph import Graph
-from spellbook.models import Combo, Job, Variant, CardInVariant, TemplateInVariant, IngredientInCombination, id_from_cards_and_templates_ids, Playable
+from spellbook.models import Combo, Job, Variant, CardInVariant, TemplateInVariant, IngredientInCombination, id_from_cards_and_templates_ids, Playable, Card
 
 
 DEFAULT_CARD_LIMIT = 5
@@ -93,19 +93,34 @@ class VariantBulkSaveItem:
     produces: set[int]
 
 
-DEFAULT_ZONE_LOCATIONS = IngredientInCombination._meta.get_field('zone_locations').get_default()
+def get_default_zone_location_for_card(card: Card) -> str:
+    if any(card_type in card.type_line for card_type in ('Instant', 'Sorcery')):
+        return IngredientInCombination.ZoneLocation.HAND
+    return IngredientInCombination.ZoneLocation.BATTLEFIELD
 
 
-def update_state(dst: IngredientInCombination, src: IngredientInCombination):
-    dst.zone_locations = ''.join(location for location in dst.zone_locations if location in src.zone_locations)
-    if dst.zone_locations == '':
-        dst.zone_locations = DEFAULT_ZONE_LOCATIONS
-        dst.battlefield_card_state = ''
-        dst.exile_card_state = ''
-        dst.graveyard_card_state = ''
-        dst.library_card_state = ''
-        dst.must_be_commander = False
+def update_state_with_default(dst: IngredientInCombination):
+    if isinstance(dst, CardInVariant):
+        dst.zone_locations = get_default_zone_location_for_card(dst.card)
+    else:
+        dst.zone_locations = IngredientInCombination._meta.get_field('zone_locations').get_default()
+    dst.battlefield_card_state = ''
+    dst.exile_card_state = ''
+    dst.graveyard_card_state = ''
+    dst.library_card_state = ''
+    dst.must_be_commander = False
+
+
+def update_state(dst: IngredientInCombination, src: IngredientInCombination, overwrite=False):
+    if overwrite:
+        dst.zone_locations = src.zone_locations
+        dst.battlefield_card_state = src.battlefield_card_state
+        dst.exile_card_state = src.exile_card_state
+        dst.graveyard_card_state = src.graveyard_card_state
+        dst.library_card_state = src.library_card_state
+        dst.must_be_commander = src.must_be_commander
         return
+    dst.zone_locations = ''.join(location for location in dst.zone_locations if location in src.zone_locations)
     if len(dst.battlefield_card_state) > 0:
         dst.battlefield_card_state += ' '
     dst.battlefield_card_state += src.battlefield_card_state
@@ -135,32 +150,32 @@ def restore_variant(
     requires_commander = any(c.must_be_commander for c in used_cards) or any(t.must_be_commander for t in required_templates)
     variant.update([c.card for c in used_cards], requires_commander)
     uses = dict[int, CardInVariant]()
+    uses_updated = set[int]()
     for card_in_variant in used_cards:
+        update_state_with_default(card_in_variant)
         card_in_variant.order = 0
-        card_in_variant.battlefield_card_state = ''
-        card_in_variant.exile_card_state = ''
-        card_in_variant.graveyard_card_state = ''
-        card_in_variant.library_card_state = ''
-        card_in_variant.zone_locations = DEFAULT_ZONE_LOCATIONS
-        card_in_variant.must_be_commander = False
         uses[card_in_variant.card.id] = card_in_variant
     requires = dict[int, TemplateInVariant]()
+    requires_updated = set[int]()
     for template_in_variant in required_templates:
+        update_state_with_default(template_in_variant)
         template_in_variant.order = 0
-        template_in_variant.battlefield_card_state = ''
-        template_in_variant.exile_card_state = ''
-        template_in_variant.graveyard_card_state = ''
-        template_in_variant.library_card_state = ''
-        template_in_variant.zone_locations = DEFAULT_ZONE_LOCATIONS
-        template_in_variant.must_be_commander = False
         requires[template_in_variant.template.id] = template_in_variant
     for combo in included_combos:
         for card_in_combo in data.combo_to_cards[combo.id]:
             to_edit = uses[card_in_combo.card.id]
-            update_state(to_edit, card_in_combo)
+            if to_edit.card.id not in uses_updated:
+                update_state(to_edit, card_in_combo, overwrite=True)
+                uses_updated.add(to_edit.card.id)
+            else:
+                update_state(to_edit, card_in_combo)
         for template_in_combo in data.combo_to_templates[combo.id]:
             to_edit = requires[template_in_combo.template.id]
-            update_state(to_edit, template_in_combo)
+            if to_edit.template.id not in requires_updated:
+                update_state(to_edit, template_in_combo, overwrite=True)
+                requires_updated.add(to_edit.template.id)
+            else:
+                update_state(to_edit, template_in_combo)
     # Ordering by descending replaceability and ascending order in combos
     cards_ordering: dict[int, tuple[int, int]] = {c: (0, 0) for c in uses}
     templates_ordering: dict[int, tuple[int, int]] = {t: (0, 0) for t in requires}

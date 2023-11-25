@@ -6,7 +6,7 @@ templateid = int
 
 
 class VariantSet():
-    def __init__(self, limit: int = None):
+    def __init__(self, limit: int | float | None = None):
         self.sets = MinimalSetOfSets[str]()
         self.max_depth = limit if limit is not None else float('inf')
 
@@ -90,22 +90,17 @@ class VariantSet():
         return self.__copy__()
 
     @classmethod
-    def or_sets(cls, sets: list['VariantSet'], limit: int = None) -> 'VariantSet':
+    def or_sets(cls, sets: list['VariantSet'], limit: int | None = None) -> 'VariantSet':
         return VariantSet.aggregate_sets(sets, limit=limit, strategy=lambda x, y: x | y)
 
     @classmethod
-    def and_sets(cls, sets: list['VariantSet'], limit: int = None) -> 'VariantSet':
+    def and_sets(cls, sets: list['VariantSet'], limit: int | None = None) -> 'VariantSet':
         return VariantSet.aggregate_sets(sets, limit=limit, strategy=lambda x, y: x & y)
 
     @classmethod
-    def aggregate_sets(cls, sets: list['VariantSet'], strategy, limit: int = None) -> 'VariantSet':
+    def aggregate_sets(cls, sets: list['VariantSet'], strategy, limit: int | None = None) -> 'VariantSet':
         match len(sets):
             case 0: return VariantSet(limit=limit)
-            case 1:
-                result = sets[0].copy()
-                if limit is not None:
-                    result.max_depth = limit
-                return result
             case _:
                 result = sets[0].copy()
                 if limit is not None:

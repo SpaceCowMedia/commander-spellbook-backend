@@ -28,6 +28,7 @@ class AbstractModelTests(TestCase):
     b6_id = 0
     b7_id = 0
     s1_id = 0
+    expected_variant_count = 7
 
     def setUp(self) -> None:
         settings.ASYNC_GENERATION = False

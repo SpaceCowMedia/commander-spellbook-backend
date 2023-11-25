@@ -101,7 +101,7 @@ class Graph:
 
     def __init__(self, data: Data, log=None):
         if data is not None:
-            self.logger: Callable[[str]] = log if log is not None else lambda msg: self._error(msg)
+            self.logger: Callable[[str], None] = log if log is not None else lambda msg: self._error(msg)
             self.data = data
             self.cnodes = dict[int, CardNode]((card.id, CardNode(card, [], [])) for card in data.cards)
             for c in self.cnodes.values():

@@ -4,6 +4,16 @@ from spellbook.tests.utils import list_of_tuples_of_lists_to_set
 
 
 class VariantSetTests(TestCase):
+    def test_init(self):
+        variant_set = VariantSet()
+        self.assertIsNotNone(variant_set)
+        self.assertEqual(variant_set.max_depth, float('inf'))
+        self.assertEqual(variant_set.variants(), [])
+        variant_set = VariantSet(limit=3)
+        self.assertIsNotNone(variant_set)
+        self.assertEqual(variant_set.max_depth, 3)
+        self.assertEqual(variant_set.variants(), [])
+
     def test_ingredients_to_key(self):
         self.assertEqual(VariantSet.key_to_ingredients(VariantSet.ingredients_to_key([1, 2, 3, 4], [])), ([1, 2, 3, 4], []))
         self.assertEqual(VariantSet.key_to_ingredients(VariantSet.ingredients_to_key([1, 2, 3, 4], [1, 2, 3])), ([1, 2, 3, 4], [1, 2, 3]))

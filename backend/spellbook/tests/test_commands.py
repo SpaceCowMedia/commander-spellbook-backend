@@ -40,7 +40,7 @@ class CleanJobsTest(AbstractModelTests):
         self.v5_id = id_from_cards_and_templates_ids([self.c3_id, self.c1_id, self.c2_id], [])
         self.v6_id = id_from_cards_and_templates_ids([self.c5_id, self.c6_id, self.c2_id, self.c3_id], [])
         self.v7_id = id_from_cards_and_templates_ids([self.c1_id, self.c2_id, self.c3_id, self.c4_id, self.c5_id, self.c6_id], [])
-        self.assertEqual(Variant.objects.count(), 7)
+        self.assertEqual(Variant.objects.count(), self.expected_variant_count)
         for v in Variant.objects.all():
             self.assertEqual(v.status, Variant.Status.NEW)
         j = Job.objects.get(name='generate_variants')

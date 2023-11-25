@@ -1,16 +1,16 @@
 from spellbook.tests.abstract_test import AbstractModelTests
-from spellbook.variants.variant_data import Data, debug_queries
+from spellbook.variants.variant_data import Data, RestoreData, debug_queries
 from spellbook.models import Variant, Combo, Feature, Card, Template, id_from_cards_and_templates_ids
 from spellbook.utils import launch_job_command
 
 
 class VariantDataTests(AbstractModelTests):
-    def test_combos(self):
-        data = Data()
-        self.assertEqual(len(data.combos), Combo.objects.filter(kind__in=(Combo.Kind.GENERATOR, Combo.Kind.GENERATOR_WITH_MANY_CARDS, Combo.Kind.UTILITY)).count())
-        self.assertDictEqual({k: data.combo_to_cards[k] for k in Combo.objects.values_list('id', flat=True)}, {combo.id: list(combo.cardincombo_set.all()) for combo in Combo.objects.all()})
-        self.assertDictEqual({k: data.combo_to_templates[k] for k in Combo.objects.values_list('id', flat=True)}, {combo.id: list(combo.templateincombo_set.all()) for combo in Combo.objects.all()})
-        self.assertEqual(set(c.id for c in data.generator_combos), set(Combo.objects.filter(kind__in=(Combo.Kind.GENERATOR, Combo.Kind.GENERATOR_WITH_MANY_CARDS)).values_list('id', flat=True)))
+    def test_restore_data(self):
+        for data in (Data(), RestoreData()):
+            self.assertEqual(len(data.combos), Combo.objects.filter(kind__in=(Combo.Kind.GENERATOR, Combo.Kind.GENERATOR_WITH_MANY_CARDS, Combo.Kind.UTILITY)).count())
+            self.assertDictEqual({k: data.combo_to_cards[k] for k in Combo.objects.values_list('id', flat=True)}, {combo.id: list(combo.cardincombo_set.all()) for combo in Combo.objects.all()})
+            self.assertDictEqual({k: data.combo_to_templates[k] for k in Combo.objects.values_list('id', flat=True)}, {combo.id: list(combo.templateincombo_set.all()) for combo in Combo.objects.all()})
+            self.assertEqual(set(c.id for c in data.generator_combos), set(Combo.objects.filter(kind__in=(Combo.Kind.GENERATOR, Combo.Kind.GENERATOR_WITH_MANY_CARDS)).values_list('id', flat=True)))
 
     def test_features(self):
         data = Data()

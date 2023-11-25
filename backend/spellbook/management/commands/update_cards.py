@@ -2,6 +2,7 @@ import traceback
 from django.core.management.base import BaseCommand, CommandParser
 from django.utils import timezone
 from spellbook.models import Job, Card, Variant
+from spellbook.utils import log_into_job
 from ..scryfall import scryfall, update_cards
 
 
@@ -10,8 +11,7 @@ class Command(BaseCommand):
 
     def log_job(self, job, message, style=lambda x: x):
         self.stdout.write(style(message))
-        job.message += message + '\n'
-        job.save()
+        log_into_job(job, message)
 
     def add_arguments(self, parser: CommandParser):
         parser.add_argument(

@@ -1,13 +1,34 @@
+from unittest import TestCase
 from urllib.parse import quote_plus
 from django.utils import timezone
 from django.contrib.auth.models import User
 from common.inspection import count_methods
 from .abstract_test import AbstractModelTests
-from spellbook.models import Card, Feature, Template, Combo, Job, IngredientInCombination, Variant, VariantSuggestion, CardUsedInVariantSuggestion
+from spellbook.models import merge_identities, Card, Feature, Template, Combo, Job, IngredientInCombination, Variant, VariantSuggestion, CardUsedInVariantSuggestion
 from spellbook.models.scryfall import SCRYFALL_API_ROOT, SCRYFALL_WEBSITE_CARD_SEARCH
 from spellbook.utils import launch_job_command
 from spellbook.models import id_from_cards_and_templates_ids
 from django.core.exceptions import ValidationError
+
+
+class UtilsTests(TestCase):
+    def test_merge_identities(self):
+        self.assertEqual(merge_identities(['', '']), 'C')
+        for c in 'CWUBRG':
+            self.assertEqual(merge_identities([c, '']), c)
+            self.assertEqual(merge_identities(['', c]), c)
+            self.assertEqual(merge_identities([c, c]), c)
+        self.assertEqual(merge_identities(['W', 'U']), 'WU')
+        self.assertEqual(merge_identities(['W', 'U', 'B']), 'WUB')
+        self.assertEqual(merge_identities(['W', 'U', 'B', 'R']), 'WUBR')
+        self.assertEqual(merge_identities(['W', 'U', 'B', 'R', 'G']), 'WUBRG')
+        self.assertEqual(merge_identities(sorted(['W', 'U', 'B', 'R', 'G'])), 'WUBRG')
+        self.assertEqual(merge_identities(['W', 'U', 'B', 'R', 'G', 'W']), 'WUBRG')
+        self.assertEqual(merge_identities(['WU', 'BR', 'G', 'WG']), 'WUBRG')
+        self.assertEqual(merge_identities(['S']), 'C')
+        self.assertEqual(merge_identities(['S', 'R']), 'R')
+        self.assertEqual(merge_identities(['r', 'g']), 'RG')
+        self.assertEqual(merge_identities(['g', 'r']), 'RG')
 
 
 class CardTests(AbstractModelTests):

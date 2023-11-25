@@ -5,6 +5,8 @@ import logging
 from django.utils import timezone
 from django.core.management import call_command
 from django.conf import settings
+from django.db import transaction
+from django.contrib.auth.models import User
 from common.stream import StreamToLogger
 from spellbook.models import Job
 
@@ -20,7 +22,7 @@ def launch_command_async(command: str, args: list[str] = []):
         subprocess.Popen(args=args)
 
 
-def launch_job_command(command: str, user, args: list[str] = []) -> bool:
+def launch_job_command(command: str, user: User | None = None, args: list[str] = []) -> bool:
     """
     Launch a command asynchronously and create a Job object to track it.
     The command must be a management command that can take a --id parameter with the Job id.
@@ -53,3 +55,13 @@ def launch_job_command(command: str, user, args: list[str] = []) -> bool:
                 raise e
         return True
     return False
+
+
+def log_into_job(job: Job | None, message: str, reset=False):
+    if job:
+        if reset:
+            job.message = message
+        else:
+            job.message += message + '\n'
+        with transaction.atomic(durable=True):
+            job.save()

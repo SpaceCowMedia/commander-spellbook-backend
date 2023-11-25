@@ -3,7 +3,6 @@ from spellbook.variants.minimal_set_of_sets import MinimalSetOfSets
 
 
 class MinimalSetOfSetsTests(TestCase):
-
     def setUp(self) -> None:
         self.subject = MinimalSetOfSets({
             frozenset({1, 2, 3}),

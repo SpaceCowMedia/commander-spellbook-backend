@@ -6,22 +6,13 @@ from .list_utils import includes_any
 from .variant_data import RestoreData, Data, debug_queries
 from .combo_graph import Graph
 from spellbook.models import Combo, Job, Variant, CardInVariant, TemplateInVariant, IngredientInCombination, id_from_cards_and_templates_ids, Playable, Card
+from spellbook.utils import log_into_job
 
 
 DEFAULT_CARD_LIMIT = 5
 DEFAULT_VARIANT_LIMIT = 10000
 HIGHER_CARD_LIMIT = 100
 LOWER_VARIANT_LIMIT = 100
-
-
-def log_into_job(job: Job | None, message: str, reset=False):
-    if job:
-        if reset:
-            job.message = message
-        else:
-            job.message += message + '\n'
-        with transaction.atomic(durable=True):
-            job.save()
 
 
 @dataclass

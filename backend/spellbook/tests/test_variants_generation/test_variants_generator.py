@@ -13,7 +13,7 @@ class VariantsGeneratorTests(AbstractModelTests):
             self.fail('Job.start() returned None')
         result = get_variants_from_graph(data=Data(), job=job)
         self.assertIsInstance(result, dict)
-        self.assertEquals(len(result), self.expected_variant_count)
+        self.assertEqual(len(result), self.expected_variant_count)
         self.assertGreater(len(job.message), 0)
         launch_job_command('generate_variants')
         self.assertEqual(len(result), Variant.objects.count())

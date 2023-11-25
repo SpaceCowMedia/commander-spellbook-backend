@@ -33,7 +33,7 @@ class VariantsGeneratorTests(AbstractModelTests):
             else:
                 self.assertEqual(location, IngredientInCombination.ZoneLocation.BATTLEFIELD)
 
-    def test_default_ingredient_state(self):
+    def test_update_state_with_default(self):
         civs = (CardInVariant(card=c) for c in Card.objects.all())
         tivs = (TemplateInVariant(template=t) for t in Template.objects.all())
         for sut in chain(civs, tivs):
@@ -47,3 +47,27 @@ class VariantsGeneratorTests(AbstractModelTests):
                 self.assertEqual(sut.zone_locations, get_default_zone_location_for_card(sut.card))
             else:
                 self.assertEqual(sut.zone_locations, IngredientInCombination._meta.get_field('zone_locations').get_default())
+
+    def test_update_state(self):
+        # TODO: Implement
+        pass
+
+    def test_restore_variant(self):
+        # TODO: Implement
+        pass
+
+    def test_update_variant(self):
+        # TODO: Implement
+        pass
+
+    def test_create_variant(self):
+        # TODO: Implement
+        pass
+
+    def test_perform_bulk_save(self):
+        # TODO: Implement
+        pass
+
+    def test_generate_variants(self):
+        # TODO: Implement
+        pass

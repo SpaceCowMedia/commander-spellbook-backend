@@ -119,7 +119,16 @@ class VariantViewsTests(AbstractModelTests):
         for i in range(variants_count):
             self.variant_assertions(result.results[i])
 
-    def test_variants_list_view_query(self):
+    def test_variants_detail_view(self):
+        c = Client()
+        response = c.get('/variants/{}'.format(self.v1_id), follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get('Content-Type'), 'application/json')
+        result = json.loads(response.content, object_hook=json_to_python_lambda)
+        self.assertEqual(result.id, self.v1_id)
+        self.variant_assertions(result)
+
+    def test_variants_list_view_query_by_card_name(self):
         c = Client()
         for card in Card.objects.all():
             prefix_without_spaces = card.name.partition(' ')[0]
@@ -141,13 +150,47 @@ class VariantViewsTests(AbstractModelTests):
                     self.assertEqual(len(result.results), variants_count)
                     for i in range(variants_count):
                         self.variant_assertions(result.results[i])
-        # TODO: add tests for other query types
 
-    def test_variants_detail_view(self):
-        c = Client()
-        response = c.get('/variants/{}'.format(self.v1_id), follow=True)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.get('Content-Type'), 'application/json')
-        result = json.loads(response.content, object_hook=json_to_python_lambda)
-        self.assertEqual(result.id, self.v1_id)
-        self.variant_assertions(result)
+    def test_variants_list_view_query_by_card_count(self):
+        # TODO: implement
+        pass
+
+    def test_variants_list_view_query_by_identity(self):
+        # TODO: implement
+        pass
+
+    def test_variants_list_view_query_by_prerequisites(self):
+        # TODO: implement
+        pass
+
+    def test_variants_list_view_query_by_steps(self):
+        # TODO: implement
+        pass
+
+    def test_variants_list_view_query_by_results(self):
+        # TODO: implement
+        pass
+
+    def test_variants_list_view_query_by_tag(self):
+        # TODO: implement
+        pass
+
+    def test_variants_list_view_query_by_spellbook_id(self):
+        # TODO: implement
+        pass
+
+    def test_variants_list_view_query_by_commander_name(self):
+        # TODO: implement
+        pass
+
+    def test_variants_list_view_query_by_legality(self):
+        # TODO: implement
+        pass
+
+    def test_variants_list_view_query_by_price(self):
+        # TODO: implement
+        pass
+
+    def test_variants_list_view_query_by_a_combination_of_terms(self):
+        # TODO: implement
+        pass

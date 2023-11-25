@@ -11,7 +11,7 @@ class MinimalSetOfSets(Generic[T]):
             for s in sets:
                 self.add(s)
 
-    def contains_subset_of(self, aset: frozenset[T]) -> bool:
+    def contains_subset_of(self, aset: frozenset[T] | set[T]) -> bool:
         for s in self._sets:
             if s.issubset(aset):
                 return True

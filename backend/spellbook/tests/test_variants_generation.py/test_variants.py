@@ -2,15 +2,11 @@ from django.test import TestCase
 from spellbook.variants.minimal_set_of_sets import MinimalSetOfSets
 from spellbook.variants.variant_set import VariantSet
 from spellbook.models import Variant, Combo, Feature, Card, Template, id_from_cards_and_templates_ids, merge_identities
-from spellbook.variants.list_utils import includes_any
+from spellbook.variants.list_utils import includes_any, list_of_tuples_of_lists_to_set
 from spellbook.variants.variant_data import Data, debug_queries
 from spellbook.variants.combo_graph import Graph
 from spellbook.utils import launch_job_command
-from .abstract_test import AbstractModelTests
-
-
-def list_of_tuples_of_lists_to_set(list_of_tuples_of_lists: list[tuple[list]]) -> set[tuple[tuple]]:
-    return set([tuple([tuple(x) for x in y]) for y in list_of_tuples_of_lists])
+from spellbook.tests.abstract_test import AbstractModelTests
 
 
 class ListUtilsTests(TestCase):

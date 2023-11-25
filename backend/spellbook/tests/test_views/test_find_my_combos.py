@@ -1,6 +1,8 @@
 import json
 import itertools
 import random
+import os
+from unittest import skipUnless
 from django.test import Client
 from spellbook.utils import launch_job_command
 from spellbook.models import Card, Variant, merge_identities
@@ -67,6 +69,7 @@ class FindMyCombosViewTests(AbstractModelTests):
             self.assertFalse(set(v.identity).issubset(identity_set))
             self.assertFalse(self.variants_commanders[v.id].issubset(commanders))
 
+    @skipUnless('CI' in os.environ, reason='This test is too slow to run locally.')
     def test_find_my_combos_views(self):
         c = Client()
         for content_type in ['text/plain', 'application/json']:

@@ -4,7 +4,7 @@ from django.db.models import Prefetch, Case, When, Count, Q
 from django.forms import ModelForm
 from django.contrib import admin, messages
 from django.http.request import HttpRequest
-from spellbook.models import Card, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, CardInVariant, TemplateInVariant, VariantSuggestion
+from spellbook.models import Card, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, CardInVariant, TemplateInVariant, VariantSuggestion, Playable
 from spellbook.models.utils import recipe
 from spellbook.variants.variant_data import RestoreData
 from spellbook.variants.variants_generator import restore_variant
@@ -120,7 +120,11 @@ class ComboAdmin(SearchMultipleRelatedMixin, admin.ModelAdmin):
     def save_related(self, request, form, formsets, change):
         super().save_related(request, form, formsets, change)
         if change:
-            query = form.instance.variants.filter(status__in=[Variant.Status.NEW, Variant.Status.RESTORE])
+            query = form.instance.variants.filter(status__in=[Variant.Status.NEW, Variant.Status.RESTORE]).prefetch_related(
+                'includes',
+                'of',
+                'cardinvariant_set',
+                'templateinvariant_set')
             count = query.count()
             if count <= 0:
                 return
@@ -141,7 +145,7 @@ class ComboAdmin(SearchMultipleRelatedMixin, admin.ModelAdmin):
                     data=data)
                 card_in_variants_to_update.extend(uses_set)
                 template_in_variants_to_update.extend(requires_set)
-            update_fields = ['status', 'mana_needed', 'other_prerequisites', 'description', 'identity']
+            update_fields = ['status', 'mana_needed', 'other_prerequisites', 'description'] + Playable.playable_fields()
             Variant.objects.bulk_update(variants_to_update, update_fields)
             update_fields = ['zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'must_be_commander', 'order']
             CardInVariant.objects.bulk_update(card_in_variants_to_update, update_fields)

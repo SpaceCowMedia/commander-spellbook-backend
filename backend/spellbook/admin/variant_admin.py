@@ -11,7 +11,7 @@ from spellbook.models.utils import recipe
 from spellbook.utils import launch_job_command
 from spellbook.parsers import variants_query_parser, NotSupportedError
 from spellbook.variants.variants_generator import DEFAULT_CARD_LIMIT
-from .utils import IdentityFilter
+from .utils import IdentityFilter, upper_oracle_symbols
 from .ingredient_admin import IngredientAdmin
 
 
@@ -97,7 +97,10 @@ def set_example(modeladmin, request, queryset):
 
 class VariantForm(ModelForm):
     def clean_mana_needed(self):
-        return self.cleaned_data['mana_needed'].upper() if self.cleaned_data['mana_needed'] else self.cleaned_data['mana_needed']
+        if self.cleaned_data['mana_needed']:
+            result = upper_oracle_symbols(self.cleaned_data['mana_needed'])
+            return result
+        return self.cleaned_data['mana_needed']
 
 
 @admin.register(Variant)

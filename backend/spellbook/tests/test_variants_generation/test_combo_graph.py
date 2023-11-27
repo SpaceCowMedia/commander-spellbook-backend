@@ -5,6 +5,10 @@ from spellbook.tests.abstract_test import AbstractModelTests
 
 
 class ComboGraphTest(AbstractModelTests):
+    def setUp(self) -> None:
+        super().setUp()
+        super().generate_variants()
+
     def test_empty_graph(self):
         Combo.objects.exclude(id=self.b2_id).delete()
         combo_graph = Graph(Data())

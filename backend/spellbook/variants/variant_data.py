@@ -10,14 +10,19 @@ from spellbook.models.variant import Variant, CardInVariant, TemplateInVariant
 
 
 class RestoreData:
-    def __init__(self):
-        self.combos = Combo.objects.prefetch_related('uses', 'requires', 'needs', 'removes', 'produces').filter(kind__in=(Combo.Kind.GENERATOR, Combo.Kind.GENERATOR_WITH_MANY_CARDS, Combo.Kind.UTILITY))
+    def __init__(self, single_combo: Combo | None = None):
+        combos_query = Combo.objects.prefetch_related('uses', 'requires', 'needs', 'removes', 'produces').filter(kind__in=(Combo.Kind.GENERATOR, Combo.Kind.GENERATOR_WITH_MANY_CARDS, Combo.Kind.UTILITY))
+        if single_combo is not None:
+            combos_query = combos_query.filter(included_in_variants__includes=single_combo)
+        self.combos = list(combos_query.distinct())
         self.combo_to_cards = defaultdict[int, list[CardInCombo]](list)
         self.combo_to_templates = defaultdict[int, list[TemplateInCombo]](list)
-        self.generator_combos = list(self.combos.filter(kind__in=(Combo.Kind.GENERATOR, Combo.Kind.GENERATOR_WITH_MANY_CARDS)))
-        for cic in CardInCombo.objects.select_related('card', 'combo').distinct():
+        self.generator_combos = [c for c in self.combos if c.kind in (Combo.Kind.GENERATOR, Combo.Kind.GENERATOR_WITH_MANY_CARDS)]
+        card_in_combos = CardInCombo.objects.select_related('card', 'combo').filter(combo__in=self.combos).distinct()
+        template_in_combos = TemplateInCombo.objects.select_related('template', 'combo').filter(combo__in=self.combos).distinct()
+        for cic in card_in_combos:
             self.combo_to_cards[cic.combo.id].append(cic)
-        for tic in TemplateInCombo.objects.select_related('template', 'combo').distinct():
+        for tic in template_in_combos:
             self.combo_to_templates[tic.combo.id].append(tic)
         for combo_to_cards in self.combo_to_cards.values():
             combo_to_cards.sort(key=lambda cic: cic.order)
@@ -34,12 +39,11 @@ class Data(RestoreData):
                 d[r['id']].add(r['uses__id'])
             return [frozenset(s) for s in d.values()]
 
-        def fetch_removed_features(combos_base_query):
-            res = combos_base_query.values('id', 'removes__id')
+        def fetch_removed_features(combos: list[Combo]):
             d = defaultdict[int, set[int]](set)
-            for r in res:
-                if r['removes__id'] is not None:
-                    d[r['id']].add(r['removes__id'])
+            for c in combos:
+                for r in c.removes.all():
+                    d[c.id].add(r.id)
             return d
 
         super().__init__()

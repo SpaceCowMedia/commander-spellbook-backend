@@ -4,6 +4,7 @@ import uuid
 from django.test import TestCase
 from django.conf import settings
 from spellbook.models import Combo, CardInCombo, TemplateInCombo, Card, Feature, Template, IngredientInCombination, VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, FeatureProducedInVariantSuggestion
+from spellbook.utils import launch_job_command
 
 
 class AbstractModelTests(TestCase):
@@ -35,6 +36,9 @@ class AbstractModelTests(TestCase):
         logging.disable(logging.INFO)
         self.populate_db()
         random.seed(42)
+
+    def generate_variants(self):
+        launch_job_command('generate_variants', None)
 
     def populate_db(self):
         c1 = Card.objects.create(name='A A', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000001'), identity='W', legal_commander=True, spoiler=False, type_line='Instant')

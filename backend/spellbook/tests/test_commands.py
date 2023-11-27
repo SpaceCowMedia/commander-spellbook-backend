@@ -50,7 +50,7 @@ class CleanJobsTest(AbstractModelTests):
         self.assertEqual(variant_ids, {self.v1_id, self.v2_id, self.v3_id, self.v4_id, self.v5_id, self.v6_id, self.v7_id})
 
     def test_export_variants(self):
-        launch_job_command('generate_variants', None)
+        super().generate_variants()
         file_path = Path(settings.STATIC_BULK_FOLDER) / 'export_variants.json'
         launch_job_command('export_variants', None, ['--file', file_path])
         self.assertTrue(file_path.exists())

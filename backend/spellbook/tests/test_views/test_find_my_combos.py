@@ -4,7 +4,6 @@ import random
 import os
 from unittest import skipUnless
 from django.test import Client
-from spellbook.utils import launch_job_command
 from spellbook.models import Card, Variant, merge_identities
 from ..abstract_test import AbstractModelTests
 from common.inspection import json_to_python_lambda
@@ -13,7 +12,7 @@ from common.inspection import json_to_python_lambda
 class FindMyCombosViewTests(AbstractModelTests):
     def setUp(self) -> None:
         super().setUp()
-        launch_job_command('generate_variants', None)
+        super().generate_variants()
         Variant.objects.update(status=Variant.Status.OK)
         Variant.objects.filter(id__in=random.sample(list(Variant.objects.values_list('id', flat=True)), 3)).update(status=Variant.Status.EXAMPLE)
         self.variants = Variant.objects.filter(status__in=Variant.public_statuses()).prefetch_related('cardinvariant_set', 'cardinvariant_set__card')

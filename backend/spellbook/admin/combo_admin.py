@@ -134,7 +134,7 @@ class ComboAdmin(SearchMultipleRelatedMixin, admin.ModelAdmin):
             variants_to_update = list[Variant]()
             card_in_variants_to_update = list[CardInVariant]()
             template_in_variants_to_update = list[TemplateInVariant]()
-            data = RestoreData()
+            data = RestoreData(single_combo=form.instance)
             for variant in list[Variant](query):
                 uses_set, requires_set = restore_variant(
                     variant,
@@ -145,6 +145,7 @@ class ComboAdmin(SearchMultipleRelatedMixin, admin.ModelAdmin):
                     data=data)
                 card_in_variants_to_update.extend(uses_set)
                 template_in_variants_to_update.extend(requires_set)
+                variants_to_update.append(variant)
             update_fields = ['status', 'mana_needed', 'other_prerequisites', 'description'] + Playable.playable_fields()
             Variant.objects.bulk_update(variants_to_update, update_fields)
             update_fields = ['zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'must_be_commander', 'order']

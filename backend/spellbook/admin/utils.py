@@ -14,7 +14,7 @@ from django.contrib.admin import ModelAdmin
 from spellbook.models.validators import ORACLE_SYMBOL
 
 
-def datetime_to_html(datetime: datetime):
+def datetime_to_html(datetime: datetime) -> str | None:
     if datetime is None:
         return None
     return format_html('<span class="local-datetime" data-iso="{}">{}</span>', datetime.isoformat(), localize(datetime))
@@ -34,7 +34,7 @@ class SpellbookModelAdmin(ModelAdmin):
         TextField: {'widget': NormalizedTextareaWidget},
     }
 
-    def get_form(self, request, obj, change: bool, **kwargs):
+    def get_form(self, request, obj, change=False, **kwargs):
         form = super().get_form(request, obj, change, **kwargs)
 
         def clean_mana_needed(self):

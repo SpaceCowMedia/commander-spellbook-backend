@@ -1,7 +1,7 @@
 from django.utils.html import format_html
 from django.contrib import admin
 from django.contrib.admin.models import LogEntry, DELETION
-from .utils import SpellbookModelAdmin
+from .utils import SpellbookModelAdmin, datetime_to_html
 
 
 @admin.register(LogEntry)
@@ -9,7 +9,11 @@ class LogEntryAdmin(SpellbookModelAdmin):
     date_hierarchy = 'action_time'
     list_filter = ['user', 'content_type', 'action_flag']
     search_fields = ['object_repr', 'change_message']
-    list_display = ['action_time', 'user', 'content_type', 'object_link', 'action_flag']
+    list_display = ['action_time_local', 'user', 'content_type', 'object_link', 'action_flag']
+
+    @admin.display(description='Action Time')
+    def action_time_local(self, obj: LogEntry) -> str | None:
+        return datetime_to_html(obj.action_time)
 
     def has_add_permission(self, request) -> bool:
         return False

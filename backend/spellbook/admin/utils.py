@@ -1,15 +1,20 @@
 import re
 from itertools import combinations
 from typing import Any
+from datetime import datetime
+from django.db.models import TextField, DateTimeField
 from django.contrib import admin
 from django.utils.html import format_html
 from django.utils.formats import localize
+from django.utils.safestring import SafeText
 from django.utils.text import normalize_newlines
-from django.forms import CharField, Textarea, ModelForm
+from django.forms import Textarea
+from django.forms.widgets import DateTimeInput
+from django.contrib.admin import ModelAdmin
 from spellbook.models.validators import ORACLE_SYMBOL
 
 
-def datetime_to_html(datetime):
+def datetime_to_html(datetime: datetime):
     if datetime is None:
         return None
     return format_html('<span class="local-datetime" data-iso="{}">{}</span>', datetime.isoformat(), localize(datetime))
@@ -19,26 +24,26 @@ def upper_oracle_symbols(text: str):
     return re.sub(r'\{' + ORACLE_SYMBOL + r'\}', lambda m: m.group(0).upper(), text, flags=re.IGNORECASE)
 
 
-class NormalizedTextField(CharField):
-    widget = Textarea
-
-    def to_python(self, value: Any):
-        value = super().to_python(value)
-        return normalize_newlines(value)
+class NormalizedTextareaWidget(Textarea):
+    def value_from_datadict(self, data, files, name: str):
+        return normalize_newlines(super().value_from_datadict(data, files, name))
 
 
-class ComboVariantForm(ModelForm):
-    def clean_mana_needed(self):
-        if self.cleaned_data['mana_needed']:
-            result = upper_oracle_symbols(self.cleaned_data['mana_needed'])
-            return result
-        return self.cleaned_data['mana_needed']
+class SpellbookModelAdmin(ModelAdmin):
+    formfield_overrides = {
+        TextField: {'widget': NormalizedTextareaWidget},
+    }
 
-    class Meta:
-        field_classes = {
-            'other_prerequisites': NormalizedTextField,
-            'description': NormalizedTextField,
-        }
+    def get_form(self, request, obj, change: bool, **kwargs):
+        form = super().get_form(request, obj, change, **kwargs)
+
+        def clean_mana_needed(self):
+            if self.cleaned_data['mana_needed']:
+                result = upper_oracle_symbols(self.cleaned_data['mana_needed'])
+                return result
+            return self.cleaned_data['mana_needed']
+        form.clean_mana_needed = clean_mana_needed
+        return form
 
 
 class SearchMultipleRelatedMixin:

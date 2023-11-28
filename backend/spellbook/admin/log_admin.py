@@ -1,10 +1,11 @@
 from django.utils.html import format_html
 from django.contrib import admin
 from django.contrib.admin.models import LogEntry, DELETION
+from .utils import SpellbookModelAdmin
 
 
 @admin.register(LogEntry)
-class LogEntryAdmin(admin.ModelAdmin):
+class LogEntryAdmin(SpellbookModelAdmin):
     date_hierarchy = 'action_time'
     list_filter = ['user', 'content_type', 'action_flag']
     search_fields = ['object_repr', 'change_message']

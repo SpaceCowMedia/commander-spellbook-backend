@@ -1,11 +1,11 @@
 from django.db.models import Count
 from django.contrib import admin
 from spellbook.models.job import Job
-from .utils import datetime_to_html
+from .utils import datetime_to_html, SpellbookModelAdmin
 
 
 @admin.register(Job)
-class JobAdmin(admin.ModelAdmin):
+class JobAdmin(SpellbookModelAdmin):
     readonly_fields = ['created_local', 'expected_termination_local', 'termination_local']
     fields = ['id', 'name', 'status', 'created_local', 'expected_termination_local', 'termination_local', 'message', 'started_by']
     list_display = ['id', 'name', 'status', 'created_local', 'expected_termination_local', 'termination_local', 'variants_count']

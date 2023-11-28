@@ -3,15 +3,16 @@ from django.contrib.admin.options import InlineModelAdmin
 from django.db.models import Prefetch, Case, When, Count, Q
 from django.contrib import admin, messages
 from django.http.request import HttpRequest
+from django.forms import ModelForm
 from spellbook.models import Card, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, CardInVariant, TemplateInVariant, VariantSuggestion, Playable
 from spellbook.models.utils import recipe
 from spellbook.variants.variant_data import RestoreData
 from spellbook.variants.variants_generator import restore_variant
-from .utils import SearchMultipleRelatedMixin, ComboVariantForm
+from .utils import SearchMultipleRelatedMixin, SpellbookModelAdmin
 from .ingredient_admin import IngredientAdmin
 
 
-class ComboForm(ComboVariantForm):
+class ComboForm(ModelForm):
     def variants_for_editors(self):
         if self.instance.pk is None:
             return Variant.objects.none()
@@ -90,7 +91,7 @@ class VariantRelatedFilter(admin.SimpleListFilter):
 
 
 @admin.register(Combo)
-class ComboAdmin(SearchMultipleRelatedMixin, admin.ModelAdmin):
+class ComboAdmin(SearchMultipleRelatedMixin, SpellbookModelAdmin):
     form = ComboForm
     save_as = True
     readonly_fields = ['scryfall_link']

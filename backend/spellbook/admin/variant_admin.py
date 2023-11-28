@@ -10,7 +10,7 @@ from spellbook.models.utils import recipe
 from spellbook.utils import launch_job_command
 from spellbook.parsers import variants_query_parser, NotSupportedError
 from spellbook.variants.variants_generator import DEFAULT_CARD_LIMIT
-from .utils import IdentityFilter, ComboVariantForm
+from .utils import IdentityFilter, SpellbookModelAdmin
 from .ingredient_admin import IngredientAdmin
 
 
@@ -95,8 +95,7 @@ def set_example(modeladmin, request, queryset):
 
 
 @admin.register(Variant)
-class VariantAdmin(admin.ModelAdmin):
-    form = ComboVariantForm
+class VariantAdmin(SpellbookModelAdmin):
     generated_readonly_fields = [
         'id',
         'produces_link',

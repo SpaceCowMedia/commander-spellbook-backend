@@ -2,7 +2,6 @@ from django.utils.http import urlencode
 from django.utils.html import format_html
 from django.urls import reverse, path
 from django.db.models import Count, Prefetch
-from django.forms import ModelForm
 from django.http import HttpRequest
 from django.shortcuts import redirect
 from django.contrib import admin, messages
@@ -11,7 +10,7 @@ from spellbook.models.utils import recipe
 from spellbook.utils import launch_job_command
 from spellbook.parsers import variants_query_parser, NotSupportedError
 from spellbook.variants.variants_generator import DEFAULT_CARD_LIMIT
-from .utils import IdentityFilter, upper_oracle_symbols
+from .utils import IdentityFilter, ComboVariantForm
 from .ingredient_admin import IngredientAdmin
 
 
@@ -95,17 +94,9 @@ def set_example(modeladmin, request, queryset):
     queryset.update(status=Variant.Status.EXAMPLE)
 
 
-class VariantForm(ModelForm):
-    def clean_mana_needed(self):
-        if self.cleaned_data['mana_needed']:
-            result = upper_oracle_symbols(self.cleaned_data['mana_needed'])
-            return result
-        return self.cleaned_data['mana_needed']
-
-
 @admin.register(Variant)
 class VariantAdmin(admin.ModelAdmin):
-    form = VariantForm
+    form = ComboVariantForm
     generated_readonly_fields = [
         'id',
         'produces_link',

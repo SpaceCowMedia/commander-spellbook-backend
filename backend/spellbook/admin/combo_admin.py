@@ -1,18 +1,17 @@
 from typing import Any
 from django.contrib.admin.options import InlineModelAdmin
 from django.db.models import Prefetch, Case, When, Count, Q
-from django.forms import ModelForm
 from django.contrib import admin, messages
 from django.http.request import HttpRequest
 from spellbook.models import Card, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, CardInVariant, TemplateInVariant, VariantSuggestion, Playable
 from spellbook.models.utils import recipe
 from spellbook.variants.variant_data import RestoreData
 from spellbook.variants.variants_generator import restore_variant
-from .utils import SearchMultipleRelatedMixin, upper_oracle_symbols
+from .utils import SearchMultipleRelatedMixin, ComboVariantForm
 from .ingredient_admin import IngredientAdmin
 
 
-class ComboForm(ModelForm):
+class ComboForm(ComboVariantForm):
     def variants_for_editors(self):
         if self.instance.pk is None:
             return Variant.objects.none()
@@ -21,12 +20,6 @@ class ComboForm(ModelForm):
             When(status=Variant.Status.NEW, then=1),
             default=2
         ), '-updated')
-
-    def clean_mana_needed(self):
-        if self.cleaned_data['mana_needed']:
-            result = upper_oracle_symbols(self.cleaned_data['mana_needed'])
-            return result
-        return self.cleaned_data['mana_needed']
 
 
 class CardInComboAdminInline(IngredientAdmin):

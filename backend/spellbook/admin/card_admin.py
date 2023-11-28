@@ -3,8 +3,9 @@ from django.contrib import admin
 from django.db.models import Count, Q
 from django.db.models.query import QuerySet
 from django.http.request import HttpRequest
+from django.forms import ModelForm
 from spellbook.models import Card, Variant
-from .utils import IdentityFilter
+from .utils import IdentityFilter, NormalizedTextField
 
 
 class ManagedByScryfallFilter(admin.SimpleListFilter):
@@ -21,8 +22,16 @@ class ManagedByScryfallFilter(admin.SimpleListFilter):
             return queryset.filter(oracle_id__isnull=True)
 
 
+class CardAdminForm(ModelForm):
+    class Meta:
+        field_classes = {
+            'oracle_text': NormalizedTextField,
+        }
+
+
 @admin.register(Card)
 class CardAdmin(admin.ModelAdmin):
+    form = CardAdminForm
     readonly_fields = ['scryfall_link']
     fieldsets = [
         ('Spellbook', {'fields': [

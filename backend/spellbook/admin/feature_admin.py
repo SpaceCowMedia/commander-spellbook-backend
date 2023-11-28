@@ -1,5 +1,7 @@
 from django.contrib import admin
+from django.forms import ModelForm
 from spellbook.models import Feature
+from .utils import NormalizedTextField
 
 
 class CardInFeatureAdminInline(admin.StackedInline):
@@ -10,8 +12,16 @@ class CardInFeatureAdminInline(admin.StackedInline):
     verbose_name_plural = 'Produced by cards'
 
 
+class FeatureAdminForm(ModelForm):
+    class Meta:
+        field_classes = {
+            'description': NormalizedTextField,
+        }
+
+
 @admin.register(Feature)
 class FeatureAdmin(admin.ModelAdmin):
+    form = FeatureAdminForm
     fieldsets = [
         (None, {'fields': ['name', 'utility', 'description']}),
     ]

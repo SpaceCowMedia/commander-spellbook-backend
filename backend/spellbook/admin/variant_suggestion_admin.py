@@ -1,6 +1,5 @@
 from typing import Any
 from django.db.models import Count, Prefetch
-from django.forms import ModelForm
 from django.contrib import admin
 from spellbook.models import VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, FeatureProducedInVariantSuggestion
 from spellbook.models.utils import recipe

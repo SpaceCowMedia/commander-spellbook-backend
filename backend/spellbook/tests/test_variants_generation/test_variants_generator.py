@@ -1,8 +1,8 @@
 from itertools import chain
 from spellbook.tests.abstract_test import AbstractModelTests
-from spellbook.models import Job, Variant, Card, IngredientInCombination, CardInVariant, TemplateInVariant, Template
+from spellbook.models import Job, Variant, Card, IngredientInCombination, CardInVariant, TemplateInVariant, Template, Combo
 from spellbook.variants.variant_data import Data
-from spellbook.variants.variants_generator import get_variants_from_graph, get_default_zone_location_for_card, update_state_with_default
+from spellbook.variants.variants_generator import get_variants_from_graph, get_default_zone_location_for_card, update_state_with_default, generate_variants
 from spellbook.utils import launch_job_command
 
 
@@ -69,5 +69,18 @@ class VariantsGeneratorTests(AbstractModelTests):
         pass
 
     def test_generate_variants(self):
-        # TODO: Implement
-        pass
+        generate_variants()
+        self.assertEqual(Variant.objects.count(), self.expected_variant_count)
+        Combo.objects.filter(kind__in=(Combo.Kind.GENERATOR, Combo.Kind.GENERATOR_WITH_MANY_CARDS)).update(kind=Combo.Kind.DRAFT)
+        generate_variants()
+        self.assertEqual(Variant.objects.count(), 0)
+
+    def test_generate_variants_deletion(self):
+        for status in Variant.Status.values:
+            Combo.objects.filter(kind=Combo.Kind.DRAFT).update(kind=Combo.Kind.GENERATOR_WITH_MANY_CARDS)
+            generate_variants()
+            self.assertEqual(Variant.objects.count(), self.expected_variant_count)
+            Variant.objects.update(status=status)
+            Combo.objects.filter(kind__in=(Combo.Kind.GENERATOR, Combo.Kind.GENERATOR_WITH_MANY_CARDS)).update(kind=Combo.Kind.DRAFT)
+            generate_variants()
+            self.assertEqual(Variant.objects.count(), 0)

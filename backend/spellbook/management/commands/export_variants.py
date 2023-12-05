@@ -49,17 +49,17 @@ class Command(AbstractCommand):
             }
             camelized_json = camelize(result)
             if options['s3']:
-                self.stdout.write('Uploading to S3...')
+                self.log('Uploading to S3...')
                 upload_json_to_aws(camelized_json, DEFAULT_VARIANTS_FILE_NAME)
-                self.stdout.write('Done')
+                self.log('Done')
             elif options['file'] is not None:
                 output: Path = options['file'].resolve()
-                self.stdout.write(f'Exporting variants to {output}...')
+                self.log(f'Exporting variants to {output}...')
                 output.parent.mkdir(parents=True, exist_ok=True)
                 with output.open('w', encoding='utf8') as f, gzip.open(str(output) + '.gz', mode='wt', encoding='utf8') as fz:
                     json.dump(camelized_json, f)
                     json.dump(camelized_json, fz)
-                self.stdout.write('Done')
+                self.log('Done')
             else:
                 raise Exception('No file specified')
             self.log('Successfully exported %i variants' % len(result['variants']), self.style.SUCCESS)

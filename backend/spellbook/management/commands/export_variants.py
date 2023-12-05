@@ -39,35 +39,35 @@ class Command(AbstractCommand):
         )
 
     def run(self, *args, **options):
-            self.log('Fetching variants from db...')
-            with transaction.atomic(durable=True):
-                variants_source = VariantViewSet().get_queryset()
-                result = {
-                    'timestamp': timezone.now().isoformat(),
-                    'version': settings.VERSION,
-                    'variants': [prepare_variant(v) for v in variants_source],
-                }
-                camelized_json = camelize(result)
-                if options['s3']:
-                    self.stdout.write('Uploading to S3...')
-                    upload_json_to_aws(camelized_json, DEFAULT_VARIANTS_FILE_NAME)
-                    self.stdout.write('Done')
-                elif options['file'] is not None:
-                    output: Path = options['file'].resolve()
-                    self.stdout.write(f'Exporting variants to {output}...')
-                    output.parent.mkdir(parents=True, exist_ok=True)
-                    with output.open('w', encoding='utf8') as f, gzip.open(str(output) + '.gz', mode='wt', encoding='utf8') as fz:
-                        json.dump(camelized_json, f)
-                        json.dump(camelized_json, fz)
-                    self.stdout.write('Done')
-                else:
-                    raise Exception('No file specified')
-                self.log('Successfully exported %i variants' % len(result['variants']), self.style.SUCCESS)
-                if self.job is not None and self.job.started_by is not None:
-                    LogEntry(
-                        user=self.job.started_by,
-                        content_type=ContentType.objects.get_for_model(Job),
-                        object_id=self.job.id,
-                        object_repr='Exported Variants',
-                        action_flag=CHANGE,
-                    ).save()
+        self.log('Fetching variants from db...')
+        with transaction.atomic(durable=True):
+            variants_source = VariantViewSet().get_queryset()
+            result = {
+                'timestamp': timezone.now().isoformat(),
+                'version': settings.VERSION,
+                'variants': [prepare_variant(v) for v in variants_source],
+            }
+            camelized_json = camelize(result)
+            if options['s3']:
+                self.stdout.write('Uploading to S3...')
+                upload_json_to_aws(camelized_json, DEFAULT_VARIANTS_FILE_NAME)
+                self.stdout.write('Done')
+            elif options['file'] is not None:
+                output: Path = options['file'].resolve()
+                self.stdout.write(f'Exporting variants to {output}...')
+                output.parent.mkdir(parents=True, exist_ok=True)
+                with output.open('w', encoding='utf8') as f, gzip.open(str(output) + '.gz', mode='wt', encoding='utf8') as fz:
+                    json.dump(camelized_json, f)
+                    json.dump(camelized_json, fz)
+                self.stdout.write('Done')
+            else:
+                raise Exception('No file specified')
+            self.log('Successfully exported %i variants' % len(result['variants']), self.style.SUCCESS)
+            if self.job is not None and self.job.started_by is not None:
+                LogEntry(
+                    user=self.job.started_by,
+                    content_type=ContentType.objects.get_for_model(Job),
+                    object_id=self.job.id,
+                    object_repr='Exported Variants',
+                    action_flag=CHANGE,
+                ).save()

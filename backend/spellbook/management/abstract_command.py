@@ -41,18 +41,15 @@ class AbstractCommand(BaseCommand):
             for _ in range(6):
                 sleep(10)
                 try:
-                    message = f'Error while running {self.name}: {e}'
-                    self.log(message, self.style.ERROR)
+                    self.log(f'Error while running {self.name}: {e}', self.style.ERROR)
                     self.job.termination = termination
                     self.job.status = Job.Status.FAILURE
-                    self.job.message = message
                     self.job.save()
                     break
                 except OperationalError:
                     pass
         except Exception as e:
-            message = f'Error while running {self.name}: {e}'
-            self.log(message, self.style.ERROR)
+            self.log(f'Error while running {self.name}: {e}', self.style.ERROR)
             self.log(traceback.format_exc(), self.style.ERROR)
             self.job.termination = timezone.now()
             self.job.status = Job.Status.FAILURE

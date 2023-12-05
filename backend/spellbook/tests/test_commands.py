@@ -1,6 +1,8 @@
 import json
+from time import sleep
 from pathlib import Path
-from datetime import timedelta, datetime
+from datetime import timedelta
+from django.utils import timezone
 from django.conf import settings
 from django.contrib.auth.models import User
 from spellbook.models import Job, Variant
@@ -13,22 +15,30 @@ class CleanJobsTest(AbstractModelTests):
     def test_clean_jobs(self):
         j = Job(
             name='test',
-            expected_termination=datetime.now() + timedelta(minutes=1),
+            expected_termination=timezone.now() + timedelta(seconds=5),
             status=Job.Status.PENDING)
         j.save()
         j2 = Job(
             name='test2',
-            expected_termination=datetime.now() + timedelta(minutes=1),
-            termination=datetime.now() + timedelta(minutes=1),
+            expected_termination=timezone.now() + timedelta(minutes=1),
+            termination=timezone.now() + timedelta(minutes=1),
             status=Job.Status.SUCCESS)
+        j2.save()
+        j2 = Job(
+            name='test3',
+            expected_termination=timezone.now() + timedelta(days=1000),
+            termination=timezone.now() + timedelta(minutes=1),
+            status=Job.Status.PENDING)
+        sleep(6)
         j2.save()
         result = launch_job_command('clean_jobs', None)
         self.assertTrue(result)
-        self.assertEqual(Job.objects.count(), 3)
+        self.assertEqual(Job.objects.count(), 4)
         cleaned = Job.objects.get(name='test')
         self.assertEqual(cleaned.status, Job.Status.FAILURE)
         self.assertIsNotNone(cleaned.termination)
         self.assertEqual(Job.objects.get(name='test2').status, Job.Status.SUCCESS)
+        self.assertEqual(Job.objects.get(name='test3').status, Job.Status.PENDING)
 
     def test_generate_variants(self):
         u = User.objects.create(username='test', password='test')

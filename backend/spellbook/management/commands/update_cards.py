@@ -1,7 +1,5 @@
-import traceback
-from django.core.management.base import BaseCommand, CommandParser
-from django.utils import timezone
-from spellbook.models import Job, Card, Variant
+from django.core.management.base import CommandParser
+from spellbook.models import Card, Variant
 from ..abstract_command import AbstractCommand
 from ..scryfall import scryfall, update_cards
 

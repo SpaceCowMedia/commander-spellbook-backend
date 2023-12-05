@@ -55,6 +55,7 @@ class Command(BaseCommand):
                 variants_source = VariantViewSet().get_queryset()
                 result = {
                     'timestamp': timezone.now().isoformat(),
+                    'version': settings.VERSION,
                     'variants': [prepare_variant(v) for v in variants_source],
                 }
 

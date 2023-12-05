@@ -3,6 +3,7 @@ from time import sleep
 from django.utils import timezone
 from django.core.management.base import BaseCommand, CommandParser, CommandError
 from django.db import OperationalError
+from django.conf import settings
 from spellbook.models import Job
 from spellbook.utils import log_into_job
 
@@ -28,11 +29,11 @@ class AbstractCommand(BaseCommand):
         if self.job is None and options['job_id'] is not None:
             raise CommandError('Job with id %s does not exist' % options['job_id'])
         elif self.job is None:
-            raise CommandError('Job with name %s already running' % self.name)
+            raise CommandError(f'Job with name {self.name} already running')
         try:
-            self.log('Running %s...' % self.name)
+            self.log(f'Running {self.name} ({settings.VERSION})...')
             self.run(*args, **options)
-            self.log('%s finished successfully.' % self.name, self.style.SUCCESS)
+            self.log(f'{self.name} finished successfully.', self.style.SUCCESS)
             self.job.termination = timezone.now()
             self.job.status = Job.Status.SUCCESS
             self.job.save()

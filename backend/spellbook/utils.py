@@ -63,5 +63,5 @@ def log_into_job(job: Job | None, message: str, reset=False):
             job.message = message
         else:
             job.message += message + '\n'
-        with transaction.atomic(durable=True):
+        with transaction.atomic():
             job.save()

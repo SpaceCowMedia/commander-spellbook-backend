@@ -1,25 +1,18 @@
 from django.utils import timezone
-from django.core.management.base import BaseCommand
 from spellbook.models import Job
+from ..abstract_command import AbstractCommand
 
 
-class Command(BaseCommand):
+class Command(AbstractCommand):
+    name = 'clean_jobs'
     help = 'Clean pending jobs'
 
-    def handle(self, *args, **options):
-        self.stdout.write('Cleaning pending jobs...')
+    def run(self, *args, **options):
+        self.log('Cleaning pending jobs...')
         query = Job.objects.filter(status=Job.Status.PENDING)
         count = query.count()
         if count > 0:
             query.update(status=Job.Status.FAILURE, message='Job was cancelled.', termination=timezone.now())
-            now = timezone.now() + timezone.timedelta(seconds=2)
-            job = Job(
-                name='clean_jobs',
-                expected_termination=now,
-                termination=now,
-                status=Job.Status.SUCCESS,
-                message=f'{count} pending jobs were cancelled.')
-            job.save()
-            self.stdout.write(self.style.SUCCESS(f'{count} pending jobs were cancelled.'))
+            self.log(f'{count} pending jobs were cancelled.', self.style.SUCCESS)
         else:
-            self.stdout.write(self.style.SUCCESS('No pending jobs to cancel.'))
+            self.log('No pending jobs found.')

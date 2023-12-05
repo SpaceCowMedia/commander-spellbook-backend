@@ -9,7 +9,7 @@ class Command(AbstractCommand):
 
     def run(self, *args, **options):
         self.log('Cleaning pending jobs...')
-        query = Job.objects.filter(status=Job.Status.PENDING)
+        query = Job.objects.filter(status=Job.Status.PENDING, expected_termination__lt=timezone.now())
         count = query.count()
         if count > 0:
             query.update(status=Job.Status.FAILURE, message='Job was cancelled.', termination=timezone.now())

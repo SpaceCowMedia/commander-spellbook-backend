@@ -58,7 +58,7 @@ class Command(BaseCommand):
                     if variant.update(variant.uses.all(), requires_commander):
                         variants_to_save.append(variant)
                 updated_variants_count = len(variants_to_save)
-                Variant.objects.bulk_update(variants_to_save, fields=Variant.playable_fields())
+                Variant.objects.bulk_update(variants_to_save, fields=Variant.playable_fields(), batch_size=5000)
                 self.log_job(job, 'Updating variants...done', self.style.SUCCESS)
             job.termination = timezone.now()
             job.status = Job.Status.SUCCESS

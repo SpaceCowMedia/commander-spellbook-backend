@@ -11,7 +11,6 @@ class FeatureViewsTests(AbstractModelTests):
         self.assertEqual(feature_result.id, f.id)
         self.assertEqual(feature_result.name, f.name)
         self.assertEqual(feature_result.description, f.description)
-        self.assertEqual(feature_result.utility, f.utility)
 
     def test_features_list_view(self):
         c = Client()

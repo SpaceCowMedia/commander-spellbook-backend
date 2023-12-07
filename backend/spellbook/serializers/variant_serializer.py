@@ -1,6 +1,6 @@
-from django.db.models import QuerySet
+from django.db.models import QuerySet, Prefetch
 from rest_framework import serializers
-from spellbook.models import Variant, CardInVariant, TemplateInVariant
+from spellbook.models import Variant, CardInVariant, TemplateInVariant, Feature
 from .combo_serializer import ComboSerializer
 from .feature_serializer import FeatureSerializer
 from .card_serializer import CardSerializer
@@ -150,6 +150,6 @@ class VariantSerializer(serializers.ModelSerializer):
             'templateinvariant_set__template',
             'cardinvariant_set',
             'templateinvariant_set',
-            'produces',
+            Prefetch('produces', queryset=Feature.objects.filter(utility=False)),
             'of',
             'includes')

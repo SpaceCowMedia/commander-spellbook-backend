@@ -98,7 +98,6 @@ class VariantViewsTests(AbstractModelTests):
             f = Feature.objects.get(id=p.id)
             self.assertEqual(p.id, f.id)
             self.assertEqual(p.name, f.name)
-            self.assertEqual(p.utility, f.utility)
             self.assertEqual(p.description, f.description)
         of_list = [o.id for o in v.of.all()]
         for o in variant_result.of:

@@ -2,7 +2,7 @@ import json
 import gzip
 from pathlib import Path
 from django.utils import timezone
-from django.contrib.admin.models import LogEntry, CHANGE
+from django.contrib.admin.models import LogEntry, ADDITION
 from django.contrib.contenttypes.models import ContentType
 from django.conf import settings
 from django.db import transaction
@@ -69,5 +69,5 @@ class Command(AbstractCommand):
                     content_type=ContentType.objects.get_for_model(Job),
                     object_id=self.job.id,
                     object_repr='Exported Variants',
-                    action_flag=CHANGE,
+                    action_flag=ADDITION,
                 ).save()

@@ -1,4 +1,4 @@
-from django.contrib.admin.models import LogEntry, CHANGE
+from django.contrib.admin.models import LogEntry, ADDITION
 from django.contrib.contenttypes.models import ContentType
 from spellbook.models import Job
 from spellbook.variants.variants_generator import generate_variants
@@ -23,5 +23,5 @@ class Command(AbstractCommand):
                 content_type=ContentType.objects.get_for_model(Job),
                 object_id=self.job.id,
                 object_repr='Generated Variants',
-                action_flag=CHANGE,
+                action_flag=ADDITION,
             ).save()

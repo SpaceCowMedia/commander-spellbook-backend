@@ -85,7 +85,6 @@ def find_my_combos(request: Request) -> Response:
         .filter(matched_cards_count__gt=0, unmatched_cards_count__lte=1) \
         .order_by('unmatched_cards_count', 'id') \
         .distinct()
-    variants_query = VariantSerializer.prefetch_related(variants_query)
 
     pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
     paginator = pagination_class()

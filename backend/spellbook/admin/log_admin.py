@@ -7,8 +7,8 @@ from .utils import SpellbookModelAdmin, datetime_to_html
 @admin.register(LogEntry)
 class LogEntryAdmin(SpellbookModelAdmin):
     date_hierarchy = 'action_time'
-    list_filter = ['user', 'content_type', 'action_flag']
-    search_fields = ['object_repr', 'change_message']
+    list_filter = ['content_type', 'action_flag']
+    search_fields = ['object_repr', 'change_message', 'user__username']
     list_display = ['action_time_local', 'user', 'content_type', 'object_link', 'action_flag']
 
     @admin.display(description='Action Time')

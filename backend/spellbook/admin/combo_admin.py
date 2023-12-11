@@ -102,7 +102,7 @@ class ComboAdmin(SearchMultipleRelatedMixin, SpellbookModelAdmin):
         ('Description', {'fields': ['kind', 'description']}),
     ]
     inlines = [CardInComboAdminInline, FeatureInComboAdminInline, TemplateInComboAdminInline]
-    filter_horizontal = ['uses', 'produces', 'needs', 'removes']
+    filter_horizontal = ['produces', 'removes']
     list_filter = ['kind', PayoffFilter, VariantRelatedFilter]
     search_fields = ['uses__name', 'uses__name_unaccented', 'requires__name', 'produces__name', 'needs__name']
     list_display = ['display_name', 'id', 'kind']

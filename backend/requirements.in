@@ -1,6 +1,6 @@
 boto3==1.33.6
 Django==4.2.7
-django-filter==23.4
+django-filter==23.5
 django-sortedm2m==3.1.1
 django-cors-headers==4.3.1
 djangorestframework==3.14.0

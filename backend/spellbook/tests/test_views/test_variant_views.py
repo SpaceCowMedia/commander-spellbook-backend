@@ -128,18 +128,18 @@ class VariantViewsTests(AbstractModelTests):
 
     def test_variants_list_view_query_by_card_name(self):
         c = Client()
-        for card in Card.objects.all():
-            prefix_without_spaces = card.name.partition(' ')[0]
+        for card, search in ((c, name) for c in Card.objects.all() for name in (c.name, c.name_unaccented, c.name_unaccented.replace('-', ''), c.name_unaccented.replace('-', ' '))):
+            prefix_without_spaces = search.partition(' ')[0]
             queries = [
                 prefix_without_spaces,
                 f'"{prefix_without_spaces}"',
-                f'"{card.name}"',
+                f'"{search}"',
                 f'card:{prefix_without_spaces}',
                 f'card:"{prefix_without_spaces}"',
-                f'card:"{card.name}"',
+                f'card:"{search}"',
             ]
             for q in queries:
-                with self.subTest(f'query by card name: {card.name} included with query {q}'):
+                with self.subTest(f'query by card name: {search} included with query {q}'):
                     response = c.get('/variants', data={'q': q}, follow=True)
                     self.assertEqual(response.status_code, 200)
                     self.assertEqual(response.get('Content-Type'), 'application/json')

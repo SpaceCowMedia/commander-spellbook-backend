@@ -2,6 +2,9 @@ from urllib.parse import urlencode
 from django.db import models
 from django.dispatch import receiver
 from django.db.models.signals import post_save
+from django.db.models import F, Value
+from django.db.models.functions import Replace
+from django.db.models.fields.generated import GeneratedField
 from .playable import Playable
 from .utils import strip_accents
 from .mixins import ScryfallLinkMixin, PreSaveModelMixin
@@ -13,6 +16,14 @@ class Card(Playable, PreSaveModelMixin, ScryfallLinkMixin):
     oracle_id = models.UUIDField(unique=True, blank=True, null=True, help_text='Scryfall Oracle ID', verbose_name='Scryfall Oracle ID of card')
     name = models.CharField(max_length=MAX_CARD_NAME_LENGTH, unique=True, blank=False, help_text='Card name', verbose_name='name of card')
     name_unaccented = models.CharField(max_length=MAX_CARD_NAME_LENGTH, unique=True, blank=False, help_text='Card name without accents', verbose_name='name of card without accents', editable=False)
+    name_unaccented_simplified = GeneratedField(
+        db_persist=True,
+        expression=Replace(F('name_unaccented'), Value('-'), Value('')),
+        output_field=models.CharField(max_length=MAX_CARD_NAME_LENGTH, unique=True, blank=False, help_text='Card name without accents or hyphens', verbose_name='name of card without accents or hyphens', editable=False))
+    name_unaccented_simplified_with_spaces = GeneratedField(
+        db_persist=True,
+        expression=Replace(F('name_unaccented'), Value('-'), Value(' ')),
+        output_field=models.CharField(max_length=MAX_CARD_NAME_LENGTH, unique=True, blank=False, help_text='Card name without accents or hyphens, with spaces', verbose_name='name of card without accents or hyphens, with spaces', editable=False))
     type_line = models.CharField(max_length=MAX_CARD_NAME_LENGTH, blank=True, default='', help_text='Card type line', verbose_name='type line of card')
     oracle_text = models.TextField(blank=True, default='', help_text='Card oracle text', verbose_name='oracle text of card')
     latest_printing_set = models.CharField(max_length=10, blank=True, default='', help_text='Set code of latest printing of card', verbose_name='latest printing set of card')

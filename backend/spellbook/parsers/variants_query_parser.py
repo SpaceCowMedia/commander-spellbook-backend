@@ -21,9 +21,15 @@ def card_search(card_value: QueryValue) -> Q:
     value_is_digit = card_value.value.isdigit()
     match card_value.operator:
         case ':' if not value_is_digit:
-            card_query = Q(uses__name__icontains=card_value.value) | Q(uses__name_unaccented__icontains=card_value.value)
+            card_query = Q(uses__name__icontains=card_value.value) \
+                | Q(uses__name_unaccented__icontains=card_value.value) \
+                | Q(uses__name_unaccented_simplified__icontains=card_value.value) \
+                | Q(uses__name_unaccented_simplified_with_spaces__icontains=card_value.value)
         case '=' if not value_is_digit:
-            card_query = Q(uses__name__iexact=card_value.value) | Q(uses__name_unaccented__iexact=card_value.value)
+            card_query = Q(uses__name__iexact=card_value.value) \
+                | Q(uses__name_unaccented__iexact=card_value.value) \
+                | Q(uses__name_unaccented_simplified__iexact=card_value.value) \
+                | Q(uses__name_unaccented_simplified_with_spaces__iexact=card_value.value)
         case '<' if value_is_digit:
             card_query = Q(cards_count__lt=card_value.value)
         case '>' if value_is_digit:

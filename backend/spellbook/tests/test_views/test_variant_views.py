@@ -19,6 +19,7 @@ class VariantViewsTests(AbstractModelTests):
         self.assertEqual(variant_result.id, v.id)
         self.assertEqual(variant_result.status, v.status)
         self.assertEqual(variant_result.identity, v.identity)
+        self.assertEqual(variant_result.popularity, v.popularity)
         if v.status != Variant.Status.OK:
             self.assertEqual(variant_result.mana_needed, None)
             self.assertEqual(variant_result.other_prerequisites, None)

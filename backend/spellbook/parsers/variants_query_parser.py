@@ -221,6 +221,25 @@ def price_search(price_value: QueryValue) -> Q:
     return q
 
 
+def popularity_search(popularity_value: QueryValue) -> Q:
+    if not popularity_value.value.isdigit():
+        raise NotSupportedError(f'Value {popularity_value.value} is not supported for popularity search.')
+    match popularity_value.operator:
+        case ':' | '=':
+            popularity_query = Q(popularity=popularity_value.value)
+        case '<':
+            popularity_query = Q(popularity__lt=popularity_value.value)
+        case '<=':
+            popularity_query = Q(popularity__lte=popularity_value.value)
+        case '>':
+            popularity_query = Q(popularity__gt=popularity_value.value)
+        case '>=':
+            popularity_query = Q(popularity__gte=popularity_value.value)
+        case _:
+            raise NotSupportedError(f'Operator {popularity_value.operator} is not supported for popularity search.')
+    return popularity_query
+
+
 keyword_map: dict[str, Callable[[QueryValue], Q]] = {
     'card': card_search,
     'coloridentity': identity_search,
@@ -232,6 +251,7 @@ keyword_map: dict[str, Callable[[QueryValue], Q]] = {
     'commander': commander_name_search,
     'legal': legality_search,
     'price': price_search,
+    'popularity': popularity_search,
 }
 
 
@@ -257,6 +277,9 @@ alias_map: dict[str, str] = {
     'usd': 'price',
     'eur': 'price',
     **{s.removeprefix('price_'): 'price' for s in Variant.prices_fields()},
+    'pop': 'popularity',
+    'deck': 'popularity',
+    'decks': 'popularity',
 }
 
 

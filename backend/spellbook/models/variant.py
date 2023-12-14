@@ -70,6 +70,11 @@ class Variant(Playable, PreSaveModelMixin, ScryfallLinkMixin):
         ordering = ['-status', '-created']
         verbose_name = 'variant'
         verbose_name_plural = 'variants'
+        indexes = [
+            models.Index(fields=['-popularity']),
+            models.Index(fields=['-created']),
+            models.Index(fields=['-updated']),
+        ]
 
     def cards(self):
         return self.uses.order_by('cardinvariant')

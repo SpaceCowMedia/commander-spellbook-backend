@@ -100,6 +100,7 @@ class VariantSerializer(serializers.ModelSerializer):
     mana_value_needed = serializers.SerializerMethodField()
     other_prerequisites = serializers.SerializerMethodField()
     description = serializers.SerializerMethodField()
+    popularity = serializers.IntegerField(read_only=True)
     legalities = VariantLegalitiesSerializer(source='*', read_only=True)
     prices = VariantPricesSerializer(source='*', read_only=True)
 
@@ -138,6 +139,7 @@ class VariantSerializer(serializers.ModelSerializer):
             'mana_value_needed',
             'other_prerequisites',
             'description',
+            'popularity',
             'spoiler',
             'legalities',
             'prices',

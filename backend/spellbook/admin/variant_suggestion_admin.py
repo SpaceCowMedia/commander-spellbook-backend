@@ -3,9 +3,8 @@ from django.db.models import Count, Prefetch
 from django.contrib import admin
 from spellbook.models import VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, FeatureProducedInVariantSuggestion
 from spellbook.models.utils import recipe
-from spellbook.variants.variants_generator import DEFAULT_CARD_LIMIT
 from .ingredient_admin import IngredientAdmin
-from .utils import SpellbookModelAdmin
+from .utils import SpellbookModelAdmin, CardsCountListFilter
 
 
 class CardUsedInVariantSuggestionAdminInline(IngredientAdmin):
@@ -33,28 +32,6 @@ class FeatureProducedInVariantAdminInline(admin.TabularInline):
     min_num = 1
     max_num = VariantSuggestion.max_features
     extra = 0
-
-
-class CardsCountListFilter(admin.SimpleListFilter):
-    title = 'cards count'
-    parameter_name = 'cards_count'
-    one_more_than_max = DEFAULT_CARD_LIMIT + 1
-    one_more_than_max_display = f'{one_more_than_max}+'
-
-    def lookups(self, request, model_admin):
-        return [(i, str(i)) for i in range(2, CardsCountListFilter.one_more_than_max)] + [(CardsCountListFilter.one_more_than_max_display, CardsCountListFilter.one_more_than_max_display)]
-
-    def queryset(self, request, queryset):
-        value = self.value()
-        if value is None:
-            return queryset
-        if value == CardsCountListFilter.one_more_than_max_display:
-            return queryset.filter(cards_count__gte=CardsCountListFilter.one_more_than_max)
-        value = int(value)
-        return queryset.filter(cards_count=value)
-
-    def get_facet_counts(self, pk_attname, filtered_qs):
-        return {}
 
 
 @admin.action(description='Mark selected suggestions as REJECTED')
@@ -92,7 +69,7 @@ class VariantSuggestionAdmin(SpellbookModelAdmin):
                 Prefetch('uses', to_attr='prefetched_uses'),
                 Prefetch('requires', to_attr='prefetched_requires'),
                 Prefetch('produces', to_attr='prefetched_produces')) \
-            .annotate(cards_count=Count('uses', distinct=True) + Count('requires', distinct=True))
+            .alias(cards_count=Count('uses', distinct=True) + Count('requires', distinct=True))
 
     def save_model(self, request: Any, obj: Any, form: Any, change: Any) -> None:
         if not change:

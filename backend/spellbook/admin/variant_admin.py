@@ -9,8 +9,7 @@ from spellbook.models import Card, Template, Feature, Variant, CardInVariant, Te
 from spellbook.models.utils import recipe
 from spellbook.utils import launch_job_command
 from spellbook.parsers import variants_query_parser, NotSupportedError
-from spellbook.variants.variants_generator import DEFAULT_CARD_LIMIT
-from .utils import IdentityFilter, SpellbookModelAdmin
+from .utils import IdentityFilter, SpellbookModelAdmin, CardsCountListFilter
 from .ingredient_admin import IngredientAdmin
 
 
@@ -47,29 +46,6 @@ class TemplateInVariantAdminInline(IngredientAdmin):
 
     def has_delete_permission(self, request, obj) -> bool:
         return False
-
-
-class CardsCountListFilter(admin.SimpleListFilter):
-    title = 'cards count'
-    parameter_name = 'cards_count'
-    one_more_than_max = DEFAULT_CARD_LIMIT + 1
-    one_more_than_max_display = f'{one_more_than_max}+'
-
-    def lookups(self, request, model_admin):
-        return [(i, str(i)) for i in range(2, CardsCountListFilter.one_more_than_max)] + [(CardsCountListFilter.one_more_than_max_display, CardsCountListFilter.one_more_than_max_display)]
-
-    def queryset(self, request, queryset):
-        value = self.value()
-        if value is not None:
-            queryset = queryset.annotate(cards_count=Count('uses', distinct=True) + Count('requires', distinct=True))
-            if value == CardsCountListFilter.one_more_than_max_display:
-                return queryset.filter(cards_count__gte=CardsCountListFilter.one_more_than_max)
-            value = int(value)
-            return queryset.filter(cards_count=value)
-        return queryset
-
-    def get_facet_counts(self, pk_attname, filtered_qs):
-        return {}
 
 
 @admin.action(description='Mark selected variants as RESTORE')
@@ -206,7 +182,8 @@ class VariantAdmin(SpellbookModelAdmin):
             .prefetch_related(
                 Prefetch('uses', queryset=Card.objects.order_by('cardinvariant').only('name'), to_attr='prefetched_uses'),
                 Prefetch('requires', queryset=Template.objects.order_by('templateinvariant').only('name'), to_attr='prefetched_requires'),
-                Prefetch('produces', queryset=Feature.objects.only('name'), to_attr='prefetched_produces'))
+                Prefetch('produces', queryset=Feature.objects.only('name'), to_attr='prefetched_produces')) \
+            .annotate(cards_count=Count('uses', distinct=True) + Count('requires', distinct=True))
 
     def get_search_results(self, request: HttpRequest, queryset, search_term: str) -> tuple[object, bool]:
         try:

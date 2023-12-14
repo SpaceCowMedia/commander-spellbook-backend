@@ -1,7 +1,7 @@
 import re
 from itertools import combinations
 from datetime import datetime
-from django.db.models import TextField
+from django.db.models import TextField, Count, Q
 from django.contrib import admin
 from django.utils.html import format_html
 from django.utils.formats import localize
@@ -9,6 +9,7 @@ from django.utils.text import normalize_newlines
 from django.forms import Textarea
 from django.contrib.admin import ModelAdmin
 from spellbook.models.validators import ORACLE_SYMBOL
+from spellbook.variants.variants_generator import DEFAULT_CARD_LIMIT
 
 
 def datetime_to_html(datetime: datetime) -> str | None:
@@ -66,3 +67,41 @@ class IdentityFilter(admin.SimpleListFilter):
         if self.value() is not None:
             return queryset.filter(identity=self.value())
         return queryset
+
+    def get_facet_counts(self, pk_attname, filtered_qs):
+        counts = {}
+        for i, choice in enumerate(self.lookup_choices):
+            counts[f"{i}__c"] = Count(
+                pk_attname,
+                filter=Q(identity=choice[0])
+            )
+        return counts
+
+
+class CardsCountListFilter(admin.SimpleListFilter):
+    title = 'cards count'
+    parameter_name = 'cards_count'
+    one_more_than_max = DEFAULT_CARD_LIMIT + 1
+    one_more_than_max_display = f'{one_more_than_max}+'
+
+    def lookups(self, request, model_admin):
+        return [(i, str(i)) for i in range(2, CardsCountListFilter.one_more_than_max)] + [(CardsCountListFilter.one_more_than_max_display, CardsCountListFilter.one_more_than_max_display)]
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if value is None:
+            return queryset
+        if value == CardsCountListFilter.one_more_than_max_display:
+            return queryset.filter(cards_count__gte=CardsCountListFilter.one_more_than_max)
+        value = int(value)
+        return queryset.filter(cards_count=value)
+
+    def get_facet_counts(self, pk_attname, filtered_qs):
+        counts = {}
+        for i, choice in enumerate(self.lookup_choices):
+            value = choice[0]
+            counts[f"{i}__c"] = Count(
+                pk_attname,
+                filter=Q(cards_count=value) if value != CardsCountListFilter.one_more_than_max_display else Q(cards_count__gte=CardsCountListFilter.one_more_than_max)
+            )
+        return counts

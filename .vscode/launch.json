@@ -183,8 +183,7 @@
             "cwd": "${workspaceFolder}/backend",
             "program": "manage.py",
             "args": [
-                "update_cards",
-                "--force"
+                "update_cards"
             ],
             "preLaunchTask": "Prelaunch",
             "django": true,
@@ -193,6 +192,24 @@
                 "hidden": false,
                 "group": "Spellbook",
                 "order": 7
+            },
+        },
+        {
+            "name": "Update Variants",
+            "type": "python",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/backend",
+            "program": "manage.py",
+            "args": [
+                "update_variants"
+            ],
+            "preLaunchTask": "Prelaunch",
+            "django": true,
+            "justMyCode": true,
+            "presentation": {
+                "hidden": false,
+                "group": "Spellbook",
+                "order": 8
             },
         },
         {
@@ -212,7 +229,7 @@
             "presentation": {
                 "hidden": false,
                 "group": "Spellbook",
-                "order": 8
+                "order": 12
             },
         },
     ]

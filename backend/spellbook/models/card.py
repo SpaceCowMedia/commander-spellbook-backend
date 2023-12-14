@@ -24,9 +24,9 @@ class Card(Playable, PreSaveModelMixin, ScryfallLinkMixin):
         db_persist=True,
         expression=Replace(F('name_unaccented'), Value('-'), Value(' ')),
         output_field=models.CharField(max_length=MAX_CARD_NAME_LENGTH, unique=True, blank=False, help_text='Card name without accents or hyphens, with spaces', verbose_name='name of card without accents or hyphens, with spaces', editable=False))
-    type_line = models.CharField(max_length=MAX_CARD_NAME_LENGTH, blank=True, default='', help_text='Card type line', verbose_name='type line of card')
-    oracle_text = models.TextField(blank=True, default='', help_text='Card oracle text', verbose_name='oracle text of card')
-    latest_printing_set = models.CharField(max_length=10, blank=True, default='', help_text='Set code of latest printing of card', verbose_name='latest printing set of card')
+    type_line = models.CharField(max_length=MAX_CARD_NAME_LENGTH, blank=True, help_text='Card type line', verbose_name='type line of card')
+    oracle_text = models.TextField(blank=True, help_text='Card oracle text', verbose_name='oracle text of card')
+    latest_printing_set = models.CharField(max_length=10, blank=True, help_text='Set code of latest printing of card', verbose_name='latest printing set of card')
     reprinted = models.BooleanField(default=False, help_text='Whether this card has been reprinted', verbose_name='reprinted card')
     features = models.ManyToManyField(
         to=Feature,

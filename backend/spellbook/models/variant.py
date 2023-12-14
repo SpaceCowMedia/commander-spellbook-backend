@@ -58,12 +58,13 @@ class Variant(Playable, PreSaveModelMixin, ScryfallLinkMixin):
         editable=False)
     status = models.CharField(choices=Status.choices, db_default=Status.NEW, help_text='Variant status for editors', max_length=2)
     mana_needed = models.CharField(blank=True, max_length=200, help_text='Mana needed for this combo. Use the {1}{W}{U}{B}{R}{G}{B/P}... format.', validators=[MANA_VALIDATOR])
-    mana_value_needed = models.IntegerField(editable=False, help_text='Mana value needed for this combo. Calculated from mana_needed.')
+    mana_value_needed = models.PositiveIntegerField(editable=False, help_text='Mana value needed for this combo. Calculated from mana_needed.')
     other_prerequisites = models.TextField(blank=True, help_text='Other prerequisites for this variant.', validators=TEXT_VALIDATORS)
     description = models.TextField(blank=True, help_text='Long description, in steps', validators=TEXT_VALIDATORS)
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, editable=False)
     generated_by = models.ForeignKey(Job, on_delete=models.SET_NULL, null=True, blank=True, editable=False, help_text='Job that generated this variant', related_name='variants')
+    popularity = models.PositiveIntegerField(db_default=0, editable=False, help_text='Popularity of this variant, provided by EDHREC')
 
     class Meta:
         ordering = ['-status', '-created']

@@ -183,7 +183,7 @@ class VariantAdmin(SpellbookModelAdmin):
                 Prefetch('uses', queryset=Card.objects.order_by('cardinvariant').only('name'), to_attr='prefetched_uses'),
                 Prefetch('requires', queryset=Template.objects.order_by('templateinvariant').only('name'), to_attr='prefetched_requires'),
                 Prefetch('produces', queryset=Feature.objects.only('name'), to_attr='prefetched_produces')) \
-            .annotate(cards_count=Count('uses', distinct=True) + Count('requires', distinct=True))
+            .alias(cards_count=Count('uses', distinct=True) + Count('requires', distinct=True))
 
     def get_search_results(self, request: HttpRequest, queryset, search_term: str) -> tuple[object, bool]:
         try:

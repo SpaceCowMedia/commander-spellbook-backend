@@ -4,22 +4,19 @@ from django.db.models import Count, Q
 from django.db.models.query import QuerySet
 from django.http.request import HttpRequest
 from spellbook.models import Card, Variant
-from .utils import IdentityFilter, SpellbookModelAdmin
+from .utils import IdentityFilter, SpellbookModelAdmin, CustomFilter
 
 
-class ManagedByScryfallFilter(admin.SimpleListFilter):
+class ManagedByScryfallFilter(CustomFilter):
     title = 'managed by Scryfall'
     parameter_name = 'has_oracle_id'
+    data_type = bool
 
     def lookups(self, request, model_admin):
-        return [('true', 'Yes'), ('false', 'No')]
+        return [(True, 'Yes'), (False, 'No')]
 
-    def queryset(self, request, queryset):
-        value = self.value()
-        if value is None:
-            return queryset
-        value = value.lower() == 'true'
-        return queryset.filter(oracle_id__isnull=not value)
+    def filter(self, value: data_type) -> Q:
+        return Q(oracle_id__isnull=not value)
 
 
 @admin.register(Card)

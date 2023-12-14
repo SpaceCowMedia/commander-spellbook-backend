@@ -8,7 +8,7 @@ from spellbook.models import Card, Template, Feature, Combo, CardInCombo, Templa
 from spellbook.models.utils import recipe
 from spellbook.variants.variant_data import RestoreData
 from spellbook.variants.variants_generator import restore_variant
-from .utils import SearchMultipleRelatedMixin, SpellbookModelAdmin
+from .utils import SearchMultipleRelatedMixin, SpellbookModelAdmin, CustomFilter
 from .ingredient_admin import IngredientAdmin
 
 
@@ -57,47 +57,34 @@ class FeatureInComboAdminInline(admin.TabularInline):
     autocomplete_fields = ['feature']
 
 
-class PayoffFilter(admin.SimpleListFilter):
+class PayoffFilter(CustomFilter):
     title = 'is payoff'
     parameter_name = 'payoff'
+    data_type = bool
 
     def lookups(self, request, model_admin):
-        return [('true', 'Yes'), ('false', 'No')]
+        return [(True, 'Yes'), (False, 'No')]
 
-    def queryset(self, request, queryset):
-        value = self.value()
-        if value is None:
-            return queryset
-        value = value.lower() == 'true'
-        if value:
-            return queryset.filter(needs__utility=False).distinct()
-        return queryset.exclude(needs__utility=False).distinct()
-
-    def get_facet_counts(self, pk_attname, filtered_qs):
-        return {}
+    def filter(self, value: data_type) -> Q:
+        return Q(is_payoff=value)
 
 
-class VariantRelatedFilter(admin.SimpleListFilter):
+class VariantRelatedFilter(CustomFilter):
     title = 'how is used by variants'
     parameter_name = 'in_variants'
 
     def lookups(self, request, model_admin):
         return [('unused', 'Unused'), ('overlapping', 'Overlapping'), ('redundant', 'Potentially redundant')]
 
-    def queryset(self, request, queryset):
-        match self.value():
-            case None:
-                return queryset
+    def filter(self, value: str) -> Q:
+        match value:
             case 'unused':
-                return queryset.filter(included_in_variants__isnull=True).distinct()
+                return Q(included_in_variants__isnull=True)
             case 'overlapping':
-                return queryset.annotate(possible_overlaps=Count('variants__of', distinct=True)).filter(possible_overlaps__gt=1).distinct()
+                return Q(possible_overlaps__gt=1)
             case 'redundant':
-                return queryset.annotate(possible_redundancies=Count('variants__includes', distinct=True, filter=Q(variants__generated_by__name='import_combos'))).filter(possible_redundancies__gt=1).distinct()
-        return queryset
-
-    def get_facet_counts(self, pk_attname, filtered_qs):
-        return {}
+                return Q(possible_redundancies__gt=1)
+        return Q()
 
 
 @admin.register(Combo)
@@ -169,7 +156,13 @@ class ComboAdmin(SearchMultipleRelatedMixin, SpellbookModelAdmin):
                 Prefetch('uses', queryset=Card.objects.order_by('cardincombo').only('name'), to_attr='prefetched_uses'),
                 Prefetch('requires', queryset=Template.objects.order_by('templateincombo').only('name'), to_attr='prefetched_requires'),
                 Prefetch('needs', queryset=Feature.objects.only('name'), to_attr='prefetched_needs'),
-                Prefetch('produces', queryset=Feature.objects.only('name'), to_attr='prefetched_produces'))
+                Prefetch('produces', queryset=Feature.objects.only('name'), to_attr='prefetched_produces')) \
+            .alias(
+                needs_utility_count=Count('needs', distinct=True, filter=Q(needs__utility=True)),
+                needs_count=Count('needs', distinct=True),
+                is_payoff=Q(needs_count__gt=0, needs_utility_count=0),
+                possible_overlaps=Count('variants__of', distinct=True),
+                possible_redundancies=Count('variants__includes', distinct=True, filter=Q(variants__generated_by__name='import_combos')))
 
     def get_changeform_initial_data(self, request: HttpRequest) -> dict[str, str]:
         initial_data = super().get_changeform_initial_data(request)

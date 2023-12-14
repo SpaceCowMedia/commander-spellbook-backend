@@ -1,8 +1,10 @@
 import re
 from itertools import combinations
 from datetime import datetime
+from typing import Any
 from django.db.models import TextField, Count, Q
 from django.contrib import admin
+from django.db.models.query import QuerySet
 from django.utils.html import format_html
 from django.utils.formats import localize
 from django.utils.text import normalize_newlines
@@ -56,29 +58,40 @@ class SearchMultipleRelatedMixin:
         return result, may_have_duplicates
 
 
-class IdentityFilter(admin.SimpleListFilter):
-    title = 'identity'
-    parameter_name = 'identity'
+class CustomFilter(admin.SimpleListFilter):
+    data_type = str
 
-    def lookups(self, request, model_admin):
-        return [(i, i) for i in (''.join(t) or 'C' for length in range(6) for t in combinations('WUBRG', length))]
+    def queryset(self, request: Any, queryset: QuerySet[Any]) -> QuerySet[Any] | None:
+        value = self.value()
+        if value is None or value not in map(str, self.lookup_choices):
+            return queryset
+        return queryset.filter(self.filter(self.data_type(value))).distinct()
 
-    def queryset(self, request, queryset):
-        if self.value() is not None:
-            return queryset.filter(identity=self.value())
-        return queryset
+    def filter(self, value: data_type) -> Q:
+        raise NotImplementedError()
 
     def get_facet_counts(self, pk_attname, filtered_qs):
         counts = {}
         for i, choice in enumerate(self.lookup_choices):
             counts[f"{i}__c"] = Count(
                 pk_attname,
-                filter=Q(identity=choice[0])
+                filter=self.filter(choice[0])
             )
         return counts
 
 
-class CardsCountListFilter(admin.SimpleListFilter):
+class IdentityFilter(CustomFilter):
+    title = 'identity'
+    parameter_name = 'identity'
+
+    def lookups(self, request, model_admin):
+        return [(i, i) for i in (''.join(t) or 'C' for length in range(6) for t in combinations('WUBRG', length))]
+
+    def filter(self, value: str) -> Q:
+        return Q(identity=value)
+
+
+class CardsCountListFilter(CustomFilter):
     title = 'cards count'
     parameter_name = 'cards_count'
     one_more_than_max = DEFAULT_CARD_LIMIT + 1
@@ -87,21 +100,9 @@ class CardsCountListFilter(admin.SimpleListFilter):
     def lookups(self, request, model_admin):
         return [(i, str(i)) for i in range(2, CardsCountListFilter.one_more_than_max)] + [(CardsCountListFilter.one_more_than_max_display, CardsCountListFilter.one_more_than_max_display)]
 
-    def queryset(self, request, queryset):
-        value = self.value()
-        if value is None:
-            return queryset
-        if value == CardsCountListFilter.one_more_than_max_display:
-            return queryset.filter(cards_count__gte=CardsCountListFilter.one_more_than_max)
-        value = int(value)
-        return queryset.filter(cards_count=value)
-
-    def get_facet_counts(self, pk_attname, filtered_qs):
-        counts = {}
-        for i, choice in enumerate(self.lookup_choices):
-            value = choice[0]
-            counts[f"{i}__c"] = Count(
-                pk_attname,
-                filter=Q(cards_count=value) if value != CardsCountListFilter.one_more_than_max_display else Q(cards_count__gte=CardsCountListFilter.one_more_than_max)
-            )
-        return counts
+    def filter(self, value: str) -> Q:
+        match value:
+            case CardsCountListFilter.one_more_than_max_display:
+                return Q(cards_count__gte=CardsCountListFilter.one_more_than_max)
+            case _:
+                return Q(cards_count=int(value))

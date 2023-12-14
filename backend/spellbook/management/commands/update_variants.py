@@ -21,7 +21,7 @@ class Command(AbstractCommand):
             log_error=lambda x: self.log(x, self.style.ERROR),
         )
         updated_variants_count = len(variants_to_save)
-        Variant.objects.bulk_update(variants_to_save, fields=Variant.playable_fields(), batch_size=5000)
+        Variant.objects.bulk_update(variants_to_save, fields=Variant.playable_fields() + ['popularity'], batch_size=5000)
         self.log('Updating variants...done', self.style.SUCCESS)
         if updated_variants_count > 0:
             self.log(f'Successfully updated {updated_variants_count} variants', self.style.SUCCESS)

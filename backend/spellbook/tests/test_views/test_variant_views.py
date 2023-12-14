@@ -139,7 +139,7 @@ class VariantViewsTests(AbstractModelTests):
                 f'card:"{search}"',
             ]
             for q in queries:
-                with self.subTest(f'query by card name: {search} included with query {q}'):
+                with self.subTest(f'query by card name: {search} with query {q}'):
                     response = c.get('/variants', data={'q': q}, follow=True)
                     self.assertEqual(response.status_code, 200)
                     self.assertEqual(response.get('Content-Type'), 'application/json')
@@ -174,8 +174,33 @@ class VariantViewsTests(AbstractModelTests):
         pass
 
     def test_variants_list_view_query_by_spellbook_id(self):
-        # TODO: implement
-        pass
+        c = Client()
+        for variant in Variant.objects.all()[:3]:
+            queries = [
+                f'spellbookid:"{variant.id}"',
+                f'sid:{variant.id}',
+            ]
+            negative_queries = [
+                f'spellbookid:"{variant.id[:-2] or "1"}"',
+                f'sid:{variant.id[:-2] or "1"}',
+            ]
+            for q in queries:
+                with self.subTest(f'query by variant id: {variant.id} with query {q}'):
+                    response = c.get('/variants', data={'q': q}, follow=True)
+                    self.assertEqual(response.status_code, 200)
+                    self.assertEqual(response.get('Content-Type'), 'application/json')
+                    result = json.loads(response.content, object_hook=json_to_python_lambda)
+                    variants_count = 1
+                    self.assertEqual(len(result.results), variants_count)
+                    for i in range(variants_count):
+                        self.variant_assertions(result.results[i])
+            for q in negative_queries:
+                with self.subTest(f'query by variant id: {variant.id} with query {q}'):
+                    response = c.get('/variants', data={'q': q}, follow=True)
+                    self.assertEqual(response.status_code, 200)
+                    self.assertEqual(response.get('Content-Type'), 'application/json')
+                    result = json.loads(response.content, object_hook=json_to_python_lambda)
+                    self.assertEqual(len(result.results), 0)
 
     def test_variants_list_view_query_by_commander_name(self):
         # TODO: implement

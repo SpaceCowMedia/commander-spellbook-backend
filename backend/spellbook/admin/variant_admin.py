@@ -68,6 +68,9 @@ class CardsCountListFilter(admin.SimpleListFilter):
             return queryset.filter(cards_count=value)
         return queryset
 
+    def get_facet_counts(self, pk_attname, filtered_qs):
+        return {}
+
 
 @admin.action(description='Mark selected variants as RESTORE')
 def set_restore(modeladmin, request, queryset):

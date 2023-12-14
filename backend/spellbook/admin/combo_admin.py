@@ -62,14 +62,19 @@ class PayoffFilter(admin.SimpleListFilter):
     parameter_name = 'payoff'
 
     def lookups(self, request, model_admin):
-        return [(True, 'Yes'), (False, 'No')]
+        return [('true', 'Yes'), ('false', 'No')]
 
     def queryset(self, request, queryset):
-        if self.value() is None:
+        value = self.value()
+        if value is None:
             return queryset
-        if self.value() == 'True':
+        value = value.lower() == 'true'
+        if value:
             return queryset.filter(needs__utility=False).distinct()
         return queryset.exclude(needs__utility=False).distinct()
+
+    def get_facet_counts(self, pk_attname, filtered_qs):
+        return {}
 
 
 class VariantRelatedFilter(admin.SimpleListFilter):
@@ -80,14 +85,19 @@ class VariantRelatedFilter(admin.SimpleListFilter):
         return [('unused', 'Unused'), ('overlapping', 'Overlapping'), ('redundant', 'Potentially redundant')]
 
     def queryset(self, request, queryset):
-        if self.value() is None:
-            return queryset
-        if self.value() == 'unused':
-            return queryset.filter(included_in_variants__isnull=True).distinct()
-        elif self.value() == 'overlapping':
-            return queryset.annotate(possible_overlaps=Count('variants__of', distinct=True)).filter(possible_overlaps__gt=1).distinct()
-        elif self.value() == 'redundant':
-            return queryset.annotate(possible_redundancies=Count('variants__includes', distinct=True, filter=Q(variants__generated_by__name='import_combos'))).filter(possible_redundancies__gt=1).distinct()
+        match self.value():
+            case None:
+                return queryset
+            case 'unused':
+                return queryset.filter(included_in_variants__isnull=True).distinct()
+            case 'overlapping':
+                return queryset.annotate(possible_overlaps=Count('variants__of', distinct=True)).filter(possible_overlaps__gt=1).distinct()
+            case 'redundant':
+                return queryset.annotate(possible_redundancies=Count('variants__includes', distinct=True, filter=Q(variants__generated_by__name='import_combos'))).filter(possible_redundancies__gt=1).distinct()
+        return queryset
+
+    def get_facet_counts(self, pk_attname, filtered_qs):
+        return {}
 
 
 @admin.register(Combo)

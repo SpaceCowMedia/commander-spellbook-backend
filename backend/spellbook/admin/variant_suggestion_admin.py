@@ -46,13 +46,15 @@ class CardsCountListFilter(admin.SimpleListFilter):
 
     def queryset(self, request, queryset):
         value = self.value()
-        if value is not None:
-            queryset = queryset.annotate(cards_count=Count('uses', distinct=True) + Count('requires', distinct=True))
-            if value == CardsCountListFilter.one_more_than_max_display:
-                return queryset.filter(cards_count__gte=CardsCountListFilter.one_more_than_max)
-            value = int(value)
-            return queryset.filter(cards_count=value)
-        return queryset
+        if value is None:
+            return queryset
+        if value == CardsCountListFilter.one_more_than_max_display:
+            return queryset.filter(cards_count__gte=CardsCountListFilter.one_more_than_max)
+        value = int(value)
+        return queryset.filter(cards_count=value)
+
+    def get_facet_counts(self, pk_attname, filtered_qs):
+        return {}
 
 
 @admin.action(description='Mark selected suggestions as REJECTED')
@@ -89,7 +91,8 @@ class VariantSuggestionAdmin(SpellbookModelAdmin):
             .prefetch_related(
                 Prefetch('uses', to_attr='prefetched_uses'),
                 Prefetch('requires', to_attr='prefetched_requires'),
-                Prefetch('produces', to_attr='prefetched_produces'))
+                Prefetch('produces', to_attr='prefetched_produces')) \
+            .annotate(cards_count=Count('uses', distinct=True) + Count('requires', distinct=True))
 
     def save_model(self, request: Any, obj: Any, form: Any, change: Any) -> None:
         if not change:

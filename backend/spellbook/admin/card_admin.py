@@ -12,13 +12,14 @@ class ManagedByScryfallFilter(admin.SimpleListFilter):
     parameter_name = 'has_oracle_id'
 
     def lookups(self, request, model_admin):
-        return [(True, 'Yes'), (False, 'No')]
+        return [('true', 'Yes'), ('false', 'No')]
 
     def queryset(self, request, queryset):
-        if self.value() == 'True':
-            return queryset.exclude(oracle_id__isnull=True)
-        elif self.value() == 'False':
-            return queryset.filter(oracle_id__isnull=True)
+        value = self.value()
+        if value is None:
+            return queryset
+        value = value.lower() == 'true'
+        return queryset.filter(oracle_id__isnull=not value)
 
 
 @admin.register(Card)
@@ -61,7 +62,7 @@ class CardAdmin(SpellbookModelAdmin):
         readonly_fields = list(super().get_readonly_fields(request, obj))
         if obj is not None and obj.oracle_id is not None:
             return readonly_fields \
-                + ['scryfall_link', 'oracle_id', 'type_line', 'oracle_text', 'identity', 'spoiler'] \
+                + ['name', 'scryfall_link', 'oracle_id', 'type_line', 'oracle_text', 'identity', 'spoiler'] \
                 + Card.legalities_fields() \
                 + Card.prices_fields()
         return readonly_fields

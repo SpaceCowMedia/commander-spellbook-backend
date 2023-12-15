@@ -49,9 +49,16 @@ class CardAdmin(SpellbookModelAdmin):
             'description': 'Prices are updated periodically from EDHREC.'
         }),
     ]
-    # inlines = [FeatureInline]
     list_filter = [IdentityFilter, 'legal_commander', ManagedByScryfallFilter]
-    search_fields = ['name', 'features__name', 'type_line', 'oracle_text']
+    search_fields = [
+        'name', 
+        'name_unaccented',
+        'name_unaccented_simplified',
+        'name_unaccented_simplified_with_spaces',
+        'features__name',
+        'type_line',
+        'oracle_text'
+    ]
     autocomplete_fields = ['features']
     list_display = ['name', 'id', 'identity', 'variants_count']
 

@@ -9,7 +9,7 @@ class Playable(models.Model):
     @classmethod
     def playable_fields(cls):
         return ['identity', 'spoiler'] + cls.legalities_fields() + cls.prices_fields()
-    identity = models.CharField(max_length=5, blank=False, null=False, default='C', help_text='mana identity', verbose_name='mana identity', validators=IDENTITY_VALIDATORS)
+    identity = models.CharField(max_length=5, blank=False, null=False, default='C', verbose_name='mana identity', validators=IDENTITY_VALIDATORS)
     spoiler = models.BooleanField(default=False, help_text='Is this from an upcoming set?', verbose_name='is spoiler')
 
     # Legalities

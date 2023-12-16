@@ -83,7 +83,7 @@ class VariantAdmin(SpellbookModelAdmin):
         'identity',
         'spoiler',
         'scryfall_link',
-        'mana_value_needed',
+        'popularity',
     ]
     readonly_fields = generated_readonly_fields + Variant.legalities_fields() + Variant.prices_fields()
     fieldsets = [

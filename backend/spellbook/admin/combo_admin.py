@@ -227,3 +227,9 @@ class ComboAdmin(SearchMultipleRelatedMixin, SpellbookModelAdmin):
                     })
                 request.from_suggestion.requires_count = len(formset_kwargs['initial'])
         return formset_kwargs
+
+    def lookup_allowed(self, lookup: str, value: str) -> bool:
+        return super().lookup_allowed(lookup, value) or lookup in (
+            'variants__id',
+            'included_in_variants__id',
+        )

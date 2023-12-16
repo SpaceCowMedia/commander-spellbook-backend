@@ -20,3 +20,8 @@ class FeatureAdmin(SpellbookModelAdmin):
     search_fields = ['name', 'cards__name']
     list_display = ['name', 'id', 'utility']
     list_filter = ['utility']
+
+    def lookup_allowed(self, lookup: str, value: str) -> bool:
+        return super().lookup_allowed(lookup, value) or lookup in (
+            'produced_by_variants__id',
+        )

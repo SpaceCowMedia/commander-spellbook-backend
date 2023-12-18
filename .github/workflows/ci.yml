@@ -126,7 +126,7 @@ jobs:
       - name: Setup Docker Buildx 🐳
         uses: docker/setup-buildx-action@v3
       - name: Download image artifact ⬇
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: spellbook-backend
           path: /tmp
@@ -150,7 +150,7 @@ jobs:
       contents: write
     steps:
       - name: Download image artifact ⬇
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: spellbook-backend
           path: release
@@ -188,7 +188,7 @@ jobs:
         with:
           mask-password: true
       - name: Download image artifact ⬇
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: spellbook-backend
           path: /tmp
@@ -206,7 +206,7 @@ jobs:
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
       - name: Download migration artifacts ⬇
         id: migration-artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: spellbook-backend-migrations
           path: /tmp/migrations

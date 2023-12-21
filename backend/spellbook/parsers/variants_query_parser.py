@@ -283,7 +283,20 @@ alias_map: dict[str, str] = {
 }
 
 
-QUERY_REGEX = r'(?:\s|^)(?:(?P<card_short>[a-zA-ZÀ-ÿ_-]+)|"(?P<card_long>[^"]+)"|(?P<prefix>-?)(?P<key>[a-zA-Z_]+)(?P<operator>:|=|<|>|<=|>=)(?:(?P<value_short>[a-zA-Z0-9À-ÿ_-]+)|"(?P<value_long>[^"]+)"))(?=\s|$)'
+SHORT_VALUE_REGEX = r'(?:[a-zA-Z0-9À-ÿ_-])+'
+LONG_VALUE_REGEX = r'(?:[^"\\]|\\")+'
+QUERY_REGEX = r'(?:\s|^)(?:(?P<card_short>)|"(?P<card_long>)"|(?P<prefix>-?)(?P<key>[a-zA-Z_]+)(?P<operator>:|=|<|>|<=|>=)(?:(?P<value_short>)|"(?P<value_long>)"))(?=\s|$)' \
+    .replace(
+        '(?P<card_short>)', f'(?P<card_short>{SHORT_VALUE_REGEX})'
+    ).replace(
+        '(?P<card_long>)', f'(?P<card_long>{LONG_VALUE_REGEX})'
+    ).replace(
+        '(?P<value_short>)', f'(?P<value_short>{SHORT_VALUE_REGEX})'
+    ).replace(
+        '(?P<value_long>)', f'(?P<value_long>{LONG_VALUE_REGEX})'
+    )
+MAX_QUERY_MATCHES = 30
+MAX_QUERY_PARAMETERS = 20
 
 
 class NotSupportedError(Exception):
@@ -301,10 +314,15 @@ def variants_query_parser(base: QuerySet, query_string: str) -> QuerySet:
         .alias(cards_count=Count('uses', distinct=True)) \
         .alias(identity_count=Case(When(identity='C', then=Value(0)), default=Length('identity'))) \
         .alias(results_count=Count('produces', distinct=True))
+    query_match_count = 0
     for regex_match in regex_matches:
+        query_match_count += 1
+        if query_match_count > MAX_QUERY_MATCHES:
+            raise NotSupportedError('Too many search terms.')
         group_dict = regex_match.groupdict()
         if group_dict['card_short'] or group_dict['card_long']:
             card_term = group_dict['card_short'] or group_dict['card_long']
+            card_term = card_term.replace('\\', '')
             parsed_queries['card'].append(QueryValue('', '', ':', card_term))
         elif group_dict['key']:
             key = group_dict['key']
@@ -313,9 +331,11 @@ def variants_query_parser(base: QuerySet, query_string: str) -> QuerySet:
                 key = alias_map[key]
             if key not in keyword_map:
                 raise NotSupportedError(f'Key {key} is not supported for query.')
-            parsed_queries[key].append(QueryValue(group_dict['prefix'], original_key, group_dict['operator'], group_dict['value_short'] or group_dict['value_long']))
-    if len(parsed_queries) > 20:
-        raise NotSupportedError('Too many search terms.')
+            value_term = group_dict['value_short'] or group_dict['value_long']
+            value_term = value_term.replace('\\', '')
+            parsed_queries[key].append(QueryValue(group_dict['prefix'], original_key, group_dict['operator'], value_term))
+    if len(parsed_queries) > MAX_QUERY_PARAMETERS:
+        raise NotSupportedError('Too many search parameters.')
     for key, values in parsed_queries.items():
         for value in values:
             q = keyword_map[key](value)

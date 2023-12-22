@@ -260,3 +260,5 @@ jobs:
         run: |
           export KUBECONFIG=spellbookkubeconfig.yaml
           kubectl rollout restart deployment/spellbook-api -n spellbook
+          timeout 600 kubectl rollout status deployment/spellbook-api -n spellbook
+

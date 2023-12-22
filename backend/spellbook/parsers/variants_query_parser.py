@@ -325,7 +325,7 @@ def variants_query_parser(base: QuerySet, query_string: str) -> QuerySet:
             card_term = card_term.replace('\\', '')
             parsed_queries['card'].append(QueryValue('', '', ':', card_term))
         elif group_dict['key']:
-            key = group_dict['key']
+            key = group_dict['key'].lower()
             original_key = key
             if key in alias_map:
                 key = alias_map[key]

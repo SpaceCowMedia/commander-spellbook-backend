@@ -139,6 +139,9 @@ class VariantViewsTests(AbstractModelTests):
                 f'card:"{prefix_without_spaces}"',
                 f'card:"{search}"',
             ]
+            # case insensitive queries: isascii() is used to filter out case insensitive accented queries, incompatible with sqlite:
+            # https://docs.djangoproject.com/en/5.0/ref/databases/#substring-matching-and-case-sensitivity
+            queries += [q.upper() for q in queries if not q.isupper() and q.isascii()] + [q.lower() for q in queries if not q.islower() and q.isascii()]
             for q in queries:
                 with self.subTest(f'query by card name: {search} with query {q}'):
                     response = c.get('/variants', data={'q': q}, follow=True)

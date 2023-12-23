@@ -38,7 +38,7 @@ class CardAdmin(SpellbookModelAdmin):
         ('Legalities', {
             'fields': Card.legalities_fields(),
             'classes': ['collapse'],
-            'description': 'Legalities are updated periodically rom Scryfall.'
+            'description': 'Legalities are updated periodically from Scryfall.'
         }),
         ('Prices', {
             'fields': Card.prices_fields(),

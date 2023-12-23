@@ -45,6 +45,55 @@ def card_search(card_value: QueryValue) -> Q:
     return card_query
 
 
+def card_type_search(card_type_value: QueryValue) -> Q:
+    match card_type_value.operator:
+        case ':':
+            card_type_query = Q(uses__type_line__icontains=card_type_value.value)
+        case '=':
+            card_type_query = Q(uses__type_line__iexact=card_type_value.value)
+        case _:
+            raise NotSupportedError(f'Operator {card_type_value.operator} is not supported for card type search.')
+    return card_type_query
+
+
+def card_oracle_search(card_oracle_value: QueryValue) -> Q:
+    match card_oracle_value.operator:
+        case ':':
+            card_oracle_query = Q(uses__oracle_text__icontains=card_oracle_value.value)
+        case '=':
+            card_oracle_query = Q(uses__oracle_text__iexact=card_oracle_value.value)
+        case _:
+            raise NotSupportedError(f'Operator {card_oracle_value.operator} is not supported for card oracle search.')
+    return card_oracle_query
+
+
+def card_keyword_search(card_keyword_value: QueryValue) -> Q:
+    match card_keyword_value.operator:
+        case ':':
+            card_keyword_query = Q(uses__keywords__icontains=card_keyword_value.value)
+        case _:
+            raise NotSupportedError(f'Operator {card_keyword_value.operator} is not supported for card keyword search.')
+    return card_keyword_query
+
+
+def card_mana_value_search(card_mana_value_value: QueryValue) -> Q:
+    value_is_digit = card_mana_value_value.value.isdigit()
+    match card_mana_value_value.operator:
+        case ':' | '=' if value_is_digit:
+            card_mana_value_query = Q(uses__mana_value=card_mana_value_value.value)
+        case '<' if value_is_digit:
+            card_mana_value_query = Q(uses__mana_value__lt=card_mana_value_value.value)
+        case '<=' if value_is_digit:
+            card_mana_value_query = Q(uses__mana_value__lte=card_mana_value_value.value)
+        case '>' if value_is_digit:
+            card_mana_value_query = Q(uses__mana_value__gt=card_mana_value_value.value)
+        case '>=' if value_is_digit:
+            card_mana_value_query = Q(uses__mana_value__gte=card_mana_value_value.value)
+        case _:
+            raise NotSupportedError(f'Operator {card_mana_value_value.operator} is not supported for card mana value search with {"numbers" if value_is_digit else "strings"}.')
+    return card_mana_value_query
+
+
 def identity_search(identity_value: QueryValue) -> Q:
     value_is_digit = identity_value.value.isdigit()
     identity = ''
@@ -140,6 +189,8 @@ def tag_search(tag_value: QueryValue) -> Q:
             tag_query = Q(spoiler=True)
         case 'commander':
             tag_query = Q(cardinvariant__must_be_commander=True)
+        case 'reserved':
+            tag_query = Q(uses__reserved=True)
         case 'mandatory':
             tag_query = Q(produces__name='Mandatory Loop')
         case 'lock':
@@ -242,6 +293,10 @@ def popularity_search(popularity_value: QueryValue) -> Q:
 
 keyword_map: dict[str, Callable[[QueryValue], Q]] = {
     'card': card_search,
+    'cardtype': card_type_search,
+    'cardoracle': card_oracle_search,
+    'cardkeywords': card_keyword_search,
+    'cardmanavalue': card_mana_value_search,
     'coloridentity': identity_search,
     'prerequisites': prerequisites_search,
     'steps': steps_search,
@@ -280,6 +335,16 @@ alias_map: dict[str, str] = {
     'pop': 'popularity',
     'deck': 'popularity',
     'decks': 'popularity',
+    'type': 'cardtype',
+    'types': 'cardtype',
+    't': 'cardtype',
+    'oracle': 'cardoracle',
+    'text': 'cardoracle',
+    'o': 'cardoracle',
+    'keyword': 'cardkeywords',
+    'manavalue': 'cardmanavalue',
+    'mv': 'cardmanavalue',
+    'cmc': 'cardmanavalue',
 }
 
 
@@ -339,9 +404,10 @@ def variants_query_parser(base: QuerySet, query_string: str) -> QuerySet:
     for key, values in parsed_queries.items():
         for value in values:
             q = keyword_map[key](value)
-            if value.prefix == '-':
-                q = ~q
+            if value.prefix == '':
+                queryset = queryset.filter(q)
+            elif value.prefix == '-':
+                queryset = queryset.exclude(q)
             elif value.prefix != '':
                 raise NotSupportedError(f'Prefix {value.prefix} is not supported for {key} search.')
-            queryset = queryset.filter(q)
     return queryset

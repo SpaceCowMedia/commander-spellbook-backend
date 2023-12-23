@@ -156,6 +156,22 @@ class VariantViewsTests(AbstractModelTests):
         # TODO: implement
         pass
 
+    def test_variants_list_view_query_by_card_type(self):
+        # TODO: implement
+        pass
+
+    def test_variants_list_view_query_by_card_oracle_text(self):
+        # TODO: implement
+        pass
+
+    def test_variants_list_view_query_by_card_keywords(self):
+        # TODO: implement
+        pass
+
+    def test_variants_list_view_query_by_card_mana_value(self):
+        # TODO: implement
+        pass
+
     def test_variants_list_view_query_by_identity(self):
         # TODO: implement
         pass

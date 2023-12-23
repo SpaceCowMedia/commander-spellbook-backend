@@ -42,12 +42,15 @@ class Playable(models.Model):
 
     def update(self, playables: Iterable['Playable'], requires_commander: bool) -> bool:
         '''Update this playable with the given playables. Return True if any field was changed, False otherwise.'''
+        playables = list(playables)
         old_values = {field: getattr(self, field) for field in self.playable_fields()}
         self.identity = merge_identities(playable.identity for playable in playables)
         self.spoiler = any(playable.spoiler for playable in playables)
         self.legal_commander = all(playable.legal_commander for playable in playables)
-        self.legal_pauper_commander_main = all(playable.legal_pauper_commander_main for playable in playables)
-        self.legal_pauper_commander = all(playable.legal_pauper_commander for playable in playables)
+        legal_in_pauper_commander_main_count = sum(playable.legal_pauper_commander_main for playable in playables)
+        self.legal_pauper_commander_main = legal_in_pauper_commander_main_count == len(playables)
+        legal_in_pauper_commander_count = sum(playable.legal_pauper_commander for playable in playables)
+        self.legal_pauper_commander = legal_in_pauper_commander_count == len(playables) and legal_in_pauper_commander_main_count >= len(playables) - 1
         self.legal_oathbreaker = all(playable.legal_oathbreaker for playable in playables)
         self.legal_predh = all(playable.legal_predh for playable in playables)
         self.legal_brawl = all(playable.legal_brawl for playable in playables)

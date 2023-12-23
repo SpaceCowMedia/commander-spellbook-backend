@@ -145,3 +145,6 @@ temp/
 
 # Kubernetes secret file
 kubesecret.yaml
+
+# Hidden files
+hidden/

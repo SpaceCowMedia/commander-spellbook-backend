@@ -14,6 +14,10 @@ class CardViewsTests(AbstractModelTests):
         self.assertEqual(card_result.type_line, c.type_line)
         self.assertEqual(card_result.oracle_text, c.oracle_text)
         self.assertEqual(card_result.identity, c.identity)
+        self.assertEqual(card_result.spoiler, c.spoiler)
+        self.assertEqual(card_result.keywords, c.keywords)
+        self.assertEqual(card_result.mana_value, c.mana_value)
+        self.assertEqual(card_result.reserved, c.reserved)
         self.assertEqual(card_result.legalities.commander, c.legal_commander)
         self.assertEqual(card_result.legalities.pauper_commander_main, c.legal_pauper_commander_main)
         self.assertEqual(card_result.legalities.pauper_commander, c.legal_pauper_commander)
@@ -29,7 +33,6 @@ class CardViewsTests(AbstractModelTests):
         self.assertEqual(card_result.prices.tcgplayer, str(c.price_tcgplayer))
         self.assertEqual(card_result.prices.cardkingdom, str(c.price_cardkingdom))
         self.assertEqual(card_result.prices.cardmarket, str(c.price_cardmarket))
-        self.assertEqual(card_result.spoiler, c.spoiler)
         self.assertEqual(len(card_result.features), c.features.count())
         feature_list = [f.id for f in c.features.all()]
         for f in card_result.features:

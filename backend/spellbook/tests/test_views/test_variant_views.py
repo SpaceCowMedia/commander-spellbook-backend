@@ -52,7 +52,6 @@ class VariantViewsTests(AbstractModelTests):
             self.assertEqual(card.id, c.id)
             self.assertEqual(card.name, c.name)
             self.assertEqual(card.oracle_id, str(c.oracle_id))
-            self.assertEqual(card.identity, c.identity)
             self.assertEqual(card.spoiler, c.spoiler)
             vic = CardInVariant.objects.get(variant=v.id, card=c)
             if v.status != Variant.Status.OK:

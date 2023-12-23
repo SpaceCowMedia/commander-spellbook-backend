@@ -22,6 +22,7 @@ class ManagedByScryfallFilter(CustomFilter):
 @admin.register(Card)
 class CardAdmin(SpellbookModelAdmin):
     readonly_fields = ['scryfall_link']
+    scryfall_fields = ['oracle_id'] + Card.scryfall_fields()
     fieldsets = [
         ('Spellbook', {'fields': [
             'name',
@@ -30,11 +31,7 @@ class CardAdmin(SpellbookModelAdmin):
         ('Scryfall', {
             'fields': [
                 'scryfall_link',
-                'oracle_id',
-                'type_line',
-                'oracle_text',
-                'identity',
-                'spoiler'
+                *scryfall_fields,
             ],
             'description': 'Scryfall data is updated periodically.'
         }),
@@ -66,7 +63,7 @@ class CardAdmin(SpellbookModelAdmin):
         readonly_fields = list(super().get_readonly_fields(request, obj))
         if obj is not None and obj.oracle_id is not None:
             return readonly_fields \
-                + ['name', 'scryfall_link', 'oracle_id', 'type_line', 'oracle_text', 'identity', 'spoiler'] \
+                + self.scryfall_fields \
                 + Card.legalities_fields() \
                 + Card.prices_fields()
         return readonly_fields

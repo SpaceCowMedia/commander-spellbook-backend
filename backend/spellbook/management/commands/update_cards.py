@@ -21,7 +21,7 @@ class Command(AbstractCommand):
             log_error=lambda x: self.log(x, self.style.ERROR),
         )
         updated_cards_count = len(cards_to_save)
-        Card.objects.bulk_update(cards_to_save, fields=['name', 'name_unaccented', 'oracle_id', 'identity', 'spoiler', 'oracle_text', 'type_line', 'latest_printing_set', 'reprinted'] + Card.legalities_fields() + Card.prices_fields())
+        Card.objects.bulk_update(cards_to_save, fields=['name', 'name_unaccented', 'oracle_id'] + Card.scryfall_fields() + Card.playable_fields())
         self.log('Updating cards...done', self.style.SUCCESS)
         if updated_cards_count > 0:
             self.log(f'Successfully updated {updated_cards_count} cards', self.style.SUCCESS)

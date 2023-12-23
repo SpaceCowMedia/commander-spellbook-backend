@@ -39,6 +39,12 @@ class CardTests(AbstractModelTests):
         self.assertEqual(c.identity, 'W')
         self.assertTrue(c.legal_commander)
         self.assertFalse(c.spoiler)
+        self.assertEqual(c.oracle_text, '')
+        self.assertEqual(c.keywords, [])
+        self.assertEqual(c.mana_value, 0)
+        self.assertFalse(c.reserved)
+        self.assertEqual(c.latest_printing_set, '')
+        self.assertFalse(c.reprinted)
 
     def test_query_string(self):
         c = Card.objects.get(id=self.c1_id)
@@ -51,7 +57,7 @@ class CardTests(AbstractModelTests):
         self.assertIn('<a', c.scryfall_link())
 
     def test_method_count(self):
-        self.assertEqual(count_methods(Card), 3)
+        self.assertEqual(count_methods(Card), 4)
 
     def test_name_unaccented(self):
         c = Card.objects.create(name='à, è, ì, ò, ù, y, À, È, Ì, Ò, Ù, Y, á, é, í, ó, ú, ý, Á, É, Í, Ó, Ú, Ý, â, ê, î, ô, û, y, Â, Ê, Î, Ô, Û, Y, ä, ë, ï, ö, ü, ÿ, Ä, Ë, Ï, Ö, Ü, Ÿ', oracle_id='47d6f04b-a6fe-4274-bd27-888475158e82')
@@ -280,7 +286,12 @@ class VariantTests(AbstractModelTests):
         self.assertTrue(v.query_string().startswith('q='))
 
     def test_method_count(self):
-        self.assertEqual(count_methods(Variant), 5)
+        self.assertEqual(count_methods(Variant), 6)
+
+    def test_update(self):
+        v = Variant.objects.get(id=self.v1_id)
+        self.assertFalse(v.update(v.uses.all(), False))
+        # TODO: test update
 
 
 class VariantSuggestionTests(AbstractModelTests):

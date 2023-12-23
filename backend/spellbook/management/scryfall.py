@@ -99,29 +99,7 @@ def update_cards(cards: list[Card], scryfall: dict[str, dict], log=lambda t: pri
                     updated = True
 
             def card_fields(card: Card) -> tuple:
-                return (
-                    card.identity,
-                    card.spoiler,
-                    card.type_line,
-                    card.oracle_text,
-                    card.legal_commander,
-                    card.legal_pauper_commander_main,
-                    card.legal_pauper_commander,
-                    card.legal_oathbreaker,
-                    card.legal_predh,
-                    card.legal_brawl,
-                    card.legal_vintage,
-                    card.legal_legacy,
-                    card.legal_modern,
-                    card.legal_pioneer,
-                    card.legal_standard,
-                    card.legal_pauper,
-                    card.price_tcgplayer,
-                    card.price_cardkingdom,
-                    card.price_cardmarket,
-                    card.latest_printing_set,
-                    card.reprinted,
-                )
+                return tuple(getattr(card, field) for field in Card.scryfall_fields() + Card.playable_fields())
             fields_before = card_fields(card)
             card_identity = merge_identities(card_in_db['color_identity'])
             card.identity = card_identity
@@ -133,6 +111,9 @@ def update_cards(cards: list[Card], scryfall: dict[str, dict], log=lambda t: pri
                 card.oracle_text = '\n\n'.join(face['oracle_text'] for face in card_in_db['card_faces'])
             else:
                 card.oracle_text = card_in_db['oracle_text']
+            card.keywords = card_in_db['keywords']
+            card.mana_value = int(card_in_db['cmc'])
+            card.reserved = card_in_db['reserved']
             card.spoiler = card_spoiler
             card_legalities = card_in_db['legalities']
             card.legal_commander = card_legalities['commander'] == 'legal'

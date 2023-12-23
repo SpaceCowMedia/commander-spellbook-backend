@@ -1,3 +1,4 @@
+from typing import Iterable
 from django.db import models
 from django.dispatch import receiver
 from django.db.models.signals import post_save
@@ -11,7 +12,7 @@ from .ingredient import IngredientInCombination
 from .combo import Combo
 from .job import Job
 from .validators import TEXT_VALIDATORS, MANA_VALIDATOR
-from .utils import recipe, mana_value
+from .utils import recipe, mana_value, merge_identities
 
 
 class Variant(Playable, PreSaveModelMixin, ScryfallLinkMixin):
@@ -90,6 +91,45 @@ class Variant(Playable, PreSaveModelMixin, ScryfallLinkMixin):
 
     def pre_save(self):
         self.mana_value_needed = mana_value(self.mana_needed)
+
+    def update(self, cards: Iterable['Card'], requires_commander: bool) -> bool:
+        '''Returns True if any field was changed, False otherwise.'''
+        cards = list(cards)
+        old_values = {field: getattr(self, field) for field in self.playable_fields()}
+        self.identity = merge_identities(playable.identity for playable in cards)
+        self.spoiler = any(playable.spoiler for playable in cards)
+        self.legal_commander = all(playable.legal_commander for playable in cards)
+        self.legal_pauper_commander_main = True
+        self.legal_pauper_commander = True
+        pauper_commander_count = 0
+        pauper_partner_commander_count = 0
+        for card in cards:
+            if not card.legal_pauper_commander:
+                self.legal_pauper_commander = False
+                self.legal_pauper_commander_main = False
+                break
+            if not card.legal_pauper_commander_main:
+                self.legal_pauper_commander_main = False
+                pauper_commander_count += 1
+                if 'Partner' in card.keywords:
+                    pauper_partner_commander_count += 1
+                if pauper_commander_count > 1 and pauper_commander_count != pauper_partner_commander_count:
+                    self.legal_pauper_commander = False
+                    break
+        self.legal_oathbreaker = all(playable.legal_oathbreaker for playable in cards)
+        self.legal_predh = all(playable.legal_predh for playable in cards)
+        self.legal_brawl = all(playable.legal_brawl for playable in cards)
+        self.legal_vintage = not requires_commander and all(playable.legal_vintage for playable in cards)
+        self.legal_legacy = not requires_commander and all(playable.legal_legacy for playable in cards)
+        self.legal_modern = not requires_commander and all(playable.legal_modern for playable in cards)
+        self.legal_pioneer = not requires_commander and all(playable.legal_pioneer for playable in cards)
+        self.legal_standard = not requires_commander and all(playable.legal_standard for playable in cards)
+        self.legal_pauper = not requires_commander and all(playable.legal_pauper for playable in cards)
+        self.price_tcgplayer = sum(playable.price_tcgplayer for playable in cards)
+        self.price_cardkingdom = sum(playable.price_cardkingdom for playable in cards)
+        self.price_cardmarket = sum(playable.price_cardmarket for playable in cards)
+        new_values = {field: getattr(self, field) for field in self.playable_fields()}
+        return old_values != new_values
 
 
 class CardInVariant(IngredientInCombination):

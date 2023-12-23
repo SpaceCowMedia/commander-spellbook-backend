@@ -1,8 +1,6 @@
-from typing import Iterable
 from decimal import Decimal
 from django.db import models
 from .validators import IDENTITY_VALIDATORS
-from .utils import merge_identities
 
 
 class Playable(models.Model):
@@ -39,29 +37,3 @@ class Playable(models.Model):
 
     class Meta:
         abstract = True
-
-    def update(self, playables: Iterable['Playable'], requires_commander: bool) -> bool:
-        '''Update this playable with the given playables. Return True if any field was changed, False otherwise.'''
-        playables = list(playables)
-        old_values = {field: getattr(self, field) for field in self.playable_fields()}
-        self.identity = merge_identities(playable.identity for playable in playables)
-        self.spoiler = any(playable.spoiler for playable in playables)
-        self.legal_commander = all(playable.legal_commander for playable in playables)
-        legal_in_pauper_commander_main_count = sum(playable.legal_pauper_commander_main for playable in playables)
-        self.legal_pauper_commander_main = legal_in_pauper_commander_main_count == len(playables)
-        legal_in_pauper_commander_count = sum(playable.legal_pauper_commander for playable in playables)
-        self.legal_pauper_commander = legal_in_pauper_commander_count == len(playables) and legal_in_pauper_commander_main_count >= len(playables) - 1
-        self.legal_oathbreaker = all(playable.legal_oathbreaker for playable in playables)
-        self.legal_predh = all(playable.legal_predh for playable in playables)
-        self.legal_brawl = all(playable.legal_brawl for playable in playables)
-        self.legal_vintage = not requires_commander and all(playable.legal_vintage for playable in playables)
-        self.legal_legacy = not requires_commander and all(playable.legal_legacy for playable in playables)
-        self.legal_modern = not requires_commander and all(playable.legal_modern for playable in playables)
-        self.legal_pioneer = not requires_commander and all(playable.legal_pioneer for playable in playables)
-        self.legal_standard = not requires_commander and all(playable.legal_standard for playable in playables)
-        self.legal_pauper = not requires_commander and all(playable.legal_pauper for playable in playables)
-        self.price_tcgplayer = sum(playable.price_tcgplayer for playable in playables)
-        self.price_cardkingdom = sum(playable.price_cardkingdom for playable in playables)
-        self.price_cardmarket = sum(playable.price_cardmarket for playable in playables)
-        new_values = {field: getattr(self, field) for field in self.playable_fields()}
-        return old_values != new_values

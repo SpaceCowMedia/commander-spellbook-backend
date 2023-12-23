@@ -1,4 +1,5 @@
 from urllib.parse import urlencode
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.dispatch import receiver
 from django.db.models.signals import post_save
@@ -9,6 +10,14 @@ from .playable import Playable
 from .utils import strip_accents
 from .mixins import ScryfallLinkMixin, PreSaveModelMixin
 from .feature import Feature
+
+
+def validate_keyword_json(value):
+    if not isinstance(value, list):
+        raise ValidationError(f'Keywords must be a list of strings, got {type(value).__name__}')
+    for i, keyword in enumerate(value):
+        if not isinstance(keyword, str):
+            raise ValidationError(f'Keyword at position {i + 1} must be a string, got {type(keyword).__name__}')
 
 
 class Card(Playable, PreSaveModelMixin, ScryfallLinkMixin):
@@ -24,10 +33,26 @@ class Card(Playable, PreSaveModelMixin, ScryfallLinkMixin):
         db_persist=True,
         expression=Replace(F('name_unaccented'), Value('-'), Value(' ')),
         output_field=models.CharField(max_length=MAX_CARD_NAME_LENGTH, unique=True, blank=False, help_text='Card name without accents or hyphens, with spaces', verbose_name='name of card without accents or hyphens, with spaces', editable=False))
+
+    @classmethod
+    def scryfall_fields(cls):
+        return [
+            'type_line',
+            'oracle_text',
+            'keywords',
+            'mana_value',
+            'reserved',
+            'latest_printing_set',
+            'reprinted',
+        ]
     type_line = models.CharField(max_length=MAX_CARD_NAME_LENGTH, blank=True, help_text='Card type line', verbose_name='type line of card')
     oracle_text = models.TextField(blank=True, help_text='Card oracle text', verbose_name='oracle text of card')
+    keywords = models.JSONField(default=list, help_text='Oracle card keywords', verbose_name='oracle keywords of card', validators=[validate_keyword_json])
+    mana_value = models.PositiveSmallIntegerField(default=0, help_text='Mana value of card', verbose_name='mana value of card')
+    reserved = models.BooleanField(default=False, help_text='Whether this card is part of the Reserved List', verbose_name='reserved list card')
     latest_printing_set = models.CharField(max_length=10, blank=True, help_text='Set code of latest printing of card', verbose_name='latest printing set of card')
     reprinted = models.BooleanField(default=False, help_text='Whether this card has been reprinted', verbose_name='reprinted card')
+
     features = models.ManyToManyField(
         to=Feature,
         related_name='cards',

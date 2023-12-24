@@ -3,11 +3,9 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.dispatch import receiver
 from django.db.models.signals import post_save
-from django.db.models import F, Value
-from django.db.models.functions import Replace
 from django.db.models.fields.generated import GeneratedField
 from .playable import Playable
-from .utils import strip_accents
+from .utils import strip_accents, simplify_card_name_on_database, simplify_card_name_with_spaces_on_database
 from .mixins import ScryfallLinkMixin, PreSaveModelMixin
 from .feature import Feature
 
@@ -27,11 +25,11 @@ class Card(Playable, PreSaveModelMixin, ScryfallLinkMixin):
     name_unaccented = models.CharField(max_length=MAX_CARD_NAME_LENGTH, unique=True, blank=False, help_text='Card name without accents', verbose_name='name of card without accents', editable=False)
     name_unaccented_simplified = GeneratedField(
         db_persist=True,
-        expression=Replace(F('name_unaccented'), Value('-'), Value('')),
+        expression=simplify_card_name_on_database('name_unaccented'),
         output_field=models.CharField(max_length=MAX_CARD_NAME_LENGTH, unique=True, blank=False, help_text='Card name without accents or hyphens', verbose_name='name of card without accents or hyphens', editable=False))
     name_unaccented_simplified_with_spaces = GeneratedField(
         db_persist=True,
-        expression=Replace(F('name_unaccented'), Value('-'), Value(' ')),
+        expression=simplify_card_name_with_spaces_on_database('name_unaccented'),
         output_field=models.CharField(max_length=MAX_CARD_NAME_LENGTH, unique=True, blank=False, help_text='Card name without accents or hyphens, with spaces', verbose_name='name of card without accents or hyphens, with spaces', editable=False))
 
     @classmethod

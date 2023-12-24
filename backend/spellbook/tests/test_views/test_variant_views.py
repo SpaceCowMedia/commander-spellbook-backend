@@ -130,10 +130,14 @@ class VariantViewsTests(AbstractModelTests):
         c = Client()
         for card, search in ((c, name) for c in Card.objects.all() for name in (c.name, c.name_unaccented, c.name_unaccented.replace('-', ''), c.name_unaccented.replace('-', ' '))):
             prefix_without_spaces = search.partition(' ')[0]
+            search_without_underscores = search.replace('_', '').strip()
+            search_with_simplified_underscores = search.replace('_____', '_')
             queries = [
                 prefix_without_spaces,
                 f'"{prefix_without_spaces}"',
                 f'"{search}"',
+                f'"{search_without_underscores}"',
+                f'"{search_with_simplified_underscores}"',
                 f'card:{prefix_without_spaces}',
                 f'card:"{prefix_without_spaces}"',
                 f'card:"{search}"',

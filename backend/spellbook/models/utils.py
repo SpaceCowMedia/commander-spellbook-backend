@@ -2,6 +2,8 @@ import re
 import unicodedata
 from typing import Iterable, Callable
 from .validators import MANA_SYMBOL
+from django.db.models import Expression, F, Value
+from django.db.models.functions import Replace, Trim
 
 
 MANA_SEARCH_REGEX = r'\{(' + MANA_SYMBOL + r')\}'
@@ -73,3 +75,31 @@ def apply_recursively_to_strings(data: dict | list, func: Callable[[str], str]) 
                 data[i] = func(value)
             else:
                 apply_recursively_to_strings(value, func)
+
+
+def simplify_card_name_on_database(field: str) -> Expression:
+    return Trim(
+        Replace(
+            Replace(
+                F(field),
+                Value('-'),
+                Value('')
+            ),
+            Value('_____'),
+            Value('')
+        )
+    )
+
+
+def simplify_card_name_with_spaces_on_database(field: str) -> Expression:
+    return Trim(
+        Replace(
+            Replace(
+                F(field),
+                Value('-'),
+                Value(' ')
+            ),
+            Value('_____'),
+            Value('_')
+        )
+    )

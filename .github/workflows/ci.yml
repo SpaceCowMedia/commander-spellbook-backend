@@ -150,7 +150,7 @@ jobs:
           docker load --input /tmp/spellbook-backend.tar
           docker image ls -a
       - name: Unit test with PostgreSQL 🧪
-        run: docker run -e SQL_ENGINE -e SQL_DATABASE -e SQL_USER -e SQL_PASSWORD -e SQL_HOST -e SQL_PORT -e CI -e VERSION=integration-test spellbook-backend:latest python manage.py test --no-input --parallel auto --settings=backend.production_settings
+        run: docker run -e SQL_ENGINE -e SQL_DATABASE -e SQL_USER -e SQL_PASSWORD -e SQL_HOST -e SQL_PORT -e CI -e VERSION=integration-test --entrypoint python spellbook-backend:latest manage.py test --no-input --parallel auto --settings=backend.production_settings
 
 
   release:

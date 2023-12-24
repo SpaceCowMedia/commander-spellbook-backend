@@ -99,23 +99,13 @@ class Variant(Playable, PreSaveModelMixin, ScryfallLinkMixin):
         self.identity = merge_identities(playable.identity for playable in cards)
         self.spoiler = any(playable.spoiler for playable in cards)
         self.legal_commander = all(playable.legal_commander for playable in cards)
-        self.legal_pauper_commander_main = True
-        self.legal_pauper_commander = True
-        pauper_commander_count = 0
-        pauper_partner_commander_count = 0
-        for card in cards:
-            if not card.legal_pauper_commander:
-                self.legal_pauper_commander = False
-                self.legal_pauper_commander_main = False
-                break
-            if not card.legal_pauper_commander_main:
-                self.legal_pauper_commander_main = False
-                pauper_commander_count += 1
-                if 'Partner' in card.keywords:
-                    pauper_partner_commander_count += 1
-                if pauper_commander_count > 1 and pauper_commander_count != pauper_partner_commander_count:
-                    self.legal_pauper_commander = False
-                    break
+        self.legal_pauper_commander_main = all(playable.legal_pauper_commander_main for playable in cards)
+        pauper_commanders = [playable for playable in cards if not playable.legal_pauper_commander_main]
+        self.legal_pauper_commander = all(playable.legal_pauper_commander for playable in cards) and (
+            len(pauper_commanders) == 1 or (
+                len(pauper_commanders) == 2 and all('Partner' in playable.keywords for playable in pauper_commanders)
+            )
+        )
         self.legal_oathbreaker = all(playable.legal_oathbreaker for playable in cards)
         self.legal_predh = all(playable.legal_predh for playable in cards)
         self.legal_brawl = all(playable.legal_brawl for playable in cards)

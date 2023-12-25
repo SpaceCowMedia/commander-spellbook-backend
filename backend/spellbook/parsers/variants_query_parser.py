@@ -342,6 +342,8 @@ alias_map: dict[str, str] = {
     'text': 'cardoracle',
     'o': 'cardoracle',
     'keyword': 'cardkeywords',
+    'keywords': 'cardkeywords',
+    'kw': 'cardkeywords',
     'manavalue': 'cardmanavalue',
     'mv': 'cardmanavalue',
     'cmc': 'cardmanavalue',

@@ -154,19 +154,21 @@ def restore_variant(
         requires[template_in_variant.template.id] = template_in_variant
     for combo in included_combos:
         for card_in_combo in data.combo_to_cards[combo.id]:
-            to_edit = uses[card_in_combo.card.id]
-            if to_edit.card.id not in uses_updated:
-                update_state(to_edit, card_in_combo, overwrite=True)
-                uses_updated.add(to_edit.card.id)
-            else:
-                update_state(to_edit, card_in_combo)
+            if card_in_combo.card.id in uses:
+                to_edit = uses[card_in_combo.card.id]
+                if to_edit.card.id not in uses_updated:
+                    update_state(to_edit, card_in_combo, overwrite=True)
+                    uses_updated.add(to_edit.card.id)
+                else:
+                    update_state(to_edit, card_in_combo)
         for template_in_combo in data.combo_to_templates[combo.id]:
-            to_edit = requires[template_in_combo.template.id]
-            if to_edit.template.id not in requires_updated:
-                update_state(to_edit, template_in_combo, overwrite=True)
-                requires_updated.add(to_edit.template.id)
-            else:
-                update_state(to_edit, template_in_combo)
+            if template_in_combo.template.id in requires:
+                to_edit = requires[template_in_combo.template.id]
+                if to_edit.template.id not in requires_updated:
+                    update_state(to_edit, template_in_combo, overwrite=True)
+                    requires_updated.add(to_edit.template.id)
+                else:
+                    update_state(to_edit, template_in_combo)
     # Ordering by descending replaceability and ascending order in combos
     cards_ordering: dict[int, tuple[int, int]] = {c: (0, 0) for c in uses}
     templates_ordering: dict[int, tuple[int, int]] = {t: (0, 0) for t in requires}

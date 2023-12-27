@@ -54,6 +54,7 @@ class VariantsGeneratorTests(AbstractModelTests):
 
     def test_restore_variant(self):
         # TODO: Implement
+        # TODO: Regression test for restore_variant with a variant that includes a combo that contains a card missing from the variant
         pass
 
     def test_update_variant(self):

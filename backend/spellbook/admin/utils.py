@@ -63,7 +63,8 @@ class CustomFilter(admin.SimpleListFilter):
 
     def queryset(self, request: Any, queryset: QuerySet[Any]) -> QuerySet[Any] | None:
         value = self.value()
-        if value is None or value not in map(str, self.lookup_choices):
+        allowed_values = {str(lookup) for lookup, _ in self.lookup_choices}
+        if value is None or value not in allowed_values:
             return queryset
         return queryset.filter(self.filter(self.data_type(value))).distinct()
 

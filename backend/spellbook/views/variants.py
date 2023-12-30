@@ -9,4 +9,13 @@ class VariantViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = VariantSerializer.prefetch_related(Variant.objects.filter(status__in=Variant.public_statuses()))
     filter_backends = [SpellbookQueryFilter, OrderingFilter]
     serializer_class = VariantSerializer
-    ordering_fields = ['popularity', 'identity_count', 'results_count', 'cards_count', 'created', 'updated', '?']
+    ordering_fields = [
+        'popularity',
+        *Variant.prices_fields(),
+        'identity_count',
+        'results_count',
+        'cards_count',
+        'created',
+        'updated',
+        '?'
+    ]

@@ -47,8 +47,6 @@ Nevertheless, the implementation is not optimized for performance.
 It is intended to be a reference implementation, because the performance of the MSS is not critical for the Commander Spellbook project.
 If you need a more performant implementation, you can use the reference implementation as a starting point and optimize it for your use case.
 
-- [C++/Python implementation of a set-trie](https://github.com/BBVA/mercury-settrie)
-
 These are the papers/links to refer for the implementation of an optimized MSS:
 
 - [Stack Overflow Question #1](https://stackoverflow.com/questions/1737076/collection-of-sets-containing-no-sets-which-are-a-subset-of-another-in-the-colle)
@@ -57,3 +55,6 @@ These are the papers/links to refer for the implementation of an optimized MSS:
 - [Article: _"Index Data Structure for Fast Subset and Superset Queries"_](https://osebje.famnit.upr.si/~savnik/papers/cdares13.pdf)
 - [Stack Overflow Question #2](https://stackoverflow.com/questions/9353100/quickly-checking-if-set-is-superset-of-stored-sets)
 - [Stack Overflow Question #3](https://stackoverflow.com/questions/1263524/superset-search)
+
+This is an optimized implementation of a SetTrie in C++ with a Python API: [C++/Python implementation of a set-trie](https://github.com/BBVA/mercury-settrie).
+The issue with this implementation is that it must be compiled during installation and it's incomplete (doesn't allow iteration and removal of sets at the time of writing).

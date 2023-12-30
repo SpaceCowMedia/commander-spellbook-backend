@@ -49,6 +49,9 @@ def update_variants(variants: list[Variant], edhrec: dict[str, dict], log=lambda
             if variant.popularity != variant_data['popularity']:
                 variant.popularity = variant_data['popularity']
                 updated = True
+        elif variant.popularity is not None:
+            variant.popularity = None
+            updated = True
         # Update with card data
         requires_commander = any(civ.must_be_commander for civ in variant.cardinvariant_set.all()) \
             or any(tiv.must_be_commander for tiv in variant.templateinvariant_set.all())

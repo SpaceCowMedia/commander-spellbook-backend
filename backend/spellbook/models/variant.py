@@ -65,7 +65,9 @@ class Variant(Playable, PreSaveModelMixin, ScryfallLinkMixin):
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, editable=False)
     generated_by = models.ForeignKey(Job, on_delete=models.SET_NULL, null=True, blank=True, editable=False, help_text='Job that generated this variant', related_name='variants')
-    popularity = models.PositiveIntegerField(db_default=0, editable=False, help_text='Popularity of this variant, provided by EDHREC')
+    popularity = models.PositiveIntegerField(db_default=None, null=True, editable=False, help_text='Popularity of this variant, provided by EDHREC')
+    description_line_count = models.PositiveIntegerField(editable=False, help_text='Number of lines in the description')
+    other_prerequisites_line_count = models.PositiveIntegerField(editable=False, help_text='Number of lines in the other prerequisites')
 
     class Meta:
         ordering = ['-status', '-created']
@@ -91,6 +93,8 @@ class Variant(Playable, PreSaveModelMixin, ScryfallLinkMixin):
 
     def pre_save(self):
         self.mana_value_needed = mana_value(self.mana_needed)
+        self.description_line_count = self.description.count('\n') + 1 if self.description else 0
+        self.other_prerequisites_line_count = self.other_prerequisites.count('\n') + 1 if self.other_prerequisites else 0
 
     def update(self, cards: Iterable['Card'], requires_commander: bool) -> bool:
         '''Returns True if any field was changed, False otherwise.'''

@@ -142,20 +142,46 @@ def identity_search(identity_value: QueryValue) -> Q:
 
 
 def prerequisites_search(prerequisites_value: QueryValue) -> Q:
+    value_is_digit = prerequisites_value.value.isdigit()
     match prerequisites_value.operator:
-        case ':':
+        case ':' if not value_is_digit:
             prerequisites_query = Q(other_prerequisites__icontains=prerequisites_value.value)
+        case '=' if not value_is_digit:
+            prerequisites_query = Q(other_prerequisites__iexact=prerequisites_value.value)
+        case '<' if value_is_digit:
+            prerequisites_query = Q(other_prerequisites_line_count__lt=prerequisites_value.value)
+        case '<=' if value_is_digit:
+            prerequisites_query = Q(other_prerequisites_line_count__lte=prerequisites_value.value)
+        case '>' if value_is_digit:
+            prerequisites_query = Q(other_prerequisites_line_count__gt=prerequisites_value.value)
+        case '>=' if value_is_digit:
+            prerequisites_query = Q(other_prerequisites_line_count__gte=prerequisites_value.value)
+        case '=' if value_is_digit:
+            prerequisites_query = Q(other_prerequisites_line_count=prerequisites_value.value)
         case _:
             raise NotSupportedError(f'Operator {prerequisites_value.operator} is not supported for prerequisites search.')
     return prerequisites_query
 
 
-def steps_search(steps_value: QueryValue) -> Q:
-    match steps_value.operator:
-        case ':':
-            steps_query = Q(description__icontains=steps_value.value)
+def description_search(description_value: QueryValue) -> Q:
+    value_is_digit = description_value.value.isdigit()
+    match description_value.operator:
+        case ':' if not value_is_digit:
+            steps_query = Q(description__icontains=description_value.value)
+        case '=' if not value_is_digit:
+            steps_query = Q(description__iexact=description_value.value)
+        case '<' if value_is_digit:
+            steps_query = Q(description_line_count__lt=description_value.value)
+        case '<=' if value_is_digit:
+            steps_query = Q(description_line_count__lte=description_value.value)
+        case '>' if value_is_digit:
+            steps_query = Q(description_line_count__gt=description_value.value)
+        case '>=' if value_is_digit:
+            steps_query = Q(description_line_count__gte=description_value.value)
+        case '=' if value_is_digit:
+            steps_query = Q(description_line_count=description_value.value)
         case _:
-            raise NotSupportedError(f'Operator {steps_value.operator} is not supported for prerequisites search.')
+            raise NotSupportedError(f'Operator {description_value.operator} is not supported for prerequisites search.')
     return steps_query
 
 
@@ -299,7 +325,7 @@ keyword_map: dict[str, Callable[[QueryValue], Q]] = {
     'cardmanavalue': card_mana_value_search,
     'coloridentity': identity_search,
     'prerequisites': prerequisites_search,
-    'steps': steps_search,
+    'steps': description_search,
     'results': results_search,
     'spellbookid': spellbook_id_search,
     'is': tag_search,

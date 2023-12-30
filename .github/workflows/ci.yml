@@ -233,9 +233,9 @@ jobs:
           export KUBECONFIG=spellbookkubeconfig.yaml
           kubectl delete job spellbook-migration -n spellbook || true
           kubectl apply -k .
-          kubectl wait --for=condition=complete job/spellbook-migration -n spellbook &
+          kubectl wait --timeout=120s --for=condition=complete job/spellbook-migration -n spellbook &
           completion_pid=$!
-          kubectl wait --for=condition=failed job/spellbook-migration -n spellbook && exit 1 &
+          kubectl wait --timeout=120s --for=condition=failed job/spellbook-migration -n spellbook && exit 1 &
           failure_pid=$!
           exit_code=0
           if wait -n $completion_pid $failure_pid; then

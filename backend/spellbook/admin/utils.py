@@ -24,6 +24,10 @@ def upper_oracle_symbols(text: str):
     return re.sub(r'\{' + ORACLE_SYMBOL + r'\}', lambda m: m.group(0).upper(), text, flags=re.IGNORECASE)
 
 
+def add_curly_brackets_to_oracle_symbols(text: str):
+    return re.sub(r'\{?(' + ORACLE_SYMBOL + r')\}?', r'{\1}', text, flags=re.IGNORECASE)
+
+
 class NormalizedTextareaWidget(Textarea):
     def value_from_datadict(self, data, files, name: str):
         return normalize_newlines(super().value_from_datadict(data, files, name))
@@ -39,7 +43,8 @@ class SpellbookModelAdmin(ModelAdmin):
 
         def clean_mana_needed(self):
             if self.cleaned_data['mana_needed']:
-                result = upper_oracle_symbols(self.cleaned_data['mana_needed'])
+                result = add_curly_brackets_to_oracle_symbols(self.cleaned_data['mana_needed'])
+                result = upper_oracle_symbols(result)
                 return result
             return self.cleaned_data['mana_needed']
         form.clean_mana_needed = clean_mana_needed

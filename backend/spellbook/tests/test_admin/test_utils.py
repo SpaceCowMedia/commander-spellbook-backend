@@ -31,4 +31,4 @@ class TestAddCurlyBracketsToOracleSymbols(TestCase):
         self.assertEqual(add_curly_brackets_to_oracle_symbols('2/W/PU12BR/PG'), r'{2/W/P}{U}{12}{B}{R/P}{G}')
 
     def test_hybrid_mana_with_multiple_symbols_with_curly_brackets(self):
-        self.assertEqual(add_curly_brackets_to_oracle_symbols('{2/W/P}U12{B}R/P{G}'), r'{2/W/P}{U}{12}{B}{R/P}{G}')
+        self.assertEqual(add_curly_brackets_to_oracle_symbols('11}2/W/PU{12}{B}{1}2R/P{G}'), r'{11}{2/W/P}{U}{12}{B}{1}{2}{R/P}{G}')

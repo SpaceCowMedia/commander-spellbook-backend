@@ -2,6 +2,7 @@ from typing import Iterable
 from django.db import models
 from django.dispatch import receiver
 from django.db.models.signals import post_save
+from django.utils.html import format_html
 from sortedm2m.fields import SortedManyToManyField
 from .playable import Playable
 from .mixins import ScryfallLinkMixin, PreSaveModelMixin
@@ -79,11 +80,11 @@ class Variant(Playable, PreSaveModelMixin, ScryfallLinkMixin):
             models.Index(fields=['-updated']),
         ]
 
-    def cards(self):
-        return self.uses.order_by('cardinvariant')
+    def cards(self) -> list[Card]:
+        return list(self.uses.order_by('cardinvariant'))
 
-    def templates(self):
-        return self.requires.order_by('templateinvariant')
+    def templates(self) -> list[Template]:
+        return list(self.requires.order_by('templateinvariant'))
 
     def __str__(self):
         if self.pk is None:
@@ -124,6 +125,10 @@ class Variant(Playable, PreSaveModelMixin, ScryfallLinkMixin):
         self.price_cardmarket = sum(playable.price_cardmarket for playable in cards)
         new_values = {field: getattr(self, field) for field in self.playable_fields()}
         return old_values != new_values
+
+    def spellbook_link(self):
+        link = f'https://commanderspellbook.com/combo/{self.id}'
+        return format_html(f'<a href="{link}" target="_blank">Show combo on Commander Spellbook</a>')
 
 
 class CardInVariant(IngredientInCombination):

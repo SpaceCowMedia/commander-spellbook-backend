@@ -53,11 +53,11 @@ class Combo(models.Model, ScryfallLinkMixin):
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, editable=False)
 
-    def cards(self):
-        return self.uses.order_by('cardincombo')
+    def cards(self) -> list[Card]:
+        return list(self.uses.order_by('cardincombo'))
 
-    def templates(self):
-        return self.requires.order_by('templateincombo')
+    def templates(self) -> list[Template]:
+        return list(self.requires.order_by('templateincombo'))
 
     class Meta:
         ordering = ['created']

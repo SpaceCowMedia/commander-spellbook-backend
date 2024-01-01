@@ -6,13 +6,19 @@ from .scryfall import SCRYFALL_WEBSITE_CARD_SEARCH
 
 
 class ScryfallLinkMixin:
-    def query_string(self):
-        cards_query = ' or '.join(f'!"{card.name}"' for card in self.cards())
+    def cards(self) -> list:
+        raise NotImplementedError
+
+    def query_string(self, cards: list | None = None):
+        cards = cards or self.cards()
+        cards_query = ' or '.join(f'!"{card.name}"' for card in cards)
         return urlencode({'q': cards_query})
 
     def scryfall_link(self):
-        link = f'{SCRYFALL_WEBSITE_CARD_SEARCH}?{self.query_string()}'
-        return format_html(f'<a href="{link}" target="_blank">Show cards on scryfall</a>')
+        cards = self.cards()
+        link = f'{SCRYFALL_WEBSITE_CARD_SEARCH}?{self.query_string(cards=cards)}'
+        plural = 's' if len(cards) > 1 else ''
+        return format_html(f'<a href="{link}" target="_blank">Show card{plural} on scryfall</a>')
 
 
 class PreSaveManager(Manager):

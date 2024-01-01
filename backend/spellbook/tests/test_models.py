@@ -155,9 +155,9 @@ class ComboTests(AbstractModelTests):
     def test_ingredients(self):
         for c in Combo.objects.all():
             cic = sorted(c.cardincombo_set.all(), key=lambda x: x.order)
-            self.assertEqual(list(c.cards()), list(map(lambda x: x.card, cic)))
+            self.assertEqual(c.cards(), list(map(lambda x: x.card, cic)))
             tic = sorted(c.templateincombo_set.all(), key=lambda x: x.order)
-            self.assertEqual(list(c.templates()), list(map(lambda x: x.template, tic)))
+            self.assertEqual(c.templates(), list(map(lambda x: x.template, tic)))
 
     def test_query_string(self):
         c = Combo.objects.get(id=self.b1_id)
@@ -245,7 +245,7 @@ class JobTests(AbstractModelTests):
 class VariantTests(AbstractModelTests):
     def setUp(self):
         super().setUp()
-        super().generate_variants()
+        self.generate_variants()
         self.v1_id = id_from_cards_and_templates_ids([self.c8_id, self.c1_id], [self.t1_id])
         self.v2_id = id_from_cards_and_templates_ids([self.c3_id, self.c1_id, self.c2_id], [self.t1_id])
         self.v3_id = id_from_cards_and_templates_ids([self.c5_id, self.c6_id, self.c2_id, self.c3_id], [self.t1_id])
@@ -254,9 +254,9 @@ class VariantTests(AbstractModelTests):
     def test_variant_fields(self):
         v = Variant.objects.get(id=self.v1_id)
         self.assertSetEqual(set(v.uses.values_list('id', flat=True)), {self.c8_id, self.c1_id})
-        self.assertSetEqual(set(v.cards().values_list('id', flat=True)), {self.c8_id, self.c1_id})
+        self.assertSetEqual(set(c.id for c in v.cards()), {self.c8_id, self.c1_id})
         self.assertSetEqual(set(v.requires.values_list('id', flat=True)), {self.t1_id})
-        self.assertSetEqual(set(v.templates().values_list('id', flat=True)), {self.t1_id})
+        self.assertSetEqual(set(t.id for t in v.templates()), {self.t1_id})
         self.assertSetEqual(set(v.produces.values_list('id', flat=True)), {self.f4_id, self.f2_id})
         self.assertSetEqual(set(v.includes.values_list('id', flat=True)), {self.b4_id, self.b2_id})
         self.assertSetEqual(set(v.of.values_list('id', flat=True)), {self.b2_id})
@@ -270,13 +270,18 @@ class VariantTests(AbstractModelTests):
         self.assertEqual(v.generated_by.id, Job.objects.get(name='generate_variants').id)
         self.assertEqual(v.legal_commander, True)
         self.assertEqual(v.spoiler, False)
+        self.assertEqual(v.description_line_count, v.description.count('\n') + 1)
+        self.assertEqual(v.other_prerequisites_line_count, v.other_prerequisites.count('\n') + 1)
+        self.assertEqual(v.mana_value_needed, 4)
+        self.assertEqual(v.popularity, None)
+        self.assertIn(v.id, v.spellbook_link())
 
     def test_ingredients(self):
         for v in Variant.objects.all():
             civ = sorted(v.cardinvariant_set.all(), key=lambda x: x.order)
-            self.assertEqual(list(v.cards()), list(map(lambda x: x.card, civ)))
+            self.assertEqual(v.cards(), list(map(lambda x: x.card, civ)))
             tiv = sorted(v.templateinvariant_set.all(), key=lambda x: x.order)
-            self.assertEqual(list(v.templates()), list(map(lambda x: x.template, tiv)))
+            self.assertEqual(v.templates(), list(map(lambda x: x.template, tiv)))
 
     def test_query_string(self):
         v = Variant.objects.get(id=self.v1_id)
@@ -286,7 +291,7 @@ class VariantTests(AbstractModelTests):
         self.assertTrue(v.query_string().startswith('q='))
 
     def test_method_count(self):
-        self.assertEqual(count_methods(Variant), 6)
+        self.assertEqual(count_methods(Variant), 7)
 
     def test_update(self):
         v = Variant.objects.get(id=self.v1_id)

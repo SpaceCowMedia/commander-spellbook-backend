@@ -1,4 +1,3 @@
-from urllib.parse import urlencode
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.dispatch import receiver
@@ -67,8 +66,8 @@ class Card(Playable, PreSaveModelMixin, ScryfallLinkMixin):
     def __str__(self):
         return self.name
 
-    def query_string(self):
-        return urlencode({'q': f'!"{self.name}"'})
+    def cards(self):
+        return [self]
 
     def pre_save(self):
         self.name_unaccented = strip_accents(self.name)

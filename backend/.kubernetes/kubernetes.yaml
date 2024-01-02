@@ -156,7 +156,8 @@ metadata:
     alb.ingress.kubernetes.io/actions.ssl-redirect: '{"Type": "redirect", "RedirectConfig": { "Protocol": "HTTPS", "Port": "443", "StatusCode": "HTTP_301"}}'
 spec:
   rules:
-    - http:
+    - host: backend.commanderspellbook.com
+      http:
         paths:
           - path: /
             pathType: Prefix
@@ -170,6 +171,23 @@ spec:
             backend:
               service:
                 name: spellbook-api-service
+                port:
+                  number: 80
+    - host: commanderspellbook.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ssl-redirect
+                port:
+                  name: use-annotation
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: spellbook-client-service
                 port:
                   number: 80
 ---
@@ -206,4 +224,39 @@ spec:
     groupIds:
       - sg-010cc2542954759b3
       - sg-08c982cb0b6242f63
+
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: spellbook-ns-full-access
+  namespace: spellbook
+rules:
+  - apiGroups: [""]
+    resources: ["*"]
+    verbs: ["*"]
+  - apiGroups: ["extensions"]
+    resources: ["*"]
+    verbs: ["*"]
+  - apiGroups: ["apps"]
+    resources: ["*"]
+    verbs: ["*"]
+  - apiGroups: ["batch"]
+    resources: ["*"]
+    verbs: ["*"]
+
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: spellbook-rolebinding
+  namespace: spellbook
+subjects:
+  - kind: Group
+    name: spellbook-admins
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: spellbook-ns-full-access
+  apiGroup: rbac.authorization.k8s.io
 

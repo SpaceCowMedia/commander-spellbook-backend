@@ -122,7 +122,7 @@ def update_cards(cards: list[Card], scryfall: dict[str, dict], log=lambda t: pri
             card.legal_oathbreaker = card_legalities['oathbreaker'] == 'legal'
             card.legal_predh = card_legalities['predh'] == 'legal'
             card.legal_brawl = card_legalities['brawl'] == 'legal'
-            card.legal_vintage = card_legalities['vintage'] == 'legal'
+            card.legal_vintage = card_legalities['vintage'] in ('legal', 'restricted')
             card.legal_legacy = card_legalities['legacy'] == 'legal'
             card.legal_modern = card_legalities['modern'] == 'legal'
             card.legal_pioneer = card_legalities['pioneer'] == 'legal'

@@ -17,11 +17,22 @@ class Deck:
     commanders: set[int]
 
 
-class PlainTextDeckListParser(parsers.BaseParser):
-    media_type = 'text/plain'
-
+class DeckListParserMixin:
     def __init__(self):
         self.cards_dict: dict[str, int] = {name.lower(): id for name, id in Card.objects.values_list('name', 'id')}
+        self.reverse_cards_dict: dict[int, str] = {id: name for name, id in self.cards_dict.items()}
+
+    def handle_next_line(self, line: str, card_set: set[int]):
+        if line in self.cards_dict:
+            card_set.add(self.cards_dict[line])
+        elif line.isdigit():
+            card_id = int(line)
+            if card_id in self.reverse_cards_dict:
+                card_set.add(card_id)
+
+
+class PlainTextDeckListParser(parsers.BaseParser, DeckListParserMixin):
+    media_type = 'text/plain'
 
     def parse(self, stream, media_type=None, parser_context=None) -> Deck:
         parser_context = parser_context or {}
@@ -38,15 +49,12 @@ class PlainTextDeckListParser(parsers.BaseParser):
                 current_set = commanders
             elif line.startswith('//'):
                 current_set = main_cards
-            elif line in self.cards_dict:
-                current_set.add(self.cards_dict[line])
+            else:
+                self.handle_next_line(line, current_set)
         return Deck(cards=main_cards, commanders=commanders)
 
 
-class JsonDeckListParser(parsers.JSONParser):
-    def __init__(self):
-        self.cards_dict: dict[str, int] = {name.lower(): id for name, id in Card.objects.values_list('name', 'id')}
-
+class JsonDeckListParser(parsers.JSONParser, DeckListParserMixin):
     def parse(self, stream, media_type=None, parser_context=None) -> Deck:
         json: dict[str, list[str]] = super().parse(stream, media_type, parser_context)
         main_cards = set[int]()
@@ -56,15 +64,13 @@ class JsonDeckListParser(parsers.JSONParser):
             for commander in commanders_json[:500]:
                 if isinstance(commander, str):
                     commander = commander.strip().lower()
-                    if commander in self.cards_dict:
-                        commanders.add(self.cards_dict[commander])
+                    self.handle_next_line(commander, commanders)
         main_json = json.get('main', [])
         if isinstance(main_json, list):
             for card in main_json[:500]:
                 if isinstance(card, str):
                     card = card.strip().lower()
-                    if card in self.cards_dict:
-                        main_cards.add(self.cards_dict[card])
+                    self.handle_next_line(card, main_cards)
         return Deck(cards=main_cards, commanders=commanders)
 
 

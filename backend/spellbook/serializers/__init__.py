@@ -9,3 +9,4 @@ from .template_serializer import TemplateSerializer
 from .user_serializer import UserSerializer
 from .variant_serializer import VariantSerializer
 from .variant_suggestion_serializer import VariantSuggestionSerializer
+from .variant_alias_serializer import VariantAliasSerializer

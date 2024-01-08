@@ -72,33 +72,35 @@ class FindMyCombosViewTests(AbstractModelTests):
     def test_find_my_combos_views(self):
         c = Client()
         for content_type in ['text/plain', 'application/json']:
-            with self.subTest('empty input'):
-                response = c.get('/find-my-combos', follow=True, headers={'Content-Type': content_type})
-                self.assertEqual(response.status_code, 200)
-                self.assertEqual(response.get('Content-Type'), 'application/json')
-                result = json.loads(response.content, object_hook=json_to_python_lambda)
-                self.assertEqual(result.results.identity, 'C')
-                self.assertEqual(len(result.results.included), 0)
-                self.assertEqual(len(result.results.almost_included), 0)
-                self.assertEqual(len(result.results.almost_included_by_adding_colors), 0)
-            with self.subTest('single card'):
-                card = Card.objects.get(oracle_id='00000000-0000-0000-0000-000000000001')
-                if 'json' in content_type:
-                    deck_list = json.dumps({'main': [card.name]})
-                else:
-                    deck_list = card.name
-                identity = card.identity
-                response = c.generic('GET', '/find-my-combos', data=deck_list, follow=True, headers={'Content-Type': content_type})
-                self.assertEqual(response.status_code, 200)
-                self.assertEqual(response.get('Content-Type'), 'application/json')
-                result = json.loads(response.content, object_hook=json_to_python_lambda)
-                self.assertEqual(result.results.identity, identity)
-                self.assertEqual(len(result.results.included), 0)
-                self.assertEqual(len(result.results.almost_included), 2)
-                self.assertEqual(len(result.results.almost_included_by_adding_colors), 0)
-                self.assertEqual(len(result.results.almost_included_by_changing_commanders), 0)
-                self.assertEqual(len(result.results.almost_included_by_adding_colors_and_changing_commanders), 0)
-                self._check_result(result, identity, {card.name}, set())
+            for using_ids in [False, True]:
+                with self.subTest('empty input'):
+                    response = c.get('/find-my-combos', follow=True, headers={'Content-Type': content_type})
+                    self.assertEqual(response.status_code, 200)
+                    self.assertEqual(response.get('Content-Type'), 'application/json')
+                    result = json.loads(response.content, object_hook=json_to_python_lambda)
+                    self.assertEqual(result.results.identity, 'C')
+                    self.assertEqual(len(result.results.included), 0)
+                    self.assertEqual(len(result.results.almost_included), 0)
+                    self.assertEqual(len(result.results.almost_included_by_adding_colors), 0)
+                with self.subTest('single card'):
+                    card = Card.objects.get(oracle_id='00000000-0000-0000-0000-000000000001')
+                    card_str = str(card.id) if using_ids else card.name
+                    if 'json' in content_type:
+                        deck_list = json.dumps({'main': [card_str]})
+                    else:
+                        deck_list = card_str
+                    identity = card.identity
+                    response = c.generic('GET', '/find-my-combos', data=deck_list, follow=True, headers={'Content-Type': content_type})
+                    self.assertEqual(response.status_code, 200)
+                    self.assertEqual(response.get('Content-Type'), 'application/json')
+                    result = json.loads(response.content, object_hook=json_to_python_lambda)
+                    self.assertEqual(result.results.identity, identity)
+                    self.assertEqual(len(result.results.included), 0)
+                    self.assertEqual(len(result.results.almost_included), 2)
+                    self.assertEqual(len(result.results.almost_included_by_adding_colors), 0)
+                    self.assertEqual(len(result.results.almost_included_by_changing_commanders), 0)
+                    self.assertEqual(len(result.results.almost_included_by_adding_colors_and_changing_commanders), 0)
+                    self._check_result(result, identity, {card.name}, set())
             card_names = list(Card.objects.values_list('name', flat=True))
             for card_count in [4, Card.objects.count()]:
                 for commander_count in [0, 1, 2, 4]:

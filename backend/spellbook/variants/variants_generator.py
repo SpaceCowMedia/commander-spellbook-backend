@@ -5,7 +5,7 @@ from django.db import transaction
 from .list_utils import includes_any
 from .variant_data import RestoreData, Data, debug_queries
 from .combo_graph import Graph
-from spellbook.models import Combo, Job, Variant, CardInVariant, TemplateInVariant, IngredientInCombination, id_from_cards_and_templates_ids, Playable, Card
+from spellbook.models import Combo, Job, Variant, CardInVariant, TemplateInVariant, IngredientInCombination, id_from_cards_and_templates_ids, Playable, Card, VariantAlias
 from spellbook.utils import log_into_job
 
 
@@ -293,6 +293,12 @@ def perform_bulk_saves(to_create: list[VariantBulkSaveItem], to_update: list[Var
             feature_id=f) for v in chain(to_create, to_update) for f in v.produces])
 
 
+def sync_variant_aliases(added_variants_ids: set[str], deleted_variants_ids: set[str]) -> tuple[int, int]:
+    deleted_count, _ = VariantAlias.objects.filter(id__in=added_variants_ids).delete()
+    added_count = len(VariantAlias.objects.bulk_create([VariantAlias(id=id) for id in deleted_variants_ids], ignore_conflicts=True))
+    return added_count, deleted_count
+
+
 def generate_variants(job: Job | None = None) -> tuple[int, int, int]:
     logging.info('Fetching data...')
     log_into_job(job, 'Fetching data...')
@@ -336,9 +342,11 @@ def generate_variants(job: Job | None = None) -> tuple[int, int, int]:
         logging.info(f'Added {len(added)} new variants.')
         logging.info(f'Updated {len(restored)} variants.')
         delete_query = data.variants.filter(id__in=to_delete)
-        deleted = delete_query.count()
+        deleted_count = delete_query.count()
         delete_query.delete()
-        logging.info(f'Deleted {deleted} variants...')
+        logging.info(f'Deleted {deleted_count} variants...')
+        added_aliases, deleted_aliases = sync_variant_aliases(added, to_delete)
+        logging.info(f'Added {added_aliases} new aliases, deleted {deleted_aliases} aliases.')
         logging.info('Done.')
         debug_queries(True)
-        return len(added), len(restored), deleted
+        return len(added), len(restored), deleted_count

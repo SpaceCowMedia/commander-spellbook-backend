@@ -4,3 +4,4 @@ from .features import FeatureViewSet
 from .variants import VariantViewSet
 from .find_my_combos import find_my_combos
 from .variant_suggestions import VariantSuggestionViewSet
+from .variant_aliases import VariantAliasViewSet

@@ -7,4 +7,5 @@ from .combo import Combo, CardInCombo, TemplateInCombo
 from .variant import Variant, CardInVariant, TemplateInVariant
 from .job import Job
 from .variant_suggestion import VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, FeatureProducedInVariantSuggestion
+from .variant_alias import VariantAlias
 from .utils import id_from_cards_and_templates_ids, merge_identities

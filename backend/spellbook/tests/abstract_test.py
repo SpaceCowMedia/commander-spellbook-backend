@@ -3,7 +3,7 @@ import random
 import uuid
 from django.test import TestCase
 from django.conf import settings
-from spellbook.models import Combo, CardInCombo, TemplateInCombo, Card, Feature, Template, IngredientInCombination, VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, FeatureProducedInVariantSuggestion
+from spellbook.models import Card, Feature, Combo, CardInCombo, Template, TemplateInCombo, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, FeatureProducedInVariantSuggestion, VariantSuggestion, VariantAlias, IngredientInCombination
 from spellbook.utils import launch_job_command
 
 
@@ -99,6 +99,8 @@ class AbstractModelTests(TestCase):
         TemplateRequiredInVariantSuggestion.objects.create(template=t1.name, variant=s1, order=1, zone_locations=IngredientInCombination.ZoneLocation.GRAVEYARD, graveyard_card_state='on top')
         FeatureProducedInVariantSuggestion.objects.create(feature=f1.name, variant=s1)
 
+        a1 = VariantAlias.objects.create(id='1', description='a1')
+
         # Save ids
         self.c1_id = c1.id
         self.c2_id = c2.id
@@ -121,3 +123,4 @@ class AbstractModelTests(TestCase):
         self.b6_id = b6.id
         self.b7_id = b7.id
         self.s1_id = s1.id
+        self.a1_id = a1.id

@@ -85,3 +85,7 @@ class VariantsGeneratorTests(AbstractModelTests):
             Combo.objects.filter(kind__in=(Combo.Kind.GENERATOR, Combo.Kind.GENERATOR_WITH_MANY_CARDS)).update(kind=Combo.Kind.DRAFT)
             generate_variants()
             self.assertEqual(Variant.objects.count(), 0)
+
+    def test_variant_aliases_update(self):
+        # TODO: Implement
+        pass

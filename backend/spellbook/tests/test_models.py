@@ -4,7 +4,7 @@ from django.utils import timezone
 from django.contrib.auth.models import User
 from common.inspection import count_methods
 from .abstract_test import AbstractModelTests
-from spellbook.models import merge_identities, Card, Feature, Template, Combo, Job, IngredientInCombination, Variant, VariantSuggestion, CardUsedInVariantSuggestion
+from spellbook.models import merge_identities, Card, Feature, Template, Combo, Job, IngredientInCombination, Variant, VariantSuggestion, CardUsedInVariantSuggestion, VariantAlias
 from spellbook.models.scryfall import SCRYFALL_API_ROOT, SCRYFALL_WEBSITE_CARD_SEARCH
 from spellbook.models import id_from_cards_and_templates_ids
 from django.core.exceptions import ValidationError
@@ -358,3 +358,14 @@ class VariantSuggestionTests(AbstractModelTests):
         s = VariantSuggestion.objects.get(id=self.s1_id)
         c = CardUsedInVariantSuggestion(card='A card', variant=s, order=1, zone_locations=IngredientInCombination.ZoneLocation.COMMAND_ZONE)
         self.assertRaises(ValidationError, lambda: c.full_clean())
+
+
+class VariantAliasTests(AbstractModelTests):
+    def test_variant_alias_fields(self):
+        a = VariantAlias.objects.get(id=self.a1_id)
+        self.assertEqual(a.id, '1')
+        self.assertEqual(a.description, 'a1')
+        self.assertEqual(a.variant, None)
+
+    def test_method_count(self):
+        self.assertEqual(count_methods(VariantAlias), 1)

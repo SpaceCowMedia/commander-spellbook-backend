@@ -44,8 +44,8 @@ class VariantSuggestionsTests(AbstractModelTests):
         result = json.loads(response.content, object_hook=json_to_python_lambda)
         suggestions_count = VariantSuggestion.objects.count()
         self.assertEqual(len(result.results), suggestions_count)
-        for i in range(suggestions_count):
-            self.suggestion_assertions(result.results[i])
+        for suggestion_result in result.results:
+            self.suggestion_assertions(suggestion_result)
 
     def test_suggestion_detail_view(self):
         response = self.client.get(f'/variant-suggestions/{self.s1_id}', follow=True)

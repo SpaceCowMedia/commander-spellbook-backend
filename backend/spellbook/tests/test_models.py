@@ -1,5 +1,5 @@
-from unittest import TestCase
 from urllib.parse import quote_plus
+from django.test import TestCase
 from django.utils import timezone
 from django.contrib.auth.models import User
 from common.inspection import count_methods
@@ -369,3 +369,18 @@ class VariantAliasTests(AbstractModelTests):
 
     def test_method_count(self):
         self.assertEqual(count_methods(VariantAlias), 1)
+
+
+class KeywordsFieldTests(TestCase):
+    def test_new_card_with_empty_keywords(self):
+        c = Card(name='A', oracle_id='00000000-0000-0000-0000-000000000001')
+        c.save()
+
+    def test_new_card_with_some_keywords(self):
+        c = Card(name='A', oracle_id='00000000-0000-0000-0000-000000000001', keywords=['A', 'B'])
+        c.save()
+
+    def test_new_card_with_wrong_keywords(self):
+        c = Card(name='A', oracle_id='00000000-0000-0000-0000-000000000001', keywords=[{}, 1])
+        c.save()
+        self.assertRaises(ValidationError, lambda: c.full_clean())

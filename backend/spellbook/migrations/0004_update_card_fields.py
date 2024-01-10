@@ -23,7 +23,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='card',
             name='keywords',
-            field=models.JSONField(default=list, help_text='Oracle card keywords', validators=[spellbook.models.card.validate_keyword_json], verbose_name='oracle keywords of card'),
+            field=models.JSONField(default=list, help_text='Oracle card keywords', validators=[spellbook.models.fields.validate_keyword_json], verbose_name='oracle keywords of card'),
         ),
         migrations.AddField(
             model_name='card',

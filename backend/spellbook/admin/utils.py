@@ -24,8 +24,10 @@ def upper_oracle_symbols(text: str):
     return re.sub(r'\{' + ORACLE_SYMBOL + r'\}', lambda m: m.group(0).upper(), text, flags=re.IGNORECASE)
 
 
-def add_curly_brackets_to_oracle_symbols(text: str):
-    return re.sub(r'\{?(' + ORACLE_SYMBOL + r')\}?', r'{\1}', text, flags=re.IGNORECASE)
+def auto_fix_missing_braces_to_oracle_symbols(text: str):
+    if re.compile(r'^' + ORACLE_SYMBOL + r'+$').match(text):
+        return re.sub(r'\{?(' + ORACLE_SYMBOL + r')\}?', r'{\1}', text, flags=re.IGNORECASE)
+    return text
 
 
 class NormalizedTextareaWidget(Textarea):
@@ -43,7 +45,7 @@ class SpellbookModelAdmin(ModelAdmin):
 
         def clean_mana_needed(self):
             if self.cleaned_data['mana_needed']:
-                result = add_curly_brackets_to_oracle_symbols(self.cleaned_data['mana_needed'])
+                result = auto_fix_missing_braces_to_oracle_symbols(self.cleaned_data['mana_needed'])
                 result = upper_oracle_symbols(result)
                 return result
             return self.cleaned_data['mana_needed']

@@ -112,7 +112,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
       - name: Install dependencies 🧶
-        run: pip install -r requirements.txt
+        run: pip install -r requirements.txt tblib --no-cache-dir
         working-directory: backend
       - name: Unit Test 🧪
         run: python manage.py test --no-input --parallel auto

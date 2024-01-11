@@ -2,6 +2,7 @@ import json
 import random
 from django.test import Client
 from spellbook.models import Card, Template, Feature, Variant, CardInVariant, TemplateInVariant
+from spellbook.serializers import VariantSerializer
 from ..abstract_test import AbstractModelTests
 from common.inspection import json_to_python_lambda
 
@@ -12,6 +13,7 @@ class VariantViewsTests(AbstractModelTests):
         super().generate_variants()
         Variant.objects.update(status=Variant.Status.OK)
         Variant.objects.filter(id__in=random.sample(list(Variant.objects.values_list('id', flat=True)), 3)).update(status=Variant.Status.EXAMPLE)
+        Variant.objects.bulk_serialize(Variant.objects.all(), serializer=VariantSerializer)
         self.v1_id = Variant.objects.first().id
 
     def variant_assertions(self, variant_result):

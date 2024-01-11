@@ -1,14 +1,13 @@
 from rest_framework import viewsets
 from rest_framework.filters import OrderingFilter
-from spellbook.models import Variant
-from spellbook.serializers import VariantSerializer
+from spellbook.models import Variant, PreSerializedSerializer
 from .query_filters import SpellbookQueryFilter
 
 
 class VariantViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = VariantSerializer.prefetch_related(Variant.objects.filter(status__in=Variant.public_statuses()))
+    queryset = Variant.serialized_objects.filter(status__in=Variant.public_statuses())
     filter_backends = [SpellbookQueryFilter, OrderingFilter]
-    serializer_class = VariantSerializer
+    serializer_class = PreSerializedSerializer
     ordering_fields = [
         'popularity',
         *Variant.prices_fields(),

@@ -17,7 +17,7 @@ DEFAULT_VARIANTS_FILE_NAME = 'variants.json'
 
 
 def prepare_variant(variant: Variant):
-    return VariantSerializer(variant).data
+    return VariantViewSet.serializer_class(variant).data
 
 
 class Command(AbstractCommand):
@@ -41,7 +41,12 @@ class Command(AbstractCommand):
     def run(self, *args, **options):
         self.log('Fetching variants from db...')
         with transaction.atomic(durable=True):
-            variants_source = list[Variant](VariantViewSet().get_queryset())
+            variants_source = list[Variant](VariantSerializer.prefetch_related(Variant.objects.filter(status__in=Variant.public_statuses())))
+        self.log('Fetching variants from db...done', self.style.SUCCESS)
+        self.log('Updating variants preserialized representation...')
+        Variant.objects.bulk_serialize(objs=variants_source, serializer=VariantSerializer, batch_size=5000)
+        self.log('Updating variants preserialized representation...done', self.style.SUCCESS)
+        self.log('Exporting variants...')
         result = {
             'timestamp': timezone.now().isoformat(),
             'version': settings.VERSION,

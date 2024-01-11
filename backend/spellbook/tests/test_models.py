@@ -4,10 +4,11 @@ from django.utils import timezone
 from django.contrib.auth.models import User
 from common.inspection import count_methods
 from .abstract_test import AbstractModelTests
-from spellbook.models import merge_identities, Card, Feature, Template, Combo, Job, IngredientInCombination, Variant, VariantSuggestion, CardUsedInVariantSuggestion, VariantAlias
+from spellbook.models import merge_identities, Card, Feature, Template, Combo, Job, IngredientInCombination, Variant, VariantSuggestion, CardUsedInVariantSuggestion, VariantAlias, PreSerializedSerializer
 from spellbook.models.scryfall import SCRYFALL_API_ROOT, SCRYFALL_WEBSITE_CARD_SEARCH
 from spellbook.models import id_from_cards_and_templates_ids
 from django.core.exceptions import ValidationError
+from spellbook.serializers import VariantSerializer
 
 
 class UtilsTests(TestCase):
@@ -297,6 +298,20 @@ class VariantTests(AbstractModelTests):
         v = Variant.objects.get(id=self.v1_id)
         self.assertFalse(v.update(v.uses.all(), False))
         # TODO: test update
+
+    def test_serialization(self):
+        v = Variant.objects.get(id=self.v1_id)
+        v.update_serialized(serializer=VariantSerializer)
+        self.assertIsNotNone(v.serialized)
+        self.assertIn('id', v.serialized)  # type: ignore
+        self.assertFalse(Variant.serialized_objects.filter(id=self.v1_id).exists())
+        v.save()
+        self.assertTrue(Variant.serialized_objects.filter(id=self.v1_id).exists())
+        v = Variant.serialized_objects.get(id=self.v1_id)
+        self.assertIsNotNone(v.serialized)
+        self.assertIn('id', v.serialized)  # type: ignore
+        r = PreSerializedSerializer(v).data
+        self.assertEqual(r, v.serialized)
 
 
 class VariantSuggestionTests(AbstractModelTests):

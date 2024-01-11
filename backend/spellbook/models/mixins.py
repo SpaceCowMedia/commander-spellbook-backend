@@ -1,7 +1,8 @@
 from typing import Iterable, List, Sequence
 from urllib.parse import urlencode
+from django.db.models import Model, Manager, QuerySet, JSONField
 from django.utils.html import format_html
-from django.db.models import Model, Manager
+from rest_framework.serializers import ModelSerializer, BaseSerializer
 from .scryfall import SCRYFALL_WEBSITE_CARD_SEARCH
 
 
@@ -45,3 +46,38 @@ class PreSaveModelMixin(Model):
 
     class Meta:
         abstract = True
+        base_manager_name = 'objects'
+
+
+class PreSaveSerializedManager(PreSaveManager):
+    def get_queryset(self) -> QuerySet:
+        return super().get_queryset().defer('serialized')
+
+    def bulk_serialize(self, objs: Iterable['PreSaveSerializedModelMixin'], serializer: type[ModelSerializer], *args, **kwargs) -> int:
+        objs = list(objs)
+        for obj in objs:
+            obj.update_serialized(serializer)
+        return super(Manager, self).bulk_update(objs, fields=['serialized'], *args, **kwargs)
+
+
+class SerializedObjectsManager(Manager):
+    def get_queryset(self) -> QuerySet:
+        return super().get_queryset().filter(serialized__isnull=False).only('serialized')
+
+
+class PreSaveSerializedModelMixin(PreSaveModelMixin):
+    objects = PreSaveSerializedManager()
+    serialized_objects = SerializedObjectsManager()
+    serialized = JSONField(null=True, blank=True, editable=False)
+
+    def update_serialized(self, serializer: type[ModelSerializer]) -> None:
+        self.serialized = serializer(self).data
+
+    class Meta:
+        abstract = True
+        base_manager_name = 'objects'
+
+
+class PreSerializedSerializer(BaseSerializer):
+    def to_representation(self, instance: PreSaveSerializedModelMixin):
+        return instance.serialized

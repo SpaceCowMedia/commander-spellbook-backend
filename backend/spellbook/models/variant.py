@@ -5,7 +5,7 @@ from django.db.models.signals import post_save
 from django.utils.html import format_html
 from sortedm2m.fields import SortedManyToManyField
 from .playable import Playable
-from .mixins import ScryfallLinkMixin, PreSaveModelMixin
+from .mixins import ScryfallLinkMixin, PreSaveSerializedModelMixin
 from .card import Card
 from .template import Template
 from .feature import Feature
@@ -16,7 +16,7 @@ from .validators import TEXT_VALIDATORS, MANA_VALIDATOR
 from .utils import recipe, mana_value, merge_identities
 
 
-class Variant(Playable, PreSaveModelMixin, ScryfallLinkMixin):
+class Variant(Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
     class Status(models.TextChoices):
         NEW = 'N'
         DRAFT = 'D'

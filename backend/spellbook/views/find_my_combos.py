@@ -22,7 +22,7 @@ class RawDeck:
     commanders: list[str]
 
     def to_deck(self, cards_dict: dict[str, int]) -> Deck:
-        reverse_cards_dict: dict[int, str] = {id: name for name, id in cards_dict.items()}
+        valid_card_ids: set[int] = set(cards_dict.values())
         cards = set[int]()
         commanders = set[int]()
 
@@ -31,7 +31,7 @@ class RawDeck:
                 card_set.add(cards_dict[line])
             elif line.isdigit():
                 card_id = int(line)
-                if card_id in reverse_cards_dict:
+                if card_id in valid_card_ids:
                     card_set.add(card_id)
         for card in self.cards:
             next_card(card, cards)
@@ -107,7 +107,7 @@ def find_my_combos(request: Request) -> Response:
     paginator = pagination_class()  # type: ignore
     variants_page = paginator.paginate_queryset(variants_query, request)
 
-    identity_set = set(identity) | {'C'}
+    identity_set = set(identity) - {'C'}
     included_variants = []
     included_variants_by_changing_commanders = []
     almost_included_variants = []
@@ -119,7 +119,7 @@ def find_my_combos(request: Request) -> Response:
         variant_data: dict = VariantViewSet.serializer_class(variant).data  # type: ignore
         variant_cards = {civ['card']['id'] for civ in variant_data['uses']}
         variant_commanders = {civ['card']['id'] for civ in variant_data['uses'] if civ['must_be_commander']}
-        variant_identity = variant_data['identity']
+        variant_identity = set(variant_data['identity']) - {'C'}
         if variant_commanders.issubset(deck.commanders):
             if variant_cards.issubset(cards):
                 included_variants.append(variant_data)

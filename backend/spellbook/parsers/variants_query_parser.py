@@ -376,7 +376,7 @@ alias_map: dict[str, str] = {
 }
 
 
-SHORT_VALUE_REGEX = r'(?:[a-zA-Z0-9À-ÿ_-])+'
+SHORT_VALUE_REGEX = r'''(?:[a-zA-Z0-9À-ÿ_\-'])+'''
 LONG_VALUE_REGEX = r'(?:[^"\\]|\\")+'
 QUERY_REGEX = r'(?:\s|^)(?:(?P<card_short>)|"(?P<card_long>)"|(?P<prefix>-?)(?P<key>[a-zA-Z_]+)(?P<operator>:|=|<|>|<=|>=)(?:(?P<value_short>)|"(?P<value_long>)"))(?=\s|$)' \
     .replace(

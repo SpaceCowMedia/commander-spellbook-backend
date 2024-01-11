@@ -90,6 +90,7 @@ jobs:
 
   test:
     strategy:
+      fail-fast: false
       matrix:
         python-version:
           - '3.11'
@@ -98,7 +99,6 @@ jobs:
           - ubuntu-latest
           - windows-latest
           - macos-latest
-      max-parallel: 2
     runs-on: ${{ matrix.os }}
     defaults:
       run:

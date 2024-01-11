@@ -15,11 +15,9 @@ class IngredientInVariantSerializer(serializers.ModelSerializer):
     exile_card_state = serializers.SerializerMethodField()
     library_card_state = serializers.SerializerMethodField()
     graveyard_card_state = serializers.SerializerMethodField()
-    must_be_commander = serializers.SerializerMethodField()
+    must_be_commander = serializers.BooleanField(read_only=True)
 
     def get_zone_locations(self, obj):
-        if obj.variant.status != Variant.Status.OK:
-            return None
         return list(obj.zone_locations)
 
     def get_battlefield_card_state(self, obj):
@@ -41,11 +39,6 @@ class IngredientInVariantSerializer(serializers.ModelSerializer):
         if obj.variant.status != Variant.Status.OK:
             return None
         return obj.graveyard_card_state
-
-    def get_must_be_commander(self, obj):
-        if obj.variant.status != Variant.Status.OK:
-            return None
-        return obj.must_be_commander
 
 
 class CardInVariantSerializer(IngredientInVariantSerializer):

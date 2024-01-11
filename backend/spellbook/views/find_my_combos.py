@@ -93,8 +93,8 @@ def find_my_combos(request: Request) -> Response:
     cards_data = Card.objects.values_list('name', 'id', 'identity')
     cards_data_dict: dict[str, int] = {name.lower(): id for name, id, _ in cards_data}
     deck = raw_deck.to_deck(cards_data_dict)
-    identity = merge_identities(identity for _, id, identity in cards_data if id in deck.cards | deck.commanders)
     cards = deck.cards.union(deck.commanders)
+    identity = merge_identities(identity for _, id, identity in cards_data if id in cards)
     variants_query = VariantViewSet().get_queryset() \
         .annotate(
             matched_cards_count=Count('uses', distinct=True, filter=Q(uses__in=cards)),

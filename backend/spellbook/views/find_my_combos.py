@@ -1,14 +1,14 @@
-from django.db.models import Count, Q
+from django.db.models import Count, Q, OuterRef, Subquery, F
 from rest_framework import parsers
 from rest_framework.decorators import api_view, parser_classes, permission_classes
 from rest_framework.response import Response
 from rest_framework.request import Request
 from rest_framework.permissions import AllowAny
 from rest_framework.settings import api_settings
+from spellbook.models.variant import CardInVariant
 from spellbook.models import Card, merge_identities
 from dataclasses import dataclass
 from spellbook.views.variants import VariantViewSet
-
 
 @dataclass
 class Deck:
@@ -95,12 +95,17 @@ def find_my_combos(request: Request) -> Response:
     deck = raw_deck.to_deck(cards_data_dict)
     cards = deck.cards.union(deck.commanders)
     identity = merge_identities(identity for _, id, identity in cards_data if id in cards)
-    variants_query = VariantViewSet().get_queryset() \
-        .alias(
-            matched_cards_count=Count('cardinvariant', filter=Q(cardinvariant__card_id__in=cards)),
-            unmatched_cards_count=Count('cardinvariant', filter=~Q(cardinvariant__card_id__in=cards))) \
-        .filter(matched_cards_count__gt=0, unmatched_cards_count__lte=1) \
-        .order_by('unmatched_cards_count', '-popularity', 'id')
+
+    variant_id_list=CardInVariant.objects\
+        .values('variant')\
+        .annotate(
+            present_count=Count('variant', filter=Q(card_id__in=cards))+1,
+            total_count=Count('variant')
+        )\
+        .filter(present_count__gte=F('total_count'))\
+        .values('variant')
+    
+    variants_query = VariantViewSet().get_queryset().filter(id__in=variant_id_list)
 
     pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
     paginator = pagination_class()  # type: ignore
@@ -134,6 +139,7 @@ def find_my_combos(request: Request) -> Response:
                 almost_included_variants_by_changing_commanders.append(variant_data)
             else:
                 almost_included_variants_by_adding_colors_and_changing_commanders.append(variant_data)
+
     return paginator.get_paginated_response({
         'identity': identity,
         'included': included_variants,

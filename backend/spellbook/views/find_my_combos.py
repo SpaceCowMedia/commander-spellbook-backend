@@ -5,10 +5,10 @@ from rest_framework.response import Response
 from rest_framework.request import Request
 from rest_framework.permissions import AllowAny
 from rest_framework.settings import api_settings
+from spellbook.models.variant import CardInVariant
 from spellbook.models import Card, merge_identities
 from dataclasses import dataclass
 from spellbook.views.variants import VariantViewSet
-from spellbook.models.variant import CardInVariant
 
 @dataclass
 class Deck:
@@ -105,7 +105,7 @@ def find_my_combos(request: Request) -> Response:
         .filter(present_count__gte=F('total_count'))\
         .values('variant')
     
-    variants_query = VariantViewSet().get_queryset().filter(id__in=variant_id_list).only('id', 'serialized')
+    variants_query = VariantViewSet().get_queryset().filter(id__in=variant_id_list)
 
     pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
     paginator = pagination_class()  # type: ignore

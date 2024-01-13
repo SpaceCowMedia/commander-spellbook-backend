@@ -1,4 +1,4 @@
-from django.db.models import Count, Q, OuterRef, Subquery, F
+from django.db.models import Count, Q, F
 from rest_framework import parsers
 from rest_framework.decorators import api_view, parser_classes, permission_classes
 from rest_framework.response import Response
@@ -8,6 +8,7 @@ from rest_framework.settings import api_settings
 from spellbook.models import Card, merge_identities, CardInVariant
 from dataclasses import dataclass
 from spellbook.views.variants import VariantViewSet
+
 
 @dataclass
 class Deck:
@@ -95,15 +96,15 @@ def find_my_combos(request: Request) -> Response:
     cards = deck.cards.union(deck.commanders)
     identity = merge_identities(identity for _, id, identity in cards_data if id in cards)
 
-    variant_id_list=CardInVariant.objects\
-        .values('variant')\
+    variant_id_list = CardInVariant.objects \
+        .values('variant') \
         .annotate(
-            present_count=Count('variant', filter=Q(card_id__in=cards))+1,
+            present_count=Count('variant', filter=Q(card_id__in=cards)) + 1,
             total_count=Count('variant')
-        )\
-        .filter(present_count__gte=F('total_count'))\
+        ) \
+        .filter(present_count__gte=F('total_count')) \
         .values('variant')
-    
+
     variants_query = VariantViewSet().get_queryset().filter(id__in=variant_id_list)
 
     pagination_class = api_settings.DEFAULT_PAGINATION_CLASS

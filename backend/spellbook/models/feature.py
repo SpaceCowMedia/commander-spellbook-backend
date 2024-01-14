@@ -1,5 +1,6 @@
 from django.db import models
 from django.db.models.functions import Lower
+from django.contrib.postgres.indexes import GinIndex
 from .validators import NAME_VALIDATORS
 
 
@@ -21,6 +22,9 @@ class Feature(models.Model):
                 name='name_unique_ci',
                 violation_error_message='Feature name should be unique, ignoring case.',
             ),
+        ]
+        indexes = [
+            GinIndex(fields=['name']),
         ]
 
     def __str__(self):

@@ -2,6 +2,7 @@ from django.db import models
 from django.dispatch import receiver
 from django.db.models.signals import post_save
 from django.db.models.fields.generated import GeneratedField
+from django.contrib.postgres.indexes import GinIndex
 from .playable import Playable
 from .utils import strip_accents, simplify_card_name_on_database, simplify_card_name_with_spaces_on_database
 from .mixins import ScryfallLinkMixin, PreSaveModelMixin
@@ -54,6 +55,17 @@ class Card(Playable, PreSaveModelMixin, ScryfallLinkMixin):
         ordering = ['name']
         verbose_name = 'card'
         verbose_name_plural = 'cards'
+        indexes = [
+            GinIndex(fields=[
+                'name',
+                'name_unaccented',
+                'name_unaccented_simplified',
+                'name_unaccented_simplified_with_spaces',
+            ]),
+            GinIndex(fields=['type_line']),
+            GinIndex(fields=['oracle_text']),
+            GinIndex(fields=['keywords']),
+        ]
 
     def __str__(self):
         return self.name

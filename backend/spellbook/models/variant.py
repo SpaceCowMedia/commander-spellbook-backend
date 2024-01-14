@@ -3,6 +3,7 @@ from django.db import models
 from django.dispatch import receiver
 from django.db.models.signals import post_save
 from django.utils.html import format_html
+from django.contrib.postgres.indexes import GinIndex
 from sortedm2m.fields import SortedManyToManyField
 from .playable import Playable
 from .mixins import ScryfallLinkMixin, PreSaveSerializedModelMixin
@@ -78,6 +79,8 @@ class Variant(Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
             models.Index(fields=['-popularity']),
             models.Index(fields=['-created']),
             models.Index(fields=['-updated']),
+            GinIndex(fields=['other_prerequisites']),
+            GinIndex(fields=['description']),
         ]
 
     def cards(self) -> list[Card]:

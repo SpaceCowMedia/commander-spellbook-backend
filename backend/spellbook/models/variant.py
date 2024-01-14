@@ -10,14 +10,14 @@ from .mixins import ScryfallLinkMixin, PreSaveSerializedModelMixin
 from .card import Card
 from .template import Template
 from .feature import Feature
-from .ingredient import IngredientInCombination
+from .ingredient import IngredientInCombination, Recipe
 from .combo import Combo
 from .job import Job
 from .validators import TEXT_VALIDATORS, MANA_VALIDATOR
-from .utils import recipe, mana_value, merge_identities
+from .utils import mana_value, merge_identities
 
 
-class Variant(Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
+class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
     class Status(models.TextChoices):
         NEW = 'N'
         DRAFT = 'D'
@@ -89,11 +89,8 @@ class Variant(Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
     def templates(self) -> list[Template]:
         return list(self.requires.order_by('templateinvariant'))
 
-    def __str__(self):
-        if self.pk is None:
-            return f'New variant with unique id <{self.id}>'
-        produces = list(self.produces.all()[:4])
-        return recipe([str(card) for card in self.cards()] + [str(template) for template in self.templates()], [str(feature) for feature in produces])
+    def features_produced(self) -> list[Feature]:
+        return list(self.produces.all())
 
     def pre_save(self):
         self.mana_value_needed = mana_value(self.mana_needed)

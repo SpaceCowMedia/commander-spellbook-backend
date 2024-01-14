@@ -174,11 +174,13 @@ def restore_variant(
     templates_ordering: dict[int, tuple[int, int]] = {t: (0, 0) for t in requires}
     for i, combo in enumerate(chain(included_combos, generator_combos)):
         for j, card_in_combo in enumerate(reversed(data.combo_to_cards[combo.id])):
-            t = cards_ordering[card_in_combo.card.id]
-            cards_ordering[card_in_combo.card.id] = (t[0] + i, t[1] + j)
+            if card_in_combo.card.id in cards_ordering:
+                t = cards_ordering[card_in_combo.card.id]
+                cards_ordering[card_in_combo.card.id] = (t[0] + i, t[1] + j)
         for j, template_in_combo in enumerate(reversed(data.combo_to_templates[combo.id])):
-            t = templates_ordering[template_in_combo.template.id]
-            templates_ordering[template_in_combo.template.id] = (t[0] + i, t[1] + j)
+            if template_in_combo.template.id in templates_ordering:
+                t = templates_ordering[template_in_combo.template.id]
+                templates_ordering[template_in_combo.template.id] = (t[0] + i, t[1] + j)
 
     def uses_list():
         for i, v in enumerate(sorted(cards_ordering, key=lambda k: cards_ordering[k], reverse=True)):
@@ -234,7 +236,8 @@ def create_variant(
         job: Job | None = None):
     variant = Variant(
         id=id,
-        generated_by=job)
+        generated_by=job,
+    )
     uses, requires = restore_variant(
         variant=variant,
         included_combos=[data.id_to_combo[c_id] for c_id in variant_def.included_ids],
@@ -242,6 +245,13 @@ def create_variant(
         used_cards=[CardInVariant(card=data.id_to_card[c_id], variant=variant) for c_id in variant_def.card_ids],
         required_templates=[TemplateInVariant(template=data.id_to_template[t_id], variant=variant) for t_id in variant_def.template_ids],
         data=data
+    )
+    produces_ids = subtract_removed_features(data, variant_def.included_ids, variant_def.feature_ids) - data.utility_features_ids
+    variant.name = Variant.compute_name(
+        cards=[data.id_to_card[c_id] for c_id in variant_def.card_ids],
+        templates=[data.id_to_template[t_id] for t_id in variant_def.template_ids],
+        features_needed=[],
+        features_produced=sorted([data.id_to_feature[f_id] for f_id in produces_ids], key=lambda f: f.name),
     )
     ok = not includes_any(v=frozenset(variant_def.card_ids), others=data.not_working_variants)
     if not ok:
@@ -253,7 +263,7 @@ def create_variant(
         requires=requires,
         of=variant_def.of_ids,
         includes=variant_def.included_ids,
-        produces=subtract_removed_features(data, variant_def.included_ids, variant_def.feature_ids) - data.utility_features_ids,
+        produces=produces_ids,
     )
 
 

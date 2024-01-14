@@ -159,6 +159,8 @@ class ComboTests(AbstractModelTests):
             self.assertEqual(c.cards(), list(map(lambda x: x.card, cic)))
             tic = sorted(c.templateincombo_set.all(), key=lambda x: x.order)
             self.assertEqual(c.templates(), list(map(lambda x: x.template, tic)))
+            self.assertEqual(c.features_needed(), list(c.needs.all()))
+            self.assertEqual(c.features_produced(), list(c.produces.all()))
 
     def test_query_string(self):
         c = Combo.objects.get(id=self.b1_id)
@@ -168,7 +170,7 @@ class ComboTests(AbstractModelTests):
         self.assertTrue(c.query_string().startswith('q='))
 
     def test_method_count(self):
-        self.assertEqual(count_methods(Combo), 3)
+        self.assertEqual(count_methods(Combo), 4)
 
 
 class JobTests(AbstractModelTests):
@@ -329,8 +331,17 @@ class VariantSuggestionTests(AbstractModelTests):
         self.assertEqual('1', s.description)
         self.assertEqual(s.suggested_by, None)
 
+    def test_ingredients(self):
+        for s in VariantSuggestion.objects.all():
+            civ = sorted(s.uses.all(), key=lambda x: x.order)
+            self.assertEqual(s.cards(), civ)
+            tiv = sorted(s.requires.all(), key=lambda x: x.order)
+            self.assertEqual(s.templates(), tiv)
+            self.assertEqual(s.features_produced(), list(s.produces.all()))
+            self.assertEqual(s.features_needed(), [])
+
     def test_method_count(self):
-        self.assertEqual(count_methods(VariantSuggestion), 2)
+        self.assertEqual(count_methods(VariantSuggestion), 4)
 
     def test_validate_against_redundancy(self):
         s1 = VariantSuggestion.objects.get(id=self.s1_id)

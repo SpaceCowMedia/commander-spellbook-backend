@@ -1,14 +1,15 @@
 from django.db import models
+from django.db.models.signals import m2m_changed, post_save, post_delete
+from django.dispatch import receiver
 from .mixins import ScryfallLinkMixin
 from .card import Card
 from .feature import Feature
 from .template import Template
-from .ingredient import IngredientInCombination
+from .ingredient import IngredientInCombination, Recipe
 from .validators import MANA_VALIDATOR, TEXT_VALIDATORS
-from .utils import recipe
 
 
-class Combo(models.Model, ScryfallLinkMixin):
+class Combo(Recipe, ScryfallLinkMixin):
     class Kind(models.TextChoices):
         GENERATOR = 'G'
         UTILITY = 'U'
@@ -59,17 +60,16 @@ class Combo(models.Model, ScryfallLinkMixin):
     def templates(self) -> list[Template]:
         return list(self.requires.order_by('templateincombo'))
 
+    def features_produced(self) -> list[Feature]:
+        return list(self.produces.all())
+
+    def features_needed(self) -> list[Feature]:
+        return list(self.needs.all())
+
     class Meta:
         ordering = ['created']
         verbose_name = 'combo'
         verbose_name_plural = 'combos'
-
-    def __str__(self):
-        if self.pk is None:
-            return 'New, unsaved combo'
-        return recipe([str(card) for card in self.cards()] + [str(feature) for feature in self.needs.all()] + [str(template) for template in self.templates()],
-            [str(feature) for feature in self.produces.all()],
-            [str(feature) for feature in self.removes.all()])
 
 
 class CardInCombo(IngredientInCombination):
@@ -92,3 +92,21 @@ class TemplateInCombo(IngredientInCombination):
 
     class Meta(IngredientInCombination.Meta):
         unique_together = [('template', 'combo')]
+
+
+@receiver(m2m_changed, sender=Combo.needs.through, dispatch_uid='combo_needs_changed')
+@receiver(m2m_changed, sender=Combo.produces.through, dispatch_uid='combo_produces_changed')
+@receiver(m2m_changed, sender=Combo.removes.through, dispatch_uid='combo_removes_changed')
+def recipe_changed(sender, instance: Recipe, action: str, reverse: bool, model: models.Model, pk_set: set[int], **kwargs) -> None:
+    if action.startswith('post_'):
+        instance.name = instance._str()
+        instance.save()
+
+
+@receiver(post_save, sender=CardInCombo, dispatch_uid='combo_uses_changed')
+@receiver(post_delete, sender=CardInCombo, dispatch_uid='combo_uses_changed')
+@receiver(post_save, sender=TemplateInCombo, dispatch_uid='combo_templates_changed')
+@receiver(post_delete, sender=TemplateInCombo, dispatch_uid='combo_templates_changed')
+def recipe_changed_2(sender, instance: CardInCombo, **kwargs) -> None:
+    instance.combo.name = instance.combo._str()
+    instance.combo.save()

@@ -1,12 +1,11 @@
 from django.utils.http import urlencode
 from django.utils.html import format_html
 from django.urls import reverse, path
-from django.db.models import Count, Prefetch
+from django.db.models import Count
 from django.http import HttpRequest
 from django.shortcuts import redirect
 from django.contrib import admin, messages
-from spellbook.models import Card, Template, Feature, Variant, CardInVariant, TemplateInVariant
-from spellbook.models.utils import recipe
+from spellbook.models import Variant, CardInVariant, TemplateInVariant
 from spellbook.utils import launch_job_command
 from spellbook.parsers import variants_query_parser, NotSupportedError
 from .utils import IdentityFilter, SpellbookModelAdmin, CardsCountListFilter
@@ -107,7 +106,7 @@ class VariantAdmin(SpellbookModelAdmin):
         }),
     ]
     list_filter = ['status', CardsCountListFilter, IdentityFilter, 'legal_commander', 'spoiler']
-    list_display = ['display_name', 'id', 'status', 'identity']
+    list_display = ['__str__', 'id', 'status', 'identity']
     actions = [set_restore, set_draft, set_new, set_not_working, set_example]
     search_fields = ['id']
 
@@ -139,10 +138,6 @@ class VariantAdmin(SpellbookModelAdmin):
         if obj is None or obj.id is None or obj.requires.exists():
             inlines.append(TemplateInVariantAdminInline)
         return inlines
-
-    def display_name(self, obj):
-        return recipe([card.name for card in obj.prefetched_uses] + [template.name for template in obj.prefetched_requires],
-            [str(feature) for feature in obj.prefetched_produces])
 
     def generate(self, request: HttpRequest):
         if request.method == 'POST' and request.user.is_authenticated:
@@ -179,12 +174,7 @@ class VariantAdmin(SpellbookModelAdmin):
         return False
 
     def get_queryset(self, request):
-        return Variant.objects \
-            .prefetch_related(
-                Prefetch('uses', queryset=Card.objects.order_by('cardinvariant').only('name'), to_attr='prefetched_uses'),
-                Prefetch('requires', queryset=Template.objects.order_by('templateinvariant').only('name'), to_attr='prefetched_requires'),
-                Prefetch('produces', queryset=Feature.objects.only('name'), to_attr='prefetched_produces')) \
-            .alias(cards_count=Count('uses', distinct=True) + Count('requires', distinct=True))
+        return Variant.objects.alias(cards_count=Count('uses', distinct=True) + Count('requires', distinct=True))
 
     def get_search_results(self, request: HttpRequest, queryset, search_term: str) -> tuple[object, bool]:
         try:

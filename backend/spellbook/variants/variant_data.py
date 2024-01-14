@@ -57,6 +57,7 @@ class Data(RestoreData):
         self.id_to_combo: dict[int, Combo] = {c.id: c for c in self.combos}
         self.id_to_card: dict[int, Card] = {c.id: c for c in self.cards}
         self.id_to_template: dict[int, Template] = {t.id: t for t in self.templates}
+        self.id_to_feature: dict[int, Feature] = {f.id: f for f in self.features}
         self.card_in_variant = {(civ.card.id, civ.variant.id): civ for civ in CardInVariant.objects.select_related('card', 'variant')}
         self.template_in_variant = {(tiv.template.id, tiv.variant.id): tiv for tiv in TemplateInVariant.objects.select_related('template', 'variant')}
         self.combo_to_removed_features = fetch_removed_features(self.combos)

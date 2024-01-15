@@ -12,6 +12,7 @@ except ImportError:
 if psycopg2:
     from django.contrib.postgres.operations import BtreeGinExtension
     extra_operations = [BtreeGinExtension()]
+    print('Using BtreeGinExtension')
 else:
     extra_operations = []
 

@@ -109,6 +109,7 @@ def find_my_combos(request: Request) -> Response:
     pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
     paginator = pagination_class()  # type: ignore
     paginator.max_limit = 1000
+    paginator.default_limit = 1000
     variants_page = paginator.paginate_queryset(variants_query, request)
 
     identity_set = set(identity) - {'C'}

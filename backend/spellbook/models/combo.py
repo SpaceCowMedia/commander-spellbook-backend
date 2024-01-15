@@ -9,7 +9,22 @@ from .ingredient import IngredientInCombination, Recipe
 from .validators import MANA_VALIDATOR, TEXT_VALIDATORS
 
 
+class RecipePrefetchedManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().prefetch_related(
+            models.Prefetch('uses', queryset=Card.objects.order_by('cardincombo')),
+            'needs',
+            models.Prefetch('requires', queryset=Template.objects.order_by('templateincombo')),
+            'produces',
+            'cardincombo_set',
+            'templateincombo_set',
+        )
+
+
 class Combo(Recipe, ScryfallLinkMixin):
+    objects = models.Manager()
+    recipes_prefetched = RecipePrefetchedManager()
+
     class Kind(models.TextChoices):
         GENERATOR = 'G'
         UTILITY = 'U'
@@ -28,7 +43,8 @@ class Combo(Recipe, ScryfallLinkMixin):
         related_name='needed_by_combos',
         help_text='Features that this combo needs',
         blank=True,
-        verbose_name='needed features')
+        verbose_name='needed features',
+        through='FeatureNeededInCombo')
     requires = models.ManyToManyField(
         to=Template,
         related_name='required_by_combos',
@@ -94,19 +110,31 @@ class TemplateInCombo(IngredientInCombination):
         unique_together = [('template', 'combo')]
 
 
-@receiver(m2m_changed, sender=Combo.needs.through, dispatch_uid='combo_needs_changed')
-@receiver(m2m_changed, sender=Combo.produces.through, dispatch_uid='combo_produces_changed')
-@receiver(m2m_changed, sender=Combo.removes.through, dispatch_uid='combo_removes_changed')
+class FeatureNeededInCombo(models.Model):
+    feature = models.ForeignKey(to=Feature, on_delete=models.CASCADE)
+    combo = models.ForeignKey(to=Combo, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f'{self.feature} needed in combo {self.combo.pk}'
+
+    class Meta:
+        unique_together = [('feature', 'combo')]
+
+
+@receiver(m2m_changed, sender=Combo.needs.through, dispatch_uid='combo_needs_changed2')
+@receiver(m2m_changed, sender=Combo.produces.through, dispatch_uid='combo_produces_changed2')
+@receiver(m2m_changed, sender=Combo.removes.through, dispatch_uid='combo_removes_changed2')
 def recipe_changed(sender, instance: Recipe, action: str, reverse: bool, model: models.Model, pk_set: set[int], **kwargs) -> None:
     if action.startswith('post_'):
         instance.name = instance._str()
         instance.save()
 
 
-@receiver(post_save, sender=CardInCombo, dispatch_uid='combo_uses_changed')
-@receiver(post_delete, sender=CardInCombo, dispatch_uid='combo_uses_changed')
-@receiver(post_save, sender=TemplateInCombo, dispatch_uid='combo_templates_changed')
-@receiver(post_delete, sender=TemplateInCombo, dispatch_uid='combo_templates_changed')
+@receiver([post_save, post_delete], sender=Combo.uses.through, dispatch_uid='combo_uses_changed')
+@receiver([post_save, post_delete], sender=Combo.requires.through, dispatch_uid='combo_templates_changed')
+@receiver([post_save, post_delete], sender=Combo.needs.through, dispatch_uid='combo_needs_changed')
+@receiver([post_save, post_delete], sender=Combo.produces.through, dispatch_uid='combo_produces_changed')
+@receiver([post_save, post_delete], sender=Combo.removes.through, dispatch_uid='combo_removes_changed')
 def recipe_changed_2(sender, instance: CardInCombo, **kwargs) -> None:
     instance.combo.name = instance.combo._str()
     instance.combo.save()

@@ -6,7 +6,7 @@ from django.utils.html import format_html
 from django.contrib.postgres.indexes import GinIndex
 from sortedm2m.fields import SortedManyToManyField
 from .playable import Playable
-from .mixins import ScryfallLinkMixin, PreSaveSerializedModelMixin
+from .mixins import ScryfallLinkMixin, PreSaveSerializedModelMixin, PreSaveSerializedManager
 from .card import Card
 from .template import Template
 from .feature import Feature
@@ -17,7 +17,20 @@ from .validators import TEXT_VALIDATORS, MANA_VALIDATOR
 from .utils import mana_value, merge_identities
 
 
+class RecipePrefetchedManager(PreSaveSerializedManager):
+    def get_queryset(self):
+        return super().get_queryset().prefetch_related(
+            models.Prefetch('uses', queryset=Card.objects.order_by('cardinvariant')),
+            models.Prefetch('requires', queryset=Template.objects.order_by('templateinvariant')),
+            'produces',
+            'cardinvariant_set',
+            'templateinvariant_set',
+        )
+
+
 class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
+    recipes_prefetched = RecipePrefetchedManager()
+
     class Status(models.TextChoices):
         NEW = 'N'
         DRAFT = 'D'

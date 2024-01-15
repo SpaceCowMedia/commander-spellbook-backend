@@ -73,9 +73,15 @@ class Recipe(models.Model):
         return self._str()
 
     @classmethod
-    def compute_name(cls, cards: list[Card], templates: list[Template], features_needed: list[Feature], features_produced: list[Feature]) -> str:
+    def compute_name(
+        cls,
+        cards: list[Card],
+        templates: list[Template],
+        features_needed: list[Feature],
+        features_produced: list[Feature]
+    ) -> str:
         return recipe(
-            [str(card) for card in cards] + [str(template) for template in templates] + [str(feature) for feature in features_needed],
+            [str(card) for card in cards] + [str(feature) for feature in features_needed] + [str(template) for template in templates],
             [str(feature) for feature in features_produced][:4]
         )
 

@@ -122,12 +122,9 @@ class FeatureProducedInVariantSuggestion(models.Model):
         ordering = ['feature', 'id']
 
 
-@receiver(post_save, sender=CardUsedInVariantSuggestion, dispatch_uid='card_used_in_variant_suggestion_saved')
-@receiver(post_save, sender=TemplateRequiredInVariantSuggestion, dispatch_uid='template_required_in_variant_suggestion_saved')
-@receiver(post_save, sender=FeatureProducedInVariantSuggestion, dispatch_uid='feature_produced_in_variant_suggestion_saved')
-@receiver(post_delete, sender=CardUsedInVariantSuggestion, dispatch_uid='card_used_in_variant_suggestion_deleted')
-@receiver(post_delete, sender=TemplateRequiredInVariantSuggestion, dispatch_uid='template_required_in_variant_suggestion_deleted')
-@receiver(post_delete, sender=FeatureProducedInVariantSuggestion, dispatch_uid='feature_produced_in_variant_suggestion_deleted')
+@receiver([post_save, post_delete], sender=CardUsedInVariantSuggestion, dispatch_uid='card_used_in_variant_suggestion_saved')
+@receiver([post_save, post_delete], sender=TemplateRequiredInVariantSuggestion, dispatch_uid='template_required_in_variant_suggestion_saved')
+@receiver([post_save, post_delete], sender=FeatureProducedInVariantSuggestion, dispatch_uid='feature_produced_in_variant_suggestion_saved')
 def update_variant_suggestion_name(sender, instance, **kwargs):
     variant_suggestion = instance.variant
     variant_suggestion.name = variant_suggestion._str()

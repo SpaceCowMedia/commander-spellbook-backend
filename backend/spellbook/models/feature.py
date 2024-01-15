@@ -1,4 +1,6 @@
 from django.db import models
+from django.dispatch import receiver
+from django.db.models.signals import post_save
 from django.db.models.functions import Lower
 from django.contrib.postgres.indexes import GinIndex
 from .validators import NAME_VALIDATORS
@@ -29,3 +31,33 @@ class Feature(models.Model):
 
     def __str__(self):
         return self.name
+
+
+@receiver(post_save, sender=Feature, dispatch_uid='update_variant_fields')
+def update_variant_fields(sender, instance, created, raw, **kwargs):
+    from .variant import Variant
+    if raw or created:
+        return
+    variants = Variant.recipes_prefetched.filter(produces=instance)
+    variants_to_save = []
+    for variant in variants:
+        new_variant_name = variant._str()
+        if new_variant_name != variant.name:
+            variant.name = new_variant_name
+            variants_to_save.append(variant)
+    Variant.objects.bulk_update(variants_to_save, ['name'])
+
+
+@receiver(post_save, sender=Feature, dispatch_uid='update_combo_fields')
+def update_combo_fields(sender, instance, created, raw, **kwargs):
+    from .combo import Combo
+    if raw or created:
+        return
+    combos = Combo.objects.filter(models.Q(produces=instance) | models.Q(needs=instance))
+    combos_to_save = []
+    for combo in combos:
+        new_combo_name = combo._str()
+        if new_combo_name != combo.name:
+            combo.name = new_combo_name
+            combos_to_save.append(combo)
+    Combo.objects.bulk_update(combos_to_save, ['name'])

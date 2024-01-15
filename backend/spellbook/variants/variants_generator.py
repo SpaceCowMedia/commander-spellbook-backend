@@ -223,7 +223,7 @@ def update_variant(
             generator_combos=[data.id_to_combo[c_id] for c_id in variant_def.of_ids],
             used_cards=[data.card_in_variant[(c_id, variant.id)] for c_id in variant_def.card_ids],
             required_templates=[data.template_in_variant[(t_id, variant.id)] for t_id in variant_def.template_ids],
-            produced_features=sorted([data.id_to_feature[f_id].id for f_id in produces_ids], key=lambda f: f.name),
+            produced_features=sorted([data.id_to_feature[f_id] for f_id in produces_ids], key=lambda f: f.name),
             data=data)
     if not ok:
         variant.status = Variant.Status.NOT_WORKING
@@ -254,7 +254,7 @@ def create_variant(
         generator_combos=[data.id_to_combo[c_id] for c_id in variant_def.of_ids],
         used_cards=[CardInVariant(card=data.id_to_card[c_id], variant=variant) for c_id in variant_def.card_ids],
         required_templates=[TemplateInVariant(template=data.id_to_template[t_id], variant=variant) for t_id in variant_def.template_ids],
-        produced_features=sorted([data.id_to_feature[f_id].id for f_id in produces_ids], key=lambda f: f.name),
+        produced_features=sorted([data.id_to_feature[f_id] for f_id in produces_ids], key=lambda f: f.name),
         data=data
     )
     ok = not includes_any(v=frozenset(variant_def.card_ids), others=data.not_working_variants)

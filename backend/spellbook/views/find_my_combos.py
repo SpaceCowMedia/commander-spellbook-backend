@@ -98,12 +98,11 @@ def find_my_combos(request: Request) -> Response:
 
     variant_id_list = CardInVariant.objects \
         .values('variant') \
-        .annotate(
+        .alias(
             present_count=Count('variant', filter=Q(card_id__in=cards)) + 1,
             total_count=Count('variant')
         ) \
-        .filter(present_count__gte=F('total_count')) \
-        .values('variant')
+        .filter(present_count__gte=F('total_count'))
 
     variants_query = VariantViewSet().get_queryset().filter(id__in=variant_id_list)
 

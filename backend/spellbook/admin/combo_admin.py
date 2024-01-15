@@ -106,11 +106,7 @@ class ComboAdmin(SearchMultipleRelatedMixin, SpellbookModelAdmin):
     def save_related(self, request, form, formsets, change):
         super().save_related(request, form, formsets, change)
         if change:
-            query = form.instance.variants.filter(status__in=[Variant.Status.NEW, Variant.Status.RESTORE]).prefetch_related(
-                'includes',
-                'of',
-                'cardinvariant_set',
-                'templateinvariant_set')
+            query = Variant.recipes_prefetched.filter(of=form.instance, status__in=[Variant.Status.NEW, Variant.Status.RESTORE])
             count = query.count()
             if count <= 0:
                 return
@@ -128,11 +124,12 @@ class ComboAdmin(SearchMultipleRelatedMixin, SpellbookModelAdmin):
                     list(variant.of.all()),
                     list(variant.cardinvariant_set.all()),
                     list(variant.templateinvariant_set.all()),
+                    list(variant.produces.all()),
                     data=data)
                 card_in_variants_to_update.extend(uses_set)
                 template_in_variants_to_update.extend(requires_set)
                 variants_to_update.append(variant)
-            update_fields = ['status', 'mana_needed', 'other_prerequisites', 'description'] + Playable.playable_fields()
+            update_fields = ['name', 'status', 'mana_needed', 'other_prerequisites', 'description'] + Playable.playable_fields()
             Variant.objects.bulk_update(variants_to_update, update_fields)
             update_fields = ['zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'must_be_commander', 'order']
             CardInVariant.objects.bulk_update(card_in_variants_to_update, update_fields)

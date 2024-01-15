@@ -28,6 +28,10 @@ class RestoreData:
             combo_to_cards.sort(key=lambda cic: cic.order)
         for combo_to_templates in self.combo_to_templates.values():
             combo_to_templates.sort(key=lambda tic: tic.order)
+        self.cards = Card.objects.prefetch_related('features', 'used_in_combos')
+        self.id_to_card: dict[int, Card] = {c.id: c for c in self.cards}
+        self.templates = Template.objects.prefetch_related('required_by_combos')
+        self.id_to_template: dict[int, Template] = {t.id: t for t in self.templates}
 
 
 class Data(RestoreData):
@@ -47,20 +51,16 @@ class Data(RestoreData):
             return d
 
         super().__init__()
-        self.features = Feature.objects.prefetch_related('cards', 'produced_by_combos', 'needed_by_combos', 'removed_by_combos')
-        self.cards = Card.objects.prefetch_related('features', 'used_in_combos')
         self.variants = Variant.objects.all()
-        self.templates = Template.objects.prefetch_related('required_by_combos')
         self.utility_features_ids = frozenset[int](Feature.objects.filter(utility=True).values_list('id', flat=True))
         self.not_working_variants = fetch_not_working_variants(self.variants)
         self.id_to_variant = {v.id: v for v in self.variants}
         self.id_to_combo: dict[int, Combo] = {c.id: c for c in self.combos}
-        self.id_to_card: dict[int, Card] = {c.id: c for c in self.cards}
-        self.id_to_template: dict[int, Template] = {t.id: t for t in self.templates}
-        self.id_to_feature: dict[int, Feature] = {f.id: f for f in self.features}
         self.card_in_variant = {(civ.card.id, civ.variant.id): civ for civ in CardInVariant.objects.select_related('card', 'variant')}
         self.template_in_variant = {(tiv.template.id, tiv.variant.id): tiv for tiv in TemplateInVariant.objects.select_related('template', 'variant')}
         self.combo_to_removed_features = fetch_removed_features(self.combos)
+        self.features = Feature.objects.prefetch_related('cards', 'produced_by_combos', 'needed_by_combos', 'removed_by_combos')
+        self.id_to_feature: dict[int, Feature] = {f.id: f for f in self.features}
 
 
 count = 0

@@ -5,15 +5,9 @@ from django.db import migrations, models
 from spellbook.models import Variant as NewVariant
 from spellbook.serializers import VariantSerializer
 try:
-    import psycopg2
-    psycopg2 = True  # noqa: F811
-except ImportError:
-    psycopg2 = False
-if psycopg2:
     from django.contrib.postgres.operations import BtreeGinExtension
     extra_operations = [BtreeGinExtension()]
-    print('Using BtreeGinExtension')
-else:
+except ImportError:
     extra_operations = []
 
 

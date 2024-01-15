@@ -44,7 +44,7 @@ class Command(AbstractCommand):
             variants_source = list[Variant](VariantSerializer.prefetch_related(Variant.objects.filter(status__in=Variant.public_statuses())))
         self.log('Fetching variants from db...done', self.style.SUCCESS)
         self.log('Updating variants preserialized representation...')
-        Variant.objects.bulk_serialize(objs=variants_source, serializer=VariantSerializer, batch_size=5000)
+        Variant.objects.bulk_serialize(objs=variants_source, serializer=VariantSerializer, batch_size=5000)  # type: ignore
         self.log('Updating variants preserialized representation...done', self.style.SUCCESS)
         self.log('Exporting variants...')
         result = {

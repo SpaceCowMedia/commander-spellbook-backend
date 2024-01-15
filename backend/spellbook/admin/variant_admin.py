@@ -1,3 +1,4 @@
+from typing import Any
 from django.utils.http import urlencode
 from django.utils.html import format_html
 from django.urls import reverse, path
@@ -8,6 +9,7 @@ from django.contrib import admin, messages
 from spellbook.models import Variant, CardInVariant, TemplateInVariant
 from spellbook.utils import launch_job_command
 from spellbook.parsers import variants_query_parser, NotSupportedError
+from spellbook.serializers import VariantSerializer
 from .utils import IdentityFilter, SpellbookModelAdmin, CardsCountListFilter
 from .ingredient_admin import IngredientAdmin
 
@@ -183,3 +185,9 @@ class VariantAdmin(SpellbookModelAdmin):
         except NotSupportedError as e:
             messages.warning(request, str(e))
             return queryset, False
+
+    def save_related(self, request: Any, form: Any, formsets: Any, change: Any):
+        super().save_related(request, form, formsets, change)
+        variant: Variant = form.instance
+        variant.update_serialized(VariantSerializer)
+        variant.save()

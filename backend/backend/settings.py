@@ -149,7 +149,7 @@ SOCIAL_AUTH_ADMIN_USER_SEARCH_FIELDS = ['username', 'first_name', 'last_name', '
 SOCIAL_AUTH_STRATEGY = 'backend.login.jwt.SimpleJwtDjangoStrategy'
 SOCIAL_AUTH_FIELDS_STORED_IN_SESSION = ['code']
 SOCIAL_AUTH_LOGIN_REDIRECT_URL = '/'
-SOCIAL_AUTH_LOGIN_ERROR_URL = 'https://commanderspellbook.com/login-error'
+SOCIAL_AUTH_LOGIN_ERROR_URL = 'https://commanderspellbook.com/login/error'
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
 ] + (

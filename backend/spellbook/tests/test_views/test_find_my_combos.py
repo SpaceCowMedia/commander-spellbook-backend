@@ -5,6 +5,7 @@ import os
 from unittest import skipUnless
 from django.test import Client
 from spellbook.models import Card, Variant, merge_identities
+from spellbook.serializers import VariantSerializer
 from ..abstract_test import AbstractModelTests
 from common.inspection import json_to_python_lambda
 
@@ -15,6 +16,7 @@ class FindMyCombosViewTests(AbstractModelTests):
         super().generate_variants()
         Variant.objects.update(status=Variant.Status.OK)
         Variant.objects.filter(id__in=random.sample(list(Variant.objects.values_list('id', flat=True)), 3)).update(status=Variant.Status.EXAMPLE)
+        Variant.objects.bulk_serialize(Variant.objects.filter(status__in=Variant.public_statuses()), VariantSerializer)
         self.variants = Variant.objects.filter(status__in=Variant.public_statuses()).prefetch_related('cardinvariant_set', 'cardinvariant_set__card')
         self.variants_dict = {v.id: v for v in self.variants}
         self.variants_cards = {v.id: {c.card.name for c in v.cardinvariant_set.all()} for v in self.variants}

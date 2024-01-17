@@ -1,16 +1,18 @@
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.contrib.auth.models import User
+from django.db.models.signals import post_save, post_delete
+from django.dispatch import receiver
 from .card import Card
 from .feature import Feature
 from .template import Template
 from .variant import Variant
-from .ingredient import IngredientInCombination
+from .ingredient import IngredientInCombination, Recipe
 from .validators import TEXT_VALIDATORS, MANA_VALIDATOR, SCRYFALL_QUERY_HELP, SCRYFALL_QUERY_VALIDATOR, NAME_VALIDATORS
-from .utils import recipe, id_from_cards_and_templates_ids
+from .utils import id_from_cards_and_templates_ids
 
 
-class VariantSuggestion(models.Model):
+class VariantSuggestion(Recipe):
     max_cards = 10
     max_templates = 5
     max_features = 100
@@ -42,11 +44,14 @@ class VariantSuggestion(models.Model):
         verbose_name = 'variant suggestion'
         verbose_name_plural = 'variant suggestions'
 
-    def __str__(self):
-        if self.pk is None:
-            return f'New variant suggestion with unique id <{self.id}>'
-        produces = list(self.produces.all()[:4])
-        return recipe([str(use.card) for use in self.uses.all()] + [str(require.template) for require in self.requires.all()], [str(produce.feature) for produce in produces])
+    def cards(self) -> list[Card]:
+        return list(self.uses.all())  # type: ignore
+
+    def templates(self) -> list[Template]:
+        return list(self.requires.all())  # type: ignore
+
+    def features_produced(self) -> list[Feature]:
+        return list(self.produces.all())  # type: ignore
 
     @classmethod
     def validate(cls, cards: list[str], templates: list[str], produces: list[str]):
@@ -123,3 +128,12 @@ class FeatureProducedInVariantSuggestion(models.Model):
     class Meta:
         unique_together = [('feature', 'variant')]
         ordering = ['feature', 'id']
+
+
+@receiver([post_save, post_delete], sender=CardUsedInVariantSuggestion, dispatch_uid='card_used_in_variant_suggestion_saved')
+@receiver([post_save, post_delete], sender=TemplateRequiredInVariantSuggestion, dispatch_uid='template_required_in_variant_suggestion_saved')
+@receiver([post_save, post_delete], sender=FeatureProducedInVariantSuggestion, dispatch_uid='feature_produced_in_variant_suggestion_saved')
+def update_variant_suggestion_name(sender, instance, **kwargs):
+    variant_suggestion = instance.variant
+    variant_suggestion.name = variant_suggestion._str()
+    variant_suggestion.save()

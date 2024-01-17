@@ -3,20 +3,34 @@ from django.db import models
 from django.dispatch import receiver
 from django.db.models.signals import post_save
 from django.utils.html import format_html
+from django.contrib.postgres.indexes import GinIndex
 from sortedm2m.fields import SortedManyToManyField
 from .playable import Playable
-from .mixins import ScryfallLinkMixin, PreSaveModelMixin
+from .mixins import ScryfallLinkMixin, PreSaveSerializedModelMixin, PreSaveSerializedManager
 from .card import Card
 from .template import Template
 from .feature import Feature
-from .ingredient import IngredientInCombination
+from .ingredient import IngredientInCombination, Recipe
 from .combo import Combo
 from .job import Job
 from .validators import TEXT_VALIDATORS, MANA_VALIDATOR
-from .utils import recipe, mana_value, merge_identities
+from .utils import mana_value, merge_identities
 
 
-class Variant(Playable, PreSaveModelMixin, ScryfallLinkMixin):
+class RecipePrefetchedManager(PreSaveSerializedManager):
+    def get_queryset(self):
+        return super().get_queryset().prefetch_related(
+            models.Prefetch('uses', queryset=Card.objects.order_by('cardinvariant')),
+            models.Prefetch('requires', queryset=Template.objects.order_by('templateinvariant')),
+            'produces',
+            'cardinvariant_set',
+            'templateinvariant_set',
+        )
+
+
+class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
+    recipes_prefetched = RecipePrefetchedManager()
+
     class Status(models.TextChoices):
         NEW = 'N'
         DRAFT = 'D'
@@ -89,6 +103,8 @@ class Variant(Playable, PreSaveModelMixin, ScryfallLinkMixin):
             models.Index(fields=['-popularity']),
             models.Index(fields=['-created']),
             models.Index(fields=['-updated']),
+            GinIndex(fields=['other_prerequisites']),
+            GinIndex(fields=['description']),
         ]
 
     def cards(self) -> list[Card]:
@@ -97,11 +113,8 @@ class Variant(Playable, PreSaveModelMixin, ScryfallLinkMixin):
     def templates(self) -> list[Template]:
         return list(self.requires.order_by('templateinvariant'))
 
-    def __str__(self):
-        if self.pk is None:
-            return f'New variant with unique id <{self.id}>'
-        produces = list(self.produces.all()[:4])
-        return recipe([str(card) for card in self.cards()] + [str(template) for template in self.templates()], [str(feature) for feature in produces])
+    def features_produced(self) -> list[Feature]:
+        return list(self.produces.all())
 
     def pre_save(self):
         self.mana_value_needed = mana_value(self.mana_needed)

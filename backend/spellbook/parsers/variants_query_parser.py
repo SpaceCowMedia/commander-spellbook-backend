@@ -160,7 +160,7 @@ def prerequisites_search(prerequisites_value: QueryValue) -> Q:
             prerequisites_query = Q(other_prerequisites_line_count=prerequisites_value.value)
         case _:
             raise NotSupportedError(f'Operator {prerequisites_value.operator} is not supported for prerequisites search.')
-    return prerequisites_query
+    return prerequisites_query & Q(status__ne=Variant.Status.EXAMPLE)
 
 
 def description_search(description_value: QueryValue) -> Q:
@@ -182,7 +182,7 @@ def description_search(description_value: QueryValue) -> Q:
             steps_query = Q(description_line_count=description_value.value)
         case _:
             raise NotSupportedError(f'Operator {description_value.operator} is not supported for prerequisites search.')
-    return steps_query
+    return steps_query & Q(status__ne=Variant.Status.EXAMPLE)
 
 
 def results_search(results_value: QueryValue) -> Q:
@@ -403,10 +403,6 @@ def variants_query_parser(base: QuerySet, query_string: str) -> QuerySet:
     query_string = query_string.strip()
     regex_matches = re.finditer(QUERY_REGEX, query_string)
     parsed_queries = defaultdict[str, list[QueryValue]](list)
-    queryset = base \
-        .alias(cards_count=Count('uses', distinct=True)) \
-        .alias(identity_count=Case(When(identity='C', then=Value(0)), default=Length('identity'))) \
-        .alias(results_count=Count('produces', distinct=True))
     query_match_count = 0
     for regex_match in regex_matches:
         query_match_count += 1
@@ -429,6 +425,14 @@ def variants_query_parser(base: QuerySet, query_string: str) -> QuerySet:
             parsed_queries[key].append(QueryValue(group_dict['prefix'], original_key, group_dict['operator'], value_term))
     if len(parsed_queries) > MAX_QUERY_PARAMETERS:
         raise NotSupportedError('Too many search parameters.')
+    keys = set(parsed_queries.keys())
+    queryset = base
+    if 'card' in keys:
+        queryset = queryset.alias(cards_count=Count('uses', distinct=True))
+    if 'coloridentity' in keys:
+        queryset = queryset.alias(identity_count=Case(When(identity='C', then=Value(0)), default=Length('identity')))
+    if 'results' in keys:
+        queryset = queryset.alias(results_count=Count('produces', distinct=True))
     for key, values in parsed_queries.items():
         for value in values:
             q = keyword_map[key](value)

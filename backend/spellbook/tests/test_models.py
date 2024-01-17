@@ -4,10 +4,11 @@ from django.utils import timezone
 from django.contrib.auth.models import User
 from common.inspection import count_methods
 from .abstract_test import AbstractModelTests
-from spellbook.models import merge_identities, Card, Feature, Template, Combo, Job, IngredientInCombination, Variant, VariantSuggestion, CardUsedInVariantSuggestion, VariantAlias
+from spellbook.models import merge_identities, Card, Feature, Template, Combo, Job, IngredientInCombination, Variant, VariantSuggestion, CardUsedInVariantSuggestion, VariantAlias, PreSerializedSerializer
 from spellbook.models.scryfall import SCRYFALL_API_ROOT, SCRYFALL_WEBSITE_CARD_SEARCH
 from spellbook.models import id_from_cards_and_templates_ids
 from django.core.exceptions import ValidationError
+from spellbook.serializers import VariantSerializer
 
 
 class UtilsTests(TestCase):
@@ -158,6 +159,8 @@ class ComboTests(AbstractModelTests):
             self.assertEqual(c.cards(), list(map(lambda x: x.card, cic)))
             tic = sorted(c.templateincombo_set.all(), key=lambda x: x.order)
             self.assertEqual(c.templates(), list(map(lambda x: x.template, tic)))
+            self.assertEqual(c.features_needed(), list(c.needs.all()))
+            self.assertEqual(c.features_produced(), list(c.produces.all()))
 
     def test_query_string(self):
         c = Combo.objects.get(id=self.b1_id)
@@ -167,7 +170,7 @@ class ComboTests(AbstractModelTests):
         self.assertTrue(c.query_string().startswith('q='))
 
     def test_method_count(self):
-        self.assertEqual(count_methods(Combo), 3)
+        self.assertEqual(count_methods(Combo), 4)
 
 
 class JobTests(AbstractModelTests):
@@ -298,6 +301,20 @@ class VariantTests(AbstractModelTests):
         self.assertFalse(v.update(v.uses.all(), False))
         # TODO: test update
 
+    def test_serialization(self):
+        v = Variant.objects.get(id=self.v1_id)
+        v.update_serialized(serializer=VariantSerializer)
+        self.assertIsNotNone(v.serialized)
+        self.assertIn('id', v.serialized)  # type: ignore
+        self.assertFalse(Variant.serialized_objects.filter(id=self.v1_id).exists())
+        v.save()
+        self.assertTrue(Variant.serialized_objects.filter(id=self.v1_id).exists())
+        v = Variant.serialized_objects.get(id=self.v1_id)
+        self.assertIsNotNone(v.serialized)
+        self.assertIn('id', v.serialized)  # type: ignore
+        r = PreSerializedSerializer(v).data
+        self.assertEqual(r, v.serialized)
+
 
 class VariantSuggestionTests(AbstractModelTests):
     def test_variant_suggestion_fields(self):
@@ -314,8 +331,17 @@ class VariantSuggestionTests(AbstractModelTests):
         self.assertEqual('1', s.description)
         self.assertEqual(s.suggested_by, None)
 
+    def test_ingredients(self):
+        for s in VariantSuggestion.objects.all():
+            civ = sorted(s.uses.all(), key=lambda x: x.order)
+            self.assertEqual(s.cards(), civ)
+            tiv = sorted(s.requires.all(), key=lambda x: x.order)
+            self.assertEqual(s.templates(), tiv)
+            self.assertEqual(s.features_produced(), list(s.produces.all()))
+            self.assertEqual(s.features_needed(), [])
+
     def test_method_count(self):
-        self.assertEqual(count_methods(VariantSuggestion), 2)
+        self.assertEqual(count_methods(VariantSuggestion), 4)
 
     def test_validate_against_redundancy(self):
         s1 = VariantSuggestion.objects.get(id=self.s1_id)

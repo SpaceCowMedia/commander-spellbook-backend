@@ -73,7 +73,8 @@ RUN echo -e 'gunicorn backend.wsgi:application --bind 0.0.0.0:8000\n' > entrypoi
 
 FROM base AS demo
 
-RUN echo -e 'python manage.py collectstatic --no-input --clear\n\
+RUN echo -e 'set -e\n\
+python manage.py collectstatic --no-input --clear\n\
 sleep 3\n\
 python manage.py migrate --noinput\n\
 python manage.py clean_jobs\n\

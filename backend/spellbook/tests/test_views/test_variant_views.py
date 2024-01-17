@@ -2,6 +2,7 @@ import json
 import random
 from django.test import Client
 from spellbook.models import Card, Template, Feature, Variant, CardInVariant, TemplateInVariant
+from spellbook.serializers import VariantSerializer
 from ..abstract_test import AbstractModelTests
 from common.inspection import json_to_python_lambda
 
@@ -12,6 +13,7 @@ class VariantViewsTests(AbstractModelTests):
         super().generate_variants()
         Variant.objects.update(status=Variant.Status.OK)
         Variant.objects.filter(id__in=random.sample(list(Variant.objects.values_list('id', flat=True)), 3)).update(status=Variant.Status.EXAMPLE)
+        Variant.objects.bulk_serialize(Variant.objects.all(), serializer=VariantSerializer)
         self.v1_id = Variant.objects.first().id
 
     def variant_assertions(self, variant_result):
@@ -54,20 +56,18 @@ class VariantViewsTests(AbstractModelTests):
             self.assertEqual(card.oracle_id, str(c.oracle_id))
             self.assertEqual(card.spoiler, c.spoiler)
             vic = CardInVariant.objects.get(variant=v.id, card=c)
+            self.assertEqual(set(u.zone_locations), set(vic.zone_locations))
+            self.assertEqual(u.must_be_commander, vic.must_be_commander)
             if v.status != Variant.Status.OK:
-                self.assertEqual(u.zone_locations, None)
                 self.assertEqual(u.battlefield_card_state, None)
                 self.assertEqual(u.exile_card_state, None)
                 self.assertEqual(u.library_card_state, None)
                 self.assertEqual(u.graveyard_card_state, None)
-                self.assertEqual(u.must_be_commander, None)
             else:
-                self.assertEqual(set(u.zone_locations), set(vic.zone_locations))
                 self.assertEqual(u.battlefield_card_state, vic.battlefield_card_state)
                 self.assertEqual(u.exile_card_state, vic.exile_card_state)
                 self.assertEqual(u.library_card_state, vic.library_card_state)
                 self.assertEqual(u.graveyard_card_state, vic.graveyard_card_state)
-                self.assertEqual(u.must_be_commander, vic.must_be_commander)
         requires_list = [r.id for r in v.requires.all()]
         for r in variant_result.requires:
             template = r.template
@@ -78,20 +78,18 @@ class VariantViewsTests(AbstractModelTests):
             self.assertEqual(template.scryfall_query, t.scryfall_query)
             self.assertEqual(template.scryfall_api, t.scryfall_api())
             tiv = TemplateInVariant.objects.get(variant=v.id, template=t)
+            self.assertEqual(set(r.zone_locations), set(tiv.zone_locations))
+            self.assertEqual(r.must_be_commander, tiv.must_be_commander)
             if v.status != Variant.Status.OK:
-                self.assertEqual(r.zone_locations, None)
                 self.assertEqual(r.battlefield_card_state, None)
                 self.assertEqual(r.exile_card_state, None)
                 self.assertEqual(r.library_card_state, None)
                 self.assertEqual(r.graveyard_card_state, None)
-                self.assertEqual(r.must_be_commander, None)
             else:
-                self.assertEqual(set(r.zone_locations), set(tiv.zone_locations))
                 self.assertEqual(r.battlefield_card_state, tiv.battlefield_card_state)
                 self.assertEqual(r.exile_card_state, tiv.exile_card_state)
                 self.assertEqual(r.library_card_state, tiv.library_card_state)
                 self.assertEqual(r.graveyard_card_state, tiv.graveyard_card_state)
-                self.assertEqual(r.must_be_commander, tiv.must_be_commander)
         produces_list = [p.id for p in v.produces.all()]
         for p in variant_result.produces:
             self.assertIn(p.id, produces_list)

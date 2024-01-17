@@ -6,7 +6,7 @@
     "configurations": [
         {
             "name": "Start Server",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "cwd": "${workspaceFolder}/backend",
             "program": "manage.py",
@@ -32,7 +32,7 @@
         },
         {
             "name": "Start Server (Production)",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "cwd": "${workspaceFolder}/backend",
             "program": "manage.py",
@@ -59,7 +59,7 @@
         },
         {
             "name": "Profile Server",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "cwd": "${workspaceFolder}/backend",
             "program": "manage.py",
@@ -87,7 +87,7 @@
         },
         {
             "name": "Test",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "cwd": "${workspaceFolder}/backend",
             "program": "manage.py",
@@ -106,7 +106,7 @@
         },
         {
             "name": "Generate Variants",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "cwd": "${workspaceFolder}/backend",
             "program": "manage.py",
@@ -124,7 +124,7 @@
         },
         {
             "name": "Profile Generate Variants",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "cwd": "${workspaceFolder}/backend",
             "module": "cProfile",
@@ -142,7 +142,7 @@
         },
         {
             "name": "Export variants",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "cwd": "${workspaceFolder}/backend",
             "program": "manage.py",
@@ -160,7 +160,7 @@
         },
         {
             "name": "Import Combos",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "cwd": "${workspaceFolder}/backend",
             "program": "manage.py",
@@ -178,7 +178,7 @@
         },
         {
             "name": "Update Cards",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "cwd": "${workspaceFolder}/backend",
             "program": "manage.py",
@@ -196,7 +196,7 @@
         },
         {
             "name": "Update Variants",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "cwd": "${workspaceFolder}/backend",
             "program": "manage.py",
@@ -214,7 +214,7 @@
         },
         {
             "name": "Wipe combos, features and variants",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "cwd": "${workspaceFolder}/backend",
             "program": "manage.py",
@@ -230,6 +230,25 @@
                 "hidden": false,
                 "group": "Spellbook",
                 "order": 12
+            },
+        },
+        {
+            "name": "Debug Migrate",
+            "type": "debugpy",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/backend",
+            "program": "manage.py",
+            "args": [
+                "migrate",
+                "spellbook",
+                "0010",
+            ],
+            "django": true,
+            "justMyCode": false,
+            "presentation": {
+                "hidden": false,
+                "group": "Spellbook",
+                "order": 13
             },
         },
     ]

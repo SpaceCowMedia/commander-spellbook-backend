@@ -1,6 +1,7 @@
 name: CI/CD
 
 on:
+  pull_request:
   push:
     branches:
       - "**"
@@ -90,6 +91,7 @@ jobs:
 
   test:
     strategy:
+      fail-fast: false
       matrix:
         python-version:
           - '3.11'
@@ -98,7 +100,6 @@ jobs:
           - ubuntu-latest
           - windows-latest
           - macos-latest
-      max-parallel: 2
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -175,6 +176,8 @@ jobs:
     environment: scm-production
     permissions:
       id-token: write
+    env:
+      KUBECTL_TIMEOUT: 600
     steps:
       - name: SetupDocker Buildx 🐳
         uses: docker/setup-buildx-action@v3
@@ -233,9 +236,9 @@ jobs:
           export KUBECONFIG=spellbookkubeconfig.yaml
           kubectl delete job spellbook-migration -n spellbook || true
           kubectl apply -k .
-          kubectl wait --timeout=120s --for=condition=complete job/spellbook-migration -n spellbook &
+          kubectl wait --timeout=${KUBECTL_TIMEOUT}s --for=condition=complete job/spellbook-migration -n spellbook &
           completion_pid=$!
-          kubectl wait --timeout=120s --for=condition=failed job/spellbook-migration -n spellbook && exit 1 &
+          kubectl wait --timeout=${KUBECTL_TIMEOUT}s --for=condition=failed job/spellbook-migration -n spellbook && exit 1 &
           failure_pid=$!
           exit_code=0
           if wait -n $completion_pid $failure_pid; then
@@ -262,4 +265,4 @@ jobs:
         run: |
           export KUBECONFIG=spellbookkubeconfig.yaml
           kubectl rollout restart deployment/spellbook-api -n spellbook
-          timeout 600 kubectl rollout status deployment/spellbook-api -n spellbook
+          timeout ${KUBECTL_TIMEOUT} kubectl rollout status deployment/spellbook-api -n spellbook

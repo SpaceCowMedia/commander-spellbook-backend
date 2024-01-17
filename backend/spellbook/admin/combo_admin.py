@@ -1,11 +1,10 @@
 from typing import Any
 from django.contrib.admin.options import InlineModelAdmin
-from django.db.models import Prefetch, Case, When, Count, Q
+from django.db.models import Case, When, Count, Q
 from django.contrib import admin, messages
 from django.http.request import HttpRequest
 from django.forms import ModelForm
 from spellbook.models import Card, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, CardInVariant, TemplateInVariant, VariantSuggestion, Playable
-from spellbook.models.utils import recipe
 from spellbook.variants.variant_data import RestoreData
 from spellbook.variants.variants_generator import restore_variant
 from .utils import SearchMultipleRelatedMixin, SpellbookModelAdmin, CustomFilter
@@ -31,8 +30,8 @@ class CardInComboAdminInline(IngredientAdmin):
     autocomplete_fields = ['card']
 
     def get_extra(self, request: HttpRequest, obj, **kwargs: Any) -> int:
-        if hasattr(request, 'from_suggestion') and request.from_suggestion is not None:
-            return len(request.from_suggestion.uses_list)
+        if hasattr(request, 'from_suggestion') and request.from_suggestion is not None:  # type: ignore
+            return len(request.from_suggestion.uses_list)  # type: ignore
         return super().get_extra(request, obj, **kwargs)
 
 
@@ -44,8 +43,8 @@ class TemplateInComboAdminInline(IngredientAdmin):
     autocomplete_fields = ['template']
 
     def get_extra(self, request: HttpRequest, obj, **kwargs: Any) -> int:
-        if hasattr(request, 'from_suggestion') and request.from_suggestion is not None:
-            return len(request.from_suggestion.requires_list)
+        if hasattr(request, 'from_suggestion') and request.from_suggestion is not None:  # type: ignore
+            return len(request.from_suggestion.requires_list)  # type: ignore
         return super().get_extra(request, obj, **kwargs)
 
 
@@ -102,20 +101,12 @@ class ComboAdmin(SearchMultipleRelatedMixin, SpellbookModelAdmin):
     filter_horizontal = ['produces', 'removes']
     list_filter = ['kind', PayoffFilter, VariantRelatedFilter]
     search_fields = ['uses__name', 'uses__name_unaccented', 'requires__name', 'produces__name', 'needs__name']
-    list_display = ['display_name', 'id', 'kind']
-
-    def display_name(self, obj):
-        return recipe([card.name for card in obj.prefetched_uses] + [feature.name for feature in obj.prefetched_needs] + [template.name for template in obj.prefetched_requires],
-            [feature.name for feature in obj.prefetched_produces])
+    list_display = ['__str__', 'id', 'kind']
 
     def save_related(self, request, form, formsets, change):
         super().save_related(request, form, formsets, change)
         if change:
-            query = form.instance.variants.filter(status__in=[Variant.Status.NEW, Variant.Status.RESTORE]).prefetch_related(
-                'includes',
-                'of',
-                'cardinvariant_set',
-                'templateinvariant_set')
+            query = Variant.recipes_prefetched.filter(of=form.instance, status__in=[Variant.Status.NEW, Variant.Status.RESTORE])
             count = query.count()
             if count <= 0:
                 return
@@ -133,11 +124,12 @@ class ComboAdmin(SearchMultipleRelatedMixin, SpellbookModelAdmin):
                     list(variant.of.all()),
                     list(variant.cardinvariant_set.all()),
                     list(variant.templateinvariant_set.all()),
+                    list(variant.produces.all()),
                     data=data)
                 card_in_variants_to_update.extend(uses_set)
                 template_in_variants_to_update.extend(requires_set)
                 variants_to_update.append(variant)
-            update_fields = ['status', 'mana_needed', 'other_prerequisites', 'description'] + Playable.playable_fields()
+            update_fields = ['name', 'status', 'mana_needed', 'other_prerequisites', 'description'] + Playable.playable_fields()
             Variant.objects.bulk_update(variants_to_update, update_fields)
             update_fields = ['zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'must_be_commander', 'order']
             CardInVariant.objects.bulk_update(card_in_variants_to_update, update_fields)
@@ -151,18 +143,12 @@ class ComboAdmin(SearchMultipleRelatedMixin, SpellbookModelAdmin):
         return fieldsets
 
     def get_queryset(self, request):
-        return Combo.objects \
-            .prefetch_related(
-                Prefetch('uses', queryset=Card.objects.order_by('cardincombo').only('name'), to_attr='prefetched_uses'),
-                Prefetch('requires', queryset=Template.objects.order_by('templateincombo').only('name'), to_attr='prefetched_requires'),
-                Prefetch('needs', queryset=Feature.objects.only('name'), to_attr='prefetched_needs'),
-                Prefetch('produces', queryset=Feature.objects.only('name'), to_attr='prefetched_produces')) \
-            .alias(
-                needs_utility_count=Count('needs', distinct=True, filter=Q(needs__utility=True)),
-                needs_count=Count('needs', distinct=True),
-                is_payoff=Q(needs_count__gt=0, needs_utility_count=0),
-                possible_overlaps=Count('variants__of', distinct=True),
-                possible_redundancies=Count('variants__includes', distinct=True, filter=Q(variants__generated_by__name='import_combos')))
+        return Combo.objects.alias(
+            needs_utility_count=Count('needs', distinct=True, filter=Q(needs__utility=True)),
+            needs_count=Count('needs', distinct=True),
+            is_payoff=Q(needs_count__gt=0, needs_utility_count=0),
+            possible_overlaps=Count('variants__of', distinct=True),
+            possible_redundancies=Count('variants__includes', distinct=True, filter=Q(variants__generated_by__name='import_combos')))
 
     def get_changeform_initial_data(self, request: HttpRequest) -> dict[str, str]:
         initial_data = super().get_changeform_initial_data(request)

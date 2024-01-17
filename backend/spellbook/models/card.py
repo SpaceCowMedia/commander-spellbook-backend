@@ -2,6 +2,7 @@ from django.db import models
 from django.dispatch import receiver
 from django.db.models.signals import post_save
 from django.db.models.fields.generated import GeneratedField
+from django.contrib.postgres.indexes import GinIndex
 from .playable import Playable
 from .utils import strip_accents, simplify_card_name_on_database, simplify_card_name_with_spaces_on_database
 from .mixins import ScryfallLinkMixin, PreSaveModelMixin
@@ -54,6 +55,17 @@ class Card(Playable, PreSaveModelMixin, ScryfallLinkMixin):
         ordering = ['name']
         verbose_name = 'card'
         verbose_name_plural = 'cards'
+        indexes = [
+            GinIndex(fields=[
+                'name',
+                'name_unaccented',
+                'name_unaccented_simplified',
+                'name_unaccented_simplified_with_spaces',
+            ]),
+            GinIndex(fields=['type_line']),
+            GinIndex(fields=['oracle_text']),
+            GinIndex(fields=['keywords']),
+        ]
 
     def __str__(self):
         return self.name
@@ -68,15 +80,32 @@ class Card(Playable, PreSaveModelMixin, ScryfallLinkMixin):
 @receiver(post_save, sender=Card, dispatch_uid='update_variant_fields')
 def update_variant_fields(sender, instance, created, raw, **kwargs):
     from .variant import Variant
-    if raw:
+    if raw or created:
         return
-    if created:
-        return
-    variants = Variant.objects.prefetch_related('uses', 'cardinvariant_set', 'templateinvariant_set').filter(uses=instance)
+    variants = Variant.recipes_prefetched.filter(uses=instance)
     variants_to_save = []
     for variant in variants:
         requires_commander = any(civ.must_be_commander for civ in variant.cardinvariant_set.all()) \
             or any(tiv.must_be_commander for tiv in variant.templateinvariant_set.all())
         if variant.update(variant.uses.all(), requires_commander):
             variants_to_save.append(variant)
-    Variant.objects.bulk_update(variants_to_save, fields=Variant.playable_fields())
+        new_variant_name = variant._str()
+        if new_variant_name != variant.name:
+            variant.name = new_variant_name
+            variants_to_save.append(variant)
+    Variant.objects.bulk_update(variants_to_save, fields=Variant.playable_fields() + ['name'])
+
+
+@receiver(post_save, sender=Card, dispatch_uid='update_combo_fields')
+def update_combo_fields(sender, instance, created, raw, **kwargs):
+    from .combo import Combo
+    if raw or created:
+        return
+    combos = Combo.recipes_prefetched.filter(uses=instance)
+    combos_to_save = []
+    for combo in combos:
+        new_combo_name = combo._str()
+        if new_combo_name != combo.name:
+            combo.name = new_combo_name
+            combos_to_save.append(combo)
+    Combo.objects.bulk_update(combos_to_save, fields=['name'])

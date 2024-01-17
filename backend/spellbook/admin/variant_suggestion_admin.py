@@ -1,8 +1,7 @@
 from typing import Any
-from django.db.models import Count, Prefetch
+from django.db.models import Count
 from django.contrib import admin
 from spellbook.models import VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, FeatureProducedInVariantSuggestion
-from spellbook.models.utils import recipe
 from .ingredient_admin import IngredientAdmin
 from .utils import SpellbookModelAdmin, CardsCountListFilter
 
@@ -56,20 +55,11 @@ class VariantSuggestionAdmin(SpellbookModelAdmin):
     ]
     inlines = [CardUsedInVariantSuggestionAdminInline, TemplateRequiredInVariantAdminInline, FeatureProducedInVariantAdminInline]
     list_filter = ['status', CardsCountListFilter]
-    list_display = ['display_name', 'id', 'status']
+    list_display = ['__str__', 'id', 'status']
     actions = [set_rejected]
 
-    def display_name(self, obj):
-        return recipe([str(card) for card in obj.prefetched_uses] + [str(template) for template in obj.prefetched_requires],
-            [str(feature) for feature in obj.prefetched_produces])
-
     def get_queryset(self, request):
-        return VariantSuggestion.objects \
-            .prefetch_related(
-                Prefetch('uses', to_attr='prefetched_uses'),
-                Prefetch('requires', to_attr='prefetched_requires'),
-                Prefetch('produces', to_attr='prefetched_produces')) \
-            .alias(cards_count=Count('uses', distinct=True) + Count('requires', distinct=True))
+        return VariantSuggestion.objects.alias(cards_count=Count('uses', distinct=True) + Count('requires', distinct=True))
 
     def save_model(self, request: Any, obj: Any, form: Any, change: Any) -> None:
         if not change:

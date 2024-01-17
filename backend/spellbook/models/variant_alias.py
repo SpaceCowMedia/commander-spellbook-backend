@@ -11,7 +11,7 @@ def no_variant_with_this_id(value: str) -> None:
 
 class VariantAlias(models.Model):
     id = models.CharField(max_length=Variant._meta.get_field('id').max_length, primary_key=True, validators=[no_variant_with_this_id], help_text='Unique id of this variant alias')
-    variant = models.ForeignKey(to=Variant, on_delete=models.SET_NULL, null=True, blank=True, related_name='aliases')
+    variant = models.ForeignKey(to=Variant, on_delete=models.SET_NULL, null=True, blank=True, related_name='aliases', verbose_name='redirects to', help_text='Variant this alias redirects to')
     description = models.TextField(blank=True, help_text='Description of this variant alias')
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, editable=False)

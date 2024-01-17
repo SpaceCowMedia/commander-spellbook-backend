@@ -1,6 +1,6 @@
 from math import prod
 from collections import deque
-from typing import Iterable, Optional, Callable
+from typing import Iterable, Callable
 from enum import Enum
 from dataclasses import dataclass
 from spellbook.models.card import Card
@@ -20,7 +20,7 @@ class NodeState(Enum):
 class Node:
     def __init__(self):
         self.state: NodeState = NodeState.NOT_VISITED
-        self.variant_set: Optional[VariantSet] = None
+        self.variant_set: VariantSet = None  # type: ignore
 
     def __str__(self) -> str:
         return f'{self.__class__} of {self._item()}'

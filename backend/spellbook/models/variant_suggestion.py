@@ -30,7 +30,15 @@ class VariantSuggestion(models.Model):
     suggested_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, editable=False, help_text='User that suggested this variant', related_name='variants')
 
     class Meta:
-        ordering = ['-status', '-created']
+        ordering = [
+            models.Case(
+                models.When(status='N', then=models.Value(0)),
+                models.When(status='A', then=models.Value(1)),
+                models.When(status='R', then=models.Value(2)),
+                default=models.Value(10),
+            ),
+            '-created'
+        ]
         verbose_name = 'variant suggestion'
         verbose_name_plural = 'variant suggestions'
 

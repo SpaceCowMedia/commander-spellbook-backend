@@ -71,7 +71,18 @@ class Variant(Playable, PreSaveModelMixin, ScryfallLinkMixin):
     other_prerequisites_line_count = models.PositiveIntegerField(editable=False, help_text='Number of lines in the other prerequisites')
 
     class Meta:
-        ordering = ['-status', '-created']
+        ordering = [
+            models.Case(
+                models.When(status='D', then=models.Value(0)),
+                models.When(status='N', then=models.Value(1)),
+                models.When(status='OK', then=models.Value(2)),
+                models.When(status='E', then=models.Value(3)),
+                models.When(status='R', then=models.Value(4)),
+                models.When(status='NW', then=models.Value(5)),
+                default=models.Value(10),
+            ),
+            '-created'
+        ]
         verbose_name = 'variant'
         verbose_name_plural = 'variants'
         indexes = [

@@ -307,9 +307,18 @@ def perform_bulk_saves(to_create: list[VariantBulkSaveItem], to_update: list[Var
             feature_id=f) for v in chain(to_create, to_update) for f in v.produces])
 
 
-def sync_variant_aliases(added_variants_ids: set[str], deleted_variants_ids: set[str]) -> tuple[int, int]:
+def sync_variant_aliases(data: Data, added_variants_ids: set[str], deleted_variants_ids: set[str]) -> tuple[int, int]:
     deleted_count, _ = VariantAlias.objects.filter(id__in=added_variants_ids).delete()
-    added_count = len(VariantAlias.objects.bulk_create([VariantAlias(id=id) for id in deleted_variants_ids], ignore_conflicts=True))
+    deleted_variants = [data.id_to_variant[id] for id in sorted(deleted_variants_ids)]
+    variant_aliases = [
+        VariantAlias(
+            id=v.id,
+            description=f'Added because {v.name} has been removed from the database.'
+        )
+        for v in deleted_variants
+        if v.status in Variant.public_statuses()
+    ]
+    added_count = len(VariantAlias.objects.bulk_create(variant_aliases, ignore_conflicts=True))
     return added_count, deleted_count
 
 
@@ -359,7 +368,7 @@ def generate_variants(job: Job | None = None) -> tuple[int, int, int]:
         deleted_count = delete_query.count()
         delete_query.delete()
         logging.info(f'Deleted {deleted_count} variants...')
-        added_aliases, deleted_aliases = sync_variant_aliases(added, to_delete)
+        added_aliases, deleted_aliases = sync_variant_aliases(data, added, to_delete)
         logging.info(f'Added {added_aliases} new aliases, deleted {deleted_aliases} aliases.')
         logging.info('Done.')
         debug_queries(True)

@@ -238,7 +238,7 @@ def tag_search(tag_value: QueryValue) -> Q:
 def spellbook_id_search(spellbook_id_value: QueryValue) -> Q:
     match spellbook_id_value.operator:
         case ':' | '=':
-            spellbook_id_query = Q(id__iexact=spellbook_id_value.value)
+            spellbook_id_query = Q(id__iexact=spellbook_id_value.value) | Q(aliases__id__iexact=spellbook_id_value.value)
         case _:
             raise NotSupportedError(f'Operator {spellbook_id_value.operator} is not supported for spellbook id search.')
     return spellbook_id_query

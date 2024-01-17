@@ -177,7 +177,7 @@ jobs:
     permissions:
       id-token: write
     env:
-      KUBECTL_TIMEOUT: 600
+      KUBECTL_TIMEOUT: 1800
     steps:
       - name: SetupDocker Buildx 🐳
         uses: docker/setup-buildx-action@v3

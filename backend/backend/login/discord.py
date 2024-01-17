@@ -1,6 +1,7 @@
 import requests
 from django.contrib.auth.models import Permission
-from social_core.exceptions import AuthException
+from django.core.exceptions import PermissionDenied
+from social_core.exceptions import AuthUnreachableProvider
 from social_core.backends.discord import DiscordOAuth2 as BaseDiscordOAuth2
 
 
@@ -23,9 +24,9 @@ def is_member_of_guild(backend, details, response, uid, user, *args, **kwargs):
             for guild in guilds:
                 if guild['id'] in ALLOWED_GUILDS:
                     return
-            raise AuthException(backend, 'You must join the Commander Spellbook Discord server to use this site.')
+            raise PermissionDenied('You must join the Commander Spellbook Discord server to login with Discord.')
         else:
-            raise AuthException(backend, 'Could not reach Discord API.')
+            raise AuthUnreachableProvider(backend, 'Could not reach Discord API.')
 
 
 def set_default_permissions(user, is_new, *args, **kwargs):

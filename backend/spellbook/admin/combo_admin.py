@@ -4,7 +4,7 @@ from django.db.models import Case, When, Count, Q
 from django.contrib import admin, messages
 from django.http.request import HttpRequest
 from django.forms import ModelForm
-from spellbook.models import Card, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, CardInVariant, TemplateInVariant, VariantSuggestion, Playable
+from spellbook.models import Card, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, CardInVariant, TemplateInVariant, VariantSuggestion, Playable, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion
 from spellbook.variants.variant_data import RestoreData
 from spellbook.variants.variants_generator import restore_variant
 from .utils import SearchMultipleRelatedMixin, SpellbookModelAdmin, CustomFilter
@@ -178,12 +178,29 @@ class ComboAdmin(SearchMultipleRelatedMixin, SpellbookModelAdmin):
         if not obj.id and hasattr(request, 'from_suggestion') and request.from_suggestion is not None:
             if isinstance(inline, CardInComboAdminInline):
                 formset_kwargs['initial'] = []
-                suggested_used_cards = request.from_suggestion.uses_list
-                found_used_cards = list(Card.objects.filter(name__in=[suggested_card.card for suggested_card in suggested_used_cards]))
-                found_used_cards_names_to_id = {c.name: c.pk for c in found_used_cards}
+                suggested_used_cards: list[CardUsedInVariantSuggestion] = request.from_suggestion.uses_list
+                found_used_cards_names_to_id = dict[str, str]()
                 for suggested_card in suggested_used_cards:
-                    if suggested_card.card not in found_used_cards_names_to_id:
+                    card_query = Q(name__iexact=suggested_card.card) \
+                        | Q(name_unaccented__iexact=suggested_card.card) \
+                        | Q(name_unaccented_simplified__iexact=suggested_card.card) \
+                        | Q(name_unaccented_simplified_with_spaces__iexact=suggested_card.card)
+                    query_result = Card.objects.filter(card_query)
+                    if query_result.count() == 0:
+                        card_query = Q(name__icontains=suggested_card.card) \
+                            | Q(name_unaccented__icontains=suggested_card.card) \
+                            | Q(name_unaccented_simplified__icontains=suggested_card.card) \
+                            | Q(name_unaccented_simplified_with_spaces__icontains=suggested_card.card)
+                        query_result = Card.objects.filter(card_query)
+                    if query_result.count() == 1:
+                        found_used_cards_names_to_id[suggested_card.card] = query_result.first().pk  # type: ignore
+                    elif query_result.count() > 1:
+                        picked: Card = query_result.first()  # type: ignore
+                        messages.add_message(request, messages.WARNING, f'Found multiple cards matching "{suggested_card.card}" in database. Check if {picked.name} is correct.')
+                        found_used_cards_names_to_id[suggested_card.card] = picked.pk
+                    else:
                         messages.add_message(request, messages.WARNING, f'Could not find used card "{suggested_card.card}" in database.')
+                for suggested_card in suggested_used_cards:
                     formset_kwargs['initial'].append({
                         'card': found_used_cards_names_to_id.get(suggested_card.card, None),
                         'zone_locations': suggested_card.zone_locations,
@@ -196,7 +213,7 @@ class ComboAdmin(SearchMultipleRelatedMixin, SpellbookModelAdmin):
                 request.from_suggestion.uses_count = len(formset_kwargs['initial'])
             elif isinstance(inline, TemplateInComboAdminInline):
                 formset_kwargs['initial'] = []
-                suggested_required_templates = request.from_suggestion.requires_list
+                suggested_required_templates: list[TemplateRequiredInVariantSuggestion] = request.from_suggestion.requires_list
                 found_required_templates = list(Template.objects.filter(name__in=[suggested_template.template for suggested_template in suggested_required_templates]))
                 found_required_templates_names_to_id = {t.name: t.pk for t in found_required_templates}
                 for suggested_template in suggested_required_templates:

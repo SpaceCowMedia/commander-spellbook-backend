@@ -73,6 +73,16 @@
                                 django.jQuery('#id_oracle_text').val(data.oracle_text);
                             }
 
+                            django.jQuery('#id_keywords').val(JSON.stringify(data.keywords));
+
+                            django.jQuery('#id_mana_value').val(Math.round(data.cmc));
+
+                            django.jQuery('#id_reserved').prop('checked', data.reserved);
+
+                            django.jQuery('#id_latest_printing_set').val(data.set);
+
+                            django.jQuery('#id_reprinted').prop('checked', data.reprint);
+
                             const formats = {
                                 'commander': data.legalities.commander == 'legal',
                                 'pauper_commander_main': data.legalities.paupercommander == 'legal',
@@ -80,7 +90,7 @@
                                 'oathbreaker': data.legalities.oathbreaker == 'legal',
                                 'predh': data.legalities.predh == 'legal',
                                 'brawl': data.legalities.brawl == 'legal',
-                                'vintage': data.legalities.vintage == 'legal',
+                                'vintage': data.legalities.vintage == 'legal' || data.legalities.vintage == 'restricted',
                                 'legacy': data.legalities.legacy == 'legal',
                                 'modern': data.legalities.modern == 'legal',
                                 'pioneer': data.legalities.pioneer == 'legal',
@@ -94,6 +104,7 @@
                             django.jQuery('#id_price_tcgplayer').val(data.prices.usd || 0);
                             django.jQuery('#id_price_cardkingdom').val(data.prices.usd || 0);
                             django.jQuery('#id_price_cardmarket').val(data.prices.eur || 0);
+                            console.log(data.prices);
 
                             const releasedAt = Date.parse(data['released_at']);
                             const currentDate = new Date();

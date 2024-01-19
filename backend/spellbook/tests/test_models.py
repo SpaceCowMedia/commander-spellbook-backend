@@ -330,6 +330,7 @@ class VariantSuggestionTests(AbstractModelTests):
         self.assertEqual('Some requisites.', s.other_prerequisites)
         self.assertEqual('1', s.description)
         self.assertEqual(s.suggested_by, None)
+        self.assertTrue(s.spoiler)
 
     def test_ingredients(self):
         for s in VariantSuggestion.objects.all():

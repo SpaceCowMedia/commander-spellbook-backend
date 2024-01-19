@@ -33,6 +33,7 @@ class VariantSuggestionsTests(AbstractModelTests):
         self.assertEqual(suggestion_result.mana_needed, vs.mana_needed)
         self.assertEqual(suggestion_result.other_prerequisites, vs.other_prerequisites)
         self.assertEqual(suggestion_result.description, vs.description)
+        self.assertEqual(suggestion_result.spoiler, vs.spoiler)
         if suggestion_result.suggested_by is not None:
             self.assertEqual(suggestion_result.suggested_by.id, vs.suggested_by.id)
             self.assertEqual(suggestion_result.suggested_by.username, vs.suggested_by.username)
@@ -108,7 +109,8 @@ class VariantSuggestionsTests(AbstractModelTests):
             ],
             "manaNeeded": "{1}{W}{U}{B}{R}{G}",
             "otherPrerequisites": "other prereqs",
-            "description": "a description"
+            "description": "a description",
+            "spoiler": False,
         }
         response = self.client.post(
             '/variant-suggestions/',

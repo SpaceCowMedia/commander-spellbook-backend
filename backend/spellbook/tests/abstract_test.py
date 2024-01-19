@@ -93,7 +93,7 @@ class AbstractModelTests(TestCase):
         b7.produces.add(f5)
         b7.needs.add(f4)
 
-        s1 = VariantSuggestion.objects.create(status=VariantSuggestion.Status.NEW, mana_needed='{W}{W}', other_prerequisites='Some requisites.', description='1', suggested_by=None)
+        s1 = VariantSuggestion.objects.create(status=VariantSuggestion.Status.NEW, mana_needed='{W}{W}', other_prerequisites='Some requisites.', description='1', spoiler=True, suggested_by=None)
         CardUsedInVariantSuggestion.objects.create(card=c1.name, variant=s1, order=1, zone_locations=IngredientInCombination.ZoneLocation.HAND)
         CardUsedInVariantSuggestion.objects.create(card=c2.name, variant=s1, order=2, zone_locations=IngredientInCombination.ZoneLocation.BATTLEFIELD, battlefield_card_state='tapped')
         TemplateRequiredInVariantSuggestion.objects.create(template=t1.name, variant=s1, order=1, zone_locations=IngredientInCombination.ZoneLocation.GRAVEYARD, graveyard_card_state='on top')

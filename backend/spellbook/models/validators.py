@@ -30,15 +30,28 @@ IDENTITY_VALIDATORS = [RegexValidator(regex=IDENTITY_REGEX, message='Can be any 
 COMPARISON_OPERATORS = r'(?::|[<>]=?|!=|=)'
 NUMERIC_VARIABLE = r'(?:mv|manavalue|power|pow|toughness|tou|pt|powtou|loyalty|loy)'
 STRING_COMPARABLE_VARIABLE = r'(?:c|color|id|identity|produces)'
-STRING_UNCOMPARABLE_VARIABLE = r'(?:has|t|type|keyword|is)'
+STRING_UNCOMPARABLE_VARIABLE = r'(?:has|t|type|keyword|is|o|oracle|function|otag|oracletag|oracleid)'
 MANA_COMPARABLE_VARIABLE = r'(?:m|mana|devotion)'
 SCRYFALL_QUERY_ATOM = r'(?:-?(?:' + \
-    r'(?:' + STRING_COMPARABLE_VARIABLE + COMPARISON_OPERATORS + r'|' + STRING_UNCOMPARABLE_VARIABLE + r':)(?:[^\s:<>!="]+|"[^"]+")|' + \
+    r'(?:' + STRING_COMPARABLE_VARIABLE + COMPARISON_OPERATORS + r'|' + STRING_UNCOMPARABLE_VARIABLE + r':!?)(?:[^\s:<>!="]+|"[^"]+")|' + \
     MANA_COMPARABLE_VARIABLE + COMPARISON_OPERATORS + r'(?:\{' + MANA_SYMBOL + r'\})+|' + \
-    NUMERIC_VARIABLE + COMPARISON_OPERATORS + r'(?:\d+|' + NUMERIC_VARIABLE + r')' + \
+    NUMERIC_VARIABLE + COMPARISON_OPERATORS + r'(?:\d+|' + NUMERIC_VARIABLE + r')|' + \
+    r'!"[^"]+"' + \
     r'))'
 SCRYFALL_EXPRESSION = r'(?:' + SCRYFALL_QUERY_ATOM + r'(?: (?:and |or )?' + SCRYFALL_QUERY_ATOM + r')*)'
 SCRYFALL_EXPRESSION_BRACKETS = r'(?:\(' + SCRYFALL_EXPRESSION + r'\)|' + SCRYFALL_EXPRESSION + r')'
 SCRYFALL_QUERY_REGEX = r'^(?:' + SCRYFALL_EXPRESSION_BRACKETS + r'(?: (?:and |or )?' + SCRYFALL_EXPRESSION_BRACKETS + r')*)$'
 SCRYFALL_QUERY_VALIDATOR = RegexValidator(regex=SCRYFALL_QUERY_REGEX, message='Invalid Scryfall query syntax.')
-SCRYFALL_QUERY_HELP = 'Variables supported: manavalue, mv, power, pow, toughness, tou, powtou, pt, loyalty, loy, color, c, identity, id, has, type, t, keyword, is, mana, m, devotion, produces. Operators supported: =, !=, <, >, <=, >=, :. You can compose a "and"/"or" expression made of "and"/"or" expressions, like "(c:W or c:U) and (t:creature or t:artifact)". You can also omit parentheses when not necessary, like "(c:W or c:U) t:creature". More info at: https://scryfall.com/docs/syntax.'
+VARIABLES_SUPPORTED = []
+for variable in [NUMERIC_VARIABLE, STRING_COMPARABLE_VARIABLE, STRING_UNCOMPARABLE_VARIABLE, MANA_COMPARABLE_VARIABLE]:
+    VARIABLES_SUPPORTED.extend(variable.removeprefix('(?:').removesuffix(')').split('|'))
+SCRYFALL_QUERY_HELP = f'''\
+Variables supported: {', '.join(VARIABLES_SUPPORTED)}.
+Operators supported: =, !=, <, >, <=, >=, :.
+You can compose a "and"/"or" expression made of "and"/"or" expressions, like "(c:W or c:U) and (t:creature or t:artifact)".
+You can also omit parentheses when not necessary, like "(c:W or c:U) t:creature".
+Card names are only supported if wrapped in double quotes and preceded by an exclamation mark (!) in order to match the exact name, like !"Lightning Bolt".
+You can negate any expression by prepending a dash (-), like "-t:creature".
+More info at: https://scryfall.com/docs/syntax.
+'''
+SCRYFALL_QUERY_MAX_LENGTH = 2**10

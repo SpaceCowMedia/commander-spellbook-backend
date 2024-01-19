@@ -191,3 +191,10 @@ class VariantAdmin(SpellbookModelAdmin):
         variant: Variant = form.instance
         variant.update_serialized(VariantSerializer)
         variant.save()
+
+    def lookup_allowed(self, lookup: str, value: str) -> bool:
+        if lookup in (
+            'generated_by__id',
+        ):
+            return True
+        return super().lookup_allowed(lookup, value)

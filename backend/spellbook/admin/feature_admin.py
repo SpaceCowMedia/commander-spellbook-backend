@@ -25,9 +25,11 @@ class FeatureAdmin(SpellbookModelAdmin):
     list_filter = ['utility']
 
     def lookup_allowed(self, lookup: str, value: str) -> bool:
-        return super().lookup_allowed(lookup, value) or lookup in (
+        if lookup in (
             'produced_by_variants__id',
-        )
+        ):
+            return True
+        return super().lookup_allowed(lookup, value)
 
     def get_search_results(self, request: HttpRequest, queryset: QuerySet[Any], search_term: str) -> tuple[QuerySet[Any], bool]:
         queryset, duplicates = super().get_search_results(request, queryset, search_term)

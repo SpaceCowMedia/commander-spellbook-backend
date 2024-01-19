@@ -232,7 +232,9 @@ class ComboAdmin(SearchMultipleRelatedMixin, SpellbookModelAdmin):
         return formset_kwargs
 
     def lookup_allowed(self, lookup: str, value: str) -> bool:
-        return super().lookup_allowed(lookup, value) or lookup in (
+        if lookup in (
             'variants__id',
             'included_in_variants__id',
-        )
+        ):
+            return True
+        return super().lookup_allowed(lookup, value)

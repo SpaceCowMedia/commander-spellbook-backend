@@ -103,7 +103,7 @@ def update_cards(cards: list[Card], scryfall: dict[str, dict], log=lambda t: pri
             fields_before = card_fields(card)
             card_identity = merge_identities(card_in_db['color_identity'])
             card.identity = card_identity
-            card_spoiler = card_in_db['legalities']['commander'] != 'legal' \
+            card.spoiler = card_in_db['legalities']['commander'] != 'legal' \
                 and not card_in_db['reprint'] \
                 and datetime.datetime.strptime(card_in_db['released_at'], '%Y-%m-%d').date() > timezone.now().date()
             card.type_line = card_in_db['type_line']
@@ -114,7 +114,6 @@ def update_cards(cards: list[Card], scryfall: dict[str, dict], log=lambda t: pri
             card.keywords = card_in_db['keywords']
             card.mana_value = int(card_in_db['cmc'])
             card.reserved = card_in_db['reserved']
-            card.spoiler = card_spoiler
             card_legalities = card_in_db['legalities']
             card.legal_commander = card_legalities['commander'] == 'legal'
             card.legal_pauper_commander_main = card_legalities['paupercommander'] == 'legal'
@@ -128,13 +127,39 @@ def update_cards(cards: list[Card], scryfall: dict[str, dict], log=lambda t: pri
             card.legal_pioneer = card_legalities['pioneer'] == 'legal'
             card.legal_standard = card_legalities['standard'] == 'legal'
             card.legal_pauper = card_legalities['pauper'] == 'legal'
-            card_prices = card_in_db['prices']
-            p = card_prices['tcgplayer']['price'] if card_prices['tcgplayer'] is not None else 0.0
-            card.price_tcgplayer = round(Decimal.from_float(p), 2)
-            p = card_prices['cardkingdom']['price'] if card_prices['cardkingdom'] is not None else 0.0
-            card.price_cardkingdom = round(Decimal.from_float(p), 2)
-            p = card_prices['cardmarket']['price'] if card_prices['cardmarket'] is not None else 0.0
-            card.price_cardmarket = round(Decimal.from_float(p), 2)
+            # Adjust legalities for spoiled cards
+            if card.spoiler:
+                future_standard = card_legalities['future'] == 'legal'
+                future_commander = card_in_db['border_color'] != 'silver' and card_in_db.get('security_stamp', None) != 'acorn'
+                future_pauper = future_commander and card_in_db['rarity'] == 'common'
+                future_pauper_commander = future_commander and (
+                    card_in_db['rarity'] == 'common' or card_in_db['rarity'] == 'uncommon' and (
+                        'Legendary' in card_in_db['type_line'] or 'can be your commander' in card_in_db['oracle_text']
+                    )
+                )
+                if future_commander:
+                    card.legal_commander = True
+                    card.legal_vintage = True
+                    card.legal_legacy = True
+                    card.legal_oathbreaker = True
+                if future_pauper_commander:
+                    card.legal_pauper_commander = True
+                if future_pauper:
+                    card.legal_pauper = True
+                    card.legal_pauper_commander_main = True
+                if future_standard:
+                    card.legal_standard = True
+                    card.legal_pioneer = True
+                    card.legal_modern = True
+                    card.legal_brawl = True
+            if 'prices' in card_in_db:
+                card_prices = card_in_db['prices']
+                p = card_prices['tcgplayer']['price'] if card_prices['tcgplayer'] is not None else 0.0
+                card.price_tcgplayer = round(Decimal.from_float(p), 2)
+                p = card_prices['cardkingdom']['price'] if card_prices['cardkingdom'] is not None else 0.0
+                card.price_cardkingdom = round(Decimal.from_float(p), 2)
+                p = card_prices['cardmarket']['price'] if card_prices['cardmarket'] is not None else 0.0
+                card.price_cardmarket = round(Decimal.from_float(p), 2)
             card.latest_printing_set = card_in_db['set'].lower()
             card.reprinted = card_in_db['reprint']
             fields_after = card_fields(card)

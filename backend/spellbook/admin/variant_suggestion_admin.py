@@ -45,17 +45,20 @@ class VariantSuggestionAdmin(SpellbookModelAdmin):
     fieldsets = [
         ('Generated', {'fields': [
             'id',
-            'suggested_by']}),
+            'suggested_by',
+        ]}),
         ('Editable', {'fields': [
             'status',
             'notes',
             'mana_needed',
             'other_prerequisites',
-            'description']})
+            'description',
+            'spoiler',
+        ]}),
     ]
     inlines = [CardUsedInVariantSuggestionAdminInline, TemplateRequiredInVariantAdminInline, FeatureProducedInVariantAdminInline]
-    list_filter = ['status', CardsCountListFilter]
-    list_display = ['__str__', 'id', 'status']
+    list_filter = ['status', CardsCountListFilter, 'spoiler']
+    list_display = ['__str__', 'id', 'status', 'spoiler']
     actions = [set_rejected]
 
     def get_queryset(self, request):

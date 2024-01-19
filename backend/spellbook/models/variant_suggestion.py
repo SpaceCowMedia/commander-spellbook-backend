@@ -25,11 +25,12 @@ class VariantSuggestion(Recipe):
     status = models.CharField(choices=Status.choices, default=Status.NEW, help_text='Suggestion status for editors', max_length=2)
     notes = models.TextField(blank=True, help_text='Notes written by editors', validators=TEXT_VALIDATORS)
     mana_needed = models.CharField(blank=True, max_length=200, help_text='Mana needed for this combo. Use the {1}{W}{U}{B}{R}{G}{B/P}... format.', validators=[MANA_VALIDATOR])
-    other_prerequisites = models.TextField(blank=True, help_text='Other prerequisites for this variant.', validators=TEXT_VALIDATORS)
+    other_prerequisites = models.TextField(blank=True, help_text='Other prerequisites for this combo.', validators=TEXT_VALIDATORS)
     description = models.TextField(blank=False, help_text='Long description, in steps', validators=TEXT_VALIDATORS)
+    spoiler = models.BooleanField(default=False, help_text='Is this combo a spoiler?', verbose_name='is spoiler')
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, editable=False)
-    suggested_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, editable=False, help_text='User that suggested this variant', related_name='variants')
+    suggested_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, editable=False, help_text='User that suggested this combo', related_name='suggestions')
 
     class Meta:
         ordering = [
@@ -79,7 +80,7 @@ class VariantSuggestion(Recipe):
         if len(card_entities) == len(cards) and len(template_entities) == len(templates):
             variant_id = id_from_cards_and_templates_ids([card.id for card in card_entities], [template.id for template in template_entities])
             if Variant.objects.filter(id=variant_id).exists():
-                raise ValidationError('This variant already exists.')
+                raise ValidationError('This combo already exists.')
         q = VariantSuggestion.objects \
             .annotate(
                 uses_count=models.Count('uses', distinct=True),
@@ -92,7 +93,7 @@ class VariantSuggestion(Recipe):
         for template in templates:
             q = q.filter(requires__template=template)
         if q.exists():
-            raise ValidationError('This variant suggestion is redundant. Another suggestion with the same cards and templates already exists.')
+            raise ValidationError('This combo suggestion is redundant. Another suggestion with the same cards and templates already exists.')
 
 
 class CardUsedInVariantSuggestion(IngredientInCombination):

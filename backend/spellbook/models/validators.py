@@ -29,9 +29,12 @@ IDENTITY_VALIDATORS = [RegexValidator(regex=IDENTITY_REGEX, message='Can be any 
 # Scryfall query syntax: https://scryfall.com/docs/syntax
 COMPARISON_OPERATORS = r'(?::|[<>]=?|!=|=)'
 NUMERIC_VARIABLE = r'(?:mv|manavalue|power|pow|toughness|tou|pt|powtou|loyalty|loy)'
+STRING_COMPARABLE_VARIABLE = r'(?:c|color|id|identity|produces)'
+STRING_UNCOMPARABLE_VARIABLE = r'(?:has|t|type|keyword|is)'
+MANA_COMPARABLE_VARIABLE = r'(?:m|mana|devotion)'
 SCRYFALL_QUERY_ATOM = r'(?:-?(?:' + \
-    r'(?:(?:c|color|id|identity|produces)' + COMPARISON_OPERATORS + r'|(?:has|t|type|keyword|is):)(?:[^\s:<>!="]+|"[^"]+")|' + \
-    r'(?:m|mana|devotion)' + COMPARISON_OPERATORS + r'(?:\{' + MANA_SYMBOL + r'\})+|' + \
+    r'(?:' + STRING_COMPARABLE_VARIABLE + COMPARISON_OPERATORS + r'|' + STRING_UNCOMPARABLE_VARIABLE + r':)(?:[^\s:<>!="]+|"[^"]+")|' + \
+    MANA_COMPARABLE_VARIABLE + COMPARISON_OPERATORS + r'(?:\{' + MANA_SYMBOL + r'\})+|' + \
     NUMERIC_VARIABLE + COMPARISON_OPERATORS + r'(?:\d+|' + NUMERIC_VARIABLE + r')' + \
     r'))'
 SCRYFALL_EXPRESSION = r'(?:' + SCRYFALL_QUERY_ATOM + r'(?: (?:and |or )?' + SCRYFALL_QUERY_ATOM + r')*)'

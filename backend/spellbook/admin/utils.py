@@ -7,11 +7,11 @@ from django.contrib import admin
 from django.db.models.query import QuerySet
 from django.utils.html import format_html
 from django.utils.formats import localize
-from django.utils.text import normalize_newlines
 from django.forms import Textarea
 from django.contrib.admin import ModelAdmin
 from spellbook.models.validators import ORACLE_SYMBOL
 from spellbook.variants.variants_generator import DEFAULT_CARD_LIMIT
+from spellbook.models.utils import sanitize_newlines_apostrophes_and_quotes
 
 
 def datetime_to_html(datetime: datetime) -> str | None:
@@ -32,7 +32,8 @@ def auto_fix_missing_braces_to_oracle_symbols(text: str):
 
 class NormalizedTextareaWidget(Textarea):
     def value_from_datadict(self, data, files, name: str):
-        return normalize_newlines(super().value_from_datadict(data, files, name))
+        s = super().value_from_datadict(data, files, name)
+        return sanitize_newlines_apostrophes_and_quotes(s)
 
 
 class SpellbookModelAdmin(ModelAdmin):

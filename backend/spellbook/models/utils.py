@@ -2,6 +2,7 @@ import re
 import unicodedata
 from typing import Iterable, Callable
 from .validators import MANA_SYMBOL
+from django.utils.text import normalize_newlines
 from django.db.models import Expression, F, Value
 from django.db.models.functions import Replace, Trim
 
@@ -55,7 +56,8 @@ def mana_value(mana: str) -> int:
     return value
 
 
-def sanitize_apostrophes_and_quotes(s: str) -> str:
+def sanitize_newlines_apostrophes_and_quotes(s: str) -> str:
+    s = normalize_newlines(s)
     for chars, replacement in SANITIZATION_REPLACEMENTS.items():
         for c in chars:
             s = s.replace(c, replacement)

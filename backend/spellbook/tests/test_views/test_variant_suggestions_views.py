@@ -243,7 +243,7 @@ class VariantSuggestionsTests(AbstractModelTests):
             ],
             "manaNeeded": "{1}{W}{U}{B}{R}{G} with some apostrophes: `'ʼ and quotes: \"“ˮ",
             "otherPrerequisites": "Other prereqs with some apostrophes: `'ʼ and quotes: \"“ˮ",
-            "description": "A description with some apostrophes: `'ʼ and quotes: \"“ˮ"
+            "description": "A description with some apostrophes: `'ʼ and quotes: \"“ˮ and CRLF \r\n and LF \n and CR \r"
         }
         self.user = User.objects.create_user(username='testuser', password='12345')
         login = self.client.login(username='testuser', password='12345')
@@ -267,6 +267,7 @@ class VariantSuggestionsTests(AbstractModelTests):
             self.assertNotIn('ʹ', s)
             self.assertNotIn('ʻ', s)
             self.assertNotIn('ʼ', s)
+            self.assertNotIn('\r', s)
             return s
         apply_recursively_to_strings(json.loads(response.content), assertStringSanity)
 

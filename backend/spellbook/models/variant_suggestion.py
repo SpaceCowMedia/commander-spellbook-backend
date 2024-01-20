@@ -19,6 +19,7 @@ class VariantSuggestion(Recipe):
 
     class Status(models.TextChoices):
         NEW = 'N'
+        NEEDS_REVIEW = 'NR'
         ACCEPTED = 'A'
         REJECTED = 'R'
 
@@ -35,9 +36,10 @@ class VariantSuggestion(Recipe):
     class Meta:
         ordering = [
             models.Case(
-                models.When(status='N', then=models.Value(0)),
-                models.When(status='A', then=models.Value(1)),
-                models.When(status='R', then=models.Value(2)),
+                models.When(status='NR', then=models.Value(0)),
+                models.When(status='N', then=models.Value(1)),
+                models.When(status='A', then=models.Value(2)),
+                models.When(status='R', then=models.Value(3)),
                 default=models.Value(10),
             ),
             '-created'

@@ -12,6 +12,7 @@ class VariantSuggestionsTests(AbstractModelTests):
         vs = VariantSuggestion.objects.get(id=suggestion_result.id)
         self.assertEqual(suggestion_result.id, vs.id)
         self.assertEqual(suggestion_result.status, vs.status)
+        self.assertEqual(suggestion_result.comment, vs.comment)
         for i, uses in enumerate(vs.uses.all()):
             self.assertEqual(uses.card, suggestion_result.uses[i].card)
             self.assertEqual(set(uses.zone_locations), set(suggestion_result.uses[i].zone_locations))
@@ -241,6 +242,7 @@ class VariantSuggestionsTests(AbstractModelTests):
                     "feature": "Second produced feature with some apostrophes: `'ʼ and quotes: \"“ˮ ok"
                 }
             ],
+            "comment": "A comment with some apostrophes: `'ʼ and quotes: \"“ˮ and newlines \r\n and \n and \r",
             "manaNeeded": "{1}{W}{U}{B}{R}{G} with some apostrophes: `'ʼ and quotes: \"“ˮ",
             "otherPrerequisites": "Other prereqs with some apostrophes: `'ʼ and quotes: \"“ˮ",
             "description": "A description with some apostrophes: `'ʼ and quotes: \"“ˮ and CRLF \r\n and LF \n and CR \r"

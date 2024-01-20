@@ -71,6 +71,7 @@ class VariantSuggestionSerializer(serializers.ModelSerializer):
             'other_prerequisites',
             'description',
             'spoiler',
+            'comment',
             'suggested_by',
         ]
         extra_kwargs = {

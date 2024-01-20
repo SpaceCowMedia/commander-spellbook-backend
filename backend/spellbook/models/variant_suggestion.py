@@ -29,6 +29,7 @@ class VariantSuggestion(Recipe):
     other_prerequisites = models.TextField(blank=True, help_text='Other prerequisites for this combo.', validators=TEXT_VALIDATORS)
     description = models.TextField(blank=False, help_text='Long description, in steps', validators=TEXT_VALIDATORS)
     spoiler = models.BooleanField(default=False, help_text='Is this combo a spoiler?', verbose_name='is spoiler')
+    comment = models.TextField(blank=True, max_length=2**10, help_text='Comment written by the user that suggested this combo', validators=TEXT_VALIDATORS)
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, editable=False)
     suggested_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, editable=False, help_text='User that suggested this combo', related_name='suggestions')

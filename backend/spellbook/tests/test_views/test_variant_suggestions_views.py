@@ -112,6 +112,7 @@ class VariantSuggestionsTests(AbstractModelTests):
             "otherPrerequisites": "other prereqs",
             "description": "a description",
             "spoiler": False,
+            "comment": "a comment",
         }
         response = self.client.post(
             '/variant-suggestions/',

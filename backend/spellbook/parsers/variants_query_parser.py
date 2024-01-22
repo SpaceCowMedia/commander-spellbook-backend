@@ -425,14 +425,12 @@ def variants_query_parser(base: QuerySet, query_string: str) -> QuerySet:
             parsed_queries[key].append(QueryValue(group_dict['prefix'], original_key, group_dict['operator'], value_term))
     if len(parsed_queries) > MAX_QUERY_PARAMETERS:
         raise NotSupportedError('Too many search parameters.')
-    keys = set(parsed_queries.keys())
     queryset = base
-    if 'card' in keys:
-        queryset = queryset.alias(cards_count=Count('uses', distinct=True))
-    if 'coloridentity' in keys:
-        queryset = queryset.alias(identity_count=Case(When(identity='C', then=Value(0)), default=Length('identity')))
-    if 'results' in keys:
-        queryset = queryset.alias(results_count=Count('produces', distinct=True))
+    queryset = queryset.alias(
+        cards_count=Count('uses', distinct=True),
+        identity_count=Case(When(identity='C', then=Value(0)), default=Length('identity')),
+        results_count=Count('produces', distinct=True),
+    )
     for key, values in parsed_queries.items():
         for value in values:
             q = keyword_map[key](value)

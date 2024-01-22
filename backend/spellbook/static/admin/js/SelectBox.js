@@ -43,23 +43,37 @@
             const queries = text.toLowerCase().split(/\s*;\s*/);
             // Redisplay the HTML select box, displaying only the choices containing ALL
             // the words in text. (It's an AND search.)
-            const tokensMap = queries.map(t => t.split(/\s+/).filter(t => t.length > 0)).filter(t => t.length > 0);
             for (const node of SelectBox.cache[id]) {
                 const node_text = node.text.toLowerCase();
-                node.displayed = 1;
-                for (const tokens of tokensMap) {
-                    node.displayed = 1;
+                const lower_node_text = node_text.toLowerCase();
+                node.displayed = 0;
+                for (const query of queries) {
+                    const lower_query = query.toLowerCase();
+                    const tokens = lower_query.split(/\s+/).filter(t => t.length > 0);
+                    const currentScore = node.displayed;
                     for (const token of tokens) {
-                        if (!node_text.includes(token)) {
-                            node.displayed = 0;
+                        if (!lower_node_text.includes(token)) {
+                            node.displayed = currentScore;
                             break; // Once the first token isn't found we're done
+                        } else {
+                            node.displayed += 1;
                         }
                     }
-                    if (node.displayed === 1) {
-                        break; // Once a token set is found we're done
+                    if (lower_node_text.includes(lower_query)) {
+                        node.displayed += 100;
+                    }
+                    if (lower_node_text.endsWith(lower_query)) {
+                        node.displayed += 500;
+                    }
+                    if (lower_node_text.startsWith(lower_query)) {
+                        node.displayed += 1000;
+                    }
+                    if (lower_node_text === lower_query) {
+                        node.displayed += 10000;
                     }
                 }
             }
+            SelectBox.sort(id);
             SelectBox.redisplay(id);
         },
         get_hidden_node_count(id) {
@@ -115,6 +129,9 @@
         },
         sort: function(id) {
             SelectBox.cache[id].sort(function(a, b) {
+                if (a.displayed != b.displayed) {
+                    return a.displayed < b.displayed ? 1 : -1;
+                }
                 a = a.text.toLowerCase();
                 b = b.text.toLowerCase();
                 if (a > b) {

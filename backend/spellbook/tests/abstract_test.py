@@ -3,8 +3,9 @@ import random
 import uuid
 from django.test import TestCase
 from django.conf import settings
-from spellbook.models import Card, Feature, Combo, CardInCombo, Template, TemplateInCombo, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, FeatureProducedInVariantSuggestion, VariantSuggestion, VariantAlias, IngredientInCombination
+from spellbook.models import Card, Feature, Combo, CardInCombo, Template, TemplateInCombo, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, FeatureProducedInVariantSuggestion, VariantSuggestion, VariantAlias, IngredientInCombination, Variant
 from spellbook.utils import launch_job_command
+from spellbook.serializers import VariantSerializer
 
 
 class AbstractModelTests(TestCase):
@@ -39,6 +40,9 @@ class AbstractModelTests(TestCase):
 
     def generate_variants(self):
         launch_job_command('generate_variants', None)
+
+    def bulk_serialize_variants(self):
+        Variant.objects.bulk_serialize(Variant.objects.all(), serializer=VariantSerializer)  # type: ignore
 
     def populate_db(self):
         c1 = Card.objects.create(name='A A', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000001'), identity='W', legal_commander=True, spoiler=False, type_line='Instant')

@@ -2,7 +2,6 @@ import json
 import random
 from django.test import Client
 from spellbook.models import Card, Template, Feature, Variant, CardInVariant, TemplateInVariant
-from spellbook.serializers import VariantSerializer
 from ..abstract_test import AbstractModelTests
 from common.inspection import json_to_python_lambda
 
@@ -13,7 +12,7 @@ class VariantViewsTests(AbstractModelTests):
         super().generate_variants()
         Variant.objects.update(status=Variant.Status.OK)
         Variant.objects.filter(id__in=random.sample(list(Variant.objects.values_list('id', flat=True)), 3)).update(status=Variant.Status.EXAMPLE)
-        Variant.objects.bulk_serialize(Variant.objects.all(), serializer=VariantSerializer)
+        self.bulk_serialize_variants()
         self.v1_id = Variant.objects.first().id
 
     def variant_assertions(self, variant_result):
@@ -239,3 +238,18 @@ class VariantViewsTests(AbstractModelTests):
     def test_variants_list_view_query_by_a_combination_of_terms(self):
         # TODO: implement
         pass
+
+    def test_variants_list_view_ordering_by_popularity_with_nulls(self):
+        for popularity, variant in enumerate(Variant.objects.all()):
+            variant.popularity = popularity if popularity > 0 else None
+            variant.save()
+        self.bulk_serialize_variants()
+        c = Client()
+        for order in ('popularity', '-popularity'):
+            with self.subTest(f'order by {order}'):
+                response = c.get('/variants', data={'ordering': order}, follow=True)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.get('Content-Type'), 'application/json')
+                result = json.loads(response.content, object_hook=json_to_python_lambda)
+                self.assertGreater(len(result.results), 1)
+                self.assertIsNotNone(result.results[0].popularity)

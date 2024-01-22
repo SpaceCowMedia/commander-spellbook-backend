@@ -1,7 +1,7 @@
 from rest_framework import viewsets
 from spellbook.models import Template
 from spellbook.serializers import TemplateSerializer
-from .query_filters import NameAndScryfallAutocompleteQueryFilter
+from .filters import NameAndScryfallAutocompleteQueryFilter
 
 
 class TemplateViewSet(viewsets.ReadOnlyModelViewSet):

@@ -1,4 +1,4 @@
-from django.db.models import QuerySet, Case, Value, When, Q
+from django.db.models import QuerySet, Case, Value, When, Q, F
 from django.template import loader
 from rest_framework import filters
 from django.utils.encoding import force_str
@@ -90,3 +90,21 @@ class NameAndDescriptionAutocompleteQueryFilter(AutocompleteQueryFilter):
 
 class NameAndScryfallAutocompleteQueryFilter(AutocompleteQueryFilter):
     fields = ['name', 'scryfall_query']
+
+
+class OrderingFilterWithNullsLast(filters.OrderingFilter):
+    def filter_queryset(self, request, queryset, view):
+        ordering = self.get_ordering(request, queryset, view)
+
+        if ordering:
+            ordering_with_nulls = []
+            for field in ordering:
+                if '?' in field:
+                    ordering_with_nulls.append(field)
+                elif field.startswith('-'):
+                    ordering_with_nulls.append(F(field[1:]).desc(nulls_last=True))
+                else:
+                    ordering_with_nulls.append(F(field).asc(nulls_last=True))
+            return queryset.order_by(*ordering_with_nulls)
+
+        return queryset

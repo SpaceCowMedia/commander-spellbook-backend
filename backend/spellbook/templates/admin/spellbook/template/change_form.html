@@ -2,7 +2,7 @@
 
 {% block after-content %}
     {{ block.super }}
-    <table class="after-content">
+    <table>
         <thead>
             <tr>
                 <th class="column-variant">Used in combos</th>
@@ -18,15 +18,17 @@
                     </td>
                 </tr>
             {% endfor %}
-            {% if original.required_by_combos.count > suggested_count %}
+            {% with combos_count=original.required_by_combos.count %}
+            {% if combos_count > 0 %}
                 <tr class="form-row">
                     <td class="field-combo">
                         <p>
-                            <a href="{% url 'admin:spellbook_combo_changelist' %}">View more combos...</a>
+                            <a href="{% url 'admin:spellbook_combo_changelist' %}?requires__id={{ original.id }}">View all {{ combos_count }} combos where {{ original.name }} is required...</a>
                         </p>
                     </td>
                 </tr>
             {% endif %}
+            {% endwith %}
         </tbody>
     </table>
 {% endblock %}

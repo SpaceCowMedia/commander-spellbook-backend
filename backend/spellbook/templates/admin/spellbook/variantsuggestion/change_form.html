@@ -10,52 +10,14 @@
     <script>
         'use strict';
         {
-            django.jQuery.fn.djangoAdminSelectCards = function() {
-                django.jQuery.each(this, function(i, element) {
-                    if (element.id.includes('__prefix__')) {
-                        return;
-                    }
-                    const autocomplete = django.jQuery(element).autocomplete({
-                        source: function(request, response) {
-                            django.jQuery.ajax({
-                                url: 'https://api.scryfall.com/cards/autocomplete',
-                                dataType: 'json',
-                                data: {
-                                    q: request.term,
-                                    format: 'json'
-                                },
-                                success: function(data) {
-                                    response(data.data);
-                                }
-                            });
-                        },
-                        minLength: 3,
-                        open: function() {},
-                        close: function() {},
-                    })
-                    .autocomplete('instance');
-                    if (autocomplete) {
-                        autocomplete._renderItem = function(ul, item) {
-                            const newItem = django.jQuery('<li>')
-                                .attr('data-value', item.value)
-                                .append(item.label)
-                                .appendTo(ul);
-                            card_info.setup_tooltip(item.value, newItem);
-                            return newItem;
-                        };
-                    }
-                });
-                return this;
-            };
-
             django.jQuery(function() {
                 // Initialize all autocomplete widgets except the one in the template
                 // form used when a new formset is added.
-                django.jQuery('td.field-card>input[type=text]').djangoAdminSelectCards();
+                django.jQuery('td.field-card>input[type=text]').autocompleteCardsPreview();
             });
 
             document.addEventListener('formset:added', (event) => {
-                django.jQuery(event.target).find('td.field-card>input[type=text]').djangoAdminSelectCards();
+                django.jQuery(event.target).find('td.field-card>input[type=text]').autocompleteCardsPreview();
             });
         }
     </script>

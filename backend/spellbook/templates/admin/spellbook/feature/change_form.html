@@ -1,0 +1,82 @@
+{% extends "admin/change_form.html" %}
+{% load static %}
+
+{% block extrahead %}
+    {{ block.super }}
+    {% include 'admin/spellbook/includes/jqueryui_imports.html' %}
+    {% include 'admin/spellbook/includes/card_info_imports.html' %}
+    <script>
+        'use strict';
+        {
+            django.jQuery(function() {
+                // Initialize all autocomplete widgets except the one in the template
+                // form used when a new formset is added.
+                django.jQuery('.admin-autocomplete[data-field-name=card]').not('[name*=__prefix__]').select2CardsPreview();
+            });
+
+            document.addEventListener('formset:added', (event) => {
+                django.jQuery(event.target).find('.admin-autocomplete[data-field-name=card]').select2CardsPreview();
+            });
+        }
+    </script>
+{% endblock %}
+
+{% block after-content %}
+    <table>
+        <thead>
+            <tr>
+                <th class="column-variant">Needed by combos</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in original.needed_by_combos.all|slice:suggested_slice %}
+                <tr class="form-row">
+                    <td class="field-combo">
+                        <p>
+                            <a href="{% url 'admin:spellbook_combo_change' item.id %}">{{ item }}</a>
+                        </p>
+                    </td>
+                </tr>
+            {% endfor %}
+            {% with combos_count=original.needed_by_combos.count %}
+            {% if combos_count > 0 %}
+                <tr class="form-row">
+                    <td class="field-combo">
+                        <p>
+                            <a href="{% url 'admin:spellbook_combo_changelist' %}?needs__id={{ original.id }}">View all {{ combos_count }} combos where {{ original.name }} is needed...</a>
+                        </p>
+                    </td>
+                </tr>
+            {% endif %}
+            {% endwith %}
+        </tbody>
+    </table>
+    <table>
+        <thead>
+            <tr>
+                <th class="column-variant">Produced by combos</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in original.produced_by_combos.all|slice:suggested_slice %}
+                <tr class="form-row">
+                    <td class="field-combo">
+                        <p>
+                            <a href="{% url 'admin:spellbook_combo_change' item.id %}">{{ item }}</a>
+                        </p>
+                    </td>
+                </tr>
+            {% endfor %}
+            {% with combos_count=original.produced_by_combos.count %}
+            {% if combos_count > 0 %}
+                <tr class="form-row">
+                    <td class="field-combo">
+                        <p>
+                            <a href="{% url 'admin:spellbook_combo_changelist' %}?produces__id={{ original.id }}">View all {{ combos_count }} combos where {{ original.name }} is produced...</a>
+                        </p>
+                    </td>
+                </tr>
+            {% endif %}
+            {% endwith %}
+    </table>
+{% endblock %}

@@ -5,9 +5,12 @@
     {{ block.super }}
     <link rel="icon" type="image/x-icon" href="{% static 'spellbook/favicon.ico' %}">
     <style>
-        .after-content {
+        .after-content, .after-content table {
             float: left;
             width: 100%;
+        }
+        .after-content table {
+            margin-bottom: 1em;
         }
     </style>
 {% endblock %}

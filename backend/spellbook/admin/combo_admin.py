@@ -235,6 +235,10 @@ class ComboAdmin(SearchMultipleRelatedMixin, SpellbookModelAdmin):
         if lookup in (
             'variants__id',
             'included_in_variants__id',
+            'uses__id',
+            'requires__id',
+            'produces__id',
+            'needs__id',
         ):
             return True
         return super().lookup_allowed(lookup, value)

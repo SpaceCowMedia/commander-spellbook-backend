@@ -10,48 +10,14 @@
     <script>
         'use strict';
         {
-            django.jQuery.fn.djangoAdminSelectCards = function() {
-                django.jQuery.each(this, function(i, element) {
-                    const s = django.jQuery(element).select2({
-                        ajax: {
-                            data: (params) => {
-                                return {
-                                    term: params.term,
-                                    page: params.page,
-                                    app_label: element.dataset.appLabel,
-                                    model_name: element.dataset.modelName,
-                                    field_name: element.dataset.fieldName
-                                };
-                            }
-                        },
-                        templateResult: (data) => {
-                            const elem = django.jQuery(document.createElement('span'));
-                            elem.addClass('tooltip-in-dropdown');
-                            elem.text(data.text);
-                            card_info.setup_tooltip(data.text, elem);
-                            return elem;
-                        },
-                        templateSelection: (data) => {
-                            const elem = django.jQuery(document.createElement('span'));
-                            elem.text(data.text);
-                            card_info.setup_tooltip(data.text, elem);
-                            return elem;
-                        },
-                    }).on('select2:closing', function(e) {
-                        django.jQuery('.tooltip-in-dropdown').tooltip('close');                        
-                    });
-                });
-                return this;
-            };
-
             django.jQuery(function() {
                 // Initialize all autocomplete widgets except the one in the template
                 // form used when a new formset is added.
-                django.jQuery('.admin-autocomplete[data-field-name=card]').not('[name*=__prefix__]').djangoAdminSelectCards();
+                django.jQuery('.admin-autocomplete[data-field-name=card]').not('[name*=__prefix__]').select2CardsPreview();
             });
 
             document.addEventListener('formset:added', (event) => {
-                django.jQuery(event.target).find('.admin-autocomplete[data-field-name=card]').djangoAdminSelectCards();
+                django.jQuery(event.target).find('.admin-autocomplete[data-field-name=card]').select2CardsPreview();
             });
         }
     </script>
@@ -74,7 +40,7 @@
 {% endblock %}
 
 {% block after-content %}
-    <table class="after-content">
+    <table>
         <thead>
             <tr>
                 <th class="column-variant">Variants</th>

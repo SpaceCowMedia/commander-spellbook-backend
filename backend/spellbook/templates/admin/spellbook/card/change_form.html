@@ -134,7 +134,7 @@
 
 {% block after-content %}
     {{ block.super }}
-    <table class="after-content">
+    <table>
         <thead>
             <tr>
                 <th class="column-variant">Card image from Scryfall</th>
@@ -148,7 +148,7 @@
             </tr>
         </tbody>
     </table>
-    <table class="after-content">
+    <table>
         <thead>
             <tr>
                 <th class="column-variant">Used in combos</th>
@@ -164,15 +164,17 @@
                     </td>
                 </tr>
             {% endfor %}
-            {% if original.used_in_combos.count > suggested_count %}
+            {% with combos_count=original.used_in_combos.count %}
+            {% if combos_count > 0 %}
                 <tr class="form-row">
                     <td class="field-combo">
                         <p>
-                            <a href="{% url 'admin:spellbook_combo_changelist' %}">View more combos...</a>
+                            <a href="{% url 'admin:spellbook_combo_changelist' %}?uses__id={{ original.id }}">View all {{ combos_count }} combos where {{ original.name }} is used...</a>
                         </p>
                     </td>
                 </tr>
             {% endif %}
+            {% endwith %}
         </tbody>
     </table>
 {% endblock %}

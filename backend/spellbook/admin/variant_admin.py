@@ -195,6 +195,7 @@ class VariantAdmin(SpellbookModelAdmin):
     def lookup_allowed(self, lookup: str, value: str) -> bool:
         if lookup in (
             'generated_by__id',
+            'of__id',
         ):
             return True
         return super().lookup_allowed(lookup, value)

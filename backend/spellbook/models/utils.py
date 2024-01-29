@@ -37,7 +37,7 @@ def order_mana_identity(mana: set[str]) -> str:
     return ''.join(color for color in 'WUBRG' if color in mana) or 'C'
 
 
-def merge_identities(identities: Iterable[str]):
+def merge_identities(identities: Iterable[str]) -> str:
     identity_set = set(''.join(identities).upper())
     return order_mana_identity(identity_set)
 

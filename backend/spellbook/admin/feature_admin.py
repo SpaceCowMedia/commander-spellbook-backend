@@ -33,10 +33,16 @@ class FeatureAdmin(SpellbookModelAdmin):
 
     def get_search_results(self, request: HttpRequest, queryset: QuerySet[Any], search_term: str) -> tuple[QuerySet[Any], bool]:
         queryset, duplicates = super().get_search_results(request, queryset, search_term)
+        search_terms = [sub_term.strip() for term in search_term.split(' | ') for sub_term in term.split(' + ') if sub_term.strip()]
+        cases: list[When] = []
+        for i, term in enumerate(search_terms):
+            points = len(search_terms) - i
+            cases.append(When(name__iexact=term, then=10 * points + 4))
+            cases.append(When(name__istartswith=term, then=10 * points + 3))
+            cases.append(When(name__icontains=term, then=10 * points + 2))
         return queryset.alias(
             match_points=Case(
-                When(name__iexact=search_term, then=5),
-                When(name__istartswith=search_term, then=4),
+                *cases,
                 default=1,
             )
         ).order_by('-match_points', 'name'), duplicates

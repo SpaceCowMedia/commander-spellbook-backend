@@ -56,19 +56,26 @@ class SpellbookModelAdmin(ModelAdmin):
     def get_search_results(self, request, queryset, search_term: str):
         result = queryset
         may_have_duplicates = False
-        first = True
-        for sub_search in search_term.split(' | '):
-            partial_result = queryset
-            for sub_term in sub_search.split(' + '):
+        split_by_or = search_term.split(' | ')
+        if len(split_by_or) > 1:
+            first = True
+            for sub_term in split_by_or:
                 sub_term = sub_term.strip()
                 if sub_term:
-                    partial_result, d = super().get_search_results(request, partial_result, sub_term)
+                    partial_result, d = super().get_search_results(request, queryset, sub_term)
                     may_have_duplicates |= d
-            if first:
-                first = False
-                result = partial_result
-            else:
-                result = result | partial_result
+                    if first:
+                        first = False
+                        result = partial_result
+                    else:
+                        result = result | partial_result
+        else:
+            split_by_and = search_term.split(' + ')
+            for sub_term in split_by_and:
+                sub_term = sub_term.strip()
+                if sub_term:
+                    result, d = super().get_search_results(request, result, sub_term)
+                    may_have_duplicates |= d
         return result, may_have_duplicates
 
 

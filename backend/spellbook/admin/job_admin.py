@@ -6,6 +6,7 @@ from .utils import datetime_to_html, SpellbookModelAdmin
 
 @admin.register(Job)
 class JobAdmin(SpellbookModelAdmin):
+    date_hierarchy = 'created'
     readonly_fields = ['created_local', 'expected_termination_local', 'termination_local']
     fields = ['id', 'name', 'status', 'created_local', 'expected_termination_local', 'termination_local', 'message', 'started_by']
     list_display = ['id', 'name', 'status', 'created_local', 'expected_termination_local', 'termination_local', 'variants_count']

@@ -7,7 +7,7 @@ from django.forms import ModelForm
 from spellbook.models import Card, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, CardInVariant, TemplateInVariant, VariantSuggestion, Playable, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion
 from spellbook.variants.variant_data import RestoreData
 from spellbook.variants.variants_generator import restore_variant
-from .utils import SearchMultipleRelatedMixin, SpellbookModelAdmin, CustomFilter
+from .utils import SpellbookModelAdmin, CustomFilter
 from .ingredient_admin import IngredientAdmin
 
 
@@ -87,7 +87,7 @@ class VariantRelatedFilter(CustomFilter):
 
 
 @admin.register(Combo)
-class ComboAdmin(SearchMultipleRelatedMixin, SpellbookModelAdmin):
+class ComboAdmin(SpellbookModelAdmin):
     form = ComboForm
     save_as = True
     readonly_fields = ['scryfall_link']

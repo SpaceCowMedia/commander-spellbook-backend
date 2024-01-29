@@ -53,16 +53,22 @@ class SpellbookModelAdmin(ModelAdmin):
         form.clean_mana_needed = clean_mana_needed
         return form
 
-
-class SearchMultipleRelatedMixin:
     def get_search_results(self, request, queryset, search_term: str):
         result = queryset
         may_have_duplicates = False
-        for sub_term in search_term.split(' + '):
-            sub_term = sub_term.strip()
-            if sub_term:
-                result, d = super().get_search_results(request, result, sub_term)
-                may_have_duplicates |= d
+        first = True
+        for sub_search in search_term.split(' | '):
+            partial_result = queryset
+            for sub_term in sub_search.split(' + '):
+                sub_term = sub_term.strip()
+                if sub_term:
+                    partial_result, d = super().get_search_results(request, partial_result, sub_term)
+                    may_have_duplicates |= d
+            if first:
+                first = False
+                result = partial_result
+            else:
+                result = result | partial_result
         return result, may_have_duplicates
 
 

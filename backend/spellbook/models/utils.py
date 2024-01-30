@@ -67,12 +67,12 @@ def id_from_cards_and_templates_ids(cards: list[int], templates: list[int]) -> s
     return '-'.join(str(c) for c in sorted(cards)) + ('--' + '--'.join(str(t) for t in sorted_templates) if len(sorted_templates) > 0 else '')
 
 
-def order_mana_identity(mana: set[str]) -> str:
-    return SORTED_COLORS[frozenset(mana)]
+def order_mana_identity(identity_set: frozenset[str]) -> str:
+    return SORTED_COLORS[identity_set]
 
 
 def merge_identities(identities: Iterable[str]) -> str:
-    identity_set = set(''.join(identities).upper())
+    identity_set = frozenset(''.join(identities).upper()) - frozenset('C')
     return order_mana_identity(identity_set)
 
 

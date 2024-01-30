@@ -19,7 +19,7 @@ class ScryfallLinkMixin:
         cards = self.cards()
         link = f'{SCRYFALL_WEBSITE_CARD_SEARCH}?{self.query_string(cards=cards)}'
         plural = 's' if len(cards) > 1 else ''
-        return format_html(f'<a href="{link}" target="_blank">Show card{plural} on scryfall</a>')
+        return format_html('<a href="{}" target="_blank">Show card{} on scryfall</a>', link, plural)
 
 
 class PreSaveManager(Manager):

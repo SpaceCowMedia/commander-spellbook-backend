@@ -106,7 +106,7 @@ jobs:
         run: python manage.py version
         working-directory: backend
       - name: Unit Test 🧪
-        run: python manage.py test --no-input --parallel auto
+        run: python -Wd manage.py test --no-input --parallel auto
         working-directory: backend
 
 

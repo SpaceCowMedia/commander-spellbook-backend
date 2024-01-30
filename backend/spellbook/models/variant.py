@@ -152,7 +152,7 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
 
     def spellbook_link(self):
         link = f'https://commanderspellbook.com/combo/{self.id}'
-        return format_html(f'<a href="{link}" target="_blank">Show combo on Commander Spellbook</a>')
+        return format_html('<a href="{}" target="_blank">Show combo on Commander Spellbook</a>', link)
 
 
 class CardInVariant(IngredientInCombination):

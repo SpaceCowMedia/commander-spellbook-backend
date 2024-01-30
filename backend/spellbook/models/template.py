@@ -33,4 +33,4 @@ class Template(models.Model):
         if self.scryfall_query == '':
             return 'Empty query'
         link = f'{SCRYFALL_WEBSITE_CARD_SEARCH}?{self.query_string()}'
-        return format_html(f'<a href="{link}" target="_blank">{link}</a>')
+        return format_html('<a href="{}" target="_blank">{}</a>', link, link)

@@ -231,7 +231,7 @@ class ComboAdmin(SpellbookModelAdmin):
                 request.from_suggestion.requires_count = len(formset_kwargs['initial'])
         return formset_kwargs
 
-    def lookup_allowed(self, lookup: str, value: str) -> bool:
+    def lookup_allowed(self, lookup: str, value: str, request) -> bool:
         if lookup in (
             'variants__id',
             'included_in_variants__id',
@@ -241,4 +241,4 @@ class ComboAdmin(SpellbookModelAdmin):
             'needs__id',
         ):
             return True
-        return super().lookup_allowed(lookup, value)
+        return super().lookup_allowed(lookup, value, request)

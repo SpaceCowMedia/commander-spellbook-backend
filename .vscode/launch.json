@@ -14,6 +14,9 @@
                 "runserver",
                 "8000"
             ],
+            "pythonArgs": [
+                "-Wd"
+            ],
             "envFile": "${workspaceFolder}/backend/.env",
             "preLaunchTask": "Prelaunch",
             "django": true,

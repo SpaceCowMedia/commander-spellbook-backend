@@ -22,12 +22,12 @@ class FeatureAdmin(SpellbookModelAdmin):
     list_display = ['name', 'id', 'utility']
     list_filter = ['utility']
 
-    def lookup_allowed(self, lookup: str, value: str) -> bool:
+    def lookup_allowed(self, lookup: str, value: str, request) -> bool:
         if lookup in (
             'produced_by_variants__id',
         ):
             return True
-        return super().lookup_allowed(lookup, value)
+        return super().lookup_allowed(lookup, value, request)
 
     def sort_search_results(self, request, queryset: QuerySet, search_term: str) -> QuerySet:
         search_terms = [sub_term.strip() for term in search_term.split(' | ') for sub_term in term.split(' + ') if sub_term.strip()]

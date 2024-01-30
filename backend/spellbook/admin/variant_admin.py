@@ -71,7 +71,20 @@ def set_not_working(modeladmin, request, queryset):
 
 @admin.action(description='Mark selected variants as EXAMPLE')
 def set_example(modeladmin, request, queryset):
-    queryset.update(status=Variant.Status.EXAMPLE)
+    # JSON preserialization has to be updated when the status becomes public.
+    variants = list(VariantSerializer.prefetch_related(queryset))
+    for variant in variants:
+        variant.status = Variant.Status.EXAMPLE
+    Variant.objects.bulk_serialize(variants, fields=['status'], serializer=VariantSerializer)  # type: ignore
+
+
+@admin.action(description='Mark selected variants as OK')
+def set_ok(modeladmin, request, queryset):
+    # JSON preserialization has to be updated when the status becomes public.
+    variants = list(VariantSerializer.prefetch_related(queryset))
+    for variant in variants:
+        variant.status = Variant.Status.OK
+    Variant.objects.bulk_serialize(variants, fields=['status'], serializer=VariantSerializer)  # type: ignore
 
 
 @admin.register(Variant)
@@ -109,7 +122,7 @@ class VariantAdmin(SpellbookModelAdmin):
     ]
     list_filter = ['status', CardsCountListFilter, IdentityFilter, 'legal_commander', 'spoiler']
     list_display = ['__str__', 'id', 'status', 'identity']
-    actions = [set_restore, set_draft, set_new, set_not_working, set_example]
+    actions = [set_restore, set_draft, set_new, set_not_working, set_example, set_ok]
     search_fields = ['id']
 
     @admin.display(description='produces')
@@ -188,6 +201,8 @@ class VariantAdmin(SpellbookModelAdmin):
 
     def save_related(self, request: Any, form: Any, formsets: Any, change: Any):
         super().save_related(request, form, formsets, change)
+        # Feature: update serialized JSON when variant is edited
+        # effectively resulting in a real time update of the variant
         variant: Variant = form.instance
         variant.update_serialized(VariantSerializer)
         variant.save()

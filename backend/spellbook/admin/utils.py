@@ -57,6 +57,7 @@ class SpellbookModelAdmin(ModelAdmin):
     def get_search_results(self, request, queryset, search_term: str):
         result = queryset
         may_have_duplicates = False
+        search_done = False
         split_by_or = search_term.replace(' + ', ' ').split(' | ')
         if len(split_by_or) > 1:
             first = True
@@ -64,6 +65,7 @@ class SpellbookModelAdmin(ModelAdmin):
                 sub_term = sub_term.strip()
                 if sub_term:
                     partial_result, d = super().get_search_results(request, queryset, sub_term)
+                    search_done = True
                     may_have_duplicates |= d
                     if first:
                         first = False
@@ -76,8 +78,9 @@ class SpellbookModelAdmin(ModelAdmin):
                 sub_term = sub_term.strip()
                 if sub_term:
                     result, d = super().get_search_results(request, result, sub_term)
+                    search_done = True
                     may_have_duplicates |= d
-        if not request.GET.get(ORDER_VAR):
+        if search_done and not request.GET.get(ORDER_VAR):
             result = self.sort_search_results(request, result, search_term)
         return result, may_have_duplicates
 

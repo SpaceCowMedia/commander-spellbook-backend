@@ -9,6 +9,7 @@ from django.utils.html import format_html
 from django.utils.formats import localize
 from django.forms import Textarea
 from django.contrib.admin import ModelAdmin
+from django.contrib.admin.views.main import ORDER_VAR
 from spellbook.models.validators import ORACLE_SYMBOL
 from spellbook.variants.variants_generator import DEFAULT_CARD_LIMIT
 from spellbook.models.utils import sanitize_newlines_apostrophes_and_quotes
@@ -76,7 +77,12 @@ class SpellbookModelAdmin(ModelAdmin):
                 if sub_term:
                     result, d = super().get_search_results(request, result, sub_term)
                     may_have_duplicates |= d
+        if not request.GET.get(ORDER_VAR):
+            result = self.sort_search_results(request, result, search_term)
         return result, may_have_duplicates
+
+    def sort_search_results(self, request, queryset: QuerySet, search_term: str) -> QuerySet:
+        return queryset
 
 
 class CustomFilter(admin.SimpleListFilter):

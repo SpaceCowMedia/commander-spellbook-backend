@@ -1,7 +1,5 @@
-from typing import Any
 from django.contrib import admin
 from django.db.models import QuerySet, Case, When
-from django.http import HttpRequest
 from spellbook.models import Feature
 from .utils import SpellbookModelAdmin
 
@@ -31,8 +29,7 @@ class FeatureAdmin(SpellbookModelAdmin):
             return True
         return super().lookup_allowed(lookup, value)
 
-    def get_search_results(self, request: HttpRequest, queryset: QuerySet[Any], search_term: str) -> tuple[QuerySet[Any], bool]:
-        queryset, duplicates = super().get_search_results(request, queryset, search_term)
+    def sort_search_results(self, request, queryset: QuerySet, search_term: str) -> QuerySet:
         search_terms = [sub_term.strip() for term in search_term.split(' | ') for sub_term in term.split(' + ') if sub_term.strip()]
         cases: list[When] = []
         for i, term in enumerate(search_terms):
@@ -45,4 +42,4 @@ class FeatureAdmin(SpellbookModelAdmin):
                 *cases,
                 default=1,
             )
-        ).order_by('-match_points', 'name'), duplicates
+        ).order_by('-match_points')

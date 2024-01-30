@@ -15,38 +15,40 @@ SANITIZATION_REPLACEMENTS = {
     '“”″❞〝〞ˮ': '"',  # double quotes
 }
 SORTED_COLORS = {
-    frozenset({}): "C",
-    frozenset({"W"}): "W",
-    frozenset({"U"}): "U",
-    frozenset({"B"}): "B",
-    frozenset({"R"}): "R",
-    frozenset({"G"}): "G",
-    frozenset({"W", "U"}): "WU",
-    frozenset({"W", "B"}): "WB",
-    frozenset({"W", "R"}): "RW",
-    frozenset({"W", "G"}): "GW",
-    frozenset({"U", "B"}): "UB",
-    frozenset({"U", "R"}): "UR",
-    frozenset({"U", "G"}): "GU",
-    frozenset({"B", "R"}): "BR",
-    frozenset({"B", "G"}): "BG",
-    frozenset({"R", "G"}): "RG",
-    frozenset({"W", "U", "B"}): "WUB",
-    frozenset({"W", "U", "R"}): "URW",
-    frozenset({"W", "U", "G"}): "GWU",
-    frozenset({"W", "B", "R"}): "RWB",
-    frozenset({"W", "B", "G"}): "WBG",
-    frozenset({"W", "R", "G"}): "RGW",
-    frozenset({"U", "B", "R"}): "UBR",
-    frozenset({"U", "B", "G"}): "BGU",
-    frozenset({"U", "R", "G"}): "GUR",
-    frozenset({"B", "R", "G"}): "BRG",
-    frozenset({"W", "U", "B", "R"}): "WUBR",
-    frozenset({"U", "B", "R", "G"}): "UBRG",
-    frozenset({"B", "R", "G", "W"}): "BRGW",
-    frozenset({"R", "G", "W", "U"}): "RGWU",
-    frozenset({"G", "W", "U", "B"}): "GWUB",
-    frozenset({"W", "U", "B", "R", "G"}): "WUBRG"
+    frozenset({}): 'C',
+    **{frozenset(i): i for i in [
+        'W',
+        'U',
+        'B',
+        'R',
+        'G',
+        'WU',
+        'WB',
+        'RW',
+        'GW',
+        'UB',
+        'UR',
+        'GU',
+        'BR',
+        'BG',
+        'RG',
+        'WUB',
+        'URW',
+        'GWU',
+        'RWB',
+        'WBG',
+        'RGW',
+        'UBR',
+        'BGU',
+        'GUR',
+        'BRG',
+        'WUBR',
+        'UBRG',
+        'BRGW',
+        'RGWU',
+        'GWUB',
+        'WUBRG'
+    ]}
 }
 
 
@@ -72,7 +74,7 @@ def order_mana_identity(identity_set: frozenset[str]) -> str:
 
 
 def merge_identities(identities: Iterable[str]) -> str:
-    identity_set = frozenset(''.join(identities).upper()) - frozenset('C')
+    identity_set = frozenset(''.join(identities).upper()).intersection('WUBRG')
     return order_mana_identity(identity_set)
 
 

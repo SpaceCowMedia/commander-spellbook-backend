@@ -240,10 +240,10 @@ class VariantViewsTests(AbstractModelTests):
         pass
 
     def test_variants_list_view_ordering_by_popularity_with_nulls(self):
-        for popularity, variant in enumerate(Variant.objects.all()):
+        variants = Variant.objects.all()
+        for popularity, variant in enumerate(variants):
             variant.popularity = popularity if popularity > 0 else None
-            variant.save()
-        self.bulk_serialize_variants()
+        self.bulk_serialize_variants(q=variants, extra_fields=['popularity'])
         c = Client()
         for order in ('popularity', '-popularity'):
             with self.subTest(f'order by {order}'):

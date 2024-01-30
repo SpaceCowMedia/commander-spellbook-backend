@@ -57,7 +57,10 @@ class PreSaveSerializedManager(PreSaveManager):
         objs = list(objs)
         for obj in objs:
             obj.update_serialized(serializer)
-        return super(Manager, self).bulk_update(objs, fields=['serialized'], *args, **kwargs)
+        fields: list = kwargs.pop('fields', [])
+        if 'serialized' not in fields:
+            fields.append('serialized')
+        return super(Manager, self).bulk_update(objs, *args, fields=fields, **kwargs)
 
 
 class SerializedObjectsManager(Manager):

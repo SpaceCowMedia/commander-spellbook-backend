@@ -41,8 +41,10 @@ class AbstractModelTests(TestCase):
     def generate_variants(self):
         launch_job_command('generate_variants', None)
 
-    def bulk_serialize_variants(self):
-        Variant.objects.bulk_serialize(Variant.objects.all(), serializer=VariantSerializer)  # type: ignore
+    def bulk_serialize_variants(self, q=None, extra_fields=[]):
+        if q is None:
+            q = Variant.objects.all()
+        Variant.objects.bulk_serialize(q, serializer=VariantSerializer, fields=extra_fields)  # type: ignore
 
     def populate_db(self):
         c1 = Card.objects.create(name='A A', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000001'), identity='W', legal_commander=True, spoiler=False, type_line='Instant')

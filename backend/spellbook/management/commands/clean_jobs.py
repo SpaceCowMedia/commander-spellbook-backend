@@ -17,6 +17,11 @@ class Command(AbstractCommand):
             help='Force clean all pending jobs',
         )
 
+    def handle(self, *args, **options):
+        # Handle other pending clean_jobs jobs before running
+        Job.objects.filter(status=Job.Status.PENDING, name=self.name).update(status=Job.Status.FAILURE, message='Job was cancelled.', termination=timezone.now())
+        super().handle(*args, **options)
+
     def run(self, *args, **options):
         self.log('Cleaning pending jobs...')
         query = Job.objects.filter(status=Job.Status.PENDING)

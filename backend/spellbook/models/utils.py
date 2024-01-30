@@ -14,6 +14,41 @@ SANITIZATION_REPLACEMENTS = {
     'ʻʼ‘’❛❜': '\'',  # quotes
     '“”″❞〝〞ˮ': '"',  # double quotes
 }
+SORTED_COLORS = {
+    frozenset({}): "C",
+    frozenset({"W"}): "W",
+    frozenset({"U"}): "U",
+    frozenset({"B"}): "B",
+    frozenset({"R"}): "R",
+    frozenset({"G"}): "G",
+    frozenset({"W", "U"}): "WU",
+    frozenset({"W", "B"}): "WB",
+    frozenset({"W", "R"}): "RW",
+    frozenset({"W", "G"}): "GW",
+    frozenset({"U", "B"}): "UB",
+    frozenset({"U", "R"}): "UR",
+    frozenset({"U", "G"}): "GU",
+    frozenset({"B", "R"}): "BR",
+    frozenset({"B", "G"}): "BG",
+    frozenset({"R", "G"}): "RG",
+    frozenset({"W", "U", "B"}): "WUB",
+    frozenset({"W", "U", "R"}): "URW",
+    frozenset({"W", "U", "G"}): "GWU",
+    frozenset({"W", "B", "R"}): "RWB",
+    frozenset({"W", "B", "G"}): "WBG",
+    frozenset({"W", "R", "G"}): "RGW",
+    frozenset({"U", "B", "R"}): "UBR",
+    frozenset({"U", "B", "G"}): "BGU",
+    frozenset({"U", "R", "G"}): "GUR",
+    frozenset({"B", "R", "G"}): "BRG",
+    frozenset({"W", "U", "B", "R"}): "WUBR",
+    frozenset({"U", "B", "R", "G"}): "UBRG",
+    frozenset({"B", "R", "G", "W"}): "BRGW",
+    frozenset({"R", "G", "W", "U"}): "RGWU",
+    frozenset({"G", "W", "U", "B"}): "GWUB",
+    frozenset({"W", "U", "B", "R", "G"}): "WUBRG"
+}
+
 
 
 def recipe(ingredients: list[str], results: list[str], negative_results: list[str] = []):
@@ -109,3 +144,6 @@ def simplify_card_name_with_spaces_on_database(field: str) -> Expression:
             Value('_')
         )
     )
+
+def sort_colors(colors: set) -> list:
+    return SORTED_COLORS[frozenset(colors)]

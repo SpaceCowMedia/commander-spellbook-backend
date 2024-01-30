@@ -16,9 +16,7 @@ defaults:
   run:
     shell: bash
 
-
 permissions: {}
-
 
 jobs:
   build:
@@ -30,24 +28,12 @@ jobs:
       should-release: ${{ steps.semver.outputs.should-release }}
       is-prerelease: ${{ steps.semver.outputs.is-github-prerelease }}
     steps:
+      - name: Setup Docker Buildx 🐳
+        uses: docker/setup-buildx-action@v3
+
       - id: semver
         name: Checkout 🛎️
         uses: EasyDesk/action-semver-checkout@v1
-
-      - name: Setup Python 🐍
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: pip
-      - name: Install dependencies 🧶
-        run: pip install -r requirements.txt
-        working-directory: backend
-      - name: Print Django version 🐍
-        run: python manage.py version
-        working-directory: backend
-
-      - name: Setup Docker Buildx 🐳
-        uses: docker/setup-buildx-action@v3
 
       - name: Build and export image 🏗️
         uses: docker/build-push-action@v5
@@ -59,12 +45,12 @@ jobs:
           target: production
           build-args: VERSION=${{ steps.semver.outputs.version }}
           outputs: type=docker,dest=/tmp/spellbook-backend.tar
+
       - name: Upload image artifact 📦
         uses: actions/upload-artifact@v4
         with:
           name: spellbook-backend
           path: /tmp/spellbook-backend.tar
-
       - name: Upload migration artifatcs 📦
         uses: actions/upload-artifact@v4
         with:
@@ -94,6 +80,7 @@ jobs:
       fail-fast: false
       matrix:
         python-version:
+          - '3.12'
           - '3.11'
           - '3.10'
         os:
@@ -114,6 +101,9 @@ jobs:
           cache: pip
       - name: Install dependencies 🧶
         run: pip install -r requirements.txt tblib --no-cache-dir
+        working-directory: backend
+      - name: Print Django version 🐍
+        run: python manage.py version
         working-directory: backend
       - name: Unit Test 🧪
         run: python manage.py test --no-input --parallel auto

@@ -14,6 +14,42 @@ SANITIZATION_REPLACEMENTS = {
     'ʻʼ‘’❛❜': '\'',  # quotes
     '“”″❞〝〞ˮ': '"',  # double quotes
 }
+SORTED_COLORS = {
+    frozenset({}): 'C',
+    **{frozenset(i): i for i in [
+        'W',
+        'U',
+        'B',
+        'R',
+        'G',
+        'WU',
+        'WB',
+        'RW',
+        'GW',
+        'UB',
+        'UR',
+        'GU',
+        'BR',
+        'BG',
+        'RG',
+        'WUB',
+        'URW',
+        'GWU',
+        'RWB',
+        'WBG',
+        'RGW',
+        'UBR',
+        'BGU',
+        'GUR',
+        'BRG',
+        'WUBR',
+        'UBRG',
+        'BRGW',
+        'RGWU',
+        'GWUB',
+        'WUBRG'
+    ]}
+}
 
 
 def recipe(ingredients: list[str], results: list[str], negative_results: list[str] = []):
@@ -33,12 +69,12 @@ def id_from_cards_and_templates_ids(cards: list[int], templates: list[int]) -> s
     return '-'.join(str(c) for c in sorted(cards)) + ('--' + '--'.join(str(t) for t in sorted_templates) if len(sorted_templates) > 0 else '')
 
 
-def order_mana_identity(mana: set[str]) -> str:
-    return ''.join(color for color in 'WUBRG' if color in mana) or 'C'
+def order_mana_identity(identity_set: frozenset[str]) -> str:
+    return SORTED_COLORS[identity_set]
 
 
 def merge_identities(identities: Iterable[str]) -> str:
-    identity_set = set(''.join(identities).upper())
+    identity_set = frozenset(''.join(identities).upper()).intersection('WUBRG')
     return order_mana_identity(identity_set)
 
 

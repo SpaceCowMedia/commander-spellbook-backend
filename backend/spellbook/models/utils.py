@@ -50,7 +50,6 @@ SORTED_COLORS = {
 }
 
 
-
 def recipe(ingredients: list[str], results: list[str], negative_results: list[str] = []):
     return ' + '.join(ingredients) \
         + ' ➜ ' + ' + '.join(results[:3]) \
@@ -69,7 +68,7 @@ def id_from_cards_and_templates_ids(cards: list[int], templates: list[int]) -> s
 
 
 def order_mana_identity(mana: set[str]) -> str:
-    return ''.join(color for color in 'WUBRG' if color in mana) or 'C'
+    return SORTED_COLORS[frozenset(mana)]
 
 
 def merge_identities(identities: Iterable[str]) -> str:
@@ -144,6 +143,3 @@ def simplify_card_name_with_spaces_on_database(field: str) -> Expression:
             Value('_')
         )
     )
-
-def sort_colors(colors: set) -> list:
-    return SORTED_COLORS[frozenset(colors)]

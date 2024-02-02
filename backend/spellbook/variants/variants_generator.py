@@ -216,6 +216,8 @@ def update_variant(
         status != Variant.Status.NOT_WORKING and not includes_any(v=frozenset(variant_def.card_ids), others=data.not_working_variants)
     uses, requires = [], []
     produces_ids = subtract_removed_features(data, variant_def.included_ids, variant_def.feature_ids) - data.utility_features_ids
+    old_results_count = variant.results_count
+    variant.results_count = len(produces_ids)
     if restore:
         uses, requires = restore_variant(
             variant=variant,
@@ -228,7 +230,7 @@ def update_variant(
     if not ok:
         variant.status = Variant.Status.NOT_WORKING
     return VariantBulkSaveItem(
-        should_update=restore or status != variant.status,
+        should_update=restore or status != variant.status or old_results_count != variant.results_count,
         variant=variant,
         uses=uses,
         requires=requires,
@@ -245,9 +247,10 @@ def create_variant(
         job: Job | None = None):
     variant = Variant(
         id=id,
-        generated_by=job,
+        generated_by=job
     )
     produces_ids = subtract_removed_features(data, variant_def.included_ids, variant_def.feature_ids) - data.utility_features_ids
+    variant.results_count = len(produces_ids)
     uses, requires = restore_variant(
         variant=variant,
         included_combos=[data.id_to_combo[c_id] for c_id in variant_def.included_ids],
@@ -274,7 +277,7 @@ def create_variant(
 def perform_bulk_saves(to_create: list[VariantBulkSaveItem], to_update: list[VariantBulkSaveItem]):
     Variant.objects.bulk_create([v.variant for v in to_create])
     if to_update:
-        update_fields = ['name', 'status', 'mana_needed', 'other_prerequisites', 'description'] + Playable.playable_fields()
+        update_fields = ['name', 'status', 'mana_needed', 'other_prerequisites', 'description', 'results_count'] + Playable.playable_fields()
         Variant.objects.bulk_update([v.variant for v in to_update if v.should_update], fields=update_fields)
     CardInVariant.objects.bulk_create([c for v in to_create for c in v.uses])
     if to_update:

@@ -1,6 +1,6 @@
 import re
-from django.db.models import Q, QuerySet, Count, Case, When, Value
-from django.db.models.functions import Length
+from functools import wraps
+from django.db.models import Q, QuerySet
 from collections import defaultdict
 from typing import Callable
 from dataclasses import dataclass
@@ -17,6 +17,17 @@ class QueryValue:
     value: str
 
 
+def uses_related(*related: str):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            return func(*args, **kwargs)
+        setattr(wrapper, 'uses_related', frozenset(related))
+        return wrapper
+    return decorator
+
+
+@uses_related('uses')
 def card_search(card_value: QueryValue) -> Q:
     value_is_digit = card_value.value.isdigit()
     match card_value.operator:
@@ -45,6 +56,7 @@ def card_search(card_value: QueryValue) -> Q:
     return card_query
 
 
+@uses_related('uses')
 def card_type_search(card_type_value: QueryValue) -> Q:
     match card_type_value.operator:
         case ':':
@@ -56,6 +68,7 @@ def card_type_search(card_type_value: QueryValue) -> Q:
     return card_type_query
 
 
+@uses_related('uses')
 def card_oracle_search(card_oracle_value: QueryValue) -> Q:
     match card_oracle_value.operator:
         case ':':
@@ -67,6 +80,7 @@ def card_oracle_search(card_oracle_value: QueryValue) -> Q:
     return card_oracle_query
 
 
+@uses_related('uses')
 def card_keyword_search(card_keyword_value: QueryValue) -> Q:
     match card_keyword_value.operator:
         case ':':
@@ -76,6 +90,7 @@ def card_keyword_search(card_keyword_value: QueryValue) -> Q:
     return card_keyword_query
 
 
+@uses_related('uses')
 def card_mana_value_search(card_mana_value_value: QueryValue) -> Q:
     value_is_digit = card_mana_value_value.value.isdigit()
     match card_mana_value_value.operator:
@@ -185,6 +200,7 @@ def description_search(description_value: QueryValue) -> Q:
     return steps_query & Q(status__ne=Variant.Status.EXAMPLE)
 
 
+@uses_related('produces')
 def results_search(results_value: QueryValue) -> Q:
     value_is_digit = results_value.value.isdigit()
     match results_value.operator:
@@ -207,6 +223,7 @@ def results_search(results_value: QueryValue) -> Q:
     return results_query
 
 
+@uses_related('produces', 'uses')
 def tag_search(tag_value: QueryValue) -> Q:
     if tag_value.operator != ':':
         raise NotSupportedError(f'Operator {tag_value.operator} is not supported for tag search.')
@@ -244,6 +261,7 @@ def spellbook_id_search(spellbook_id_value: QueryValue) -> Q:
     return spellbook_id_query
 
 
+@uses_related('uses')
 def commander_name_search(commander_name_value: QueryValue) -> Q:
     match commander_name_value.operator:
         case ':':
@@ -426,18 +444,23 @@ def variants_query_parser(base: QuerySet, query_string: str) -> QuerySet:
     if len(parsed_queries) > MAX_QUERY_PARAMETERS:
         raise NotSupportedError('Too many search parameters.')
     queryset = base
-    queryset = queryset.alias(
-        cards_count=Count('uses', distinct=True),
-        identity_count=Case(When(identity='C', then=Value(0)), default=Length('identity')),
-        results_count=Count('produces', distinct=True),
-    )
+    already_joined = set()
     for key, values in parsed_queries.items():
         for value in values:
-            q = keyword_map[key](value)
+            builder = keyword_map[key]
+            q = builder(value)
+            related_entities = getattr(builder, 'uses_related', frozenset())
+            if any(r in already_joined for r in related_entities):
+                # The previous check passes only when a related entity is already joined in the queryset.
+                # In order to avoid cartesian products, we need to filter the queryset using a subquery.
+                queryset = base.filter(pk__in=queryset.values('pk'))
+                already_joined.clear()
             if value.prefix == '':
                 queryset = queryset.filter(q)
             elif value.prefix == '-':
                 queryset = queryset.exclude(q)
             elif value.prefix != '':
                 raise NotSupportedError(f'Prefix {value.prefix} is not supported for {key} search.')
+            if len(queryset.query.alias_map) > 1:
+                already_joined.update(related_entities)
     return queryset

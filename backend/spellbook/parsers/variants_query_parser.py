@@ -156,7 +156,7 @@ def prerequisites_search(prerequisites_value: QueryValue) -> Q:
             prerequisites_query = Q(other_prerequisites_line_count__gt=prerequisites_value.value)
         case '>=' if value_is_digit:
             prerequisites_query = Q(other_prerequisites_line_count__gte=prerequisites_value.value)
-        case '=' if value_is_digit:
+        case ':' | '=' if value_is_digit:
             prerequisites_query = Q(other_prerequisites_line_count=prerequisites_value.value)
         case _:
             raise NotSupportedError(f'Operator {prerequisites_value.operator} is not supported for prerequisites search.')
@@ -178,7 +178,7 @@ def description_search(description_value: QueryValue) -> Q:
             steps_query = Q(description_line_count__gt=description_value.value)
         case '>=' if value_is_digit:
             steps_query = Q(description_line_count__gte=description_value.value)
-        case '=' if value_is_digit:
+        case ':' | '=' if value_is_digit:
             steps_query = Q(description_line_count=description_value.value)
         case _:
             raise NotSupportedError(f'Operator {description_value.operator} is not supported for prerequisites search.')
@@ -200,7 +200,7 @@ def results_search(results_value: QueryValue) -> Q:
             results_query = Q(results_count__gt=results_value.value)
         case '>=' if value_is_digit:
             results_query = Q(results_count__gte=results_value.value)
-        case '=' if value_is_digit:
+        case ':' | '=' if value_is_digit:
             results_query = Q(results_count=results_value.value)
         case _:
             raise NotSupportedError(f'Operator {results_value.operator} is not supported for results search with {"numbers" if value_is_digit else "strings"}.')

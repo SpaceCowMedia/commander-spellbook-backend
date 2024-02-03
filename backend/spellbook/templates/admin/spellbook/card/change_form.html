@@ -130,6 +130,13 @@
             };
         }
     </script>
+    {% if original.id is None %}
+    <script>
+        django.jQuery(function() {
+            django.jQuery('#id_name').autocomplete('search');
+        });
+    </script>
+    {% endif %}
 {% endblock %}
 
 {% block after-content %}

@@ -346,8 +346,20 @@ class VariantViewsTests(AbstractModelTests):
         pass
 
     def test_variants_list_view_query_by_a_combination_of_terms(self):
-        # TODO: implement
-        pass
+        c = Client()
+        queries = [
+            ('result=FD A result:B', self.public_variants.filter(uses__name__icontains='A').filter(produces__name__iexact='FD').filter(produces__name__icontains='B').distinct()),
+        ]
+        for q, variants in queries:
+            with self.subTest(f'query by a combination of terms: {q}'):
+                response = c.get('/variants', data={'q': q}, follow=True)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.get('Content-Type'), 'application/json')
+                result = json.loads(response.content, object_hook=json_to_python_lambda)
+                self.assertGreater(len(result.results), 0)
+                self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
+                for v in result.results:
+                    self.variant_assertions(v)
 
     def test_variants_list_view_ordering_by_popularity_with_nulls(self):
         variants = Variant.objects.all()

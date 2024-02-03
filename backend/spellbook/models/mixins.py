@@ -23,6 +23,8 @@ class ScryfallLinkMixin:
 
 
 class PreSaveManager(Manager):
+    use_in_migrations = True
+
     def bulk_create(self, objs: Iterable['PreSaveModelMixin'], *args, **kwargs) -> List:
         for obj in objs:
             obj.pre_save()

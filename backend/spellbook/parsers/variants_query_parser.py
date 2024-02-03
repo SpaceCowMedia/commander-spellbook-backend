@@ -1,11 +1,11 @@
 import re
-from django.db.models import Q, QuerySet, Count, Case, When, Value
-from django.db.models.functions import Length
+from django.db.models import Q, QuerySet
 from collections import defaultdict
 from typing import Callable
 from dataclasses import dataclass
 from spellbook.models import Variant
 from website.models import WebsiteProperty, FEATURED_SET_CODES
+from common.query import smart_apply_filters
 from .color_parser import parse_identity
 
 
@@ -38,7 +38,7 @@ def card_search(card_value: QueryValue) -> Q:
             card_query = Q(cards_count__lte=card_value.value)
         case '>=' if value_is_digit:
             card_query = Q(cards_count__gte=card_value.value)
-        case '=' if value_is_digit:
+        case ':' | '=' if value_is_digit:
             card_query = Q(cards_count=card_value.value)
         case _:
             raise NotSupportedError(f'Operator {card_value.operator} is not supported for card search with {"numbers" if value_is_digit else "strings"}.')
@@ -156,7 +156,7 @@ def prerequisites_search(prerequisites_value: QueryValue) -> Q:
             prerequisites_query = Q(other_prerequisites_line_count__gt=prerequisites_value.value)
         case '>=' if value_is_digit:
             prerequisites_query = Q(other_prerequisites_line_count__gte=prerequisites_value.value)
-        case '=' if value_is_digit:
+        case ':' | '=' if value_is_digit:
             prerequisites_query = Q(other_prerequisites_line_count=prerequisites_value.value)
         case _:
             raise NotSupportedError(f'Operator {prerequisites_value.operator} is not supported for prerequisites search.')
@@ -178,7 +178,7 @@ def description_search(description_value: QueryValue) -> Q:
             steps_query = Q(description_line_count__gt=description_value.value)
         case '>=' if value_is_digit:
             steps_query = Q(description_line_count__gte=description_value.value)
-        case '=' if value_is_digit:
+        case ':' | '=' if value_is_digit:
             steps_query = Q(description_line_count=description_value.value)
         case _:
             raise NotSupportedError(f'Operator {description_value.operator} is not supported for prerequisites search.')
@@ -200,7 +200,7 @@ def results_search(results_value: QueryValue) -> Q:
             results_query = Q(results_count__gt=results_value.value)
         case '>=' if value_is_digit:
             results_query = Q(results_count__gte=results_value.value)
-        case '=' if value_is_digit:
+        case ':' | '=' if value_is_digit:
             results_query = Q(results_count=results_value.value)
         case _:
             raise NotSupportedError(f'Operator {results_value.operator} is not supported for results search with {"numbers" if value_is_digit else "strings"}.')
@@ -425,19 +425,15 @@ def variants_query_parser(base: QuerySet, query_string: str) -> QuerySet:
             parsed_queries[key].append(QueryValue(group_dict['prefix'], original_key, group_dict['operator'], value_term))
     if len(parsed_queries) > MAX_QUERY_PARAMETERS:
         raise NotSupportedError('Too many search parameters.')
-    queryset = base
-    queryset = queryset.alias(
-        cards_count=Count('uses', distinct=True),
-        identity_count=Case(When(identity='C', then=Value(0)), default=Length('identity')),
-        results_count=Count('produces', distinct=True),
-    )
+    filters: list[tuple[Q, bool]] = []
     for key, values in parsed_queries.items():
         for value in values:
             q = keyword_map[key](value)
             if value.prefix == '':
-                queryset = queryset.filter(q)
+                filters.append((q, True))
             elif value.prefix == '-':
-                queryset = queryset.exclude(q)
+                filters.append((q, False))
             elif value.prefix != '':
                 raise NotSupportedError(f'Prefix {value.prefix} is not supported for {key} search.')
-    return queryset
+    queryset = smart_apply_filters(base, filters)
+    return queryset.distinct()

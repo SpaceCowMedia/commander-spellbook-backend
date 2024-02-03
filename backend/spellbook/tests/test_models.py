@@ -40,7 +40,7 @@ class CardTests(AbstractModelTests):
         self.assertEqual(c.identity, 'W')
         self.assertTrue(c.legal_commander)
         self.assertFalse(c.spoiler)
-        self.assertEqual(c.oracle_text, '')
+        self.assertEqual(c.oracle_text, 'x1')
         self.assertEqual(c.keywords, [])
         self.assertEqual(c.mana_value, 0)
         self.assertFalse(c.reserved)

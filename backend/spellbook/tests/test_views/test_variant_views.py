@@ -1,7 +1,9 @@
 import json
 import random
 from django.test import Client
+from django.db import models
 from spellbook.models import Card, Template, Feature, Variant, CardInVariant, TemplateInVariant
+from spellbook.views import VariantViewSet
 from ..abstract_test import AbstractModelTests
 from common.inspection import json_to_python_lambda
 
@@ -14,6 +16,7 @@ class VariantViewsTests(AbstractModelTests):
         Variant.objects.filter(id__in=random.sample(list(Variant.objects.values_list('id', flat=True)), 3)).update(status=Variant.Status.EXAMPLE)
         self.bulk_serialize_variants()
         self.v1_id = Variant.objects.first().id
+        self.public_variants = VariantViewSet.queryset
 
     def variant_assertions(self, variant_result):
         v = Variant.objects.get(id=variant_result.id)
@@ -109,14 +112,14 @@ class VariantViewsTests(AbstractModelTests):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get('Content-Type'), 'application/json')
         result = json.loads(response.content, object_hook=json_to_python_lambda)
-        variants_count = Variant.objects.count()
+        variants_count = self.public_variants.count()
         self.assertEqual(len(result.results), variants_count)
         for i in range(variants_count):
             self.variant_assertions(result.results[i])
 
     def test_variants_detail_view(self):
         c = Client()
-        response = c.get('/variants/{}'.format(self.v1_id), follow=True)
+        response = c.get(f'/variants/{self.v1_id}', follow=True)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get('Content-Type'), 'application/json')
         result = json.loads(response.content, object_hook=json_to_python_lambda)
@@ -149,22 +152,85 @@ class VariantViewsTests(AbstractModelTests):
                     self.assertEqual(response.status_code, 200)
                     self.assertEqual(response.get('Content-Type'), 'application/json')
                     result = json.loads(response.content, object_hook=json_to_python_lambda)
-                    variants_count = Variant.objects.filter(uses__id=card.id).distinct().count()
-                    self.assertEqual(len(result.results), variants_count)
-                    for i in range(variants_count):
-                        self.variant_assertions(result.results[i])
+                    variants = self.public_variants.filter(uses__id=card.id).distinct()
+                    self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
+                    for v in result.results:
+                        self.variant_assertions(v)
 
     def test_variants_list_view_query_by_card_count(self):
-        # TODO: implement
-        pass
+        c = Client()
+        min_cards, max_cards = self.public_variants.aggregate(min_cards=models.Min('cards_count'), max_cards=models.Max('cards_count')).values()
+        self.assertGreaterEqual(max_cards, min_cards)
+        for card_count in (min_cards, max_cards, (min_cards + max_cards) // 2):
+            operators = {
+                '>': 'gt',
+                '<': 'lt',
+                '>=': 'gte',
+                '<=': 'lte',
+                '=': 'exact',
+                ':': 'exact',
+            }
+            for o, o_django in operators.items():
+                q = f'cards{o}{card_count}'
+                q_django = {f'cards_count__{o_django}': card_count}
+                with self.subTest(f'query by card count: {card_count} with query {q}'):
+                    response = c.get('/variants', data={'q': q}, follow=True)
+                    self.assertEqual(response.status_code, 200)
+                    self.assertEqual(response.get('Content-Type'), 'application/json')
+                    result = json.loads(response.content, object_hook=json_to_python_lambda)
+                    variants = self.public_variants.filter(**q_django).distinct()
+                    self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
+                    for v in result.results:
+                        self.variant_assertions(v)
 
     def test_variants_list_view_query_by_card_type(self):
-        # TODO: implement
-        pass
+        c = Client()
+        for card_type in ('instant', 'creature'):
+            queries = [
+                f'cardtype:{card_type}',
+                f'type:{card_type[:-3]}',
+                f'type:"{card_type[:-3]}"',
+                f'type:{card_type}',
+                f'type="{card_type}"',
+            ]
+            for q in queries:
+                with self.subTest(f'query by card type: {card_type} with query {q}'):
+                    response = c.get('/variants', data={'q': q}, follow=True)
+                    self.assertEqual(response.status_code, 200)
+                    self.assertEqual(response.get('Content-Type'), 'application/json')
+                    result = json.loads(response.content, object_hook=json_to_python_lambda)
+                    if '=' in q:
+                        variants = self.public_variants.filter(uses__type_line__iexact=card_type).distinct()
+                    else:
+                        variants = self.public_variants.filter(uses__type_line__icontains=card_type).distinct()
+                    self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
+                    for v in result.results:
+                        self.variant_assertions(v)
 
     def test_variants_list_view_query_by_card_oracle_text(self):
-        # TODO: implement
-        pass
+        c = Client()
+        for i in range(10):
+            queries = [
+                f'cardoracle:"x{i}"',
+                f'oracle:"x{i}"',
+                f'o:x{i}',
+                f'text:x{i}',
+                f'oracle="x{i}"',
+                f'o=x{i}',
+            ]
+            for q in queries:
+                with self.subTest(f'query by card oracle text: x{i} with query {q}'):
+                    response = c.get('/variants', data={'q': q}, follow=True)
+                    self.assertEqual(response.status_code, 200)
+                    self.assertEqual(response.get('Content-Type'), 'application/json')
+                    result = json.loads(response.content, object_hook=json_to_python_lambda)
+                    if '=' in q:
+                        variants = self.public_variants.filter(uses__oracle_text__iexact=f'x{i}').distinct()
+                    else:
+                        variants = self.public_variants.filter(uses__oracle_text__icontains=f'x{i}').distinct()
+                    self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
+                    for v in result.results:
+                        self.variant_assertions(v)
 
     def test_variants_list_view_query_by_card_keywords(self):
         # TODO: implement
@@ -187,8 +253,52 @@ class VariantViewsTests(AbstractModelTests):
         pass
 
     def test_variants_list_view_query_by_results(self):
-        # TODO: implement
-        pass
+        c = Client()
+        min_results, max_results = self.public_variants.aggregate(min_results=models.Min('results_count'), max_results=models.Max('results_count')).values()
+        self.assertGreaterEqual(max_results, min_results)
+        for results_count in (min_results, max_results, (min_results + max_results) // 2):
+            operators = {
+                '>': 'gt',
+                '<': 'lt',
+                '>=': 'gte',
+                '<=': 'lte',
+                '=': 'exact',
+                ':': 'exact',
+            }
+            for o, o_django in operators.items():
+                queries = [
+                    f'results{o}{results_count}',
+                    f'result{o}{results_count}',
+                ]
+                for q in queries:
+                    q_django = {f'results_count__{o_django}': results_count}
+                    with self.subTest(f'query by results count: {results_count} with query {q}'):
+                        response = c.get('/variants', data={'q': q}, follow=True)
+                        self.assertEqual(response.status_code, 200)
+                        self.assertEqual(response.get('Content-Type'), 'application/json')
+                        result = json.loads(response.content, object_hook=json_to_python_lambda)
+                        variants = self.public_variants.filter(**q_django).distinct()
+                        self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
+                        for v in result.results:
+                            self.variant_assertions(v)
+        for feature in Feature.objects.filter(utility=False):
+            queries = [
+                f'results:"{feature.name}"',
+                f'results={feature.name}',
+            ]
+            for q in queries:
+                with self.subTest(f'query by results: {feature} with query {q}'):
+                    response = c.get('/variants', data={'q': q}, follow=True)
+                    self.assertEqual(response.status_code, 200)
+                    self.assertEqual(response.get('Content-Type'), 'application/json')
+                    result = json.loads(response.content, object_hook=json_to_python_lambda)
+                    if '=' in q:
+                        variants = self.public_variants.filter(produces__name=feature.name).distinct()
+                    else:
+                        variants = self.public_variants.filter(produces__name__icontains=feature.name).distinct()
+                    self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
+                    for v in result.results:
+                        self.variant_assertions(v)
 
     def test_variants_list_view_query_by_tag(self):
         # TODO: implement
@@ -236,8 +346,20 @@ class VariantViewsTests(AbstractModelTests):
         pass
 
     def test_variants_list_view_query_by_a_combination_of_terms(self):
-        # TODO: implement
-        pass
+        c = Client()
+        queries = [
+            ('result=FD A result:B', self.public_variants.filter(uses__name__icontains='A').filter(produces__name__iexact='FD').filter(produces__name__icontains='B').distinct()),
+        ]
+        for q, variants in queries:
+            with self.subTest(f'query by a combination of terms: {q}'):
+                response = c.get('/variants', data={'q': q}, follow=True)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.get('Content-Type'), 'application/json')
+                result = json.loads(response.content, object_hook=json_to_python_lambda)
+                self.assertGreater(len(result.results), 0)
+                self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
+                for v in result.results:
+                    self.variant_assertions(v)
 
     def test_variants_list_view_ordering_by_popularity_with_nulls(self):
         variants = Variant.objects.all()

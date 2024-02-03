@@ -1,14 +1,21 @@
 from typing import Any
+from urllib.parse import urlencode
 from django.contrib.admin.options import InlineModelAdmin
 from django.db.models import Case, When, Count, Q
 from django.contrib import admin, messages
 from django.http.request import HttpRequest
 from django.forms import ModelForm
+from django.utils.safestring import mark_safe
+from django.urls import reverse
 from spellbook.models import Card, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, CardInVariant, TemplateInVariant, VariantSuggestion, Playable, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion
 from spellbook.variants.variant_data import RestoreData
 from spellbook.variants.variants_generator import restore_variant
 from .utils import SpellbookModelAdmin, CustomFilter
 from .ingredient_admin import IngredientAdmin
+
+
+def create_missing_object_message(url: str) -> str:
+    return f'<a href="{url}" target="_blank"><u>Click here to add it</u></a>. Remember to refresh this page after adding the missing item.'
 
 
 class ComboForm(ModelForm):
@@ -165,7 +172,12 @@ class ComboAdmin(SpellbookModelAdmin):
                 found_produced_features_names = {f.name for f in found_produced_features}
                 for f in suggested_produced_features:
                     if f not in found_produced_features_names:
-                        messages.add_message(request, messages.WARNING, f'Could not find produced feature "{f}" in database.')
+                        add_feature_link = reverse('admin:spellbook_feature_add') + '?' + urlencode({
+                            'name': f,
+                        })
+                        messages.add_message(request, messages.WARNING, mark_safe(
+                            f'Could not find produced feature "{f}" in database. {create_missing_object_message(add_feature_link)}'
+                        ))
                 initial_data['produces'] = [feature.pk for feature in found_produced_features]
                 request.from_suggestion.uses_list = list(from_suggestion.uses.all())
                 request.from_suggestion.requires_list = list(from_suggestion.requires.all())
@@ -199,7 +211,12 @@ class ComboAdmin(SpellbookModelAdmin):
                         messages.add_message(request, messages.WARNING, f'Found multiple cards matching "{suggested_card.card}" in database. Check if {picked.name} is correct.')
                         found_used_cards_names_to_id[suggested_card.card] = picked.pk
                     else:
-                        messages.add_message(request, messages.WARNING, f'Could not find used card "{suggested_card.card}" in database.')
+                        add_card_link = reverse('admin:spellbook_card_add') + '?' + urlencode({
+                            'name': suggested_card.card,
+                        })
+                        messages.add_message(request, messages.WARNING, mark_safe(
+                            f'Could not find used card "{suggested_card.card}" in database. {create_missing_object_message(add_card_link)}'
+                        ))
                 for suggested_card in suggested_used_cards:
                     formset_kwargs['initial'].append({
                         'card': found_used_cards_names_to_id.get(suggested_card.card, None),
@@ -218,7 +235,12 @@ class ComboAdmin(SpellbookModelAdmin):
                 found_required_templates_names_to_id = {t.name: t.pk for t in found_required_templates}
                 for suggested_template in suggested_required_templates:
                     if suggested_template.template not in found_required_templates_names_to_id:
-                        messages.add_message(request, messages.WARNING, f'Could not find required template "{suggested_template.template}" in database.')
+                        add_template_link = reverse('admin:spellbook_template_add') + '?' + urlencode({
+                            'name': suggested_template.template,
+                        })
+                        messages.add_message(request, messages.WARNING, mark_safe(
+                            f'Could not find required template "{suggested_template.template}" in database. {create_missing_object_message(add_template_link)}'
+                        ))
                     formset_kwargs['initial'].append({
                         'template': found_required_templates_names_to_id.get(suggested_template.template, None),
                         'zone_locations': suggested_template.zone_locations,

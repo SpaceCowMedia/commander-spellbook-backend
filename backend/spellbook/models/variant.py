@@ -83,7 +83,8 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
     popularity = models.PositiveIntegerField(db_default=None, null=True, editable=False, help_text='Popularity of this variant, provided by EDHREC')
     description_line_count = models.PositiveIntegerField(editable=False, help_text='Number of lines in the description')
     other_prerequisites_line_count = models.PositiveIntegerField(editable=False, help_text='Number of lines in the other prerequisites')
-    results_count = models.PositiveIntegerField(editable=False, help_text='Number of results for this variant')
+    cards_count = models.PositiveIntegerField(editable=False)
+    results_count = models.PositiveIntegerField(editable=False)
 
     class Meta:
         ordering = [
@@ -126,7 +127,6 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
         '''Returns True if any field was changed, False otherwise.'''
         cards = list(cards)
         old_values = {field: getattr(self, field) for field in self.playable_fields()}
-        self.cards_count = len(cards)
         self.identity = merge_identities(playable.identity for playable in cards)
         self.spoiler = any(playable.spoiler for playable in cards)
         self.legal_commander = all(playable.legal_commander for playable in cards)

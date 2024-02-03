@@ -1,7 +1,9 @@
 import json
 import random
 from django.test import Client
+from django.db import models
 from spellbook.models import Card, Template, Feature, Variant, CardInVariant, TemplateInVariant
+from spellbook.views import VariantViewSet
 from ..abstract_test import AbstractModelTests
 from common.inspection import json_to_python_lambda
 
@@ -14,6 +16,7 @@ class VariantViewsTests(AbstractModelTests):
         Variant.objects.filter(id__in=random.sample(list(Variant.objects.values_list('id', flat=True)), 3)).update(status=Variant.Status.EXAMPLE)
         self.bulk_serialize_variants()
         self.v1_id = Variant.objects.first().id
+        self.public_variants = VariantViewSet.queryset
 
     def variant_assertions(self, variant_result):
         v = Variant.objects.get(id=variant_result.id)
@@ -109,14 +112,14 @@ class VariantViewsTests(AbstractModelTests):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get('Content-Type'), 'application/json')
         result = json.loads(response.content, object_hook=json_to_python_lambda)
-        variants_count = Variant.objects.count()
+        variants_count = self.public_variants.count()
         self.assertEqual(len(result.results), variants_count)
         for i in range(variants_count):
             self.variant_assertions(result.results[i])
 
     def test_variants_detail_view(self):
         c = Client()
-        response = c.get('/variants/{}'.format(self.v1_id), follow=True)
+        response = c.get(f'/variants/{self.v1_id}', follow=True)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get('Content-Type'), 'application/json')
         result = json.loads(response.content, object_hook=json_to_python_lambda)
@@ -149,14 +152,36 @@ class VariantViewsTests(AbstractModelTests):
                     self.assertEqual(response.status_code, 200)
                     self.assertEqual(response.get('Content-Type'), 'application/json')
                     result = json.loads(response.content, object_hook=json_to_python_lambda)
-                    variants_count = Variant.objects.filter(uses__id=card.id).distinct().count()
-                    self.assertEqual(len(result.results), variants_count)
-                    for i in range(variants_count):
-                        self.variant_assertions(result.results[i])
+                    variants = self.public_variants.filter(uses__id=card.id).distinct()
+                    self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
+                    for v in result.results:
+                        self.variant_assertions(v)
 
     def test_variants_list_view_query_by_card_count(self):
-        # TODO: implement
-        pass
+        c = Client()
+        min_cards, max_cards = self.public_variants.aggregate(min_cards=models.Min('cards_count'), max_cards=models.Max('cards_count')).values()
+        self.assertGreaterEqual(max_cards, min_cards)
+        for card_count in (min_cards, max_cards, (min_cards + max_cards) // 2):
+            operators = {
+                '>': 'gt',
+                '<': 'lt',
+                '>=': 'gte',
+                '<=': 'lte',
+                '=': 'exact',
+                ':': 'exact',
+            }
+            for o, o_django in operators.items():
+                q = f'cards{o}{card_count}'
+                q_django = {f'cards_count__{o_django}': card_count}
+                with self.subTest(f'query by card count: {card_count} with query {q}'):
+                    response = c.get('/variants', data={'q': q}, follow=True)
+                    self.assertEqual(response.status_code, 200)
+                    self.assertEqual(response.get('Content-Type'), 'application/json')
+                    result = json.loads(response.content, object_hook=json_to_python_lambda)
+                    variants = self.public_variants.filter(**q_django).distinct()
+                    self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
+                    for v in result.results:
+                        self.variant_assertions(v)
 
     def test_variants_list_view_query_by_card_type(self):
         # TODO: implement

@@ -38,7 +38,7 @@ def card_search(card_value: QueryValue) -> Q:
             card_query = Q(cards_count__lte=card_value.value)
         case '>=' if value_is_digit:
             card_query = Q(cards_count__gte=card_value.value)
-        case '=' if value_is_digit:
+        case ':' | '=' if value_is_digit:
             card_query = Q(cards_count=card_value.value)
         case _:
             raise NotSupportedError(f'Operator {card_value.operator} is not supported for card search with {"numbers" if value_is_digit else "strings"}.')

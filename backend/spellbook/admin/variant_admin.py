@@ -2,7 +2,6 @@ from typing import Any
 from django.utils.http import urlencode
 from django.utils.html import format_html
 from django.urls import reverse, path
-from django.db.models import Count
 from django.http import HttpRequest
 from django.shortcuts import redirect
 from django.contrib import admin, messages
@@ -187,9 +186,6 @@ class VariantAdmin(SpellbookModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
-
-    def get_queryset(self, request):
-        return Variant.objects.alias(cards_count=Count('uses', distinct=True) + Count('requires', distinct=True))
 
     def get_search_results(self, request: HttpRequest, queryset, search_term: str) -> tuple[object, bool]:
         try:

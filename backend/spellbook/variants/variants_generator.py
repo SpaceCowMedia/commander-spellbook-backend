@@ -247,7 +247,8 @@ def create_variant(
         job: Job | None = None):
     variant = Variant(
         id=id,
-        generated_by=job
+        generated_by=job,
+        cards_count=len(variant_def.card_ids) + len(variant_def.template_ids),
     )
     produces_ids = subtract_removed_features(data, variant_def.included_ids, variant_def.feature_ids) - data.utility_features_ids
     variant.results_count = len(produces_ids)

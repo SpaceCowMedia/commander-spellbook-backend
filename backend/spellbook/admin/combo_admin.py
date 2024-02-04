@@ -107,7 +107,15 @@ class ComboAdmin(SpellbookModelAdmin):
     inlines = [CardInComboAdminInline, FeatureInComboAdminInline, TemplateInComboAdminInline]
     filter_horizontal = ['produces', 'removes']
     list_filter = ['kind', PayoffFilter, VariantRelatedFilter]
-    search_fields = ['uses__name', 'uses__name_unaccented', 'requires__name', 'produces__name', 'needs__name']
+    search_fields = [
+        'uses__name',
+        'uses__name_unaccented',
+        'uses__name_unaccented_simplified',
+        'uses__name_unaccented_simplified_with_spaces',
+        'requires__name',
+        'produces__name',
+        'needs__name'
+    ]
     list_display = ['__str__', 'id', 'kind']
 
     def save_related(self, request, form, formsets, change):

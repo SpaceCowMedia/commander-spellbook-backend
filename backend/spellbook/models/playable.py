@@ -2,14 +2,14 @@ from decimal import Decimal
 from django.db import models
 from django.db.models.functions import Length
 from django.db.models.fields.generated import GeneratedField
-from .validators import IDENTITY_VALIDATORS
+from .utils import SORTED_COLORS
 
 
 class Playable(models.Model):
     @classmethod
     def playable_fields(cls):
         return ['identity', 'spoiler'] + cls.legalities_fields() + cls.prices_fields()
-    identity = models.CharField(max_length=5, blank=False, null=False, default='C', verbose_name='mana identity', validators=IDENTITY_VALIDATORS)
+    identity = models.CharField(max_length=5, blank=False, null=False, default='C', verbose_name='mana identity', choices=[(c, c) for c in SORTED_COLORS.values()])
     spoiler = models.BooleanField(default=False, help_text='Is this from an upcoming set?', verbose_name='is spoiler')
     identity_count = GeneratedField(
         db_persist=True,

@@ -15,7 +15,7 @@ SANITIZATION_REPLACEMENTS = {
     '“”″❞〝〞ˮ': '"',  # double quotes
 }
 SORTED_COLORS = {
-    frozenset({}): 'C',
+    frozenset[str](): 'C',
     **{frozenset(i): i for i in [
         'W',
         'U',

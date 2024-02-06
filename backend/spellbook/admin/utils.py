@@ -1,5 +1,4 @@
 import re
-from itertools import combinations
 from datetime import datetime
 from typing import Any
 from django.db.models import TextField, Count, Q
@@ -12,7 +11,7 @@ from django.contrib.admin import ModelAdmin
 from django.contrib.admin.views.main import ORDER_VAR
 from spellbook.models.validators import ORACLE_SYMBOL
 from spellbook.variants.variants_generator import DEFAULT_CARD_LIMIT
-from spellbook.models.utils import sanitize_newlines_apostrophes_and_quotes
+from spellbook.models.utils import sanitize_newlines_apostrophes_and_quotes, SORTED_COLORS
 
 
 def datetime_to_html(datetime: datetime) -> str | None:
@@ -116,7 +115,7 @@ class IdentityFilter(CustomFilter):
     parameter_name = 'identity'
 
     def lookups(self, request, model_admin):
-        return [(i, i) for i in (''.join(t) or 'C' for length in range(6) for t in combinations('WUBRG', length))]
+        return [(i, i) for i in SORTED_COLORS.values()]
 
     def filter(self, value: str) -> Q:
         return Q(identity=value)

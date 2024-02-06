@@ -52,14 +52,8 @@
                             let oracle_id = data.oracle_id;
                             django.jQuery('#id_oracle_id').val(oracle_id);
 
-                            let color_identity = new Set(Array.from(data.color_identity).map(i => i.toUpperCase()));
-                            let identity_result = '';
-                            for (const c of 'WUBRG') {
-                                if (color_identity.has(c)) {
-                                    identity_result += c;
-                                }
-                            }
-                            django.jQuery('#id_identity').val(identity_result || 'C');
+                            let color_identity = Array.from(data.color_identity).map(i => i.toUpperCase());
+                            django.jQuery('#id_identity').val(color_identity || 'C');
 
                             django.jQuery('#id_type_line').val(data.type_line);
 

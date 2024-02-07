@@ -1,5 +1,5 @@
 from django.test import TestCase
-from spellbook.models.validators import MANA_SYMBOL, MANA_REGEX, ORACLE_SYMBOL, DOUBLE_SQUARE_BRACKET_TEXT_REGEX, SYMBOLS_TEXT_REGEX, IDENTITY_REGEX, SCRYFALL_QUERY_REGEX
+from spellbook.models.validators import MANA_SYMBOL, MANA_REGEX, ORACLE_SYMBOL, DOUBLE_SQUARE_BRACKET_TEXT_REGEX, SYMBOLS_TEXT_REGEX, SCRYFALL_QUERY_REGEX
 
 
 class TestValidators(TestCase):
@@ -161,17 +161,6 @@ class TestValidators(TestCase):
         self.assertRegex('{W/U/P} {W/B/P} {U/B/P} {U/R/P} {B/R/P} {B/G/P} {R/G/P} {R/G/P}{W}', SYMBOLS_TEXT_REGEX)
         self.assertNotRegex('{W/U/P/}', SYMBOLS_TEXT_REGEX)
         self.assertNotRegex('{W/U/P{}', SYMBOLS_TEXT_REGEX)
-
-    def test_identity(self):
-        self.assertNotRegex('WUBGR', IDENTITY_REGEX)
-        for x in range(0b100000):
-            if x == 0:
-                identity = 'C'
-            else:
-                identity = ''.join([c for i, c in enumerate('WUBRG') if x & (1 << i)])
-            self.assertRegex(identity, IDENTITY_REGEX)
-            if len(identity) > 1:
-                self.assertNotRegex(identity[::-1], IDENTITY_REGEX)
 
     def test_scryfall_query(self):
         self.assertRegex('c:rg', SCRYFALL_QUERY_REGEX)

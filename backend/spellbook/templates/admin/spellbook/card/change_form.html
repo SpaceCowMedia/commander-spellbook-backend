@@ -1,5 +1,5 @@
 {% extends "admin/change_form.html" %}
-{% load static %}
+{% load static mana %}
 
 {% block extrahead %}
     {{ block.super }}
@@ -28,6 +28,7 @@
     </script>
     {% endif %}
     <script>
+        const identityMap = {% mana_identities_map %};
         const autocomplete = django.jQuery('#id_name')
             .autocomplete({
                 source: function(request, response) {
@@ -52,8 +53,13 @@
                             let oracle_id = data.oracle_id;
                             django.jQuery('#id_oracle_id').val(oracle_id);
 
-                            let color_identity = Array.from(data.color_identity).map(i => i.toUpperCase());
-                            django.jQuery('#id_identity').val(color_identity || 'C');
+                            const color_identity_sorted = Array
+                                .from(data.color_identity)
+                                .map(i => i.toUpperCase())
+                                .sort()
+                                .join('');
+                            const color_identity = identityMap.get(color_identity_sorted);
+                            django.jQuery('#id_identity').val(color_identity);
 
                             django.jQuery('#id_type_line').val(data.type_line);
 
@@ -98,7 +104,6 @@
                             django.jQuery('#id_price_tcgplayer').val(data.prices.usd || 0);
                             django.jQuery('#id_price_cardkingdom').val(data.prices.usd || 0);
                             django.jQuery('#id_price_cardmarket').val(data.prices.eur || 0);
-                            console.log(data.prices);
 
                             const releasedAt = Date.parse(data['released_at']);
                             const currentDate = new Date();

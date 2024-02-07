@@ -1,4 +1,4 @@
-from django.core.validators import RegexValidator, MinLengthValidator
+from django.core.validators import RegexValidator
 
 FIRST_CAPITAL_LETTER_REGEX = r'^[A-Z]'
 FIRST_CAPITAL_LETTER_VALIDATOR = RegexValidator(regex=FIRST_CAPITAL_LETTER_REGEX, message='Must start with a capital letter.')

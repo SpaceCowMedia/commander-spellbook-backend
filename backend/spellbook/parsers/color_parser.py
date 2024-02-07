@@ -1,9 +1,11 @@
+from spellbook.models.utils import SORTED_COLORS
+
+
 def parse_identity(value: str) -> str | None:
     value = value.upper()
-    all_colors = 'WUBRG'
-    value_set = set(value)
-    if value_set.issubset(all_colors):
-        return ''.join(c for c in all_colors if c in value)
+    value_set = frozenset(value)
+    if value_set in SORTED_COLORS:
+        return SORTED_COLORS[value_set]
     match value:
         case 'C' | 'COLORLESS':
             return 'C'

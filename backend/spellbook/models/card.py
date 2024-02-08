@@ -54,9 +54,10 @@ class Card(Playable, PreSaveModelMixin, ScryfallLinkMixin):
     updated = models.DateTimeField(auto_now=True, editable=False)
 
     class Meta:
-        ordering = ['name']
         verbose_name = 'card'
         verbose_name_plural = 'cards'
+        default_manager_name = 'objects'
+        ordering = ['name']
         indexes = [
             GinIndex(fields=[
                 'name',

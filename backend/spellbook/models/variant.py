@@ -87,6 +87,9 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
     results_count = models.PositiveIntegerField(editable=False)
 
     class Meta:
+        verbose_name = 'variant'
+        verbose_name_plural = 'variants'
+        default_manager_name = 'objects'
         ordering = [
             models.Case(
                 models.When(status='D', then=models.Value(0)),
@@ -99,8 +102,6 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
             ),
             '-created'
         ]
-        verbose_name = 'variant'
-        verbose_name_plural = 'variants'
         indexes = [
             models.Index(fields=['-popularity']),
             models.Index(fields=['-created']),

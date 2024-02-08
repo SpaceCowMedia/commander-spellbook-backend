@@ -60,9 +60,10 @@ class Job(models.Model):
         return cls.start(name=name, duration=duration)
 
     class Meta:
-        ordering = ['-created', 'name']
         verbose_name = 'job'
         verbose_name_plural = 'jobs'
+        default_manager_name = 'objects'
+        ordering = ['-created', 'name']
         indexes = [
             models.Index(fields=['name'], name='job_name_index')
         ]

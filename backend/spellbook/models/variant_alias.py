@@ -19,6 +19,7 @@ class VariantAlias(models.Model):
     class Meta:
         verbose_name = 'variant alias'
         verbose_name_plural = 'variant aliases'
+        default_manager_name = 'objects'
 
     def __str__(self):
         if self.variant:

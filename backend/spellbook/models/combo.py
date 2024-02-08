@@ -83,9 +83,10 @@ class Combo(Recipe, ScryfallLinkMixin):
         return list(self.needs.all())
 
     class Meta:
-        ordering = ['created']
         verbose_name = 'combo'
         verbose_name_plural = 'combos'
+        default_manager_name = 'objects'
+        ordering = ['created']
 
 
 class CardInCombo(IngredientInCombination):

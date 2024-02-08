@@ -15,9 +15,10 @@ class Feature(models.Model):
     utility = models.BooleanField(default=False, help_text='Is this a utility feature? Utility features are hidden to the end users', verbose_name='is utility')
 
     class Meta:
-        ordering = ['name']
         verbose_name = 'feature'
         verbose_name_plural = 'features'
+        default_manager_name = 'objects'
+        ordering = ['name']
         constraints = [
             models.UniqueConstraint(
                 Lower('name'),

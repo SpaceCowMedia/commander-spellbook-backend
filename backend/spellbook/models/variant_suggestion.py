@@ -35,6 +35,9 @@ class VariantSuggestion(Recipe):
     suggested_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, editable=False, help_text='User that suggested this combo', related_name='suggestions')
 
     class Meta:
+        verbose_name = 'variant suggestion'
+        verbose_name_plural = 'variant suggestions'
+        default_manager_name = 'objects'
         ordering = [
             models.Case(
                 models.When(status='NR', then=models.Value(0)),
@@ -45,8 +48,6 @@ class VariantSuggestion(Recipe):
             ),
             '-created'
         ]
-        verbose_name = 'variant suggestion'
-        verbose_name_plural = 'variant suggestions'
 
     def cards(self) -> list[Card]:
         return list(self.uses.all())  # type: ignore

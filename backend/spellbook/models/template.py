@@ -13,9 +13,10 @@ class Template(models.Model):
     updated = models.DateTimeField(auto_now=True, editable=False)
 
     class Meta:
-        ordering = ['name']
         verbose_name = 'card template'
         verbose_name_plural = 'templates'
+        default_manager_name = 'objects'
+        ordering = ['name']
         indexes = [
             models.Index(fields=['name'], name='card_template_name_index')
         ]

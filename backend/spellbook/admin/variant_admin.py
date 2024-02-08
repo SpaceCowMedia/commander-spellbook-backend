@@ -1,4 +1,5 @@
 from typing import Any
+from django.db.models.query import QuerySet
 from django.utils.http import urlencode
 from django.utils.html import format_html
 from django.urls import reverse, path
@@ -49,23 +50,31 @@ class TemplateInVariantAdminInline(IngredientAdmin):
 
 
 @admin.action(description='Mark selected variants as RESTORE')
-def set_restore(modeladmin, request, queryset):
-    queryset.update(status=Variant.Status.RESTORE)
+def set_restore(modeladmin, request, queryset: QuerySet):
+    count = queryset.update(status=Variant.Status.RESTORE)
+    plural = 's' if count > 1 else ''
+    messages.success(request, f'{count} variant{plural} marked as RESTORE.')
 
 
 @admin.action(description='Mark selected variants as DRAFT')
-def set_draft(modeladmin, request, queryset):
-    queryset.update(status=Variant.Status.DRAFT)
+def set_draft(modeladmin, request, queryset: QuerySet):
+    count = queryset.update(status=Variant.Status.DRAFT)
+    plural = 's' if count > 1 else ''
+    messages.success(request, f'{count} variant{plural} marked as DRAFT.')
 
 
 @admin.action(description='Mark selected variants as NEW')
-def set_new(modeladmin, request, queryset):
-    queryset.update(status=Variant.Status.NEW)
+def set_new(modeladmin, request, queryset: QuerySet):
+    count = queryset.update(status=Variant.Status.NEW)
+    plural = 's' if count > 1 else ''
+    messages.success(request, f'{count} variant{plural} marked as NEW.')
 
 
 @admin.action(description='Mark selected variants as NOT WORKING')
-def set_not_working(modeladmin, request, queryset):
-    queryset.update(status=Variant.Status.NOT_WORKING)
+def set_not_working(modeladmin, request, queryset: QuerySet):
+    count = queryset.update(status=Variant.Status.NOT_WORKING)
+    plural = 's' if count > 1 else ''
+    messages.success(request, f'{count} variant{plural} marked as NOT WORKING.')
 
 
 @admin.action(description='Mark selected variants as EXAMPLE')
@@ -75,6 +84,8 @@ def set_example(modeladmin, request, queryset):
     for variant in variants:
         variant.status = Variant.Status.EXAMPLE
     Variant.objects.bulk_serialize(variants, fields=['status'], serializer=VariantSerializer)  # type: ignore
+    plural = 's' if len(variants) > 1 else ''
+    messages.success(request, f'{len(variants)} variant{plural} marked as EXAMPLE.')
 
 
 @admin.action(description='Mark selected variants as OK')
@@ -84,6 +95,8 @@ def set_ok(modeladmin, request, queryset):
     for variant in variants:
         variant.status = Variant.Status.OK
     Variant.objects.bulk_serialize(variants, fields=['status'], serializer=VariantSerializer)  # type: ignore
+    plural = 's' if len(variants) > 1 else ''
+    messages.success(request, f'{len(variants)} variant{plural} marked as OK.')
 
 
 @admin.register(Variant)

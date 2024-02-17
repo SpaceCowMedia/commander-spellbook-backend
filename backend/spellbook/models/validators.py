@@ -29,8 +29,11 @@ NUMERIC_VARIABLE = r'(?:mv|manavalue|power|pow|toughness|tou|pt|powtou|loyalty|l
 STRING_COMPARABLE_VARIABLE = r'(?:c|color|id|identity|produces)'
 STRING_UNCOMPARABLE_VARIABLE = r'(?:has|t|type|keyword|is|o|oracle|function|otag|oracletag|oracleid)'
 MANA_COMPARABLE_VARIABLE = r'(?:m|mana|devotion)'
+REGEX_VALUE = r'\/(?:\\\/|[^\/])+\/'
+SHORT_LITERAL_VALUE = r'(?!\/)[^\s:<>!="]+'
+LONG_LITERAL_VALUE = r'"[^"]+"'
 SCRYFALL_QUERY_ATOM = r'(?:-?(?:' + \
-    r'(?:' + STRING_COMPARABLE_VARIABLE + COMPARISON_OPERATORS + r'|' + STRING_UNCOMPARABLE_VARIABLE + r':!?)(?:[^\s:<>!="]+|"[^"]+")|' + \
+    r'(?:' + STRING_COMPARABLE_VARIABLE + COMPARISON_OPERATORS + r'|' + STRING_UNCOMPARABLE_VARIABLE + r':!?)(?:' + REGEX_VALUE + '|' + SHORT_LITERAL_VALUE + '|' + LONG_LITERAL_VALUE + ')|' + \
     MANA_COMPARABLE_VARIABLE + COMPARISON_OPERATORS + r'(?:\{' + MANA_SYMBOL + r'\})+|' + \
     NUMERIC_VARIABLE + COMPARISON_OPERATORS + r'(?:\d+|' + NUMERIC_VARIABLE + r')|' + \
     r'!"[^"]+"' + \

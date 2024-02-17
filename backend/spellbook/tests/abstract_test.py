@@ -68,6 +68,7 @@ class AbstractModelTests(TestCase):
         b6 = Combo.objects.create(mana_needed='{W}{U}{B}{R}{G}', other_prerequisites='Some requisites.', description='6', kind=Combo.Kind.GENERATOR_WITH_MANY_CARDS)
         b7 = Combo.objects.create(mana_needed='{W}{U}{B}{R}{G}', other_prerequisites='Some requisites.', description='7', kind=Combo.Kind.DRAFT)
         t1 = Template.objects.create(name='TA', scryfall_query='tou>5')
+        t2 = Template.objects.create(name='TB', scryfall_query='o:/asd dsa*/')
         c1.features.add(f1)
         b1.needs.add(f1)
         CardInCombo.objects.create(card=c2, combo=b1, order=1, zone_locations=IngredientInCombination.ZoneLocation.HAND)
@@ -117,6 +118,7 @@ class AbstractModelTests(TestCase):
         self.c7_id = c7.id
         self.c8_id = c8.id
         self.t1_id = t1.id
+        self.t2_id = t2.id
         self.f1_id = f1.id
         self.f2_id = f2.id
         self.f3_id = f3.id

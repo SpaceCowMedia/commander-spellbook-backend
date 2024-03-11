@@ -11,8 +11,8 @@ WORKDIR /usr/src/app
 # set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 
-# install psycopg2 dependencies
-RUN apk --update add gcc python3-dev musl-dev postgresql-dev libffi-dev --no-cache
+# install psycopg2 and cpp dependencies
+RUN apk --update add gcc g++ python3-dev musl-dev postgresql-dev libffi-dev --no-cache
 
 # pip
 RUN pip install --upgrade pip

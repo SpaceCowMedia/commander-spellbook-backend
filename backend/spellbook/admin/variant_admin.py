@@ -136,6 +136,7 @@ class VariantAdmin(SpellbookModelAdmin):
     list_display = ['__str__', 'id', 'status', 'identity']
     actions = [set_restore, set_draft, set_new, set_not_working, set_example, set_ok]
     search_fields = ['id']
+    search_help_text = 'You can search variants using the usual Commander Spellbook query syntax.'
 
     @admin.display(description='produces')
     def produces_link(self, obj):

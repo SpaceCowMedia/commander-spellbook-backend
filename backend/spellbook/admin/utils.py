@@ -37,6 +37,11 @@ class NormalizedTextareaWidget(Textarea):
 
 
 class SpellbookModelAdmin(ModelAdmin):
+    search_help_text = 'Type text to search for.' \
+        ' Use " + " to require multiple terms to be present.' \
+        ' Use " | " to require at least one of the terms to be present.' \
+        ' You can\'t use " + " and " | " together.'
+
     formfield_overrides = {
         TextField: {'widget': NormalizedTextareaWidget},
     }

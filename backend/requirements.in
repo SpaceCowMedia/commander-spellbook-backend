@@ -7,4 +7,4 @@ djangorestframework==3.14.0
 djangorestframework-camel-case==1.4.2
 djangorestframework-simplejwt==5.3.1
 social-auth-app-django==5.4.0
-mercury-settrie==1.4.6
+mercury-settrie==1.4.7

@@ -1,4 +1,6 @@
-from typing import TypeVar, Generic
+from typing import TypeVar, Generic, Iterator
+from settrie import SetTrie
+from copy import deepcopy
 
 
 T = TypeVar('T')
@@ -21,7 +23,7 @@ class MinimalSetOfSets(Generic[T]):
             sets (set[frozenset[T]] | None): Optional initial sets to be added to the collection,
             discarding all sets that are supersets of other sets in the collection.
         """
-        self._sets = set[frozenset[T]]()
+        self._sets = SetTrie()
         if sets is not None:
             for s in sets:
                 self.add(s)
@@ -30,13 +32,15 @@ class MinimalSetOfSets(Generic[T]):
         """
         Checks if the collection contains a subset of the given set.
         """
-        for s in self._sets:
-            if s.issubset(aset):
-                return True
-        return False
+        return len(self._sets.subsets(aset)) > 0
 
     def _remove_superset_of(self, aset: frozenset[T]):
-        self._sets = {s for s in self._sets if not s.issuperset(aset)}
+        purge = False
+        for ss in self._sets.supersets(aset):
+            self._sets.remove(ss)
+            purge = True
+        if purge:
+            self._sets.purge()
 
     def add(self, aset: frozenset[T]):
         """
@@ -46,16 +50,16 @@ class MinimalSetOfSets(Generic[T]):
         """
         if not self.contains_subset_of(aset):
             self._remove_superset_of(aset)
-            self._sets.add(aset)
+            self._sets.insert(aset, str(hash(aset)))
 
-    def __iter__(self):
-        return iter(self._sets)
+    def __iter__(self) -> Iterator[frozenset[T]]:
+        return iter(frozenset(ts.elements) for ts in iter(self._sets))  # type: ignore
 
     def __len__(self):
         return len(self._sets)
 
     def __contains__(self, set: frozenset[T]):
-        return set in self._sets
+        return self._sets.find(set) != ''
 
     def __str__(self):
         return str(self._sets)
@@ -65,18 +69,18 @@ class MinimalSetOfSets(Generic[T]):
 
     def __copy__(self):
         m = MinimalSetOfSets()
-        m._sets = self._sets.copy()
+        m._sets = deepcopy(self._sets)
         return m
 
     def copy(self):
         """
-        Creates a shallow copy of this minimal set of sets.
+        Creates a deep copy of this minimal set of sets.
         """
         return self.__copy__()
 
     def __eq__(self, other):
         if isinstance(other, MinimalSetOfSets):
-            return self._sets == other._sets
+            return frozenset(self) == frozenset(other)
         return False
 
     @classmethod

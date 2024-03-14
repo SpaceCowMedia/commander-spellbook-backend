@@ -41,7 +41,7 @@ WORKDIR $APP_HOME
 RUN \
     apk add --no-cache nginx && \
     mkdir -p /run/nginx && \
-    apk --update add libpq --no-cache
+    apk --update add libpq libstdc++ --no-cache
 COPY --from=builder /usr/src/app/wheels /wheels
 COPY --from=builder /usr/src/app/requirements.txt .
 RUN pip install --no-cache /wheels/*

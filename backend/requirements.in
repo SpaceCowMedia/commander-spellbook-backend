@@ -3,7 +3,7 @@ Django==5.0.3
 django-filter==24.1
 django-sortedm2m==3.1.1
 django-cors-headers==4.3.1
-djangorestframework==3.14.0
+djangorestframework==3.15.0
 djangorestframework-camel-case==1.4.2
 djangorestframework-simplejwt==5.3.1
 social-auth-app-django==5.4.0

@@ -40,7 +40,7 @@ django-filter==24.1
     # via -r requirements.in
 django-sortedm2m==3.1.1
     # via -r requirements.in
-djangorestframework==3.14.0
+djangorestframework==3.15.1
     # via
     #   -r requirements.in
     #   djangorestframework-simplejwt
@@ -68,8 +68,6 @@ python-dateutil==2.8.2
     # via botocore
 python3-openid==3.2.0
     # via social-auth-core
-pytz==2023.3
-    # via djangorestframework
 requests==2.31.0
     # via
     #   requests-oauthlib

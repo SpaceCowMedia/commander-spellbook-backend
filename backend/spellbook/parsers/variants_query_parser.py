@@ -436,4 +436,5 @@ def variants_query_parser(base: QuerySet, query_string: str) -> QuerySet:
             elif value.prefix != '':
                 raise NotSupportedError(f'Prefix {value.prefix} is not supported for {key} search.')
     queryset = smart_apply_filters(base, filters)
-    return queryset.distinct()
+    queryset = queryset.values('id').distinct()
+    return Variant.serialized_objects.filter(id__in=queryset)

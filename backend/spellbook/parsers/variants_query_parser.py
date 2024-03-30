@@ -396,7 +396,7 @@ class NotSupportedError(Exception):
     pass
 
 
-def variants_query_parser(base: QuerySet, query_string: str) -> QuerySet:
+def variants_query_parser(base: QuerySet[Variant], query_string: str) -> QuerySet:
     """
     Parse a query string into a Django Q object.
     """
@@ -437,4 +437,4 @@ def variants_query_parser(base: QuerySet, query_string: str) -> QuerySet:
                 raise NotSupportedError(f'Prefix {value.prefix} is not supported for {key} search.')
     queryset = smart_apply_filters(base, filters)
     queryset = queryset.values('id').distinct()
-    return Variant.serialized_objects.filter(id__in=queryset)
+    return base.filter(id__in=queryset)

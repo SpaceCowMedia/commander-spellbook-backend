@@ -9,7 +9,7 @@ class Playable(models.Model):
     @classmethod
     def playable_fields(cls):
         return ['identity', 'spoiler'] + cls.legalities_fields() + cls.prices_fields()
-    identity = models.CharField(max_length=5, blank=False, null=False, default='C', verbose_name='mana identity', choices=[(c, c) for c in SORTED_COLORS.values()])
+    identity = models.CharField(max_length=5, blank=False, null=False, default='C', verbose_name='color identity', choices=[(c, c) for c in SORTED_COLORS.values()])
     spoiler = models.BooleanField(default=False, help_text='Is this from an upcoming set?', verbose_name='is spoiler')
     identity_count = GeneratedField(
         db_persist=True,

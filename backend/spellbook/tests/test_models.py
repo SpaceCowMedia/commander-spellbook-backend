@@ -95,6 +95,7 @@ class TemplateTests(AbstractModelTests):
         t = Template.objects.get(id=self.t1_id)
         self.assertEqual(t.name, 'TA')
         self.assertEqual(t.scryfall_query, 'tou>5')
+        self.assertEqual(t.description, 'hello.')
 
     def test_query_string(self):
         t = Template.objects.get(id=self.t1_id)

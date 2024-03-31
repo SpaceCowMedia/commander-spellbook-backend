@@ -8,7 +8,7 @@ from .feature import Feature
 from .template import Template
 from .variant import Variant
 from .ingredient import IngredientInCombination, Recipe
-from .validators import TEXT_VALIDATORS, MANA_VALIDATOR, SCRYFALL_QUERY_HELP, SCRYFALL_QUERY_VALIDATOR, NAME_VALIDATORS, SCRYFALL_QUERY_MAX_LENGTH
+from .validators import TEXT_VALIDATORS, MANA_VALIDATOR, SCRYFALL_QUERY_HELP, SCRYFALL_QUERY_VALIDATOR, NAME_VALIDATORS, SCRYFALL_QUERY_MAX_LENGTH, NOT_URL_VALIDATOR
 from .utils import id_from_cards_and_templates_ids
 
 
@@ -101,7 +101,7 @@ class VariantSuggestion(Recipe):
 
 
 class CardUsedInVariantSuggestion(IngredientInCombination):
-    card = models.CharField(max_length=Card.MAX_CARD_NAME_LENGTH, blank=False, help_text='Card name', verbose_name='card name')
+    card = models.CharField(max_length=Card.MAX_CARD_NAME_LENGTH, blank=False, help_text='Card name', verbose_name='card name', validators=[NOT_URL_VALIDATOR])
     variant = models.ForeignKey(to=VariantSuggestion, on_delete=models.CASCADE, related_name='uses')
 
     def __str__(self):

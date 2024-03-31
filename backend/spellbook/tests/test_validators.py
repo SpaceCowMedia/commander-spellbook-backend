@@ -1,5 +1,5 @@
 from django.test import TestCase
-from spellbook.models.validators import MANA_SYMBOL, MANA_REGEX, ORACLE_SYMBOL, DOUBLE_SQUARE_BRACKET_TEXT_REGEX, SYMBOLS_TEXT_REGEX, SCRYFALL_QUERY_REGEX
+from spellbook.models.validators import MANA_SYMBOL, MANA_REGEX, ORACLE_SYMBOL, DOUBLE_SQUARE_BRACKET_TEXT_REGEX, SYMBOLS_TEXT_REGEX, SCRYFALL_QUERY_REGEX, URL_REGEX
 
 
 class TestValidators(TestCase):
@@ -196,3 +196,14 @@ class TestValidators(TestCase):
         self.assertNotRegex('kek:stuff', SCRYFALL_QUERY_REGEX)
         self.assertNotRegex('--t:card', SCRYFALL_QUERY_REGEX)
         self.assertNotRegex('t:card or and t:card', SCRYFALL_QUERY_REGEX)
+
+    def test_url(self):
+        self.assertRegex('https://example.com', URL_REGEX)
+        self.assertRegex('http://example.com', URL_REGEX)
+        self.assertRegex('ftp://example.com', URL_REGEX)
+        self.assertRegex('https://example.com/with/path', URL_REGEX)
+        self.assertRegex('example.com', URL_REGEX)
+        self.assertRegex('example.com/with/path', URL_REGEX)
+        self.assertNotRegex('example', URL_REGEX)
+        self.assertNotRegex('example.', URL_REGEX)
+        self.assertNotRegex('example 2', URL_REGEX)

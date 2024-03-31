@@ -67,7 +67,7 @@ class AbstractModelTests(TestCase):
         b5 = Combo.objects.create(mana_needed='{G}{G}', other_prerequisites='Some requisites.', description='5', kind=Combo.Kind.UTILITY)
         b6 = Combo.objects.create(mana_needed='{W}{U}{B}{R}{G}', other_prerequisites='Some requisites.', description='6', kind=Combo.Kind.GENERATOR_WITH_MANY_CARDS)
         b7 = Combo.objects.create(mana_needed='{W}{U}{B}{R}{G}', other_prerequisites='Some requisites.', description='7', kind=Combo.Kind.DRAFT)
-        t1 = Template.objects.create(name='TA', scryfall_query='tou>5')
+        t1 = Template.objects.create(name='TA', scryfall_query='tou>5', description='hello.')
         t2 = Template.objects.create(name='TB', scryfall_query='o:/asd dsa*/')
         c1.features.add(f1)
         b1.needs.add(f1)

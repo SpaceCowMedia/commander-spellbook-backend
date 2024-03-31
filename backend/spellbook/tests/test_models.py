@@ -278,7 +278,7 @@ class VariantTests(AbstractModelTests):
         self.assertEqual(v.other_prerequisites_line_count, v.other_prerequisites.count('\n') + 1)
         self.assertEqual(v.mana_value_needed, 4)
         self.assertEqual(v.popularity, None)
-        self.assertIn(v.id, v.spellbook_link())
+        self.assertIsNone(v.spellbook_link())
 
     def test_ingredients(self):
         for v in Variant.objects.all():
@@ -295,7 +295,7 @@ class VariantTests(AbstractModelTests):
         self.assertTrue(v.query_string().startswith('q='))
 
     def test_method_count(self):
-        self.assertEqual(count_methods(Variant), 7)
+        self.assertEqual(count_methods(Variant), 8)
 
     def test_update(self):
         v = Variant.objects.get(id=self.v1_id)

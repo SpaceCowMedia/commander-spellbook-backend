@@ -34,6 +34,7 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
     class Status(models.TextChoices):
         NEW = 'N'
         DRAFT = 'D'
+        NEEDS_REVIEW = 'NR'
         OK = 'OK'
         EXAMPLE = 'E'
         RESTORE = 'R'

@@ -10,19 +10,19 @@ class VariantDataTests(AbstractModelTests):
 
     def test_restore_data(self):
         for data in (Data(), RestoreData()):
-            self.assertEqual(len(data.combos), Combo.objects.filter(kind__in=(Combo.Kind.GENERATOR, Combo.Kind.GENERATOR_WITH_MANY_CARDS, Combo.Kind.UTILITY)).count())
+            self.assertEqual(len(data.combos), Combo.objects.filter(status__in=(Combo.Status.GENERATOR, Combo.Status.GENERATOR_WITH_MANY_CARDS, Combo.Status.UTILITY)).count())
             self.assertDictEqual({k: data.combo_to_cards[k] for k in Combo.objects.values_list('id', flat=True)}, {combo.id: list(combo.cardincombo_set.all()) for combo in Combo.objects.all()})
             self.assertDictEqual({k: data.combo_to_templates[k] for k in Combo.objects.values_list('id', flat=True)}, {combo.id: list(combo.templateincombo_set.all()) for combo in Combo.objects.all()})
-            self.assertEqual(set(c.id for c in data.generator_combos), set(Combo.objects.filter(kind__in=(Combo.Kind.GENERATOR, Combo.Kind.GENERATOR_WITH_MANY_CARDS)).values_list('id', flat=True)))
+            self.assertEqual(set(c.id for c in data.generator_combos), set(Combo.objects.filter(status__in=(Combo.Status.GENERATOR, Combo.Status.GENERATOR_WITH_MANY_CARDS)).values_list('id', flat=True)))
 
     def test_restore_data_single_combo(self):
         combo = Combo.objects.first()
         data = RestoreData(single_combo=combo)
-        combos = Combo.objects.filter(kind__in=(Combo.Kind.GENERATOR, Combo.Kind.GENERATOR_WITH_MANY_CARDS, Combo.Kind.UTILITY), included_in_variants__includes=combo).distinct()
+        combos = Combo.objects.filter(status__in=(Combo.Status.GENERATOR, Combo.Status.GENERATOR_WITH_MANY_CARDS, Combo.Status.UTILITY), included_in_variants__includes=combo).distinct()
         self.assertEqual(len(data.combos), combos.count())
         self.assertDictEqual({k: data.combo_to_cards[k] for k in combos.values_list('id', flat=True)}, {combo.id: list(combo.cardincombo_set.all()) for combo in combos})
         self.assertDictEqual({k: data.combo_to_templates[k] for k in combos.values_list('id', flat=True)}, {combo.id: list(combo.templateincombo_set.all()) for combo in combos})
-        self.assertEqual(set(c.id for c in data.generator_combos), set(combos.filter(kind__in=(Combo.Kind.GENERATOR, Combo.Kind.GENERATOR_WITH_MANY_CARDS)).values_list('id', flat=True)))
+        self.assertEqual(set(c.id for c in data.generator_combos), set(combos.filter(status__in=(Combo.Status.GENERATOR, Combo.Status.GENERATOR_WITH_MANY_CARDS)).values_list('id', flat=True)))
 
     def test_features(self):
         data = Data()
@@ -59,7 +59,7 @@ class VariantDataTests(AbstractModelTests):
     def test_id_to_x(self):
         data = Data()
         self.assertEqual(data.id_to_variant, {v.id: v for v in Variant.objects.all()})
-        self.assertEqual(data.id_to_combo, {c.id: c for c in Combo.objects.exclude(kind=Combo.Kind.DRAFT).all()})
+        self.assertEqual(data.id_to_combo, {c.id: c for c in Combo.objects.exclude(status__in=[Combo.Status.DRAFT, Combo.Status.NEEDS_REVIEW]).all()})
         self.assertEqual(data.id_to_card, {c.id: c for c in Card.objects.all()})
         self.assertEqual(data.id_to_template, {t.id: t for t in Template.objects.all()})
 

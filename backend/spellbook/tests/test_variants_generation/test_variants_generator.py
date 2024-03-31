@@ -72,17 +72,17 @@ class VariantsGeneratorTests(AbstractModelTests):
     def test_generate_variants(self):
         generate_variants()
         self.assertEqual(Variant.objects.count(), self.expected_variant_count)
-        Combo.objects.filter(kind__in=(Combo.Kind.GENERATOR, Combo.Kind.GENERATOR_WITH_MANY_CARDS)).update(kind=Combo.Kind.DRAFT)
+        Combo.objects.filter(status__in=(Combo.Status.GENERATOR, Combo.Status.GENERATOR_WITH_MANY_CARDS)).update(status=Combo.Status.DRAFT)
         generate_variants()
         self.assertEqual(Variant.objects.count(), 0)
 
     def test_generate_variants_deletion(self):
         for status in Variant.Status.values:
-            Combo.objects.filter(kind=Combo.Kind.DRAFT).update(kind=Combo.Kind.GENERATOR_WITH_MANY_CARDS)
+            Combo.objects.filter(status=Combo.Status.DRAFT).update(status=Combo.Status.GENERATOR_WITH_MANY_CARDS)
             generate_variants()
             self.assertEqual(Variant.objects.count(), self.expected_variant_count)
             Variant.objects.update(status=status)
-            Combo.objects.filter(kind__in=(Combo.Kind.GENERATOR, Combo.Kind.GENERATOR_WITH_MANY_CARDS)).update(kind=Combo.Kind.DRAFT)
+            Combo.objects.filter(status__in=(Combo.Status.GENERATOR, Combo.Status.GENERATOR_WITH_MANY_CARDS)).update(status=Combo.Status.DRAFT)
             generate_variants()
             self.assertEqual(Variant.objects.count(), 0)
 

@@ -160,7 +160,7 @@ def prerequisites_search(prerequisites_value: QueryValue) -> Q:
             prerequisites_query = Q(other_prerequisites_line_count=prerequisites_value.value)
         case _:
             raise NotSupportedError(f'Operator {prerequisites_value.operator} is not supported for prerequisites search.')
-    return prerequisites_query & ~Q(status=Variant.Status.EXAMPLE)
+    return prerequisites_query & Q(status=Variant.Status.OK)
 
 
 def description_search(description_value: QueryValue) -> Q:
@@ -182,7 +182,7 @@ def description_search(description_value: QueryValue) -> Q:
             steps_query = Q(description_line_count=description_value.value)
         case _:
             raise NotSupportedError(f'Operator {description_value.operator} is not supported for prerequisites search.')
-    return steps_query & ~Q(status=Variant.Status.EXAMPLE)
+    return steps_query & Q(status=Variant.Status.OK)
 
 
 def results_search(results_value: QueryValue) -> Q:

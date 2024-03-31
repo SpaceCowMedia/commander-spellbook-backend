@@ -23,8 +23,9 @@ class ComboForm(ModelForm):
         if self.instance.pk is None:
             return Variant.objects.none()
         return self.instance.variants.order_by(Case(
-            When(status=Variant.Status.DRAFT, then=0),
-            When(status=Variant.Status.NEW, then=1),
+            When(status=Variant.Status.NEEDS_REVIEW, then=0),
+            When(status=Variant.Status.DRAFT, then=1),
+            When(status=Variant.Status.NEW, then=2),
             default=2
         ), '-updated')
 
@@ -102,11 +103,11 @@ class ComboAdmin(SpellbookModelAdmin):
         ('Generated', {'fields': ['scryfall_link']}),
         ('More Requirements', {'fields': ['mana_needed', 'other_prerequisites']}),
         ('Results', {'fields': ['produces', 'removes']}),
-        ('Description', {'fields': ['kind', 'description']}),
+        ('Description', {'fields': ['status', 'description']}),
     ]
     inlines = [CardInComboAdminInline, FeatureInComboAdminInline, TemplateInComboAdminInline]
     filter_horizontal = ['produces', 'removes']
-    list_filter = ['kind', PayoffFilter, VariantRelatedFilter]
+    list_filter = ['status', PayoffFilter, VariantRelatedFilter]
     search_fields = [
         'uses__name',
         'uses__name_unaccented',
@@ -116,12 +117,15 @@ class ComboAdmin(SpellbookModelAdmin):
         'produces__name',
         'needs__name'
     ]
-    list_display = ['__str__', 'id', 'kind']
+    list_display = ['__str__', 'id', 'status']
 
     def save_related(self, request, form, formsets, change):
         super().save_related(request, form, formsets, change)
         if change:
-            query = Variant.recipes_prefetched.filter(of=form.instance, status__in=[Variant.Status.NEW, Variant.Status.RESTORE])
+            query = Variant.recipes_prefetched.filter(
+                of=form.instance,
+                status__in=[Variant.Status.NEW, Variant.Status.RESTORE]
+            )
             count = query.count()
             if count <= 0:
                 return

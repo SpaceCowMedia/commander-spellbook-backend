@@ -37,7 +37,7 @@ def get_variants_from_graph(data: Data, job: Job | None = None) -> dict[str, Var
         count = 0
         card_limit = DEFAULT_CARD_LIMIT
         variant_limit = DEFAULT_VARIANT_LIMIT
-        if combo.kind == Combo.Kind.GENERATOR_WITH_MANY_CARDS:
+        if combo.status == Combo.Status.GENERATOR_WITH_MANY_CARDS:
             card_limit = HIGHER_CARD_LIMIT
             variant_limit = LOWER_VARIANT_LIMIT
         variants = graph.variants(combo.id, card_limit=card_limit, variant_limit=variant_limit)

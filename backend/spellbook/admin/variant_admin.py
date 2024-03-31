@@ -49,54 +49,49 @@ class TemplateInVariantAdminInline(IngredientAdmin):
         return False
 
 
+def set_status(request, queryset, status: Variant.Status):
+    # JSON preserialization has to be updated when the status changes, in case it becomes public.
+    variants = list(VariantSerializer.prefetch_related(queryset))
+    for variant in variants:
+        variant.status = status
+    Variant.objects.bulk_serialize(variants, fields=['status'], serializer=VariantSerializer)  # type: ignore
+    plural = 's' if len(variants) > 1 else ''
+    messages.success(request, f'{len(variants)} variant{plural} marked as {status.name}.')
+
+
 @admin.action(description='Mark selected variants as RESTORE')
 def set_restore(modeladmin, request, queryset: QuerySet):
-    count = queryset.update(status=Variant.Status.RESTORE)
-    plural = 's' if count > 1 else ''
-    messages.success(request, f'{count} variant{plural} marked as RESTORE.')
+    set_status(request, queryset, Variant.Status.RESTORE)
 
 
 @admin.action(description='Mark selected variants as DRAFT')
 def set_draft(modeladmin, request, queryset: QuerySet):
-    count = queryset.update(status=Variant.Status.DRAFT)
-    plural = 's' if count > 1 else ''
-    messages.success(request, f'{count} variant{plural} marked as DRAFT.')
+    set_status(request, queryset, Variant.Status.DRAFT)
+
+
+@admin.action(description='Mark selected variants as NEEDS REVIEW')
+def set_needs_review(modeladmin, request, queryset: QuerySet):
+    set_status(request, queryset, Variant.Status.NEEDS_REVIEW)
 
 
 @admin.action(description='Mark selected variants as NEW')
 def set_new(modeladmin, request, queryset: QuerySet):
-    count = queryset.update(status=Variant.Status.NEW)
-    plural = 's' if count > 1 else ''
-    messages.success(request, f'{count} variant{plural} marked as NEW.')
+    set_status(request, queryset, Variant.Status.NEW)
 
 
 @admin.action(description='Mark selected variants as NOT WORKING')
 def set_not_working(modeladmin, request, queryset: QuerySet):
-    count = queryset.update(status=Variant.Status.NOT_WORKING)
-    plural = 's' if count > 1 else ''
-    messages.success(request, f'{count} variant{plural} marked as NOT WORKING.')
+    set_status(request, queryset, Variant.Status.NOT_WORKING)
 
 
 @admin.action(description='Mark selected variants as EXAMPLE')
 def set_example(modeladmin, request, queryset):
-    # JSON preserialization has to be updated when the status becomes public.
-    variants = list(VariantSerializer.prefetch_related(queryset))
-    for variant in variants:
-        variant.status = Variant.Status.EXAMPLE
-    Variant.objects.bulk_serialize(variants, fields=['status'], serializer=VariantSerializer)  # type: ignore
-    plural = 's' if len(variants) > 1 else ''
-    messages.success(request, f'{len(variants)} variant{plural} marked as EXAMPLE.')
+    set_status(request, queryset, Variant.Status.EXAMPLE)
 
 
 @admin.action(description='Mark selected variants as OK')
 def set_ok(modeladmin, request, queryset):
-    # JSON preserialization has to be updated when the status becomes public.
-    variants = list(VariantSerializer.prefetch_related(queryset))
-    for variant in variants:
-        variant.status = Variant.Status.OK
-    Variant.objects.bulk_serialize(variants, fields=['status'], serializer=VariantSerializer)  # type: ignore
-    plural = 's' if len(variants) > 1 else ''
-    messages.success(request, f'{len(variants)} variant{plural} marked as OK.')
+    set_status(request, queryset, Variant.Status.OK)
 
 
 @admin.register(Variant)
@@ -134,7 +129,7 @@ class VariantAdmin(SpellbookModelAdmin):
     ]
     list_filter = ['status', CardsCountListFilter, IdentityFilter, 'legal_commander', 'spoiler']
     list_display = ['__str__', 'id', 'status', 'identity']
-    actions = [set_restore, set_draft, set_new, set_not_working, set_example, set_ok]
+    actions = [set_restore, set_draft, set_new, set_needs_review, set_not_working, set_example, set_ok]
     search_fields = ['id']
     search_help_text = 'You can search variants using the usual Commander Spellbook query syntax.'
 

@@ -25,11 +25,12 @@ class Combo(Recipe, ScryfallLinkMixin):
     objects = models.Manager()
     recipes_prefetched = RecipePrefetchedManager()
 
-    class Kind(models.TextChoices):
+    class Status(models.TextChoices):
         GENERATOR = 'G'
         UTILITY = 'U'
         GENERATOR_WITH_MANY_CARDS = 'M'
         DRAFT = 'D'
+        NEEDS_REVIEW = 'NR'
 
     uses = models.ManyToManyField(
         to=Card,
@@ -66,7 +67,7 @@ class Combo(Recipe, ScryfallLinkMixin):
     mana_needed = models.CharField(blank=True, max_length=200, help_text='Mana needed for this combo. Use the {1}{W}{U}{B}{R}{G}{B/P}... format.', validators=[MANA_VALIDATOR])
     other_prerequisites = models.TextField(blank=True, help_text='Other prerequisites for this combo.', validators=TEXT_VALIDATORS)
     description = models.TextField(blank=True, help_text='Long description of the combo, in steps', validators=TEXT_VALIDATORS)
-    kind = models.CharField(choices=Kind.choices, default=Kind.GENERATOR, help_text='Is this combo a generator for variants?', verbose_name='kind', max_length=2)
+    status = models.CharField(choices=Status.choices, default=Status.GENERATOR, help_text='Is this combo a generator for variants?', verbose_name='status', max_length=2)
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, editable=False)
 

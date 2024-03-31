@@ -21,22 +21,22 @@ class IngredientInVariantSerializer(serializers.ModelSerializer):
         return list(obj.zone_locations)
 
     def get_battlefield_card_state(self, obj):
-        if obj.variant.status != Variant.Status.OK:
+        if obj.variant.status == Variant.Status.EXAMPLE:
             return None
         return obj.battlefield_card_state
 
     def get_exile_card_state(self, obj):
-        if obj.variant.status != Variant.Status.OK:
+        if obj.variant.status == Variant.Status.EXAMPLE:
             return None
         return obj.exile_card_state
 
     def get_library_card_state(self, obj):
-        if obj.variant.status != Variant.Status.OK:
+        if obj.variant.status == Variant.Status.EXAMPLE:
             return None
         return obj.library_card_state
 
     def get_graveyard_card_state(self, obj):
-        if obj.variant.status != Variant.Status.OK:
+        if obj.variant.status == Variant.Status.EXAMPLE:
             return None
         return obj.graveyard_card_state
 
@@ -98,22 +98,22 @@ class VariantSerializer(serializers.ModelSerializer):
     prices = VariantPricesSerializer(source='*', read_only=True)
 
     def get_mana_needed(self, obj):
-        if obj.status != Variant.Status.OK:
+        if obj.status == Variant.Status.EXAMPLE:
             return None
         return obj.mana_needed
 
     def get_mana_value_needed(self, obj):
-        if obj.status != Variant.Status.OK:
+        if obj.status == Variant.Status.EXAMPLE:
             return None
         return obj.mana_value_needed
 
     def get_other_prerequisites(self, obj):
-        if obj.status != Variant.Status.OK:
+        if obj.status == Variant.Status.EXAMPLE:
             return None
         return obj.other_prerequisites
 
     def get_description(self, obj):
-        if obj.status != Variant.Status.OK:
+        if obj.status == Variant.Status.EXAMPLE:
             return None
         return obj.description
 

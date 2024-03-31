@@ -44,6 +44,10 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
     def public_statuses(cls):
         return (cls.Status.OK, cls.Status.EXAMPLE)
 
+    @classmethod
+    def preview_statuses(cls):
+        return (cls.Status.DRAFT, cls.Status.NEEDS_REVIEW)
+
     id = models.CharField(max_length=128, primary_key=True, help_text='Unique ID for this variant')
     uses = models.ManyToManyField(
         to=Card,
@@ -155,8 +159,14 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
         return old_values != new_values
 
     def spellbook_link(self):
-        link = f'https://commanderspellbook.com/combo/{self.id}'
-        return format_html('<a href="{}" target="_blank">Show combo on Commander Spellbook</a>', link)
+        path = f'combo/{self.id}'
+        text = 'Show combo on Commander Spellbook'
+        if self.status not in Variant.public_statuses():
+            if self.status in Variant.preview_statuses():
+                text = 'Show combo preview on Commander Spellbook (remember to login to see it)'
+            else:
+                return None
+        return format_html('<a href="{}" target="_blank">{}</a>', 'https://commanderspellbook.com/' + path, text)
 
 
 class CardInVariant(IngredientInCombination):

@@ -187,7 +187,7 @@ class ComboAdmin(SpellbookModelAdmin):
                         add_feature_link = reverse('admin:spellbook_feature_add') + '?' + urlencode({
                             'name': f,
                         })
-                        messages.add_message(request, messages.WARNING, mark_safe(
+                        messages.warning(request, mark_safe(
                             f'Could not find produced feature "{f}" in database. {create_missing_object_message(add_feature_link)}'
                         ))
                 initial_data['produces'] = [feature.pk for feature in found_produced_features]
@@ -220,13 +220,13 @@ class ComboAdmin(SpellbookModelAdmin):
                         found_used_cards_names_to_id[suggested_card.card] = query_result.first().pk  # type: ignore
                     elif query_result.count() > 1:
                         picked: Card = query_result.first()  # type: ignore
-                        messages.add_message(request, messages.WARNING, f'Found multiple cards matching "{suggested_card.card}" in database. Check if {picked.name} is correct.')
+                        messages.warning(request, f'Found multiple cards matching "{suggested_card.card}" in database. Check if {picked.name} is correct.')
                         found_used_cards_names_to_id[suggested_card.card] = picked.pk
                     else:
                         add_card_link = reverse('admin:spellbook_card_add') + '?' + urlencode({
                             'name': suggested_card.card,
                         })
-                        messages.add_message(request, messages.WARNING, mark_safe(
+                        messages.warning(request, mark_safe(
                             f'Could not find used card "{suggested_card.card}" in database. {create_missing_object_message(add_card_link)}'
                         ))
                 for suggested_card in suggested_used_cards:
@@ -250,7 +250,7 @@ class ComboAdmin(SpellbookModelAdmin):
                         add_template_link = reverse('admin:spellbook_template_add') + '?' + urlencode({
                             'name': suggested_template.template,
                         })
-                        messages.add_message(request, messages.WARNING, mark_safe(
+                        messages.warning(request, mark_safe(
                             f'Could not find required template "{suggested_template.template}" in database. {create_missing_object_message(add_template_link)}'
                         ))
                     formset_kwargs['initial'].append({
@@ -300,9 +300,8 @@ class ComboAdmin(SpellbookModelAdmin):
         )
         duplicate_combos = list(duplicate_combos_query.exclude(pk=instance.pk).values_list('id', flat=True))
         if duplicate_combos:
-            messages.warning(
-                request, 
-                f'This combo is a duplicate of {len(duplicate_combos)} other combos, with ids: ' +
-                ', '.join(str(c) for c in duplicate_combos[:10]) +
-                ('...' if len(duplicate_combos) > 10 else '')
-            )
+            message = f'This combo is a duplicate of {len(duplicate_combos)} other combos, with ids: '
+            message += ', '.join(str(c) for c in duplicate_combos[:10])
+            if len(duplicate_combos) > 10:
+                message += '...'
+            messages.warning(request, message)

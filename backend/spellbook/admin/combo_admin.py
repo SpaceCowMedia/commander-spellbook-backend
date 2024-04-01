@@ -249,6 +249,7 @@ class ComboAdmin(SpellbookModelAdmin):
                     if suggested_template.template not in found_required_templates_names_to_id:
                         add_template_link = reverse('admin:spellbook_template_add') + '?' + urlencode({
                             'name': suggested_template.template,
+                            'scryfall_query': suggested_template.scryfall_query,
                         })
                         messages.warning(request, mark_safe(
                             f'Could not find required template "{suggested_template.template}" in database. {create_missing_object_message(add_template_link)}'

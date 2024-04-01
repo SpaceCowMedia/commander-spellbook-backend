@@ -1,6 +1,8 @@
 from django.contrib import admin
 from django.db.models import QuerySet, Case, When
+from django.utils.html import format_html
 from spellbook.models import Feature
+from spellbook.models.scryfall import scryfall_link_for_query, scryfall_query_string_for_card_names, SCRYFALL_MAX_QUERY_LENGTH
 from .utils import SpellbookModelAdmin
 
 
@@ -14,8 +16,9 @@ class CardInFeatureAdminInline(admin.StackedInline):
 
 @admin.register(Feature)
 class FeatureAdmin(SpellbookModelAdmin):
+    readonly_fields = ['scryfall_link']
     fieldsets = [
-        (None, {'fields': ['name', 'utility', 'description']}),
+        (None, {'fields': ['name', 'utility', 'description', 'scryfall_link']}),
     ]
     inlines = [CardInFeatureAdminInline]
     search_fields = ['name', 'cards__name']
@@ -43,3 +46,16 @@ class FeatureAdmin(SpellbookModelAdmin):
                 default=1,
             )
         ).order_by('-match_points')
+
+    @admin.display(description='Scryfall link')
+    def scryfall_link(self, obj: Feature):
+        card_names = obj.cards.values_list('name', flat=True)  # type: ignore
+        if card_names:
+            query_string = scryfall_query_string_for_card_names(card_names)
+            if len(query_string) <= SCRYFALL_MAX_QUERY_LENGTH:
+                link = scryfall_link_for_query(query_string)
+                plural = 's' if len(card_names) > 1 else ''
+                return format_html('<a href="{}" target="_blank">Show card{} that produce this feature on scryfall</a>', link, plural)
+            else:
+                return 'Query too long for generating a scryfall link with all cards producing this feature'
+        return None

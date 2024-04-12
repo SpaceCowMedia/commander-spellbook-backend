@@ -48,7 +48,7 @@ djangorestframework-camel-case==1.4.2
     # via -r requirements.in
 djangorestframework-simplejwt==5.3.1
     # via -r requirements.in
-idna==3.4
+idna==3.7
     # via requests
 jmespath==1.0.1
     # via

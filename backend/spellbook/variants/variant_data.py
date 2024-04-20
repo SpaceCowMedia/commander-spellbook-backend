@@ -11,15 +11,15 @@ from spellbook.models.variant import Variant, CardInVariant, TemplateInVariant
 
 class RestoreData:
     def __init__(self, single_combo: Combo | None = None):
-        combos_query = Combo.objects.prefetch_related('uses', 'requires', 'needs', 'removes', 'produces').filter(kind__in=(Combo.Kind.GENERATOR, Combo.Kind.GENERATOR_WITH_MANY_CARDS, Combo.Kind.UTILITY))
+        combos_query = Combo.objects.prefetch_related('uses', 'requires', 'needs', 'removes', 'produces').filter(status__in=(Combo.Status.GENERATOR, Combo.Status.GENERATOR_WITH_MANY_CARDS, Combo.Status.UTILITY))
         if single_combo is not None:
-            combos_query = combos_query.filter(included_in_variants__includes=single_combo)
-        self.combos = list(combos_query.distinct())
+            combos_query = combos_query.filter(included_in_variants__includes=single_combo).distinct()
+        self.combos = list(combos_query)
         self.combo_to_cards = defaultdict[int, list[CardInCombo]](list)
         self.combo_to_templates = defaultdict[int, list[TemplateInCombo]](list)
-        self.generator_combos = [c for c in self.combos if c.kind in (Combo.Kind.GENERATOR, Combo.Kind.GENERATOR_WITH_MANY_CARDS)]
-        card_in_combos = CardInCombo.objects.select_related('card', 'combo').filter(combo__in=self.combos).distinct()
-        template_in_combos = TemplateInCombo.objects.select_related('template', 'combo').filter(combo__in=self.combos).distinct()
+        self.generator_combos = [c for c in self.combos if c.status in (Combo.Status.GENERATOR, Combo.Status.GENERATOR_WITH_MANY_CARDS)]
+        card_in_combos = CardInCombo.objects.select_related('card', 'combo').filter(combo__in=self.combos)
+        template_in_combos = TemplateInCombo.objects.select_related('template', 'combo').filter(combo__in=self.combos)
         for cic in card_in_combos:
             self.combo_to_cards[cic.combo.id].append(cic)
         for tic in template_in_combos:

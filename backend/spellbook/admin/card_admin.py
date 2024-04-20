@@ -52,9 +52,6 @@ class CardAdmin(SpellbookModelAdmin):
         'name_unaccented',
         'name_unaccented_simplified',
         'name_unaccented_simplified_with_spaces',
-        'features__name',
-        'type_line',
-        'oracle_text'
     ]
     autocomplete_fields = ['features']
     list_display = ['name', 'id', 'identity', 'variants_count']

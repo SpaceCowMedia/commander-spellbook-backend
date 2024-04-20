@@ -1,9 +1,8 @@
 from typing import Iterable, List, Sequence
-from urllib.parse import urlencode
 from django.db.models import Model, Manager, QuerySet, JSONField
 from django.utils.html import format_html
 from rest_framework.serializers import ModelSerializer, BaseSerializer
-from .scryfall import SCRYFALL_WEBSITE_CARD_SEARCH
+from .scryfall import scryfall_query_string_for_card_names, scryfall_link_for_query
 
 
 class ScryfallLinkMixin:
@@ -12,12 +11,11 @@ class ScryfallLinkMixin:
 
     def query_string(self, cards: list | None = None):
         cards = cards or self.cards()
-        cards_query = ' or '.join(f'!"{card.name}"' for card in cards)
-        return urlencode({'q': cards_query})
+        return scryfall_query_string_for_card_names([card.name for card in cards])
 
     def scryfall_link(self):
         cards = self.cards()
-        link = f'{SCRYFALL_WEBSITE_CARD_SEARCH}?{self.query_string(cards=cards)}'
+        link = scryfall_link_for_query(self.query_string(cards))
         plural = 's' if len(cards) > 1 else ''
         return format_html('<a href="{}" target="_blank">Show card{} on scryfall</a>', link, plural)
 

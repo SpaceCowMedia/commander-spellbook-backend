@@ -1,5 +1,4 @@
-from rest_framework.viewsets import ModelViewSet
-from rest_framework import permissions
+from rest_framework import viewsets, permissions
 from django_filters.rest_framework import DjangoFilterBackend
 from spellbook.models import VariantSuggestion
 from spellbook.serializers import VariantSuggestionSerializer
@@ -18,7 +17,7 @@ class IsNewAndOwnerOrReadOnly(permissions.BasePermission):
         return obj.status == VariantSuggestion.Status.NEW and obj.suggested_by == request.user
 
 
-class VariantSuggestionViewSet(ModelViewSet):
+class VariantSuggestionViewSet(viewsets.ModelViewSet):
     queryset = VariantSuggestionSerializer.prefetch_related(VariantSuggestion.objects)
     serializer_class = VariantSuggestionSerializer
     permission_classes = [permissions.DjangoModelPermissionsOrAnonReadOnly, IsNewAndOwnerOrReadOnly]

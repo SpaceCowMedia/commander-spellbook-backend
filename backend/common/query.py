@@ -1,9 +1,13 @@
+from typing import TypeVar
 from collections import defaultdict
-from django.db.models import Q, QuerySet
+from django.db.models import Q, QuerySet, Model
 from .itertools import roundrobin
 
 
-def smart_apply_filters(base: QuerySet, q: list[tuple[Q, bool]]) -> QuerySet:
+T = TypeVar('T', bound=Model)
+
+
+def smart_apply_filters(base: QuerySet[T], q: list[tuple[Q, bool]]) -> QuerySet[T]:
     '''
     This function avoids queries that would result in a cartesian product
     due to the use of the same table in multiple filters.

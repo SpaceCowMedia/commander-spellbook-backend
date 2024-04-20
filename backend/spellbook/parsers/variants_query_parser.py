@@ -160,7 +160,7 @@ def prerequisites_search(prerequisites_value: QueryValue) -> Q:
             prerequisites_query = Q(other_prerequisites_line_count=prerequisites_value.value)
         case _:
             raise NotSupportedError(f'Operator {prerequisites_value.operator} is not supported for prerequisites search.')
-    return prerequisites_query & ~Q(status=Variant.Status.EXAMPLE)
+    return prerequisites_query & Q(status=Variant.Status.OK)
 
 
 def description_search(description_value: QueryValue) -> Q:
@@ -182,7 +182,7 @@ def description_search(description_value: QueryValue) -> Q:
             steps_query = Q(description_line_count=description_value.value)
         case _:
             raise NotSupportedError(f'Operator {description_value.operator} is not supported for prerequisites search.')
-    return steps_query & ~Q(status=Variant.Status.EXAMPLE)
+    return steps_query & Q(status=Variant.Status.OK)
 
 
 def results_search(results_value: QueryValue) -> Q:
@@ -376,7 +376,7 @@ alias_map: dict[str, str] = {
 }
 
 
-SHORT_VALUE_REGEX = r'''(?:[a-zA-Z0-9À-ÿ_\-'])+'''
+SHORT_VALUE_REGEX = r'''(?:[a-zA-Z0-9À-ÿ_\-',])+'''
 LONG_VALUE_REGEX = r'(?:[^"\\]|\\")+'
 QUERY_REGEX = r'(?:\s|^)(?:(?P<card_short>)|"(?P<card_long>)"|(?P<prefix>-?)(?P<key>[a-zA-Z_]+)(?P<operator>:|=|<|>|<=|>=)(?:(?P<value_short>)|"(?P<value_long>)"))(?=\s|$)' \
     .replace(
@@ -396,7 +396,7 @@ class NotSupportedError(Exception):
     pass
 
 
-def variants_query_parser(base: QuerySet, query_string: str) -> QuerySet:
+def variants_query_parser(base: QuerySet[Variant], query_string: str) -> QuerySet:
     """
     Parse a query string into a Django Q object.
     """
@@ -436,4 +436,5 @@ def variants_query_parser(base: QuerySet, query_string: str) -> QuerySet:
             elif value.prefix != '':
                 raise NotSupportedError(f'Prefix {value.prefix} is not supported for {key} search.')
     queryset = smart_apply_filters(base, filters)
-    return queryset.distinct()
+    queryset = queryset.values('id').distinct()
+    return base.filter(id__in=queryset)

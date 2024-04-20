@@ -95,6 +95,7 @@ class TemplateTests(AbstractModelTests):
         t = Template.objects.get(id=self.t1_id)
         self.assertEqual(t.name, 'TA')
         self.assertEqual(t.scryfall_query, 'tou>5')
+        self.assertEqual(t.description, 'hello.')
 
     def test_query_string(self):
         t = Template.objects.get(id=self.t1_id)
@@ -134,7 +135,7 @@ class ComboTests(AbstractModelTests):
         self.assertEqual(c.removes.count(), 0)
         self.assertEqual(c.mana_needed, '{W}{W}')
         self.assertEqual(c.other_prerequisites, 'Some requisites.')
-        self.assertEqual(c.kind, Combo.Kind.GENERATOR)
+        self.assertEqual(c.status, Combo.Status.GENERATOR)
         self.assertEqual(c.cardincombo_set.count(), 2)
         self.assertEqual(c.cardincombo_set.get(card__oracle_id='00000000-0000-0000-0000-000000000002').zone_locations, IngredientInCombination.ZoneLocation.HAND)
         self.assertEqual(c.cardincombo_set.get(card__oracle_id='00000000-0000-0000-0000-000000000003').zone_locations, IngredientInCombination.ZoneLocation.BATTLEFIELD)
@@ -148,7 +149,7 @@ class ComboTests(AbstractModelTests):
         self.assertEqual(c.removes.count(), 1)
         self.assertEqual(c.mana_needed, '{U}{U}')
         self.assertEqual(c.other_prerequisites, 'Some requisites.')
-        self.assertEqual(c.kind, Combo.Kind.GENERATOR)
+        self.assertEqual(c.status, Combo.Status.GENERATOR)
         self.assertEqual(c.cardincombo_set.count(), 0)
         self.assertEqual(c.templateincombo_set.count(), 1)
         self.assertEqual(c.templateincombo_set.get(template__name='TA').zone_locations, IngredientInCombination.ZoneLocation.GRAVEYARD)
@@ -277,7 +278,7 @@ class VariantTests(AbstractModelTests):
         self.assertEqual(v.other_prerequisites_line_count, v.other_prerequisites.count('\n') + 1)
         self.assertEqual(v.mana_value_needed, 4)
         self.assertEqual(v.popularity, None)
-        self.assertIn(v.id, v.spellbook_link())
+        self.assertIsNone(v.spellbook_link())
 
     def test_ingredients(self):
         for v in Variant.objects.all():
@@ -294,7 +295,7 @@ class VariantTests(AbstractModelTests):
         self.assertTrue(v.query_string().startswith('q='))
 
     def test_method_count(self):
-        self.assertEqual(count_methods(Variant), 7)
+        self.assertEqual(count_methods(Variant), 8)
 
     def test_update(self):
         v = Variant.objects.get(id=self.v1_id)

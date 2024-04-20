@@ -69,13 +69,13 @@ def id_from_cards_and_templates_ids(cards: list[int], templates: list[int]) -> s
     return '-'.join(str(c) for c in sorted(cards)) + ('--' + '--'.join(str(t) for t in sorted_templates) if len(sorted_templates) > 0 else '')
 
 
-def sort_mana_identity(identity_set: frozenset[str]) -> str:
+def sort_color_identity(identity_set: frozenset[str]) -> str:
     return SORTED_COLORS[identity_set]
 
 
 def merge_identities(identities: Iterable[str]) -> str:
     identity_set = frozenset(''.join(identities).upper()).intersection('WUBRG')
-    return sort_mana_identity(identity_set)
+    return sort_color_identity(identity_set)
 
 
 def mana_value(mana: str) -> int:

@@ -83,6 +83,7 @@ class MinimalSetOfSetsTests(TestCase):
 
     def test_iter(self):
         self.assertEqual(set(self.subject), {frozenset({1, 2, 3}), frozenset({3, 4, 5})})
+        self.assertListEqual(list(self.subject), [frozenset({1, 2, 3}), frozenset({3, 4, 5})])
         self.assertEqual(frozenset(self.subject), frozenset({frozenset({1, 2, 3}), frozenset({3, 4, 5})}))
 
     def test_contains(self):

@@ -81,7 +81,7 @@ class VariantSuggestionsTests(AbstractModelTests):
             ],
             "requires": [
                 {
-                    "template": "A template",
+                    "template": "A template i.e. a card type",
                     "zoneLocations": list("H"),
                     "battlefieldCardState": "",
                     "exileCardState": "",

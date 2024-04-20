@@ -15,9 +15,15 @@ class ScryfallLinkMixin:
 
     def scryfall_link(self):
         cards = self.cards()
-        link = scryfall_link_for_query(self.query_string(cards))
-        plural = 's' if len(cards) > 1 else ''
-        return format_html('<a href="{}" target="_blank">Show card{} on scryfall</a>', link, plural)
+        match cards:
+            case []:
+                return None
+            case [card] if card.id is None:
+                return None
+            case _:
+                link = scryfall_link_for_query(self.query_string(cards))
+                plural = 's' if len(cards) > 1 else ''
+                return format_html('<a href="{}" target="_blank">Show card{} on scryfall</a>', link, plural)
 
 
 class PreSaveManager(Manager):

@@ -12,6 +12,16 @@
         .after-content table {
             margin-bottom: 1em;
         }
+
+        /* Default Django admin styles overrides/patches */
+        .inline-related fieldset {
+            width: fit-content;
+            min-width: 100%;
+        }
+
+        div.inline-related {
+            overflow-x: auto;
+        }
     </style>
 {% endblock %}
 

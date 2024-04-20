@@ -41,13 +41,13 @@ class VariantSuggestion(Recipe):
         default_manager_name = 'objects'
         ordering = [
             models.Case(
-                models.When(status='NR', then=models.Value(0)),
-                models.When(status='N', then=models.Value(1)),
+                models.When(status='N', then=models.Value(0)),
+                models.When(status='NR', then=models.Value(1)),
                 models.When(status='A', then=models.Value(2)),
                 models.When(status='R', then=models.Value(3)),
                 default=models.Value(10),
             ),
-            '-created'
+            'created'
         ]
 
     def cards(self) -> list[Card]:

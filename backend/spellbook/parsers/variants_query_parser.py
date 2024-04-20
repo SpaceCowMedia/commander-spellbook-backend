@@ -226,7 +226,11 @@ def tag_search(tag_value: QueryValue) -> Q:
         case 'risky' | 'allin':
             tag_query = Q(produces__name='Risky')
         case 'winning' | 'gamewinning' | 'win':
-            tag_query = Q(produces__name__in=['Win the game', 'Win the game at the beginning of your next upkeep'])
+            tag_query = Q(produces__name__in=[
+                'Win the game',
+                'Win the game at the beginning of your next upkeep',
+                'Each opponent loses the game',
+            ])
         case 'featured':
             featured_sets = {s.strip().lower() for s in WebsiteProperty.objects.get(key=FEATURED_SET_CODES).value.split(',')}
             tag_query = Q(uses__latest_printing_set__in=featured_sets, uses__reprinted=False)

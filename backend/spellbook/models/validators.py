@@ -57,4 +57,3 @@ Card names are only supported if wrapped in double quotes and preceded by an exc
 You can negate any expression by prepending a dash (-), like "-t:creature".
 More info at: https://scryfall.com/docs/syntax.
 '''
-SCRYFALL_QUERY_MAX_LENGTH = 2**10

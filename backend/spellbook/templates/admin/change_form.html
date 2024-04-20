@@ -21,3 +21,13 @@
         {% endwith %}
     </div>
 {% endblock %}
+
+{% block admin_change_form_document_ready %}
+    {{ block.super }}
+    <script>
+        // Disable submit button after first submit to prevent double submissions
+        django.jQuery('form').one('submit', function() {
+            django.jQuery(this).find('input[type="submit"]').attr('disabled','disabled');
+        });
+    </script>
+{% endblock %}

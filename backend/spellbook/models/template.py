@@ -7,7 +7,7 @@ from .scryfall import SCRYFALL_API_CARD_SEARCH, SCRYFALL_WEBSITE_CARD_SEARCH, SC
 
 class Template(models.Model):
     MAX_TEMPLATE_NAME_LENGTH = 255
-    name = models.CharField(max_length=MAX_TEMPLATE_NAME_LENGTH, blank=False, verbose_name='template name', help_text='short description of the template in natural language', validators=NAME_VALIDATORS)
+    name = models.CharField(max_length=MAX_TEMPLATE_NAME_LENGTH, unique=True, blank=False, verbose_name='template name', help_text='short description of the template in natural language', validators=NAME_VALIDATORS)
     scryfall_query = models.CharField(max_length=SCRYFALL_MAX_QUERY_LENGTH, blank=False, verbose_name='Scryfall query', help_text=SCRYFALL_QUERY_HELP, validators=[SCRYFALL_QUERY_VALIDATOR])
     description = models.TextField(blank=True, help_text='Long description of the template', verbose_name='description of the template')
     created = models.DateTimeField(auto_now_add=True, editable=False)

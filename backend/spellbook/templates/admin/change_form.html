@@ -27,7 +27,7 @@
     <script>
         // Disable submit button after first submit to prevent double submissions
         django.jQuery('form').one('submit', function() {
-            django.jQuery(this).find('input[type="submit"]').hide();
+            django.jQuery(this).submit(false);
         });
     </script>
 {% endblock %}

@@ -1,13 +1,11 @@
 from django.db import models
 from django.core.exceptions import ValidationError
-from .card import Card
-from .feature import Feature
-from .template import Template
+from .constants import MAX_CARD_NAME_LENGTH, MAX_FEATURE_NAME_LENGTH
 from .validators import TEXT_VALIDATORS
 from .utils import recipe
 
 
-class IngredientInCombination(models.Model):
+class Ingredient(models.Model):
     class ZoneLocation(models.TextChoices):
         HAND = 'H'
         BATTLEFIELD = 'B'
@@ -15,7 +13,7 @@ class IngredientInCombination(models.Model):
         EXILE = 'E'
         GRAVEYARD = 'G'
         LIBRARY = 'L'
-    order = models.PositiveIntegerField(blank=False, help_text='Order of the card in the combo.', verbose_name='order')
+
     zone_locations = models.CharField(default=ZoneLocation.HAND, max_length=len(ZoneLocation.choices), blank=False, help_text='Starting location(s) for the card.', verbose_name='starting location')
     battlefield_card_state = models.CharField(max_length=200, blank=True, help_text='State of the card on the battlefield, if present.', validators=TEXT_VALIDATORS, verbose_name='battlefield starting card state')
     exile_card_state = models.CharField(max_length=200, blank=True, help_text='State of the card in exile, if present.', validators=TEXT_VALIDATORS, verbose_name='exile starting card state')
@@ -41,22 +39,30 @@ class IngredientInCombination(models.Model):
 
     class Meta:
         abstract = True
+        ordering = ['id']
+
+
+class IngredientInCombination(Ingredient):
+    order = models.PositiveIntegerField(blank=False, help_text='Order of the card in the combo.', verbose_name='order')
+
+    class Meta(Ingredient.Meta):
+        abstract = True
         ordering = ['order', 'id']
 
 
 class Recipe(models.Model):
-    name = models.CharField(max_length=Card.MAX_CARD_NAME_LENGTH * 10 + Feature.MAX_FEATURE_NAME_LENGTH * 5 + 10, editable=False)
+    name = models.CharField(max_length=MAX_CARD_NAME_LENGTH * 10 + MAX_FEATURE_NAME_LENGTH * 5 + 10, editable=False)
 
-    def cards(self) -> list[Card]:
+    def cards(self) -> list:
         return []
 
-    def templates(self) -> list[Template]:
+    def templates(self) -> list:
         return []
 
-    def features_needed(self) -> list[Feature]:
+    def features_needed(self) -> list:
         return []
 
-    def features_produced(self) -> list[Feature]:
+    def features_produced(self) -> list:
         return []
 
     def _str(self) -> str:
@@ -75,10 +81,10 @@ class Recipe(models.Model):
     @classmethod
     def compute_name(
         cls,
-        cards: list[Card],
-        templates: list[Template],
-        features_needed: list[Feature],
-        features_produced: list[Feature]
+        cards: list,
+        templates: list,
+        features_needed: list,
+        features_produced: list,
     ) -> str:
         return recipe(
             [str(card) for card in cards] + [str(feature) for feature in features_needed] + [str(template) for template in templates],

@@ -3,8 +3,9 @@ from django.contrib import admin
 from django.db.models import Count, Q
 from django.db.models.query import QuerySet
 from django.http.request import HttpRequest
-from spellbook.models import Card, Variant
+from spellbook.models import Card, Variant, FeatureOfCard
 from .utils import IdentityFilter, SpellbookModelAdmin, CustomFilter
+from .ingredient_admin import IngredientAdmin
 
 
 class ManagedByScryfallFilter(CustomFilter):
@@ -19,6 +20,14 @@ class ManagedByScryfallFilter(CustomFilter):
         return Q(oracle_id__isnull=not value)
 
 
+class FeatureOfCardInline(IngredientAdmin):
+    fields = ['feature', *IngredientAdmin.fields]
+    model = FeatureOfCard
+    verbose_name = 'Feature'
+    verbose_name_plural = 'Features'
+    autocomplete_fields = ['feature']
+
+
 @admin.register(Card)
 class CardAdmin(SpellbookModelAdmin):
     readonly_fields = ['scryfall_link']
@@ -26,7 +35,6 @@ class CardAdmin(SpellbookModelAdmin):
     fieldsets = [
         ('Spellbook', {'fields': [
             'name',
-            'features'
         ]}),
         ('Scryfall', {
             'fields': [
@@ -55,6 +63,7 @@ class CardAdmin(SpellbookModelAdmin):
     ]
     autocomplete_fields = ['features']
     list_display = ['name', 'id', 'identity', 'variants_count']
+    inlines = [FeatureOfCardInline]
 
     def get_readonly_fields(self, request, obj):
         readonly_fields = list(super().get_readonly_fields(request, obj))

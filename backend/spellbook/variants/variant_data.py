@@ -2,7 +2,7 @@ import logging
 from django.conf import settings
 from django.db import connection, reset_queries
 from collections import defaultdict
-from spellbook.models.card import Card
+from spellbook.models.card import Card, FeatureOfCard
 from spellbook.models.feature import Feature
 from spellbook.models.combo import Combo, CardInCombo, TemplateInCombo
 from spellbook.models.template import Template
@@ -17,13 +17,17 @@ class RestoreData:
         self.combos = list(combos_query)
         self.combo_to_cards = defaultdict[int, list[CardInCombo]](list)
         self.combo_to_templates = defaultdict[int, list[TemplateInCombo]](list)
+        self.card_to_features = defaultdict[int, list[FeatureOfCard]](list)
         self.generator_combos = [c for c in self.combos if c.status in (Combo.Status.GENERATOR, Combo.Status.GENERATOR_WITH_MANY_CARDS)]
         card_in_combos = CardInCombo.objects.select_related('card', 'combo').filter(combo__in=self.combos)
         template_in_combos = TemplateInCombo.objects.select_related('template', 'combo').filter(combo__in=self.combos)
+        features_in_cards = FeatureOfCard.objects.select_related('feature', 'card')
         for cic in card_in_combos:
             self.combo_to_cards[cic.combo.id].append(cic)
         for tic in template_in_combos:
             self.combo_to_templates[tic.combo.id].append(tic)
+        for fic in features_in_cards:
+            self.card_to_features[fic.card.id].append(fic)
         for combo_to_cards in self.combo_to_cards.values():
             combo_to_cards.sort(key=lambda cic: cic.order)
         for combo_to_templates in self.combo_to_templates.values():

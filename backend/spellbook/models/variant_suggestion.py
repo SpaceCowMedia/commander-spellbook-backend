@@ -3,6 +3,7 @@ from django.core.exceptions import ValidationError
 from django.contrib.auth.models import User
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
+from .constants import MAX_CARD_NAME_LENGTH, MAX_FEATURE_NAME_LENGTH
 from .card import Card
 from .feature import Feature
 from .template import Template
@@ -101,7 +102,7 @@ class VariantSuggestion(Recipe):
 
 
 class CardUsedInVariantSuggestion(IngredientInCombination):
-    card = models.CharField(max_length=Card.MAX_CARD_NAME_LENGTH, blank=False, help_text='Card name', verbose_name='card name', validators=[NOT_URL_VALIDATOR])
+    card = models.CharField(max_length=MAX_CARD_NAME_LENGTH, blank=False, help_text='Card name', verbose_name='card name', validators=[NOT_URL_VALIDATOR])
     variant = models.ForeignKey(to=VariantSuggestion, on_delete=models.CASCADE, related_name='uses')
 
     def __str__(self):
@@ -124,7 +125,7 @@ class TemplateRequiredInVariantSuggestion(IngredientInCombination):
 
 
 class FeatureProducedInVariantSuggestion(models.Model):
-    feature = models.CharField(max_length=Feature.MAX_FEATURE_NAME_LENGTH, blank=False, help_text='Feature name', verbose_name='feature name', validators=NAME_VALIDATORS)
+    feature = models.CharField(max_length=MAX_FEATURE_NAME_LENGTH, blank=False, help_text='Feature name', verbose_name='feature name', validators=NAME_VALIDATORS)
     variant = models.ForeignKey(to=VariantSuggestion, on_delete=models.CASCADE, related_name='produces')
 
     def __str__(self):

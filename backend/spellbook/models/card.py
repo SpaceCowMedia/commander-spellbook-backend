@@ -3,15 +3,16 @@ from django.dispatch import receiver
 from django.db.models.signals import post_save
 from django.db.models.fields.generated import GeneratedField
 from django.contrib.postgres.indexes import GinIndex
+from .constants import MAX_CARD_NAME_LENGTH
 from .playable import Playable
 from .utils import strip_accents, simplify_card_name_on_database, simplify_card_name_with_spaces_on_database
 from .mixins import ScryfallLinkMixin, PreSaveModelMixin
 from .feature import Feature
 from .fields import KeywordsField
+from .ingredient import Ingredient
 
 
 class Card(Playable, PreSaveModelMixin, ScryfallLinkMixin):
-    MAX_CARD_NAME_LENGTH = 255
     oracle_id = models.UUIDField(unique=True, blank=True, null=True, help_text='Scryfall Oracle ID', verbose_name='Scryfall Oracle ID of card')
     name = models.CharField(max_length=MAX_CARD_NAME_LENGTH, unique=True, blank=False, help_text='Card name', verbose_name='name of card')
     name_unaccented = models.CharField(max_length=MAX_CARD_NAME_LENGTH, unique=True, blank=False, help_text='Card name without accents', verbose_name='name of card without accents', editable=False)
@@ -49,7 +50,9 @@ class Card(Playable, PreSaveModelMixin, ScryfallLinkMixin):
         to=Feature,
         related_name='cards',
         help_text='Features provided by this single card effects or characteristics',
-        blank=True)
+        blank=True,
+        verbose_name='features of card',
+        through='FeatureOfCard')
     added = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, editable=False)
 
@@ -112,3 +115,14 @@ def update_combo_fields(sender, instance, created, raw, **kwargs):
             combo.name = new_combo_name
             combos_to_save.append(combo)
     Combo.objects.bulk_update(combos_to_save, fields=['name'])
+
+
+class FeatureOfCard(Ingredient):
+    feature = models.ForeignKey(to=Feature, on_delete=models.CASCADE)
+    card = models.ForeignKey(to=Card, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f'{self.feature} for card {self.card.pk}'
+
+    class Meta(Ingredient.Meta):
+        unique_together = [('feature', 'card')]

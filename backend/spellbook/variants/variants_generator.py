@@ -5,7 +5,7 @@ from django.db import transaction
 from .list_utils import includes_any
 from .variant_data import RestoreData, Data, debug_queries
 from .combo_graph import Graph
-from spellbook.models import Combo, Job, Variant, CardInVariant, TemplateInVariant, IngredientInCombination, id_from_cards_and_templates_ids, Playable, Card, VariantAlias, Feature
+from spellbook.models import Combo, Job, Variant, CardInVariant, TemplateInVariant, id_from_cards_and_templates_ids, Playable, Card, VariantAlias, Feature, Ingredient
 from spellbook.utils import log_into_job
 
 
@@ -86,15 +86,15 @@ class VariantBulkSaveItem:
 
 def get_default_zone_location_for_card(card: Card) -> str:
     if any(card_type in card.type_line for card_type in ('Instant', 'Sorcery')):
-        return IngredientInCombination.ZoneLocation.HAND
-    return IngredientInCombination.ZoneLocation.BATTLEFIELD
+        return Ingredient.ZoneLocation.HAND
+    return Ingredient.ZoneLocation.BATTLEFIELD
 
 
-def update_state_with_default(dst: IngredientInCombination):
+def update_state_with_default(dst: Ingredient):
     if isinstance(dst, CardInVariant):
         dst.zone_locations = get_default_zone_location_for_card(dst.card)
     else:
-        dst.zone_locations = IngredientInCombination._meta.get_field('zone_locations').get_default()
+        dst.zone_locations = Ingredient._meta.get_field('zone_locations').get_default()
     dst.battlefield_card_state = ''
     dst.exile_card_state = ''
     dst.graveyard_card_state = ''
@@ -102,7 +102,7 @@ def update_state_with_default(dst: IngredientInCombination):
     dst.must_be_commander = False
 
 
-def update_state(dst: IngredientInCombination, src: IngredientInCombination, overwrite=False):
+def update_state(dst: Ingredient, src: Ingredient, overwrite=False):
     if overwrite:
         dst.zone_locations = src.zone_locations
         dst.battlefield_card_state = src.battlefield_card_state
@@ -110,21 +110,21 @@ def update_state(dst: IngredientInCombination, src: IngredientInCombination, ove
         dst.graveyard_card_state = src.graveyard_card_state
         dst.library_card_state = src.library_card_state
         dst.must_be_commander = src.must_be_commander
-        return
-    dst.zone_locations = ''.join(location for location in dst.zone_locations if location in src.zone_locations)
-    if len(dst.battlefield_card_state) > 0:
-        dst.battlefield_card_state += ' '
-    dst.battlefield_card_state += src.battlefield_card_state
-    if len(dst.exile_card_state) > 0:
-        dst.exile_card_state += ' '
-    dst.exile_card_state += src.exile_card_state
-    if len(dst.graveyard_card_state) > 0:
-        dst.graveyard_card_state += ' '
-    dst.graveyard_card_state += src.graveyard_card_state
-    if len(dst.library_card_state) > 0:
-        dst.library_card_state += ' '
-    dst.library_card_state += src.library_card_state
-    dst.must_be_commander = dst.must_be_commander or src.must_be_commander
+    else:
+        dst.zone_locations = ''.join(location for location in dst.zone_locations if location in src.zone_locations)
+        if len(dst.battlefield_card_state) > 0:
+            dst.battlefield_card_state += ' '
+        dst.battlefield_card_state += src.battlefield_card_state
+        if len(dst.exile_card_state) > 0:
+            dst.exile_card_state += ' '
+        dst.exile_card_state += src.exile_card_state
+        if len(dst.graveyard_card_state) > 0:
+            dst.graveyard_card_state += ' '
+        dst.graveyard_card_state += src.graveyard_card_state
+        if len(dst.library_card_state) > 0:
+            dst.library_card_state += ' '
+        dst.library_card_state += src.library_card_state
+        dst.must_be_commander = dst.must_be_commander or src.must_be_commander
 
 
 def restore_variant(
@@ -142,17 +142,24 @@ def restore_variant(
     requires_commander = any(c.must_be_commander for c in used_cards) or any(t.must_be_commander for t in required_templates)
     variant.update([c.card for c in used_cards], requires_commander)
     uses = dict[int, CardInVariant]()
-    uses_updated = set[int]()
     for card_in_variant in used_cards:
         update_state_with_default(card_in_variant)
         card_in_variant.order = 0
         uses[card_in_variant.card.id] = card_in_variant
     requires = dict[int, TemplateInVariant]()
-    requires_updated = set[int]()
     for template_in_variant in required_templates:
         update_state_with_default(template_in_variant)
         template_in_variant.order = 0
         requires[template_in_variant.template.id] = template_in_variant
+    uses_updated = set[int]()
+    requires_updated = set[int]()
+    for to_edit in used_cards:
+        for feature_of_card in data.card_to_features[to_edit.card.id]:
+            if to_edit.card.id not in uses_updated:
+                update_state(to_edit, feature_of_card, overwrite=True)
+                uses_updated.add(to_edit.card.id)
+            else:
+                update_state(to_edit, feature_of_card)
     for combo in included_combos:
         for card_in_combo in data.combo_to_cards[combo.id]:
             if card_in_combo.card.id in uses:

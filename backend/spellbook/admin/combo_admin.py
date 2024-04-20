@@ -63,6 +63,11 @@ class FeatureInComboAdminInline(admin.TabularInline):
     verbose_name_plural = 'Required Features'
     autocomplete_fields = ['feature']
 
+    def get_extra(self, request: HttpRequest, obj, **kwargs: Any) -> int:
+        if hasattr(request, 'from_suggestion') and request.from_suggestion is not None:  # type: ignore
+            return len(request.from_suggestion.needs_list)  # type: ignore
+        return super().get_extra(request, obj, **kwargs)
+
 
 class PayoffFilter(CustomFilter):
     title = 'is payoff'
@@ -192,7 +197,24 @@ class ComboAdmin(SpellbookModelAdmin):
                         ))
                 initial_data['produces'] = [feature.pk for feature in found_produced_features]
                 request.from_suggestion.uses_list = list(from_suggestion.uses.all())
-                request.from_suggestion.requires_list = list(from_suggestion.requires.all())
+                suggested_required_templates: list[TemplateRequiredInVariantSuggestion] = list(from_suggestion.requires.all())
+                suggested_template_names = [suggested_template.template for suggested_template in suggested_required_templates]
+                found_required_templates = list(Template.objects.filter(name__in=suggested_template_names))
+                found_required_templates_names = {t.name for t in found_required_templates}
+                found_needed_features = list(Feature.objects.filter(name__in=suggested_template_names))
+                found_needed_features_names = {f.name for f in found_needed_features}
+                for suggested_template in suggested_required_templates:
+                    if suggested_template.template not in found_required_templates_names and suggested_template.template not in found_needed_features_names:
+                        add_template_link = reverse('admin:spellbook_template_add') + '?' + urlencode({
+                            'name': suggested_template.template,
+                            'scryfall_query': suggested_template.scryfall_query or '',
+                        })
+                        messages.warning(request, mark_safe(
+                            f'Could not find required template "{suggested_template.template}" in database. {create_missing_object_message(add_template_link)}'
+                        ))
+                request.from_suggestion.suggested_required_templates = suggested_required_templates
+                request.from_suggestion.needs_list = found_needed_features
+                request.from_suggestion.requires_list = [template for template in found_required_templates if template.name not in found_needed_features_names]
             except VariantSuggestion.DoesNotExist:
                 pass
         return initial_data
@@ -239,31 +261,27 @@ class ComboAdmin(SpellbookModelAdmin):
                         'graveyard_card_state': suggested_card.graveyard_card_state,
                         'must_be_commander': suggested_card.must_be_commander,
                     })
-                request.from_suggestion.uses_count = len(formset_kwargs['initial'])
             elif isinstance(inline, TemplateInComboAdminInline):
                 formset_kwargs['initial'] = []
-                suggested_required_templates: list[TemplateRequiredInVariantSuggestion] = request.from_suggestion.requires_list
-                found_required_templates = list(Template.objects.filter(name__in=[suggested_template.template for suggested_template in suggested_required_templates]))
-                found_required_templates_names_to_id = {t.name: t.pk for t in found_required_templates}
-                for suggested_template in suggested_required_templates:
-                    if suggested_template.template not in found_required_templates_names_to_id:
-                        add_template_link = reverse('admin:spellbook_template_add') + '?' + urlencode({
-                            'name': suggested_template.template,
-                            'scryfall_query': suggested_template.scryfall_query,
+                found_required_templates_names_to_id = {t.name: t.pk for t in request.from_suggestion.requires_list}  # type: ignore
+                for suggested_template in request.from_suggestion.suggested_required_templates:  # type: ignore
+                    if suggested_template.template in found_required_templates_names_to_id:
+                        formset_kwargs['initial'].append({
+                            'template': found_required_templates_names_to_id[suggested_template.template],
+                            'zone_locations': suggested_template.zone_locations,
+                            'battlefield_card_state': suggested_template.battlefield_card_state,
+                            'exile_card_state': suggested_template.exile_card_state,
+                            'library_card_state': suggested_template.library_card_state,
+                            'graveyard_card_state': suggested_template.graveyard_card_state,
+                            'must_be_commander': suggested_template.must_be_commander,
                         })
-                        messages.warning(request, mark_safe(
-                            f'Could not find required template "{suggested_template.template}" in database. {create_missing_object_message(add_template_link)}'
-                        ))
+            elif isinstance(inline, FeatureInComboAdminInline):
+                formset_kwargs['initial'] = []
+                found_needed_features_ids = {f.pk for f in request.from_suggestion.needs_list}  # type: ignore
+                for feature_id in found_needed_features_ids:
                     formset_kwargs['initial'].append({
-                        'template': found_required_templates_names_to_id.get(suggested_template.template, None),
-                        'zone_locations': suggested_template.zone_locations,
-                        'battlefield_card_state': suggested_template.battlefield_card_state,
-                        'exile_card_state': suggested_template.exile_card_state,
-                        'library_card_state': suggested_template.library_card_state,
-                        'graveyard_card_state': suggested_template.graveyard_card_state,
-                        'must_be_commander': suggested_template.must_be_commander,
+                        'feature': feature_id,
                     })
-                request.from_suggestion.requires_count = len(formset_kwargs['initial'])
         return formset_kwargs
 
     def lookup_allowed(self, lookup: str, value: str, request) -> bool:

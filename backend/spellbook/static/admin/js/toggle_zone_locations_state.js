@@ -15,7 +15,7 @@ django.jQuery(function() {
                         if (index > 0) {
                             // This should be done for td
                             const correspondingCheckbox = checkbox.eq(index - 1);
-                            const innerInput = element.find('input');
+                            const innerInput = element.find('input, textarea');
                             if (correspondingCheckbox.is(':checked')) {
                                 innerInput.css('visibility', 'visible');
                             } else {

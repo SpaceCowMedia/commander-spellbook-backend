@@ -1,14 +1,16 @@
 from django.contrib import admin
 from django.db.models import QuerySet, Case, When
 from django.utils.html import format_html
-from spellbook.models import Feature
+from spellbook.models import Feature, FeatureOfCard
 from spellbook.models.scryfall import scryfall_link_for_query, scryfall_query_string_for_card_names, SCRYFALL_MAX_QUERY_LENGTH
 from .utils import SpellbookModelAdmin
+from .ingredient_admin import IngredientAdmin
 
 
-class CardInFeatureAdminInline(admin.StackedInline):
-    model = Feature.cards.through
-    extra = 1
+class CardInFeatureAdminInline(IngredientAdmin):
+    fields = ['card', *IngredientAdmin.fields]
+    model = FeatureOfCard
+    extra = 0
     autocomplete_fields = ['card']
     verbose_name = 'Produced by card'
     verbose_name_plural = 'Produced by cards'

@@ -20,7 +20,7 @@ class ManagedByScryfallFilter(CustomFilter):
         return Q(oracle_id__isnull=not value)
 
 
-class FeatureOfCardInline(IngredientAdmin):
+class FeatureOfCardAdminInline(IngredientAdmin):
     fields = ['feature', *IngredientAdmin.fields]
     model = FeatureOfCard
     verbose_name = 'Feature'
@@ -63,7 +63,7 @@ class CardAdmin(SpellbookModelAdmin):
     ]
     autocomplete_fields = ['features']
     list_display = ['name', 'id', 'identity', 'variants_count']
-    inlines = [FeatureOfCardInline]
+    inlines = [FeatureOfCardAdminInline]
 
     def get_readonly_fields(self, request, obj):
         readonly_fields = list(super().get_readonly_fields(request, obj))

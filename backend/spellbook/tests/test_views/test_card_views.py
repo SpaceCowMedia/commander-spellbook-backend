@@ -34,9 +34,16 @@ class CardViewsTests(AbstractModelTests):
         self.assertEqual(card_result.prices.cardkingdom, str(c.price_cardkingdom))
         self.assertEqual(card_result.prices.cardmarket, str(c.price_cardmarket))
         self.assertEqual(len(card_result.features), c.features.count())
-        feature_list = [f.id for f in c.features.all()]
-        for f in card_result.features:
-            self.assertIn(f.id, feature_list)
+        card_features_dict = {f.feature.id: f for f in c.featureofcard_set.all()}  # type: ignore
+        for feature_of_card in card_result.features:
+            self.assertIn(feature_of_card.feature.id, card_features_dict)
+            feature_through = card_features_dict[feature_of_card.feature.id]
+            self.assertEqual(feature_of_card.battlefield_card_state, feature_through.battlefield_card_state)
+            self.assertEqual(feature_of_card.exile_card_state, feature_through.exile_card_state)
+            self.assertEqual(feature_of_card.library_card_state, feature_through.library_card_state)
+            self.assertEqual(feature_of_card.graveyard_card_state, feature_through.graveyard_card_state)
+            self.assertEqual(feature_of_card.must_be_commander, feature_through.must_be_commander)
+            self.assertEqual(feature_of_card.zone_locations, list(feature_through.zone_locations))
 
     def test_cards_list_view(self):
         c = Client()

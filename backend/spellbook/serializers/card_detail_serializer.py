@@ -1,6 +1,6 @@
 from django.db.models import QuerySet
 from rest_framework import serializers
-from spellbook.models import Card
+from spellbook.models import Card, FeatureOfCard
 from .feature_serializer import FeatureSerializer
 from .legalities_serializer import LegalitiesSerializer
 from .prices_serializer import PricesSerializer
@@ -16,8 +16,28 @@ class CardPricesSerializer(PricesSerializer):
         model = Card
 
 
+class FeatureOfCardSerializer(serializers.ModelSerializer):
+    feature = FeatureSerializer(many=False, read_only=True)
+    zone_locations = serializers.SerializerMethodField()
+
+    def get_zone_locations(self, obj):
+        return list(obj.zone_locations)
+
+    class Meta:
+        model = FeatureOfCard
+        fields = [
+            'feature',
+            'zone_locations',
+            'battlefield_card_state',
+            'exile_card_state',
+            'library_card_state',
+            'graveyard_card_state',
+            'must_be_commander',
+        ]
+
+
 class CardDetailSerializer(serializers.ModelSerializer):
-    features = FeatureSerializer(many=True, read_only=True)
+    features = FeatureOfCardSerializer(source='featureofcard_set', many=True, read_only=True)
     legalities = CardLegalitiesSerializer(source='*', read_only=True)
     prices = CardPricesSerializer(source='*', read_only=True)
 

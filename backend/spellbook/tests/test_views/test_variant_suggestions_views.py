@@ -1,7 +1,7 @@
 import json
 import logging
 from spellbook.models import VariantSuggestion
-from spellbook.models.utils import apply_recursively_to_strings
+from spellbook.models.utils import apply_recursively_to_strings, strip_accents
 from ..abstract_test import AbstractModelTests
 from common.inspection import json_to_python_lambda
 from django.contrib.auth.models import User, Permission
@@ -21,6 +21,7 @@ class VariantSuggestionsTests(AbstractModelTests):
             self.assertEqual(uses.library_card_state, suggestion_result.uses[i].library_card_state)
             self.assertEqual(uses.graveyard_card_state, suggestion_result.uses[i].graveyard_card_state)
             self.assertEqual(uses.must_be_commander, suggestion_result.uses[i].must_be_commander)
+            self.assertEqual(uses.card_unaccented, strip_accents(uses.card))
         for i, requires in enumerate(vs.requires.all()):
             self.assertEqual(requires.template, suggestion_result.requires[i].template)
             self.assertEqual(set(requires.zone_locations), set(suggestion_result.requires[i].zone_locations))
@@ -61,7 +62,7 @@ class VariantSuggestionsTests(AbstractModelTests):
         post_data = {
             "uses": [
                 {
-                    "card": "A card",
+                    "card": "A card àèéìòù",
                     "zoneLocations": list("HBGEL"),
                     "battlefieldCardState": "bstate",
                     "exileCardState": "estate",
@@ -196,7 +197,7 @@ class VariantSuggestionsTests(AbstractModelTests):
         post_data = {
             "uses": [
                 {
-                    "card": "A card with some apostrophes: `'ʼ and quotes: \"“ˮ",
+                    "card": "A card with some apostrophes: `'ʼ and quotes: \"“ˮ and àccènts",
                     "zoneLocations": list("HBGEL"),
                     "battlefieldCardState": "state with some apostrophes: `'ʼ and quotes: \"“ˮ",
                     "exileCardState": "state with some apostrophes: `'ʼ and quotes: \"“ˮ",

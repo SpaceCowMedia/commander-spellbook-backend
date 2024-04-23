@@ -72,7 +72,7 @@ jobs:
         run: pip install flake8
       - name: Lint 🧹
         working-directory: backend
-        run: flake8 --ignore=E501,E128,W601 .
+        run: flake8 .
 
 
   test:

@@ -1,7 +1,6 @@
 from django.db import models
 from django.dispatch import receiver
 from django.db.models.signals import post_save
-from django.db.models.fields.generated import GeneratedField
 from django.contrib.postgres.indexes import GinIndex
 from .constants import MAX_CARD_NAME_LENGTH
 from .playable import Playable
@@ -16,11 +15,11 @@ class Card(Playable, PreSaveModelMixin, ScryfallLinkMixin):
     oracle_id = models.UUIDField(unique=True, blank=True, null=True, help_text='Scryfall Oracle ID', verbose_name='Scryfall Oracle ID of card')
     name = models.CharField(max_length=MAX_CARD_NAME_LENGTH, unique=True, blank=False, help_text='Card name', verbose_name='name of card')
     name_unaccented = models.CharField(max_length=MAX_CARD_NAME_LENGTH, unique=True, blank=False, help_text='Card name without accents', verbose_name='name of card without accents', editable=False)
-    name_unaccented_simplified = GeneratedField(
+    name_unaccented_simplified = models.GeneratedField(
         db_persist=True,
         expression=simplify_card_name_on_database('name_unaccented'),
         output_field=models.CharField(max_length=MAX_CARD_NAME_LENGTH, unique=True, blank=False, help_text='Card name without accents or hyphens', verbose_name='name of card without accents or hyphens', editable=False))
-    name_unaccented_simplified_with_spaces = GeneratedField(
+    name_unaccented_simplified_with_spaces = models.GeneratedField(
         db_persist=True,
         expression=simplify_card_name_with_spaces_on_database('name_unaccented'),
         output_field=models.CharField(max_length=MAX_CARD_NAME_LENGTH, unique=True, blank=False, help_text='Card name without accents or hyphens, with spaces', verbose_name='name of card without accents or hyphens, with spaces', editable=False))

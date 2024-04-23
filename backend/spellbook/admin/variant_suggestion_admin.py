@@ -63,7 +63,17 @@ class VariantSuggestionAdmin(SpellbookModelAdmin):
     list_filter = ['status', CardsCountListFilter, 'spoiler']
     list_display = ['__str__', 'id', 'status', 'spoiler']
     actions = [set_rejected]
-    search_fields = ['uses__card', 'requires__template', 'produces__feature', 'suggested_by__username', 'notes', 'comment']
+    search_fields = [
+        'uses__card',
+        'uses__card_unaccented',
+        'uses__card_unaccented_simplified',
+        'uses__card_unaccented_simplified_with_spaces',
+        'requires__template',
+        'produces__feature',
+        'suggested_by__username',
+        'notes',
+        'comment',
+    ]
 
     def get_queryset(self, request):
         return VariantSuggestion.objects.alias(cards_count=Count('uses', distinct=True) + Count('requires', distinct=True))

@@ -4,6 +4,7 @@ from django.contrib.auth.models import User
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from .constants import MAX_CARD_NAME_LENGTH, MAX_FEATURE_NAME_LENGTH
+from .mixins import PreSaveModelMixin
 from .card import Card
 from .feature import Feature
 from .template import Template
@@ -11,7 +12,7 @@ from .variant import Variant
 from .ingredient import IngredientInCombination, Recipe
 from .validators import TEXT_VALIDATORS, MANA_VALIDATOR, SCRYFALL_QUERY_HELP, SCRYFALL_QUERY_VALIDATOR, NAME_VALIDATORS, NOT_URL_VALIDATOR
 from .scryfall import SCRYFALL_MAX_QUERY_LENGTH
-from .utils import id_from_cards_and_templates_ids
+from .utils import id_from_cards_and_templates_ids, simplify_card_name_on_database, simplify_card_name_with_spaces_on_database, strip_accents
 
 
 class VariantSuggestion(Recipe):
@@ -102,8 +103,19 @@ class VariantSuggestion(Recipe):
             raise ValidationError('This combo suggestion is redundant. Another suggestion with the same cards and templates already exists.')
 
 
-class CardUsedInVariantSuggestion(IngredientInCombination):
+class CardUsedInVariantSuggestion(PreSaveModelMixin, IngredientInCombination):
     card = models.CharField(max_length=MAX_CARD_NAME_LENGTH, blank=False, help_text='Card name', verbose_name='card name', validators=[NOT_URL_VALIDATOR])
+    card_unaccented = models.CharField(max_length=MAX_CARD_NAME_LENGTH, blank=True, editable=False)
+    card_unaccented_simplified = models.GeneratedField(
+        db_persist=True,
+        expression=simplify_card_name_on_database('card_unaccented'),
+        output_field=models.CharField(max_length=MAX_CARD_NAME_LENGTH, blank=True, editable=False),
+    )
+    card_unaccented_simplified_with_spaces = models.GeneratedField(
+        db_persist=True,
+        expression=simplify_card_name_with_spaces_on_database('card_unaccented'),
+        output_field=models.CharField(max_length=MAX_CARD_NAME_LENGTH, blank=True, editable=False),
+    )
     variant = models.ForeignKey(to=VariantSuggestion, on_delete=models.CASCADE, related_name='uses')
 
     def __str__(self):
@@ -111,6 +123,9 @@ class CardUsedInVariantSuggestion(IngredientInCombination):
 
     class Meta(IngredientInCombination.Meta):
         unique_together = [('card', 'variant')]
+
+    def pre_save(self):
+        self.card_unaccented = strip_accents(self.card)
 
 
 class TemplateRequiredInVariantSuggestion(IngredientInCombination):

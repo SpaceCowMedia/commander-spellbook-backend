@@ -7,9 +7,7 @@ from django.http.request import HttpRequest
 from django.forms import ModelForm
 from django.utils.safestring import mark_safe
 from django.urls import reverse
-from spellbook.models import Card, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, CardInVariant, TemplateInVariant, VariantSuggestion, Playable, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion
-from spellbook.variants.variant_data import RestoreData
-from spellbook.variants.variants_generator import restore_variant
+from spellbook.models import Card, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion
 from .utils import SpellbookModelAdmin, CustomFilter
 from .ingredient_admin import IngredientAdmin
 
@@ -123,42 +121,6 @@ class ComboAdmin(SpellbookModelAdmin):
         'needs__name'
     ]
     list_display = ['__str__', 'id', 'status']
-
-    def save_related(self, request, form, formsets, change):
-        super().save_related(request, form, formsets, change)
-        if change:
-            query = Variant.recipes_prefetched.filter(
-                of=form.instance,
-                status__in=[Variant.Status.NEW, Variant.Status.RESTORE]
-            )
-            count = query.count()
-            if count > 0:
-                if count >= 1000:
-                    messages.warning(request, f'{count} "New" or "Restore" variants are too many to update for this combo: no automatic update was done.')
-                else:
-                    variants_to_update = list[Variant]()
-                    card_in_variants_to_update = list[CardInVariant]()
-                    template_in_variants_to_update = list[TemplateInVariant]()
-                    data = RestoreData(single_combo=form.instance)
-                    for variant in list[Variant](query):
-                        uses_set, requires_set = restore_variant(
-                            variant,
-                            list(variant.includes.all()),
-                            list(variant.of.all()),
-                            list(variant.cardinvariant_set.all()),
-                            list(variant.templateinvariant_set.all()),
-                            list(variant.produces.all()),
-                            data=data)
-                        card_in_variants_to_update.extend(uses_set)
-                        template_in_variants_to_update.extend(requires_set)
-                        variants_to_update.append(variant)
-                    update_fields = ['name', 'status', 'mana_needed', 'other_prerequisites', 'description'] + Playable.playable_fields()
-                    Variant.objects.bulk_update(variants_to_update, update_fields)
-                    update_fields = ['zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'must_be_commander', 'order']
-                    CardInVariant.objects.bulk_update(card_in_variants_to_update, update_fields)
-                    TemplateInVariant.objects.bulk_update(template_in_variants_to_update, update_fields)
-                    messages.info(request, f'{count} "New" or "Restore" variants were updated for this combo.')
-        self.after_save_related(request, form, formsets, change)
 
     def get_fieldsets(self, request, obj):
         fieldsets = super().get_fieldsets(request, obj)

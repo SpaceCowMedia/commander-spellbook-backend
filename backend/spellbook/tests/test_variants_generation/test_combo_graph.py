@@ -48,3 +48,20 @@ class ComboGraphTest(AbstractModelTests):
         self.assertEqual(len(list(combo_graph.variants(self.b2_id, card_limit=4))), 2)
         combo_graph = Graph(Data(), log=lambda _: None)
         self.assertEqual(len(list(combo_graph.variants(self.b2_id, card_limit=5))), 3)
+
+    def test_replacements(self):
+        combo_graph = Graph(Data())
+        variants = list(combo_graph.variants(self.b2_id))
+        for variant in variants:
+            card_ids = {c for c in variant.cards}
+            template_ids = {t for t in variant.templates}
+            replacements = variant.replacements
+            for replacement_values in replacements.values():
+                self.assertGreaterEqual(len(replacement_values), 1)
+                for replacement_value in replacement_values:
+                    cards = replacement_value.cards
+                    templates = replacement_value.templates
+                    replacement_card_ids = {c for c in cards}
+                    replacement_template_ids = {t for t in templates}
+                    self.assertTrue(card_ids.issuperset(replacement_card_ids))
+                    self.assertTrue(template_ids.issuperset(replacement_template_ids))

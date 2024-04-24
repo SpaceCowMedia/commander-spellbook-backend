@@ -1,4 +1,4 @@
-from typing import TypeVar, Generic
+from typing import TypeVar, Generic, Iterator
 
 
 T = TypeVar('T')
@@ -34,6 +34,14 @@ class MinimalSetOfSets(Generic[T]):
             if s.issubset(aset):
                 return True
         return False
+
+    def subsets_of(self, aset: frozenset[T] | set[T]) -> Iterator[frozenset[T]]:
+        """
+        Yields all subsets of the given set that are present in the collection.
+        """
+        for s in self._sets:
+            if s.issubset(aset):
+                yield s
 
     def _remove_superset_of(self, aset: frozenset[T]):
         self._sets = {s for s in self._sets if not s.issuperset(aset)}

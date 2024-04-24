@@ -91,6 +91,13 @@ class SpellbookModelAdmin(ModelAdmin):
     def sort_search_results(self, request, queryset: QuerySet, search_term: str) -> QuerySet:
         return queryset
 
+    def save_related(self, request, form, formsets, change):
+        super().save_related(request, form, formsets, change)
+        self.after_save_related(request, form, formsets, change)
+
+    def after_save_related(self, request, form, formsets, change):
+        pass
+
 
 class CustomFilter(admin.SimpleListFilter):
     data_type = str

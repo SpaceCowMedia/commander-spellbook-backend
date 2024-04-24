@@ -56,6 +56,21 @@ class VariantSetTests(TestCase):
         self.assertTrue(variant_set.is_satisfied_by([1, 2, 3, 4, 5], [1, 2, 3]))
         self.assertTrue(variant_set.is_satisfied_by([0, 1, 2, 3, 4, 5], [1, 2, 3, 4]))
         self.assertFalse(variant_set.is_satisfied_by([], []))
+        variant_set = VariantSet(limit=1)
+        variant_set.add([1], [])
+        self.assertFalse(variant_set.is_satisfied_by([1, 2], []))
+
+    def test_satisfied_by(self):
+        variant_set = VariantSet()
+        variant_set.add([1, 2, 3, 4], [1, 2, 3])
+        variant_set.add([1, 2, 3, 4, 5], [1, 2])
+        self.assertSetEqual(list_of_tuples_of_lists_to_set(variant_set.satisfied_by([1, 2, 3, 4], [1, 2, 3])), list_of_tuples_of_lists_to_set([([1, 2, 3, 4], [1, 2, 3])]))
+        self.assertSetEqual(list_of_tuples_of_lists_to_set(variant_set.satisfied_by([1, 2, 3, 4, 5], [1, 2])), list_of_tuples_of_lists_to_set([([1, 2, 3, 4, 5], [1, 2])]))
+        self.assertSetEqual(list_of_tuples_of_lists_to_set(variant_set.satisfied_by([1, 2, 3, 4, 5], [1, 2, 3])), list_of_tuples_of_lists_to_set([([1, 2, 3, 4, 5], [1, 2]), ([1, 2, 3, 4], [1, 2, 3])]))
+        self.assertSetEqual(list_of_tuples_of_lists_to_set(variant_set.satisfied_by([], [])), list_of_tuples_of_lists_to_set([]))
+        variant_set = VariantSet(limit=1)
+        variant_set.add([1], [])
+        self.assertSetEqual(list_of_tuples_of_lists_to_set(variant_set.satisfied_by([1, 2], [])), list_of_tuples_of_lists_to_set([]))
 
     def test_len(self):
         variant_set = VariantSet()

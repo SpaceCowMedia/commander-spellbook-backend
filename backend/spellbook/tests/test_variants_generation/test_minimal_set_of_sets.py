@@ -37,6 +37,21 @@ class MinimalSetOfSetsTests(TestCase):
         self.assertTrue(self.subject.contains_subset_of(frozenset(range(100))))
         self.assertFalse(self.subject.contains_subset_of(frozenset(range(7, 10))))
 
+    def test_subsets_of(self):
+        self.assertSetEqual(set(MinimalSetOfSets().subsets_of({1})), set())
+        self.assertSetEqual(set(MinimalSetOfSets({frozenset({1})}).subsets_of({1})), {frozenset({1})})
+        self.assertSetEqual(set(MinimalSetOfSets({frozenset({1, 2})}).subsets_of({1})), set())
+        self.assertSetEqual(set(MinimalSetOfSets({frozenset({1, 2})}).subsets_of({1, 2})), {frozenset({1, 2})})
+        self.assertSetEqual(set(MinimalSetOfSets({frozenset({1, 2})}).subsets_of({1, 2, 3})), {frozenset({1, 2})})
+        self.assertSetEqual(set(MinimalSetOfSets({frozenset({1, 2}), frozenset({1, 2, 4})}).subsets_of({1, 2, 3})), {frozenset({1, 2})})
+        self.assertSetEqual(set(MinimalSetOfSets({frozenset({1, 2}), frozenset({1, 2, 4})}).subsets_of({1, 2, 3, 4})), {frozenset({1, 2})})
+        self.assertSetEqual(set(MinimalSetOfSets({frozenset({1, 2, 6}), frozenset({1, 2, 4})}).subsets_of({1, 2, 3, 4})), {frozenset({1, 2, 4})})
+        self.assertSetEqual(set(MinimalSetOfSets({frozenset({1, 2, 6}), frozenset({1, 2, 4})}).subsets_of({1, 2, 3, 4, 6})), {frozenset({1, 2, 4}), frozenset({1, 2, 6})})
+        self.assertSetEqual(set(MinimalSetOfSets({frozenset({2}), frozenset({1, 2, 4})}).subsets_of({1, 2, 3})), {frozenset({2})})
+        self.assertSetEqual(set(MinimalSetOfSets({frozenset({2}), frozenset({1, 3}), frozenset({1, 2, 4})}).subsets_of({1, 2, 3, 4})), {frozenset({2}), frozenset({1, 3})})
+        self.assertSetEqual(set(self.subject.subsets_of(frozenset(range(100)))), set(self.subject))
+        self.assertSetEqual(set(self.subject.subsets_of(frozenset(range(7, 10)))), set())
+
     def test_add(self):
         self.subject.add(frozenset({1, 2, 3, 4, 5}))
         self.assertEqual(set(self.subject), {frozenset({1, 2, 3}), frozenset({3, 4, 5})})

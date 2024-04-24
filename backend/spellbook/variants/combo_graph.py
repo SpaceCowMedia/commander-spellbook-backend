@@ -1,5 +1,5 @@
 from math import prod
-from collections import deque
+from collections import deque, defaultdict
 from typing import Iterable, Callable
 from enum import Enum
 from dataclasses import dataclass
@@ -89,10 +89,15 @@ class ComboNode(Node):
 
 @dataclass(frozen=True)
 class VariantIngredients:
-    cards: list[Card]
-    templates: list[Template]
-    features: list[Feature]
-    combos: list[Combo]
+    cards: list[int]
+    templates: list[int]
+
+
+@dataclass(frozen=True)
+class VariantRecipe(VariantIngredients):
+    features: list[int]
+    combos: list[int]
+    replacements: dict[int, list[VariantIngredients]]
 
 
 class Graph:
@@ -150,7 +155,7 @@ class Graph:
             node.state = NodeState.NOT_VISITED
         self.to_reset_nodes.clear()
 
-    def variants(self, combo_id: int, card_limit=5, variant_limit=10000) -> list[VariantIngredients]:
+    def variants(self, combo_id: int, card_limit=5, variant_limit=10000) -> list[VariantRecipe]:
         combo = self.bnodes[combo_id]
         # Reset step
         self._reset()
@@ -211,9 +216,9 @@ class Graph:
         return feature.variant_set
 
     def _card_nodes_up(self, cards: list[CardNode], templates: list[TemplateNode]) -> VariantIngredients:
-        for feature_node in templates + cards:
-            feature_node.state = NodeState.VISITED
-            self.to_reset_nodes.add(feature_node)
+        for ingredient_node in templates + cards:
+            ingredient_node.state = NodeState.VISITED
+            self.to_reset_nodes.add(ingredient_node)
         card_ids = [c.card.id for c in cards]
         template_ids = [t.template.id for t in templates]
         card_nodes = set(cards)
@@ -222,6 +227,7 @@ class Graph:
         combo_nodes_to_visit: deque[ComboNode] = deque()
         combo_nodes_to_visit_with_new_features: deque[ComboNode] = deque()
         combo_nodes: set[ComboNode] = set()
+        replacements = defaultdict[int, list[VariantIngredients]](list)
         for card in cards:
             for combo in card.combos:
                 if combo.state == NodeState.NOT_VISITED:
@@ -233,6 +239,7 @@ class Graph:
                     feature.state = NodeState.VISITED
                     self.to_reset_nodes.add(feature)
                     feature_nodes.add(feature)
+                    replacements[feature.feature.id].append(VariantIngredients([card.card.id], []))
                     for feature_combo in feature.needed_by_combos:
                         if feature_combo.state == NodeState.NOT_VISITED:
                             feature_combo.state = NodeState.VISITING
@@ -268,8 +275,10 @@ class Graph:
                         combo_nodes_to_visit_with_new_features.clear()
             else:
                 combo_nodes_to_visit_with_new_features.append(combo)
-        return VariantIngredients(
-            cards=[cn.card for cn in card_nodes],
-            templates=[tn.template for tn in template_nodes],
-            features=[fn.feature for fn in feature_nodes],
-            combos=[cn.combo for cn in combo_nodes if cn.state == NodeState.VISITED])
+        return VariantRecipe(
+            cards=[cn.card.id for cn in card_nodes],
+            templates=[tn.template.id for tn in template_nodes],
+            features=[fn.feature.id for fn in feature_nodes],
+            combos=[cn.combo.id for cn in combo_nodes if cn.state == NodeState.VISITED],
+            replacements=replacements,
+        )

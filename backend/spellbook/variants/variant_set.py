@@ -1,3 +1,4 @@
+from typing import Iterator
 from itertools import product
 from .minimal_set_of_sets import MinimalSetOfSets
 
@@ -41,6 +42,12 @@ class VariantSet():
         if len(key) > self.max_depth:
             return False
         return self.sets.contains_subset_of(key)
+
+    def satisfied_by(self, cards: list[cardid], templates: list[templateid]) -> list[tuple[list[cardid], list[templateid]]]:
+        key = self.ingredients_to_key(cards, templates)
+        if len(key) > self.max_depth:
+            return []
+        return [self.key_to_ingredients(subset) for subset in self.sets.subsets_of(key)]
 
     def __copy__(self) -> 'VariantSet':
         result = VariantSet(limit=self.max_depth)

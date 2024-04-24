@@ -3,9 +3,9 @@ from itertools import chain
 from dataclasses import dataclass
 from django.db import transaction
 from .list_utils import includes_any
-from .variant_data import RestoreData, Data, debug_queries
+from .variant_data import Data, debug_queries
 from .combo_graph import Graph
-from spellbook.models import Combo, Job, Variant, CardInVariant, TemplateInVariant, id_from_cards_and_templates_ids, Playable, Card, VariantAlias, Feature, Ingredient
+from spellbook.models import Combo, Job, Variant, CardInVariant, TemplateInVariant, id_from_cards_and_templates_ids, Playable, Card, Template, VariantAlias, Ingredient, Feature
 from spellbook.utils import log_into_job
 
 
@@ -16,12 +16,17 @@ LOWER_VARIANT_LIMIT = 100
 
 
 @dataclass
-class VariantDefinition:
+class VariantRecipeDefinition:
     card_ids: list[int]
     template_ids: list[int]
+
+
+@dataclass
+class VariantDefinition(VariantRecipeDefinition):
     of_ids: set[int]
     feature_ids: set[int]
     included_ids: set[int]
+    feature_replacements: dict[int, list[VariantRecipeDefinition]]
 
 
 def get_variants_from_graph(data: Data, job: Job | None = None) -> dict[str, VariantDefinition]:
@@ -42,16 +47,27 @@ def get_variants_from_graph(data: Data, job: Job | None = None) -> dict[str, Var
             variant_limit = LOWER_VARIANT_LIMIT
         variants = graph.variants(combo.id, card_limit=card_limit, variant_limit=variant_limit)
         for variant in variants:
-            cards_ids = [c.id for c in variant.cards]
-            templates_ids = [t.id for t in variant.templates]
+            cards_ids = variant.cards
+            templates_ids = variant.templates
             id = id_from_cards_and_templates_ids(cards_ids, templates_ids)
-            feature_ids = set(f.id for f in variant.features)
-            combo_ids = set(c.id for c in variant.combos)
+            feature_ids = set(variant.features)
+            combo_ids = set(variant.combos)
+            feature_replacements = {
+                feature: [
+                    VariantRecipeDefinition(
+                        card_ids=ingredients.cards,
+                        template_ids=ingredients.templates,
+                    ) for ingredients in replacements
+                ]
+                for feature, replacements in variant.replacements.items()
+            }
             if id in result:
                 x = result[id]
                 x.of_ids.add(combo.id)
                 x.included_ids.update(combo_ids)
                 x.feature_ids.update(feature_ids)
+                for feature, replacements in feature_replacements.items():
+                    x.feature_replacements.setdefault(feature, []).extend(replacements)
             else:
                 logging.debug(f'Found new variant for combo {combo.id} ({i + 1}/{total}): {id}')
                 result[id] = VariantDefinition(
@@ -59,7 +75,9 @@ def get_variants_from_graph(data: Data, job: Job | None = None) -> dict[str, Var
                     template_ids=templates_ids,
                     feature_ids=feature_ids,
                     included_ids=combo_ids,
-                    of_ids={combo.id})
+                    of_ids={combo.id},
+                    feature_replacements=feature_replacements,
+                )
             count += 1
         msg = f'{i + 1}/{total} combos processed (just processed combo {combo.id})'
         if count > 1 or i % 100 == 0 or i == total - 1:
@@ -127,57 +145,99 @@ def update_state(dst: Ingredient, src: Ingredient, overwrite=False):
         dst.must_be_commander = dst.must_be_commander or src.must_be_commander
 
 
+def apply_replacements(
+    text: str,
+    replacements: dict[Feature, list[tuple[list[Card], list[Template]]]],
+) -> str:
+    return text
+
+
 def restore_variant(
+        data: Data,
         variant: Variant,
-        included_combos: list[Combo],
-        generator_combos: list[Combo],
-        used_cards: list[CardInVariant],
-        required_templates: list[TemplateInVariant],
-        produced_features: list[Feature],
-        data: RestoreData) -> tuple[list[CardInVariant], list[TemplateInVariant]]:
-    variant.other_prerequisites = '\n'.join(c.other_prerequisites for c in included_combos if len(c.other_prerequisites) > 0)
-    variant.mana_needed = ' '.join(c.mana_needed for c in included_combos if len(c.mana_needed) > 0)
-    variant.description = '\n'.join(c.description for c in included_combos if len(c.description) > 0)
+        variant_def: VariantDefinition,
+        restore_fields: bool,
+) -> VariantBulkSaveItem:
+    # Set status
     variant.status = Variant.Status.NEW
+
+    # Prepare related objects collections
+    used_cards = [
+        data.card_in_variant[(c_id, variant.id)]
+        if (c_id, variant.id) in data.card_in_variant
+        else CardInVariant(card=data.id_to_card[c_id], variant=variant)
+        for c_id in variant_def.card_ids
+    ]
+    required_templates = [
+        data.template_in_variant[(t_id, variant.id)]
+        if (t_id, variant.id) in data.template_in_variant
+        else TemplateInVariant(template=data.id_to_template[t_id], variant=variant)
+        for t_id in variant_def.template_ids
+    ]
+    generator_combos = [data.id_to_combo[c_id] for c_id in variant_def.of_ids]
+    included_combos = [data.id_to_combo[c_id] for c_id in variant_def.included_ids]
+    produces_ids = subtract_removed_features(data, variant_def.included_ids, variant_def.feature_ids) - data.utility_features_ids
+    produced_features = sorted([data.id_to_feature[f_id] for f_id in produces_ids], key=lambda f: f.name)
+    # Update variant computed information
     requires_commander = any(c.must_be_commander for c in used_cards) or any(t.must_be_commander for t in required_templates)
     variant.update([c.card for c in used_cards], requires_commander)
     uses = dict[int, CardInVariant]()
     for card_in_variant in used_cards:
-        update_state_with_default(card_in_variant)
         card_in_variant.order = 0
         uses[card_in_variant.card.id] = card_in_variant
     requires = dict[int, TemplateInVariant]()
     for template_in_variant in required_templates:
-        update_state_with_default(template_in_variant)
         template_in_variant.order = 0
         requires[template_in_variant.template.id] = template_in_variant
-    uses_updated = set[int]()
-    requires_updated = set[int]()
-    for to_edit in used_cards:
-        for feature_of_card in data.card_to_features[to_edit.card.id]:
-            if to_edit.card.id not in uses_updated:
-                update_state(to_edit, feature_of_card, overwrite=True)
-                uses_updated.add(to_edit.card.id)
-            else:
-                update_state(to_edit, feature_of_card)
-    for combo in included_combos:
-        for card_in_combo in data.combo_to_cards[combo.id]:
-            if card_in_combo.card.id in uses:
-                to_edit = uses[card_in_combo.card.id]
+    if restore_fields:
+        # re-generate the text fields
+        replacements = {
+            data.id_to_feature[feature_id]: [
+                ([data.id_to_card[i] for i in recipe.card_ids], [data.id_to_template[i] for i in recipe.template_ids])
+                for recipe in recipes
+            ]
+            for feature_id, recipes in variant_def.feature_replacements.items()
+        }
+        variant.other_prerequisites = apply_replacements('\n'.join(c.other_prerequisites for c in included_combos if len(c.other_prerequisites) > 0), replacements)
+        variant.mana_needed = apply_replacements(' '.join(c.mana_needed for c in included_combos if len(c.mana_needed) > 0), replacements)
+        variant.description = apply_replacements('\n'.join(c.description for c in included_combos if len(c.description) > 0), replacements)
+        for card_in_variant in used_cards:
+            update_state_with_default(card_in_variant)
+        for template_in_variant in required_templates:
+            update_state_with_default(template_in_variant)
+        uses_updated = set[int]()
+        requires_updated = set[int]()
+        for to_edit in used_cards:
+            for feature_of_card in data.card_to_features[to_edit.card.id]:
                 if to_edit.card.id not in uses_updated:
-                    update_state(to_edit, card_in_combo, overwrite=True)
+                    update_state(to_edit, feature_of_card, overwrite=True)
                     uses_updated.add(to_edit.card.id)
                 else:
-                    update_state(to_edit, card_in_combo)
-        for template_in_combo in data.combo_to_templates[combo.id]:
-            if template_in_combo.template.id in requires:
-                to_edit = requires[template_in_combo.template.id]
-                if to_edit.template.id not in requires_updated:
-                    update_state(to_edit, template_in_combo, overwrite=True)
-                    requires_updated.add(to_edit.template.id)
-                else:
-                    update_state(to_edit, template_in_combo)
-    # Ordering by descending replaceability and ascending order in combos
+                    update_state(to_edit, feature_of_card)
+        for combo in included_combos:
+            for card_in_combo in data.combo_to_cards[combo.id]:
+                if card_in_combo.card.id in uses:
+                    to_edit = uses[card_in_combo.card.id]
+                    if to_edit.card.id not in uses_updated:
+                        update_state(to_edit, card_in_combo, overwrite=True)
+                        uses_updated.add(to_edit.card.id)
+                    else:
+                        update_state(to_edit, card_in_combo)
+            for template_in_combo in data.combo_to_templates[combo.id]:
+                if template_in_combo.template.id in requires:
+                    to_edit = requires[template_in_combo.template.id]
+                    if to_edit.template.id not in requires_updated:
+                        update_state(to_edit, template_in_combo, overwrite=True)
+                        requires_updated.add(to_edit.template.id)
+                    else:
+                        update_state(to_edit, template_in_combo)
+        for used_card in used_cards:
+            used_card.battlefield_card_state = apply_replacements(used_card.battlefield_card_state, replacements)
+            used_card.exile_card_state = apply_replacements(used_card.exile_card_state, replacements)
+            used_card.graveyard_card_state = apply_replacements(used_card.graveyard_card_state, replacements)
+            used_card.library_card_state = apply_replacements(used_card.library_card_state, replacements)
+
+    # Ordering ingredients by descending replaceability and ascending order in combos
     cards_ordering: dict[int, tuple[int, int]] = {c: (0, 0) for c in uses}
     templates_ordering: dict[int, tuple[int, int]] = {t: (0, 0) for t in requires}
     for i, combo in enumerate(chain(included_combos, generator_combos)):
@@ -202,14 +262,25 @@ def restore_variant(
             tiv.order = i
             yield tiv
 
+    # Recomputing some variant fields
     variant.name = Variant.compute_name(
         cards=[data.id_to_card[civ.card_id] for civ in uses_list()],  # type: ignore
         templates=[data.id_to_template[tiv.template_id] for tiv in requires_list()],  # type: ignore
         features_needed=[],
         features_produced=produced_features,
     )
+    variant.results_count = len(produces_ids)
 
-    return list(uses_list()), list(requires_list())
+    # Return the final object
+    return VariantBulkSaveItem(
+        should_update=False,
+        variant=variant,
+        uses=list(uses_list()),
+        requires=list(requires_list()),
+        of=variant_def.of_ids,
+        includes=variant_def.included_ids,
+        produces=produces_ids,
+    )
 
 
 def update_variant(
@@ -221,30 +292,17 @@ def update_variant(
     variant = data.id_to_variant[id]
     ok = status in Variant.public_statuses() or \
         status != Variant.Status.NOT_WORKING and not includes_any(v=frozenset(variant_def.card_ids), others=data.not_working_variants)
-    uses, requires = [], []
-    produces_ids = subtract_removed_features(data, variant_def.included_ids, variant_def.feature_ids) - data.utility_features_ids
     old_results_count = variant.results_count
-    variant.results_count = len(produces_ids)
-    if restore:
-        uses, requires = restore_variant(
-            variant=variant,
-            included_combos=[data.id_to_combo[c_id] for c_id in variant_def.included_ids],
-            generator_combos=[data.id_to_combo[c_id] for c_id in variant_def.of_ids],
-            used_cards=[data.card_in_variant[(c_id, variant.id)] for c_id in variant_def.card_ids],
-            required_templates=[data.template_in_variant[(t_id, variant.id)] for t_id in variant_def.template_ids],
-            produced_features=sorted([data.id_to_feature[f_id] for f_id in produces_ids], key=lambda f: f.name),
-            data=data)
+    save_item = restore_variant(
+        data=data,
+        variant=variant,
+        variant_def=variant_def,
+        restore_fields=restore,
+    )
     if not ok:
         variant.status = Variant.Status.NOT_WORKING
-    return VariantBulkSaveItem(
-        should_update=restore or status != variant.status or old_results_count != variant.results_count,
-        variant=variant,
-        uses=uses,
-        requires=requires,
-        of=variant_def.of_ids,
-        includes=variant_def.included_ids,
-        produces=produces_ids,
-    )
+    save_item.should_update = restore or status != variant.status or old_results_count != variant.results_count
+    return save_item
 
 
 def create_variant(
@@ -257,29 +315,17 @@ def create_variant(
         generated_by=job,
         cards_count=len(variant_def.card_ids) + len(variant_def.template_ids),
     )
-    produces_ids = subtract_removed_features(data, variant_def.included_ids, variant_def.feature_ids) - data.utility_features_ids
-    variant.results_count = len(produces_ids)
-    uses, requires = restore_variant(
+    save_item = restore_variant(
+        data=data,
         variant=variant,
-        included_combos=[data.id_to_combo[c_id] for c_id in variant_def.included_ids],
-        generator_combos=[data.id_to_combo[c_id] for c_id in variant_def.of_ids],
-        used_cards=[CardInVariant(card=data.id_to_card[c_id], variant=variant) for c_id in variant_def.card_ids],
-        required_templates=[TemplateInVariant(template=data.id_to_template[t_id], variant=variant) for t_id in variant_def.template_ids],
-        produced_features=sorted([data.id_to_feature[f_id] for f_id in produces_ids], key=lambda f: f.name),
-        data=data
+        variant_def=variant_def,
+        restore_fields=True,
     )
     ok = not includes_any(v=frozenset(variant_def.card_ids), others=data.not_working_variants)
     if not ok:
         variant.status = Variant.Status.NOT_WORKING
-    return VariantBulkSaveItem(
-        should_update=True,
-        variant=variant,
-        uses=uses,
-        requires=requires,
-        of=variant_def.of_ids,
-        includes=variant_def.included_ids,
-        produces=produces_ids,
-    )
+    save_item.should_update = True
+    return save_item
 
 
 def perform_bulk_saves(to_create: list[VariantBulkSaveItem], to_update: list[VariantBulkSaveItem]):

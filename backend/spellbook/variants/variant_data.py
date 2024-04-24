@@ -9,7 +9,7 @@ from spellbook.models.template import Template
 from spellbook.models.variant import Variant, CardInVariant, TemplateInVariant
 
 
-class RestoreData:
+class Data:
     def __init__(self, single_combo: Combo | None = None):
         combos_query = Combo.objects.prefetch_related('uses', 'requires', 'needs', 'removes', 'produces').filter(status__in=(Combo.Status.GENERATOR, Combo.Status.GENERATOR_WITH_MANY_CARDS, Combo.Status.UTILITY))
         if single_combo is not None:
@@ -37,9 +37,6 @@ class RestoreData:
         self.templates = Template.objects.prefetch_related('required_by_combos')
         self.id_to_template: dict[int, Template] = {t.id: t for t in self.templates}
 
-
-class Data(RestoreData):
-    def __init__(self):
         def fetch_not_working_variants(variants_base_query):
             res = variants_base_query.filter(status=Variant.Status.NOT_WORKING).values('id', 'uses__id')
             d = defaultdict[str, set[int]](set)
@@ -54,7 +51,6 @@ class Data(RestoreData):
                     d[c.id].add(r.id)
             return d
 
-        super().__init__()
         self.variants = Variant.objects.all()
         self.utility_features_ids = frozenset[int](Feature.objects.filter(utility=True).values_list('id', flat=True))
         self.not_working_variants = fetch_not_working_variants(self.variants)

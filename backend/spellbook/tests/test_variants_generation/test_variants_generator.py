@@ -18,6 +18,15 @@ class VariantsGeneratorTests(AbstractModelTests):
         launch_job_command('generate_variants')
         self.assertEqual(len(result), Variant.objects.count())
         self.assertEqual(set(result.keys()), set(Variant.objects.values_list('id', flat=True)))
+        for variant_definition in result.values():
+            card_set = set(variant_definition.card_ids)
+            template_set = set(variant_definition.template_ids)
+            for feature, feature_replacement_list in variant_definition.feature_replacements.items():
+                self.assertIn(feature, variant_definition.feature_ids)
+                self.assertGreater(len(feature_replacement_list), 0)
+                for feature_replacement in feature_replacement_list:
+                    self.assertTrue(card_set.issuperset(feature_replacement.card_ids))
+                    self.assertTrue(template_set.issuperset(feature_replacement.template_ids))
 
     def test_subtract_removed_features(self):
         # TODO: Implement
@@ -72,6 +81,32 @@ class VariantsGeneratorTests(AbstractModelTests):
     def test_generate_variants(self):
         generate_variants()
         self.assertEqual(Variant.objects.count(), self.expected_variant_count)
+        for variant in Variant.objects.all():
+            self.assertEqual(variant.status, Variant.Status.NEW)
+            self.assertGreater(len(variant.name), 0)
+            self.assertGreater(len(variant.description), 0)
+            if variant.cards():
+                self.assertTrue(any(
+                    len(text_field) > 0
+                    for card_in_variant in variant.cardinvariant_set.all()
+                    for text_field in (
+                        card_in_variant.battlefield_card_state,
+                        card_in_variant.exile_card_state,
+                        card_in_variant.graveyard_card_state,
+                        card_in_variant.library_card_state
+                    )
+                ))
+            if variant.templates():
+                self.assertTrue(any(
+                    len(text_field) > 0
+                    for template_in_variant in variant.templateinvariant_set.all()
+                    for text_field in (
+                        template_in_variant.battlefield_card_state,
+                        template_in_variant.exile_card_state,
+                        template_in_variant.graveyard_card_state,
+                        template_in_variant.library_card_state
+                    )
+                ))
         Combo.objects.filter(status__in=(Combo.Status.GENERATOR, Combo.Status.GENERATOR_WITH_MANY_CARDS)).update(status=Combo.Status.DRAFT)
         generate_variants()
         self.assertEqual(Variant.objects.count(), 0)

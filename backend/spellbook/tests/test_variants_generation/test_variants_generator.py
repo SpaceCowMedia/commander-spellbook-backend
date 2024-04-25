@@ -1,8 +1,8 @@
 from itertools import chain
 from spellbook.tests.abstract_test import AbstractModelTests
-from spellbook.models import Job, Variant, Card, IngredientInCombination, CardInVariant, TemplateInVariant, Template, Combo
+from spellbook.models import Job, Variant, Card, IngredientInCombination, CardInVariant, TemplateInVariant, Template, Combo, Feature
 from spellbook.variants.variant_data import Data
-from spellbook.variants.variants_generator import get_variants_from_graph, get_default_zone_location_for_card, update_state_with_default, generate_variants
+from spellbook.variants.variants_generator import get_variants_from_graph, get_default_zone_location_for_card, update_state_with_default, generate_variants, apply_replacements
 from spellbook.utils import launch_job_command
 
 
@@ -60,6 +60,28 @@ class VariantsGeneratorTests(AbstractModelTests):
     def test_update_state(self):
         # TODO: Implement
         pass
+
+    def test_apply_replacements(self):
+        replacements = {
+            Feature.objects.get(id=self.f1_id): [([Card.objects.get(id=self.c1_id)], []), ([Card.objects.get(id=self.c2_id)], [])],
+            Feature.objects.get(id=self.f2_id): [([], [Template.objects.get(id=self.t1_id)]), ([], [Template.objects.get(id=self.t2_id)])],
+            Feature.objects.get(id=self.f3_id): [([Card.objects.get(id=self.c1_id), Card.objects.get(id=self.c2_id)], [Template.objects.get(id=self.t1_id), Template.objects.get(id=self.t2_id)])],
+        }
+        tests = [
+            ('', ''),
+            ('no replacements\n ok?', 'no replacements\n ok?'),
+            ('a sentence with one [[FA]] replacement.', 'a sentence with one A A replacement.'),
+            ('two replacements: [[FA]] and [[FB]].', 'two replacements: A A and TA.'),
+            ('repeated replacements: [[FA]][[FA]][FA].', 'repeated replacements: A AA A[FA].'),
+            ('combined replacement with [[FC]]', 'combined replacement with A A + B B + TA + TB'),
+            ('not found [[XYZ]] replacement.', 'not found [[XYZ]] replacement.'),
+            ('replacement with alias: [[FA:XYZ]]', 'replacement with alias: A A'),
+            ('alias [[FA:XYZ]] invocation in [[XYZ]]', 'alias A A invocation in A A'),
+            ('alias [[FA:asd ok]] invocation in [[asd ok]]', 'alias A A invocation in A A'),
+            ('alias edge case [[FA:FB]] invocation in [[FB]]', 'alias edge case A A invocation in A A'),
+        ]
+        for test in tests:
+            self.assertEqual(apply_replacements(test[0], replacements), test[1])
 
     def test_restore_variant(self):
         # TODO: Implement

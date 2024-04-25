@@ -1,4 +1,5 @@
 import logging
+import re
 from itertools import chain
 from dataclasses import dataclass
 from django.db import transaction
@@ -149,7 +150,28 @@ def apply_replacements(
     text: str,
     replacements: dict[Feature, list[tuple[list[Card], list[Template]]]],
 ) -> str:
-    return text
+    replacements_strings = dict[str, str]()
+    for feature, replacement_list in replacements.items():
+        if replacement_list:
+            cards, templates = replacement_list[0]
+            names = [c.name for c in cards] + [t.name for t in templates]
+            replacement = ' + '.join(names)
+            replacements_strings[feature.name] = replacement
+
+    def replacement_strategy(key: str, otherwise: str) -> str:
+        key = key.strip()
+        parts = key.split(':', 2)
+        key = parts[0]
+        if key in replacements_strings:
+            if len(parts) == 2:
+                replacements_strings[parts[1]] = replacements_strings[key]
+            return replacements_strings[key]
+        return otherwise
+    return re.sub(
+        r'\[\[(?P<key>.+?)\]\]',
+        lambda m: replacement_strategy(m.group('key'), m.group(0)),
+        text,
+    )
 
 
 def restore_variant(

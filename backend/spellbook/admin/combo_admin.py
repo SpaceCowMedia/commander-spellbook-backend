@@ -286,3 +286,11 @@ class ComboAdmin(SpellbookModelAdmin):
             if len(duplicate_combos) > 10:
                 message += '...'
             messages.warning(request, message)
+        if change:
+            # Set all new variants to restore
+            updated = Variant.objects.filter(
+                of=instance,
+                status=Variant.Status.NEW
+            ).update(status=Variant.Status.RESTORE)
+            if updated:
+                messages.info(request, f'Set {updated} "New" variants to "Restore" status.')

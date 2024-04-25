@@ -1,4 +1,3 @@
-from typing import Iterator
 from itertools import product
 from .minimal_set_of_sets import MinimalSetOfSets
 

@@ -20,7 +20,7 @@ class NodeState(Enum):
 class Node:
     def __init__(self):
         self.state: NodeState = NodeState.NOT_VISITED
-        self.variant_set: VariantSet = None  # type: ignore
+        self.variant_set: VariantSet | None = None
 
     def __str__(self) -> str:
         return f'{self.__class__} of {self._item()}'
@@ -104,17 +104,19 @@ class Graph:
     class GraphError(Exception):
         pass
 
-    def __init__(self, data: Data, log=None):
+    def __init__(self, data: Data, log=None, card_limit=5, variant_limit=10000):
         if data is not None:
             self.logger: Callable[[str], None] = log if log is not None else lambda msg: self._error(msg)
             self.data = data
+            self.card_limit = card_limit
+            self.variant_limit = variant_limit
             self.cnodes = dict[int, CardNode]((card.id, CardNode(card, [], [])) for card in data.cards)
             for c in self.cnodes.values():
-                c.variant_set = VariantSet()
+                c.variant_set = VariantSet(limit=card_limit)
                 c.variant_set.add([c.card.id], [])
             self.tnodes = dict[int, TemplateNode]((template.id, TemplateNode(template, [])) for template in data.templates)
             for t in self.tnodes.values():
-                t.variant_set = VariantSet()
+                t.variant_set = VariantSet(limit=card_limit)
                 t.variant_set.add([], [t.template.id])
             self.fnodes = dict[int, FeatureNode]()
             for feature in data.features:
@@ -155,20 +157,20 @@ class Graph:
             node.state = NodeState.NOT_VISITED
         self.to_reset_nodes.clear()
 
-    def variants(self, combo_id: int, card_limit=5, variant_limit=10000) -> list[VariantRecipe]:
+    def variants(self, combo_id: int) -> list[VariantRecipe]:
         combo = self.bnodes[combo_id]
         # Reset step
         self._reset()
         # Down step
-        variant_set = self._combo_nodes_down(combo, card_limit=card_limit, variant_limit=variant_limit)
+        variant_set = self._combo_nodes_down(combo)
         # Up steps
-        result = list[VariantIngredients]()
+        result = list[VariantRecipe]()
         for cards, templates in variant_set.variants():
             self._reset()
             result.append(self._card_nodes_up([self.cnodes[i] for i in cards], [self.tnodes[i] for i in templates]))
         return result
 
-    def _combo_nodes_down(self, combo: ComboNode, card_limit: int, variant_limit: int) -> VariantSet:
+    def _combo_nodes_down(self, combo: ComboNode) -> VariantSet:
         if combo.variant_set is not None:
             combo.state = NodeState.VISITED
             self.to_reset_nodes.add(combo)
@@ -180,19 +182,19 @@ class Graph:
         needed_features_variant_sets: list[VariantSet] = []
         for f in combo.features_needed:
             if f.state == NodeState.VISITING:
-                return VariantSet()
-            needed_features_variant_sets.append(self._feature_nodes_down(f, card_limit=card_limit, variant_limit=variant_limit))
-        variant_sets = card_variant_sets + template_variant_sets + needed_features_variant_sets
+                return VariantSet(limit=self.card_limit)
+            needed_features_variant_sets.append(self._feature_nodes_down(f))
+        variant_sets: list[VariantSet] = card_variant_sets + template_variant_sets + needed_features_variant_sets  # type: ignore
         variants_count_proxy = prod(len(vs) for vs in variant_sets)
-        if variants_count_proxy > variant_limit:
+        if variants_count_proxy > self.variant_limit:
             msg = f'Combo {combo.combo} has too many variants, approx. {variants_count_proxy}'
             self.logger(msg)
             raise Graph.GraphError(msg)
-        combo.variant_set = VariantSet.and_sets(variant_sets, limit=card_limit)
+        combo.variant_set = VariantSet.and_sets(variant_sets, limit=self.card_limit)
         combo.state = NodeState.VISITED
         return combo.variant_set
 
-    def _feature_nodes_down(self, feature: FeatureNode, card_limit: int, variant_limit: int) -> VariantSet:
+    def _feature_nodes_down(self, feature: FeatureNode) -> VariantSet:
         if feature.variant_set is not None:
             feature.state = NodeState.VISITED
             self.to_reset_nodes.add(feature)
@@ -204,18 +206,18 @@ class Graph:
         for c in feature.produced_by_combos:
             if c.state == NodeState.VISITING:
                 continue
-            produced_combos_variant_sets.append(self._combo_nodes_down(c, card_limit=card_limit, variant_limit=variant_limit))
-        variant_sets = card_variant_sets + produced_combos_variant_sets
+            produced_combos_variant_sets.append(self._combo_nodes_down(c))
+        variant_sets: list[VariantSet] = card_variant_sets + produced_combos_variant_sets  # type: ignore
         variants_count_proxy = sum(len(vs) for vs in variant_sets)
-        if variants_count_proxy > variant_limit:
+        if variants_count_proxy > self.variant_limit:
             msg = f'Feature "{feature.feature}" has too many variants, approx. {variants_count_proxy}'
             self.logger(msg)
             raise Graph.GraphError(msg)
-        feature.variant_set = VariantSet.or_sets(variant_sets, limit=card_limit)
+        feature.variant_set = VariantSet.or_sets(variant_sets, limit=self.card_limit)
         feature.state = NodeState.VISITED
         return feature.variant_set
 
-    def _card_nodes_up(self, cards: list[CardNode], templates: list[TemplateNode]) -> VariantIngredients:
+    def _card_nodes_up(self, cards: list[CardNode], templates: list[TemplateNode]) -> VariantRecipe:
         for ingredient_node in templates + cards:
             ingredient_node.state = NodeState.VISITED
             self.to_reset_nodes.add(ingredient_node)

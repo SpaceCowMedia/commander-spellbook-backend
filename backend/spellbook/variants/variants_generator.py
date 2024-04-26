@@ -35,54 +35,57 @@ def get_variants_from_graph(data: Data, job: Job | None = None) -> dict[str, Var
         logging.info(msg)
         log_into_job(job, msg)
     log('Computing all possible variants:')
-    combos = data.generator_combos
+    combos_by_status = dict[str, list[Combo]]()
+    for combo in data.generator_combos:
+        combos_by_status.setdefault(combo.status, []).append(combo)
     result = dict[str, VariantDefinition]()
-    graph = Graph(data, log=log)
-    total = len(combos)
-    for i, combo in enumerate(combos):
-        count = 0
+    total = len(data.generator_combos)
+    for status, combos in combos_by_status.items():
         card_limit = DEFAULT_CARD_LIMIT
         variant_limit = DEFAULT_VARIANT_LIMIT
-        if combo.status == Combo.Status.GENERATOR_WITH_MANY_CARDS:
+        if status == Combo.Status.GENERATOR_WITH_MANY_CARDS:
             card_limit = HIGHER_CARD_LIMIT
             variant_limit = LOWER_VARIANT_LIMIT
-        variants = graph.variants(combo.id, card_limit=card_limit, variant_limit=variant_limit)
-        for variant in variants:
-            cards_ids = variant.cards
-            templates_ids = variant.templates
-            id = id_from_cards_and_templates_ids(cards_ids, templates_ids)
-            feature_ids = set(variant.features)
-            combo_ids = set(variant.combos)
-            feature_replacements = {
-                feature: [
-                    VariantRecipeDefinition(
-                        card_ids=ingredients.cards,
-                        template_ids=ingredients.templates,
-                    ) for ingredients in replacements
-                ]
-                for feature, replacements in variant.replacements.items()
-            }
-            if id in result:
-                x = result[id]
-                x.of_ids.add(combo.id)
-                x.included_ids.update(combo_ids)
-                x.feature_ids.update(feature_ids)
-                for feature, replacements in feature_replacements.items():
-                    x.feature_replacements.setdefault(feature, []).extend(replacements)
-            else:
-                logging.debug(f'Found new variant for combo {combo.id} ({i + 1}/{total}): {id}')
-                result[id] = VariantDefinition(
-                    card_ids=cards_ids,
-                    template_ids=templates_ids,
-                    feature_ids=feature_ids,
-                    included_ids=combo_ids,
-                    of_ids={combo.id},
-                    feature_replacements=feature_replacements,
-                )
-            count += 1
-        msg = f'{i + 1}/{total} combos processed (just processed combo {combo.id})'
-        if count > 1 or i % 100 == 0 or i == total - 1:
-            log(msg)
+        graph = Graph(data, log=log, card_limit=card_limit, variant_limit=variant_limit)
+        for i, combo in enumerate(combos):
+            count = 0
+            variants = graph.variants(combo.id)
+            for variant in variants:
+                cards_ids = variant.cards
+                templates_ids = variant.templates
+                id = id_from_cards_and_templates_ids(cards_ids, templates_ids)
+                feature_ids = set(variant.features)
+                combo_ids = set(variant.combos)
+                feature_replacements = {
+                    feature: [
+                        VariantRecipeDefinition(
+                            card_ids=ingredients.cards,
+                            template_ids=ingredients.templates,
+                        ) for ingredients in replacements
+                    ]
+                    for feature, replacements in variant.replacements.items()
+                }
+                if id in result:
+                    x = result[id]
+                    x.of_ids.add(combo.id)
+                    x.included_ids.update(combo_ids)
+                    x.feature_ids.update(feature_ids)
+                    for feature, replacements in feature_replacements.items():
+                        x.feature_replacements.setdefault(feature, []).extend(replacements)
+                else:
+                    logging.debug(f'Found new variant for combo {combo.id} ({i + 1}/{total}): {id}')
+                    result[id] = VariantDefinition(
+                        card_ids=cards_ids,
+                        template_ids=templates_ids,
+                        feature_ids=feature_ids,
+                        included_ids=combo_ids,
+                        of_ids={combo.id},
+                        feature_replacements=feature_replacements,
+                    )
+                count += 1
+            msg = f'{i + 1}/{total} combos processed (just processed combo {combo.id})'
+            if count > 1 or i % 100 == 0 or i == total - 1:
+                log(msg)
     return result
 
 

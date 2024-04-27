@@ -101,8 +101,11 @@ class VariantsGeneratorTests(AbstractModelTests):
         pass
 
     def test_generate_variants(self):
-        generate_variants()
+        added, restored, deleted = generate_variants()
         self.assertEqual(Variant.objects.count(), self.expected_variant_count)
+        self.assertEqual(added, self.expected_variant_count)
+        self.assertEqual(restored, 0)
+        self.assertEqual(deleted, 0)
         for variant in Variant.objects.all():
             self.assertEqual(variant.status, Variant.Status.NEW)
             self.assertGreater(len(variant.name), 0)
@@ -129,8 +132,23 @@ class VariantsGeneratorTests(AbstractModelTests):
                         template_in_variant.library_card_state
                     )
                 ))
+        Variant.objects.update(status=Variant.Status.OK)
+        added, restored, deleted = generate_variants()
+        self.assertEqual(added, 0)
+        self.assertEqual(restored, 0)
+        self.assertEqual(deleted, 0)
+        self.assertTrue(all(variant.status == Variant.Status.OK for variant in Variant.objects.all()))
+        Variant.objects.update(status=Variant.Status.RESTORE)
+        added, restored, deleted = generate_variants()
+        self.assertEqual(added, 0)
+        self.assertEqual(restored, self.expected_variant_count)
+        self.assertEqual(deleted, 0)
+        self.assertTrue(all(variant.status == Variant.Status.NEW for variant in Variant.objects.all()))
         Combo.objects.filter(status__in=(Combo.Status.GENERATOR, Combo.Status.GENERATOR_WITH_MANY_CARDS)).update(status=Combo.Status.DRAFT)
-        generate_variants()
+        added, restored, deleted = generate_variants()
+        self.assertEqual(added, 0)
+        self.assertEqual(restored, 0)
+        self.assertEqual(deleted, self.expected_variant_count)
         self.assertEqual(Variant.objects.count(), 0)
 
     def test_generate_variants_deletion(self):

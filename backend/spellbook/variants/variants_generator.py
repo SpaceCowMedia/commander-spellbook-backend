@@ -39,6 +39,7 @@ def get_variants_from_graph(data: Data, job: Job | None = None) -> dict[str, Var
     for combo in data.generator_combos:
         combos_by_status.setdefault(combo.status, []).append(combo)
     result = dict[str, VariantDefinition]()
+    index = 0
     total = len(data.generator_combos)
     for status, combos in combos_by_status.items():
         card_limit = DEFAULT_CARD_LIMIT
@@ -47,8 +48,8 @@ def get_variants_from_graph(data: Data, job: Job | None = None) -> dict[str, Var
             card_limit = HIGHER_CARD_LIMIT
             variant_limit = LOWER_VARIANT_LIMIT
         graph = Graph(data, log=log, card_limit=card_limit, variant_limit=variant_limit)
-        for i, combo in enumerate(combos):
-            count = 0
+        for combo in combos:
+            variant_count = 0
             variants = graph.variants(combo.id)
             for variant in variants:
                 cards_ids = variant.cards
@@ -73,7 +74,7 @@ def get_variants_from_graph(data: Data, job: Job | None = None) -> dict[str, Var
                     for feature, replacements in feature_replacements.items():
                         x.feature_replacements.setdefault(feature, []).extend(replacements)
                 else:
-                    logging.debug(f'Found new variant for combo {combo.id} ({i + 1}/{total}): {id}')
+                    logging.debug(f'Found new variant for combo {combo.id} ({index + 1}/{total}): {id}')
                     result[id] = VariantDefinition(
                         card_ids=cards_ids,
                         template_ids=templates_ids,
@@ -82,10 +83,11 @@ def get_variants_from_graph(data: Data, job: Job | None = None) -> dict[str, Var
                         of_ids={combo.id},
                         feature_replacements=feature_replacements,
                     )
-                count += 1
-            msg = f'{i + 1}/{total} combos processed (just processed combo {combo.id})'
-            if count > 1 or i % 100 == 0 or i == total - 1:
+                variant_count += 1
+            msg = f'{index + 1}/{total} combos processed (just processed combo {combo.id})'
+            if variant_count > 50 or index % 100 == 0 or index == total - 1:
                 log(msg)
+            index += 1
     return result
 
 
@@ -183,9 +185,6 @@ def restore_variant(
         variant_def: VariantDefinition,
         restore_fields: bool,
 ) -> VariantBulkSaveItem:
-    # Set status
-    variant.status = Variant.Status.NEW
-
     # Prepare related objects collections
     used_cards = [
         data.card_in_variant[(c_id, variant.id)]
@@ -215,6 +214,7 @@ def restore_variant(
         template_in_variant.order = 0
         requires[template_in_variant.template.id] = template_in_variant
     if restore_fields:
+        variant.status = Variant.Status.NEW
         # re-generate the text fields
         replacements = {
             data.id_to_feature[feature_id]: [

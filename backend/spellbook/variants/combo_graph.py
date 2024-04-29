@@ -253,12 +253,22 @@ class Graph:
             if combo.variant_set is not None:
                 if combo.variant_set.is_satisfied_by(card_ids, template_ids):
                     satisfied = True
+                    replacements_for_combo = [
+                        VariantIngredients(cards_satisfying, templates_satisfying)
+                        for cards_satisfying, templates_satisfying
+                        in combo.variant_set.satisfied_by(card_ids, template_ids)
+                    ]
+                    for feature in combo.features_produced:
+                        replacements[feature.feature.id].extend(replacements_for_combo)
                 else:
                     continue
             else:
-                if any((c not in card_nodes for c in combo.cards)) or any((t not in template_nodes for t in combo.templates)):
-                    continue
-                if all((f in feature_nodes for f in combo.features_needed)):
+                # This check avoids computing the entire variant set for a combo to check if it is satisfied
+                # It's a very important optimization because it allows utility "outlet" combos to exist even
+                # if they would generate too many variants, resulting in a graph error
+                if all((c in card_nodes for c in combo.cards)) \
+                        and all((t in template_nodes for t in combo.templates)) \
+                        and all((f in feature_nodes for f in combo.features_needed)):
                     satisfied = True
             if satisfied:
                 combo.state = NodeState.VISITED

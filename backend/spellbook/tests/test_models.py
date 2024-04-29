@@ -56,6 +56,9 @@ class CardTests(AbstractModelTests):
         self.assertIn(SCRYFALL_WEBSITE_CARD_SEARCH, c.scryfall_link())
         self.assertIn(c.query_string(), c.scryfall_link())
         self.assertIn('<a', c.scryfall_link())
+        self.assertTrue(c.scryfall_link().startswith('<a'))
+        self.assertTrue(c.scryfall_link(raw=True).startswith('http'))
+        self.assertIn(c.scryfall_link(raw=True), c.scryfall_link(raw=False))
 
     def test_method_count(self):
         self.assertEqual(count_methods(Card), 4)
@@ -113,6 +116,8 @@ class TemplateTests(AbstractModelTests):
         self.assertIn(t.query_string(), t.scryfall_link())
         self.assertIn('<a', t.scryfall_link())
         self.assertIn('target="_blank"', t.scryfall_link())
+        self.assertTrue(t.scryfall_link(raw=True).startswith('http'))
+        self.assertIn(t.scryfall_link(raw=True), t.scryfall_link(raw=False))
 
         t.scryfall_query = ''
         self.assertNotIn(SCRYFALL_WEBSITE_CARD_SEARCH, t.scryfall_link())

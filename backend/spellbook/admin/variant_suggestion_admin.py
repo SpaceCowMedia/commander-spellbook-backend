@@ -36,7 +36,13 @@ class FeatureProducedInVariantAdminInline(admin.TabularInline):
 
 @admin.action(description='Mark selected suggestions as REJECTED')
 def set_rejected(modeladmin, request, queryset):
+    ids = queryset.values_list('id', flat=True)
     queryset.update(status=VariantSuggestion.Status.REJECTED)
+    launch_job_command(
+        command='notify',
+        user=request.user,
+        args=['variant_suggestion_rejected', *map(str, ids)],
+    )
 
 
 @admin.register(VariantSuggestion)

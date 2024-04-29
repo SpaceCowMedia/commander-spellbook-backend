@@ -57,6 +57,12 @@ def set_status(request, queryset, status: Variant.Status):
     Variant.objects.bulk_serialize(variants, fields=['status'], serializer=VariantSerializer)  # type: ignore
     plural = 's' if len(variants) > 1 else ''
     messages.success(request, f'{len(variants)} variant{plural} marked as {status.name}.')
+    if status in Variant.public_statuses():
+        launch_job_command(
+            command='notify',
+            user=request.user,
+            args=['variant_published', *[str(variant.id) for variant in variants]],
+        )
 
 
 @admin.action(description='Mark selected variants as RESTORE')
@@ -203,6 +209,18 @@ class VariantAdmin(SpellbookModelAdmin):
         except NotSupportedError as e:
             messages.warning(request, str(e))
             return queryset, False
+
+    def save_form(self, request: Any, form: Any, change: bool) -> Any:
+        new_object = super().save_form(request, form, change)
+        if change:
+            if 'status' in form.changed_data:
+                if new_object.status in Variant.public_statuses():
+                    launch_job_command(
+                        command='notify',
+                        user=request.user,
+                        args=['variant_published', str(new_object.id)],
+                    )
+        return new_object
 
     def save_related(self, request: Any, form: Any, formsets: Any, change: Any):
         super().save_related(request, form, formsets, change)

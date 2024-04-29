@@ -13,7 +13,7 @@ class ScryfallLinkMixin:
         cards = cards or self.cards()
         return scryfall_query_string_for_card_names([card.name for card in cards])
 
-    def scryfall_link(self):
+    def scryfall_link(self, raw=False):
         cards = self.cards()
         match cards:
             case []:
@@ -22,6 +22,8 @@ class ScryfallLinkMixin:
                 return None
             case _:
                 link = scryfall_link_for_query(self.query_string(cards))
+                if raw:
+                    return link
                 plural = 's' if len(cards) > 1 else ''
                 return format_html('<a href="{}" target="_blank">Show card{} on scryfall</a>', link, plural)
 

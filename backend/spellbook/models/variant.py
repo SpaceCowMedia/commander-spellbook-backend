@@ -158,15 +158,18 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
         new_values = {field: getattr(self, field) for field in self.playable_fields()}
         return old_values != new_values
 
-    def spellbook_link(self):
+    def spellbook_link(self, raw=False):
         path = f'combo/{self.id}'
+        link = 'https://commanderspellbook.com/' + path
+        if raw:
+            return link
         text = 'Show combo on Commander Spellbook'
         if self.status not in Variant.public_statuses():
             if self.status in Variant.preview_statuses():
                 text = 'Show combo preview on Commander Spellbook (remember to login to see it)'
             else:
                 return None
-        return format_html('<a href="{}" target="_blank">{}</a>', 'https://commanderspellbook.com/' + path, text)
+        return format_html('<a href="{}" target="_blank">{}</a>', link, text)
 
 
 class CardInVariant(IngredientInCombination):

@@ -31,8 +31,10 @@ class Template(models.Model):
     def scryfall_api(self):
         return f'{SCRYFALL_API_CARD_SEARCH}?{self.query_string()}'
 
-    def scryfall_link(self):
+    def scryfall_link(self, raw=False):
         if self.scryfall_query == '':
             return 'Empty query'
         link = f'{SCRYFALL_WEBSITE_CARD_SEARCH}?{self.query_string()}'
+        if raw:
+            return link
         return format_html('<a href="{}" target="_blank">{}</a>', link, link)

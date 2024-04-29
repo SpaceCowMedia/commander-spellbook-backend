@@ -1,7 +1,7 @@
 from ..abstract_command import AbstractCommand
 from django.conf import settings
 from discord_webhook import DiscordWebhook
-from spellbook.models import VariantSuggestion
+from spellbook.models import VariantSuggestion, Variant
 from social_django.models import UserSocialAuth
 
 
@@ -10,9 +10,11 @@ class Command(AbstractCommand):
     help = 'Notifies that something happened'
     variant_suggestion_accepted = 'variant_suggestion_accepted'
     variant_suggestion_rejected = 'variant_suggestion_rejected'
+    variant_published = 'variant_published'
     events = [
         variant_suggestion_accepted,
         variant_suggestion_rejected,
+        variant_published,
     ]
 
     def add_arguments(self, parser):
@@ -68,3 +70,12 @@ class Command(AbstractCommand):
                 self.variant_suggestion_event('**accepted**', options['identifiers'])
             case self.variant_suggestion_rejected:
                 self.variant_suggestion_event('rejected', options['identifiers'])
+            case self.variant_published:
+                plural = 's' if len(options['identifiers']) > 1 else ''
+                verb = 'have' if len(options['identifiers']) > 1 else 'has'
+                webhook_text = f'The following combo{plural} {verb} been added to the site:\n'
+                for identifier in options['identifiers']:
+                    v = Variant.objects.filter(pk=identifier).first()
+                    if v:
+                        webhook_text += f'[{v.name}](<{v.spellbook_link(raw=True)}>)\n'
+                self.discord_webhook(webhook_text)

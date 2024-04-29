@@ -15,5 +15,6 @@
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true,
     "flake8.cwd": "${workspaceFolder}/backend",
-    "mypy-type-checker.cwd": "${workspaceFolder}/backend"
+    "mypy-type-checker.cwd": "${workspaceFolder}/backend",
+    "python.analysis.diagnosticMode": "workspace"
 }

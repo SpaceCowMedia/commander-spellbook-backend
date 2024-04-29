@@ -165,7 +165,7 @@ def apply_replacements(
 
     def replacement_strategy(key: str, otherwise: str) -> str:
         key = key.strip()
-        parts = key.split(':', 2)
+        parts = key.split('|', 2)
         key = parts[0]
         if key in replacements_strings:
             if len(parts) == 2:

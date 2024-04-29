@@ -105,6 +105,11 @@ spec:
                 secretKeyRef:
                   name: api-secrets
                   key: discord-client-secret
+            - name: DISCORD_WEBHOOK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: api-secrets
+                  key: discord-webhook-url
 ---
 # Autoscaling of the api pods
 apiVersion: autoscaling/v1

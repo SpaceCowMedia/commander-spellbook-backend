@@ -10,8 +10,6 @@ class Command(AbstractCommand):
     help = 'Notifies that something happened'
     variant_suggestion_accepted = 'variant_suggestion_accepted'
     variant_suggestion_rejected = 'variant_suggestion_rejected'
-    variant_published = 'variant_published'
-    variant_unpublished = 'variant_unpublished'
     events = [
         variant_suggestion_accepted,
         variant_suggestion_rejected,

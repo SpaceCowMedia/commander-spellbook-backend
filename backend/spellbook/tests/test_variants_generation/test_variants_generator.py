@@ -75,10 +75,10 @@ class VariantsGeneratorTests(AbstractModelTests):
             ('repeated replacements: [[FA]][[FA]][FA].', 'repeated replacements: A AA A[FA].'),
             ('combined replacement with [[FC]]', 'combined replacement with A A + B B + TA + TB'),
             ('not found [[XYZ]] replacement.', 'not found [[XYZ]] replacement.'),
-            ('replacement with alias: [[FA:XYZ]]', 'replacement with alias: A A'),
-            ('alias [[FA:XYZ]] invocation in [[XYZ]]', 'alias A A invocation in A A'),
-            ('alias [[FA:asd ok]] invocation in [[asd ok]]', 'alias A A invocation in A A'),
-            ('alias edge case [[FA:FB]] invocation in [[FB]]', 'alias edge case A A invocation in A A'),
+            ('replacement with alias: [[FA|XYZ]]', 'replacement with alias: A A'),
+            ('alias [[FA|XYZ]] invocation in [[XYZ]]', 'alias A A invocation in A A'),
+            ('alias [[FA|asd ok]] invocation in [[asd ok]]', 'alias A A invocation in A A'),
+            ('alias edge case [[FA|FB]] invocation in [[FB]]', 'alias edge case A A invocation in A A'),
         ]
         for test in tests:
             self.assertEqual(apply_replacements(test[0], replacements), test[1])

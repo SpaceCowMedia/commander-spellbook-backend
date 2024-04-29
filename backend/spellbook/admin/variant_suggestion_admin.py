@@ -4,6 +4,7 @@ from django.contrib import admin
 from spellbook.models import VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, FeatureProducedInVariantSuggestion
 from .ingredient_admin import IngredientAdmin
 from .utils import SpellbookModelAdmin, CardsCountListFilter
+from spellbook.utils import launch_job_command
 
 
 class CardUsedInVariantSuggestionAdminInline(IngredientAdmin):
@@ -78,7 +79,25 @@ class VariantSuggestionAdmin(SpellbookModelAdmin):
     def get_queryset(self, request):
         return VariantSuggestion.objects.alias(cards_count=Count('uses', distinct=True) + Count('requires', distinct=True))
 
-    def save_model(self, request: Any, obj: Any, form: Any, change: Any) -> None:
+    def save_form(self, request: Any, form: Any, change: bool) -> Any:
+        new_object = super().save_form(request, form, change)
+        if change:
+            if 'status' in form.changed_data:
+                if new_object.status == VariantSuggestion.Status.ACCEPTED:
+                    launch_job_command(
+                        command='notify',
+                        user=request.user,
+                        args=['variant_suggestion_accepted', str(new_object.id)],
+                    )
+                elif new_object.status == VariantSuggestion.Status.REJECTED:
+                    launch_job_command(
+                        command='notify',
+                        user=request.user,
+                        args=['variant_suggestion_rejected', str(new_object.id)],
+                    )
+        return new_object
+
+    def save_model(self, request: Any, obj: Any, form: Any, change: bool):
         if not change:
             form.instance.suggested_by = request.user
         super().save_model(request, obj, form, change)

@@ -140,6 +140,11 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
+# Discord Webhook(s)
+# https://discord.com/developers/docs/resources/webhook
+DISCORD_WEBHOOK_URL = os.getenv('DISCORD_WEBHOOK_URL', None)
+
+
 # Python Social Auth
 # https://python-social-auth.readthedocs.io/en/latest/backends/index.html
 SOCIAL_AUTH_DISCORD_KEY = os.getenv('DISCORD_CLIENTID', None)

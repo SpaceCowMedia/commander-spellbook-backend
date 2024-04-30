@@ -349,6 +349,7 @@ class VariantViewsTests(AbstractModelTests):
         c = Client()
         queries = [
             ('result=FD A result:B', self.public_variants.filter(uses__name__icontains='A').filter(produces__name__iexact='FD').filter(produces__name__icontains='B').distinct()),
+            ('result=FD | A result:B', self.public_variants.filter(models.Q(produces__name__iexact='FD') | models.Q(uses__name__icontains='A', produces__name__icontains='B')).distinct()),
         ]
         for q, variants in queries:
             with self.subTest(f'query by a combination of terms: {q}'):

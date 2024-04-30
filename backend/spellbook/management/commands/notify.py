@@ -41,22 +41,22 @@ class Command(AbstractCommand):
     def variant_suggestion_event(self, past_tense: str, identifiers: list[str]):
         webhook_text = ''
         for identifier in identifiers:
-            vs = VariantSuggestion.objects.get(pk=identifier)
-            author = vs.suggested_by
+            variant_suggestion = VariantSuggestion.objects.get(pk=identifier)
+            author = variant_suggestion.suggested_by
             if author:
                 discord_account = UserSocialAuth.objects.filter(
                     user=author,
                     provider='discord',
                 ).first()
-                suggestion_name = f'`{vs.name}`'
-                if vs.spoiler:
+                suggestion_name = f'`{variant_suggestion.name}`'
+                if variant_suggestion.spoiler:
                     suggestion_name = f'||{suggestion_name}||'
                 if discord_account:
-                    webhook_text += f'<@{discord_account.uid}>, your suggestion for {suggestion_name} has been {past_tense}'
+                    webhook_text += f'<@{discord_account.uid}>, your suggestion for {suggestion_name} has been **{past_tense}**'
                 else:
-                    webhook_text += f'The suggestion from {author.username} for {suggestion_name} has been {past_tense}'
-                if vs.notes:
-                    webhook_text += f', with the following note: {vs.notes}'
+                    webhook_text += f'The suggestion from {author.username} for {suggestion_name} has been **{past_tense}**'
+                if variant_suggestion.notes:
+                    webhook_text += f', with the following note: __{variant_suggestion.notes}__'
                 else:
                     webhook_text += '.'
                 webhook_text += '\n'
@@ -67,7 +67,7 @@ class Command(AbstractCommand):
         self.log(f'Notifying about {options["event"]} with identifiers {options["identifiers"]}')
         match options['event']:
             case self.variant_suggestion_accepted:
-                self.variant_suggestion_event('**accepted**', options['identifiers'])
+                self.variant_suggestion_event('accepted', options['identifiers'])
             case self.variant_suggestion_rejected:
                 self.variant_suggestion_event('rejected', options['identifiers'])
             case self.variant_published:
@@ -75,7 +75,7 @@ class Command(AbstractCommand):
                 verb = 'have' if len(options['identifiers']) > 1 else 'has'
                 webhook_text = f'The following combo{plural} {verb} been added to the site:\n'
                 for identifier in options['identifiers']:
-                    v = Variant.objects.filter(pk=identifier).first()
-                    if v:
-                        webhook_text += f'[{v.name}](<{v.spellbook_link(raw=True)}>)\n'
+                    variant = Variant.objects.filter(pk=identifier).first()
+                    if variant:
+                        webhook_text += f'[{variant.name}](<{variant.spellbook_link(raw=True)}>)\n'
                 self.discord_webhook(webhook_text)

@@ -400,12 +400,7 @@ class NotSupportedError(Exception):
     pass
 
 
-def variants_query_simple_parser(base: QuerySet[Variant], query_string: str) -> QuerySet[Variant]:
-    """
-    Parses a query string and filters a queryset of Variants.
-    Does not support parentheses.
-    Does not support or queries.
-    """
+def variants_query_parser_filter(base: QuerySet[Variant], query_string: str) -> QuerySet[Variant]:
     query_string = query_string.strip()
     regex_matches = re.finditer(QUERY_REGEX, query_string)
     parsed_queries = defaultdict[str, list[QueryValue]](list)
@@ -447,6 +442,8 @@ def variants_query_simple_parser(base: QuerySet[Variant], query_string: str) -> 
 def variants_query_parser(base: QuerySet[Variant], query_string: str) -> QuerySet:
     """
     Parses a query string and filters a queryset of Variants.
+    Does not support parentheses.
+    Does not support or queries.
     """
-    filtered_queryset = variants_query_simple_parser(base, query_string)
+    filtered_queryset = variants_query_parser_filter(base, query_string)
     return base.filter(id__in=filtered_queryset.values('id').distinct())

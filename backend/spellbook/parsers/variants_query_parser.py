@@ -400,49 +400,53 @@ class NotSupportedError(Exception):
     pass
 
 
-def variants_query_parser(base: QuerySet[Variant], query_string: str) -> QuerySet:
+def variants_query_simple_parser(base: QuerySet[Variant], query_string: str) -> QuerySet[Variant]:
     """
-    Parse a query string into a Django Q object.
+    Parses a query string and filters a queryset of Variants.
+    Does not support parentheses.
+    Does not support or queries.
     """
     query_string = query_string.strip()
-    or_filter = Q()
-    for subquery_string in query_string.split('|'):
-        subquery_string = subquery_string.strip()
-        regex_matches = re.finditer(QUERY_REGEX, subquery_string)
-        parsed_queries = defaultdict[str, list[QueryValue]](list)
-        query_match_count = 0
-        for regex_match in regex_matches:
-            query_match_count += 1
-            if query_match_count > MAX_QUERY_MATCHES:
-                raise NotSupportedError('Too many search terms.')
-            group_dict = regex_match.groupdict()
-            if group_dict['card_short'] or group_dict['card_long']:
-                card_term = group_dict['card_short'] or group_dict['card_long']
-                card_term = card_term.replace('\\', '')
-                parsed_queries['card'].append(QueryValue('', '', ':', card_term))
-            elif group_dict['key']:
-                key = group_dict['key'].lower()
-                original_key = key
-                if key in alias_map:
-                    key = alias_map[key]
-                if key not in keyword_map:
-                    raise NotSupportedError(f'Key {key} is not supported for query.')
-                value_term = group_dict['value_short'] or group_dict['value_long']
-                value_term = value_term.replace('\\', '')
-                parsed_queries[key].append(QueryValue(group_dict['prefix'], original_key, group_dict['operator'], value_term))
-        if len(parsed_queries) > MAX_QUERY_PARAMETERS:
-            raise NotSupportedError('Too many search parameters.')
-        filters: list[Filter] = []
-        for key, values in parsed_queries.items():
-            for value in values:
-                q = keyword_map[key](value)
-                if value.prefix == '':
-                    filters.append(Filter(q=q, positive=True))
-                elif value.prefix == '-':
-                    filters.append(Filter(q=q, positive=False))
-                elif value.prefix != '':
-                    raise NotSupportedError(f'Prefix {value.prefix} is not supported for {key} search.')
-        filtered_queryset = smart_apply_filters(base, filters)
-        filtered_queryset_ids = filtered_queryset.values('id').distinct()
-        or_filter |= Q(id__in=filtered_queryset_ids)
-    return base.filter(or_filter)
+    regex_matches = re.finditer(QUERY_REGEX, query_string)
+    parsed_queries = defaultdict[str, list[QueryValue]](list)
+    query_match_count = 0
+    for regex_match in regex_matches:
+        query_match_count += 1
+        if query_match_count > MAX_QUERY_MATCHES:
+            raise NotSupportedError('Too many search terms.')
+        group_dict = regex_match.groupdict()
+        if group_dict['card_short'] or group_dict['card_long']:
+            card_term = group_dict['card_short'] or group_dict['card_long']
+            card_term = card_term.replace('\\', '')
+            parsed_queries['card'].append(QueryValue('', '', ':', card_term))
+        elif group_dict['key']:
+            key = group_dict['key'].lower()
+            original_key = key
+            if key in alias_map:
+                key = alias_map[key]
+            if key not in keyword_map:
+                raise NotSupportedError(f'Key {key} is not supported for query.')
+            value_term = group_dict['value_short'] or group_dict['value_long']
+            value_term = value_term.replace('\\', '')
+            parsed_queries[key].append(QueryValue(group_dict['prefix'], original_key, group_dict['operator'], value_term))
+    if len(parsed_queries) > MAX_QUERY_PARAMETERS:
+        raise NotSupportedError('Too many search parameters.')
+    filters: list[Filter] = []
+    for key, values in parsed_queries.items():
+        for value in values:
+            q = keyword_map[key](value)
+            if value.prefix == '':
+                filters.append(Filter(q=q, positive=True))
+            elif value.prefix == '-':
+                filters.append(Filter(q=q, positive=False))
+            elif value.prefix != '':
+                raise NotSupportedError(f'Prefix {value.prefix} is not supported for {key} search.')
+    return smart_apply_filters(base, filters)
+
+
+def variants_query_parser(base: QuerySet[Variant], query_string: str) -> QuerySet:
+    """
+    Parses a query string and filters a queryset of Variants.
+    """
+    filtered_queryset = variants_query_simple_parser(base, query_string)
+    return base.filter(id__in=filtered_queryset.values('id').distinct())

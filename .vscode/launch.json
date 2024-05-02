@@ -61,16 +61,14 @@
             }
         },
         {
-            "name": "Profile Server",
+            "name": "Profile/Debug Server",
             "type": "debugpy",
             "request": "launch",
             "cwd": "${workspaceFolder}/backend",
             "program": "manage.py",
             "args": [
-                "runprofileserver",
+                "runserver",
                 "--settings=backend.debug_settings",
-                "--use-cprofile",
-                "--prof-path=${workspaceFolder}/backend/temp/profiles"
             ],
             "envFile": "${workspaceFolder}/backend/.env",
             "preLaunchTask": "Profile Prelaunch",
@@ -83,7 +81,7 @@
             },
             "serverReadyAction" : {
                 "action": "openExternally",
-                "pattern": "Development server is running at (https?://[a-z0-9\\.:]+/?)",
+                "pattern": "Starting development server at (https?://[a-z0-9\\.:]+/?)",
                 "uriFormat": "%s",
                 "killOnServerStop": true
             }

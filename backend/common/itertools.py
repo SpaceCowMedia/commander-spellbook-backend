@@ -1,8 +1,11 @@
-from typing import Any, Iterable
+from typing import TypeVar, Iterable
 from itertools import cycle, islice
 
 
-def roundrobin(*iterables: Iterable[Any]) -> Iterable[Any]:
+T = TypeVar('T')
+
+
+def roundrobin(*iterables: Iterable[T]) -> Iterable[T]:
     "Visit input iterables in a cycle until each is exhausted."
     # roundrobin('ABC', 'D', 'EF') --> A D E B F C
     # Recipe credited to George Sakkis

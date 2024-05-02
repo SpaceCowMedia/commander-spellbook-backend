@@ -5,7 +5,7 @@ from typing import Callable
 from dataclasses import dataclass
 from spellbook.models import Variant
 from website.models import WebsiteProperty, FEATURED_SET_CODES
-from common.query import smart_apply_filters
+from common.query import smart_apply_filters, Filter
 from .color_parser import parse_identity
 
 
@@ -432,14 +432,14 @@ def variants_query_parser(base: QuerySet[Variant], query_string: str) -> QuerySe
                 parsed_queries[key].append(QueryValue(group_dict['prefix'], original_key, group_dict['operator'], value_term))
         if len(parsed_queries) > MAX_QUERY_PARAMETERS:
             raise NotSupportedError('Too many search parameters.')
-        filters: list[tuple[Q, bool]] = []
+        filters: list[Filter] = []
         for key, values in parsed_queries.items():
             for value in values:
                 q = keyword_map[key](value)
                 if value.prefix == '':
-                    filters.append((q, True))
+                    filters.append(Filter(q=q, positive=True))
                 elif value.prefix == '-':
-                    filters.append((q, False))
+                    filters.append(Filter(q=q, positive=False))
                 elif value.prefix != '':
                     raise NotSupportedError(f'Prefix {value.prefix} is not supported for {key} search.')
         filtered_queryset = smart_apply_filters(base, filters)

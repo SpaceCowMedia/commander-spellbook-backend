@@ -1,5 +1,6 @@
 from typing import TypeVar
 from collections import defaultdict
+from dataclasses import dataclass
 from django.db.models import Q, QuerySet, Model
 from .itertools import roundrobin
 
@@ -7,7 +8,13 @@ from .itertools import roundrobin
 T = TypeVar('T', bound=Model)
 
 
-def smart_apply_filters(base: QuerySet[T], q: list[tuple[Q, bool]]) -> QuerySet[T]:
+@dataclass(frozen=True)
+class Filter:
+    q: Q
+    positive: bool
+
+
+def smart_apply_filters(base: QuerySet[T], q: list[Filter]) -> QuerySet[T]:
     '''
     This function avoids queries that would result in a cartesian product
     due to the use of the same table in multiple filters.
@@ -26,9 +33,9 @@ def smart_apply_filters(base: QuerySet[T], q: list[tuple[Q, bool]]) -> QuerySet[
         table_map[table] = len(aliases)
     queryset = base
     grouped_q = defaultdict[str, list[tuple[Q, bool]]](list)
-    for query, is_positive in q:
-        field_name = query.children[0][0].split('__')[0]
-        grouped_q[field_name].append((query, is_positive))
+    for f in q:
+        field_name = f.q.children[0][0].split('__')[0]
+        grouped_q[field_name].append((f.q, f.positive))
     for q_list in grouped_q.values():
         q_list.sort(key=lambda q: q[0].children)
     round_robin_q = roundrobin(*grouped_q.values())

@@ -1,6 +1,6 @@
 from django.db.models import QuerySet, Prefetch
 from rest_framework import serializers
-from spellbook.models import Variant, CardInVariant, TemplateInVariant, Feature, FeatureProducedByVariant
+from spellbook.models import Variant, CardInVariant, TemplateInVariant, FeatureProducedByVariant
 from .combo_serializer import ComboSerializer
 from .feature_serializer import FeatureSerializer
 from .card_serializer import CardSerializer

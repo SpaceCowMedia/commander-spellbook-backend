@@ -27,6 +27,7 @@ class FeatureOfCardSerializer(serializers.ModelSerializer):
         model = FeatureOfCard
         fields = [
             'feature',
+            'quantity',
             'zone_locations',
             'battlefield_card_state',
             'exile_card_state',

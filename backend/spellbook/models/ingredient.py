@@ -1,5 +1,6 @@
 from django.db import models
 from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator
 from .constants import MAX_CARD_NAME_LENGTH, MAX_FEATURE_NAME_LENGTH
 from .validators import TEXT_VALIDATORS
 from .utils import recipe
@@ -14,6 +15,7 @@ class Ingredient(models.Model):
         GRAVEYARD = 'G'
         LIBRARY = 'L'
 
+    quantity = models.PositiveSmallIntegerField(default=1, blank=False, help_text='Quantity of the card in the combo.', verbose_name='quantity', validators=[MinValueValidator(1)])
     zone_locations = models.CharField(default=ZoneLocation.HAND, max_length=len(ZoneLocation.choices), blank=False, help_text='Starting location(s) for the card.', verbose_name='starting location')
     battlefield_card_state = models.CharField(max_length=200, blank=True, help_text='State of the card on the battlefield, if present.', validators=TEXT_VALIDATORS, verbose_name='battlefield starting card state')
     exile_card_state = models.CharField(max_length=200, blank=True, help_text='State of the card in exile, if present.', validators=TEXT_VALIDATORS, verbose_name='exile starting card state')

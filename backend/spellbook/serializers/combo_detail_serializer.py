@@ -1,6 +1,6 @@
 from django.db.models import QuerySet
 from rest_framework import serializers
-from spellbook.models import Combo, CardInCombo, TemplateInCombo
+from spellbook.models import Combo, CardInCombo, TemplateInCombo, FeatureNeededInCombo, FeatureProducedInCombo, FeatureRemovedInCombo
 from .feature_serializer import FeatureSerializer
 from .card_serializer import CardSerializer
 from .template_serializer import TemplateSerializer
@@ -46,9 +46,43 @@ class TemplateInComboSerializer(serializers.ModelSerializer):
         ]
 
 
+class FeatureProducedInComboSerializer(serializers.ModelSerializer):
+    feature = FeatureSerializer(many=False, read_only=True)
+
+    class Meta:
+        model = FeatureProducedInCombo
+        fields = [
+            'feature',
+            'quantity',
+        ]
+
+
+class FeatureNeededInComboSerializer(serializers.ModelSerializer):
+    feature = FeatureSerializer(many=False, read_only=True)
+
+    class Meta:
+        model = FeatureNeededInCombo
+        fields = [
+            'feature',
+            'quantity',
+        ]
+
+
+class FeatureRemovedInComboSerializer(serializers.ModelSerializer):
+    feature = FeatureSerializer(many=False, read_only=True)
+
+    class Meta:
+        model = FeatureRemovedInCombo
+        fields = [
+            'feature',
+            'quantity',
+        ]
+
+
 class ComboDetailSerializer(serializers.ModelSerializer):
-    produces = FeatureSerializer(many=True, read_only=True)
-    needs = FeatureSerializer(many=True, read_only=True)
+    produces = FeatureProducedInComboSerializer(source='featureproducedincombo_set', many=True, read_only=True)
+    needs = FeatureNeededInComboSerializer(source='featureneededincombo_set', many=True, read_only=True)
+    removes = FeatureRemovedInComboSerializer(source='featureremovedincombo_set', many=True, read_only=True)
     uses = CardInComboSerializer(source='cardincombo_set', many=True, read_only=True)
     requires = TemplateInComboSerializer(source='templateincombo_set', many=True, read_only=True)
 
@@ -58,6 +92,7 @@ class ComboDetailSerializer(serializers.ModelSerializer):
             'id',
             'status',
             'produces',
+            'removes',
             'needs',
             'uses',
             'requires',
@@ -69,9 +104,14 @@ class ComboDetailSerializer(serializers.ModelSerializer):
     @classmethod
     def prefetch_related(cls, queryset: QuerySet[Combo]):
         return queryset.prefetch_related(
-            'cardincombo_set__card',
-            'templateincombo_set__template',
             'cardincombo_set',
             'templateincombo_set',
-            'produces',
-            'needs')
+            'featureproducedincombo_set',
+            'featureremovedincombo_set',
+            'featureneededincombo_set',
+            'cardincombo_set__card',
+            'templateincombo_set__template',
+            'featureproducedincombo_set__feature',
+            'featureremovedincombo_set__feature',
+            'featureneededincombo_set__feature',
+        )

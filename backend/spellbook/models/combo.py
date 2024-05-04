@@ -1,6 +1,7 @@
 from django.db import models
 from django.db.models.signals import m2m_changed, post_save, post_delete
 from django.dispatch import receiver
+from django.core.validators import MinValueValidator
 from .mixins import ScryfallLinkMixin
 from .card import Card
 from .feature import Feature
@@ -57,13 +58,15 @@ class Combo(Recipe, ScryfallLinkMixin):
         to=Feature,
         related_name='produced_by_combos',
         help_text='Features that this combo produces',
-        verbose_name='produced features')
+        verbose_name='produced features',
+        through='FeatureProducedInCombo')
     removes = models.ManyToManyField(
         to=Feature,
         related_name='removed_by_combos',
         help_text='Features that this combo removes',
         blank=True,
-        verbose_name='removed features')
+        verbose_name='removed features',
+        through='FeatureRemovedInCombo')
     mana_needed = models.CharField(blank=True, max_length=200, help_text='Mana needed for this combo. Use the {1}{W}{U}{B}{R}{G}{B/P}... format.', validators=[MANA_VALIDATOR])
     other_prerequisites = models.TextField(blank=True, help_text='Other prerequisites for this combo.', validators=TEXT_VALIDATORS)
     description = models.TextField(blank=True, help_text='Long description of the combo, in steps', validators=TEXT_VALIDATORS)
@@ -115,9 +118,34 @@ class TemplateInCombo(IngredientInCombination):
 class FeatureNeededInCombo(models.Model):
     feature = models.ForeignKey(to=Feature, on_delete=models.CASCADE)
     combo = models.ForeignKey(to=Combo, on_delete=models.CASCADE)
+    quantity = models.PositiveSmallIntegerField(default=1, blank=False, help_text='Quantity of the feature needed in the combo.', verbose_name='quantity', validators=[MinValueValidator(1)])
 
     def __str__(self):
         return f'{self.feature} needed in combo {self.combo.pk}'
+
+    class Meta:
+        unique_together = [('feature', 'combo')]
+
+
+class FeatureProducedInCombo(models.Model):
+    feature = models.ForeignKey(to=Feature, on_delete=models.CASCADE)
+    combo = models.ForeignKey(to=Combo, on_delete=models.CASCADE)
+    quantity = models.PositiveSmallIntegerField(default=1, blank=False, help_text='Quantity of the feature produced in the combo.', verbose_name='quantity', validators=[MinValueValidator(1)])
+
+    def __str__(self):
+        return f'{self.feature} produced in combo {self.combo.pk}'
+
+    class Meta:
+        unique_together = [('feature', 'combo')]
+
+
+class FeatureRemovedInCombo(models.Model):
+    feature = models.ForeignKey(to=Feature, on_delete=models.CASCADE)
+    combo = models.ForeignKey(to=Combo, on_delete=models.CASCADE)
+    quantity = models.PositiveSmallIntegerField(default=1, blank=False, help_text='Quantity of the feature removed in the combo.', verbose_name='quantity', validators=[MinValueValidator(1)])
+
+    def __str__(self):
+        return f'{self.feature} removed in combo {self.combo.pk}'
 
     class Meta:
         unique_together = [('feature', 'combo')]

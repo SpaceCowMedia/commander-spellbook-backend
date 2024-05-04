@@ -140,8 +140,12 @@ class VariantAdmin(SpellbookModelAdmin):
     search_help_text = 'You can search variants using the usual Commander Spellbook query syntax.'
 
     @admin.display(description='produces')
-    def produces_link(self, obj):
-        features = list(obj.produces.all())
+    def produces_link(self, obj: Variant):
+        features = [
+            (f'{produced.quantity}x ' if produced.quantity > 1 else '') + produced.feature.name
+            for produced
+            in obj.featureproducedbyvariant_set.all()
+        ]
         format_for_each = '{}<br>'
         html = f'<a href="{{}}">{format_for_each * len(features)}</a>'
         return format_html(html, reverse('admin:spellbook_feature_changelist') + '?' + urlencode({'produced_by_variants__id': str(obj.id)}), *features)

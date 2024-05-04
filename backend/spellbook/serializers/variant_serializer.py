@@ -1,6 +1,6 @@
 from django.db.models import QuerySet, Prefetch
 from rest_framework import serializers
-from spellbook.models import Variant, CardInVariant, TemplateInVariant, Feature
+from spellbook.models import Variant, CardInVariant, TemplateInVariant, Feature, FeatureProducedByVariant
 from .combo_serializer import ComboSerializer
 from .feature_serializer import FeatureSerializer
 from .card_serializer import CardSerializer
@@ -73,6 +73,17 @@ class TemplateInVariantSerializer(IngredientInVariantSerializer):
         ]
 
 
+class FeatureProducedByVariantSerializer(serializers.ModelSerializer):
+    feature = FeatureSerializer(many=False, read_only=True)
+
+    class Meta:
+        model = FeatureProducedByVariant
+        fields = [
+            'feature',
+            'quantity',
+        ]
+
+
 class VariantLegalitiesSerializer(LegalitiesSerializer):
     class Meta(LegalitiesSerializer.Meta):
         model = Variant
@@ -86,7 +97,7 @@ class VariantPricesSerializer(PricesSerializer):
 class VariantSerializer(serializers.ModelSerializer):
     uses = CardInVariantSerializer(source='cardinvariant_set', many=True, read_only=True)
     requires = TemplateInVariantSerializer(source='templateinvariant_set', many=True, read_only=True)
-    produces = FeatureSerializer(many=True, read_only=True)
+    produces = FeatureProducedByVariantSerializer(source='featureproducedbyvariant_set', many=True, read_only=True)
     of = ComboSerializer(many=True, read_only=True)
     includes = ComboSerializer(many=True, read_only=True)
     mana_needed = serializers.SerializerMethodField()
@@ -141,10 +152,15 @@ class VariantSerializer(serializers.ModelSerializer):
     @classmethod
     def prefetch_related(cls, queryset: QuerySet[Variant]):
         return queryset.prefetch_related(
-            'cardinvariant_set__card',
-            'templateinvariant_set__template',
             'cardinvariant_set',
             'templateinvariant_set',
-            Prefetch('produces', queryset=Feature.objects.filter(utility=False)),
+            Prefetch(
+                'featureproducedbyvariant_set',
+                queryset=FeatureProducedByVariant.objects
+                .select_related('feature')
+                .filter(feature__utility=False),
+            ),
+            'cardinvariant_set__card',
+            'templateinvariant_set__template',
             'of',
             'includes')

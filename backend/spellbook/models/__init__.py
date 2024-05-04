@@ -3,8 +3,8 @@ from .feature import Feature
 from .card import Card, FeatureOfCard
 from .template import Template
 from .ingredient import IngredientInCombination, Ingredient
-from .combo import Combo, CardInCombo, TemplateInCombo, FeatureNeededInCombo
-from .variant import Variant, CardInVariant, TemplateInVariant
+from .combo import Combo, CardInCombo, TemplateInCombo, FeatureNeededInCombo, FeatureProducedInCombo, FeatureRemovedInCombo
+from .variant import Variant, CardInVariant, TemplateInVariant, FeatureProducedByVariant
 from .job import Job
 from .variant_suggestion import VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, FeatureProducedInVariantSuggestion
 from .variant_alias import VariantAlias

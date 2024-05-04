@@ -4,7 +4,7 @@ from django.dispatch import receiver
 from django.db.models.signals import post_save
 from django.utils.html import format_html
 from django.contrib.postgres.indexes import GinIndex
-from sortedm2m.fields import SortedManyToManyField
+from django.core.validators import MinValueValidator
 from .playable import Playable
 from .mixins import ScryfallLinkMixin, PreSaveSerializedModelMixin, PreSaveSerializedManager
 from .card import Card
@@ -62,11 +62,13 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
         blank=True,
         verbose_name='required templates',
         through='TemplateInVariant')
-    produces = SortedManyToManyField(
+    produces = models.ManyToManyField(
         to=Feature,
         related_name='produced_by_variants',
         help_text='Features that this variant produces',
-        editable=False)
+        editable=False,
+        through='FeatureProducedByVariant')
+    featureproducedbyvariant_set: models.Manager['FeatureProducedByVariant']
     includes = models.ManyToManyField(
         to=Combo,
         related_name='included_in_variants',
@@ -192,6 +194,18 @@ class TemplateInVariant(IngredientInCombination):
 
     class Meta(IngredientInCombination.Meta):
         unique_together = [('template', 'variant')]
+
+
+class FeatureProducedByVariant(models.Model):
+    feature = models.ForeignKey(to=Feature, on_delete=models.CASCADE)
+    variant = models.ForeignKey(to=Variant, on_delete=models.CASCADE)
+    quantity = models.PositiveSmallIntegerField(default=1, blank=False, help_text='Quantity of the feature produced by the variant.', verbose_name='quantity', validators=[MinValueValidator(1)])
+
+    def __str__(self):
+        return f'{self.feature} produced by {self.variant.pk}'
+
+    class Meta:
+        unique_together = [('feature', 'variant')]
 
 
 @receiver(post_save, sender=Variant.uses.through, dispatch_uid='update_variant_on_cards')

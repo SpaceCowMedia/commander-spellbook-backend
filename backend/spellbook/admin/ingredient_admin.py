@@ -62,4 +62,4 @@ class IngredientAdmin(admin.TabularInline):
     form = IngredientInCombinationForm
     extra = 0
     classes = ['ingredient']
-    fields = ['zone_locations', 'battlefield_card_state', 'exile_card_state', 'graveyard_card_state', 'library_card_state', 'must_be_commander']
+    fields = ['quantity', 'zone_locations', 'battlefield_card_state', 'exile_card_state', 'graveyard_card_state', 'library_card_state', 'must_be_commander']

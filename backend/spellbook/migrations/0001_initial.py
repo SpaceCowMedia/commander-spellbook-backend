@@ -5,7 +5,6 @@ import django.core.validators
 from django.db import migrations, models
 import django.db.models.deletion
 import django.db.models.functions.text
-import sortedm2m.fields
 import spellbook.models.mixins
 
 
@@ -218,7 +217,7 @@ class Migration(migrations.Migration):
                 ('generated_by', models.ForeignKey(blank=True, editable=False, help_text='Job that generated this variant', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='variants', to='spellbook.job')),
                 ('includes', models.ManyToManyField(editable=False, help_text='Combo that this variant includes', related_name='included_in_variants', to='spellbook.combo')),
                 ('of', models.ManyToManyField(editable=False, help_text='Combo that this variant is an instance of', related_name='variants', to='spellbook.combo')),
-                ('produces', sortedm2m.fields.SortedManyToManyField(editable=False, help_text='Features that this variant produces', related_name='produced_by_variants', to='spellbook.feature')),
+                ('produces', models.ManyToManyField(editable=False, help_text='Features that this variant produces', related_name='produced_by_variants', to='spellbook.feature')),
                 ('requires', models.ManyToManyField(blank=True, help_text='Templates that this variant requires', related_name='required_by_variants', through='spellbook.TemplateInVariant', to='spellbook.template', verbose_name='required templates')),
                 ('uses', models.ManyToManyField(editable=False, help_text='Cards that this variant uses', related_name='used_in_variants', through='spellbook.CardInVariant', to='spellbook.card')),
             ],

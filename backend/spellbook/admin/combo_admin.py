@@ -54,7 +54,7 @@ class TemplateInComboAdminInline(IngredientAdmin):
         return super().get_extra(request, obj, **kwargs)
 
 
-class FeatureInComboAdminInline(admin.TabularInline):
+class FeatureNeededInComboAdminInline(admin.TabularInline):
     model = Combo.needs.through
     extra = 0
     verbose_name = 'Feature'
@@ -64,6 +64,33 @@ class FeatureInComboAdminInline(admin.TabularInline):
     def get_extra(self, request: HttpRequest, obj, **kwargs: Any) -> int:
         if hasattr(request, 'from_suggestion') and request.from_suggestion is not None:  # type: ignore
             return len(request.from_suggestion.needs_list)  # type: ignore
+        return super().get_extra(request, obj, **kwargs)
+
+
+class FeatureProducedInComboAdminInline(admin.TabularInline):
+    model = Combo.produces.through
+    extra = 0
+    verbose_name = 'Feature'
+    verbose_name_plural = 'Produced Features'
+    autocomplete_fields = ['feature']
+
+    def get_extra(self, request: HttpRequest, obj, **kwargs: Any) -> int:
+        if hasattr(request, 'from_suggestion') and request.from_suggestion is not None:  # type: ignore
+            return len(request.from_suggestion.produces_list)  # type: ignore
+        return super().get_extra(request, obj, **kwargs)
+
+
+class FeatureRemovedInComboAdminInline(admin.TabularInline):
+    model = Combo.removes.through
+    extra = 0
+    verbose_name = 'Feature'
+    verbose_name_plural = 'Removed Features'
+    autocomplete_fields = ['feature']
+    classes = ['collapse']
+
+    def get_extra(self, request: HttpRequest, obj, **kwargs: Any) -> int:
+        if hasattr(request, 'from_suggestion') and request.from_suggestion is not None:  # type: ignore
+            return len(request.from_suggestion.removes_list)  # type: ignore
         return super().get_extra(request, obj, **kwargs)
 
 
@@ -105,11 +132,15 @@ class ComboAdmin(SpellbookModelAdmin):
     fieldsets = [
         ('Generated', {'fields': ['scryfall_link']}),
         ('More Requirements', {'fields': ['mana_needed', 'other_prerequisites']}),
-        ('Results', {'fields': ['produces', 'removes']}),
         ('Description', {'fields': ['status', 'description']}),
     ]
-    inlines = [CardInComboAdminInline, FeatureInComboAdminInline, TemplateInComboAdminInline]
-    filter_horizontal = ['produces', 'removes']
+    inlines = [
+        CardInComboAdminInline,
+        FeatureNeededInComboAdminInline,
+        TemplateInComboAdminInline,
+        FeatureProducedInComboAdminInline,
+        FeatureRemovedInComboAdminInline,
+    ]
     list_filter = ['status', PayoffFilter, VariantRelatedFilter]
     search_fields = [
         'uses__name',
@@ -157,7 +188,7 @@ class ComboAdmin(SpellbookModelAdmin):
                         messages.warning(request, mark_safe(
                             f'Could not find produced feature "{f}" in database. {create_missing_object_message(add_feature_link)}'
                         ))
-                initial_data['produces'] = [feature.pk for feature in found_produced_features]
+                request.from_suggestion.produces_list = found_produced_features
                 request.from_suggestion.uses_list = list(from_suggestion.uses.all())
                 suggested_required_templates: list[TemplateRequiredInVariantSuggestion] = list(from_suggestion.requires.all())
                 suggested_template_names = [suggested_template.template for suggested_template in suggested_required_templates]
@@ -237,10 +268,17 @@ class ComboAdmin(SpellbookModelAdmin):
                             'graveyard_card_state': suggested_template.graveyard_card_state,
                             'must_be_commander': suggested_template.must_be_commander,
                         })
-            elif isinstance(inline, FeatureInComboAdminInline):
+            elif isinstance(inline, FeatureNeededInComboAdminInline):
                 formset_kwargs['initial'] = []
                 found_needed_features_ids = {f.pk for f in request.from_suggestion.needs_list}  # type: ignore
                 for feature_id in found_needed_features_ids:
+                    formset_kwargs['initial'].append({
+                        'feature': feature_id,
+                    })
+            elif isinstance(inline, FeatureProducedInComboAdminInline):
+                formset_kwargs['initial'] = []
+                found_produced_features_ids = {f.pk for f in request.from_suggestion.produces_list}  # type: ignore
+                for feature_id in found_produced_features_ids:
                     formset_kwargs['initial'].append({
                         'feature': feature_id,
                     })

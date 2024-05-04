@@ -173,7 +173,7 @@ class ComboAdmin(SpellbookModelAdmin):
         if from_suggestion_id:
             try:
                 from_suggestion = VariantSuggestion.objects.get(pk=from_suggestion_id)
-                request.from_suggestion = from_suggestion
+                request.from_suggestion = from_suggestion  # type: ignore
                 initial_data['description'] = from_suggestion.description
                 initial_data['mana_needed'] = from_suggestion.mana_needed
                 initial_data['other_prerequisites'] = from_suggestion.other_prerequisites
@@ -188,8 +188,8 @@ class ComboAdmin(SpellbookModelAdmin):
                         messages.warning(request, mark_safe(
                             f'Could not find produced feature "{f}" in database. {create_missing_object_message(add_feature_link)}'
                         ))
-                request.from_suggestion.produces_list = found_produced_features
-                request.from_suggestion.uses_list = list(from_suggestion.uses.all())
+                request.from_suggestion.produces_list = found_produced_features  # type: ignore
+                request.from_suggestion.uses_list = list(from_suggestion.uses.all())  # type: ignore
                 suggested_required_templates: list[TemplateRequiredInVariantSuggestion] = list(from_suggestion.requires.all())
                 suggested_template_names = [suggested_template.template for suggested_template in suggested_required_templates]
                 found_required_templates = list(Template.objects.filter(name__in=suggested_template_names))
@@ -205,19 +205,19 @@ class ComboAdmin(SpellbookModelAdmin):
                         messages.warning(request, mark_safe(
                             f'Could not find required template "{suggested_template.template}" in database. {create_missing_object_message(add_template_link)}'
                         ))
-                request.from_suggestion.suggested_required_templates = suggested_required_templates
-                request.from_suggestion.needs_list = found_needed_features
-                request.from_suggestion.requires_list = [template for template in found_required_templates if template.name not in found_needed_features_names]
+                request.from_suggestion.suggested_required_templates = suggested_required_templates  # type: ignore
+                request.from_suggestion.needs_list = found_needed_features  # type: ignore
+                request.from_suggestion.requires_list = [template for template in found_required_templates if template.name not in found_needed_features_names]  # type: ignore
             except VariantSuggestion.DoesNotExist:
                 pass
         return initial_data
 
     def get_formset_kwargs(self, request: HttpRequest, obj: Any, inline: InlineModelAdmin, prefix: str) -> dict[str, Any]:
         formset_kwargs = super().get_formset_kwargs(request, obj, inline, prefix)
-        if not obj.id and hasattr(request, 'from_suggestion') and request.from_suggestion is not None:
+        if not obj.id and hasattr(request, 'from_suggestion') and request.from_suggestion is not None:  # type: ignore
             if isinstance(inline, CardInComboAdminInline):
                 formset_kwargs['initial'] = []
-                suggested_used_cards: list[CardUsedInVariantSuggestion] = request.from_suggestion.uses_list
+                suggested_used_cards: list[CardUsedInVariantSuggestion] = request.from_suggestion.uses_list  # type: ignore
                 found_used_cards_names_to_id = dict[str, str]()
                 for suggested_card in suggested_used_cards:
                     card_query = Q(name__iexact=suggested_card.card) \
@@ -294,7 +294,7 @@ class ComboAdmin(SpellbookModelAdmin):
             'needs__id',
         ):
             return True
-        return super().lookup_allowed(lookup, value, request)
+        return super().lookup_allowed(lookup, value, request)  # type: ignore for deprecated typing
 
     def after_save_related(self, request, form, formsets, change):
         instance: Combo = form.instance

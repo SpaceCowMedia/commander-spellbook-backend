@@ -32,7 +32,7 @@ class FeatureAdmin(SpellbookModelAdmin):
             'produced_by_variants__id',
         ):
             return True
-        return super().lookup_allowed(lookup, value, request)
+        return super().lookup_allowed(lookup, value, request)  # type: ignore for deprecated typing
 
     def sort_search_results(self, request, queryset: QuerySet, search_term: str) -> QuerySet:
         search_terms = [sub_term.strip() for term in search_term.split(' | ') for sub_term in term.split(' + ') if sub_term.strip()]
@@ -51,7 +51,7 @@ class FeatureAdmin(SpellbookModelAdmin):
 
     @admin.display(description='Scryfall link')
     def scryfall_link(self, obj: Feature):
-        card_names = obj.cards.values_list('name', flat=True)  # type: ignore
+        card_names: list[str] = obj.cards.values_list('name', flat=True)  # type: ignore
         if card_names:
             query_string = scryfall_query_string_for_card_names(card_names)
             if len(query_string) <= SCRYFALL_MAX_QUERY_LENGTH:

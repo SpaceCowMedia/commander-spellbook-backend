@@ -33,4 +33,4 @@ class UserViewSet(
     permission_classes = [IsSelf]
 
     def get_queryset(self):
-        return User.objects.filter(id=self.request.user.id)
+        return User.objects.filter(id=self.request.user.id)  # type: ignore

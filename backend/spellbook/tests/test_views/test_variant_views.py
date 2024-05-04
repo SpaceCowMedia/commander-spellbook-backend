@@ -15,7 +15,7 @@ class VariantViewsTests(AbstractModelTests):
         Variant.objects.update(status=Variant.Status.OK)
         Variant.objects.filter(id__in=random.sample(list(Variant.objects.values_list('id', flat=True)), 3)).update(status=Variant.Status.EXAMPLE)
         self.bulk_serialize_variants()
-        self.v1_id = Variant.objects.first().id
+        self.v1_id: int = Variant.objects.first().id  # type: ignore
         self.public_variants = VariantViewSet.queryset
 
     def variant_assertions(self, variant_result):

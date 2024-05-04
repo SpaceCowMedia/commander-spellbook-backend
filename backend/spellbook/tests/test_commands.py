@@ -62,7 +62,7 @@ class CleanJobsTest(AbstractModelTests):
     def test_export_variants(self):
         super().generate_variants()
         file_path = Path(settings.STATIC_BULK_FOLDER) / 'export_variants.json'
-        launch_job_command('export_variants', None, ['--file', file_path])
+        launch_job_command('export_variants', None, ['--file', str(file_path)])
         self.assertTrue(file_path.exists())
         with open(file_path) as f:
             data = json.load(f)
@@ -70,7 +70,7 @@ class CleanJobsTest(AbstractModelTests):
         for export_status in Variant.public_statuses():
             with self.subTest(export_status=export_status):
                 Variant.objects.update(status=export_status)
-                launch_job_command('export_variants', None, ['--file', file_path])
+                launch_job_command('export_variants', None, ['--file', str(file_path)])
                 with open(file_path) as f:
                     data = json.load(f)
                 self.assertEqual(len(data['variants']), 7)

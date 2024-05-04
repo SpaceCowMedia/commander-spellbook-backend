@@ -33,6 +33,7 @@ class Combo(Recipe, ScryfallLinkMixin):
         DRAFT = 'D'
         NEEDS_REVIEW = 'NR'
 
+    id: int
     uses = models.ManyToManyField(
         to=Card,
         related_name='used_in_combos',
@@ -40,6 +41,7 @@ class Combo(Recipe, ScryfallLinkMixin):
         blank=True,
         verbose_name='used cards',
         through='CardInCombo')
+    cardincombo_set: models.Manager['CardInCombo']
     needs = models.ManyToManyField(
         to=Feature,
         related_name='needed_by_combos',
@@ -47,6 +49,7 @@ class Combo(Recipe, ScryfallLinkMixin):
         blank=True,
         verbose_name='needed features',
         through='FeatureNeededInCombo')
+    featureneededincombo_set: models.Manager['FeatureNeededInCombo']
     requires = models.ManyToManyField(
         to=Template,
         related_name='required_by_combos',
@@ -54,12 +57,14 @@ class Combo(Recipe, ScryfallLinkMixin):
         blank=True,
         verbose_name='required templates',
         through='TemplateInCombo')
+    templateincombo_set: models.Manager['TemplateInCombo']
     produces = models.ManyToManyField(
         to=Feature,
         related_name='produced_by_combos',
         help_text='Features that this combo produces',
         verbose_name='produced features',
         through='FeatureProducedInCombo')
+    featureproducedincombo_set: models.Manager['FeatureProducedInCombo']
     removes = models.ManyToManyField(
         to=Feature,
         related_name='removed_by_combos',
@@ -67,6 +72,7 @@ class Combo(Recipe, ScryfallLinkMixin):
         blank=True,
         verbose_name='removed features',
         through='FeatureRemovedInCombo')
+    featureremovedincombo_set: models.Manager['FeatureRemovedInCombo']
     mana_needed = models.CharField(blank=True, max_length=200, help_text='Mana needed for this combo. Use the {1}{W}{U}{B}{R}{G}{B/P}... format.', validators=[MANA_VALIDATOR])
     other_prerequisites = models.TextField(blank=True, help_text='Other prerequisites for this combo.', validators=TEXT_VALIDATORS)
     description = models.TextField(blank=True, help_text='Long description of the combo, in steps', validators=TEXT_VALIDATORS)

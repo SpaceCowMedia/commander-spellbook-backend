@@ -26,6 +26,7 @@ class VariantSuggestion(Recipe):
         ACCEPTED = 'A'
         REJECTED = 'R'
 
+    id: int
     status = models.CharField(choices=Status.choices, default=Status.NEW, help_text='Suggestion status for editors', max_length=2)
     notes = models.TextField(blank=True, help_text='Notes written by editors', validators=TEXT_VALIDATORS)
     mana_needed = models.CharField(blank=True, max_length=200, help_text='Mana needed for this combo. Use the {1}{W}{U}{B}{R}{G}{B/P}... format.', validators=[MANA_VALIDATOR])
@@ -36,6 +37,9 @@ class VariantSuggestion(Recipe):
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, editable=False)
     suggested_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, editable=False, help_text='User that suggested this combo', related_name='suggestions')
+    uses: models.Manager['CardUsedInVariantSuggestion']
+    requires: models.Manager['TemplateRequiredInVariantSuggestion']
+    produces: models.Manager['FeatureProducedInVariantSuggestion']
 
     class Meta:
         verbose_name = 'variant suggestion'

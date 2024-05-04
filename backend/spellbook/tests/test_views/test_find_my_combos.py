@@ -76,7 +76,7 @@ class FindMyCombosViewTests(AbstractModelTests):
         for content_type in ['text/plain', 'application/json']:
             for using_ids in [False, True]:
                 with self.subTest('empty input'):
-                    response = c.get('/find-my-combos', follow=True, headers={'Content-Type': content_type})
+                    response = c.get('/find-my-combos', follow=True, headers={'Content-Type': content_type})  # type: ignore
                     self.assertEqual(response.status_code, 200)
                     self.assertEqual(response.get('Content-Type'), 'application/json')
                     result = json.loads(response.content, object_hook=json_to_python_lambda)
@@ -92,10 +92,10 @@ class FindMyCombosViewTests(AbstractModelTests):
                     else:
                         deck_list = card_str
                     identity = card.identity
-                    response = c.generic('GET', '/find-my-combos', data=deck_list, follow=True, headers={'Content-Type': content_type})
-                    self.assertEqual(response.status_code, 200)
-                    self.assertEqual(response.get('Content-Type'), 'application/json')
-                    result = json.loads(response.content, object_hook=json_to_python_lambda)
+                    response = c.generic('GET', '/find-my-combos', data=deck_list, follow=True, headers={'Content-Type': content_type})  # type: ignore
+                    self.assertEqual(response.status_code, 200)  # type: ignore
+                    self.assertEqual(response.get('Content-Type'), 'application/json')  # type: ignore
+                    result = json.loads(response.content, object_hook=json_to_python_lambda)  # type: ignore
                     self.assertEqual(result.results.identity, identity)
                     self.assertEqual(len(result.results.included), 0)
                     self.assertEqual(len(result.results.almost_included), 2)
@@ -120,10 +120,10 @@ class FindMyCombosViewTests(AbstractModelTests):
                                     deck_list_str = '\n'.join(['// Command'] + commander_list + ['// Main'] + deck_list)
                                 identity = merge_identities(c.identity for c in Card.objects.filter(name__in=deck_list + commander_list))
                                 identity_set = set(identity) | {'C'}
-                                response = c.generic('GET', '/find-my-combos', data=deck_list_str, follow=True, headers={'Content-Type': content_type})
-                                self.assertEqual(response.status_code, 200)
-                                self.assertEqual(response.get('Content-Type'), 'application/json')
-                                result = json.loads(response.content, object_hook=json_to_python_lambda)
+                                response = c.generic('GET', '/find-my-combos', data=deck_list_str, follow=True, headers={'Content-Type': content_type})  # type: ignore
+                                self.assertEqual(response.status_code, 200)  # type: ignore
+                                self.assertEqual(response.get('Content-Type'), 'application/json')  # type: ignore
+                                result = json.loads(response.content, object_hook=json_to_python_lambda)  # type: ignore
                                 self.assertEqual(result.results.identity, identity)
                                 related = [v for v in self.variants if len(self.variants_cards[v.id]) > len(self.variants_cards[v.id].difference(card_set)) <= 1]
                                 included_within_commander = [v for v in related if self.variants_cards[v.id].issubset(card_set) and self.variants_commanders[v.id].issubset(commander_set)]

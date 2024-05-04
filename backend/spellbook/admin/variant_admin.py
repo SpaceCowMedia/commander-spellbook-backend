@@ -174,7 +174,7 @@ class VariantAdmin(SpellbookModelAdmin):
 
     def generate(self, request: HttpRequest):
         if request.method == 'POST' and request.user.is_authenticated:
-            if launch_job_command('generate_variants', request.user):
+            if launch_job_command('generate_variants', request.user):  # type: ignore
                 messages.info(request, 'Variant generation job started.')
             else:
                 messages.warning(request, 'Variant generation is already running.')
@@ -184,7 +184,7 @@ class VariantAdmin(SpellbookModelAdmin):
         if request.method == 'POST' and request.user.is_authenticated:
             from ..management.s3_upload import can_upload_to_s3
             args = ['--s3'] if can_upload_to_s3() else []
-            if launch_job_command('export_variants', request.user, args):
+            if launch_job_command('export_variants', request.user, args):  # type: ignore
                 messages.info(request, 'Variant exporting job started.')
             else:
                 messages.warning(request, 'Variant exporting is already running.')
@@ -240,4 +240,4 @@ class VariantAdmin(SpellbookModelAdmin):
             'of__id',
         ):
             return True
-        return super().lookup_allowed(lookup, value, request)
+        return super().lookup_allowed(lookup, value, request)  # type: ignore for deprecated typing

@@ -9,5 +9,5 @@ class VariantAliasAdmin(admin.ModelAdmin):
     search_fields = ['id', 'variant__id', 'description']
     raw_id_fields = ['variant']
     list_filter = [
-        ('variant', admin.EmptyFieldListFilter)
+        ('variant', admin.EmptyFieldListFilter)  # type: ignore for deprecated typing
     ]

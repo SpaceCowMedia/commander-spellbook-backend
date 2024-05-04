@@ -9,6 +9,7 @@ class Job(models.Model):
         SUCCESS = 'S'
         FAILURE = 'F'
         PENDING = 'P'
+    id: int
     name = models.CharField(max_length=255, blank=False, verbose_name='name of job')
     created = models.DateTimeField(auto_now_add=True, blank=False)
     expected_termination = models.DateTimeField(blank=False)

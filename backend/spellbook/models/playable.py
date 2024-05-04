@@ -1,7 +1,7 @@
 from decimal import Decimal
 from django.db import models
 from django.db.models.functions import Length
-from django.db.models.fields.generated import GeneratedField
+from django.db.models.fields.generated import GeneratedField  # type: ignore
 from .utils import SORTED_COLORS
 
 

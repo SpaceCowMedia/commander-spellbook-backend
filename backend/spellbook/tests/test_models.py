@@ -53,12 +53,12 @@ class CardTests(AbstractModelTests):
 
     def test_scryfall_link(self):
         c = Card.objects.get(id=self.c1_id)
-        self.assertIn(SCRYFALL_WEBSITE_CARD_SEARCH, c.scryfall_link())
-        self.assertIn(c.query_string(), c.scryfall_link())
-        self.assertIn('<a', c.scryfall_link())
-        self.assertTrue(c.scryfall_link().startswith('<a'))
-        self.assertTrue(c.scryfall_link(raw=True).startswith('http'))
-        self.assertIn(c.scryfall_link(raw=True), c.scryfall_link(raw=False))
+        self.assertIn(SCRYFALL_WEBSITE_CARD_SEARCH, c.scryfall_link())  # type: ignore
+        self.assertIn(c.query_string(), c.scryfall_link())  # type: ignore
+        self.assertIn('<a', c.scryfall_link())  # type: ignore
+        self.assertTrue(c.scryfall_link().startswith('<a'))  # type: ignore
+        self.assertTrue(c.scryfall_link(raw=True).startswith('http'))  # type: ignore
+        self.assertIn(c.scryfall_link(raw=True), c.scryfall_link(raw=False))  # type: ignore
 
     def test_method_count(self):
         self.assertEqual(count_methods(Card), 4)
@@ -186,7 +186,7 @@ class JobTests(AbstractModelTests):
 
     def test_start(self):
         u = User.objects.get(username='test')
-        j = Job.start('job name', timezone.timedelta(minutes=5), user=u)
+        j: Job = Job.start('job name', timezone.timedelta(minutes=5), user=u)  # type: ignore
         self.assertIsNotNone(j)
         self.assertEqual(j.name, 'job name')
         self.assertEqual(j.started_by, u)
@@ -202,7 +202,7 @@ class JobTests(AbstractModelTests):
                 termination=timezone.now() + timezone.timedelta(minutes=5)
             ),
         ])
-        j = Job.start('a job name')
+        j: Job = Job.start('a job name')  # type: ignore
         self.assertIsNotNone(j)
         self.assertEqual(j.name, 'a job name')
         self.assertIsNone(j.started_by)
@@ -217,11 +217,11 @@ class JobTests(AbstractModelTests):
             expected_termination=timezone.now() + timezone.timedelta(minutes=10),
             termination=timezone.now() + timezone.timedelta(minutes=5)
         )
-        j = Job.get_or_start('a job name', id=-1, duration=timezone.timedelta(minutes=5))
+        j: Job = Job.get_or_start('a job name', id=-1, duration=timezone.timedelta(minutes=5))  # type: ignore
         self.assertIsNone(j)
-        j = Job.get_or_start('a job name', id=job.id, duration=timezone.timedelta(minutes=5))
+        j = Job.get_or_start('a job name', id=job.id, duration=timezone.timedelta(minutes=5))  # type: ignore
         self.assertEqual(j, job)
-        j = Job.get_or_start('a job name', duration=timezone.timedelta(minutes=5))
+        j = Job.get_or_start('a job name', duration=timezone.timedelta(minutes=5))  # type: ignore
         self.assertIsNotNone(j)
         self.assertEqual(j.name, 'a job name')
         self.assertIsNone(j.started_by)
@@ -235,11 +235,11 @@ class JobTests(AbstractModelTests):
             expected_termination=timezone.now() + timezone.timedelta(minutes=10),
             termination=timezone.now() + timezone.timedelta(minutes=5)
         )
-        j = Job.get_or_start('a job name', id=-1)
+        j: Job = Job.get_or_start('a job name', id=-1)  # type: ignore
         self.assertIsNone(j)
-        j = Job.get_or_start('a job name', id=job.id)
+        j = Job.get_or_start('a job name', id=job.id)  # type: ignore
         self.assertEqual(j, job)
-        j = Job.get_or_start('a job name')
+        j = Job.get_or_start('a job name')  # type: ignore
         self.assertIsNotNone(j)
         self.assertEqual(j.name, 'a job name')
         self.assertIsNone(j.started_by)
@@ -276,7 +276,7 @@ class VariantTests(AbstractModelTests):
         self.assertIn('2', v.description)
         self.assertIn('4', v.description)
         self.assertEqual(v.identity, 'W')
-        self.assertEqual(v.generated_by.id, Job.objects.get(name='generate_variants').id)
+        self.assertEqual(v.generated_by.id, Job.objects.get(name='generate_variants').id)  # type: ignore
         self.assertEqual(v.legal_commander, True)
         self.assertEqual(v.spoiler, False)
         self.assertEqual(v.description_line_count, v.description.count('\n') + 1)

@@ -29,6 +29,7 @@ class RecipePrefetchedManager(PreSaveSerializedManager):
 
 
 class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
+    objects: PreSaveSerializedManager
     recipes_prefetched = RecipePrefetchedManager()
 
     class Status(models.TextChoices):
@@ -55,6 +56,7 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
         help_text='Cards that this variant uses',
         editable=False,
         through='CardInVariant')
+    cardinvariant_set: models.Manager['CardInVariant']
     requires = models.ManyToManyField(
         to=Template,
         related_name='required_by_variants',
@@ -62,6 +64,7 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
         blank=True,
         verbose_name='required templates',
         through='TemplateInVariant')
+    templateinvariant_set: models.Manager['TemplateInVariant']
     produces = models.ManyToManyField(
         to=Feature,
         related_name='produced_by_variants',

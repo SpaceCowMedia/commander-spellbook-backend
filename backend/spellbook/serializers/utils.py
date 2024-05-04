@@ -8,7 +8,7 @@ class StringMultipleChoiceField(serializers.MultipleChoiceField):
 
     def to_internal_value(self, data):
         choices = {choice for choice in super().to_internal_value(data) if choice is not None}
-        return ''.join(sorted(choices, key=lambda x: self.keys[x]))
+        return ''.join(sorted(choices, key=lambda x: self.keys[x]))  # type: ignore
 
     def to_representation(self, value):
         return list(sorted(super().to_representation(value), key=lambda x: self.keys[x]))

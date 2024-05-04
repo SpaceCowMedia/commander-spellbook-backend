@@ -14,11 +14,11 @@ class MultipleChoiceFieldAsCharField(MultipleChoiceField):
     widget = CheckboxSelectMultipleAsCharField
 
     def to_python(self, value):
-        return ''.join(super().to_python(value))
+        return ''.join(super().to_python(value))  # type: ignore
 
     def validate(self, value):
         super().validate(value)
-        if len(value) > len(self.choices):
+        if len(value) > len(self.choices):  # type: ignore
             raise ValidationError('Too many choices.')
 
 

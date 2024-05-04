@@ -5,5 +5,5 @@ from multiset import BaseMultiset
 T = TypeVar('T')
 
 
-def includes_any(v: BaseMultiset[T], others: Iterable[BaseMultiset[T] | Set[T]]) -> bool:
+def includes_any(v: BaseMultiset, others: Iterable[BaseMultiset | Set[T]]) -> bool:
     return any(v.issuperset(o) for o in others)

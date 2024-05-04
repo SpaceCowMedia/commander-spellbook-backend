@@ -1,3 +1,4 @@
+multiset==3.1.0
 boto3==1.34.93
 Django==5.0.4
 django-filter==24.2

@@ -1,5 +1,5 @@
 from itertools import product
-from .minimal_set_of_sets import MinimalSetOfSets
+from .minimal_set_of_multisets import MinimalSetOfMultisets
 
 cardid = int
 templateid = int
@@ -7,7 +7,7 @@ templateid = int
 
 class VariantSet():
     def __init__(self, limit: int | float | None = None):
-        self.sets = MinimalSetOfSets[str]()
+        self.sets = MinimalSetOfMultisets[str]()
         self.max_depth = limit if limit is not None else float('inf')
 
     @classmethod

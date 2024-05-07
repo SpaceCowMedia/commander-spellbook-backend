@@ -56,7 +56,7 @@ class Command(AbstractCommand):
                 else:
                     webhook_text += f'The suggestion from {author.username} for {suggestion_name} has been **{past_tense}**'
                 if variant_suggestion.notes:
-                    webhook_text += f', with the following note: __{variant_suggestion.notes}__'
+                    webhook_text += f', with the following note: _{variant_suggestion.notes}_'
                 else:
                     webhook_text += '.'
                 webhook_text += '\n'

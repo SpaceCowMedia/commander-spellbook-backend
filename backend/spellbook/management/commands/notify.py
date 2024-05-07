@@ -3,6 +3,7 @@ from django.conf import settings
 from discord_webhook import DiscordWebhook
 from spellbook.models import VariantSuggestion, Variant
 from social_django.models import UserSocialAuth
+from common.markdown import escape_markdown
 
 
 class Command(AbstractCommand):
@@ -48,15 +49,15 @@ class Command(AbstractCommand):
                     user=author,
                     provider='discord',
                 ).first()
-                suggestion_name = f'`{variant_suggestion.name}`'
+                suggestion_name = f'`{escape_markdown(variant_suggestion.name)}`'
                 if variant_suggestion.spoiler:
                     suggestion_name = f'||{suggestion_name}||'
                 if discord_account:
                     webhook_text += f'<@{discord_account.uid}>, your suggestion for {suggestion_name} has been **{past_tense}**'
                 else:
-                    webhook_text += f'The suggestion from {author.username} for {suggestion_name} has been **{past_tense}**'
+                    webhook_text += f'The suggestion from {escape_markdown(author.username)} for {suggestion_name} has been **{past_tense}**'
                 if variant_suggestion.notes:
-                    webhook_text += f', with the following note: _{variant_suggestion.notes}_'
+                    webhook_text += f', with the following note: _{escape_markdown(variant_suggestion.notes)}_'
                 else:
                     webhook_text += '.'
                 webhook_text += '\n'

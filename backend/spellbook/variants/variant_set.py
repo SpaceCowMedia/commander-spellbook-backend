@@ -1,4 +1,6 @@
+from typing import Iterable
 from itertools import product
+from multiset import FrozenMultiset
 from .minimal_set_of_multisets import MinimalSetOfMultisets
 
 cardid = int
@@ -11,38 +13,40 @@ class VariantSet():
         self.max_depth = limit if limit is not None else float('inf')
 
     @classmethod
-    def ingredients_to_key(cls, cards: list[cardid], templates: list[templateid]) -> frozenset[str]:
-        return frozenset([f'C{c_id}' for c_id in cards] + [f'T{t_id}' for t_id in templates])
+    def ingredients_to_key(cls, cards: dict[cardid, int], templates: dict[templateid, int]) -> FrozenMultiset:
+        return FrozenMultiset(
+            {f'C{c_id}': c_q for c_id, c_q in cards.items()} | {f'T{t_id}': t_q for t_id, t_q in templates.items()}
+        )
 
     @classmethod
-    def key_to_ingredients(cls, key: frozenset[str]) -> tuple[list[cardid], list[templateid]]:
-        cards = list[cardid]()
-        templates = list[templateid]()
-        for item in key:
+    def key_to_ingredients(cls, key: FrozenMultiset) -> tuple[dict[cardid, int], dict[templateid, int]]:
+        cards = dict[cardid, int]()
+        templates = dict[templateid, int]()
+        for item, quantity in key.items():
             if item[0] == 'C':
-                cards.append(int(item[1:]))
+                cards[int(item[1:])] = quantity
             elif item[0] == 'T':
-                templates.append(int(item[1:]))
-        return (sorted(cards), sorted(templates))
+                templates[int(item[1:])] = quantity
+        return (cards, templates)
 
-    def add(self, cards: list[cardid], templates: list[templateid]):
+    def add(self, cards: dict[cardid, int], templates: dict[templateid, int]):
         base_key = self.ingredients_to_key(cards, templates)
         if len(base_key) > self.max_depth:
             return
         self._add(base_key)
 
-    def _add(self, key: frozenset[str]):
+    def _add(self, key: FrozenMultiset):
         if len(key) == 0 or len(key) > self.max_depth:
             return
         self.sets.add(key)
 
-    def is_satisfied_by(self, cards: list[cardid], templates: list[templateid]) -> bool:
+    def is_satisfied_by(self, cards: dict[cardid, int], templates: dict[templateid, int]) -> bool:
         key = self.ingredients_to_key(cards, templates)
         if len(key) > self.max_depth:
             return False
         return self.sets.contains_subset_of(key)
 
-    def satisfied_by(self, cards: list[cardid], templates: list[templateid]) -> list[tuple[list[cardid], list[templateid]]]:
+    def satisfied_by(self, cards: dict[cardid, int], templates: dict[templateid, int]) -> list[tuple[dict[cardid, int], dict[templateid, int]]]:
         key = self.ingredients_to_key(cards, templates)
         if len(key) > self.max_depth:
             return []
@@ -53,8 +57,8 @@ class VariantSet():
         result.sets = self.sets.copy()
         return result
 
-    def _keys(self) -> frozenset[frozenset[str]]:
-        return frozenset(self.sets)
+    def _keys(self) -> Iterable[FrozenMultiset]:
+        return self.sets
 
     def __str__(self) -> str:
         return str(self.sets)
@@ -85,11 +89,11 @@ class VariantSet():
     def __mul__(self, other):
         return self.__and__(other)
 
-    def variants(self) -> list[tuple[list[cardid], list[templateid]]]:
-        result = list[tuple[list[cardid], list[templateid]]]()
+    def variants(self) -> list[tuple[dict[cardid, int], dict[templateid, int]]]:
+        result = list[tuple[dict[cardid, int], dict[templateid, int]]]()
         for key in self._keys():
             cards, templates = self.key_to_ingredients(key)
-            result.append((sorted(cards), sorted(templates)))
+            result.append((cards, templates))
         return result
 
     def copy(self):

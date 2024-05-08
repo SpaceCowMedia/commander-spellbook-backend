@@ -3,7 +3,10 @@ import random
 import uuid
 from django.test import TestCase
 from django.conf import settings
-from spellbook.models import Card, Feature, Combo, CardInCombo, Template, TemplateInCombo, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, FeatureProducedInVariantSuggestion, VariantSuggestion, VariantAlias, IngredientInCombination, Variant
+from spellbook.models import Card, Feature, Combo, CardInCombo, Template, TemplateInCombo
+from spellbook.models import CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, FeatureProducedInVariantSuggestion
+from spellbook.models import VariantSuggestion, VariantAlias, IngredientInCombination, Variant
+from spellbook.models import FeatureOfCard, FeatureNeededInCombo, FeatureProducedInCombo, FeatureRemovedInCombo
 from spellbook.utils import launch_job_command
 from spellbook.serializers import VariantSerializer
 
@@ -70,16 +73,16 @@ class AbstractModelTests(TestCase):
         b8 = Combo.objects.create(mana_needed='{W}{U}{B}{R}{G}', other_prerequisites='Some requisites.', description='7', status=Combo.Status.NEEDS_REVIEW)
         t1 = Template.objects.create(name='TA', scryfall_query='tou>5', description='hello.')
         t2 = Template.objects.create(name='TB', scryfall_query='o:/asd dsa*/')
-        c1.features.add(f1)
-        b1.needs.add(f1)
-        CardInCombo.objects.create(card=c2, combo=b1, order=1, zone_locations=IngredientInCombination.ZoneLocation.HAND)
-        CardInCombo.objects.create(card=c3, combo=b1, order=2, zone_locations=IngredientInCombination.ZoneLocation.BATTLEFIELD, battlefield_card_state='tapped')
-        b1.produces.add(f2)
-        b1.produces.add(f3)
-        b2.needs.add(f2)
-        b2.removes.add(f3)
+        FeatureOfCard.objects.create(card=c1, feature=f1, zone_location=IngredientInCombination.ZoneLocation.BATTLEFIELD, quantity=1)
+        FeatureNeededInCombo.objects.create(feature=f1, combo=b1, quantity=1)
+        CardInCombo.objects.create(card=c2, combo=b1, order=1, zone_locations=IngredientInCombination.ZoneLocation.HAND, quantity=1)
+        CardInCombo.objects.create(card=c3, combo=b1, order=2, zone_locations=IngredientInCombination.ZoneLocation.BATTLEFIELD, battlefield_card_state='tapped', quantity=1)
+        FeatureProducedInCombo.objects.create(feature=f2, combo=b1, quantity=1)
+        FeatureProducedInCombo.objects.create(feature=f3, combo=b1, quantity=1)
+        FeatureNeededInCombo.objects.create(feature=f2, combo=b2, quantity=1)
+        FeatureRemovedInCombo.objects.create(feature=f3, combo=b2, quantity=1)
         TemplateInCombo.objects.create(template=t1, combo=b2, order=1, zone_locations=IngredientInCombination.ZoneLocation.GRAVEYARD, graveyard_card_state='on top')
-        b2.produces.add(f4)
+        FeatureProducedInCombo.objects.create(feature=f4, combo=b2, quantity=1)
         CardInCombo.objects.create(card=c4, combo=b3, order=1, zone_locations=IngredientInCombination.ZoneLocation.HAND)
         CardInCombo.objects.create(card=c5, combo=b3, order=2, zone_locations=IngredientInCombination.ZoneLocation.BATTLEFIELD + IngredientInCombination.ZoneLocation.HAND + IngredientInCombination.ZoneLocation.COMMAND_ZONE)
         CardInCombo.objects.create(card=c6, combo=b3, order=3, zone_locations=IngredientInCombination.ZoneLocation.COMMAND_ZONE, must_be_commander=True)

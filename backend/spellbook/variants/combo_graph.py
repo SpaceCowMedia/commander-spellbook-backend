@@ -1,3 +1,4 @@
+from typing import Mapping
 from math import prod
 from collections import deque, defaultdict
 from typing import Iterable, Callable
@@ -8,7 +9,7 @@ from spellbook.models.feature import Feature
 from spellbook.models.combo import Combo
 from spellbook.models.template import Template
 from .variant_data import Data
-from .variant_set import VariantSet
+from .variant_set import VariantSet, cardid, templateid
 
 
 class NodeState(Enum):
@@ -30,58 +31,80 @@ class Node:
 
 
 class CardNode(Node):
-    def __init__(self, card: Card, features: Iterable['FeatureNode'] = [], combos: Iterable['ComboNode'] = []):
+    def __init__(
+            self,
+            card: Card,
+            features: Mapping['FeatureNode', int] = {},
+            combos: Mapping['ComboNode', int] = {},
+    ):
         super().__init__()
         self.card = card
-        self.features = list(features)
-        self.combos = list(combos)
+        self.features = dict(features)
+        self.combos = dict(combos)
 
     def __hash__(self):
-        return hash(self.card) + 7 * hash('card')
+        return hash(self.card) + 31 * hash('card')
 
     def _item(self):
         return self.card
 
 
 class TemplateNode(Node):
-    def __init__(self, template: Template, combos: Iterable['ComboNode'] = []):
+    def __init__(
+            self,
+            template: Template,
+            combos: Mapping['ComboNode', int] = {},
+    ):
         super().__init__()
         self.template = template
-        self.combos = list(combos)
+        self.combos = dict(combos)
 
     def __hash__(self):
-        return hash(self.template) + 7 * hash('template')
+        return hash(self.template) + 31 * hash('template')
 
     def _item(self):
         return self.template
 
 
 class FeatureNode(Node):
-    def __init__(self, feature: Feature, cards: Iterable[CardNode] = [], produced_by_combos: Iterable['ComboNode'] = [], needed_by_combos: Iterable['ComboNode'] = []):
+    def __init__(
+        self,
+        feature: Feature,
+        produced_by_cards: Mapping[CardNode, int] = {},
+        produced_by_combos: Mapping['ComboNode', int] = {},
+        needed_by_combos: Mapping['ComboNode', int] = {},
+    ):
         super().__init__()
         self.feature = feature
-        self.cards = list[CardNode](cards)
-        self.produced_by_combos = list(produced_by_combos)
-        self.needed_by_combos = list(needed_by_combos)
+        self.produced_by_cards = dict(produced_by_cards)
+        self.produced_by_combos = dict(produced_by_combos)
+        self.needed_by_combos = dict(needed_by_combos)
 
     def __hash__(self):
-        return hash(self.feature) + 7 * hash('feature')
+        return hash(self.feature) + 31 * hash('feature')
 
     def _item(self):
         return self.feature
 
 
 class ComboNode(Node):
-    def __init__(self, combo: Combo, cards: Iterable[CardNode] = [], templates: Iterable[TemplateNode] = [], features_needed: Iterable[FeatureNode] = [], features_produced: Iterable[FeatureNode] = []):
+    def __init__(
+            self,
+            combo: Combo,
+            cards: Mapping[CardNode, int] = {},
+            templates: Mapping[TemplateNode, int] = {},
+            features_needed: Mapping[FeatureNode, int] = {},
+            features_produced: Mapping[FeatureNode, int] = {},
+    ):
         super().__init__()
         self.combo = combo
-        self.cards = list(cards)
-        self.templates = list(templates)
-        self.features_needed = list(features_needed)
-        self.features_produced = list(features_produced)
+        self.cards = dict(cards)
+        self.templates = dict(templates)
+        self.features_needed = dict(features_needed)
+        self.features_produced = dict(features_produced)
 
     def __hash__(self):
-        return hash(self.combo) + 7 * hash('combo')
+        return hash(self.combo) + 31 * hash('combo')
 
     def _item(self):
         return self.combo
@@ -89,15 +112,19 @@ class ComboNode(Node):
 
 @dataclass(frozen=True)
 class VariantIngredients:
-    cards: list[int]
-    templates: list[int]
+    cards: dict[cardid, int]
+    templates: dict[templateid, int]
+
+
+featureid = int
+comboid = int
 
 
 @dataclass(frozen=True)
 class VariantRecipe(VariantIngredients):
-    features: list[int]
-    combos: list[int]
-    replacements: dict[int, list[VariantIngredients]]
+    features: dict[featureid, int]
+    combos: list[comboid]
+    replacements: dict[featureid, list[VariantIngredients]]
 
 
 class Graph:
@@ -110,30 +137,33 @@ class Graph:
             self.data = data
             self.card_limit = card_limit
             self.variant_limit = variant_limit
-            self.cnodes = dict[int, CardNode]((card.id, CardNode(card, [], [])) for card in data.cards)
+            # Construct card nodes
+            self.cnodes = dict[int, CardNode]((card.id, CardNode(card)) for card in data.cards)
             for c in self.cnodes.values():
                 c.variant_set = VariantSet(limit=card_limit)
-                c.variant_set.add([c.card.id], [])
-            self.tnodes = dict[int, TemplateNode]((template.id, TemplateNode(template, [])) for template in data.templates)
+                c.variant_set.add({c.card.id: 1}, {})
+            # Construct template nodes
+            self.tnodes = dict[int, TemplateNode]((template.id, TemplateNode(template)) for template in data.templates)
             for t in self.tnodes.values():
                 t.variant_set = VariantSet(limit=card_limit)
-                t.variant_set.add([], [t.template.id])
+                t.variant_set.add({}, {t.template.id: 1})
+            # Construct feature nodes
             self.fnodes = dict[int, FeatureNode]()
             for feature in data.features:
-                node = FeatureNode(feature,
-                    cards=[self.cnodes[i.id] for i in feature.cards.all()],
-                    produced_by_combos=[],
-                    needed_by_combos=[])
+                node = FeatureNode(feature, produced_by_cards={self.cnodes[i.card.id]: i.quantity for i in feature.featureofcard_set.all()})  # type: ignore
                 self.fnodes[feature.id] = node
-                for card in feature.cards.all():
-                    self.cnodes[card.id].features.append(node)
+                for i in feature.featureofcard_set.all():  # type: ignore
+                    self.cnodes[i.card.id].features.update({node: i.quantity})
+            # Construct combo nodes
             self.bnodes = dict[int, ComboNode]()
             for combo in data.combos:
-                node = ComboNode(combo,
-                    cards=[self.cnodes[i.id] for i in combo.uses.all()],
-                    templates=[self.tnodes[i.id] for i in combo.requires.all()],
-                    features_needed=[self.fnodes[i.id] for i in combo.needs.all()],
-                    features_produced=[self.fnodes[i.id] for i in combo.produces.all()])
+                node = ComboNode(
+                    combo,
+                    cards={self.cnodes[i.card.id]: i.quantity for i in combo.cardincombo_set.all()},
+                    templates={self.tnodes[i.template.id]: i.quantity for i in combo.templateincombo_set.all()},
+                    features_needed={self.fnodes[i.feature.id]: i.quantity for i in combo.featureneededincombo_set.all()},
+                    features_produced={self.fnodes[i.feature.id]: i.quantity for i in combo.featureproducedincombo_set.all()},
+                )
                 self.bnodes[combo.id] = node
                 for feature in combo.produces.all():
                     featureNode = self.fnodes[feature.id]
@@ -201,7 +231,7 @@ class Graph:
             return feature.variant_set
         feature.state = NodeState.VISITING
         self.to_reset_nodes.add(feature)
-        card_variant_sets = [c.variant_set for c in feature.cards]
+        card_variant_sets = [c.variant_set for c in feature.produced_by_cards]
         produced_combos_variant_sets: list[VariantSet] = []
         for c in feature.produced_by_combos:
             if c.state == NodeState.VISITING:

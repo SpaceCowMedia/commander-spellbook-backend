@@ -20,19 +20,6 @@ class VariantDataTests(AbstractModelTests):
         self.assertDictEqual({k: data.combo_to_needed_features[k] for k in query.values_list('id', flat=True)}, {combo.id: list(combo.featureneededincombo_set.all()) for combo in query.all()})
         self.assertDictEqual({k: data.combo_to_removed_features[k] for k in query.values_list('id', flat=True)}, {combo.id: list(combo.featureremovedincombo_set.all()) for combo in query.all()})
 
-    def test_combos_single_combo(self):
-        combo = Combo.objects.first()
-        data = Data(single_combo=combo)
-        combos = Combo.objects.filter(status__in=(Combo.Status.GENERATOR, Combo.Status.GENERATOR_WITH_MANY_CARDS, Combo.Status.UTILITY), included_in_variants__includes=combo).distinct()
-        self.assertEqual(len(data.combos), combos.count())
-        self.assertDictEqual(data.id_to_combo, {c.id: c for c in combos})
-        self.assertEqual(set(c.id for c in data.generator_combos), set(combos.filter(status__in=(Combo.Status.GENERATOR, Combo.Status.GENERATOR_WITH_MANY_CARDS)).values_list('id', flat=True)))
-        self.assertDictEqual({k: data.combo_to_cards[k] for k in combos.values_list('id', flat=True)}, {combo.id: list(combo.cardincombo_set.all()) for combo in combos})
-        self.assertDictEqual({k: data.combo_to_templates[k] for k in combos.values_list('id', flat=True)}, {combo.id: list(combo.templateincombo_set.all()) for combo in combos})
-        self.assertDictEqual({k: data.combo_to_produced_features[k] for k in combos.values_list('id', flat=True)}, {combo.id: list(combo.featureproducedincombo_set.all()) for combo in combos})
-        self.assertDictEqual({k: data.combo_to_needed_features[k] for k in combos.values_list('id', flat=True)}, {combo.id: list(combo.featureneededincombo_set.all()) for combo in combos})
-        self.assertDictEqual({k: data.combo_to_removed_features[k] for k in combos.values_list('id', flat=True)}, {combo.id: list(combo.featureremovedincombo_set.all()) for combo in combos})
-
     def test_cards(self):
         data = Data()
         self.assertEqual(set(c.id for c in data.cards), set(Card.objects.values_list('id', flat=True)))

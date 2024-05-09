@@ -10,7 +10,7 @@ from .variant_set import VariantSet
 
 
 class Data:
-    def __init__(self, single_combo: Combo | None = None):
+    def __init__(self):
         combos_query = Combo.objects.filter(status__in=(Combo.Status.GENERATOR, Combo.Status.GENERATOR_WITH_MANY_CARDS, Combo.Status.UTILITY)).prefetch_related(
             'cardincombo_set',
             'templateincombo_set',
@@ -18,8 +18,6 @@ class Data:
             'featureneededincombo_set',
             'featureremovedincombo_set',
         )
-        if single_combo is not None:
-            combos_query = combos_query.filter(included_in_variants__includes=single_combo).distinct()
         self.combos = list(combos_query)
         self.id_to_combo: dict[int, Combo] = {c.id: c for c in self.combos}
         self.combo_to_cards = dict[int, list[CardInCombo]]()
@@ -52,7 +50,10 @@ class Data:
             variants = [v for v in variants if v.status == Variant.Status.NOT_WORKING]
             variant_set = VariantSet()
             for v in variants:
-                variant_set.add([c.card.id for c in v.cardinvariant_set.all()], [t.template.id for t in v.templateinvariant_set.all()])
+                variant_set.add(
+                    {c.card.id: c.quantity for c in v.cardinvariant_set.all()},
+                    {t.template.id: t.quantity for t in v.templateinvariant_set.all()},
+                )
             return variant_set
 
         self.features = list(Feature.objects.prefetch_related(

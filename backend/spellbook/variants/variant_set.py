@@ -89,6 +89,24 @@ class VariantSet():
     def __mul__(self, other):
         return self.__and__(other)
 
+    def __pow__(self, power: int):
+        if not isinstance(power, int):
+            raise ValueError('Exponent must be an integer.')
+        if power < 0:
+            raise ValueError('Exponent must be a non-negative integer.')
+        # Replace the following code with
+        # `self.and_sets([self] * power, limit=self.max_depth)`
+        # to switch to allowing trivial non-singleton variants
+        result = VariantSet(limit=self.max_depth)
+        keys = list(self._keys())
+        for key_combinations in product(*[keys] * power):
+            if len(key_combinations) == len(set(key_combinations)):
+                key = sum(key_combinations, FrozenMultiset())
+                if len(key) > self.max_depth:
+                    continue
+                result._add(key)
+        return result
+
     def variants(self) -> list[tuple[dict[cardid, int], dict[templateid, int]]]:
         result = list[tuple[dict[cardid, int], dict[templateid, int]]]()
         for key in self._keys():
@@ -100,15 +118,15 @@ class VariantSet():
         return self.__copy__()
 
     @classmethod
-    def or_sets(cls, sets: list['VariantSet'], limit: int | None = None) -> 'VariantSet':
+    def or_sets(cls, sets: list['VariantSet'], limit: int | float | None = None) -> 'VariantSet':
         return VariantSet.aggregate_sets(sets, limit=limit, strategy=lambda x, y: x | y)
 
     @classmethod
-    def and_sets(cls, sets: list['VariantSet'], limit: int | None = None) -> 'VariantSet':
+    def and_sets(cls, sets: list['VariantSet'], limit: int | float | None = None) -> 'VariantSet':
         return VariantSet.aggregate_sets(sets, limit=limit, strategy=lambda x, y: x & y)
 
     @classmethod
-    def aggregate_sets(cls, sets: list['VariantSet'], strategy, limit: int | None = None) -> 'VariantSet':
+    def aggregate_sets(cls, sets: list['VariantSet'], strategy, limit: int | float | None = None) -> 'VariantSet':
         match len(sets):
             case 0: return VariantSet(limit=limit)
             case _:

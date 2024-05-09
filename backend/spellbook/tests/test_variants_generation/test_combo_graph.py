@@ -1,10 +1,10 @@
 from spellbook.models import Combo
 from spellbook.variants.variant_data import Data
-from spellbook.variants.combo_graph import Graph
-from spellbook.tests.abstract_test import AbstractModelTests
+from spellbook.variants.combo_graph import Graph, VariantIngredients
+from spellbook.tests.abstract_test import AbstractTestCaseWithSeeding, AbstractTestCase
 
 
-class ComboGraphTest(AbstractModelTests):
+class ComboGraphTest(AbstractTestCaseWithSeeding):
     def test_empty_graph(self):
         Combo.objects.exclude(id=self.b2_id).delete()
         combo_graph = Graph(Data())
@@ -64,3 +64,93 @@ class ComboGraphTest(AbstractModelTests):
                     replacement_template_ids = {t for t in templates}
                     self.assertTrue(card_ids.issuperset(replacement_card_ids))
                     self.assertTrue(template_ids.issuperset(replacement_template_ids))
+
+
+class ComboGraphTestGeneration(AbstractTestCase):
+    def test_one_card_combo(self):
+        self.save_combo_model({
+            ('A',): ('x',),
+        })
+        combo_graph = Graph(Data())
+        variants = combo_graph.variants(1)
+        self.assertEqual(len(list(variants)), 1)
+        self.assertDictEqual(variants[0].cards, {1: 1})
+        self.assertDictEqual(variants[0].templates, {})
+        self.assertDictEqual(variants[0].features, {1: 1})
+        self.assertDictEqual(variants[0].replacements, {1: [VariantIngredients({1: 1}, {})]})
+
+    def test_two_one_card_combo(self):
+        self.save_combo_model({
+            ('A',): ('x',),
+            ('B',): ('x',),
+        })
+        combo_graph = Graph(Data())
+        variants = combo_graph.variants(1)
+        self.assertEqual(len(list(variants)), 1)
+        self.assertDictEqual(variants[0].cards, {1: 1})
+        self.assertDictEqual(variants[0].templates, {})
+        self.assertDictEqual(variants[0].features, {1: 1})
+        self.assertDictEqual(variants[0].replacements, {1: [VariantIngredients({1: 1}, {})]})
+        variants = combo_graph.variants(2)
+        self.assertEqual(len(list(variants)), 1)        
+        self.assertDictEqual(variants[0].cards, {2: 1})
+        self.assertDictEqual(variants[0].templates, {})
+        self.assertDictEqual(variants[0].features, {1: 1})
+        self.assertDictEqual(variants[0].replacements, {1: [VariantIngredients({2: 1}, {})]})
+
+    def test_card_plus_template(self):
+        self.save_combo_model({
+            ('A', 'T1'): ('x', 'y'),
+        })
+        combo_graph = Graph(Data())
+        variants = combo_graph.variants(1)
+        self.assertEqual(len(list(variants)), 1)
+        self.assertDictEqual(variants[0].cards, {1: 1})
+        self.assertDictEqual(variants[0].templates, {1: 1})
+        self.assertDictEqual(variants[0].features, {1: 1, 2: 1})
+        self.assertDictEqual(variants[0].replacements, {
+            1: [VariantIngredients({1: 1}, {1: 1})],
+            2: [VariantIngredients({1: 1}, {1: 1})],
+        })
+
+    def test_feature_replacement(self):
+        self.save_combo_model({
+            ('A',): ('x',),
+            ('B',): ('x',),
+            ('x',): ('y',),
+        })
+        combo_graph = Graph(Data())
+        variants = combo_graph.variants(3)
+        self.assertEqual(len(list(variants)), 2)
+        variants.sort(key=lambda v: sorted(v.cards))
+        self.assertDictEqual(variants[0].cards, {1: 1})
+        self.assertDictEqual(variants[0].templates, {})
+        self.assertDictEqual(variants[0].features, {1: 1, 2: 1})
+        self.assertDictEqual(variants[0].replacements, {
+            1: [VariantIngredients({1: 1}, {})],
+            2: [VariantIngredients({1: 1}, {})],
+        })
+        self.assertDictEqual(variants[1].cards, {2: 1})
+        self.assertDictEqual(variants[1].templates, {})
+        self.assertDictEqual(variants[1].features, {1: 1, 2: 1})
+        self.assertDictEqual(variants[1].replacements, {
+            1: [VariantIngredients({2: 1}, {})],
+            2: [VariantIngredients({2: 1}, {})],
+        })
+
+    def test_feature_replacement_chain(self):
+        self.save_combo_model({
+            ('A',): ('x',),
+            ('B',): ('x',),
+            ('x',): ('y',),
+            ('y',): ('z',),
+        })
+        combo_graph = Graph(Data())
+        variants_a = combo_graph.variants(4)
+        variants_b = combo_graph.variants(3)
+        variants_a.sort(key=lambda v: sorted(v.cards))
+        variants_b.sort(key=lambda v: sorted(v.cards))
+        self.assertEqual(variants_a, variants_b)
+        self.assertDictEqual(variants_a[0].features, {1: 1, 2: 1, 3: 1})
+
+    # TODO: more tests

@@ -7,11 +7,11 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from spellbook.models import Job, Variant
 from spellbook.utils import launch_job_command
-from .abstract_test import AbstractModelTests
+from .abstract_test import AbstractTestCaseWithSeeding
 from spellbook.models import id_from_cards_and_templates_ids
 
 
-class CleanJobsTest(AbstractModelTests):
+class CleanJobsTest(AbstractTestCaseWithSeeding):
     def test_clean_jobs(self):
         j = Job(
             name='test',

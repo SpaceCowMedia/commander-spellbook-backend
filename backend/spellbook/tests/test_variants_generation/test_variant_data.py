@@ -1,9 +1,9 @@
-from spellbook.tests.abstract_test import AbstractModelTests
+from spellbook.tests.abstract_test import AbstractTestCaseWithSeeding
 from spellbook.variants.variant_data import Data, debug_queries
 from spellbook.models import Variant, Combo, Feature, Card, Template, id_from_cards_and_templates_ids
 
 
-class VariantDataTests(AbstractModelTests):
+class VariantDataTests(AbstractTestCaseWithSeeding):
     def setUp(self):
         super().setUp()
         super().generate_variants()

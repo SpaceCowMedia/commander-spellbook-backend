@@ -4,11 +4,11 @@ from django.test import Client
 from django.db import models
 from spellbook.models import Card, Template, Feature, Variant, CardInVariant, TemplateInVariant
 from spellbook.views import VariantViewSet
-from ..abstract_test import AbstractModelTests
+from ..abstract_test import AbstractTestCaseWithSeeding
 from common.inspection import json_to_python_lambda
 
 
-class VariantViewsTests(AbstractModelTests):
+class VariantViewsTests(AbstractTestCaseWithSeeding):
     def setUp(self) -> None:
         super().setUp()
         super().generate_variants()

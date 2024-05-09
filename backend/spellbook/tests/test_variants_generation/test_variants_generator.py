@@ -1,12 +1,12 @@
 from itertools import chain
-from spellbook.tests.abstract_test import AbstractModelTests
+from spellbook.tests.abstract_test import AbstractTestCaseWithSeeding
 from spellbook.models import Job, Variant, Card, IngredientInCombination, CardInVariant, TemplateInVariant, Template, Combo, Feature
 from spellbook.variants.variant_data import Data
 from spellbook.variants.variants_generator import get_variants_from_graph, get_default_zone_location_for_card, update_state_with_default, generate_variants, apply_replacements
 from spellbook.utils import launch_job_command
 
 
-class VariantsGeneratorTests(AbstractModelTests):
+class VariantsGeneratorTests(AbstractTestCaseWithSeeding):
     def test_get_variants_from_graph(self):
         job = Job.start('test_get_variants_from_graph')
         if job is None:

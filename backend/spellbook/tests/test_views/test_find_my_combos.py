@@ -6,11 +6,11 @@ from unittest import skipUnless
 from django.test import Client
 from spellbook.models import Card, Variant, merge_identities
 from spellbook.serializers import VariantSerializer
-from ..abstract_test import AbstractModelTests
+from ..abstract_test import AbstractTestCaseWithSeeding
 from common.inspection import json_to_python_lambda
 
 
-class FindMyCombosViewTests(AbstractModelTests):
+class FindMyCombosViewTests(AbstractTestCaseWithSeeding):
     def setUp(self) -> None:
         super().setUp()
         super().generate_variants()

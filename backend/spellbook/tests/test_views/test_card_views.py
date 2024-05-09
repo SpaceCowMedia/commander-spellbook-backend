@@ -1,11 +1,11 @@
 import json
 from django.test import Client
 from spellbook.models import Card
-from ..abstract_test import AbstractModelTests
+from ..abstract_test import AbstractTestCaseWithSeeding
 from common.inspection import json_to_python_lambda
 
 
-class CardViewsTests(AbstractModelTests):
+class CardViewsTests(AbstractTestCaseWithSeeding):
     def card_assertions(self, card_result):
         c = Card.objects.get(id=card_result.id)
         self.assertEqual(card_result.id, c.id)

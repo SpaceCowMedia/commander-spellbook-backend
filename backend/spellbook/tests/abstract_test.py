@@ -1,6 +1,7 @@
 import logging
 import random
 import uuid
+from collections import defaultdict
 from django.test import TestCase
 from django.conf import settings
 from spellbook.models import Card, Feature, Combo, CardInCombo, Template, TemplateInCombo
@@ -11,7 +12,58 @@ from spellbook.utils import launch_job_command
 from spellbook.serializers import VariantSerializer
 
 
-class AbstractModelTests(TestCase):
+class AbstractTestCase(TestCase):
+    def setUp(self) -> None:
+        settings.ASYNC_GENERATION = False
+        logging.disable(logging.INFO)
+        random.seed(42)
+
+    def generate_variants(self):
+        launch_job_command('generate_variants', None)
+
+    def bulk_serialize_variants(self, q=None, extra_fields=[]):
+        if q is None:
+            q = Variant.objects.all()
+        Variant.objects.bulk_serialize(q, serializer=VariantSerializer, fields=extra_fields)  # type: ignore
+
+    def save_combo_model(self, model: dict[tuple[str, ...], tuple[str, ...]]):
+        for recipe, result in model.items():
+            cards = defaultdict[str, int](int)
+            features = defaultdict[str, int](int)
+            templates = defaultdict[str, int](int)
+            for element in recipe:
+                if '*' in element:
+                    element, quantity = element.split('*')
+                    quantity = int(quantity)
+                else:
+                    quantity = 1
+                if element[0].islower():
+                    features[element] += quantity
+                elif element[0] == 'T':
+                    templates[element] += quantity
+                else:
+                    cards[element] += quantity
+            combo = Combo.objects.create(mana_needed='', other_prerequisites='Test Prerequisites', description='Test Description', status=Combo.Status.GENERATOR)
+            for i, (card, quantity) in enumerate(cards.items(), start=1):
+                c, _ = Card.objects.get_or_create(name=card, oracle_id=uuid.uuid4(), identity='W', legal_commander=True, spoiler=False, type_line='Test Card')
+                CardInCombo.objects.create(card=c, combo=combo, order=i, zone_locations=IngredientInCombination.ZoneLocation.BATTLEFIELD, quantity=quantity)
+            for feature, quantity in features.items():
+                f, _ = Feature.objects.get_or_create(name=feature, description='Test Feature', utility=False)
+                FeatureNeededInCombo.objects.create(feature=f, combo=combo, quantity=quantity)
+            for i, (template, quantity) in enumerate(templates.items(), start=1):
+                t, _ = Template.objects.get_or_create(name=template, scryfall_query='o:test', description='Test Template')
+                TemplateInCombo.objects.create(template=t, combo=combo, order=i, zone_locations=IngredientInCombination.ZoneLocation.BATTLEFIELD, quantity=quantity)
+            for feature in result:
+                if feature.startswith('-'):
+                    feature = feature[1:]
+                    f, _ = Feature.objects.get_or_create(name=feature, description='Test Feature', utility=False)
+                    FeatureRemovedInCombo.objects.create(feature=f, combo=combo)
+                else:
+                    f, _ = Feature.objects.get_or_create(name=feature, description='Test Feature', utility=False)
+                    FeatureProducedInCombo.objects.create(feature=f, combo=combo)
+
+
+class AbstractTestCaseWithSeeding(AbstractTestCase):
     c1_id = 0
     c2_id = 0
     c3_id = 0
@@ -36,18 +88,9 @@ class AbstractModelTests(TestCase):
     expected_variant_count = 7
 
     def setUp(self) -> None:
-        settings.ASYNC_GENERATION = False
-        logging.disable(logging.INFO)
+        super().setUp()
         self.populate_db()
         random.seed(42)
-
-    def generate_variants(self):
-        launch_job_command('generate_variants', None)
-
-    def bulk_serialize_variants(self, q=None, extra_fields=[]):
-        if q is None:
-            q = Variant.objects.all()
-        Variant.objects.bulk_serialize(q, serializer=VariantSerializer, fields=extra_fields)  # type: ignore
 
     def populate_db(self):
         c1 = Card.objects.create(name='A A', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000001'), identity='W', legal_commander=True, spoiler=False, type_line='Instant', oracle_text='x1')
@@ -73,38 +116,38 @@ class AbstractModelTests(TestCase):
         b8 = Combo.objects.create(mana_needed='{W}{U}{B}{R}{G}', other_prerequisites='Some requisites.', description='7', status=Combo.Status.NEEDS_REVIEW)
         t1 = Template.objects.create(name='TA', scryfall_query='tou>5', description='hello.')
         t2 = Template.objects.create(name='TB', scryfall_query='o:/asd dsa*/')
-        FeatureOfCard.objects.create(card=c1, feature=f1, zone_location=IngredientInCombination.ZoneLocation.BATTLEFIELD, quantity=1)
+        FeatureOfCard.objects.create(card=c1, feature=f1, zone_locations=IngredientInCombination.ZoneLocation.BATTLEFIELD, quantity=1)
         FeatureNeededInCombo.objects.create(feature=f1, combo=b1, quantity=1)
         CardInCombo.objects.create(card=c2, combo=b1, order=1, zone_locations=IngredientInCombination.ZoneLocation.HAND, quantity=1)
         CardInCombo.objects.create(card=c3, combo=b1, order=2, zone_locations=IngredientInCombination.ZoneLocation.BATTLEFIELD, battlefield_card_state='tapped', quantity=1)
-        FeatureProducedInCombo.objects.create(feature=f2, combo=b1, quantity=1)
-        FeatureProducedInCombo.objects.create(feature=f3, combo=b1, quantity=1)
+        FeatureProducedInCombo.objects.create(feature=f2, combo=b1)
+        FeatureProducedInCombo.objects.create(feature=f3, combo=b1)
         FeatureNeededInCombo.objects.create(feature=f2, combo=b2, quantity=1)
-        FeatureRemovedInCombo.objects.create(feature=f3, combo=b2, quantity=1)
+        FeatureRemovedInCombo.objects.create(feature=f3, combo=b2)
         TemplateInCombo.objects.create(template=t1, combo=b2, order=1, zone_locations=IngredientInCombination.ZoneLocation.GRAVEYARD, graveyard_card_state='on top')
-        FeatureProducedInCombo.objects.create(feature=f4, combo=b2, quantity=1)
+        FeatureProducedInCombo.objects.create(feature=f4, combo=b2)
         CardInCombo.objects.create(card=c4, combo=b3, order=1, zone_locations=IngredientInCombination.ZoneLocation.HAND)
         CardInCombo.objects.create(card=c5, combo=b3, order=2, zone_locations=IngredientInCombination.ZoneLocation.BATTLEFIELD + IngredientInCombination.ZoneLocation.HAND + IngredientInCombination.ZoneLocation.COMMAND_ZONE)
         CardInCombo.objects.create(card=c6, combo=b3, order=3, zone_locations=IngredientInCombination.ZoneLocation.COMMAND_ZONE, must_be_commander=True)
         CardInCombo.objects.create(card=c7, combo=b3, order=4, zone_locations=IngredientInCombination.ZoneLocation.LIBRARY, library_card_state='on top')
-        b3.produces.add(f1)
+        FeatureProducedInCombo.objects.create(feature=f1, combo=b3)
         CardInCombo.objects.create(card=c5, combo=b5, order=1, zone_locations=IngredientInCombination.ZoneLocation.HAND)
         CardInCombo.objects.create(card=c6, combo=b5, order=2, zone_locations=IngredientInCombination.ZoneLocation.BATTLEFIELD, battlefield_card_state='attacking')
-        b5.produces.add(f1)
-        b4.produces.add(f2)
+        FeatureProducedInCombo.objects.create(feature=f1, combo=b5)
+        FeatureProducedInCombo.objects.create(feature=f2, combo=b4)
         CardInCombo.objects.create(card=c8, combo=b4, order=1, zone_locations=IngredientInCombination.ZoneLocation.HAND)
         CardInCombo.objects.create(card=c1, combo=b4, order=2, zone_locations=IngredientInCombination.ZoneLocation.BATTLEFIELD, battlefield_card_state='blocking')
-        b6.produces.add(f4)
+        FeatureProducedInCombo.objects.create(feature=f4, combo=b6)
         CardInCombo.objects.create(card=c1, combo=b6, order=1, zone_locations=IngredientInCombination.ZoneLocation.HAND)
         CardInCombo.objects.create(card=c2, combo=b6, order=2, zone_locations=IngredientInCombination.ZoneLocation.BATTLEFIELD, battlefield_card_state='face down')
         CardInCombo.objects.create(card=c3, combo=b6, order=3, zone_locations=IngredientInCombination.ZoneLocation.GRAVEYARD, graveyard_card_state='with a sticker')
         CardInCombo.objects.create(card=c4, combo=b6, order=4, zone_locations=IngredientInCombination.ZoneLocation.EXILE, exile_card_state='with a cage counter')
         CardInCombo.objects.create(card=c5, combo=b6, order=5, zone_locations=IngredientInCombination.ZoneLocation.COMMAND_ZONE, must_be_commander=True)
         CardInCombo.objects.create(card=c6, combo=b6, order=6, zone_locations=IngredientInCombination.ZoneLocation.LIBRARY, library_card_state='at the bottom')
-        b7.produces.add(f5)
-        b7.needs.add(f4)
-        b8.produces.add(f5)
-        b8.needs.add(f4)
+        FeatureProducedInCombo.objects.create(feature=f5, combo=b7)
+        FeatureNeededInCombo.objects.create(feature=f4, combo=b7, quantity=1)
+        FeatureProducedInCombo.objects.create(feature=f5, combo=b8)
+        FeatureNeededInCombo.objects.create(feature=f4, combo=b8, quantity=1)
 
         s1 = VariantSuggestion.objects.create(status=VariantSuggestion.Status.NEW, mana_needed='{W}{W}', other_prerequisites='Some requisites.', description='1', spoiler=True, suggested_by=None)
         CardUsedInVariantSuggestion.objects.create(card=c1.name, variant=s1, order=1, zone_locations=IngredientInCombination.ZoneLocation.HAND)

@@ -1,11 +1,11 @@
 import json
 from django.test import Client
 from spellbook.models import Template
-from ..abstract_test import AbstractModelTests
+from ..abstract_test import AbstractTestCaseWithSeeding
 from common.inspection import json_to_python_lambda
 
 
-class TemplateViewsTests(AbstractModelTests):
+class TemplateViewsTests(AbstractTestCaseWithSeeding):
     def template_assertions(self, template_result):
         t = Template.objects.get(id=template_result.id)
         self.assertEqual(template_result.id, t.id)

@@ -1,11 +1,11 @@
 import json
 from django.test import Client
 from spellbook.models import Feature
-from ..abstract_test import AbstractModelTests
+from ..abstract_test import AbstractTestCaseWithSeeding
 from common.inspection import json_to_python_lambda
 
 
-class FeatureViewsTests(AbstractModelTests):
+class FeatureViewsTests(AbstractTestCaseWithSeeding):
     def feature_assertions(self, feature_result):
         f = Feature.objects.get(id=feature_result.id)
         self.assertEqual(feature_result.id, f.id)

@@ -136,7 +136,6 @@ class FeatureNeededInCombo(models.Model):
 class FeatureProducedInCombo(models.Model):
     feature = models.ForeignKey(to=Feature, on_delete=models.CASCADE)
     combo = models.ForeignKey(to=Combo, on_delete=models.CASCADE)
-    quantity = models.PositiveSmallIntegerField(default=1, blank=False, help_text='Quantity of the feature produced in the combo.', verbose_name='quantity', validators=[MinValueValidator(1)])
 
     def __str__(self):
         return f'{self.feature} produced in combo {self.combo.pk}'
@@ -148,7 +147,6 @@ class FeatureProducedInCombo(models.Model):
 class FeatureRemovedInCombo(models.Model):
     feature = models.ForeignKey(to=Feature, on_delete=models.CASCADE)
     combo = models.ForeignKey(to=Combo, on_delete=models.CASCADE)
-    quantity = models.PositiveSmallIntegerField(default=1, blank=False, help_text='Quantity of the feature removed in the combo.', verbose_name='quantity', validators=[MinValueValidator(1)])
 
     def __str__(self):
         return f'{self.feature} removed in combo {self.combo.pk}'

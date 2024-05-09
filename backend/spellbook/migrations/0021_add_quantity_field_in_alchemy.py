@@ -46,7 +46,6 @@ def migrate_combo_produces_through(apps, schema_editor):
                 FeatureProducedInCombo(
                     combo=combo,
                     feature=feature,
-                    quantity=1,
                 )
             )
     FeatureProducedInCombo.objects.bulk_create(to_create)
@@ -76,7 +75,6 @@ def migrate_feature_removed_in_combo_through(apps, schema_editor):
                 FeatureRemovedInCombo(
                     combo=combo,
                     feature=feature,
-                    quantity=1,
                 )
             )
     FeatureRemovedInCombo.objects.bulk_create(to_create)
@@ -197,7 +195,6 @@ class Migration(migrations.Migration):
             name='FeatureProducedInCombo',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('quantity', models.PositiveSmallIntegerField(default=1, help_text='Quantity of the feature produced in the combo.', validators=[django.core.validators.MinValueValidator(1)], verbose_name='quantity')),
                 ('combo', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='spellbook.combo')),
                 ('feature', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='spellbook.feature')),
             ],
@@ -222,7 +219,6 @@ class Migration(migrations.Migration):
             name='FeatureRemovedInCombo',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('quantity', models.PositiveSmallIntegerField(default=1, help_text='Quantity of the feature removed in the combo.', validators=[django.core.validators.MinValueValidator(1)], verbose_name='quantity')),
                 ('combo', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='spellbook.combo')),
                 ('feature', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='spellbook.feature')),
             ],

@@ -97,16 +97,16 @@ jobs:
     steps:
       - name: Checkout 🛎️
         uses: actions/checkout@v4
-      - name: Setup Python 🐍
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-          cache: pip
       - name: Setup Additional Interpreter 🐍
         if: ${{ matrix.additional-interpreter != 'none' }}
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.additional-interpreter }}
+      - name: Setup Python 🐍
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
       - name: Install dependencies 🧶
         run: pip install -r requirements.txt tblib --no-cache-dir
         working-directory: backend

@@ -83,13 +83,11 @@ jobs:
           - '3.12'
           - '3.11'
           - '3.10'
+          - 'pypy3.10'
         os:
           - ubuntu-latest
           - windows-latest
           - macos-latest
-        additional-interpreter:
-          - 'none'
-          - 'pypy3.10'
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -97,11 +95,6 @@ jobs:
     steps:
       - name: Checkout 🛎️
         uses: actions/checkout@v4
-      - name: Setup Additional Interpreter 🐍
-        if: ${{ matrix.additional-interpreter != 'none' }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.additional-interpreter }}
       - name: Setup Python 🐍
         uses: actions/setup-python@v5
         with:
@@ -110,15 +103,11 @@ jobs:
       - name: Install dependencies 🧶
         run: pip install -r requirements.txt tblib --no-cache-dir
         working-directory: backend
-      - name: Install dependencies for PyPy
-        if: ${{ startsWith(matrix.additional-interpreter, 'pypy') }}
-        run: pypy -m pip install $(grep -ivE "#|cryptography|cffi" requirements.txt) tblib --no-cache-dir
-        working-directory: backend
       - name: Print Django version 🐍
         run: python manage.py version
         working-directory: backend
       - name: Unit Test 🧪
-        run: python -Wd manage.py test --no-input --parallel auto
+        run: python -Wd manage.py test --no-input ${{ !startsWith(matrix.python-version, 'pypy') && '--parallel auto' }}
         working-directory: backend
 
 

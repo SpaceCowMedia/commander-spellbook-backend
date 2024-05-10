@@ -93,7 +93,7 @@ class ComboGraphTestGeneration(AbstractTestCase):
         self.assertMultisetEqual(variants[0].features, {1: 1})
         self.assertMultisetEqual(variants[0].replacements, {1: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset())]})
         variants = combo_graph.variants(2)
-        self.assertEqual(len(list(variants)), 1)        
+        self.assertEqual(len(list(variants)), 1)
         self.assertMultisetEqual(variants[0].cards, {2: 1})
         self.assertMultisetEqual(variants[0].templates, {})
         self.assertMultisetEqual(variants[0].features, {1: 1})

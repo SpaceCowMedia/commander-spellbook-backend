@@ -125,7 +125,6 @@ def reverse_migrate_variant_includes_through(apps, schema_editor):
 
 def migrate_variant_of_combo_through(apps, schema_editor):
     VariantOfCombo = apps.get_model('spellbook', 'VariantOfCombo')
-    Combo = apps.get_model('spellbook', 'Combo')
     Variant = apps.get_model('spellbook', 'Variant')
     to_create = []
     for variant in Variant.objects.prefetch_related('of'):

@@ -107,9 +107,12 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.additional-interpreter }}
-          cache: pip
       - name: Install dependencies 🧶
         run: pip install -r requirements.txt tblib --no-cache-dir
+        working-directory: backend
+      - name: Install dependencies for PyPy
+        if: ${{ startsWith(matrix.additional-interpreter, 'pypy') }}
+        run: pypy -m pip install -$(grep -ivE "#|cryptography|cffi" requirements.txt) tblib --no-cache-dir
         working-directory: backend
       - name: Print Django version 🐍
         run: python manage.py version

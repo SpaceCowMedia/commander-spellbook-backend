@@ -1,12 +1,14 @@
 import logging
 import re
+from collections import defaultdict
+from multiset import FrozenMultiset, Multiset, BaseMultiset
 from itertools import chain
 from dataclasses import dataclass
 from django.db import transaction
 from .list_utils import includes_any
 from .variant_data import Data, debug_queries
 from .combo_graph import Graph
-from spellbook.models import Combo, Job, Variant, CardInVariant, TemplateInVariant, id_from_cards_and_templates_ids, Playable, Card, Template, VariantAlias, Ingredient, Feature
+from spellbook.models import Combo, Job, Variant, CardInVariant, TemplateInVariant, id_from_cards_and_templates_ids, Playable, Card, Template, VariantAlias, Ingredient, Feature, FeatureProducedByVariant, VariantOfCombo, VariantIncludesCombo
 from spellbook.utils import log_into_job
 
 
@@ -18,19 +20,19 @@ LOWER_VARIANT_LIMIT = 100
 
 @dataclass
 class VariantRecipeDefinition:
-    card_ids: list[int]
-    template_ids: list[int]
+    card_ids: FrozenMultiset
+    template_ids: FrozenMultiset
 
 
 @dataclass
 class VariantDefinition(VariantRecipeDefinition):
     of_ids: set[int]
-    feature_ids: set[int]
+    feature_ids: Multiset
     included_ids: set[int]
-    feature_replacements: dict[int, list[VariantRecipeDefinition]]
+    feature_replacements: defaultdict[int, list[VariantRecipeDefinition]]
 
 
-def get_variants_from_graph(data: Data, job: Job | None = None) -> dict[str, VariantDefinition]:
+def get_variants_from_graph(data: Data, job: Job | None, log_count: int) -> dict[str, VariantDefinition]:
     def log(msg: str):
         logging.info(msg)
         log_into_job(job, msg)
@@ -55,7 +57,7 @@ def get_variants_from_graph(data: Data, job: Job | None = None) -> dict[str, Var
                 cards_ids = variant.cards
                 templates_ids = variant.templates
                 id = id_from_cards_and_templates_ids(cards_ids, templates_ids)
-                feature_ids = set(variant.features)
+                feature_ids = variant.features
                 combo_ids = set(variant.combos)
                 feature_replacements = {
                     feature: [
@@ -70,29 +72,31 @@ def get_variants_from_graph(data: Data, job: Job | None = None) -> dict[str, Var
                     x = result[id]
                     x.of_ids.add(combo.id)
                     x.included_ids.update(combo_ids)
-                    x.feature_ids.update(feature_ids)
-                    for feature, replacements in feature_replacements.items():
-                        x.feature_replacements.setdefault(feature, []).extend(replacements)
+                    for feature_id, count in feature_ids.items():
+                        x.feature_ids.add(feature_id, count)
+                    for feature_id, replacements in feature_replacements.items():
+                        x.feature_replacements[feature_id].extend(replacements)
                 else:
                     logging.debug(f'Found new variant for combo {combo.id} ({index + 1}/{total}): {id}')
                     result[id] = VariantDefinition(
                         card_ids=cards_ids,
                         template_ids=templates_ids,
-                        feature_ids=feature_ids,
+                        feature_ids=Multiset(feature_ids),
                         included_ids=combo_ids,
                         of_ids={combo.id},
-                        feature_replacements=feature_replacements,
+                        feature_replacements=defaultdict(list, feature_replacements),
                     )
                 variant_count += 1
             msg = f'{index + 1}/{total} combos processed (just processed combo {combo.id})'
-            if variant_count > 50 or index % 100 == 0 or index == total - 1:
+            if variant_count > 50 or index % log_count == 0 or index == total - 1:
                 log(msg)
             index += 1
     return result
 
 
-def subtract_removed_features(data: Data, includes: set[int], features: set[int]) -> set[int]:
-    return features - set(r for c in includes for r in data.combo_to_removed_features[c])
+def subtract_features(data: Data, includes: set[int], features: BaseMultiset) -> FrozenMultiset:
+    to_remove = {r.feature.id for c in includes for r in data.combo_to_removed_features[c]}
+    return FrozenMultiset({f: c for f, c in features.items() if f not in data.utility_features_ids and f not in to_remove})
 
 
 @dataclass
@@ -103,9 +107,14 @@ class VariantBulkSaveItem:
     # Relationships fields
     uses: list[CardInVariant]
     requires: list[TemplateInVariant]
+    produces: list[FeatureProducedByVariant]
     of: set[int]
     includes: set[int]
-    produces: set[int]
+
+    def produces_ids(self) -> set[int]:
+        if not hasattr(self, '_produces_ids'):
+            self._produces_ids = {p.feature.id for p in self.produces}
+        return self._produces_ids
 
 
 def get_default_zone_location_for_card(card: Card) -> str:
@@ -187,21 +196,28 @@ def restore_variant(
 ) -> VariantBulkSaveItem:
     # Prepare related objects collections
     used_cards = [
-        data.card_in_variant[(c_id, variant.id)]
-        if (c_id, variant.id) in data.card_in_variant
-        else CardInVariant(card=data.id_to_card[c_id], variant=variant)
-        for c_id in variant_def.card_ids
+        data.card_variant_dict[(c_id, variant.id)]
+        if (c_id, variant.id) in data.card_variant_dict
+        else CardInVariant(card=data.id_to_card[c_id], variant=variant, quantity=quantity)
+        for c_id, quantity in variant_def.card_ids.items()
     ]
     required_templates = [
-        data.template_in_variant[(t_id, variant.id)]
-        if (t_id, variant.id) in data.template_in_variant
-        else TemplateInVariant(template=data.id_to_template[t_id], variant=variant)
-        for t_id in variant_def.template_ids
+        data.template_variant_dict[(t_id, variant.id)]
+        if (t_id, variant.id) in data.template_variant_dict
+        else TemplateInVariant(template=data.id_to_template[t_id], variant=variant, quantity=quantity)
+        for t_id, quantity in variant_def.template_ids.items()
     ]
     generator_combos = [data.id_to_combo[c_id] for c_id in variant_def.of_ids]
     included_combos = [data.id_to_combo[c_id] for c_id in variant_def.included_ids]
-    produces_ids = subtract_removed_features(data, variant_def.included_ids, variant_def.feature_ids) - data.utility_features_ids
-    produced_features = sorted([data.id_to_feature[f_id] for f_id in produces_ids], key=lambda f: f.name)
+    produces_ids = subtract_features(data, variant_def.included_ids, variant_def.feature_ids)
+    produced_features = [
+        FeatureProducedByVariant(
+            feature=data.id_to_feature[f_id],
+            variant=variant,
+            quantity=quantity,
+        ) for f_id, quantity in produces_ids.items()
+    ]
+    produced_features.sort(key=lambda f: f.feature.id)
     # Update variant computed information
     requires_commander = any(c.must_be_commander for c in used_cards) or any(t.must_be_commander for t in required_templates)
     variant.update([c.card for c in used_cards], requires_commander)
@@ -292,7 +308,7 @@ def restore_variant(
         cards=[data.id_to_card[civ.card_id] for civ in uses_list()],  # type: ignore
         templates=[data.id_to_template[tiv.template_id] for tiv in requires_list()],  # type: ignore
         features_needed=[],
-        features_produced=produced_features,
+        features_produced=sorted(produced_features, key=lambda f: f.feature.id),
     )
     variant.results_count = len(produces_ids)
 
@@ -304,7 +320,7 @@ def restore_variant(
         requires=list(requires_list()),
         of=variant_def.of_ids,
         includes=variant_def.included_ids,
-        produces=produces_ids,
+        produces=produced_features,
     )
 
 
@@ -316,7 +332,7 @@ def update_variant(
         restore=False):
     variant = data.id_to_variant[id]
     ok = status in Variant.public_statuses() or \
-        status != Variant.Status.NOT_WORKING and not includes_any(v=frozenset(variant_def.card_ids), others=data.not_working_variants)
+        status != Variant.Status.NOT_WORKING and not includes_any(v=variant_def.card_ids, others=(c for c, _ in data.not_working_variants))
     old_results_count = variant.results_count
     save_item = restore_variant(
         data=data,
@@ -346,47 +362,95 @@ def create_variant(
         variant_def=variant_def,
         restore_fields=True,
     )
-    ok = not includes_any(v=frozenset(variant_def.card_ids), others=data.not_working_variants)
+    ok = not includes_any(v=variant_def.card_ids, others=(c for c, _ in data.not_working_variants))
     if not ok:
         variant.status = Variant.Status.NOT_WORKING
     save_item.should_update = True
     return save_item
 
 
-def perform_bulk_saves(to_create: list[VariantBulkSaveItem], to_update: list[VariantBulkSaveItem]):
+def perform_bulk_saves(data: Data, to_create: list[VariantBulkSaveItem], to_update: list[VariantBulkSaveItem]):
     Variant.objects.bulk_create([v.variant for v in to_create])
-    if to_update:
-        update_fields = ['name', 'status', 'mana_needed', 'other_prerequisites', 'description', 'results_count'] + Playable.playable_fields()
-        Variant.objects.bulk_update([v.variant for v in to_update if v.should_update], fields=update_fields)
+    update_fields = ['name', 'status', 'mana_needed', 'other_prerequisites', 'description', 'results_count'] + Playable.playable_fields()
+    Variant.objects.bulk_update([v.variant for v in to_update if v.should_update], fields=update_fields)
     CardInVariant.objects.bulk_create([c for v in to_create for c in v.uses])
-    if to_update:
-        update_fields = ['zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'must_be_commander', 'order']
-        CardInVariant.objects.bulk_update([c for v in to_update if v.should_update for c in v.uses], fields=update_fields)
+    update_fields = ['zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'must_be_commander', 'order']
+    CardInVariant.objects.bulk_update([c for v in to_update if v.should_update for c in v.uses], fields=update_fields)
     TemplateInVariant.objects.bulk_create([t for v in to_create for t in v.requires])
-    if to_update:
-        update_fields = ['zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'must_be_commander', 'order']
-        TemplateInVariant.objects.bulk_update([t for v in to_update if v.should_update for t in v.requires], fields=update_fields)
-    OfTable = Variant.of.through
-    if to_update:
-        OfTable.objects.all().delete()
-    OfTable.objects.bulk_create([
-        OfTable(
-            variant_id=v.variant.id,
-            combo_id=c) for v in chain(to_create, to_update) for c in v.of])
-    IncludesTable = Variant.includes.through
-    if to_update:
-        IncludesTable.objects.all().delete()
-    IncludesTable.objects.bulk_create([
-        IncludesTable(
-            variant_id=v.variant.id,
-            combo_id=c) for v in chain(to_create, to_update) for c in v.includes])
-    ProducesTable = Variant.produces.through
-    if to_update:
-        ProducesTable.objects.all().delete()
-    ProducesTable.objects.bulk_create([
-        ProducesTable(
-            variant_id=v.variant.id,
-            feature_id=f) for v in chain(to_create, to_update) for f in v.produces])
+    update_fields = ['zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'must_be_commander', 'order']
+    TemplateInVariant.objects.bulk_update([t for v in to_update if v.should_update for t in v.requires], fields=update_fields)
+    to_delete_of = [
+        i.pk
+        for v in to_update
+        for c, i in data.variant_to_of[v.variant.id].items()
+        if c not in v.of
+    ]
+    if to_delete_of:
+        VariantOfCombo.objects.filter(pk__in=to_delete_of).delete()
+    del to_delete_of
+    to_create_of = [
+        VariantOfCombo(variant_id=v.variant.id, combo_id=c)
+        for v in to_create
+        for c in v.of
+    ] + [
+        VariantOfCombo(variant_id=v.variant.id, combo_id=c)
+        for v in to_update
+        for c in v.of
+        if c not in data.variant_to_of[v.variant.id]
+    ]
+    VariantOfCombo.objects.bulk_create(to_create_of)
+    del to_create_of
+    to_delete_includes = [
+        i.pk
+        for v in to_update
+        for c, i in data.variant_to_includes[v.variant.id].items()
+        if c not in v.includes
+    ]
+    if to_delete_includes:
+        VariantIncludesCombo.objects.filter(pk__in=to_delete_includes).delete()
+    del to_delete_includes
+    to_create_includes = [
+        VariantIncludesCombo(variant_id=v.variant.id, combo_id=c)
+        for v in to_create
+        for c in v.includes
+    ] + [
+        VariantIncludesCombo(variant_id=v.variant.id, combo_id=c)
+        for v in to_update
+        for c in v.includes
+        if c not in data.variant_to_includes[v.variant.id]
+    ]
+    VariantIncludesCombo.objects.bulk_create(to_create_includes)
+    del to_create_includes
+    to_delete_produces = [
+        i.pk
+        for v in to_update
+        for f, i in data.variant_to_produces[v.variant.id].items()
+        if f not in v.produces_ids()
+    ]
+    if to_delete_produces:
+        FeatureProducedByVariant.objects.filter(pk__in=to_delete_produces).delete()
+    del to_delete_produces
+    to_create_produces = [
+        i
+        for v in to_create
+        for i in v.produces
+    ] + [
+        i
+        for v in to_update
+        for i in v.produces
+        if i.feature.id not in data.variant_to_produces[v.variant.id]
+    ]
+    FeatureProducedByVariant.objects.bulk_create(to_create_produces)
+    del to_create_produces
+    to_update_produces: list[FeatureProducedByVariant] = []
+    for v in to_update:
+        for i in v.produces:
+            old_instance = data.variant_to_produces[v.variant.id].get(i.feature.id)
+            if old_instance is not None:
+                i.pk = old_instance.pk
+                to_update_produces.append(i)
+    update_fields = ['quantity']
+    FeatureProducedByVariant.objects.bulk_update(to_update_produces, fields=update_fields)
 
 
 def sync_variant_aliases(data: Data, added_variants_ids: set[str], deleted_variants_ids: set[str]) -> tuple[int, int]:
@@ -404,7 +468,7 @@ def sync_variant_aliases(data: Data, added_variants_ids: set[str], deleted_varia
     return added_count, deleted_count
 
 
-def generate_variants(job: Job | None = None) -> tuple[int, int, int]:
+def generate_variants(job: Job | None = None, log_count: int = 100) -> tuple[int, int, int]:
     logging.info('Fetching data...')
     log_into_job(job, 'Fetching data...')
     data = Data()
@@ -414,7 +478,7 @@ def generate_variants(job: Job | None = None) -> tuple[int, int, int]:
     logging.info('Computing combos graph representation...')
     log_into_job(job, 'Computing combos graph representation...')
     debug_queries()
-    variants = get_variants_from_graph(data, job)
+    variants = get_variants_from_graph(data, job, log_count)
     logging.info(f'Saving {len(variants)} variants...')
     log_into_job(job, f'Saving {len(variants)} variants...')
     debug_queries()
@@ -439,16 +503,15 @@ def generate_variants(job: Job | None = None) -> tuple[int, int, int]:
             to_bulk_create.append(variant_to_save)
         debug_queries()
     with transaction.atomic():
-        perform_bulk_saves(to_bulk_create, to_bulk_update)
+        perform_bulk_saves(data, to_bulk_create, to_bulk_update)
         new_id_set = set(variants.keys())
         to_delete = old_id_set - new_id_set
         added = new_id_set - old_id_set
         restored = new_id_set & to_restore
         logging.info(f'Added {len(added)} new variants.')
         logging.info(f'Updated {len(restored)} variants.')
-        delete_query = data.variants.filter(id__in=to_delete)
-        deleted_count = delete_query.count()
-        delete_query.delete()
+        delete_query = Variant.objects.filter(id__in=to_delete)
+        deleted_count, _ = delete_query.delete()
         logging.info(f'Deleted {deleted_count} variants...')
         added_aliases, deleted_aliases = sync_variant_aliases(data, added, to_delete)
         logging.info(f'Added {added_aliases} new aliases, deleted {deleted_aliases} aliases.')

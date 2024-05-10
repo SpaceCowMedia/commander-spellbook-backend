@@ -64,7 +64,7 @@ def strip_accents(s: str) -> str:
     return ''.join(c for c in unicodedata.normalize('NFD', s) if unicodedata.category(c) != 'Mn')
 
 
-def id_from_cards_and_templates_ids(cards: list[int], templates: list[int]) -> str:
+def id_from_cards_and_templates_ids(cards: Iterable[int], templates: Iterable[int]) -> str:
     sorted_templates = sorted(templates)
     return '-'.join(str(c) for c in sorted(cards)) + ('--' + '--'.join(str(t) for t in sorted_templates) if len(sorted_templates) > 0 else '')
 

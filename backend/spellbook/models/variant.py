@@ -76,12 +76,16 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
         to=Combo,
         related_name='included_in_variants',
         help_text='Combo that this variant includes',
-        editable=False)
+        editable=False,
+        through='VariantIncludesCombo')
+    variantincludescombo_set: models.Manager['VariantIncludesCombo']
     of = models.ManyToManyField(
         to=Combo,
         related_name='variants',
         help_text='Combo that this variant is an instance of',
-        editable=False)
+        editable=False,
+        through='VariantOfCombo')
+    variantofcombo_set: models.Manager['VariantOfCombo']
     status = models.CharField(choices=Status.choices, db_default=Status.NEW, help_text='Variant status for editors', max_length=2)
     mana_needed = models.CharField(blank=True, max_length=200, help_text='Mana needed for this combo. Use the {1}{W}{U}{B}{R}{G}{B/P}... format.', validators=[MANA_VALIDATOR])
     mana_value_needed = models.PositiveIntegerField(editable=False, help_text='Mana value needed for this combo. Calculated from mana_needed.')
@@ -209,6 +213,28 @@ class FeatureProducedByVariant(models.Model):
 
     class Meta:
         unique_together = [('feature', 'variant')]
+
+
+class VariantOfCombo(models.Model):
+    variant = models.ForeignKey(to=Variant, on_delete=models.CASCADE)
+    combo = models.ForeignKey(to=Combo, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f'Variant {self.variant.pk} of {self.combo.pk}'
+
+    class Meta:
+        unique_together = [('variant', 'combo')]
+
+
+class VariantIncludesCombo(models.Model):
+    variant = models.ForeignKey(to=Variant, on_delete=models.CASCADE)
+    combo = models.ForeignKey(to=Combo, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f'Variant {self.variant.pk} includes {self.combo.pk}'
+
+    class Meta:
+        unique_together = [('variant', 'combo')]
 
 
 @receiver(post_save, sender=Variant.uses.through, dispatch_uid='update_variant_on_cards')

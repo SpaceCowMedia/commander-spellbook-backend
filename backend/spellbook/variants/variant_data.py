@@ -1,11 +1,12 @@
 import logging
+from multiset import FrozenMultiset
 from django.conf import settings
 from django.db import connection, reset_queries
 from spellbook.models.card import Card, FeatureOfCard
 from spellbook.models.feature import Feature
 from spellbook.models.combo import Combo, CardInCombo, TemplateInCombo, FeatureNeededInCombo, FeatureProducedInCombo, FeatureRemovedInCombo
 from spellbook.models.template import Template
-from spellbook.models.variant import Variant, CardInVariant, TemplateInVariant
+from spellbook.models.variant import Variant, CardInVariant, TemplateInVariant, FeatureProducedByVariant, VariantOfCombo, VariantIncludesCombo
 from .variant_set import VariantSet
 
 
@@ -51,8 +52,8 @@ class Data:
             variant_set = VariantSet()
             for v in variants:
                 variant_set.add(
-                    {c.card.id: c.quantity for c in v.cardinvariant_set.all()},
-                    {t.template.id: t.quantity for t in v.templateinvariant_set.all()},
+                    FrozenMultiset({c.card_id: c.quantity for c in v.cardinvariant_set.all()}),  # type: ignore
+                    FrozenMultiset({t.template_id: t.quantity for t in v.templateinvariant_set.all()}),  # type: ignore
                 )
             return variant_set
 
@@ -64,22 +65,34 @@ class Data:
         ))
         self.utility_features_ids = frozenset(f.id for f in self.features if f.utility)
         self.id_to_feature: dict[int, Feature] = {f.id: f for f in self.features}
-        self.variants: list[Variant] = list(Variant.objects.prefetch_related('cardinvariant_set', 'templateinvariant_set'))
-        self.not_working_variants = fetch_not_working_variants(self.variants)
+        self.variants: list[Variant] = list(Variant.objects.prefetch_related(
+            'cardinvariant_set',
+            'templateinvariant_set',
+            'variantofcombo_set',
+            'variantincludescombo_set',
+            'featureproducedbyvariant_set',
+        ))
+        self.not_working_variants = fetch_not_working_variants(self.variants).variants()
         self.id_to_variant = {v.id: v for v in self.variants}
         self.card_in_variant = dict[str, list[CardInVariant]]()
         self.template_in_variant = dict[str, list[TemplateInVariant]]()
-        self.card_variant_dict = dict[tuple[int, str], Variant]()
-        self.template_variant_dict = dict[tuple[int, str], Variant]()
+        self.card_variant_dict = dict[tuple[int, str], CardInVariant]()
+        self.template_variant_dict = dict[tuple[int, str], TemplateInVariant]()
+        self.variant_to_of = dict[str, dict[int, VariantOfCombo]]()
+        self.variant_to_includes = dict[str, dict[int, VariantIncludesCombo]]()
+        self.variant_to_produces = dict[str, dict[int, FeatureProducedByVariant]]()
         for variant in self.variants:
             cards_in_variant = list(variant.cardinvariant_set.all())
             templates_in_variant = list(variant.templateinvariant_set.all())
             self.card_in_variant[variant.id] = cards_in_variant
             self.template_in_variant[variant.id] = templates_in_variant
+            self.variant_to_of[variant.id] = {o.combo_id: o for o in variant.variantofcombo_set.all()}  # type: ignore
+            self.variant_to_includes[variant.id] = {i.combo_id : i for i in variant.variantincludescombo_set.all()}  # type: ignore
+            self.variant_to_produces[variant.id] = {f.feature_id: f for f in variant.featureproducedbyvariant_set.all()}  # type: ignore
             for card_in_variant in cards_in_variant:
-                self.card_variant_dict[(card_in_variant.card.id, variant.id)] = variant
+                self.card_variant_dict[(card_in_variant.card_id, variant.id)] = card_in_variant
             for template_in_variant in templates_in_variant:
-                self.template_variant_dict[(template_in_variant.template.id, variant.id)] = variant
+                self.template_variant_dict[(template_in_variant.template_id, variant.id)] = template_in_variant
 
 
 count = 0

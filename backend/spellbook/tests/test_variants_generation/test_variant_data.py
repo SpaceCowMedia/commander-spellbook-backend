@@ -44,12 +44,15 @@ class VariantDataTests(AbstractTestCaseWithSeeding):
         data = Data()
         self.assertEqual(set(v.id for v in data.variants), set(Variant.objects.values_list('id', flat=True)))
         self.assertSetEqual(
-            set(id_from_cards_and_templates_ids(v[0], v[1]) for v in data.not_working_variants.variants()),
+            set(id_from_cards_and_templates_ids(v[0], v[1]) for v in data.not_working_variants),
             set(Variant.objects.filter(status=Variant.Status.NOT_WORKING).values_list('id', flat=True)),
         )
         self.assertDictEqual(data.id_to_variant, {v.id: v for v in Variant.objects.all()})
         self.assertDictEqual(data.card_in_variant, {v.id: list(v.cardinvariant_set.all()) for v in Variant.objects.all()})
         self.assertDictEqual(data.template_in_variant, {v.id: list(v.templateinvariant_set.all()) for v in Variant.objects.all()})
+        self.assertDictEqual(data.variant_to_of, {v.id: {i.combo.id: i for i in v.of_set.all()} for v in Variant.objects.all()})
+        self.assertDictEqual(data.variant_to_includes, {v.id: {i.combo.id: i for i in v.includes_set.all()} for v in Variant.objects.all()})
+        self.assertDictEqual(data.variant_to_produces, {v.id: {i.feature.id: i for i in v.featureproducedbyvariant_set.all()} for v in Variant.objects.all()})
 
     def test_not_working_variants(self):
         super().generate_variants()
@@ -58,7 +61,7 @@ class VariantDataTests(AbstractTestCaseWithSeeding):
         v1.status = Variant.Status.NOT_WORKING
         v1.save()
         data = Data()
-        self.assertSetEqual(set(data.not_working_variants.variants()), {([self.c8_id, self.c1_id], [])})
+        self.assertSetEqual(set(data.not_working_variants), {([self.c8_id, self.c1_id], [])})
         super().generate_variants()
         data = Data()
         self.assertEqual(data.not_working_variants, [frozenset({self.c8_id, self.c1_id})] * 2)

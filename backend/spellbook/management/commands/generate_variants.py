@@ -10,7 +10,7 @@ class Command(AbstractCommand):
     help = 'Generates variants based on combos, features, cards'
 
     def run(self, *args, **options):
-        added, restored, removed = generate_variants(self.job)
+        added, restored, removed = generate_variants(self.job, log_count=1000 if self.pypy else 100)
         if added == 0 and removed == 0 and restored == 0:
             message = 'Variants are already synced with'
         else:

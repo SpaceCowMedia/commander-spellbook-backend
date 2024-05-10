@@ -94,6 +94,65 @@ def reverse_migrate_feature_removed_in_combo_through(apps, schema_editor):
         obj.save(force_insert=True)
 
 
+def migrate_variant_includes_through(apps, schema_editor):
+    VariantIncludesCombo = apps.get_model('spellbook', 'VariantIncludesCombo')
+    Variant = apps.get_model('spellbook', 'Variant')
+    to_create = []
+    for variant in Variant.objects.prefetch_related('includes'):
+        for combo in variant.includes.all():
+            to_create.append(
+                VariantIncludesCombo(
+                    variant=variant,
+                    combo=combo,
+                )
+            )
+    VariantIncludesCombo.objects.bulk_create(to_create)
+
+
+def reverse_migrate_variant_includes_through(apps, schema_editor):
+    VariantIncludesCombo = apps.get_model('spellbook', 'VariantIncludesCombo')
+    VariantIncludesComboOld = apps.get_model('spellbook', 'Variant').includes.through
+    to_create = []
+    for variant_includes_combo in VariantIncludesCombo.objects.all():
+        to_create.append(VariantIncludesComboOld(
+            variant_id=variant_includes_combo.variant_id,
+            combo_id=variant_includes_combo.combo_id,
+        ))
+    for i, obj in enumerate(to_create):
+        obj.id = i + 1
+        obj.save(force_insert=True)
+
+
+def migrate_variant_of_combo_through(apps, schema_editor):
+    VariantOfCombo = apps.get_model('spellbook', 'VariantOfCombo')
+    Combo = apps.get_model('spellbook', 'Combo')
+    Variant = apps.get_model('spellbook', 'Variant')
+    to_create = []
+    for variant in Variant.objects.prefetch_related('of'):
+        for combo in variant.of.all():
+            to_create.append(
+                VariantOfCombo(
+                    variant=variant,
+                    combo=combo,
+                )
+            )
+    VariantOfCombo.objects.bulk_create(to_create)
+
+
+def reverse_migrate_variant_of_combo_through(apps, schema_editor):
+    VariantOfCombo = apps.get_model('spellbook', 'VariantOfCombo')
+    VariantOfComboOld = apps.get_model('spellbook', 'Variant').of.through
+    to_create = []
+    for variant_of_combo in VariantOfCombo.objects.all():
+        to_create.append(VariantOfComboOld(
+            variant_id=variant_of_combo.variant_id,
+            combo_id=variant_of_combo.combo_id,
+        ))
+    for i, obj in enumerate(to_create):
+        obj.id = i + 1
+        obj.save(force_insert=True)
+
+
 def update_serialized_representation(apps, schema_editor):
     Variant = apps.get_model('spellbook', 'Variant')
     FeatureProducedByVariant = apps.get_model('spellbook', 'FeatureProducedByVariant')
@@ -238,6 +297,54 @@ class Migration(migrations.Migration):
             model_name='combo',
             name='removes',
             field=models.ManyToManyField(blank=True, help_text='Features that this combo removes', related_name='removed_by_combos', through='spellbook.FeatureRemovedInCombo', to='spellbook.feature', verbose_name='removed features'),
+        ),
+        migrations.CreateModel(
+            name='VariantIncludesCombo',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('combo', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='spellbook.combo')),
+                ('variant', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='spellbook.variant')),
+            ],
+            options={
+                'unique_together': {('variant', 'combo')},
+            },
+        ),
+        migrations.RunPython(
+            code=migrate_variant_includes_through,
+            reverse_code=reverse_migrate_variant_includes_through,
+        ),
+        migrations.RemoveField(
+            model_name='variant',
+            name='includes',
+        ),
+        migrations.AddField(
+            model_name='variant',
+            name='includes',
+            field=models.ManyToManyField(editable=False, help_text='Combo that this variant includes', related_name='included_in_variants', through='spellbook.VariantIncludesCombo', to='spellbook.combo'),
+        ),
+        migrations.CreateModel(
+            name='VariantOfCombo',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('combo', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='spellbook.combo')),
+                ('variant', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='spellbook.variant')),
+            ],
+            options={
+                'unique_together': {('variant', 'combo')},
+            },
+        ),
+        migrations.RunPython(
+            code=migrate_variant_of_combo_through,
+            reverse_code=reverse_migrate_variant_of_combo_through,
+        ),
+        migrations.RemoveField(
+            model_name='variant',
+            name='of',
+        ),
+        migrations.AddField(
+            model_name='variant',
+            name='of',
+            field=models.ManyToManyField(editable=False, help_text='Combo that this variant is an instance of', related_name='variants', through='spellbook.VariantOfCombo', to='spellbook.combo'),
         ),
         migrations.RunPython(
             code=update_serialized_representation,

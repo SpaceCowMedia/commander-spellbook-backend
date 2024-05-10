@@ -13,13 +13,13 @@ class VariantSet():
         self.max_depth = limit if limit is not None else float('inf')
 
     @classmethod
-    def ingredients_to_key(cls, cards: dict[cardid, int], templates: dict[templateid, int]) -> FrozenMultiset:
+    def ingredients_to_key(cls, cards: FrozenMultiset, templates: FrozenMultiset) -> FrozenMultiset:
         return FrozenMultiset(
             {f'C{c_id}': c_q for c_id, c_q in cards.items()} | {f'T{t_id}': t_q for t_id, t_q in templates.items()}
         )
 
     @classmethod
-    def key_to_ingredients(cls, key: FrozenMultiset) -> tuple[dict[cardid, int], dict[templateid, int]]:
+    def key_to_ingredients(cls, key: FrozenMultiset) -> tuple[FrozenMultiset, FrozenMultiset]:
         cards = dict[cardid, int]()
         templates = dict[templateid, int]()
         for item, quantity in key.items():
@@ -27,9 +27,9 @@ class VariantSet():
                 cards[int(item[1:])] = quantity
             elif item[0] == 'T':
                 templates[int(item[1:])] = quantity
-        return (cards, templates)
+        return (FrozenMultiset(cards), FrozenMultiset(templates))
 
-    def add(self, cards: dict[cardid, int], templates: dict[templateid, int]):
+    def add(self, cards: FrozenMultiset, templates: FrozenMultiset):
         base_key = self.ingredients_to_key(cards, templates)
         if len(base_key) > self.max_depth:
             return
@@ -40,13 +40,13 @@ class VariantSet():
             return
         self.sets.add(key)
 
-    def is_satisfied_by(self, cards: dict[cardid, int], templates: dict[templateid, int]) -> bool:
+    def is_satisfied_by(self, cards: FrozenMultiset, templates: FrozenMultiset) -> bool:
         key = self.ingredients_to_key(cards, templates)
         if len(key) > self.max_depth:
             return False
         return self.sets.contains_subset_of(key)
 
-    def satisfied_by(self, cards: dict[cardid, int], templates: dict[templateid, int]) -> list[tuple[dict[cardid, int], dict[templateid, int]]]:
+    def satisfied_by(self, cards: FrozenMultiset, templates: FrozenMultiset) -> list[tuple[FrozenMultiset, FrozenMultiset]]:
         key = self.ingredients_to_key(cards, templates)
         if len(key) > self.max_depth:
             return []
@@ -107,8 +107,8 @@ class VariantSet():
                 result._add(key)
         return result
 
-    def variants(self) -> list[tuple[dict[cardid, int], dict[templateid, int]]]:
-        result = list[tuple[dict[cardid, int], dict[templateid, int]]]()
+    def variants(self) -> list[tuple[FrozenMultiset, FrozenMultiset]]:
+        result = list[tuple[FrozenMultiset, FrozenMultiset]]()
         for key in self._keys():
             cards, templates = self.key_to_ingredients(key)
             result.append((cards, templates))

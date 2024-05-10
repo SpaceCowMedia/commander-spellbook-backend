@@ -94,11 +94,10 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
                 self.assertEqual(r.graveyard_card_state, tiv.graveyard_card_state)
         produces_list = [p.id for p in v.produces.all()]
         for p in variant_result.produces:
-            self.assertIn(p.id, produces_list)
-            f = Feature.objects.get(id=p.id)
-            self.assertEqual(p.id, f.id)
-            self.assertEqual(p.name, f.name)
-            self.assertEqual(p.description, f.description)
+            self.assertIn(p.feature.id, produces_list)
+            f = Feature.objects.get(id=p.feature.id)
+            self.assertEqual(p.feature.id, f.id)
+            self.assertEqual(p.feature.name, f.name)
         of_list = [o.id for o in v.of.all()]
         for o in variant_result.of:
             self.assertIn(o.id, of_list)

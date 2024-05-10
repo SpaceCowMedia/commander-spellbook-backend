@@ -1,6 +1,7 @@
 import logging
 import random
 import uuid
+from multiset import BaseMultiset
 from collections import defaultdict
 from django.test import TestCase
 from django.conf import settings
@@ -61,6 +62,13 @@ class AbstractTestCase(TestCase):
                 else:
                     f, _ = Feature.objects.get_or_create(name=feature, description='Test Feature', utility=False)
                     FeatureProducedInCombo.objects.create(feature=f, combo=combo)
+
+    def assertMultisetEqual(self, a, b):
+        if isinstance(a, BaseMultiset):
+            a = {k: v for k, v in a.items()}
+        if isinstance(b, BaseMultiset):
+            b = {k: v for k, v in b.items()}
+        self.assertDictEqual(a, b)
 
 
 class AbstractTestCaseWithSeeding(AbstractTestCase):

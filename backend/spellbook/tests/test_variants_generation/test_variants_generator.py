@@ -11,7 +11,7 @@ class VariantsGeneratorTests(AbstractTestCaseWithSeeding):
         job = Job.start('test_get_variants_from_graph')
         if job is None:
             self.fail('Job.start() returned None')
-        result = get_variants_from_graph(data=Data(), job=job)
+        result = get_variants_from_graph(data=Data(), job=job, log_count=100)
         self.assertIsInstance(result, dict)
         self.assertEqual(len(result), self.expected_variant_count)
         self.assertGreater(len(job.message), 0)

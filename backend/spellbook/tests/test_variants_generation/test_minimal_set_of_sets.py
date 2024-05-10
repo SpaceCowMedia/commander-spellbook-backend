@@ -35,7 +35,8 @@ class MinimalSetOfSetsTests(TestCase):
         self.assertFalse(MinimalSetOfMultisets({FrozenMultiset([1, 2, 6]), FrozenMultiset([1, 2, 4])}).contains_subset_of(FrozenMultiset([1, 2, 3, 5])))
         self.assertTrue(MinimalSetOfMultisets({FrozenMultiset([2]), FrozenMultiset([1, 2, 4])}).contains_subset_of(FrozenMultiset([1, 2, 3])))
         self.assertTrue(MinimalSetOfMultisets({FrozenMultiset([2]), FrozenMultiset([1, 2, 4])}).contains_subset_of(FrozenMultiset([1, 2, 3, 4])))
-        self.assertTrue(self.subject.contains_subset_of(FrozenMultiset(range(100))))
+        self.assertFalse(self.subject.contains_subset_of(FrozenMultiset(range(100))))
+        self.assertTrue(self.subject.contains_subset_of(FrozenMultiset(list(range(100)) * 2)))
         self.assertFalse(self.subject.contains_subset_of(FrozenMultiset(range(7, 10))))
 
     def test_subsets_of(self):

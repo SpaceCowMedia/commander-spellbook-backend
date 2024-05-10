@@ -1,6 +1,7 @@
 from spellbook.tests.abstract_test import AbstractTestCaseWithSeeding
 from spellbook.variants.variant_data import Data, debug_queries
 from spellbook.models import Variant, Combo, Feature, Card, Template, id_from_cards_and_templates_ids
+from multiset import FrozenMultiset
 
 
 class VariantDataTests(AbstractTestCaseWithSeeding):
@@ -50,8 +51,8 @@ class VariantDataTests(AbstractTestCaseWithSeeding):
         self.assertDictEqual(data.id_to_variant, {v.id: v for v in Variant.objects.all()})
         self.assertDictEqual(data.card_in_variant, {v.id: list(v.cardinvariant_set.all()) for v in Variant.objects.all()})
         self.assertDictEqual(data.template_in_variant, {v.id: list(v.templateinvariant_set.all()) for v in Variant.objects.all()})
-        self.assertDictEqual(data.variant_to_of, {v.id: {i.combo.id: i for i in v.of_set.all()} for v in Variant.objects.all()})
-        self.assertDictEqual(data.variant_to_includes, {v.id: {i.combo.id: i for i in v.includes_set.all()} for v in Variant.objects.all()})
+        self.assertDictEqual(data.variant_to_of, {v.id: {i.combo.id: i for i in v.variantofcombo_set.all()} for v in Variant.objects.all()})
+        self.assertDictEqual(data.variant_to_includes, {v.id: {i.combo.id: i for i in v.variantincludescombo_set.all()} for v in Variant.objects.all()})
         self.assertDictEqual(data.variant_to_produces, {v.id: {i.feature.id: i for i in v.featureproducedbyvariant_set.all()} for v in Variant.objects.all()})
 
     def test_not_working_variants(self):
@@ -61,10 +62,10 @@ class VariantDataTests(AbstractTestCaseWithSeeding):
         v1.status = Variant.Status.NOT_WORKING
         v1.save()
         data = Data()
-        self.assertSetEqual(set(data.not_working_variants), {([self.c8_id, self.c1_id], [])})
+        self.assertSetEqual(set(data.not_working_variants), {(FrozenMultiset([self.c8_id, self.c1_id]), FrozenMultiset([self.t1_id]))})
         super().generate_variants()
         data = Data()
-        self.assertEqual(data.not_working_variants, [frozenset({self.c8_id, self.c1_id})] * 2)
+        self.assertSetEqual(set(data.not_working_variants), {(FrozenMultiset([self.c8_id, self.c1_id]), FrozenMultiset())})
 
     def test_card_variant_dict(self):
         data = Data()
@@ -86,4 +87,4 @@ class VariantDataTests(AbstractTestCaseWithSeeding):
         with self.settings(DEBUG=True):
             q = debug_queries()
             Data()
-            self.assertEqual(debug_queries() - q, 15)
+            self.assertEqual(debug_queries() - q, 20)

@@ -10,7 +10,6 @@ class FeatureViewsTests(AbstractTestCaseWithSeeding):
         f = Feature.objects.get(id=feature_result.id)
         self.assertEqual(feature_result.id, f.id)
         self.assertEqual(feature_result.name, f.name)
-        self.assertEqual(feature_result.description, f.description)
 
     def test_features_list_view(self):
         c = Client()

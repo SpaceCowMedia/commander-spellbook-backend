@@ -88,8 +88,8 @@ jobs:
           - windows-latest
           - macos-latest
         additional-interpreter:
-          - 'pypy3.10'
           - 'none'
+          - 'pypy3.10'
     runs-on: ${{ matrix.os }}
     defaults:
       run:

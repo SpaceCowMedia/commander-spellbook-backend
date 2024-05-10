@@ -87,6 +87,9 @@ jobs:
           - ubuntu-latest
           - windows-latest
           - macos-latest
+        additional-interpreter:
+          - 'pypy3.10'
+          - 'none'
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -99,8 +102,18 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
+      - name: Setup Additional Interpreter 🐍
+        if: ${{ matrix.additional-interpreter != 'none' }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.additional-interpreter }}
+          cache: pip
       - name: Install dependencies 🧶
         run: pip install -r requirements.txt tblib --no-cache-dir
+        working-directory: backend
+      - name: Install dependencies for PyPy
+        if: ${{ startsWith(matrix.additional-interpreter, 'pypy') }}
+        run: pypy -m pip install -r requirements.txt tblib --no-cache-dir
         working-directory: backend
       - name: Print Django version 🐍
         run: python manage.py version

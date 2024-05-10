@@ -112,7 +112,7 @@ jobs:
         working-directory: backend
       - name: Install dependencies for PyPy
         if: ${{ startsWith(matrix.additional-interpreter, 'pypy') }}
-        run: pypy -m pip install -$(grep -ivE "#|cryptography|cffi" requirements.txt) tblib --no-cache-dir
+        run: pypy -m pip install $(grep -ivE "#|cryptography|cffi" requirements.txt) tblib --no-cache-dir
         working-directory: backend
       - name: Print Django version 🐍
         run: python manage.py version

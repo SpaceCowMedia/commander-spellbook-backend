@@ -101,7 +101,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
       - name: Install dependencies 🧶
-        run: pip install -r requirements.txt tblib --no-cache-dir
+        run: pip install --no-cache-dir --no-deps tblib $(grep -ivE "#|cryptography|cffi" requirements.txt)
         working-directory: backend
       - name: Print Django version 🐍
         run: python manage.py version

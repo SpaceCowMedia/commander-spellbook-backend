@@ -33,7 +33,7 @@
         {
             "label": "Clean pending jobs",
             "type": "shell",
-            "command": "python backend/manage.py clean_jobs",
+            "command": "python backend/manage.py clean_jobs --force",
             "group": "none",
             "dependsOn": [
                 "Apply migrations"

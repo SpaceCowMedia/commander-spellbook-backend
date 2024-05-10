@@ -11,15 +11,18 @@ WORKDIR /usr/src/app
 # set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 
-# install psycopg2 dependencies
-RUN apk --update add gcc python3-dev musl-dev postgresql-dev libffi-dev --no-cache
+# install dependencies
+RUN echo "@testing https://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories && \
+    apk --update add gcc python3-dev musl-dev postgresql-dev libffi-dev pypy3@testing --no-cache
 
 # pip
 RUN pip install --upgrade pip
+RUN pypy3 -m ensurepip && pypy3 -m pip install --upgrade pip
 
 # install dependencies
 COPY requirements.txt .
-RUN pip wheel --no-cache-dir --no-deps --wheel-dir /usr/src/app/wheels -r requirements.txt
+RUN pip wheel --no-cache-dir --no-deps --wheel-dir /usr/src/app/python/wheels -r requirements.txt
+RUN pypy3 -m pip wheel --no-cache-dir --no-deps --wheel-dir /usr/src/app/pypy/wheels $(grep -ivE "#|cryptography|cffi" requirements.txt)
 
 
 #########
@@ -38,14 +41,19 @@ RUN mkdir -p /home/app && mkdir -p $APP_HOME/staticfiles && chown -R app:app $AP
 WORKDIR $APP_HOME
 
 # install dependencies
-RUN \
-    apk add --no-cache nginx && \
+RUN echo "@testing https://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories && \
+    apk add --no-cache nginx pypy3@testing && \
     mkdir -p /run/nginx && \
-    apk --update add libpq --no-cache
-COPY --from=builder /usr/src/app/wheels /wheels
+    apk --update add libpq postgresql-dev --no-cache && \
+    ln -s $(which pypy3) $(dirname $(which pypy3))/pypy && \
+    pypy -m ensurepip && pypy -m pip install --upgrade pip
+COPY --from=builder /usr/src/app/python/wheels /python/wheels
+COPY --from=builder /usr/src/app/pypy/wheels /pypy/wheels
 COPY --from=builder /usr/src/app/requirements.txt .
-RUN pip install --no-cache /wheels/*
+RUN pip install --no-cache /python/wheels/* --no-deps
 RUN pip install --no-cache psycopg[binary] gunicorn
+RUN pypy -m pip install --no-cache /pypy/wheels/* --no-deps
+RUN pypy -m pip install --no-cache psycopg
 
 # copy project
 COPY --chown=app:app . $APP_HOME

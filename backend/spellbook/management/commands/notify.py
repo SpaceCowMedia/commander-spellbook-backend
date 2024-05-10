@@ -75,8 +75,14 @@ class Command(AbstractCommand):
                 plural = 's' if len(options['identifiers']) > 1 else ''
                 verb = 'have' if len(options['identifiers']) > 1 else 'has'
                 webhook_text = f'The following combo{plural} {verb} been added to the site:\n'
+                variants: list[Variant] = []
                 for identifier in options['identifiers']:
                     variant = Variant.objects.filter(pk=identifier).first()
                     if variant:
+                        variants.append(variant)
+                if variants:
+                    for variant in variants:
                         webhook_text += f'[{variant.name}](<{variant.spellbook_link(raw=True)}>)\n'
-                self.discord_webhook(webhook_text)
+                    self.discord_webhook(webhook_text)
+                else:
+                    self.log('No variants found', self.style.ERROR)

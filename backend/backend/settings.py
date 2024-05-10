@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/4.0/ref/settings/
 import os
 from pathlib import Path
 from datetime import timedelta
+from common.utils import PYPY_AVAILABLE as check_pypy
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -29,6 +30,7 @@ DEBUG = True
 STATIC_BULK_FOLDER = Path('./temp/bulk')
 
 ASYNC_GENERATION = True
+PYPY_AVAILABLE = check_pypy
 
 VERSION = os.getenv('VERSION', 'dev')
 

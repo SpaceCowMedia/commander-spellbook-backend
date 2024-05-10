@@ -1,4 +1,5 @@
 import traceback
+from platform import python_implementation
 from time import sleep
 from django.utils import timezone
 from django.core.management.base import BaseCommand, CommandParser, CommandError
@@ -11,6 +12,8 @@ from spellbook.utils import log_into_job
 class AbstractCommand(BaseCommand):
     name = 'abstract_command'
     job: Job | None = None
+    interpreter: str = python_implementation()
+    pypy: bool = interpreter == 'PyPy'
 
     def log(self, message, style=lambda x: x):
         self.stdout.write(style(message))
@@ -31,7 +34,7 @@ class AbstractCommand(BaseCommand):
         elif self.job is None:
             raise CommandError(f'Job with name {self.name} already running')
         try:
-            self.log(f'Running {self.name} ({settings.VERSION})...')
+            self.log(f'Running {self.name} ({settings.VERSION}) using {self.interpreter}...')
             self.run(*args, **options)
             self.log(f'{self.name} finished successfully.', self.style.SUCCESS)
             self.job.termination = timezone.now()

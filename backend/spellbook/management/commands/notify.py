@@ -33,9 +33,24 @@ class Command(AbstractCommand):
 
     def discord_webhook(self, content: str):
         if settings.DISCORD_WEBHOOK_URL:
-            webhook = DiscordWebhook(url=settings.DISCORD_WEBHOOK_URL, content=content)
-            webhook.execute()
-            self.log('Webhook sent', self.style.SUCCESS)
+            messages = []
+            while content:
+                if len(content) > 2000 and '\n' in content:
+                    split = content.rindex('\n', 0, 2000)
+                elif len(content) > 2000 and ' ' in content:
+                    split = content.rindex(' ', 0, 2000)
+                else:
+                    split = 2000
+                messages.append(content[:split])
+                content = content[split + 1:]
+            for message in messages:
+                webhook = DiscordWebhook(url=settings.DISCORD_WEBHOOK_URL, content=message)
+                response = webhook.execute()
+                if response.ok:
+                    self.log('Webhook sent', self.style.SUCCESS)
+                else:
+                    self.log(f'Webhook failed with status code {response.status_code}:\n{response.content.decode()}', self.style.ERROR)
+                    raise Exception('Webhook failed')
         else:
             self.log('No Discord Webhook set in settings', self.style.ERROR)
 
@@ -75,11 +90,7 @@ class Command(AbstractCommand):
                 plural = 's' if len(options['identifiers']) > 1 else ''
                 verb = 'have' if len(options['identifiers']) > 1 else 'has'
                 webhook_text = f'The following combo{plural} {verb} been added to the site:\n'
-                variants: list[Variant] = []
-                for identifier in options['identifiers']:
-                    variant = Variant.objects.filter(pk=identifier).first()
-                    if variant:
-                        variants.append(variant)
+                variants: list[Variant] = list(Variant.objects.filter(pk__in=options['identifiers']))
                 if variants:
                     for variant in variants:
                         webhook_text += f'[{variant.name}](<{variant.spellbook_link(raw=True)}>)\n'

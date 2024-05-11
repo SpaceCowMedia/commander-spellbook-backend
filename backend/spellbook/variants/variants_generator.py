@@ -144,7 +144,11 @@ def update_state(dst: Ingredient, src: Ingredient, overwrite=False):
         dst.library_card_state = src.library_card_state
         dst.must_be_commander = src.must_be_commander
     else:
-        dst.zone_locations = ''.join(location for location in dst.zone_locations if location in src.zone_locations) or src.zone_locations
+        dst.zone_locations = ''.join(
+            location
+            for location in dst.zone_locations
+            if location in src.zone_locations
+        ) or src.zone_locations
         if len(dst.battlefield_card_state) > 0:
             dst.battlefield_card_state += ' '
         dst.battlefield_card_state += src.battlefield_card_state

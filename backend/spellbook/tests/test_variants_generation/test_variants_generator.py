@@ -1,8 +1,11 @@
 from itertools import chain
+from multiset import FrozenMultiset
 from spellbook.tests.abstract_test import AbstractTestCaseWithSeeding
-from spellbook.models import Job, Variant, Card, IngredientInCombination, CardInVariant, TemplateInVariant, Template, Combo, Feature
+from spellbook.models import Job, Variant, Card, IngredientInCombination, CardInVariant, TemplateInVariant, Template, Combo, Feature, VariantAlias
 from spellbook.variants.variant_data import Data
-from spellbook.variants.variants_generator import get_variants_from_graph, get_default_zone_location_for_card, update_state_with_default, generate_variants, apply_replacements
+from spellbook.variants.variants_generator import get_variants_from_graph, get_default_zone_location_for_card, update_state_with_default
+from spellbook.variants.variants_generator import generate_variants, apply_replacements, subtract_features, update_state
+from spellbook.variants.variants_generator import sync_variant_aliases
 from spellbook.utils import launch_job_command
 
 
@@ -28,9 +31,40 @@ class VariantsGeneratorTests(AbstractTestCaseWithSeeding):
                     self.assertTrue(card_set.issuperset(feature_replacement.card_ids))
                     self.assertTrue(template_set.issuperset(feature_replacement.template_ids))
 
-    def test_subtract_removed_features(self):
-        # TODO: Implement
-        pass
+    def test_subtract_features(self):
+        c = Combo.objects.create(mana_needed='{W}', status=Combo.Status.UTILITY)
+        c.cardincombo_set.create(card_id=self.c1_id, order=1, zone_locations=IngredientInCombination.ZoneLocation.BATTLEFIELD)
+        c.removes.add(self.f1_id)
+        c.removes.add(self.f2_id)
+        data = Data()
+        features = subtract_features(
+            data,
+            includes={c.id},
+            features=FrozenMultiset({self.f1_id: 3, self.f2_id: 2, self.f3_id: 5}),
+        )
+        self.assertEqual(features, FrozenMultiset({self.f3_id: 5}))
+        c.status = Combo.Status.GENERATOR
+        c.save()
+        c2 = Combo.objects.create(mana_needed='{W}', status=Combo.Status.UTILITY)
+        c2.cardincombo_set.create(card_id=self.c1_id, order=1, zone_locations=IngredientInCombination.ZoneLocation.BATTLEFIELD)
+        c2.removes.add(self.f3_id)
+        data = Data()
+        features = subtract_features(
+            data,
+            includes={c.id, c2.id},
+            features=FrozenMultiset({self.f1_id: 3, self.f2_id: 2, self.f3_id: 5}),
+        )
+        self.assertEqual(features, FrozenMultiset())
+        f = Feature.objects.get(pk=self.f1_id)
+        f.utility = True
+        f.save()
+        data = Data()
+        features = subtract_features(
+            data,
+            includes=set(),
+            features=FrozenMultiset({self.f1_id: 3, self.f2_id: 2, self.f3_id: 5}),
+        )
+        self.assertEqual(features, FrozenMultiset({self.f2_id: 2, self.f3_id: 5}))
 
     def test_default_zone_location_for_card(self):
         for card in Card.objects.all():
@@ -58,8 +92,43 @@ class VariantsGeneratorTests(AbstractTestCaseWithSeeding):
                 self.assertEqual(sut.zone_locations, IngredientInCombination._meta.get_field('zone_locations').get_default())
 
     def test_update_state(self):
-        # TODO: Implement
-        pass
+        civs = list(CardInVariant(card=c) for c in Card.objects.all())
+        tivs = list(TemplateInVariant(template=t) for t in Template.objects.all())
+        for sut1, sut2 in zip(chain(civs, tivs), chain(reversed(civs), reversed(tivs))):
+            sut1.battlefield_card_state = 'battlefield_card_state'
+            sut1.exile_card_state = 'exile_card_state'
+            sut1.graveyard_card_state = 'graveyard_card_state'
+            sut1.library_card_state = 'library_card_state'
+            sut1.must_be_commander = True
+            sut1.zone_locations = IngredientInCombination.ZoneLocation.COMMAND_ZONE + IngredientInCombination.ZoneLocation.BATTLEFIELD
+            update_state_with_default(sut2)
+            update_state(dst=sut2, src=sut1, overwrite=True)
+            self.assertEqual(sut2.battlefield_card_state, sut1.battlefield_card_state)
+            self.assertEqual(sut2.exile_card_state, sut1.exile_card_state)
+            self.assertEqual(sut2.graveyard_card_state, sut1.graveyard_card_state)
+            self.assertEqual(sut2.library_card_state, sut1.library_card_state)
+            self.assertEqual(sut2.must_be_commander, sut1.must_be_commander)
+            self.assertEqual(sut2.zone_locations, sut1.zone_locations)
+            sut2.battlefield_card_state = 'battlefield_card_state2'
+            sut2.exile_card_state = 'exile_card_state2'
+            sut2.graveyard_card_state = 'graveyard_card_state2'
+            sut2.library_card_state = 'library_card_state2'
+            sut2.must_be_commander = False
+            sut2.zone_locations = IngredientInCombination.ZoneLocation.BATTLEFIELD + IngredientInCombination.ZoneLocation.EXILE
+            update_state(dst=sut2, src=sut1, overwrite=False)
+            self.assertIn(sut1.battlefield_card_state, sut2.battlefield_card_state)
+            self.assertIn('battlefield_card_state2', sut2.battlefield_card_state)
+            self.assertIn(sut1.exile_card_state, sut2.exile_card_state)
+            self.assertIn('exile_card_state2', sut2.exile_card_state)
+            self.assertIn(sut1.graveyard_card_state, sut2.graveyard_card_state)
+            self.assertIn('graveyard_card_state2', sut2.graveyard_card_state)
+            self.assertIn(sut1.library_card_state, sut2.library_card_state)
+            self.assertIn('library_card_state2', sut2.library_card_state)
+            self.assertEqual(sut2.must_be_commander, True)
+            self.assertEqual(sut2.zone_locations, IngredientInCombination.ZoneLocation.BATTLEFIELD)
+            sut2.zone_locations = IngredientInCombination.ZoneLocation.HAND
+            update_state(dst=sut2, src=sut1, overwrite=False)
+            self.assertEqual(sut2.zone_locations, sut1.zone_locations)
 
     def test_apply_replacements(self):
         replacements = {
@@ -162,6 +231,57 @@ class VariantsGeneratorTests(AbstractTestCaseWithSeeding):
             generate_variants()
             self.assertEqual(Variant.objects.count(), 0)
 
-    def test_variant_aliases_update(self):
-        # TODO: Implement
-        pass
+    def test_sync_variant_aliases(self):
+        VariantAlias.objects.all().delete()
+        self.generate_variants()
+        [v1, v2, v3, v4] = list[Variant](Variant.objects.all()[:4])
+        data = Data()
+        added, deleted = sync_variant_aliases(
+            data,
+            {v1.id, v2.id},
+            {v3.id, v4.id},
+        )
+        self.assertEqual(added, 0)
+        self.assertEqual(deleted, 0)
+        self.assertEqual(VariantAlias.objects.count(), 0)
+        for v in [v1, v2, v3, v4]:
+            v.status = Variant.Status.OK
+            v.save()
+        data = Data()
+        added, deleted = sync_variant_aliases(
+            data,
+            {v1.id, v2.id},
+            {v3.id, v4.id},
+        )
+        self.assertEqual(added, 2)
+        self.assertEqual(deleted, 0)
+        self.assertEqual(VariantAlias.objects.count(), 2)
+        self.assertEqual(set(VariantAlias.objects.values_list('id', flat=True)), {v3.id, v4.id})
+        data = Data()
+        added, deleted = sync_variant_aliases(
+            data,
+            {v3.id, v4.id},
+            {v1.id, v2.id},
+        )
+        self.assertEqual(added, 2)
+        self.assertEqual(deleted, 2)
+        self.assertEqual(VariantAlias.objects.count(), 2)
+        self.assertEqual(set(VariantAlias.objects.values_list('id', flat=True)), {v1.id, v2.id})
+        data = Data()
+        added, deleted = sync_variant_aliases(
+            data,
+            {v1.id, v2.id},
+            set(),
+        )
+        self.assertEqual(added, 0)
+        self.assertEqual(deleted, 2)
+        self.assertEqual(VariantAlias.objects.count(), 0)
+        data = Data()
+        added, deleted = sync_variant_aliases(
+            data,
+            set(),
+            set()
+        )
+        self.assertEqual(added, 0)
+        self.assertEqual(deleted, 0)
+        self.assertEqual(VariantAlias.objects.count(), 0)

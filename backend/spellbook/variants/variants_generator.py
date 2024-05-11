@@ -329,7 +329,8 @@ def update_variant(
         id: str,
         variant_def: VariantDefinition,
         status: Variant.Status | str,
-        restore=False):
+        restore: bool,
+        job: Job | None):
     variant = data.id_to_variant[id]
     ok = status in Variant.public_statuses() or \
         status != Variant.Status.NOT_WORKING and not includes_any(v=variant_def.card_ids, others=(c for c, _ in data.not_working_variants))
@@ -342,6 +343,8 @@ def update_variant(
     )
     if not ok:
         variant.status = Variant.Status.NOT_WORKING
+    if restore:
+        variant.generated_by = job
     save_item.should_update = restore or status != variant.status or old_results_count != variant.results_count
     return save_item
 
@@ -350,7 +353,7 @@ def create_variant(
         data: Data,
         id: str,
         variant_def: VariantDefinition,
-        job: Job | None = None):
+        job: Job | None):
     variant = Variant(
         id=id,
         generated_by=job,
@@ -492,7 +495,8 @@ def generate_variants(job: Job | None = None, log_count: int = 100) -> tuple[int
                 id=id,
                 variant_def=variant_def,
                 status=status,
-                restore=id in to_restore)
+                restore=id in to_restore,
+                job=job)
             to_bulk_update.append(variant_to_update)
         else:
             variant_to_save = create_variant(

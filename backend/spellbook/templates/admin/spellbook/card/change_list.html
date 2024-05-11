@@ -1,0 +1,21 @@
+{% extends "admin/change_list.html" %}
+{% load static %}
+
+{% block extrahead %}
+  {{ block.super }}
+  {% include 'admin/spellbook/includes/jqueryui_imports.html' %}
+  {% include 'admin/spellbook/includes/card_info_imports.html' %}
+  <script>
+    'use strict';
+    {
+      django.jQuery(function() {
+        // Initialize all autocomplete widgets except the one in the template
+        // form used when a new formset is added.
+        django.jQuery('#result_list .field-name a').each(function() {
+            const name = django.jQuery(this).text();
+            card_info.setup_tooltip(name, this);
+        });
+      });
+    }
+  </script>
+{% endblock %}

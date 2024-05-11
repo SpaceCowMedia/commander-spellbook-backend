@@ -6,6 +6,9 @@ from social_django.models import UserSocialAuth
 from common.markdown import escape_markdown
 
 
+DISCORD_MESSAGE_LIMIT = 2000
+
+
 class Command(AbstractCommand):
     name = 'notify'
     help = 'Notifies that something happened'
@@ -35,12 +38,13 @@ class Command(AbstractCommand):
         if settings.DISCORD_WEBHOOK_URL:
             messages = []
             while content:
-                if len(content) > 2000 and '\n' in content:
-                    split = content.rindex('\n', 0, 2000)
-                elif len(content) > 2000 and ' ' in content:
-                    split = content.rindex(' ', 0, 2000)
+                next_block = content[:DISCORD_MESSAGE_LIMIT]
+                if len(content) > DISCORD_MESSAGE_LIMIT and '\n' in next_block:
+                    split = next_block.rindex('\n')
+                elif len(content) > DISCORD_MESSAGE_LIMIT and ' ' in next_block:
+                    split = next_block.rindex(' ')
                 else:
-                    split = 2000
+                    split = DISCORD_MESSAGE_LIMIT
                 messages.append(content[:split])
                 content = content[split + 1:]
             for message in messages:

@@ -12,7 +12,6 @@ from spellbook.models.combo import Combo
 from spellbook.models.template import Template
 from .variant_data import Data
 from .variant_set import VariantSet
-from .utils import count_contains
 
 
 class NodeState(Enum):

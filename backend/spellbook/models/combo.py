@@ -101,7 +101,9 @@ class Combo(Recipe, ScryfallLinkMixin):
 
 class CardInCombo(IngredientInCombination):
     card = models.ForeignKey(to=Card, on_delete=models.CASCADE)
+    card_id: int
     combo = models.ForeignKey(to=Combo, on_delete=models.CASCADE)
+    combo_id: int
 
     def __str__(self):
         return f'{self.card} in combo {self.combo.pk}'
@@ -112,7 +114,9 @@ class CardInCombo(IngredientInCombination):
 
 class TemplateInCombo(IngredientInCombination):
     template = models.ForeignKey(to=Template, on_delete=models.CASCADE)
+    template_id: int
     combo = models.ForeignKey(to=Combo, on_delete=models.CASCADE)
+    combo_id: int
 
     def __str__(self):
         return f'{self.template} in combo {self.combo.pk}'
@@ -123,7 +127,9 @@ class TemplateInCombo(IngredientInCombination):
 
 class FeatureNeededInCombo(models.Model):
     feature = models.ForeignKey(to=Feature, on_delete=models.CASCADE)
+    feature_id: int
     combo = models.ForeignKey(to=Combo, on_delete=models.CASCADE)
+    combo_id: int
     quantity = models.PositiveSmallIntegerField(default=1, blank=False, help_text='Quantity of the feature needed in the combo.', verbose_name='quantity', validators=[MinValueValidator(1)])
 
     def __str__(self):
@@ -135,7 +141,9 @@ class FeatureNeededInCombo(models.Model):
 
 class FeatureProducedInCombo(models.Model):
     feature = models.ForeignKey(to=Feature, on_delete=models.CASCADE)
+    feature_id: int
     combo = models.ForeignKey(to=Combo, on_delete=models.CASCADE)
+    combo_id: int
 
     def __str__(self):
         return f'{self.feature} produced in combo {self.combo.pk}'
@@ -146,7 +154,9 @@ class FeatureProducedInCombo(models.Model):
 
 class FeatureRemovedInCombo(models.Model):
     feature = models.ForeignKey(to=Feature, on_delete=models.CASCADE)
+    feature_id: int
     combo = models.ForeignKey(to=Combo, on_delete=models.CASCADE)
+    combo_id: int
 
     def __str__(self):
         return f'{self.feature} removed in combo {self.combo.pk}'

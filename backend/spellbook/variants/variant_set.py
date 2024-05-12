@@ -1,6 +1,7 @@
 from typing import Iterable
 from itertools import product
 from multiset import FrozenMultiset
+from django.conf import settings
 from .minimal_set_of_multisets import MinimalSetOfMultisets
 
 cardid = int
@@ -80,7 +81,7 @@ class VariantSet():
         left_keys = list(self._keys())
         right_keys = list(other._keys())
         for left_key, right_key in product(left_keys, right_keys):
-            key = left_key | right_key
+            key = left_key + right_key
             if len(key) > self.max_depth:
                 continue
             result._add(key)
@@ -94,18 +95,18 @@ class VariantSet():
             raise ValueError('Exponent must be an integer.')
         if power < 0:
             raise ValueError('Exponent must be a non-negative integer.')
-        # Replace the following code with
-        # `self.and_sets([self] * power, limit=self.max_depth)`
-        # to switch to allowing trivial non-singleton variants
-        result = VariantSet(limit=self.max_depth)
-        keys = list(self._keys())
-        for key_combinations in product(*[keys] * power):
-            if len(key_combinations) == len(set(key_combinations)):
-                key = sum(key_combinations, FrozenMultiset())
-                if len(key) > self.max_depth:
-                    continue
-                result._add(key)
-        return result
+        if settings.SINGLETON_COMBO_MODE:
+            result = VariantSet(limit=self.max_depth)
+            keys = list(self._keys())
+            for key_combinations in product(*[keys] * power):
+                if len(key_combinations) == len(set(key_combinations)):
+                    key = sum(key_combinations, FrozenMultiset())
+                    if len(key) > self.max_depth:
+                        continue
+                    result._add(key)
+            return result
+        else:
+            return self.and_sets([self] * power, limit=self.max_depth)
 
     def variants(self) -> list[tuple[FrozenMultiset, FrozenMultiset]]:
         result = list[tuple[FrozenMultiset, FrozenMultiset]]()

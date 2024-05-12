@@ -1,6 +1,7 @@
 from urllib.parse import quote_plus
 from django.test import TestCase
 from django.utils import timezone
+from decimal import Decimal
 from django.contrib.auth.models import User
 from common.inspection import count_methods
 from .abstract_test import AbstractTestCaseWithSeeding
@@ -303,9 +304,43 @@ class VariantTests(AbstractTestCaseWithSeeding):
         self.assertEqual(count_methods(Variant), 8)
 
     def test_update(self):
-        v = Variant.objects.get(id=self.v1_id)
-        self.assertFalse(v.update(v.uses.all(), False))
-        # TODO: test update
+        v: Variant = Variant.objects.get(id=self.v1_id)
+        cards = list(v.uses.all())
+        self.assertFalse(v.update(cards, requires_commander=False))
+        self.assertTrue(v.update(cards, requires_commander=True))
+        non_commander_formats = (
+            'vintage',
+            'legacy',
+            'modern',
+            'pioneer',
+            'standard',
+            'pauper',
+        )
+        for f in non_commander_formats:
+            self.assertFalse(getattr(v, f'legal_{f}'))
+        self.assertTrue(v.legal_commander)
+        self.assertTrue(v.update(cards, requires_commander=False))
+        self.assertLess(len(v.identity), 5)
+        c = Card(name='Extra card 1', oracle_id='00000000-0000-0000-0000-0000000000ff', identity='C')
+        c.save()
+        cards.append(c)
+        self.assertFalse(v.update(cards, requires_commander=False))
+        c.identity = 'WUBRG'
+        c.save()
+        self.assertTrue(v.update(cards, requires_commander=False))
+        self.assertFalse(v.update(cards, requires_commander=False))
+        c.spoiler = True
+        c.save()
+        self.assertTrue(v.update(cards, requires_commander=False))
+        self.assertFalse(v.update(cards, requires_commander=False))
+        c.legal_predh = False
+        c.save()
+        self.assertTrue(v.update(cards, requires_commander=False))
+        self.assertFalse(v.update(cards, requires_commander=False))
+        c.price_cardmarket = Decimal(100)
+        c.save()
+        self.assertTrue(v.update(cards, requires_commander=False))
+        self.assertFalse(v.update(cards, requires_commander=False))
 
     def test_serialization(self):
         v = Variant.objects.get(id=self.v1_id)

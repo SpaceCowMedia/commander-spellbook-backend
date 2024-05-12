@@ -19,5 +19,6 @@
     "python.analysis.diagnosticMode": "workspace",
     "python.analysis.exclude": [
         "backend/*/migrations"
-    ]
+    ],
+    "todo-tree.tree.scanMode": "workspace only"
 }

@@ -12,6 +12,7 @@ from spellbook.models.combo import Combo
 from spellbook.models.template import Template
 from .variant_data import Data
 from .variant_set import VariantSet
+from .utils import count_contains
 
 
 class NodeState(Enum):
@@ -128,7 +129,7 @@ comboid = int
 @dataclass(frozen=True)
 class VariantRecipe(VariantIngredients):
     features: FrozenMultiset
-    combos: list[comboid]
+    combos: set[comboid]
     replacements: dict[featureid, list[VariantIngredients]]
 
 
@@ -329,7 +330,7 @@ class Graph:
                 if feature.state == NodeState.NOT_VISITED:
                     feature.state = NodeState.VISITED
                     self.to_reset_nodes.add(feature)
-                    feature_nodes[feature] += quantity
+                    feature_nodes[feature] += 1
                     for feature_combo in feature.needed_by_combos:
                         if feature_combo.state == NodeState.NOT_VISITED:
                             feature_combo.state = NodeState.VISITING
@@ -341,6 +342,6 @@ class Graph:
             cards=card_ids,
             templates=template_ids,
             features=FrozenMultiset({f.feature.id: q for f, q in feature_nodes.items()}),
-            combos=[cn.combo.id for cn in combo_nodes if cn.state == NodeState.VISITED],
+            combos={cn.combo.id for cn in combo_nodes if cn.state == NodeState.VISITED},
             replacements=replacements,
         )

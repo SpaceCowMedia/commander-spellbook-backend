@@ -39,9 +39,14 @@ class AbstractTestCase(TestCase):
             for element in recipe:
                 if '*' in element:
                     element, quantity = element.split('*')
+                    quantity = quantity.strip()
+                    element = element.strip()
+                    if not quantity.isdigit():
+                        element, quantity = quantity, element
                     quantity = int(quantity)
                 else:
                     quantity = 1
+                element = element.strip()
                 if element[0].islower():
                     features[element] += quantity
                 elif element[0] == 'T':

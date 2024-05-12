@@ -5,7 +5,7 @@ from multiset import FrozenMultiset, Multiset, BaseMultiset
 from itertools import chain
 from dataclasses import dataclass
 from django.db import transaction
-from .list_utils import includes_any
+from .utils import includes_any
 from .variant_data import Data, debug_queries
 from .combo_graph import Graph
 from spellbook.models import Combo, Job, Variant, CardInVariant, TemplateInVariant, id_from_cards_and_templates_ids, Playable, Card, Template, VariantAlias, Ingredient, Feature, FeatureProducedByVariant, VariantOfCombo, VariantIncludesCombo
@@ -58,7 +58,7 @@ def get_variants_from_graph(data: Data, job: Job | None, log_count: int) -> dict
                 templates_ids = variant.templates
                 id = id_from_cards_and_templates_ids(cards_ids, templates_ids)
                 feature_ids = variant.features
-                combo_ids = set(variant.combos)
+                combo_ids = variant.combos
                 feature_replacements = {
                     feature: [
                         VariantRecipeDefinition(

@@ -17,7 +17,6 @@ spec:
   selector:
     matchLabels:
       app: spellbook-api
-  replicas: 3
   template:
     metadata:
       labels:

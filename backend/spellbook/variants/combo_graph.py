@@ -1,8 +1,7 @@
-from typing import Mapping, Iterable
+from typing import Mapping, Iterable, Callable
 from math import prod
 from collections import deque, defaultdict
 from multiset import FrozenMultiset
-from typing import Callable, Iterable
 from itertools import chain
 from enum import Enum
 from dataclasses import dataclass
@@ -137,7 +136,7 @@ class Graph:
     class GraphError(Exception):
         pass
 
-    def __init__(self, 
+    def __init__(self,
             data: Data,
             log=None,
             card_limit=5,

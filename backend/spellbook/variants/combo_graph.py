@@ -1,4 +1,4 @@
-from typing import Mapping
+from typing import Mapping, Iterable
 from math import prod
 from collections import deque, defaultdict
 from multiset import FrozenMultiset
@@ -12,6 +12,7 @@ from spellbook.models.combo import Combo
 from spellbook.models.template import Template
 from .variant_data import Data
 from .variant_set import VariantSet
+from .utils import count_contains
 
 
 class NodeState(Enum):
@@ -136,7 +137,11 @@ class Graph:
     class GraphError(Exception):
         pass
 
-    def __init__(self, data: Data, log=None, card_limit=5, variant_limit=10000):
+    def __init__(self, 
+            data: Data,
+            log=None,
+            card_limit=5,
+            variant_limit=10000):
         if data is not None:
             self.logger: Callable[[str], None] = log if log is not None else lambda msg: self._error(msg)
             self.data = data
@@ -155,7 +160,14 @@ class Graph:
             # Construct feature nodes
             self.fnodes = dict[int, FeatureNode]()
             for feature in data.features:
-                node = FeatureNode(feature, produced_by_cards={self.cnodes[i.card_id]: i.quantity for i in feature.featureofcard_set.all()})  # type: ignore
+                node = FeatureNode(
+                    feature,
+                    produced_by_cards={
+                        self.cnodes[i.card_id]: i.quantity
+                        for i in feature.featureofcard_set.all()  # type: ignore
+                        if i.card_id in self.cnodes
+                    }
+                )
                 self.fnodes[feature.id] = node
                 for i in feature.featureofcard_set.all():  # type: ignore
                     cardNode = self.cnodes[i.card_id]
@@ -163,29 +175,46 @@ class Graph:
             # Construct combo nodes
             self.bnodes = dict[int, ComboNode]()
             for combo in data.combos:
-                node = ComboNode(
-                    combo,
-                    cards={self.cnodes[i.card_id]: i.quantity for i in combo.cardincombo_set.all()},
-                    templates={self.tnodes[i.template_id]: i.quantity for i in combo.templateincombo_set.all()},
-                    features_needed={self.fnodes[i.feature_id]: i.quantity for i in combo.featureneededincombo_set.all()},
-                    features_produced=[self.fnodes[i.feature_id] for i in combo.featureproducedincombo_set.all()],
-                )
-                self.bnodes[combo.id] = node
-                for i in combo.featureproducedincombo_set.all():
-                    featureNode = self.fnodes[i.feature_id]
-                    featureNode.produced_by_combos.append(node)
-                for i in combo.featureneededincombo_set.all():
-                    featureNode = self.fnodes[i.feature_id]
-                    featureNode.needed_by_combos.update({node: i.quantity})
-                for i in combo.cardincombo_set.all():
-                    cardNode = self.cnodes[i.card_id]
-                    cardNode.combos.update({node: i.quantity})
-                for i in combo.templateincombo_set.all():
-                    templateNode = self.tnodes[i.template_id]
-                    templateNode.combos.update({node: i.quantity})
+                if all(i.card_id in self.cnodes for i in combo.cardincombo_set.all()) and \
+                        all(i.template_id in self.tnodes for i in combo.templateincombo_set.all()):
+                    node = ComboNode(
+                        combo,
+                        cards={self.cnodes[i.card_id]: i.quantity for i in combo.cardincombo_set.all()},
+                        templates={self.tnodes[i.template_id]: i.quantity for i in combo.templateincombo_set.all()},
+                        features_needed={self.fnodes[i.feature_id]: i.quantity for i in combo.featureneededincombo_set.all()},
+                        features_produced=[self.fnodes[i.feature_id] for i in combo.featureproducedincombo_set.all()],
+                    )
+                    self.bnodes[combo.id] = node
+                    for i in combo.featureproducedincombo_set.all():
+                        featureNode = self.fnodes[i.feature_id]
+                        featureNode.produced_by_combos.append(node)
+                    for i in combo.featureneededincombo_set.all():
+                        featureNode = self.fnodes[i.feature_id]
+                        featureNode.needed_by_combos.update({node: i.quantity})
+                    for i in combo.cardincombo_set.all():
+                        cardNode = self.cnodes[i.card_id]
+                        cardNode.combos.update({node: i.quantity})
+                    for i in combo.templateincombo_set.all():
+                        templateNode = self.tnodes[i.template_id]
+                        templateNode.combos.update({node: i.quantity})
             self.to_reset_nodes = set[Node]()
         else:
             self._error('Invalid arguments')
+
+    def _filter(self, cards: Iterable[int], templates: Iterable[int]) -> 'Graph':
+        data = Data(
+            cards=[self.cnodes[i].card for i in cards],
+            features=[n.feature for n in self.fnodes.values()],
+            combos=[n.combo for n in self.bnodes.values()],
+            templates=[self.tnodes[i].template for i in templates],
+            variants=[],
+        )
+        return Graph(
+            data=data,
+            log=self.logger,
+            card_limit=self.card_limit,
+            variant_limit=self.variant_limit,
+        )
 
     def _error(self, msg: str):
         raise Exception(msg)
@@ -272,9 +301,9 @@ class Graph:
             self.to_reset_nodes.add(ingredient_node)
         card_ids = FrozenMultiset({c.card.id: q for c, q in cards.items()})
         template_ids = FrozenMultiset({t.template.id: q for t, q in templates.items()})
+        sub_graph = self._filter(card_ids.distinct_elements(), template_ids.distinct_elements())
         feature_nodes = defaultdict[FeatureNode, int](lambda: 0)
         combo_nodes_to_visit: deque[ComboNode] = deque()
-        combo_nodes_to_visit_with_new_features: deque[ComboNode] = deque()
         combo_nodes: set[ComboNode] = set()
         replacements = defaultdict[int, list[VariantIngredients]](list)
         for card, quantity in cards.items():
@@ -302,41 +331,39 @@ class Graph:
                             combo_nodes_to_visit.append(feature_combo)
         while combo_nodes_to_visit:
             combo = combo_nodes_to_visit.popleft()
-            if combo.variant_set is not None:
-                if combo.variant_set.is_satisfied_by(card_ids, template_ids):
-                    replacements_for_combo = [
-                        VariantIngredients(cards_satisfying, templates_satisfying)
-                        for cards_satisfying, templates_satisfying
-                        in combo.variant_set.satisfied_by(card_ids, template_ids)
-                    ]
-                    for feature in combo.features_produced:
-                        replacements[feature.feature.id].extend(replacements_for_combo)
-                else:
-                    continue
-            else:
-                # This check avoids computing the entire variant set for a combo to check if it is satisfied
-                # It's a very important optimization because it allows utility "outlet" combos to exist even
-                # if they would generate too many variants, resulting in a graph error
-                if all((q <= cards.get(c, 0) for c, q in combo.cards.items())) and all((q <= templates.get(t, 0) for t, q in combo.templates.items())):
-                    if not all((q <= feature_nodes.get(f, 0) for f, q in combo.features_needed.items())):
-                        combo_nodes_to_visit_with_new_features.append(combo)
-                        continue
-                else:
-                    continue
-            combo.state = NodeState.VISITED
-            combo_nodes.add(combo)
-            for feature in combo.features_produced:
-                if feature.state == NodeState.NOT_VISITED:
-                    feature.state = NodeState.VISITED
-                    self.to_reset_nodes.add(feature)
-                    feature_nodes[feature] += 1
-                    for feature_combo in feature.needed_by_combos:
-                        if feature_combo.state == NodeState.NOT_VISITED:
-                            feature_combo.state = NodeState.VISITING
-                            self.to_reset_nodes.add(feature_combo)
-                            combo_nodes_to_visit.append(feature_combo)
-                    combo_nodes_to_visit.extend(combo_nodes_to_visit_with_new_features)
-                    combo_nodes_to_visit_with_new_features.clear()
+            variant_set = combo.variant_set if combo.variant_set is not None else sub_graph._combo_nodes_down(combo)
+            if variant_set.is_satisfied_by(card_ids, template_ids):
+                satisfied_by = variant_set.satisfied_by(card_ids, template_ids)
+                replacements_for_combo = [
+                    VariantIngredients(cards_satisfying, templates_satisfying)
+                    for cards_satisfying, templates_satisfying
+                    in satisfied_by
+                ]
+                for feature in combo.features_produced:
+                    replacements[feature.feature.id].extend(replacements_for_combo)
+                quantity = 0
+                for cards, templates in satisfied_by:
+                    count_for_cards = count_contains(card_ids, cards) if cards else None
+                    count_for_templates = count_contains(template_ids, templates) if templates else None
+                    if count_for_cards is not None:
+                        if count_for_templates is not None:
+                            quantity += min(count_for_cards, count_for_templates)
+                        else:
+                            quantity += count_for_cards
+                    elif count_for_templates is not None:
+                        quantity += count_for_templates
+                combo.state = NodeState.VISITED
+                combo_nodes.add(combo)
+                for feature in combo.features_produced:
+                    if feature.state == NodeState.NOT_VISITED:
+                        feature.state = NodeState.VISITED
+                        self.to_reset_nodes.add(feature)
+                        feature_nodes[feature] += quantity
+                        for feature_combo in feature.needed_by_combos:
+                            if feature_combo.state == NodeState.NOT_VISITED:
+                                feature_combo.state = NodeState.VISITING
+                                self.to_reset_nodes.add(feature_combo)
+                                combo_nodes_to_visit.append(feature_combo)
         return VariantRecipe(
             cards=card_ids,
             templates=template_ids,

@@ -8,7 +8,7 @@ cardid = int
 templateid = int
 
 
-class VariantSet():
+class VariantSet:
     def __init__(self, limit: int | float | None = None):
         self.sets = MinimalSetOfMultisets[str]()
         self.max_depth = limit if limit is not None else float('inf')
@@ -32,24 +32,24 @@ class VariantSet():
 
     def add(self, cards: FrozenMultiset, templates: FrozenMultiset):
         base_key = self.ingredients_to_key(cards, templates)
-        if len(base_key) > self.max_depth:
+        if len(base_key.distinct_elements()) > self.max_depth:
             return
         self._add(base_key)
 
     def _add(self, key: FrozenMultiset):
-        if len(key) == 0 or len(key) > self.max_depth:
+        if len(key) == 0 or len(key.distinct_elements()) > self.max_depth:
             return
         self.sets.add(key)
 
     def is_satisfied_by(self, cards: FrozenMultiset, templates: FrozenMultiset) -> bool:
         key = self.ingredients_to_key(cards, templates)
-        if len(key) > self.max_depth:
+        if len(key.distinct_elements()) > self.max_depth:
             return False
         return self.sets.contains_subset_of(key)
 
     def satisfied_by(self, cards: FrozenMultiset, templates: FrozenMultiset) -> list[tuple[FrozenMultiset, FrozenMultiset]]:
         key = self.ingredients_to_key(cards, templates)
-        if len(key) > self.max_depth:
+        if len(key.distinct_elements()) > self.max_depth:
             return []
         return [self.key_to_ingredients(subset) for subset in self.sets.subsets_of(key)]
 
@@ -82,7 +82,7 @@ class VariantSet():
         right_keys = list(other._keys())
         for left_key, right_key in product(left_keys, right_keys):
             key = left_key + right_key
-            if len(key) > self.max_depth:
+            if len(key.distinct_elements()) > self.max_depth:
                 continue
             result._add(key)
         return result
@@ -101,7 +101,7 @@ class VariantSet():
             for key_combinations in product(*[keys] * power):
                 if len(key_combinations) == len(set(key_combinations)):
                     key = sum(key_combinations, FrozenMultiset())
-                    if len(key) > self.max_depth:
+                    if len(key.distinct_elements()) > self.max_depth:
                         continue
                     result._add(key)
             return result

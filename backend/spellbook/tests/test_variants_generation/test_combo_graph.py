@@ -200,4 +200,18 @@ class ComboGraphTestGeneration(AbstractTestCase):
             2: [VariantIngredients(FrozenMultiset({2: 1}), FrozenMultiset())],
         })
 
+    def test_feature_replacement_multiplication(self):
+        self.save_combo_model({
+            ('2 * A',): ('x',),
+            ('3 * B',): ('x',),
+            ('2 * x',): ('y',),
+            ('x',): ('z',),
+            ('z',): ('k',),
+        })
+        combo_graph = Graph(Data())
+        with self.settings(SINGLETON_COMBO_MODE=False):
+            variants = list(combo_graph.variants(3))
+            self.assertEqual(len(variants), 3)
+            # TODO go on
+
     # TODO: more tests

@@ -93,6 +93,7 @@ class VariantDataTests(AbstractTestCaseWithSeeding):
             Data(
                 cards=[],
                 templates=[],
+                combos=[],
                 features=[],
                 variants=[],
             )

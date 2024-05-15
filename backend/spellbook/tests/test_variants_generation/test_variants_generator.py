@@ -171,49 +171,53 @@ class VariantsGeneratorTests(AbstractTestCaseWithSeeding):
         pass
 
     def test_generate_variants(self):
-        added, restored, deleted = generate_variants()
-        self.assertEqual(Variant.objects.count(), self.expected_variant_count)
-        self.assertEqual(added, self.expected_variant_count)
-        self.assertEqual(restored, 0)
-        self.assertEqual(deleted, 0)
-        for variant in Variant.objects.all():
-            self.assertEqual(variant.status, Variant.Status.NEW)
-            self.assertGreater(len(variant.name), 0)
-            self.assertGreater(len(variant.description), 0)
-            if variant.cards():
-                self.assertTrue(any(
-                    len(text_field) > 0
-                    for card_in_variant in variant.cardinvariant_set.all()
-                    for text_field in (
-                        card_in_variant.battlefield_card_state,
-                        card_in_variant.exile_card_state,
-                        card_in_variant.graveyard_card_state,
-                        card_in_variant.library_card_state
-                    )
-                ))
-            if variant.templates():
-                self.assertTrue(any(
-                    len(text_field) > 0
-                    for template_in_variant in variant.templateinvariant_set.all()
-                    for text_field in (
-                        template_in_variant.battlefield_card_state,
-                        template_in_variant.exile_card_state,
-                        template_in_variant.graveyard_card_state,
-                        template_in_variant.library_card_state
-                    )
-                ))
-        Variant.objects.update(status=Variant.Status.OK)
-        added, restored, deleted = generate_variants()
-        self.assertEqual(added, 0)
-        self.assertEqual(restored, 0)
-        self.assertEqual(deleted, 0)
-        self.assertTrue(all(variant.status == Variant.Status.OK for variant in Variant.objects.all()))
-        Variant.objects.update(status=Variant.Status.RESTORE)
-        added, restored, deleted = generate_variants()
-        self.assertEqual(added, 0)
-        self.assertEqual(restored, self.expected_variant_count)
-        self.assertEqual(deleted, 0)
-        self.assertTrue(all(variant.status == Variant.Status.NEW for variant in Variant.objects.all()))
+        for _ in range(20):
+            Variant.objects.all().delete()
+            with self.subTest():
+                added, restored, deleted = generate_variants()
+                self.assertEqual(Variant.objects.count(), self.expected_variant_count)
+                self.assertEqual(added, self.expected_variant_count)
+                self.assertEqual(restored, 0)
+                self.assertEqual(deleted, 0)
+                variant: Variant
+                for variant in Variant.objects.all():
+                    self.assertEqual(variant.status, Variant.Status.NEW)
+                    self.assertGreater(len(variant.name), 0)
+                    self.assertGreater(len(variant.description), 0)
+                    if variant.cards():
+                        self.assertTrue(any(
+                            len(text_field) > 0
+                            for card_in_variant in variant.cardinvariant_set.all()
+                            for text_field in (
+                                card_in_variant.battlefield_card_state,
+                                card_in_variant.exile_card_state,
+                                card_in_variant.graveyard_card_state,
+                                card_in_variant.library_card_state
+                            )
+                        ))
+                    if variant.templates():
+                        self.assertTrue(any(
+                            len(text_field) > 0
+                            for template_in_variant in variant.templateinvariant_set.all()
+                            for text_field in (
+                                template_in_variant.battlefield_card_state,
+                                template_in_variant.exile_card_state,
+                                template_in_variant.graveyard_card_state,
+                                template_in_variant.library_card_state
+                            )
+                        ))
+                Variant.objects.update(status=Variant.Status.OK)
+                added, restored, deleted = generate_variants()
+                self.assertEqual(added, 0)
+                self.assertEqual(restored, 0)
+                self.assertEqual(deleted, 0)
+                self.assertTrue(all(variant.status == Variant.Status.OK for variant in Variant.objects.all()))
+                Variant.objects.update(status=Variant.Status.RESTORE)
+                added, restored, deleted = generate_variants()
+                self.assertEqual(added, 0)
+                self.assertEqual(restored, self.expected_variant_count)
+                self.assertEqual(deleted, 0)
+                self.assertTrue(all(variant.status == Variant.Status.NEW for variant in Variant.objects.all()))
         Combo.objects.filter(status__in=(Combo.Status.GENERATOR, Combo.Status.GENERATOR_WITH_MANY_CARDS)).update(status=Combo.Status.DRAFT)
         added, restored, deleted = generate_variants()
         self.assertEqual(added, 0)

@@ -30,11 +30,12 @@ class FeatureOfCardAdminInline(IngredientAdmin):
 
 @admin.register(Card)
 class CardAdmin(SpellbookModelAdmin):
-    readonly_fields = ['scryfall_link']
+    readonly_fields = ['id', 'scryfall_link']
     scryfall_fields = ['oracle_id'] + Card.scryfall_fields()
     fieldsets = [
         ('Spellbook', {'fields': [
             'name',
+            'id',
         ]}),
         ('Scryfall', {
             'fields': [

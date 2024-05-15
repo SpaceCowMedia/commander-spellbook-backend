@@ -18,9 +18,9 @@ class CardInFeatureAdminInline(IngredientAdmin):
 
 @admin.register(Feature)
 class FeatureAdmin(SpellbookModelAdmin):
-    readonly_fields = ['scryfall_link']
+    readonly_fields = ['id', 'scryfall_link']
     fieldsets = [
-        (None, {'fields': ['name', 'utility', 'description', 'scryfall_link']}),
+        (None, {'fields': ['name', 'id', 'utility', 'description', 'scryfall_link']}),
     ]
     inlines = [CardInFeatureAdminInline]
     search_fields = ['name', 'cards__name']

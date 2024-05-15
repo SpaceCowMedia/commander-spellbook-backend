@@ -141,11 +141,11 @@ class Graph:
             log=None,
             card_limit=5,
             variant_limit=10000):
+        self.logger: Callable[[str], None] = log if log is not None else lambda msg: self._error(msg)
+        self.card_limit = card_limit
+        self.variant_limit = variant_limit
         if data is not None:
-            self.logger: Callable[[str], None] = log if log is not None else lambda msg: self._error(msg)
             self.data = data
-            self.card_limit = card_limit
-            self.variant_limit = variant_limit
             # Construct card nodes
             self.cnodes = dict[int, CardNode]((card.id, CardNode(card)) for card in data.cards)
             for c in self.cnodes.values():

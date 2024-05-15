@@ -128,9 +128,9 @@ class VariantRelatedFilter(CustomFilter):
 class ComboAdmin(SpellbookModelAdmin):
     form = ComboForm
     save_as = True
-    readonly_fields = ['scryfall_link']
+    readonly_fields = ['id', 'scryfall_link']
     fieldsets = [
-        ('Generated', {'fields': ['scryfall_link']}),
+        ('Generated', {'fields': ['id', 'scryfall_link']}),
         ('More Requirements', {'fields': ['mana_needed', 'other_prerequisites']}),
         ('Description', {'fields': ['status', 'description']}),
     ]

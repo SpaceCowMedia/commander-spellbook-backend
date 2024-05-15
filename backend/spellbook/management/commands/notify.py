@@ -97,7 +97,10 @@ class Command(AbstractCommand):
                 variants: list[Variant] = list(Variant.objects.filter(pk__in=options['identifiers']))
                 if variants:
                     for variant in variants:
-                        webhook_text += f'[{variant.name}](<{variant.spellbook_link(raw=True)}>)\n'
+                        text = f'[{variant.name}](<{variant.spellbook_link(raw=True)}>)'
+                        if variant.spoiler:
+                            text = f'||{text}||'
+                        webhook_text += text + '\n'
                     self.discord_webhook(webhook_text)
                 else:
                     self.log('No variants found', self.style.ERROR)

@@ -13,7 +13,6 @@ class AbstractCommand(BaseCommand):
     name = 'abstract_command'
     job: Job | None = None
     interpreter: str = python_implementation()
-    pypy: bool = interpreter == 'PyPy'
 
     def log(self, message, style=lambda x: x):
         self.stdout.write(style(message))

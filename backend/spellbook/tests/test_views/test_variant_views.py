@@ -3,6 +3,7 @@ import random
 from django.test import Client
 from django.db import models
 from spellbook.models import Card, Template, Feature, Variant, CardInVariant, TemplateInVariant
+from spellbook.models.utils import SORTED_COLORS
 from spellbook.views import VariantViewSet
 from ..abstract_test import AbstractTestCaseWithSeeding
 from common.inspection import json_to_python_lambda
@@ -232,16 +233,121 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
                         self.variant_assertions(v)
 
     def test_variants_list_view_query_by_card_keywords(self):
-        # TODO: implement
-        pass
+        c = Client()
+        for keyword in {k for v in Variant.objects.values_list('uses__keywords', flat=True) for k in v}:
+            queries = [
+                f'cardkeywords:{keyword}',
+                f'cardkeyword:{keyword}',
+                f'keyword:{keyword}',
+                f'keywords:"{keyword}"',
+                f'keyword:{keyword}',
+            ]
+            for q in queries:
+                with self.subTest(f'query by card keyword: {keyword} with query {q}'):
+                    response = c.get('/variants', data={'q': q}, follow=True)
+                    self.assertEqual(response.status_code, 200)
+                    self.assertEqual(response.get('Content-Type'), 'application/json')
+                    result = json.loads(response.content, object_hook=json_to_python_lambda)
+                    variants = self.public_variants.filter(uses__keywords__icontains=keyword).distinct()
+                    self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
+                    for v in result.results:
+                        self.variant_assertions(v)
 
     def test_variants_list_view_query_by_card_mana_value(self):
-        # TODO: implement
-        pass
+        c = Client()
+        operators = {
+            '>': 'gt',
+            '<': 'lt',
+            '>=': 'gte',
+            '<=': 'lte',
+            '=': 'exact',
+            ':': 'exact',
+        }
+        for operator, operator_django in operators.items():
+            for mv in range(10):
+                queries = [
+                    f'cardmanavalue{operator}{mv}',
+                    f'manavalue{operator}{mv}',
+                    f'mv{operator}{mv}',
+                    f'cmc{operator}{mv}',
+                ]
+                for q in queries:
+                    q_django = {f'uses__mana_value__{operator_django}': mv}
+                    with self.subTest(f'query by card mana value: {mv} with query {q}'):
+                        response = c.get('/variants', data={'q': q}, follow=True)
+                        self.assertEqual(response.status_code, 200)
+                        self.assertEqual(response.get('Content-Type'), 'application/json')
+                        result = json.loads(response.content, object_hook=json_to_python_lambda)
+                        variants = self.public_variants.filter(**q_django).distinct()
+                        self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
+                        for v in result.results:
+                            self.variant_assertions(v)
 
     def test_variants_list_view_query_by_identity(self):
-        # TODO: implement
-        pass
+        c = Client()
+        operators = {
+            '>': 'gt',
+            '<': 'lt',
+            '>=': 'gte',
+            '<=': 'lte',
+            '=': 'exact',
+            ':': 'exact',
+        }
+        for operator, operator_django in operators.items():
+            queries = []
+            for identity in SORTED_COLORS:
+                identity = list(identity)
+                random.shuffle(identity)
+                identity = ''.join(identity)
+                if not identity:
+                    identity = 'C'
+                queries.extend([
+                    (f'coloridentity{operator}{identity}', identity),
+                    (f'identity{operator}{identity}', identity),
+                    (f'color{operator}{identity}', identity),
+                    (f'colors{operator}{identity}', identity),
+                    (f'id{operator}{identity}', identity),
+                    (f'ids{operator}{identity}', identity),
+                    (f'c{operator}{identity}', identity),
+                    (f'ci{operator}{identity}', identity),
+                ])
+            for i in range(7):
+                queries.extend([
+                    (f'coloridentity{operator}{i}', i),
+                    (f'identity{operator}{i}', i),
+                    (f'color{operator}{i}', i),
+                    (f'colors{operator}{i}', i),
+                    (f'id{operator}{i}', i),
+                    (f'ids{operator}{i}', i),
+                    (f'c{operator}{i}', i),
+                    (f'ci{operator}{i}', i),
+                ])
+            for q, identity in queries:
+                with self.subTest(f'query by identity: {identity} with query {q}'):
+                    response = c.get('/variants', data={'q': q}, follow=True)
+                    self.assertEqual(response.status_code, 200)
+                    self.assertEqual(response.get('Content-Type'), 'application/json')
+                    result = json.loads(response.content, object_hook=json_to_python_lambda)
+                    if isinstance(identity, int):
+                        qq = {f'identity_count__{operator_django}': identity}
+                        variants = self.public_variants.filter(**qq).distinct()
+                    elif isinstance(identity, str):
+                        identity_set = set(identity) - {'C'}
+                        qq = {f'identity_count__{operator_django if operator != ':' else 'lte'}': len(identity_set)}
+                        variants_result = self.public_variants.filter(**qq).distinct()
+                        variants = []
+                        for v in variants_result:
+                            id_set = set(v.identity)
+                            if id_set == identity_set and '=' in operator or \
+                                id_set.issuperset(identity_set) and id_set != identity_set and '>' in operator or \
+                                    id_set.issubset(identity_set) and id_set != identity_set and '<' in operator or \
+                                    id_set.issubset(identity_set) and ':' in operator:
+                                variants.append(v)
+                    query_result_ids = {v.id for v in result.results}
+                    variants_ids = {v.id for v in variants}
+                    self.assertSetEqual(query_result_ids, variants_ids)
+                    for v in result.results:
+                        self.variant_assertions(v)
 
     def test_variants_list_view_query_by_prerequisites(self):
         # TODO: implement

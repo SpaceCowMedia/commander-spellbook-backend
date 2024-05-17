@@ -99,13 +99,13 @@ def identity_search(identity_value: QueryValue) -> Q:
     identity = ''
     not_in_identity = ''
     if not value_is_digit:
-        upper_value = parse_identity(identity_value.value)
-        if upper_value is None:
+        identity = parse_identity(identity_value.value)
+        if identity is None:
             raise NotSupportedError(f'Invalid color identity: {identity_value.value}')
+        elif identity == 'C':
+            identity = ''
         for color in 'WUBRG':
-            if color in upper_value:
-                identity += color
-            else:
+            if color not in identity:
                 not_in_identity += color
     match identity_value.operator:
         case '=' if not value_is_digit:
@@ -126,7 +126,7 @@ def identity_search(identity_value: QueryValue) -> Q:
             identity_query = Q(identity_count__gte=len(identity))
             for color in identity:
                 identity_query &= Q(identity__contains=color)
-        case '=' if value_is_digit:
+        case '=' | ':' if value_is_digit:
             identity_query = Q(identity_count=identity_value.value)
         case '<' if value_is_digit:
             identity_query = Q(identity_count__lt=identity_value.value)
@@ -342,7 +342,7 @@ keyword_map: dict[str, Callable[[QueryValue], Q]] = {
 
 alias_map: dict[str, str] = {
     'cards': 'card',
-    'color_identity': 'coloridentity',
+    'identity': 'coloridentity',
     'color': 'coloridentity',
     'colors': 'coloridentity',
     'id': 'coloridentity',
@@ -371,6 +371,7 @@ alias_map: dict[str, str] = {
     'oracle': 'cardoracle',
     'text': 'cardoracle',
     'o': 'cardoracle',
+    'cardkeyword': 'cardkeywords',
     'keyword': 'cardkeywords',
     'keywords': 'cardkeywords',
     'kw': 'cardkeywords',

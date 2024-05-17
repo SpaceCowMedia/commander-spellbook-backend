@@ -214,8 +214,8 @@ class ComboGraphTestGeneration(AbstractTestCase):
             ('x',): ('z',),
             ('z',): ('k',),
         })
-        combo_graph = Graph(Data())
         with self.settings(SINGLETON_COMBO_MODE=False):
+            combo_graph = Graph(Data())
             variants = list(combo_graph.variants(3))
             self.assertEqual(len(variants), 3)
             variants.sort(key=lambda v: sorted(v.cards))
@@ -249,5 +249,33 @@ class ComboGraphTestGeneration(AbstractTestCase):
                 3: [VariantIngredients(FrozenMultiset({2: 3}), FrozenMultiset())],
                 4: [VariantIngredients(FrozenMultiset({2: 3}), FrozenMultiset())],
             })
+        with self.settings(SINGLETON_COMBO_MODE=True):
+            combo_graph = Graph(Data())
+            variants = list(combo_graph.variants(3))
+            self.assertEqual(len(variants), 0)
+
+    # def test_removal_of_redundant_variants(self):
+    #     self.save_combo_model({
+    #         ('A', 'B'): ('x',),
+    #         ('C', 'D'): ('y',),
+    #         ('x', 'y'): ('z',),
+    #         ('B', 'C'): ('x', 'y'),
+    #     })
+    #     with self.settings(SINGLETON_COMBO_MODE=False):
+    #         combo_graph = Graph(Data())
+    #         variants = list(combo_graph.variants(3))
+    #         self.assertEqual(len(variants), 1)
+
+    # def test_removal_of_redundant_variants_with_multiples(self):
+    #     self.save_combo_model({
+    #         ('3 * A',): ('x',),
+    #         ('3 * B',): ('y',),
+    #         ('x', 'y'): ('z',),
+    #         ('2 * A', '2 * B'): ('x', 'y'),
+    #     })
+    #     with self.settings(SINGLETON_COMBO_MODE=False):
+    #         combo_graph = Graph(Data())
+    #         variants = list(combo_graph.variants(3))
+    #         self.assertEqual(len(variants), 1)
 
     # TODO: more tests

@@ -56,7 +56,7 @@ class AbstractTestCase(TestCase):
             combo = Combo.objects.create(pk=combo_id, mana_needed='', other_prerequisites='Test Prerequisites', description='Test Description', status=Combo.Status.GENERATOR)
             for i, (card, quantity) in enumerate(cards.items()):
                 card_id = card_ids_by_name.setdefault(card, reduce(lambda x, y: max(x, y), card_ids_by_name.values(), 0) + 1)
-                c, _ = Card.objects.get_or_create(pk=card_id, name=card, oracle_id=uuid.uuid4(), identity='W', legal_commander=True, spoiler=False, type_line='Test Card')
+                c, _ = Card.objects.get_or_create(pk=card_id, name=card, identity='W', legal_commander=True, spoiler=False, type_line='Test Card')
                 CardInCombo.objects.create(card=c, combo=combo, order=i, zone_locations=IngredientInCombination.ZoneLocation.BATTLEFIELD, quantity=quantity)
             for feature, quantity in features.items():
                 feature_id = feature_ids_by_name.setdefault(feature, reduce(lambda x, y: max(x, y), feature_ids_by_name.values(), 0) + 1)

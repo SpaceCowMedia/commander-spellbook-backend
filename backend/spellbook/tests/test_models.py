@@ -42,7 +42,7 @@ class CardTests(AbstractTestCaseWithSeeding):
         self.assertTrue(c.legal_commander)
         self.assertFalse(c.spoiler)
         self.assertEqual(c.oracle_text, 'x1')
-        self.assertEqual(c.keywords, [])
+        self.assertEqual(c.keywords, ['keyword1', 'keyword2'])
         self.assertEqual(c.mana_value, 0)
         self.assertFalse(c.reserved)
         self.assertEqual(c.latest_printing_set, '')
@@ -133,7 +133,7 @@ class TemplateTests(AbstractTestCaseWithSeeding):
 class ComboTests(AbstractTestCaseWithSeeding):
     def test_combo_fields(self):
         c = Combo.objects.get(id=self.b1_id)
-        self.assertEqual(c.description, '1')
+        self.assertEqual(c.description, 'a1')
         self.assertEqual(c.uses.count(), 2)
         self.assertEqual(c.needs.count(), 1)
         self.assertEqual(c.requires.count(), 0)
@@ -147,7 +147,7 @@ class ComboTests(AbstractTestCaseWithSeeding):
         self.assertEqual(c.cardincombo_set.get(card__oracle_id='00000000-0000-0000-0000-000000000003').zone_locations, IngredientInCombination.ZoneLocation.BATTLEFIELD)
         self.assertEqual(c.templateincombo_set.count(), 0)
         c = Combo.objects.get(id=self.b2_id)
-        self.assertEqual(c.description, '2')
+        self.assertEqual(c.description, 'b2')
         self.assertEqual(c.uses.count(), 0)
         self.assertEqual(c.needs.count(), 1)
         self.assertEqual(c.requires.count(), 1)

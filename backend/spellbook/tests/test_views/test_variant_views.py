@@ -2,7 +2,7 @@ import json
 import random
 from django.test import Client
 from django.db import models
-from spellbook.models import Card, Template, Feature, Variant, CardInVariant, TemplateInVariant
+from spellbook.models import Card, Template, Feature, Variant, CardInVariant, TemplateInVariant, Combo
 from spellbook.models.utils import SORTED_COLORS
 from spellbook.views import VariantViewSet
 from ..abstract_test import AbstractTestCaseWithSeeding
@@ -18,6 +18,7 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
         self.bulk_serialize_variants()
         self.v1_id: int = Variant.objects.first().id  # type: ignore
         self.public_variants = VariantViewSet.queryset
+        self.ok_variants = self.public_variants.filter(status=Variant.Status.OK)
 
     def variant_assertions(self, variant_result):
         v = Variant.objects.get(id=variant_result.id)
@@ -350,12 +351,128 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
                         self.variant_assertions(v)
 
     def test_variants_list_view_query_by_prerequisites(self):
-        # TODO: implement
-        pass
+        c = Client()
+        operators = {
+            '>': 'gt',
+            '<': 'lt',
+            '>=': 'gte',
+            '<=': 'lte',
+            '=': 'exact',
+            ':': 'exact',
+        }
+        for operator, operator_django in operators.items():
+            for i in range(3):
+                queries = [
+                    f'prerequisites{operator}{i}',
+                    f'prerequisite{operator}{i}',
+                    f'prereq{operator}{i}',
+                    f'pre{operator}{i}',
+                ]
+                for q in queries:
+                    q_django = {f'other_prerequisites_line_count__{operator_django}': i}
+                    with self.subTest(f'query by prerequisites: {i} with query {q}'):
+                        response = c.get('/variants', data={'q': q}, follow=True)
+                        self.assertEqual(response.status_code, 200)
+                        self.assertEqual(response.get('Content-Type'), 'application/json')
+                        result = json.loads(response.content, object_hook=json_to_python_lambda)
+                        variants = self.ok_variants.filter(**q_django).distinct()
+                        self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
+                        for v in result.results:
+                            self.variant_assertions(v)
+        prereq = Combo.objects.first().other_prerequisites.split(maxsplit=2)[0]  # type: ignore
+        queries = [
+            f'prerequisites:"{prereq}"',
+            f'prerequisite:{prereq}',
+            f'prereq:{prereq}',
+            f'pre:{prereq}',
+        ]
+        for q in queries:
+            with self.subTest(f'query by prerequisites: {prereq} with query {q}'):
+                response = c.get('/variants', data={'q': q}, follow=True)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.get('Content-Type'), 'application/json')
+                result = json.loads(response.content, object_hook=json_to_python_lambda)
+                variants = self.ok_variants.filter(other_prerequisites__icontains=prereq).distinct()
+                self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
+                for v in result.results:
+                    self.variant_assertions(v)
+        prereq = Combo.objects.first().other_prerequisites  # type: ignore
+        queries = [
+            f'prerequisite="{prereq}"',
+            f'prerequisites="{prereq}"',
+        ]
+        for q in queries:
+            with self.subTest(f'query by prerequisites: {prereq} with query {q}'):
+                response = c.get('/variants', data={'q': q}, follow=True)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.get('Content-Type'), 'application/json')
+                result = json.loads(response.content, object_hook=json_to_python_lambda)
+                variants = self.ok_variants.filter(other_prerequisites__iexact=prereq).distinct()
+                self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
+                for v in result.results:
+                    self.variant_assertions(v)
 
     def test_variants_list_view_query_by_steps(self):
-        # TODO: implement
-        pass
+        c = Client()
+        operators = {
+            '>': 'gt',
+            '<': 'lt',
+            '>=': 'gte',
+            '<=': 'lte',
+            '=': 'exact',
+            ':': 'exact',
+        }
+        for operator, operator_django in operators.items():
+            for i in range(3):
+                queries = [
+                    f'steps{operator}{i}',
+                    f'step{operator}{i}',
+                    f'description{operator}{i}',
+                    f'desc{operator}{i}',
+                ]
+                for q in queries:
+                    q_django = {f'description_line_count__{operator_django}': i}
+                    with self.subTest(f'query by steps: {i} with query {q}'):
+                        response = c.get('/variants', data={'q': q}, follow=True)
+                        self.assertEqual(response.status_code, 200)
+                        self.assertEqual(response.get('Content-Type'), 'application/json')
+                        result = json.loads(response.content, object_hook=json_to_python_lambda)
+                        variants = self.ok_variants.filter(**q_django).distinct()
+                        self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
+                        for v in result.results:
+                            self.variant_assertions(v)
+        steps = Combo.objects.first().description.split(maxsplit=2)[0]  # type: ignore
+        queries = [
+            f'steps:"{steps}"',
+            f'step:{steps}',
+            f'description:{steps}',
+            f'desc:{steps}',
+        ]
+        for q in queries:
+            with self.subTest(f'query by steps: {steps} with query {q}'):
+                response = c.get('/variants', data={'q': q}, follow=True)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.get('Content-Type'), 'application/json')
+                result = json.loads(response.content, object_hook=json_to_python_lambda)
+                variants = self.ok_variants.filter(description__icontains=steps).distinct()
+                self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
+                for v in result.results:
+                    self.variant_assertions(v)
+        steps = Combo.objects.first().description  # type: ignore
+        queries = [
+            f'step="{steps}"',
+            f'steps="{steps}"',
+        ]
+        for q in queries:
+            with self.subTest(f'query by steps: {steps} with query {q}'):
+                response = c.get('/variants', data={'q': q}, follow=True)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.get('Content-Type'), 'application/json')
+                result = json.loads(response.content, object_hook=json_to_python_lambda)
+                variants = self.ok_variants.filter(description__iexact=steps).distinct()
+                self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
+                for v in result.results:
+                    self.variant_assertions(v)
 
     def test_variants_list_view_query_by_results(self):
         c = Client()

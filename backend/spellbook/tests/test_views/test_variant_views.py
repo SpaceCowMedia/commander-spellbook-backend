@@ -334,7 +334,8 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
                         variants = self.public_variants.filter(**qq).distinct()
                     elif isinstance(identity, str):
                         identity_set = set(identity) - {'C'}
-                        qq = {f'identity_count__{operator_django if operator != ':' else 'lte'}': len(identity_set)}
+                        operator_for_query = operator_django if operator != ':' else 'lte'
+                        qq = {f'identity_count__{operator_for_query}': len(identity_set)}
                         variants_result = self.public_variants.filter(**qq).distinct()
                         variants = []
                         for v in variants_result:

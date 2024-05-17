@@ -60,13 +60,20 @@ jobs:
 
   lint:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - '3.12'
+          - '3.11'
+          - '3.10'
     steps:
       - name: Checkout 🛎️
         uses: actions/checkout@v4
       - name: Setup Python 🐍
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: ${{ matrix.python-version }}
           cache: pip
       - name: Install Linter 🧴
         run: pip install flake8

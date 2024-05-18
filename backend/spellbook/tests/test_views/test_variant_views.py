@@ -5,6 +5,8 @@ from django.db import models
 from spellbook.models import Card, Template, Feature, Variant, CardInVariant, TemplateInVariant, Combo
 from spellbook.models.utils import SORTED_COLORS
 from spellbook.views import VariantViewSet
+from spellbook.serializers import VariantSerializer
+from website.models import WebsiteProperty, FEATURED_SET_CODES
 from ..abstract_test import AbstractTestCaseWithSeeding
 from common.inspection import json_to_python_lambda
 
@@ -524,8 +526,72 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
                         self.variant_assertions(v)
 
     def test_variants_list_view_query_by_tag(self):
-        # TODO: implement
-        pass
+        c = Client()
+        for preview_tag in (
+            'preview',
+            'previewed',
+            'spoiler',
+            'spoiled',
+        ):
+            query = f'is:{preview_tag}'
+            with self.subTest(f'query by tag: {preview_tag} with query {query}'):
+                response = c.get('/variants', data={'q': query}, follow=True)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.get('Content-Type'), 'application/json')
+                result = json.loads(response.content, object_hook=json_to_python_lambda)
+                variants = self.public_variants.filter(spoiler=True).distinct()
+                self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
+                for v in result.results:
+                    self.variant_assertions(v)
+        query = 'is:commander'
+        with self.subTest(f'query by tag: commander with query {query}'):
+            response = c.get('/variants', data={'q': query}, follow=True)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.get('Content-Type'), 'application/json')
+            result = json.loads(response.content, object_hook=json_to_python_lambda)
+            variants = self.public_variants.filter(cardinvariant__must_be_commander=True).distinct()
+            self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
+            for v in result.results:
+                self.variant_assertions(v)
+        c1: Card = Card.objects.all()[0]  # type: ignore
+        c1.reserved = True
+        c1.save()
+        for v in Variant.objects.all():
+            v.update_serialized(VariantSerializer)
+            v.save()
+        query = 'is:reserved'
+        with self.subTest(f'query by tag: reserved with query {query}'):
+            response = c.get('/variants', data={'q': query}, follow=True)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.get('Content-Type'), 'application/json')
+            result = json.loads(response.content, object_hook=json_to_python_lambda)
+            variants = self.public_variants.filter(uses__reserved=True).distinct()
+            self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
+            for v in result.results:
+                self.variant_assertions(v)
+        WebsiteProperty.objects.create(key=FEATURED_SET_CODES, value='STX,DND')
+        c1: Card = Card.objects.all()[0]  # type: ignore
+        c1.reprinted = False
+        c1.latest_printing_set = 'stx'
+        c1.save()
+        c2: Card = Card.objects.all()[1]  # type: ignore
+        c2.reprinted = False
+        c2.latest_printing_set = 'dnd'
+        c2.save()
+        c3: Card = Card.objects.all()[2]  # type: ignore
+        c3.reprinted = True
+        c3.latest_printing_set = 'stx'
+        c3.save()
+        query = 'is:featured'
+        with self.subTest(f'query by tag: featured with query {query}'):
+            response = c.get('/variants', data={'q': query}, follow=True)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.get('Content-Type'), 'application/json')
+            result = json.loads(response.content, object_hook=json_to_python_lambda)
+            variants = self.public_variants.filter(uses__latest_printing_set__in=['stx', 'dnd'], uses__reprinted=False).distinct()
+            self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
+            for v in result.results:
+                self.variant_assertions(v)
 
     def test_variants_list_view_query_by_spellbook_id(self):
         c = Client()

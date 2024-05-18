@@ -632,4 +632,3 @@ class ComboGraphTestGeneration(AbstractTestCase):
             3: [VariantIngredients(FrozenMultiset({4: 1}), FrozenMultiset())],
             4: [VariantIngredients(FrozenMultiset({4: 1}), FrozenMultiset())],
         })
-    # TODO: more tests

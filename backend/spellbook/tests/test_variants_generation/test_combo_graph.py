@@ -254,28 +254,121 @@ class ComboGraphTestGeneration(AbstractTestCase):
             variants = list(combo_graph.variants(3))
             self.assertEqual(len(variants), 0)
 
-    # def test_removal_of_redundant_variants(self):
-    #     self.save_combo_model({
-    #         ('A', 'B'): ('x',),
-    #         ('C', 'D'): ('y',),
-    #         ('x', 'y'): ('z',),
-    #         ('B', 'C'): ('x', 'y'),
-    #     })
-    #     with self.settings(SINGLETON_COMBO_MODE=False):
-    #         combo_graph = Graph(Data())
-    #         variants = list(combo_graph.variants(3))
-    #         self.assertEqual(len(variants), 1)
+    def test_removal_of_redundant_variants(self):
+        self.save_combo_model({
+            ('A', 'B'): ('x',),
+            ('C', 'D'): ('y',),
+            ('x', 'y'): ('z',),
+            ('B', 'C'): ('x', 'y'),
+        })
+        for boolean in (False, True):
+            with self.settings(SINGLETON_COMBO_MODE=boolean):
+                combo_graph = Graph(Data())
+                variants = list(combo_graph.variants(3))
+                self.assertEqual(len(variants), 1)
+                self.assertMultisetEqual(variants[0].cards, {2: 1, 3: 1})
+                self.assertMultisetEqual(variants[0].templates, {})
+                self.assertMultisetEqual(variants[0].features, {1: 1, 2: 1, 3: 1})
+                self.assertSetEqual(variants[0].combos, {3, 4})
+                self.assertReplacementsEqual(variants[0].replacements, {
+                    1: [VariantIngredients(FrozenMultiset({2: 1, 3: 1}), FrozenMultiset())],
+                    2: [VariantIngredients(FrozenMultiset({2: 1, 3: 1}), FrozenMultiset())],
+                    3: [VariantIngredients(FrozenMultiset({2: 1, 3: 1}), FrozenMultiset())],
+                })
 
-    # def test_removal_of_redundant_variants_with_multiples(self):
-    #     self.save_combo_model({
-    #         ('3 * A',): ('x',),
-    #         ('3 * B',): ('y',),
-    #         ('x', 'y'): ('z',),
-    #         ('2 * A', '2 * B'): ('x', 'y'),
-    #     })
-    #     with self.settings(SINGLETON_COMBO_MODE=False):
-    #         combo_graph = Graph(Data())
-    #         variants = list(combo_graph.variants(3))
-    #         self.assertEqual(len(variants), 1)
+    def test_removal_of_redundant_variants_with_multiples(self):
+        self.save_combo_model({
+            ('3 * A',): ('x',),
+            ('3 * B',): ('y',),
+            ('x', 'y'): ('z',),
+            ('2 * A', '2 * B'): ('x', 'y'),
+        })
+        with self.settings(SINGLETON_COMBO_MODE=True):
+            combo_graph = Graph(Data())
+            variants = list(combo_graph.variants(3))
+            self.assertEqual(len(variants), 0)
+        with self.settings(SINGLETON_COMBO_MODE=False):
+            combo_graph = Graph(Data())
+            variants = list(combo_graph.variants(3))
+            self.assertEqual(len(variants), 1)
+            self.assertMultisetEqual(variants[0].cards, {1: 2, 2: 2})
+            self.assertMultisetEqual(variants[0].templates, {})
+            self.assertMultisetEqual(variants[0].features, {1: 1, 2: 1, 3: 1})
+            self.assertSetEqual(variants[0].combos, {3, 4})
+            self.assertReplacementsEqual(variants[0].replacements, {
+                1: [VariantIngredients(FrozenMultiset({1: 2, 2: 2}), FrozenMultiset())],
+                2: [VariantIngredients(FrozenMultiset({1: 2, 2: 2}), FrozenMultiset())],
+                3: [VariantIngredients(FrozenMultiset({1: 2, 2: 2}), FrozenMultiset())],
+            })
+
+    def test_result_ring(self):
+        self.save_combo_model({
+            ('A',): ('x',),
+            ('x',): ('z',),
+            ('B',): ('w',),
+            ('w',): ('z',),
+            ('A', 'B'): ('a',),
+        })
+        combo_graph = Graph(Data())
+        variants = list(combo_graph.variants(5))
+        self.assertEqual(len(variants), 1)
+        self.assertMultisetEqual(variants[0].cards, {1: 1, 2: 1})
+        self.assertMultisetEqual(variants[0].templates, {})
+        self.assertMultisetEqual(variants[0].features, {1: 1, 2: 2, 3: 1, 4: 1})
+        self.assertSetEqual(variants[0].combos, {1, 2, 3, 4, 5})
+        self.assertReplacementsEqual(variants[0].replacements, {
+            1: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset())],
+            2: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset()), VariantIngredients(FrozenMultiset({2: 1}), FrozenMultiset())],
+            3: [VariantIngredients(FrozenMultiset({2: 1}), FrozenMultiset())],
+            4: [VariantIngredients(FrozenMultiset({1: 1, 2: 1}), FrozenMultiset())],
+        })
+
+    def test_cross_merge(self):
+        self.save_combo_model({
+            ('A', 'B'): ('x',),
+            ('B', 'C'): ('x',),
+            ('2 * x',): ('y',),
+        })
+        with self.settings(SINGLETON_COMBO_MODE=False):
+            combo_graph = Graph(Data())
+            variants = list(combo_graph.variants(3))
+            self.assertEqual(len(variants), 3)
+            variants.sort(key=lambda v: sorted(v.cards))
+            self.assertMultisetEqual(variants[0].cards, {1: 2, 2: 2})
+            self.assertMultisetEqual(variants[0].templates, {})
+            self.assertMultisetEqual(variants[0].features, {1: 2, 2: 1})
+            self.assertSetEqual(variants[0].combos, {1, 3})
+            self.assertReplacementsEqual(variants[0].replacements, {
+                1: [VariantIngredients(FrozenMultiset({1: 1, 2: 1}), FrozenMultiset())],
+                2: [VariantIngredients(FrozenMultiset({1: 2, 2: 2}), FrozenMultiset())],
+            })
+            self.assertMultisetEqual(variants[1].cards, {1: 1, 2: 2, 3: 1})
+            self.assertMultisetEqual(variants[1].templates, {})
+            self.assertMultisetEqual(variants[1].features, {1: 2, 2: 1})
+            self.assertSetEqual(variants[1].combos, {1, 2, 3})
+            self.assertReplacementsEqual(variants[1].replacements, {
+                1: [VariantIngredients(FrozenMultiset({1: 1, 2: 1}), FrozenMultiset()), VariantIngredients(FrozenMultiset({2: 1, 3: 1}), FrozenMultiset())],
+                2: [VariantIngredients(FrozenMultiset({1: 1, 2: 2, 3: 1}), FrozenMultiset())],
+            })
+            self.assertMultisetEqual(variants[2].cards, {2: 2, 3: 2})
+            self.assertMultisetEqual(variants[2].templates, {})
+            self.assertMultisetEqual(variants[2].features, {1: 2, 2: 1})
+            self.assertSetEqual(variants[2].combos, {2, 3})
+            self.assertReplacementsEqual(variants[2].replacements, {
+                1: [VariantIngredients(FrozenMultiset({2: 1, 3: 1}), FrozenMultiset())],
+                2: [VariantIngredients(FrozenMultiset({2: 2, 3: 2}), FrozenMultiset())],
+            })
+        with self.settings(SINGLETON_COMBO_MODE=True):
+            combo_graph = Graph(Data())
+            variants = list(combo_graph.variants(3))
+            self.assertEqual(len(variants), 1)
+            self.assertMultisetEqual(variants[0].cards, {1: 1, 2: 2, 3: 1})
+            self.assertMultisetEqual(variants[0].templates, {})
+            self.assertMultisetEqual(variants[0].features, {1: 2, 2: 1})
+            self.assertSetEqual(variants[0].combos, {1, 2, 3})
+            self.assertReplacementsEqual(variants[0].replacements, {
+                1: [VariantIngredients(FrozenMultiset({1: 1, 2: 1}), FrozenMultiset()), VariantIngredients(FrozenMultiset({2: 1, 3: 1}), FrozenMultiset())],
+                2: [VariantIngredients(FrozenMultiset({1: 1, 2: 2, 3: 1}), FrozenMultiset())],
+            })
 
     # TODO: more tests

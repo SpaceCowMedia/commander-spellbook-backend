@@ -73,10 +73,18 @@ class VariantSet:
             result._add(key)
         return result
 
-    def __add__(self, other):
-        return self.__or__(other)
-
     def __and__(self, other: 'VariantSet'):
+        result = VariantSet(limit=self.max_depth)
+        left_keys = list(self._keys())
+        right_keys = list(other._keys())
+        for left_key, right_key in product(left_keys, right_keys):
+            key = left_key | right_key
+            if len(key.distinct_elements()) > self.max_depth:
+                continue
+            result._add(key)
+        return result
+
+    def __add__(self, other: 'VariantSet'):
         result = VariantSet(limit=self.max_depth)
         left_keys = list(self._keys())
         right_keys = list(other._keys())
@@ -86,9 +94,6 @@ class VariantSet:
                 continue
             result._add(key)
         return result
-
-    def __mul__(self, other):
-        return self.__and__(other)
 
     def __pow__(self, power: int):
         if not isinstance(power, int):
@@ -106,7 +111,7 @@ class VariantSet:
                     result._add(key)
             return result
         else:
-            return self.and_sets([self] * power, limit=self.max_depth)
+            return self.sum_sets([self] * power, limit=self.max_depth)
 
     def variants(self) -> list[tuple[FrozenMultiset, FrozenMultiset]]:
         result = list[tuple[FrozenMultiset, FrozenMultiset]]()
@@ -125,6 +130,10 @@ class VariantSet:
     @classmethod
     def and_sets(cls, sets: list['VariantSet'], limit: int | float | None = None) -> 'VariantSet':
         return VariantSet.aggregate_sets(sets, limit=limit, strategy=lambda x, y: x & y)
+
+    @classmethod
+    def sum_sets(cls, sets: list['VariantSet'], limit: int | float | None = None) -> 'VariantSet':
+        return VariantSet.aggregate_sets(sets, limit=limit, strategy=lambda x, y: x + y)
 
     @classmethod
     def aggregate_sets(cls, sets: list['VariantSet'], strategy, limit: int | float | None = None) -> 'VariantSet':

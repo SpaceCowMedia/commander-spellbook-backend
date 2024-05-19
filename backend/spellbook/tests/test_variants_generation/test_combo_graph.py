@@ -632,3 +632,23 @@ class ComboGraphTestGeneration(AbstractTestCase):
             3: [VariantIngredients(FrozenMultiset({4: 1}), FrozenMultiset())],
             4: [VariantIngredients(FrozenMultiset({4: 1}), FrozenMultiset())],
         })
+
+    def test_additional_results_avoiding_too_many_variants(self):
+        threshold = 100
+        self.save_combo_model({
+            ('A',): ('x',),
+            ('x',): ('y',),
+            **{(f'B{i}',): ('x',) for i in range(threshold + 1)},
+        })
+        combo_graph = Graph(Data(), variant_limit=threshold)
+        self.assertRaises(Exception, lambda: combo_graph.variants(2))
+        variants = list(combo_graph.variants(1))
+        self.assertEqual(len(variants), 1)
+        self.assertMultisetEqual(variants[0].cards, {1: 1})
+        self.assertMultisetEqual(variants[0].templates, {})
+        self.assertMultisetEqual(variants[0].features, {1: 1, 2: 1})
+        self.assertSetEqual(variants[0].combos, {1, 2})
+        self.assertReplacementsEqual(variants[0].replacements, {
+            1: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset())],
+            2: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset())],
+        })

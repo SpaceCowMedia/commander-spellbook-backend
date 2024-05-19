@@ -96,6 +96,10 @@ def mana_value(mana: str) -> int:
     return value
 
 
+def sanitize_mana(mana: str) -> str:
+    return re.sub(r'\{([WUBRG])P\}', r'{\1/P}', mana)
+
+
 def sanitize_newlines_apostrophes_and_quotes(s: str) -> str:
     s = normalize_newlines(s)
     for chars, replacement in SANITIZATION_REPLACEMENTS.items():

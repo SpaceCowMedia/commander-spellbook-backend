@@ -245,7 +245,7 @@ class VariantSuggestionsTests(AbstractTestCaseWithSeeding):
                 }
             ],
             "comment": "A comment with some apostrophes: `'ʼ and quotes: \"“ˮ and newlines \r\n and \n and \r",
-            "manaNeeded": "{1}{W}{U}{B}{R}{G} with some apostrophes: `'ʼ and quotes: \"“ˮ",
+            "manaNeeded": "{1}{W}{U}{B}{R}{G} correct mana {U/P} wrong mana {BP} with some apostrophes: `'ʼ and quotes: \"“ˮ",
             "otherPrerequisites": "Other prereqs with some apostrophes: `'ʼ and quotes: \"“ˮ",
             "description": "A description with some apostrophes: `'ʼ and quotes: \"“ˮ and CRLF \r\n and LF \n and CR \r"
         }
@@ -272,6 +272,8 @@ class VariantSuggestionsTests(AbstractTestCaseWithSeeding):
             self.assertNotIn('ʻ', s)
             self.assertNotIn('ʼ', s)
             self.assertNotIn('\r', s)
+            for color in 'WUBRG':
+                self.assertNotIn(f'{{{color}P}}', s)
             return s
         apply_recursively_to_strings(json.loads(response.content), assertStringSanity)
 

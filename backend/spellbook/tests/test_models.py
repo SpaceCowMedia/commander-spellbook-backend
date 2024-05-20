@@ -61,8 +61,52 @@ class CardTests(AbstractTestCaseWithSeeding):
         self.assertTrue(c.scryfall_link(raw=True).startswith('http'))  # type: ignore
         self.assertIn(c.scryfall_link(raw=True), c.scryfall_link(raw=False))  # type: ignore
 
+    def test_is_legendary(self):
+        c = Card.objects.get(id=self.c1_id)
+        self.assertFalse(c.is_legendary())
+        c.type_line = 'Legendary Creature - Human'
+        c.save()
+        self.assertTrue(c.is_legendary())
+        c.type_line = 'Legendary Sorcery'
+        self.assertTrue(c.is_legendary())
+        c.type_line = 'Creature - Human'
+        self.assertFalse(c.is_legendary())
+
+    def test_is_creature(self):
+        c = Card.objects.get(id=self.c1_id)
+        self.assertFalse(c.is_creature())
+        c.type_line = 'Creature - Human'
+        c.save()
+        self.assertTrue(c.is_creature())
+        c.type_line = 'Legendary Creature - Human'
+        self.assertTrue(c.is_creature())
+        c.type_line = 'Legendary Sorcery'
+        self.assertFalse(c.is_creature())
+
+    def test_is_instant(self):
+        c = Card.objects.get(id=self.c2_id)
+        self.assertFalse(c.is_instant())
+        c.type_line = 'Legendary Instant'
+        c.save()
+        self.assertTrue(c.is_instant())
+        c.type_line = 'Instant'
+        self.assertTrue(c.is_instant())
+        c.type_line = 'Sorcery'
+        self.assertFalse(c.is_instant())
+
+    def test_is_sorcery(self):
+        c = Card.objects.get(id=self.c1_id)
+        self.assertFalse(c.is_sorcery())
+        c.type_line = 'Legendary Sorcery'
+        c.save()
+        self.assertTrue(c.is_sorcery())
+        c.type_line = 'Sorcery'
+        self.assertTrue(c.is_sorcery())
+        c.type_line = 'Instant'
+        self.assertFalse(c.is_sorcery())
+
     def test_method_count(self):
-        self.assertEqual(count_methods(Card), 4)
+        self.assertEqual(count_methods(Card), 8)
 
     def test_name_unaccented(self):
         c = Card.objects.create(name='à, è, ì, ò, ù, y, À, È, Ì, Ò, Ù, Y, á, é, í, ó, ú, ý, Á, É, Í, Ó, Ú, Ý, â, ê, î, ô, û, y, Â, Ê, Î, Ô, Û, Y, ä, ë, ï, ö, ü, ÿ, Ä, Ë, Ï, Ö, Ü, Ÿ', oracle_id='47d6f04b-a6fe-4274-bd27-888475158e82')

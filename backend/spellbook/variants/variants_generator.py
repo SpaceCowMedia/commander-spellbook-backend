@@ -118,7 +118,7 @@ class VariantBulkSaveItem:
 
 
 def get_default_zone_location_for_card(card: Card) -> str:
-    if any(card_type in card.type_line for card_type in ('Instant', 'Sorcery')):
+    if card.is_instant() or card.is_sorcery():
         return Ingredient.ZoneLocation.HAND
     return Ingredient.ZoneLocation.BATTLEFIELD
 
@@ -172,7 +172,15 @@ def apply_replacements(
     for feature, replacement_list in replacements.items():
         if replacement_list:
             cards, templates = replacement_list[0]
-            names = [c.name for c in cards] + [t.name for t in templates]
+            names = [
+                c.name.split(',', 2)[0]
+                if ',' in c.name and '//' not in c.name and c.is_legendary() and c.is_creature()
+                else c.name
+                for c in cards
+            ] + [
+                t.name
+                for t in templates
+            ]
             replacement = ' + '.join(names)
             replacements_strings[feature.name] = replacement
 

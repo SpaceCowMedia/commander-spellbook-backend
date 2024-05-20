@@ -131,10 +131,34 @@ class VariantsGeneratorTests(AbstractTestCaseWithSeeding):
             self.assertEqual(sut2.zone_locations, sut1.zone_locations)
 
     def test_apply_replacements(self):
+        legendary_card = Card.objects.create(
+            name='The Name, the Title',
+            type_line='Legendary Creature - Human',
+        )
+        non_legendary_card = Card.objects.create(
+            name='The Name, different Title',
+            type_line='Creature - Human',
+        )
+        legendary_modal_card = Card.objects.create(
+            name='The Name, the Title  // Another Name, Another Title',
+            type_line='Legendary Creature - Human // Legendary Enchantment',
+        )
+        normal_card = Card.objects.create(
+            name='Normal Card',
+            type_line='Instant',
+        )
+        fx = Feature.objects.create(name='FX')
+        fy = Feature.objects.create(name='FY')
+        fz = Feature.objects.create(name='FZ')
+        fw = Feature.objects.create(name='FW')
         replacements = {
             Feature.objects.get(id=self.f1_id): [([Card.objects.get(id=self.c1_id)], []), ([Card.objects.get(id=self.c2_id)], [])],
             Feature.objects.get(id=self.f2_id): [([], [Template.objects.get(id=self.t1_id)]), ([], [Template.objects.get(id=self.t2_id)])],
             Feature.objects.get(id=self.f3_id): [([Card.objects.get(id=self.c1_id), Card.objects.get(id=self.c2_id)], [Template.objects.get(id=self.t1_id), Template.objects.get(id=self.t2_id)])],
+            fx: [([legendary_card], [])],
+            fy: [([non_legendary_card], [])],
+            fz: [([legendary_modal_card], [])],
+            fw: [([legendary_card, non_legendary_card, legendary_modal_card, normal_card], [])],
         }
         tests = [
             ('', ''),
@@ -148,6 +172,10 @@ class VariantsGeneratorTests(AbstractTestCaseWithSeeding):
             ('alias [[FA|XYZ]] invocation in [[XYZ]]', 'alias A A invocation in A A'),
             ('alias [[FA|asd ok]] invocation in [[asd ok]]', 'alias A A invocation in A A'),
             ('alias edge case [[FA|FB]] invocation in [[FB]]', 'alias edge case A A invocation in A A'),
+            ('Legendary name cut before comma: [[FX]]', 'Legendary name cut before comma: The Name'),
+            ('Non-legendary name not cut before comma: [[FY]]', 'Non-legendary name not cut before comma: The Name, different Title'),
+            ('Legendary modal name never cut: [[FZ]]', 'Legendary modal name never cut: The Name, the Title  // Another Name, Another Title'),
+            ('Multiple replacements: [[FW]]', 'Multiple replacements: The Name + The Name, different Title + The Name, the Title  // Another Name, Another Title + Normal Card'),
         ]
         for test in tests:
             self.assertEqual(apply_replacements(test[0], replacements), test[1])

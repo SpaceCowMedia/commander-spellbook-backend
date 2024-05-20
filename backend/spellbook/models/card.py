@@ -83,6 +83,18 @@ class Card(Playable, PreSaveModelMixin, ScryfallLinkMixin):
     def pre_save(self):
         self.name_unaccented = strip_accents(self.name)
 
+    def is_legendary(self) -> bool:
+        return 'Legendary' in self.type_line
+
+    def is_creature(self) -> bool:
+        return 'Creature' in self.type_line
+
+    def is_instant(self) -> bool:
+        return 'Instant' in self.type_line
+
+    def is_sorcery(self) -> bool:
+        return 'Sorcery' in self.type_line
+
 
 @receiver(post_save, sender=Card, dispatch_uid='update_variant_fields')
 def update_variant_fields(sender, instance, created, raw, **kwargs):

@@ -66,6 +66,7 @@ INSTALLED_APPS = [
     'spellbook',
     'website',
     'django.contrib.admin',
+    'adminsortable2',
     'rest_framework',
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',

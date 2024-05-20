@@ -9,7 +9,7 @@ from django.utils.safestring import mark_safe
 from django.urls import reverse
 from spellbook.models import Card, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion
 from .utils import SpellbookModelAdmin, CustomFilter
-from .ingredient_admin import IngredientAdmin
+from .ingredient_admin import IngredientInCombinationAdmin
 
 
 def create_missing_object_message(url: str) -> str:
@@ -28,8 +28,8 @@ class ComboForm(ModelForm):
         ), '-updated')
 
 
-class CardInComboAdminInline(IngredientAdmin):
-    fields = ['card', *IngredientAdmin.fields]
+class CardInComboAdminInline(IngredientInCombinationAdmin):
+    fields = ['card', *IngredientInCombinationAdmin.fields]
     model = CardInCombo
     verbose_name = 'Card'
     verbose_name_plural = 'Required Cards'
@@ -41,8 +41,8 @@ class CardInComboAdminInline(IngredientAdmin):
         return super().get_extra(request, obj, **kwargs)
 
 
-class TemplateInComboAdminInline(IngredientAdmin):
-    fields = ['template', *IngredientAdmin.fields]
+class TemplateInComboAdminInline(IngredientInCombinationAdmin):
+    fields = ['template', *IngredientInCombinationAdmin.fields]
     model = TemplateInCombo
     verbose_name = 'Template'
     verbose_name_plural = 'Required Templates'

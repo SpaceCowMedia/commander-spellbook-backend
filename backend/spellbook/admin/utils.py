@@ -9,6 +9,7 @@ from django.utils.formats import localize
 from django.forms import Textarea
 from django.contrib.admin import ModelAdmin
 from django.contrib.admin.views.main import ORDER_VAR
+from adminsortable2.admin import SortableAdminBase
 from spellbook.models.validators import ORACLE_SYMBOL
 from spellbook.variants.variants_generator import DEFAULT_CARD_LIMIT
 from spellbook.models.utils import sanitize_newlines_apostrophes_and_quotes, SORTED_COLORS
@@ -36,7 +37,7 @@ class NormalizedTextareaWidget(Textarea):
         return sanitize_newlines_apostrophes_and_quotes(s)
 
 
-class SpellbookModelAdmin(ModelAdmin):
+class SpellbookModelAdmin(SortableAdminBase, ModelAdmin):
     search_help_text = 'Type text to search for, using spaces to separate multiple terms.' \
         ' Use " + " instead of space to require multiple terms to be present on different related objects.' \
         ' Use " | " instead of space to require at least one of the terms to be present.' \

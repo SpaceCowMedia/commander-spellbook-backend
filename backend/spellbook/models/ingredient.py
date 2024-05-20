@@ -45,7 +45,7 @@ class Ingredient(models.Model):
 
 
 class IngredientInCombination(Ingredient):
-    order = models.PositiveIntegerField(blank=False, help_text='Order of the card in the combo.', verbose_name='order')
+    order = models.PositiveIntegerField(default=0, db_index=True, blank=False, help_text='Order of the card in the combo.', verbose_name='order')
 
     class Meta(Ingredient.Meta):
         abstract = True

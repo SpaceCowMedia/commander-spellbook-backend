@@ -1,5 +1,6 @@
 from django.forms import ModelForm, MultipleChoiceField, ValidationError, CheckboxSelectMultiple, Textarea
-from django.contrib import admin
+from django.contrib.admin import TabularInline
+from adminsortable2.admin import SortableTabularInline
 from spellbook.models import IngredientInCombination
 
 
@@ -30,13 +31,6 @@ class IngredientInCombinationForm(ModelForm):
     zone_locations = MultipleChoiceFieldAsCharField(choices=IngredientInCombination.ZoneLocation.choices, required=True)
 
     def clean(self):
-        key = 'ingredient_count'
-        if key in self.cleaned_data:
-            self.cleaned_data[key] += 1
-        else:
-            self.cleaned_data[key] = 1
-        self.instance.order = self.cleaned_data[key]
-
         if 'zone_locations' in self.cleaned_data:
             locations = self.cleaned_data['zone_locations']
             if IngredientInCombination.ZoneLocation.BATTLEFIELD not in locations:
@@ -58,8 +52,12 @@ class IngredientInCombinationForm(ModelForm):
         }
 
 
-class IngredientAdmin(admin.TabularInline):
+class IngredientAdmin(TabularInline):
     form = IngredientInCombinationForm
     extra = 0
     classes = ['ingredient']
     fields = ['quantity', 'zone_locations', 'battlefield_card_state', 'exile_card_state', 'graveyard_card_state', 'library_card_state', 'must_be_commander']
+
+
+class IngredientInCombinationAdmin(IngredientAdmin, SortableTabularInline):
+    pass

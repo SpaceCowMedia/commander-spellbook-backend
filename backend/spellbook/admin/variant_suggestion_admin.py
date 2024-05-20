@@ -2,13 +2,13 @@ from typing import Any
 from django.db.models import Count
 from django.contrib import admin
 from spellbook.models import VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, FeatureProducedInVariantSuggestion
-from .ingredient_admin import IngredientAdmin
+from .ingredient_admin import IngredientInCombinationAdmin
 from .utils import SpellbookModelAdmin, CardsCountListFilter
 from spellbook.utils import launch_job_command
 
 
-class CardUsedInVariantSuggestionAdminInline(IngredientAdmin):
-    fields = ['card', *IngredientAdmin.fields]
+class CardUsedInVariantSuggestionAdminInline(IngredientInCombinationAdmin):
+    fields = ['card', *IngredientInCombinationAdmin.fields]
     model = CardUsedInVariantSuggestion
     verbose_name = 'Card'
     verbose_name_plural = 'Cards'
@@ -16,8 +16,8 @@ class CardUsedInVariantSuggestionAdminInline(IngredientAdmin):
     max_num = VariantSuggestion.max_cards
 
 
-class TemplateRequiredInVariantAdminInline(IngredientAdmin):
-    fields = ['template', 'scryfall_query', *IngredientAdmin.fields]
+class TemplateRequiredInVariantAdminInline(IngredientInCombinationAdmin):
+    fields = ['template', 'scryfall_query', *IngredientInCombinationAdmin.fields]
     model = TemplateRequiredInVariantSuggestion
     verbose_name = 'Template'
     verbose_name_plural = 'Templates'

@@ -73,7 +73,7 @@ python-dateutil==2.8.2
     # via botocore
 python3-openid==3.2.0
     # via social-auth-core
-requests==2.31.0
+requests==2.32.0
     # via
     #   discord-webhook
     #   requests-oauthlib
@@ -89,8 +89,6 @@ social-auth-app-django==5.4.1
 social-auth-core==4.4.2
     # via social-auth-app-django
 sqlparse==0.5.0
-    # via django
-tzdata==2024.1
     # via django
 urllib3==1.26.18
     # via

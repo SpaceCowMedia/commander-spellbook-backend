@@ -9,7 +9,7 @@ FIRST_CAPITAL_LETTER_VALIDATOR = RegexValidator(regex=FIRST_CAPITAL_LETTER_REGEX
 NO_TRAILING_PUNCTUATION_REGEX = r'[A-Za-z0-9()\{\}\"]$'
 NO_TRAILING_PUNCTUATION_VALIDATOR = RegexValidator(regex=NO_TRAILING_PUNCTUATION_REGEX, message='Must not end with punctuation.')
 
-MANA_SYMBOL = r'(?:[WUBRG](?:\/P)?|[0-9CPXYZS∞]|[1-9][0-9]{1,2}|(?:2\/[WUBRG]|W\/U|W\/B|U\/B|U\/R|B\/R|B\/G|R\/G|R\/W|G\/W|G\/U)(?:\/P)?)'
+MANA_SYMBOL = r'(?:C\/[WUBRG]|[WUBRG](?:\/P)?|[0-9CPXYZS∞]|[1-9][0-9]{1,2}|(?:2\/[WUBRG]|W\/U|W\/B|U\/B|U\/R|B\/R|B\/G|R\/G|R\/W|G\/W|G\/U)(?:\/P)?)'
 MANA_REGEX = r'^(?:(?:\{' + MANA_SYMBOL + r'\})[^\{\}\[\]]*)*$'
 MANA_VALIDATOR = RegexValidator(regex=MANA_REGEX, message='Mana needed must be in the {1}{W}{U}{B}{R}{G}{B/P}... format, and must start with mana symbols, but can contain normal text later.')
 

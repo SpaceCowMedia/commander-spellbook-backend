@@ -129,7 +129,7 @@ class FeatureTests(AbstractTestCaseWithSeeding):
         f = Feature.objects.get(id=self.f1_id)
         self.assertEqual(f.name, 'FA')
         self.assertEqual(f.description, 'Feature A')
-        self.assertEqual(f.cards.count(), 1)
+        self.assertEqual(f.cards.count(), 1)  # type: ignore
         self.assertTrue(f.utility)
         f = Feature.objects.get(id=self.f2_id)
         self.assertFalse(f.utility)

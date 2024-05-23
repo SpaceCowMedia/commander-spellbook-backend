@@ -134,7 +134,7 @@ def update_cards(cards: list[Card], scryfall: dict[str, dict], log=lambda t: pri
                 future_pauper = future_commander and card_in_db['rarity'] == 'common'
                 future_pauper_commander = future_commander and (
                     card_in_db['rarity'] == 'common' or card_in_db['rarity'] == 'uncommon' and (
-                        'Legendary' in card_in_db['type_line'] or 'can be your commander' in card_in_db['oracle_text']
+                        'Legendary' in card_in_db['type_line'] or 'can be your commander' in card.oracle_text
                     )
                 )
                 if future_commander:

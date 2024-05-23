@@ -30,7 +30,7 @@ NAME_VALIDATORS = [FIRST_CAPITAL_LETTER_VALIDATOR, NO_TRAILING_PUNCTUATION_VALID
 COMPARISON_OPERATORS = r'(?::|[<>]=?|!=|=)'
 NUMERIC_VARIABLE = r'(?:mv|manavalue|power|pow|toughness|tou|pt|powtou|loyalty|loy)'
 STRING_COMPARABLE_VARIABLE = r'(?:c|color|id|identity|produces)'
-STRING_UNCOMPARABLE_VARIABLE = r'(?:has|t|type|keyword|is|o|oracle|function|otag|oracletag|oracleid)'
+STRING_UNCOMPARABLE_VARIABLE = r'(?:has|t|type|keyword|kw|is|o|oracle|function|otag|oracletag|oracleid)'
 MANA_COMPARABLE_VARIABLE = r'(?:m|mana|devotion)'
 REGEX_VALUE = r'\/(?:\\\/|[^\/])+\/'
 SHORT_LITERAL_VALUE = r'(?!\/)[^\s:<>!="]+'

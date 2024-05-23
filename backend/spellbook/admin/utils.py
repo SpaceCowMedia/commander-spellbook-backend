@@ -31,6 +31,11 @@ def auto_fix_missing_braces_to_oracle_symbols(text: str):
     return text
 
 
+def auto_fix_scryfall_query(text: str):
+    result = re.sub(r'\s*(?:f|format|legal):(?:commander|edh)\s*', '', text, flags=re.IGNORECASE)
+    return result
+
+
 class NormalizedTextareaWidget(Textarea):
     def value_from_datadict(self, data, files, name: str):
         s = super().value_from_datadict(data, files, name)
@@ -56,7 +61,13 @@ class SpellbookModelAdmin(SortableAdminBase, ModelAdmin):
                 result = upper_oracle_symbols(result)
                 return result
             return self.cleaned_data['mana_needed']
+
+        def clean_scryfall_query(self):
+            if self.cleaned_data['scryfall_query']:
+                return auto_fix_scryfall_query(self.cleaned_data['scryfall_query'])
+            return self.cleaned_data['scryfall_query']
         form.clean_mana_needed = clean_mana_needed
+        form.clean_scryfall_query = clean_scryfall_query
         return form
 
     def get_search_results(self, request, queryset, search_term: str):

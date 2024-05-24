@@ -94,7 +94,7 @@ class VariantsGeneratorTests(AbstractTestCaseWithSeeding):
     def test_update_state(self):
         civs = list(CardInVariant(card=c) for c in Card.objects.all())
         tivs = list(TemplateInVariant(template=t) for t in Template.objects.all())
-        for sut1, sut2 in zip(chain(civs, tivs), chain(reversed(civs), reversed(tivs))):
+        for sut1, sut2 in zip(chain(civs, tivs), chain(reversed(civs), reversed(tivs))):  # type: ignore
             sut1.battlefield_card_state = 'battlefield_card_state'
             sut1.exile_card_state = 'exile_card_state'
             sut1.graveyard_card_state = 'graveyard_card_state'

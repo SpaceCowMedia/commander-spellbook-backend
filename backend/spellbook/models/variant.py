@@ -183,7 +183,9 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
 
 class CardInVariant(IngredientInCombination):
     card = models.ForeignKey(to=Card, on_delete=models.CASCADE)
+    card_id: int
     variant = models.ForeignKey(to=Variant, on_delete=models.CASCADE)
+    variant_id: str
 
     def __str__(self):
         return f'{self.card} in {self.variant.pk}'

@@ -1,7 +1,7 @@
 from multiset import FrozenMultiset
 from spellbook.models import Combo
 from spellbook.variants.variant_data import Data
-from spellbook.variants.combo_graph import Graph, VariantIngredients
+from spellbook.variants.combo_graph import Graph, VariantIngredients, VariantSet, VariantRecipe
 from spellbook.tests.abstract_test import AbstractTestCaseWithSeeding, AbstractTestCase
 
 
@@ -9,12 +9,26 @@ class ComboGraphTest(AbstractTestCaseWithSeeding):
     def test_empty_graph(self):
         Combo.objects.exclude(id=self.b2_id).delete()
         combo_graph = Graph(Data())
-        self.assertCountEqual(combo_graph.variants(self.b2_id), [])
+        self.assertCountEqual(combo_graph.results(combo_graph.variants(self.b2_id)), [])
+
+    def test_variants(self):
+        combo_graph = Graph(Data())
+        variants = combo_graph.variants(self.b2_id)
+        self.assertEqual(len(variants), 3)
+        self.assertIsInstance(variants, VariantSet)
+
+    def test_results(self):
+        combo_graph = Graph(Data())
+        variants = combo_graph.variants(self.b2_id)
+        results = combo_graph.results(variants)
+        self.assertEqual(len(list(results)), 3)
+        for result in results:
+            self.assertIsInstance(result, VariantRecipe)
 
     def test_graph(self):
         combo_graph = Graph(Data())
-        variants = list(combo_graph.variants(self.b2_id))
-        self.assertEqual(variants, list(combo_graph.variants(self.b2_id)))
+        variants = list(combo_graph.results(combo_graph.variants(self.b2_id)))
+        self.assertEqual(variants, list(combo_graph.results(combo_graph.variants(self.b2_id))))
         self.assertEqual(len(variants), 3)
 
     def test_variant_limit(self):
@@ -23,33 +37,33 @@ class ComboGraphTest(AbstractTestCaseWithSeeding):
         combo_graph = Graph(Data(), log=lambda _: None, variant_limit=1)
         self.assertRaises(Graph.GraphError, lambda: combo_graph.variants(self.b2_id))
         combo_graph = Graph(Data(), log=lambda _: None, variant_limit=20)
-        self.assertEqual(len(list(combo_graph.variants(self.b2_id))), 3)
+        self.assertEqual(len(list(combo_graph.results(combo_graph.variants(self.b2_id)))), 3)
 
     def test_default_log(self):
         def test():
             combo_graph = Graph(Data(), variant_limit=0)
-            list(combo_graph.variants(self.b2_id))
+            list(combo_graph.results(combo_graph.variants(self.b2_id)))
         self.assertRaises(Exception, test)
 
     def test_card_limit(self):
         self.maxDiff = None
         combo_graph = Graph(Data(), log=lambda _: None, card_limit=0)
-        self.assertCountEqual(combo_graph.variants(self.b2_id), [])
+        self.assertCountEqual(combo_graph.results(combo_graph.variants(self.b2_id)), [])
         combo_graph = Graph(Data(), log=lambda _: None, card_limit=1)
-        self.assertCountEqual(combo_graph.variants(self.b2_id), [])
+        self.assertCountEqual(combo_graph.results(combo_graph.variants(self.b2_id)), [])
         combo_graph = Graph(Data(), log=lambda _: None, card_limit=2)
-        self.assertCountEqual(combo_graph.variants(self.b2_id), [])
+        self.assertCountEqual(combo_graph.results(combo_graph.variants(self.b2_id)), [])
         combo_graph = Graph(Data(), log=lambda _: None, card_limit=3)
-        self.assertEqual(len(list(combo_graph.variants(self.b2_id))), 1)
+        self.assertEqual(len(list(combo_graph.results(combo_graph.variants(self.b2_id)))), 1)
         combo_graph = Graph(Data(), log=lambda _: None, card_limit=4)
-        self.assertEqual(len(list(combo_graph.variants(self.b2_id))), 2)
+        self.assertEqual(len(list(combo_graph.results(combo_graph.variants(self.b2_id)))), 2)
         combo_graph = Graph(Data(), log=lambda _: None, card_limit=5)
-        self.assertEqual(len(list(combo_graph.variants(self.b2_id))), 3)
+        self.assertEqual(len(list(combo_graph.results(combo_graph.variants(self.b2_id)))), 3)
 
     def test_replacements(self):
         data = Data()
         combo_graph = Graph(data=data)
-        variants = list(combo_graph.variants(self.b2_id))
+        variants = list(combo_graph.results(combo_graph.variants(self.b2_id)))
         for variant in variants:
             card_ids = {c for c in variant.cards}
             template_ids = {t for t in variant.templates}
@@ -79,7 +93,7 @@ class ComboGraphTestGeneration(AbstractTestCase):
             ('A',): ('x',),
         })
         combo_graph = Graph(Data())
-        variants = combo_graph.variants(1)
+        variants = combo_graph.results(combo_graph.variants(1))
         self.assertEqual(len(list(variants)), 1)
         self.assertMultisetEqual(variants[0].cards, {1: 1})
         self.assertMultisetEqual(variants[0].templates, {})
@@ -93,14 +107,14 @@ class ComboGraphTestGeneration(AbstractTestCase):
             ('B',): ('x',),
         })
         combo_graph = Graph(Data())
-        variants = combo_graph.variants(1)
+        variants = combo_graph.results(combo_graph.variants(1))
         self.assertEqual(len(list(variants)), 1)
         self.assertMultisetEqual(variants[0].cards, {1: 1})
         self.assertMultisetEqual(variants[0].templates, {})
         self.assertSetEqual(variants[0].combos, {1})
         self.assertMultisetEqual(variants[0].features, {1: 1})
         self.assertReplacementsEqual(variants[0].replacements, {1: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset())]})
-        variants = combo_graph.variants(2)
+        variants = combo_graph.results(combo_graph.variants(2))
         self.assertEqual(len(list(variants)), 1)
         self.assertMultisetEqual(variants[0].cards, {2: 1})
         self.assertMultisetEqual(variants[0].templates, {})
@@ -113,7 +127,7 @@ class ComboGraphTestGeneration(AbstractTestCase):
             ('A', 'T1'): ('x', 'y'),
         })
         combo_graph = Graph(Data())
-        variants = combo_graph.variants(1)
+        variants = combo_graph.results(combo_graph.variants(1))
         self.assertEqual(len(list(variants)), 1)
         self.assertMultisetEqual(variants[0].cards, {1: 1})
         self.assertMultisetEqual(variants[0].templates, {1: 1})
@@ -131,7 +145,7 @@ class ComboGraphTestGeneration(AbstractTestCase):
             ('x',): ('y',),
         })
         combo_graph = Graph(Data())
-        variants = combo_graph.variants(3)
+        variants = combo_graph.results(combo_graph.variants(3))
         self.assertEqual(len(list(variants)), 2)
         variants.sort(key=lambda v: sorted(v.cards))
         self.assertMultisetEqual(variants[0].cards, {1: 1})
@@ -159,8 +173,8 @@ class ComboGraphTestGeneration(AbstractTestCase):
             ('y',): ('z',),
         })
         combo_graph = Graph(Data())
-        variants_a = combo_graph.variants(4)
-        variants_b = combo_graph.variants(3)
+        variants_a = combo_graph.results(combo_graph.variants(4))
+        variants_b = combo_graph.results(combo_graph.variants(4))
         variants_a.sort(key=lambda v: sorted(v.cards))
         variants_b.sort(key=lambda v: sorted(v.cards))
         self.assertEqual(variants_a, variants_b)
@@ -175,7 +189,7 @@ class ComboGraphTestGeneration(AbstractTestCase):
         })
         combo_graph = Graph(Data())
         with self.settings(SINGLETON_COMBO_MODE=False):
-            variants = list(combo_graph.variants(3))
+            variants = list(combo_graph.results(combo_graph.variants(3)))
             self.assertEqual(len(variants), 2)
             variants.sort(key=lambda v: sorted(v.cards))
             self.assertMultisetEqual(variants[0].cards, {1: 2})
@@ -195,7 +209,7 @@ class ComboGraphTestGeneration(AbstractTestCase):
                 2: [VariantIngredients(FrozenMultiset({2: 1}), FrozenMultiset())],
             })
         combo_graph = Graph(Data())
-        variants = list(combo_graph.variants(3))
+        variants = list(combo_graph.results(combo_graph.variants(3)))
         self.assertEqual(len(variants), 1)
         self.assertMultisetEqual(variants[0].cards, {2: 1})
         self.assertMultisetEqual(variants[0].templates, {})
@@ -216,7 +230,7 @@ class ComboGraphTestGeneration(AbstractTestCase):
         })
         with self.settings(SINGLETON_COMBO_MODE=False):
             combo_graph = Graph(Data())
-            variants = list(combo_graph.variants(3))
+            variants = list(combo_graph.results(combo_graph.variants(3)))
             self.assertEqual(len(variants), 3)
             variants.sort(key=lambda v: sorted(v.cards))
             self.assertMultisetEqual(variants[0].cards, {1: 4})
@@ -251,7 +265,7 @@ class ComboGraphTestGeneration(AbstractTestCase):
             })
         with self.settings(SINGLETON_COMBO_MODE=True):
             combo_graph = Graph(Data())
-            variants = list(combo_graph.variants(3))
+            variants = list(combo_graph.results(combo_graph.variants(3)))
             self.assertEqual(len(variants), 0)
 
     def test_removal_of_redundant_variants(self):
@@ -264,7 +278,7 @@ class ComboGraphTestGeneration(AbstractTestCase):
         for boolean in (False, True):
             with self.settings(SINGLETON_COMBO_MODE=boolean):
                 combo_graph = Graph(Data())
-                variants = list(combo_graph.variants(3))
+                variants = list(combo_graph.results(combo_graph.variants(3)))
                 self.assertEqual(len(variants), 1)
                 self.assertMultisetEqual(variants[0].cards, {2: 1, 3: 1})
                 self.assertMultisetEqual(variants[0].templates, {})
@@ -285,11 +299,11 @@ class ComboGraphTestGeneration(AbstractTestCase):
         })
         with self.settings(SINGLETON_COMBO_MODE=True):
             combo_graph = Graph(Data())
-            variants = list(combo_graph.variants(3))
+            variants = list(combo_graph.results(combo_graph.variants(3)))
             self.assertEqual(len(variants), 0)
         with self.settings(SINGLETON_COMBO_MODE=False):
             combo_graph = Graph(Data())
-            variants = list(combo_graph.variants(3))
+            variants = list(combo_graph.results(combo_graph.variants(3)))
             self.assertEqual(len(variants), 1)
             self.assertMultisetEqual(variants[0].cards, {1: 2, 2: 2})
             self.assertMultisetEqual(variants[0].templates, {})
@@ -310,7 +324,7 @@ class ComboGraphTestGeneration(AbstractTestCase):
             ('A', 'B'): ('a',),
         })
         combo_graph = Graph(Data())
-        variants = list(combo_graph.variants(5))
+        variants = list(combo_graph.results(combo_graph.variants(5)))
         self.assertEqual(len(variants), 1)
         self.assertMultisetEqual(variants[0].cards, {1: 1, 2: 1})
         self.assertMultisetEqual(variants[0].templates, {})
@@ -331,7 +345,7 @@ class ComboGraphTestGeneration(AbstractTestCase):
         })
         with self.settings(SINGLETON_COMBO_MODE=False):
             combo_graph = Graph(Data())
-            variants = list(combo_graph.variants(3))
+            variants = list(combo_graph.results(combo_graph.variants(3)))
             self.assertEqual(len(variants), 3)
             variants.sort(key=lambda v: sorted(v.cards))
             self.assertMultisetEqual(variants[0].cards, {1: 2, 2: 2})
@@ -360,7 +374,7 @@ class ComboGraphTestGeneration(AbstractTestCase):
             })
         with self.settings(SINGLETON_COMBO_MODE=True):
             combo_graph = Graph(Data())
-            variants = list(combo_graph.variants(3))
+            variants = list(combo_graph.results(combo_graph.variants(3)))
             self.assertEqual(len(variants), 1)
             self.assertMultisetEqual(variants[0].cards, {1: 1, 2: 2, 3: 1})
             self.assertMultisetEqual(variants[0].templates, {})
@@ -379,7 +393,7 @@ class ComboGraphTestGeneration(AbstractTestCase):
             ('x',): ('y',),
         })
         combo_graph = Graph(Data())
-        variants = list(combo_graph.variants(4))
+        variants = list(combo_graph.results(combo_graph.variants(4)))
         self.assertEqual(len(variants), 2)
         variants.sort(key=lambda v: sorted(v.cards))
         self.assertMultisetEqual(variants[0].cards, {1: 1})
@@ -408,7 +422,7 @@ class ComboGraphTestGeneration(AbstractTestCase):
         })
         with self.settings(SINGLETON_COMBO_MODE=False):
             combo_graph = Graph(Data())
-            variants = list(combo_graph.variants(4))
+            variants = list(combo_graph.results(combo_graph.variants(4)))
             self.assertEqual(len(variants), 6)
             variants.sort(key=lambda v: sorted(v.cards))
             self.assertMultisetEqual(variants[0].cards, {1: 2})
@@ -461,7 +475,7 @@ class ComboGraphTestGeneration(AbstractTestCase):
             })
         with self.settings(SINGLETON_COMBO_MODE=True):
             combo_graph = Graph(Data())
-            variants = list(combo_graph.variants(4))
+            variants = list(combo_graph.results(combo_graph.variants(4)))
             self.assertEqual(len(variants), 3)
             variants.sort(key=lambda v: sorted(v.cards))
             self.assertMultisetEqual(variants[0].cards, {1: 1, 2: 1})
@@ -497,7 +511,7 @@ class ComboGraphTestGeneration(AbstractTestCase):
         })
         with self.settings(SINGLETON_COMBO_MODE=False):
             combo_graph = Graph(Data())
-            variants = list(combo_graph.variants(3))
+            variants = list(combo_graph.results(combo_graph.variants(3)))
             self.assertEqual(len(variants), 1)
             self.assertMultisetEqual(variants[0].cards, {1: 30})
             self.assertMultisetEqual(variants[0].templates, {})
@@ -510,7 +524,7 @@ class ComboGraphTestGeneration(AbstractTestCase):
             })
         with self.settings(SINGLETON_COMBO_MODE=True):
             combo_graph = Graph(Data())
-            variants = list(combo_graph.variants(3))
+            variants = list(combo_graph.results(combo_graph.variants(3)))
             self.assertEqual(len(variants), 0)
 
     def test_unsolvable_trivial_loop(self):
@@ -519,7 +533,7 @@ class ComboGraphTestGeneration(AbstractTestCase):
             ('y',): ('x',),
         })
         combo_graph = Graph(Data())
-        variants = list(combo_graph.variants(2))
+        variants = list(combo_graph.results(combo_graph.variants(2)))
         self.assertEqual(len(variants), 0)
 
     def test_solvable_trivial_loop(self):
@@ -529,7 +543,7 @@ class ComboGraphTestGeneration(AbstractTestCase):
             ('A',): ('x',),
         })
         combo_graph = Graph(Data())
-        variants = list(combo_graph.variants(2))
+        variants = list(combo_graph.results(combo_graph.variants(2)))
         self.assertEqual(len(variants), 1)
         self.assertMultisetEqual(variants[0].cards, {1: 1})
         self.assertMultisetEqual(variants[0].templates, {})
@@ -547,7 +561,7 @@ class ComboGraphTestGeneration(AbstractTestCase):
             ('z',): ('x',),
         })
         combo_graph = Graph(Data())
-        variants = list(combo_graph.variants(2))
+        variants = list(combo_graph.results(combo_graph.variants(2)))
         self.assertEqual(len(variants), 0)
 
     def test_solvable_loop(self):
@@ -558,7 +572,7 @@ class ComboGraphTestGeneration(AbstractTestCase):
             ('A',): ('x',),
         })
         combo_graph = Graph(Data())
-        variants = list(combo_graph.variants(3))
+        variants = list(combo_graph.results(combo_graph.variants(3)))
         self.assertEqual(len(variants), 1)
         self.assertMultisetEqual(variants[0].cards, {1: 1})
         self.assertMultisetEqual(variants[0].templates, {})
@@ -579,7 +593,7 @@ class ComboGraphTestGeneration(AbstractTestCase):
             ('A', 'D',): ('y',),
         })
         combo_graph = Graph(Data())
-        variants = list(combo_graph.variants(1))
+        variants = list(combo_graph.results(combo_graph.variants(1)))
         self.assertEqual(len(variants), 2)
         variants.sort(key=lambda v: sorted(v.cards))
         self.assertMultisetEqual(variants[0].cards, {1: 1, 2: 1, 3: 1})
@@ -610,7 +624,7 @@ class ComboGraphTestGeneration(AbstractTestCase):
             ('D',): ('g', 'f', 'y'),
         })
         combo_graph = Graph(Data())
-        variants = list(combo_graph.variants(1))
+        variants = list(combo_graph.results(combo_graph.variants(1)))
         self.assertEqual(len(variants), 2)
         variants.sort(key=lambda v: sorted(v.cards))
         self.assertMultisetEqual(variants[0].cards, {1: 1, 2: 1, 3: 1})
@@ -642,7 +656,7 @@ class ComboGraphTestGeneration(AbstractTestCase):
         })
         combo_graph = Graph(Data(), variant_limit=threshold)
         self.assertRaises(Exception, lambda: combo_graph.variants(2))
-        variants = list(combo_graph.variants(1))
+        variants = list(combo_graph.results(combo_graph.variants(1)))
         self.assertEqual(len(variants), 1)
         self.assertMultisetEqual(variants[0].cards, {1: 1})
         self.assertMultisetEqual(variants[0].templates, {})

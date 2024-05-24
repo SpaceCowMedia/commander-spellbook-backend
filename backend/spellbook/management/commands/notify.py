@@ -82,7 +82,7 @@ class Command(AbstractCommand):
                     webhook_text += '.'
                 webhook_text += '\n'
                 if discord_account:
-                    webhook_text += f'Thanks for your submission{"" if accepted else " though"}!'
+                    webhook_text += f'Thanks for your submission{"" if accepted else " though"}!\n'
         if webhook_text:
             self.discord_webhook(webhook_text)
 

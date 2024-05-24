@@ -58,7 +58,7 @@ class Command(AbstractCommand):
         else:
             self.log('No Discord Webhook set in settings', self.style.ERROR)
 
-    def variant_suggestion_event(self, past_tense: str, identifiers: list[str]):
+    def variant_suggestion_event(self, accepted: bool, identifiers: list[str]):
         webhook_text = ''
         for identifier in identifiers:
             variant_suggestion = VariantSuggestion.objects.get(pk=identifier)
@@ -71,6 +71,7 @@ class Command(AbstractCommand):
                 suggestion_name = f'`{escape_markdown(variant_suggestion.name)}`'
                 if variant_suggestion.spoiler:
                     suggestion_name = f'||{suggestion_name}||'
+                past_tense = "accepted" if accepted else "rejected"
                 if discord_account:
                     webhook_text += f'<@{discord_account.uid}>, your suggestion for {suggestion_name} has been **{past_tense}**'
                 else:
@@ -80,6 +81,8 @@ class Command(AbstractCommand):
                 else:
                     webhook_text += '.'
                 webhook_text += '\n'
+                if discord_account:
+                    webhook_text += f'Thanks for your submission{"" if accepted else " though"}!'
         if webhook_text:
             self.discord_webhook(webhook_text)
 
@@ -87,9 +90,9 @@ class Command(AbstractCommand):
         self.log(f'Notifying about {options["event"]} with identifiers {options["identifiers"]}')
         match options['event']:
             case self.variant_suggestion_accepted:
-                self.variant_suggestion_event('accepted', options['identifiers'])
+                self.variant_suggestion_event(accepted=True, identifiers=options['identifiers'])
             case self.variant_suggestion_rejected:
-                self.variant_suggestion_event('rejected', options['identifiers'])
+                self.variant_suggestion_event(accepted=False, identifiers=options['identifiers'])
             case self.variant_published:
                 plural = 's' if len(options['identifiers']) > 1 else ''
                 verb = 'have' if len(options['identifiers']) > 1 else 'has'

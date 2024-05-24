@@ -120,11 +120,7 @@ class VariantSet:
             return self.sum_sets([self] * power, limit=self.max_depth)
 
     def variants(self) -> list[tuple[FrozenMultiset, FrozenMultiset]]:
-        result = list[tuple[FrozenMultiset, FrozenMultiset]]()
-        for key in self._keys():
-            cards, templates = self.key_to_ingredients(key)
-            result.append((cards, templates))
-        return result
+        return [self.key_to_ingredients(key) for key in self._keys()]
 
     def copy(self):
         return self.__copy__()

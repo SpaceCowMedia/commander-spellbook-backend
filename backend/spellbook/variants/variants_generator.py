@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from django.db import transaction
 from .utils import includes_any
 from .variant_data import Data, debug_queries
-from .combo_graph import Graph
+from .combo_graph import Graph, VariantSet
 from spellbook.models import Combo, Job, Variant, CardInVariant, TemplateInVariant, id_from_cards_and_templates_ids, Playable, Card, Template, VariantAlias, Ingredient, Feature, FeatureProducedByVariant, VariantOfCombo, VariantIncludesCombo
 from spellbook.utils import log_into_job
 
@@ -36,24 +36,34 @@ def get_variants_from_graph(data: Data, job: Job | None, log_count: int) -> dict
     def log(msg: str):
         logging.info(msg)
         log_into_job(job, msg)
-    log('Computing all possible variants:')
     combos_by_status = dict[str, list[Combo]]()
     for combo in data.generator_combos:
         combos_by_status.setdefault(combo.status, []).append(combo)
     result = dict[str, VariantDefinition]()
-    index = 0
-    total = len(data.generator_combos)
     for status, combos in combos_by_status.items():
+        log('Processing combos with status ' + status + '...')
         card_limit = DEFAULT_CARD_LIMIT
         variant_limit = DEFAULT_VARIANT_LIMIT
         if status == Combo.Status.GENERATOR_WITH_MANY_CARDS:
             card_limit = HIGHER_CARD_LIMIT
             variant_limit = LOWER_VARIANT_LIMIT
         graph = Graph(data, log=log, card_limit=card_limit, variant_limit=variant_limit)
+        log('Computing all variants recipes, following combos\' requirements graphs...')
+        total = len(combos)
+        index = 0
+        variant_sets: list[tuple[Combo, VariantSet]] = []
         for combo in combos:
-            variant_count = 0
-            variants = graph.variants(combo.id)
-            for variant in variants:
+            variant_set = graph.variants(combo.id)
+            variant_sets.append((combo, variant_set))
+            if len(variant_set) > 50 or index % log_count == 0 or index == total - 1:
+                log(f'{index + 1}/{total} combos processed (just processed combo {combo.id})')
+            index += 1
+        log('Processing all recipes to find all the produced results and more...')
+        index = 0
+        for combo, variant_set in variant_sets:
+            if len(variant_set) > 50:
+                log(f'About to process results for combo {combo.id} ({index + 1}/{total}) with {len(variant_set)} variants...')
+            for variant in graph.results(variant_set):
                 cards_ids = variant.cards
                 templates_ids = variant.templates
                 id = id_from_cards_and_templates_ids(cards_ids, templates_ids)
@@ -86,10 +96,8 @@ def get_variants_from_graph(data: Data, job: Job | None, log_count: int) -> dict
                         of_ids={combo.id},
                         feature_replacements=defaultdict(list, feature_replacements),
                     )
-                variant_count += 1
-            msg = f'{index + 1}/{total} combos processed (just processed combo {combo.id})'
-            if variant_count > 50 or index % log_count == 0 or index == total - 1:
-                log(msg)
+            if len(variant_set) > 50 or index % log_count == 0 or index == total - 1:
+                log(f'{index + 1}/{total} combos processed (just processed combo {combo.id})')
             index += 1
     return result
 

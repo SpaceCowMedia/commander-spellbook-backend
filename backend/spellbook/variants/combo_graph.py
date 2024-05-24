@@ -264,13 +264,12 @@ class Graph:
                 node._reset_filtered_variant_set()
             self._to_reset_nodes_filtered_variant_set.clear()
 
-    def variants(self, combo_id: int) -> list[VariantRecipe]:
-        combo = self.bnodes[combo_id]
-        # Reset step
+    def variants(self, combo_id: int) -> VariantSet:
+        combo_node = self.bnodes[combo_id]
         self._reset()
-        # Down step
-        variant_set = self._combo_nodes_down(combo)
-        # Up steps
+        return self._combo_nodes_down(combo_node)
+
+    def results(self, variant_set: VariantSet) -> list[VariantRecipe]:
         result = list[VariantRecipe]()
         for cards, templates in variant_set.variants():
             self._reset()
@@ -341,7 +340,9 @@ class Graph:
         for c in feature.produced_by_combos:
             if c.state == NodeState.VISITING:
                 continue
-            produced_combos_variant_sets.append(self._combo_nodes_down(c))
+            variant_set = self._combo_nodes_down(c)
+            if variant_set:
+                produced_combos_variant_sets.append(variant_set)
         variant_sets = card_variant_sets + produced_combos_variant_sets
         variants_count_estimate = sum(len(vs) for vs in variant_sets)
         if variants_count_estimate > self.variant_limit:

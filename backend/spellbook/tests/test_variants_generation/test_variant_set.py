@@ -206,3 +206,15 @@ class VariantSetTests(TestCase):
         self.assertEqual(variant_set.variants(), [(FrozenMultiset({1: 1}), FrozenMultiset())])
         variant_set.add(FrozenMultiset(), FrozenMultiset({1: 1}))
         self.assertEqual(use_hashable_dict(variant_set.variants()), use_hashable_dict([(FrozenMultiset({1: 1}), FrozenMultiset()), (FrozenMultiset(), FrozenMultiset({1: 1}))]))
+
+    def test_filter(self):
+        variant_set = VariantSet()
+        variant_set.add(FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 4}), FrozenMultiset())
+        variant_set.add(FrozenMultiset({1: 1}), FrozenMultiset({1: 2}))
+        variant_set.add(FrozenMultiset({1: 1000}), FrozenMultiset())
+        self.assertEqual(variant_set.filter(FrozenMultiset(), FrozenMultiset()).variants(), [])
+        self.assertEqual(variant_set.filter(FrozenMultiset({1: 1}), FrozenMultiset()).variants(), [])
+        self.assertEqual(variant_set.filter(FrozenMultiset({1: 1}), FrozenMultiset({1: 2})).variants(), [(FrozenMultiset({1: 1}), FrozenMultiset({1: 2}))])
+        self.assertEqual(variant_set.filter(FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 4}), FrozenMultiset()).variants(), [(FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 4}), FrozenMultiset())])
+        self.assertEqual(use_hashable_dict(variant_set.filter(FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 4}), FrozenMultiset({1: 2})).variants()), use_hashable_dict([(FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 4}), FrozenMultiset()), (FrozenMultiset({1: 1}), FrozenMultiset({1: 2}))]))
+        self.assertEqual(use_hashable_dict(variant_set.filter(FrozenMultiset({1: 2, 2: 3, 3: 129, 4: 4, 5: 11}), FrozenMultiset({1: 11, 2: 20})).variants()), use_hashable_dict([(FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 4}), FrozenMultiset()), (FrozenMultiset({1: 1}), FrozenMultiset({1: 2}))]))

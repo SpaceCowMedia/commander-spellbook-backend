@@ -30,6 +30,12 @@ class VariantSet:
                 templates[int(item[1:])] = quantity
         return (FrozenMultiset(cards), FrozenMultiset(templates))
 
+    def filter(self, cards: FrozenMultiset, templates: FrozenMultiset) -> 'VariantSet':
+        result = VariantSet(limit=self.max_depth)
+        for subset in self.sets.subsets_of(self.ingredients_to_key(cards, templates)):
+            result._add(subset)
+        return result
+
     def add(self, cards: FrozenMultiset, templates: FrozenMultiset):
         base_key = self.ingredients_to_key(cards, templates)
         if len(base_key.distinct_elements()) > self.max_depth:

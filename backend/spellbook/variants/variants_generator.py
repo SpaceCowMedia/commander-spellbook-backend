@@ -41,7 +41,7 @@ def get_variants_from_graph(data: Data, job: Job | None, log_count: int) -> dict
         combos_by_status.setdefault(combo.status, []).append(combo)
     result = dict[str, VariantDefinition]()
     for status, combos in combos_by_status.items():
-        log('Processing combos with status ' + status + '...')
+        log('Processing combos with status ' + Combo.Status(status).label + '...')
         card_limit = DEFAULT_CARD_LIMIT
         variant_limit = DEFAULT_VARIANT_LIMIT
         if status == Combo.Status.GENERATOR_WITH_MANY_CARDS:
@@ -328,7 +328,7 @@ def restore_variant(
         cards=[data.id_to_card[civ.card_id] for civ in uses_list()],  # type: ignore
         templates=[data.id_to_template[tiv.template_id] for tiv in requires_list()],  # type: ignore
         features_needed=[],
-        features_produced=sorted(produced_features, key=lambda f: f.feature.id),
+        features_produced=sorted([f.feature for f in produced_features], key=lambda f: f.name),
     )
     variant.results_count = len(produces_ids)
 

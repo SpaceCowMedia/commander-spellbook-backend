@@ -2,6 +2,7 @@ from django.db import models
 from django.db.models.signals import m2m_changed, post_save, post_delete
 from django.dispatch import receiver
 from django.core.validators import MinValueValidator
+from django.core.exceptions import ValidationError
 from .mixins import ScryfallLinkMixin
 from .card import Card
 from .feature import Feature
@@ -137,6 +138,11 @@ class FeatureNeededInCombo(models.Model):
 
     class Meta:
         unique_together = [('feature', 'combo')]
+
+    def clean(self):
+        super().clean()
+        if self.quantity > 1 and self.feature.uncountable:
+            raise ValidationError('Uncountable features can only appear in one copy.')
 
 
 class FeatureProducedInCombo(models.Model):

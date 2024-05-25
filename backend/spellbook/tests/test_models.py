@@ -131,8 +131,11 @@ class FeatureTests(AbstractTestCaseWithSeeding):
         self.assertEqual(f.description, 'Feature A')
         self.assertEqual(f.cards.count(), 1)  # type: ignore
         self.assertTrue(f.utility)
+        self.assertFalse(f.uncountable)
         f = Feature.objects.get(id=self.f2_id)
         self.assertFalse(f.utility)
+        f = Feature.objects.get(id=self.f5_id)
+        self.assertTrue(f.uncountable)
 
     def test_method_count(self):
         self.assertEqual(count_methods(Feature), 1)

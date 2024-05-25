@@ -99,6 +99,7 @@ class AbstractTestCaseWithSeeding(AbstractTestCase):
     f2_id = 0
     f3_id = 0
     f4_id = 0
+    f5_id = 0
     b1_id = 0
     b2_id = 0
     b3_id = 0
@@ -127,7 +128,7 @@ class AbstractTestCaseWithSeeding(AbstractTestCase):
         f2 = Feature.objects.create(name='FB', description='Feature B', utility=False)
         f3 = Feature.objects.create(name='FC', description='Feature C', utility=False)
         f4 = Feature.objects.create(name='FD', description='Feature D', utility=False)
-        f5 = Feature.objects.create(name='FE', description='Feature E', utility=False)
+        f5 = Feature.objects.create(name='FE', description='Feature E', utility=False, uncountable=True)
         b1 = Combo.objects.create(mana_needed='{W}{W}', other_prerequisites='Some requisites.', description='a1', status=Combo.Status.GENERATOR)
         b2 = Combo.objects.create(mana_needed='{U}{U}', other_prerequisites='Some requisites.', description='b2', status=Combo.Status.GENERATOR)
         b3 = Combo.objects.create(mana_needed='{B}{B}', other_prerequisites='Some requisites.', description='c3', status=Combo.Status.UTILITY)
@@ -194,6 +195,7 @@ class AbstractTestCaseWithSeeding(AbstractTestCase):
         self.f2_id = f2.id
         self.f3_id = f3.id
         self.f4_id = f4.id
+        self.f5_id = f5.id
         self.b1_id = b1.id
         self.b2_id = b2.id
         self.b3_id = b3.id

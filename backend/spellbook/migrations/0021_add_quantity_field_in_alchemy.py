@@ -177,6 +177,11 @@ def update_serialized_representation(apps, schema_editor):
     Variant.objects.bulk_update(objs=variants_source, fields=['serialized'], batch_size=5000)  # type: ignore
 
 
+def set_default_uncountable_features(apps, schema_editor):
+    Feature = apps.get_model('spellbook', 'Feature')
+    Feature.objects.filter(name__icontains='infinite').update(uncountable=True)
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -223,6 +228,15 @@ class Migration(migrations.Migration):
             model_name='templaterequiredinvariantsuggestion',
             name='quantity',
             field=models.PositiveSmallIntegerField(default=1, help_text='Quantity of the card in the combo.', validators=[django.core.validators.MinValueValidator(1)], verbose_name='quantity'),
+        ),
+        migrations.AddField(
+            model_name='feature',
+            name='uncountable',
+            field=models.BooleanField(default=False, help_text='Is this an uncountable feature? Uncountable features can only appear in one copy and speed up variant generation.', verbose_name='is uncountable'),
+        ),
+        migrations.RunPython(
+            code=set_default_uncountable_features,
+            reverse_code=migrations.RunPython.noop,
         ),
         migrations.CreateModel(
             name='FeatureProducedByVariant',

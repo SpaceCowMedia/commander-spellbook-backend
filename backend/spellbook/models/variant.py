@@ -5,6 +5,7 @@ from django.db.models.signals import post_save
 from django.utils.html import format_html
 from django.contrib.postgres.indexes import GinIndex
 from django.core.validators import MinValueValidator
+from django.core.exceptions import ValidationError
 from .playable import Playable
 from .mixins import ScryfallLinkMixin, PreSaveSerializedModelMixin, PreSaveSerializedManager
 from .card import Card
@@ -215,6 +216,11 @@ class FeatureProducedByVariant(models.Model):
 
     class Meta:
         unique_together = [('feature', 'variant')]
+
+    def clean(self):
+        super().clean()
+        if self.quantity > 1 and self.feature.uncountable:
+            raise ValidationError('Uncountable features can only appear in one copy.')
 
 
 class VariantOfCombo(models.Model):

@@ -102,6 +102,7 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
             f = Feature.objects.get(id=p.feature.id)
             self.assertEqual(p.feature.id, f.id)
             self.assertEqual(p.feature.name, f.name)
+            self.assertEqual(p.feature.uncountable, f.uncountable)
         of_list = [o.id for o in v.of.all()]
         for o in variant_result.of:
             self.assertIn(o.id, of_list)

@@ -6,7 +6,7 @@ from spellbook.models import Feature
 class FeatureSerializer(serializers.ModelSerializer):
     class Meta:
         model = Feature
-        fields = ['id', 'name']
+        fields = ['id', 'name', 'uncountable']
 
     @classmethod
     def prefetch_related(cls, queryset: QuerySet[Feature]):

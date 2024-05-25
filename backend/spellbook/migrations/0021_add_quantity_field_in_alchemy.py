@@ -179,7 +179,7 @@ def update_serialized_representation(apps, schema_editor):
 
 def set_default_uncountable_features(apps, schema_editor):
     Feature = apps.get_model('spellbook', 'Feature')
-    Feature.objects.filter(name__icontains='infinite').update(uncountable=True)
+    Feature.objects.filter(utility=False).update(uncountable=True)
 
 
 class Migration(migrations.Migration):

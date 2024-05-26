@@ -240,15 +240,15 @@ def restore_variant(
     produced_features.sort(key=lambda f: f.feature.id)
     # Update variant computed information
     requires_commander = any(c.must_be_commander for c in used_cards) or any(t.must_be_commander for t in required_templates)
-    variant.update([c.card for c in used_cards], requires_commander)
+    variant.update([data.id_to_card[c.card_id] for c in used_cards], requires_commander)
     uses = dict[int, CardInVariant]()
     for card_in_variant in used_cards:
         card_in_variant.order = 0
-        uses[card_in_variant.card.id] = card_in_variant
+        uses[card_in_variant.card_id] = card_in_variant
     requires = dict[int, TemplateInVariant]()
     for template_in_variant in required_templates:
         template_in_variant.order = 0
-        requires[template_in_variant.template.id] = template_in_variant
+        requires[template_in_variant.template_id] = template_in_variant
     if restore_fields:
         variant.status = Variant.Status.NEW
         # re-generate the text fields
@@ -303,13 +303,13 @@ def restore_variant(
     templates_ordering: dict[int, tuple[int, int]] = {t: (0, 0) for t in requires}
     for i, combo in enumerate(chain(included_combos, generator_combos)):
         for j, card_in_combo in enumerate(reversed(data.combo_to_cards[combo.id])):
-            if card_in_combo.card.id in cards_ordering:
-                t = cards_ordering[card_in_combo.card.id]
-                cards_ordering[card_in_combo.card.id] = (t[0] + i, t[1] + j)
+            if card_in_combo.card_id in cards_ordering:
+                t = cards_ordering[card_in_combo.card_id]
+                cards_ordering[card_in_combo.card_id] = (t[0] + i, t[1] + j)
         for j, template_in_combo in enumerate(reversed(data.combo_to_templates[combo.id])):
-            if template_in_combo.template.id in templates_ordering:
-                t = templates_ordering[template_in_combo.template.id]
-                templates_ordering[template_in_combo.template.id] = (t[0] + i, t[1] + j)
+            if template_in_combo.template_id in templates_ordering:
+                t = templates_ordering[template_in_combo.template_id]
+                templates_ordering[template_in_combo.template_id] = (t[0] + i, t[1] + j)
 
     def uses_list():
         for i, v in enumerate(sorted(cards_ordering, key=lambda k: cards_ordering[k], reverse=True)):
@@ -394,7 +394,7 @@ def create_variant(
 
 def perform_bulk_saves(data: Data, to_create: list[VariantBulkSaveItem], to_update: list[VariantBulkSaveItem]):
     Variant.objects.bulk_create([v.variant for v in to_create])
-    update_fields = ['name', 'status', 'mana_needed', 'other_prerequisites', 'description', 'results_count'] + Playable.playable_fields()
+    update_fields = ['name', 'status', 'mana_needed', 'other_prerequisites', 'description', 'results_count', 'generated_by'] + Playable.playable_fields()
     Variant.objects.bulk_update([v.variant for v in to_update if v.should_update], fields=update_fields)
     CardInVariant.objects.bulk_create([c for v in to_create for c in v.uses])
     update_fields = ['zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'must_be_commander', 'order']
@@ -469,7 +469,8 @@ def perform_bulk_saves(data: Data, to_create: list[VariantBulkSaveItem], to_upda
     for v in to_update:
         for i in v.produces:
             old_instance = data.variant_to_produces[v.variant.id].get(i.feature.id)
-            if old_instance is not None:
+            if old_instance is not None and \
+                    old_instance.quantity != i.quantity:
                 i.pk = old_instance.pk
                 to_update_produces.append(i)
     update_fields = ['quantity']

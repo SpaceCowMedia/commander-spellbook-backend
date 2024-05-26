@@ -197,7 +197,9 @@ class CardInVariant(IngredientInCombination):
 
 class TemplateInVariant(IngredientInCombination):
     template = models.ForeignKey(to=Template, on_delete=models.CASCADE)
+    template_id: int
     variant = models.ForeignKey(to=Variant, on_delete=models.CASCADE)
+    variant_id: str
 
     def __str__(self):
         return f'{self.template} in {self.variant.pk}'
@@ -208,7 +210,9 @@ class TemplateInVariant(IngredientInCombination):
 
 class FeatureProducedByVariant(models.Model):
     feature = models.ForeignKey(to=Feature, on_delete=models.CASCADE)
+    feature_id: int
     variant = models.ForeignKey(to=Variant, on_delete=models.CASCADE)
+    variant_id: str
     quantity = models.PositiveSmallIntegerField(default=1, blank=False, help_text='Quantity of the feature produced by the variant.', verbose_name='quantity', validators=[MinValueValidator(1)])
 
     def __str__(self):
@@ -225,7 +229,9 @@ class FeatureProducedByVariant(models.Model):
 
 class VariantOfCombo(models.Model):
     variant = models.ForeignKey(to=Variant, on_delete=models.CASCADE)
+    variant_id: str
     combo = models.ForeignKey(to=Combo, on_delete=models.CASCADE)
+    combo_id: int
 
     def __str__(self):
         return f'Variant {self.variant.pk} of {self.combo.pk}'
@@ -236,7 +242,9 @@ class VariantOfCombo(models.Model):
 
 class VariantIncludesCombo(models.Model):
     variant = models.ForeignKey(to=Variant, on_delete=models.CASCADE)
+    variant_id: str
     combo = models.ForeignKey(to=Combo, on_delete=models.CASCADE)
+    combo_id: int
 
     def __str__(self):
         return f'Variant {self.variant.pk} includes {self.combo.pk}'

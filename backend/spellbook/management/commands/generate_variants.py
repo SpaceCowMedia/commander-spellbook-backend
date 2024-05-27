@@ -16,7 +16,7 @@ class Command(AbstractCommand):
         else:
             message = f'Generated {added} new variants, restored {restored} variants, removed {removed} variants for'
         message += ' all combos'
-        self.stdout.write(self.style.SUCCESS(message))
+        self.log(message, self.style.SUCCESS)
         if self.job is not None and self.job.started_by is not None:
             LogEntry(
                 user=self.job.started_by,

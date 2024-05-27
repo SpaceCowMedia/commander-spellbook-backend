@@ -27,6 +27,7 @@ class Node:
         self._variant_set: VariantSet | None = None
         self._filtered_variant_set: VariantSet | None = None
         self._graph = graph
+        self._hash = hash(self._item()) + 31 * hash(self.__class__.__name__)
 
     @property
     def state(self) -> NodeState:
@@ -76,6 +77,9 @@ class Node:
     def _reset_filtered_variant_set(self):
         self._filtered_variant_set = None
 
+    def __hash__(self):
+        return self._hash
+
 
 class CardNode(Node):
     def __init__(
@@ -85,13 +89,10 @@ class CardNode(Node):
             features: Mapping['FeatureNode', int] = {},
             combos: Mapping['ComboNode', int] = {},
     ):
-        super().__init__(graph)
         self.card = card
         self.features = dict(features)
         self.combos = dict(combos)
-
-    def __hash__(self):
-        return hash(self.card) + 31 * hash('card')
+        super().__init__(graph)
 
     def _item(self):
         return self.card
@@ -104,12 +105,9 @@ class TemplateNode(Node):
             template: Template,
             combos: Mapping['ComboNode', int] = {},
     ):
-        super().__init__(graph)
         self.template = template
         self.combos = dict(combos)
-
-    def __hash__(self):
-        return hash(self.template) + 31 * hash('template')
+        super().__init__(graph)
 
     def _item(self):
         return self.template
@@ -124,14 +122,11 @@ class FeatureNode(Node):
         produced_by_combos: Iterable['ComboNode'] = [],
         needed_by_combos: Mapping['ComboNode', int] = {},
     ):
-        super().__init__(graph)
         self.feature = feature
         self.produced_by_cards = dict(produced_by_cards)
         self.produced_by_combos = list(produced_by_combos)
         self.needed_by_combos = dict(needed_by_combos)
-
-    def __hash__(self):
-        return hash(self.feature) + 31 * hash('feature')
+        super().__init__(graph)
 
     def _item(self):
         return self.feature
@@ -148,16 +143,13 @@ class ComboNode(Node):
             uncountable_features_needed: Iterable[FeatureNode] = [],
             features_produced: Iterable[FeatureNode] = [],
     ):
-        super().__init__(graph)
         self.combo = combo
         self.cards = dict(cards)
         self.templates = dict(templates)
         self.countable_features_needed = dict(countable_features_needed)
         self.uncountable_features_needed = list(uncountable_features_needed)
         self.features_produced = list(features_produced)
-
-    def __hash__(self):
-        return hash(self.combo) + 31 * hash('combo')
+        super().__init__(graph)
 
     def _item(self):
         return self.combo

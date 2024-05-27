@@ -28,54 +28,76 @@ class AbstractTestCase(TestCase):
             q = Variant.objects.all()
         Variant.objects.bulk_serialize(q, serializer=VariantSerializer, fields=extra_fields)  # type: ignore
 
-    def save_combo_model(self, model: dict[tuple[str, ...], tuple[str, ...]]):
+    def save_combo_model(self, model: dict[tuple[str, ...] | str, tuple[str, ...]]):
         card_ids_by_name: dict[str, int] = {}
         feature_ids_by_name: dict[str, int] = {}
         template_ids_by_name: dict[str, int] = {}
-        for combo_id, (recipe, result) in enumerate(model.items(), start=1):
+        combo_id = 1
+        for recipe, result in model.items():
             cards = defaultdict[str, int](int)
             features = defaultdict[str, int](int)
             templates = defaultdict[str, int](int)
-            for element in recipe:
-                if '*' in element:
-                    element, quantity = element.split('*')
+            if isinstance(recipe, str):
+                if '*' in recipe:
+                    recipe, quantity = recipe.split('*')
+                    recipe = recipe.strip()
                     quantity = quantity.strip()
-                    element = element.strip()
                     if not quantity.isdigit():
-                        element, quantity = quantity, element
+                        recipe, quantity = quantity, recipe
                     quantity = int(quantity)
                 else:
                     quantity = 1
-                element = element.strip()
-                if element[0].islower():
-                    features[element] += quantity
-                elif element[0] == 'T':
-                    templates[element] += quantity
-                else:
-                    cards[element] += quantity
-            combo = Combo.objects.create(pk=combo_id, mana_needed='', other_prerequisites='Test Prerequisites', description='Test Description', status=Combo.Status.GENERATOR)
-            for i, (card, quantity) in enumerate(cards.items()):
-                card_id = card_ids_by_name.setdefault(card, reduce(lambda x, y: max(x, y), card_ids_by_name.values(), 0) + 1)
-                c, _ = Card.objects.get_or_create(pk=card_id, name=card, identity='W', legal_commander=True, spoiler=False, type_line='Test Card')
-                CardInCombo.objects.create(card=c, combo=combo, order=i, zone_locations=IngredientInCombination.ZoneLocation.BATTLEFIELD, quantity=quantity)
-            for feature, quantity in features.items():
-                feature_id = feature_ids_by_name.setdefault(feature, reduce(lambda x, y: max(x, y), feature_ids_by_name.values(), 0) + 1)
-                f, _ = Feature.objects.get_or_create(pk=feature_id, name=feature, description='Test Feature', utility=False)
-                FeatureNeededInCombo.objects.create(feature=f, combo=combo, quantity=quantity)
-            for i, (template, quantity) in enumerate(templates.items(), start=1):
-                template_id = template_ids_by_name.setdefault(template, reduce(lambda x, y: max(x, y), template_ids_by_name.values(), 0) + 1)
-                t, _ = Template.objects.get_or_create(pk=template_id, name=template, scryfall_query='o:test', description='Test Template')
-                TemplateInCombo.objects.create(template=t, combo=combo, order=i, zone_locations=IngredientInCombination.ZoneLocation.BATTLEFIELD, quantity=quantity)
-            for feature in result:
-                if feature.startswith('-'):
-                    feature = feature[1:]
+                recipe = recipe.strip()
+                assert len(recipe) > 0 and not recipe[0].islower() and recipe[0] != 'T'
+                card_id = card_ids_by_name.setdefault(recipe, reduce(lambda x, y: max(x, y), card_ids_by_name.values(), 0) + 1)
+                c, _ = Card.objects.get_or_create(pk=card_id, name=recipe, identity='W', legal_commander=True, spoiler=False, type_line='Test Card')
+                for feature in result:
+                    assert not feature.startswith('-')
                     feature_id = feature_ids_by_name.setdefault(feature, reduce(lambda x, y: max(x, y), feature_ids_by_name.values(), 0) + 1)
                     f, _ = Feature.objects.get_or_create(pk=feature_id, name=feature, description='Test Feature', utility=False)
-                    FeatureRemovedInCombo.objects.create(feature=f, combo=combo)
-                else:
+                    FeatureOfCard.objects.create(card=c, feature=f, zone_locations=IngredientInCombination.ZoneLocation.BATTLEFIELD, quantity=quantity)
+            else:
+                for element in recipe:
+                    if '*' in element:
+                        element, quantity = element.split('*')
+                        quantity = quantity.strip()
+                        element = element.strip()
+                        if not quantity.isdigit():
+                            element, quantity = quantity, element
+                        quantity = int(quantity)
+                    else:
+                        quantity = 1
+                    element = element.strip()
+                    if element[0].islower():
+                        features[element] += quantity
+                    elif element[0] == 'T':
+                        templates[element] += quantity
+                    else:
+                        cards[element] += quantity
+                combo = Combo.objects.create(pk=combo_id, mana_needed='', other_prerequisites='Test Prerequisites', description='Test Description', status=Combo.Status.GENERATOR)
+                for i, (card, quantity) in enumerate(cards.items()):
+                    card_id = card_ids_by_name.setdefault(card, reduce(lambda x, y: max(x, y), card_ids_by_name.values(), 0) + 1)
+                    c, _ = Card.objects.get_or_create(pk=card_id, name=card, identity='W', legal_commander=True, spoiler=False, type_line='Test Card')
+                    CardInCombo.objects.create(card=c, combo=combo, order=i, zone_locations=IngredientInCombination.ZoneLocation.BATTLEFIELD, quantity=quantity)
+                for feature, quantity in features.items():
                     feature_id = feature_ids_by_name.setdefault(feature, reduce(lambda x, y: max(x, y), feature_ids_by_name.values(), 0) + 1)
                     f, _ = Feature.objects.get_or_create(pk=feature_id, name=feature, description='Test Feature', utility=False)
-                    FeatureProducedInCombo.objects.create(feature=f, combo=combo)
+                    FeatureNeededInCombo.objects.create(feature=f, combo=combo, quantity=quantity)
+                for i, (template, quantity) in enumerate(templates.items(), start=1):
+                    template_id = template_ids_by_name.setdefault(template, reduce(lambda x, y: max(x, y), template_ids_by_name.values(), 0) + 1)
+                    t, _ = Template.objects.get_or_create(pk=template_id, name=template, scryfall_query='o:test', description='Test Template')
+                    TemplateInCombo.objects.create(template=t, combo=combo, order=i, zone_locations=IngredientInCombination.ZoneLocation.BATTLEFIELD, quantity=quantity)
+                for feature in result:
+                    if feature.startswith('-'):
+                        feature = feature[1:]
+                        feature_id = feature_ids_by_name.setdefault(feature, reduce(lambda x, y: max(x, y), feature_ids_by_name.values(), 0) + 1)
+                        f, _ = Feature.objects.get_or_create(pk=feature_id, name=feature, description='Test Feature', utility=False)
+                        FeatureRemovedInCombo.objects.create(feature=f, combo=combo)
+                    else:
+                        feature_id = feature_ids_by_name.setdefault(feature, reduce(lambda x, y: max(x, y), feature_ids_by_name.values(), 0) + 1)
+                        f, _ = Feature.objects.get_or_create(pk=feature_id, name=feature, description='Test Feature', utility=False)
+                        FeatureProducedInCombo.objects.create(feature=f, combo=combo)
+                combo_id += 1
 
     def assertMultisetEqual(self, a, b):
         if isinstance(a, BaseMultiset):

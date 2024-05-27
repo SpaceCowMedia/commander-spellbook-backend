@@ -370,20 +370,20 @@ class Graph:
                     else:
                         combo.state = NodeState.VISITED
             for feature, cards_needed in card.features.items():
+                if feature.feature.uncountable:
+                    uncountable_feature_nodes.add(feature)
+                    feature_count = 1
+                else:
+                    feature_count = quantity // cards_needed
+                    countable_feature_nodes[feature] = countable_feature_nodes.get(feature, 0) + feature_count
+                replacements[feature.feature.id].append(
+                    VariantIngredients(
+                        cards=FrozenMultiset({card.card.id: cards_needed}),
+                        templates=FrozenMultiset()
+                    )
+                )
                 if feature.state == NodeState.NOT_VISITED:
                     feature.state = NodeState.VISITED
-                    if feature.feature.uncountable:
-                        uncountable_feature_nodes.add(feature)
-                        feature_count = 1
-                    else:
-                        feature_count = quantity // cards_needed
-                        countable_feature_nodes[feature] = countable_feature_nodes.get(feature, 0) + feature_count
-                    replacements[feature.feature.id].append(
-                        VariantIngredients(
-                            cards=FrozenMultiset({card.card.id: feature_count * cards_needed}),
-                            templates=FrozenMultiset()
-                        )
-                    )
                     for feature_combo in feature.needed_by_combos:
                         if feature_combo.state == NodeState.NOT_VISITED:
                             if all(cards.get(c, 0) >= q for c, q in feature_combo.cards.items()) \

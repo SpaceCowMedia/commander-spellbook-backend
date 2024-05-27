@@ -81,11 +81,6 @@ def get_variants_from_graph(data: Data, job: Job | None, log_count: int) -> dict
                 if id in result:
                     x = result[id]
                     x.of_ids.add(combo.id)
-                    x.included_ids.update(combo_ids)
-                    for feature_id, count in feature_ids.items():
-                        x.feature_ids.add(feature_id, count)
-                    for feature_id, replacements in feature_replacements.items():
-                        x.feature_replacements[feature_id].extend(replacements)
                 else:
                     logging.debug(f'Found new variant for combo {combo.id} ({index + 1}/{total}): {id}')
                     result[id] = VariantDefinition(

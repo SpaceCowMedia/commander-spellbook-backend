@@ -58,6 +58,16 @@ def set_order(apps, schema_editor):
     TemplateRequiredInvariantSuggestion.objects.bulk_update(save, ['order'])
 
 
+def migrate_combo_status(apps, schema_editor):
+    Combo = apps.get_model('spellbook', 'Combo')
+    Combo.objects.filter(status='M').update(status='G', allow_many_cards=True)
+
+
+def reverse_migrate_combo_status(apps, schema_editor):
+    Combo = apps.get_model('spellbook', 'Combo')
+    Combo.objects.filter(status='G', allow_many_cards=True).update(status='M')
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -133,5 +143,24 @@ class Migration(migrations.Migration):
             model_name='templaterequiredinvariantsuggestion',
             name='scryfall_query',
             field=models.CharField(blank=True, help_text='Variables supported: mv, manavalue, power, pow, toughness, tou, pt, powtou, loyalty, loy, c, color, id, identity, produces, has, t, type, keyword, kw, is, o, oracle, function, otag, oracletag, oracleid, m, mana, devotion.\nOperators supported: =, !=, <, >, <=, >=, :.\nYou can compose a "and"/"or" expression made of "and"/"or" expressions, like "(c:W or c:U) and (t:creature or t:artifact)".\nYou can also omit parentheses when not necessary, like "(c:W or c:U) t:creature".\nCard names are only supported if wrapped in double quotes and preceded by an exclamation mark (!) in order to match the exact name, like !"Lightning Bolt".\nYou can negate any expression by prepending a dash (-), like "-t:creature".\nMore info at: https://scryfall.com/docs/syntax.\n', max_length=1024, null=True, validators=[django.core.validators.RegexValidator(message='Invalid Scryfall query syntax.', regex='^(?:(?:\\((?:(?:-?(?:(?:(?:c|color|id|identity|produces)(?::|[<>]=?|!=|=)|(?:has|t|type|keyword|kw|is|o|oracle|function|otag|oracletag|oracleid):!?)(?:\\/(?:\\\\\\/|[^\\/])+\\/|(?!\\/)[^\\s:<>!="]+|"[^"]+")|(?:m|mana|devotion)(?::|[<>]=?|!=|=)(?:\\{(?:C\\/[WUBRG]|[WUBRG](?:\\/P)?|[0-9CPXYZS∞]|[1-9][0-9]{1,2}|(?:2\\/[WUBRG]|W\\/U|W\\/B|U\\/B|U\\/R|B\\/R|B\\/G|R\\/G|R\\/W|G\\/W|G\\/U)(?:\\/P)?)\\})+|(?:mv|manavalue|power|pow|toughness|tou|pt|powtou|loyalty|loy)(?::|[<>]=?|!=|=)(?:\\d+|(?:mv|manavalue|power|pow|toughness|tou|pt|powtou|loyalty|loy))|!"[^"]+"))(?: (?:and |or )?(?:-?(?:(?:(?:c|color|id|identity|produces)(?::|[<>]=?|!=|=)|(?:has|t|type|keyword|kw|is|o|oracle|function|otag|oracletag|oracleid):!?)(?:\\/(?:\\\\\\/|[^\\/])+\\/|(?!\\/)[^\\s:<>!="]+|"[^"]+")|(?:m|mana|devotion)(?::|[<>]=?|!=|=)(?:\\{(?:C\\/[WUBRG]|[WUBRG](?:\\/P)?|[0-9CPXYZS∞]|[1-9][0-9]{1,2}|(?:2\\/[WUBRG]|W\\/U|W\\/B|U\\/B|U\\/R|B\\/R|B\\/G|R\\/G|R\\/W|G\\/W|G\\/U)(?:\\/P)?)\\})+|(?:mv|manavalue|power|pow|toughness|tou|pt|powtou|loyalty|loy)(?::|[<>]=?|!=|=)(?:\\d+|(?:mv|manavalue|power|pow|toughness|tou|pt|powtou|loyalty|loy))|!"[^"]+")))*)\\)|(?:(?:-?(?:(?:(?:c|color|id|identity|produces)(?::|[<>]=?|!=|=)|(?:has|t|type|keyword|kw|is|o|oracle|function|otag|oracletag|oracleid):!?)(?:\\/(?:\\\\\\/|[^\\/])+\\/|(?!\\/)[^\\s:<>!="]+|"[^"]+")|(?:m|mana|devotion)(?::|[<>]=?|!=|=)(?:\\{(?:C\\/[WUBRG]|[WUBRG](?:\\/P)?|[0-9CPXYZS∞]|[1-9][0-9]{1,2}|(?:2\\/[WUBRG]|W\\/U|W\\/B|U\\/B|U\\/R|B\\/R|B\\/G|R\\/G|R\\/W|G\\/W|G\\/U)(?:\\/P)?)\\})+|(?:mv|manavalue|power|pow|toughness|tou|pt|powtou|loyalty|loy)(?::|[<>]=?|!=|=)(?:\\d+|(?:mv|manavalue|power|pow|toughness|tou|pt|powtou|loyalty|loy))|!"[^"]+"))(?: (?:and |or )?(?:-?(?:(?:(?:c|color|id|identity|produces)(?::|[<>]=?|!=|=)|(?:has|t|type|keyword|kw|is|o|oracle|function|otag|oracletag|oracleid):!?)(?:\\/(?:\\\\\\/|[^\\/])+\\/|(?!\\/)[^\\s:<>!="]+|"[^"]+")|(?:m|mana|devotion)(?::|[<>]=?|!=|=)(?:\\{(?:C\\/[WUBRG]|[WUBRG](?:\\/P)?|[0-9CPXYZS∞]|[1-9][0-9]{1,2}|(?:2\\/[WUBRG]|W\\/U|W\\/B|U\\/B|U\\/R|B\\/R|B\\/G|R\\/G|R\\/W|G\\/W|G\\/U)(?:\\/P)?)\\})+|(?:mv|manavalue|power|pow|toughness|tou|pt|powtou|loyalty|loy)(?::|[<>]=?|!=|=)(?:\\d+|(?:mv|manavalue|power|pow|toughness|tou|pt|powtou|loyalty|loy))|!"[^"]+")))*))(?: (?:and |or )?(?:\\((?:(?:-?(?:(?:(?:c|color|id|identity|produces)(?::|[<>]=?|!=|=)|(?:has|t|type|keyword|kw|is|o|oracle|function|otag|oracletag|oracleid):!?)(?:\\/(?:\\\\\\/|[^\\/])+\\/|(?!\\/)[^\\s:<>!="]+|"[^"]+")|(?:m|mana|devotion)(?::|[<>]=?|!=|=)(?:\\{(?:C\\/[WUBRG]|[WUBRG](?:\\/P)?|[0-9CPXYZS∞]|[1-9][0-9]{1,2}|(?:2\\/[WUBRG]|W\\/U|W\\/B|U\\/B|U\\/R|B\\/R|B\\/G|R\\/G|R\\/W|G\\/W|G\\/U)(?:\\/P)?)\\})+|(?:mv|manavalue|power|pow|toughness|tou|pt|powtou|loyalty|loy)(?::|[<>]=?|!=|=)(?:\\d+|(?:mv|manavalue|power|pow|toughness|tou|pt|powtou|loyalty|loy))|!"[^"]+"))(?: (?:and |or )?(?:-?(?:(?:(?:c|color|id|identity|produces)(?::|[<>]=?|!=|=)|(?:has|t|type|keyword|kw|is|o|oracle|function|otag|oracletag|oracleid):!?)(?:\\/(?:\\\\\\/|[^\\/])+\\/|(?!\\/)[^\\s:<>!="]+|"[^"]+")|(?:m|mana|devotion)(?::|[<>]=?|!=|=)(?:\\{(?:C\\/[WUBRG]|[WUBRG](?:\\/P)?|[0-9CPXYZS∞]|[1-9][0-9]{1,2}|(?:2\\/[WUBRG]|W\\/U|W\\/B|U\\/B|U\\/R|B\\/R|B\\/G|R\\/G|R\\/W|G\\/W|G\\/U)(?:\\/P)?)\\})+|(?:mv|manavalue|power|pow|toughness|tou|pt|powtou|loyalty|loy)(?::|[<>]=?|!=|=)(?:\\d+|(?:mv|manavalue|power|pow|toughness|tou|pt|powtou|loyalty|loy))|!"[^"]+")))*)\\)|(?:(?:-?(?:(?:(?:c|color|id|identity|produces)(?::|[<>]=?|!=|=)|(?:has|t|type|keyword|kw|is|o|oracle|function|otag|oracletag|oracleid):!?)(?:\\/(?:\\\\\\/|[^\\/])+\\/|(?!\\/)[^\\s:<>!="]+|"[^"]+")|(?:m|mana|devotion)(?::|[<>]=?|!=|=)(?:\\{(?:C\\/[WUBRG]|[WUBRG](?:\\/P)?|[0-9CPXYZS∞]|[1-9][0-9]{1,2}|(?:2\\/[WUBRG]|W\\/U|W\\/B|U\\/B|U\\/R|B\\/R|B\\/G|R\\/G|R\\/W|G\\/W|G\\/U)(?:\\/P)?)\\})+|(?:mv|manavalue|power|pow|toughness|tou|pt|powtou|loyalty|loy)(?::|[<>]=?|!=|=)(?:\\d+|(?:mv|manavalue|power|pow|toughness|tou|pt|powtou|loyalty|loy))|!"[^"]+"))(?: (?:and |or )?(?:-?(?:(?:(?:c|color|id|identity|produces)(?::|[<>]=?|!=|=)|(?:has|t|type|keyword|kw|is|o|oracle|function|otag|oracletag|oracleid):!?)(?:\\/(?:\\\\\\/|[^\\/])+\\/|(?!\\/)[^\\s:<>!="]+|"[^"]+")|(?:m|mana|devotion)(?::|[<>]=?|!=|=)(?:\\{(?:C\\/[WUBRG]|[WUBRG](?:\\/P)?|[0-9CPXYZS∞]|[1-9][0-9]{1,2}|(?:2\\/[WUBRG]|W\\/U|W\\/B|U\\/B|U\\/R|B\\/R|B\\/G|R\\/G|R\\/W|G\\/W|G\\/U)(?:\\/P)?)\\})+|(?:mv|manavalue|power|pow|toughness|tou|pt|powtou|loyalty|loy)(?::|[<>]=?|!=|=)(?:\\d+|(?:mv|manavalue|power|pow|toughness|tou|pt|powtou|loyalty|loy))|!"[^"]+")))*)))*)$')], verbose_name='Scryfall query'),
+        ),
+        migrations.AddField(
+            model_name='combo',
+            name='allow_many_cards',
+            field=models.BooleanField(default=False, help_text='Allow variants to have more cards than the default limit'),
+        ),
+        migrations.AddField(
+            model_name='combo',
+            name='allow_multiple_copies',
+            field=models.BooleanField(default=False, help_text='Allow variants to have more copies of the same card'),
+        ),
+        migrations.AlterField(
+            model_name='combo',
+            name='status',
+            field=models.CharField(choices=[('G', 'Generator'), ('U', 'Utility'), ('D', 'Draft'), ('NR', 'Needs Review')], default='G', help_text='Is this combo a generator for variants?', max_length=2, verbose_name='status'),
+        ),
+        migrations.RunPython(
+            code=migrate_combo_status,
+            reverse_code=reverse_migrate_combo_status,
         ),
     ]

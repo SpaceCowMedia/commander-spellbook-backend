@@ -135,8 +135,8 @@ class VariantSetTests(TestCase):
         ]))
 
     def test_add(self):
-        variant_set_1 = VariantSet()
-        variant_set_2 = VariantSet()
+        variant_set_1 = VariantSet(allow_multiple_copies=True)
+        variant_set_2 = VariantSet(allow_multiple_copies=True)
         self.assertEqual(use_hashable_dict((variant_set_1 + variant_set_2).variants()), use_hashable_dict([]))
         variant_set_1.add(FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 4}), FrozenMultiset())
         self.assertEqual(use_hashable_dict((variant_set_1 + variant_set_2).variants()), use_hashable_dict([]))
@@ -155,47 +155,48 @@ class VariantSetTests(TestCase):
             (FrozenMultiset({4: 5}), FrozenMultiset({1: 1, 2: 1})),
             (FrozenMultiset({5: 1}), FrozenMultiset({1: 2, 2: 1})),
         ]))
+        variant_set_1.allow_multiple_copies = False
+        variant_set_2.allow_multiple_copies = False
+        self.assertEqual(use_hashable_dict((variant_set_1 + variant_set_2).variants()), use_hashable_dict((variant_set_1 & variant_set_2).variants()))
 
     def test_pow(self):
-        with self.settings(SINGLETON_COMBO_MODE=False):
-            variant_set = VariantSet()
-            variant_set.add(FrozenMultiset({1: 2, 2: 2}), FrozenMultiset())
-            variant_set.add(FrozenMultiset({1: 4}), FrozenMultiset())
-            self.assertEqual(use_hashable_dict((variant_set ** 0).variants()), use_hashable_dict([]))
-            self.assertEqual(use_hashable_dict((variant_set ** 1).variants()), use_hashable_dict(variant_set.variants()))
-            self.assertEqual(use_hashable_dict((variant_set ** 2).variants()), use_hashable_dict([
-                (FrozenMultiset({1: 4, 2: 4}), FrozenMultiset()),
-                (FrozenMultiset({1: 6, 2: 2}), FrozenMultiset()),
-                (FrozenMultiset({1: 8}), FrozenMultiset()),
-            ]))
-            self.assertEqual(use_hashable_dict((variant_set ** 3).variants()), use_hashable_dict([
-                (FrozenMultiset({1: 6, 2: 6}), FrozenMultiset()),
-                (FrozenMultiset({1: 8, 2: 4}), FrozenMultiset()),
-                (FrozenMultiset({1: 10, 2: 2}), FrozenMultiset()),
-                (FrozenMultiset({1: 12}), FrozenMultiset()),
-            ]))
-        with self.settings(SINGLETON_COMBO_MODE=True):
-            variant_set = VariantSet()
-            variant_set.add(FrozenMultiset({1: 1, 2: 1}), FrozenMultiset())
-            variant_set.add(FrozenMultiset({1: 2}), FrozenMultiset())
-            variant_set.add(FrozenMultiset({4: 1}), FrozenMultiset())
-            variant_set.add(FrozenMultiset({1: 1, 5: 1}), FrozenMultiset())
-            self.assertEqual(use_hashable_dict((variant_set ** 0).variants()), use_hashable_dict([]))
-            self.assertEqual(use_hashable_dict((variant_set ** 1).variants()), use_hashable_dict(variant_set.variants()))
-            self.assertEqual(use_hashable_dict((variant_set ** 2).variants()), use_hashable_dict([
-                (FrozenMultiset({1: 3, 2: 1}), FrozenMultiset()),
-                (FrozenMultiset({1: 2, 2: 1, 5: 1}), FrozenMultiset()),
-                (FrozenMultiset({1: 1, 2: 1, 4: 1}), FrozenMultiset()),
-                (FrozenMultiset({1: 1, 4: 1, 5: 1}), FrozenMultiset()),
-                (FrozenMultiset({1: 2, 4: 1}), FrozenMultiset()),
-                (FrozenMultiset({1: 3, 5: 1}), FrozenMultiset()),
-            ]))
-            self.assertEqual(use_hashable_dict((variant_set ** 3).variants()), use_hashable_dict([
-                (FrozenMultiset({1: 2, 2: 1, 4: 1, 5: 1}), FrozenMultiset()),
-                (FrozenMultiset({1: 4, 2: 1, 5: 1}), FrozenMultiset()),
-                (FrozenMultiset({1: 3, 2: 1, 4: 1}), FrozenMultiset()),
-                (FrozenMultiset({1: 3, 4: 1, 5: 1}), FrozenMultiset()),
-            ]))
+        variant_set = VariantSet(allow_multiple_copies=True)
+        variant_set.add(FrozenMultiset({1: 2, 2: 2}), FrozenMultiset())
+        variant_set.add(FrozenMultiset({1: 4}), FrozenMultiset())
+        self.assertEqual(use_hashable_dict((variant_set ** 0).variants()), use_hashable_dict([]))
+        self.assertEqual(use_hashable_dict((variant_set ** 1).variants()), use_hashable_dict(variant_set.variants()))
+        self.assertEqual(use_hashable_dict((variant_set ** 2).variants()), use_hashable_dict([
+            (FrozenMultiset({1: 4, 2: 4}), FrozenMultiset()),
+            (FrozenMultiset({1: 6, 2: 2}), FrozenMultiset()),
+            (FrozenMultiset({1: 8}), FrozenMultiset()),
+        ]))
+        self.assertEqual(use_hashable_dict((variant_set ** 3).variants()), use_hashable_dict([
+            (FrozenMultiset({1: 6, 2: 6}), FrozenMultiset()),
+            (FrozenMultiset({1: 8, 2: 4}), FrozenMultiset()),
+            (FrozenMultiset({1: 10, 2: 2}), FrozenMultiset()),
+            (FrozenMultiset({1: 12}), FrozenMultiset()),
+        ]))
+        variant_set = VariantSet(allow_multiple_copies=False)
+        variant_set.add(FrozenMultiset({1: 1, 2: 1}), FrozenMultiset())
+        variant_set.add(FrozenMultiset({1: 2}), FrozenMultiset())
+        variant_set.add(FrozenMultiset({4: 1}), FrozenMultiset())
+        variant_set.add(FrozenMultiset({1: 1, 5: 1}), FrozenMultiset())
+        self.assertEqual(use_hashable_dict((variant_set ** 0).variants()), use_hashable_dict([]))
+        self.assertEqual(use_hashable_dict((variant_set ** 1).variants()), use_hashable_dict(variant_set.variants()))
+        self.assertEqual(use_hashable_dict((variant_set ** 2).variants()), use_hashable_dict([
+            (FrozenMultiset({1: 3, 2: 1}), FrozenMultiset()),
+            (FrozenMultiset({1: 2, 2: 1, 5: 1}), FrozenMultiset()),
+            (FrozenMultiset({1: 1, 2: 1, 4: 1}), FrozenMultiset()),
+            (FrozenMultiset({1: 1, 4: 1, 5: 1}), FrozenMultiset()),
+            (FrozenMultiset({1: 2, 4: 1}), FrozenMultiset()),
+            (FrozenMultiset({1: 3, 5: 1}), FrozenMultiset()),
+        ]))
+        self.assertEqual(use_hashable_dict((variant_set ** 3).variants()), use_hashable_dict([
+            (FrozenMultiset({1: 2, 2: 1, 4: 1, 5: 1}), FrozenMultiset()),
+            (FrozenMultiset({1: 4, 2: 1, 5: 1}), FrozenMultiset()),
+            (FrozenMultiset({1: 3, 2: 1, 4: 1}), FrozenMultiset()),
+            (FrozenMultiset({1: 3, 4: 1, 5: 1}), FrozenMultiset()),
+        ]))
 
     def test_variants(self):
         variant_set = VariantSet()

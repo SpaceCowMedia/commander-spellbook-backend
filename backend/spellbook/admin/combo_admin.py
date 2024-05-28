@@ -132,7 +132,7 @@ class ComboAdmin(SpellbookModelAdmin):
     fieldsets = [
         ('Generated', {'fields': ['id', 'scryfall_link']}),
         ('More Requirements', {'fields': ['mana_needed', 'other_prerequisites']}),
-        ('Description', {'fields': ['status', 'description']}),
+        ('Description', {'fields': ['status', 'allow_many_cards', 'allow_multiple_copies', 'description']}),
     ]
     inlines = [
         CardInComboAdminInline,
@@ -141,7 +141,7 @@ class ComboAdmin(SpellbookModelAdmin):
         FeatureProducedInComboAdminInline,
         FeatureRemovedInComboAdminInline,
     ]
-    list_filter = ['status', PayoffFilter, VariantRelatedFilter]
+    list_filter = ['status', 'allow_many_cards', 'allow_multiple_copies', PayoffFilter, VariantRelatedFilter]
     search_fields = [
         'uses__name',
         'uses__name_unaccented',
@@ -151,7 +151,7 @@ class ComboAdmin(SpellbookModelAdmin):
         'produces__name',
         'needs__name'
     ]
-    list_display = ['__str__', 'id', 'status']
+    list_display = ['__str__', 'id', 'status', 'allow_many_cards', 'allow_multiple_copies']
 
     def get_fieldsets(self, request, obj):
         fieldsets = super().get_fieldsets(request, obj)

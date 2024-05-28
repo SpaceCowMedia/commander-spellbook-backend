@@ -156,7 +156,7 @@ class AbstractTestCaseWithSeeding(AbstractTestCase):
         b3 = Combo.objects.create(mana_needed='{B}{B}', other_prerequisites='Some requisites.', description='c3', status=Combo.Status.UTILITY)
         b4 = Combo.objects.create(mana_needed='{R}{R}', other_prerequisites='Some requisites.', description='d4', status=Combo.Status.GENERATOR)
         b5 = Combo.objects.create(mana_needed='{G}{G}', other_prerequisites='Some requisites.', description='e5', status=Combo.Status.UTILITY)
-        b6 = Combo.objects.create(mana_needed='{W}{U}{B}{R}{G}', other_prerequisites='Some requisites.', description='f6', status=Combo.Status.GENERATOR_WITH_MANY_CARDS)
+        b6 = Combo.objects.create(mana_needed='{W}{U}{B}{R}{G}', other_prerequisites='Some requisites.', description='f6', status=Combo.Status.GENERATOR, allow_many_cards=True)
         b7 = Combo.objects.create(mana_needed='{W}{U}{B}{R}{G}', other_prerequisites='Some requisites.', description='g7', status=Combo.Status.DRAFT)
         b8 = Combo.objects.create(mana_needed='{W}{U}{B}{R}{G}', other_prerequisites='Some requisites.', description='g7', status=Combo.Status.NEEDS_REVIEW)
         t1 = Template.objects.create(name='TA', scryfall_query='tou>5', description='hello.')

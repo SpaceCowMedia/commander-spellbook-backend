@@ -1,7 +1,6 @@
 from typing import Iterable
 from itertools import product
 from multiset import FrozenMultiset
-from django.conf import settings
 from .minimal_set_of_multisets import MinimalSetOfMultisets
 
 cardid = int
@@ -9,9 +8,10 @@ templateid = int
 
 
 class VariantSet:
-    def __init__(self, limit: int | float | None = None):
+    def __init__(self, limit: int | float | None = None, allow_multiple_copies: bool = False):
         self.sets = MinimalSetOfMultisets[str]()
         self.max_depth = limit if limit is not None else float('inf')
+        self.allow_multiple_copies = allow_multiple_copies
 
     @classmethod
     def ingredients_to_key(cls, cards: FrozenMultiset, templates: FrozenMultiset) -> FrozenMultiset:
@@ -31,7 +31,7 @@ class VariantSet:
         return (FrozenMultiset(cards), FrozenMultiset(templates))
 
     def filter(self, cards: FrozenMultiset, templates: FrozenMultiset) -> 'VariantSet':
-        result = VariantSet(limit=self.max_depth)
+        result = VariantSet(limit=self.max_depth, allow_multiple_copies=self.allow_multiple_copies)
         for subset in self.sets.subsets_of(self.ingredients_to_key(cards, templates)):
             result._add(subset)
         return result
@@ -60,7 +60,7 @@ class VariantSet:
         return [self.key_to_ingredients(subset) for subset in self.sets.subsets_of(key)]
 
     def __copy__(self) -> 'VariantSet':
-        result = VariantSet(limit=self.max_depth)
+        result = VariantSet(limit=self.max_depth, allow_multiple_copies=self.allow_multiple_copies)
         result.sets = self.sets.copy()
         return result
 
@@ -80,7 +80,7 @@ class VariantSet:
         return result
 
     def __and__(self, other: 'VariantSet'):
-        result = VariantSet(limit=self.max_depth)
+        result = VariantSet(limit=self.max_depth, allow_multiple_copies=self.allow_multiple_copies)
         left_keys = list(self._keys())
         right_keys = list(other._keys())
         for left_key, right_key in product(left_keys, right_keys):
@@ -91,7 +91,9 @@ class VariantSet:
         return result
 
     def __add__(self, other: 'VariantSet'):
-        result = VariantSet(limit=self.max_depth)
+        if not self.allow_multiple_copies:
+            return self.__and__(other)
+        result = VariantSet(limit=self.max_depth, allow_multiple_copies=self.allow_multiple_copies)
         left_keys = list(self._keys())
         right_keys = list(other._keys())
         for left_key, right_key in product(left_keys, right_keys):
@@ -106,8 +108,10 @@ class VariantSet:
             raise ValueError('Exponent must be an integer.')
         if power < 0:
             raise ValueError('Exponent must be a non-negative integer.')
-        if settings.SINGLETON_COMBO_MODE:
-            result = VariantSet(limit=self.max_depth)
+        if self.allow_multiple_copies:
+            return self.sum_sets([self] * power, limit=self.max_depth, allow_multiple_copies=self.allow_multiple_copies)
+        else:
+            result = VariantSet(limit=self.max_depth, allow_multiple_copies=self.allow_multiple_copies)
             keys = list(self._keys())
             for key_combinations in product(*[keys] * power):
                 if len(key_combinations) == len(set(key_combinations)):
@@ -116,8 +120,6 @@ class VariantSet:
                         continue
                     result._add(key)
             return result
-        else:
-            return self.sum_sets([self] * power, limit=self.max_depth)
 
     def variants(self) -> list[tuple[FrozenMultiset, FrozenMultiset]]:
         return [self.key_to_ingredients(key) for key in self._keys()]
@@ -126,25 +128,26 @@ class VariantSet:
         return self.__copy__()
 
     @classmethod
-    def or_sets(cls, sets: list['VariantSet'], limit: int | float | None = None) -> 'VariantSet':
-        return VariantSet.aggregate_sets(sets, limit=limit, strategy=lambda x, y: x | y)
+    def or_sets(cls, sets: list['VariantSet'], limit: int | float | None = None, allow_multiple_copies: bool = False) -> 'VariantSet':
+        return VariantSet.aggregate_sets(sets, strategy=lambda x, y: x | y, limit=limit, allow_multiple_copies=allow_multiple_copies)
 
     @classmethod
-    def and_sets(cls, sets: list['VariantSet'], limit: int | float | None = None) -> 'VariantSet':
-        return VariantSet.aggregate_sets(sets, limit=limit, strategy=lambda x, y: x & y)
+    def and_sets(cls, sets: list['VariantSet'], limit: int | float | None = None, allow_multiple_copies: bool = False) -> 'VariantSet':
+        return VariantSet.aggregate_sets(sets, strategy=lambda x, y: x & y, limit=limit, allow_multiple_copies=allow_multiple_copies)
 
     @classmethod
-    def sum_sets(cls, sets: list['VariantSet'], limit: int | float | None = None) -> 'VariantSet':
-        return VariantSet.aggregate_sets(sets, limit=limit, strategy=lambda x, y: x + y)
+    def sum_sets(cls, sets: list['VariantSet'], limit: int | float | None = None, allow_multiple_copies: bool = False) -> 'VariantSet':
+        return VariantSet.aggregate_sets(sets, strategy=lambda x, y: x + y, limit=limit, allow_multiple_copies=allow_multiple_copies)
 
     @classmethod
-    def aggregate_sets(cls, sets: list['VariantSet'], strategy, limit: int | float | None = None) -> 'VariantSet':
+    def aggregate_sets(cls, sets: list['VariantSet'], strategy, limit: int | float | None = None, allow_multiple_copies: bool = False) -> 'VariantSet':
         match len(sets):
-            case 0: return VariantSet(limit=limit)
+            case 0: return VariantSet(limit=limit, allow_multiple_copies=allow_multiple_copies)
             case _:
                 result = sets[0].copy()
                 if limit is not None:
                     result.max_depth = limit
+                result.allow_multiple_copies = allow_multiple_copies
                 for variant_set in sets[1:]:
                     result = strategy(result, variant_set)
                 return result

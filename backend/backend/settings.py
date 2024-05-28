@@ -31,7 +31,6 @@ STATIC_BULK_FOLDER = Path('./temp/bulk')
 
 ASYNC_GENERATION = True
 PYPY_AVAILABLE = check_pypy
-SINGLETON_COMBO_MODE = True
 
 VERSION = os.getenv('VERSION', 'dev')
 
@@ -237,8 +236,12 @@ LOGGING = {
         },
     },
     'loggers': {
+        # 'root': {
+        #     'level': 'DEBUG',
+        #     'handlers': ['console'],
+        # },
         'root': {
-            'level': 'DEBUG',
+            'level': 'INFO',
             'handlers': ['console'],
         },
         # 'django.db.backends': {

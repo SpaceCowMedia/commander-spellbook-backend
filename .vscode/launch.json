@@ -160,24 +160,6 @@
             },
         },
         {
-            "name": "Import Combos",
-            "type": "debugpy",
-            "request": "launch",
-            "cwd": "${workspaceFolder}/backend",
-            "program": "manage.py",
-            "args": [
-                "import_combos"
-            ],
-            "preLaunchTask": "Prelaunch",
-            "django": true,
-            "justMyCode": true,
-            "presentation": {
-                "hidden": false,
-                "group": "Spellbook",
-                "order": 6
-            },
-        },
-        {
             "name": "Update Cards",
             "type": "debugpy",
             "request": "launch",

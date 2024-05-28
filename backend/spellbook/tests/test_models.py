@@ -193,6 +193,8 @@ class ComboTests(AbstractTestCaseWithSeeding):
         self.assertEqual(c.cardincombo_set.get(card__oracle_id='00000000-0000-0000-0000-000000000002').zone_locations, IngredientInCombination.ZoneLocation.HAND)
         self.assertEqual(c.cardincombo_set.get(card__oracle_id='00000000-0000-0000-0000-000000000003').zone_locations, IngredientInCombination.ZoneLocation.BATTLEFIELD)
         self.assertEqual(c.templateincombo_set.count(), 0)
+        self.assertEqual(c.allow_many_cards, False)
+        self.assertEqual(c.allow_multiple_copies, False)
         c = Combo.objects.get(id=self.b2_id)
         self.assertEqual(c.description, 'b2')
         self.assertEqual(c.uses.count(), 0)
@@ -206,6 +208,8 @@ class ComboTests(AbstractTestCaseWithSeeding):
         self.assertEqual(c.cardincombo_set.count(), 0)
         self.assertEqual(c.templateincombo_set.count(), 1)
         self.assertEqual(c.templateincombo_set.get(template__name='TA').zone_locations, IngredientInCombination.ZoneLocation.GRAVEYARD)
+        self.assertEqual(c.allow_many_cards, False)
+        self.assertEqual(c.allow_multiple_copies, False)
 
     def test_ingredients(self):
         for c in Combo.objects.all():

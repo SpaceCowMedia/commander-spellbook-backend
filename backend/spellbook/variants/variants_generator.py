@@ -36,18 +36,28 @@ def get_variants_from_graph(data: Data, job: Job | None, log_count: int) -> dict
     def log(msg: str):
         logging.info(msg)
         log_into_job(job, msg)
-    combos_by_status = dict[str, list[Combo]]()
+    combos_by_status = dict[tuple[bool, bool], list[Combo]]()
     for combo in data.generator_combos:
-        combos_by_status.setdefault(combo.status, []).append(combo)
+        allows_many_cards = combo.allow_many_cards
+        allows_multiple_copies = combo.allow_multiple_copies
+        combos_by_status.setdefault((allows_many_cards, allows_multiple_copies), []).append(combo)
     result = dict[str, VariantDefinition]()
-    for status, combos in combos_by_status.items():
-        log('Processing combos with status ' + Combo.Status(status).label + '...')
+    for (allows_many_cards, allows_multiple_copies), combos in combos_by_status.items():
+        conditions = ([f'at most {HIGHER_CARD_LIMIT} cards'] if allows_many_cards else [f'at most {DEFAULT_CARD_LIMIT} cards']) + \
+            (['multiple copies'] if allows_multiple_copies else ['only singleton copies'])
+        log('Processing combos that allow ' + ' and '.join(conditions) + '...')
         card_limit = DEFAULT_CARD_LIMIT
         variant_limit = DEFAULT_VARIANT_LIMIT
-        if status == Combo.Status.GENERATOR_WITH_MANY_CARDS:
+        if allows_many_cards:
             card_limit = HIGHER_CARD_LIMIT
             variant_limit = LOWER_VARIANT_LIMIT
-        graph = Graph(data, log=log, card_limit=card_limit, variant_limit=variant_limit)
+        graph = Graph(
+            data,
+            log=log,
+            card_limit=card_limit,
+            variant_limit=variant_limit,
+            allow_multiple_copies=allows_multiple_copies,
+        )
         log('Computing all variants recipes, following combos\' requirements graphs...')
         total = len(combos)
         index = 0
@@ -66,7 +76,7 @@ def get_variants_from_graph(data: Data, job: Job | None, log_count: int) -> dict
             for variant in graph.results(variant_set):
                 cards_ids = variant.cards
                 templates_ids = variant.templates
-                id = id_from_cards_and_templates_ids(cards_ids, templates_ids)
+                id = id_from_cards_and_templates_ids(cards_ids.distinct_elements(), templates_ids.distinct_elements())
                 feature_ids = variant.features
                 combo_ids = variant.combos
                 feature_replacements = {

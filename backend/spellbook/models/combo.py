@@ -30,7 +30,6 @@ class Combo(Recipe, ScryfallLinkMixin):
     class Status(models.TextChoices):
         GENERATOR = 'G'
         UTILITY = 'U'
-        GENERATOR_WITH_MANY_CARDS = 'M'
         DRAFT = 'D'
         NEEDS_REVIEW = 'NR'
 
@@ -78,6 +77,8 @@ class Combo(Recipe, ScryfallLinkMixin):
     other_prerequisites = models.TextField(blank=True, help_text='Other prerequisites for this combo.', validators=TEXT_VALIDATORS)
     description = models.TextField(blank=True, help_text='Long description of the combo, in steps', validators=TEXT_VALIDATORS)
     status = models.CharField(choices=Status.choices, default=Status.GENERATOR, help_text='Is this combo a generator for variants?', verbose_name='status', max_length=2)
+    allow_many_cards = models.BooleanField(default=False, help_text='Allow variants to have more cards than the default limit')
+    allow_multiple_copies = models.BooleanField(default=False, help_text='Allow variants to have more copies of the same card')
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, editable=False)
 

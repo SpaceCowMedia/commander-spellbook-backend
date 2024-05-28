@@ -20,7 +20,7 @@ class Data:
             variants: list[Variant] | None = None,
     ):
         if combos is None:
-            self.combos = list(Combo.objects.filter(status__in=(Combo.Status.GENERATOR, Combo.Status.GENERATOR_WITH_MANY_CARDS, Combo.Status.UTILITY)).prefetch_related(
+            self.combos = list(Combo.objects.filter(status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY)).prefetch_related(
                 'cardincombo_set',
                 'templateincombo_set',
                 'featureproducedincombo_set',
@@ -35,7 +35,7 @@ class Data:
         self.combo_to_produced_features = dict[int, list[FeatureProducedInCombo]]()
         self.combo_to_needed_features = dict[int, list[FeatureNeededInCombo]]()
         self.combo_to_removed_features = dict[int, list[FeatureRemovedInCombo]]()
-        self.generator_combos = [c for c in self.combos if c.status in (Combo.Status.GENERATOR, Combo.Status.GENERATOR_WITH_MANY_CARDS)]
+        self.generator_combos = [c for c in self.combos if c.status == Combo.Status.GENERATOR]
         for combo in self.combos:
             self.combo_to_cards[combo.id] = list(combo.cardincombo_set.all())
             self.combo_to_templates[combo.id] = list(combo.templateincombo_set.all())

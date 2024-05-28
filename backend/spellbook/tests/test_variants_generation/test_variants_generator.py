@@ -246,7 +246,7 @@ class VariantsGeneratorTests(AbstractTestCaseWithSeeding):
                 self.assertEqual(restored, self.expected_variant_count)
                 self.assertEqual(deleted, 0)
                 self.assertTrue(all(variant.status == Variant.Status.NEW for variant in Variant.objects.all()))
-        Combo.objects.filter(status__in=(Combo.Status.GENERATOR, Combo.Status.GENERATOR_WITH_MANY_CARDS)).update(status=Combo.Status.DRAFT)
+        Combo.objects.filter(status=Combo.Status.GENERATOR).update(status=Combo.Status.DRAFT)
         added, restored, deleted = generate_variants()
         self.assertEqual(added, 0)
         self.assertEqual(restored, 0)
@@ -255,11 +255,11 @@ class VariantsGeneratorTests(AbstractTestCaseWithSeeding):
 
     def test_generate_variants_deletion(self):
         for status in Variant.Status.values:
-            Combo.objects.filter(status=Combo.Status.DRAFT).update(status=Combo.Status.GENERATOR_WITH_MANY_CARDS)
+            Combo.objects.filter(status=Combo.Status.DRAFT).update(status=Combo.Status.GENERATOR, allow_many_cards=True)
             generate_variants()
             self.assertEqual(Variant.objects.count(), self.expected_variant_count)
             Variant.objects.update(status=status)
-            Combo.objects.filter(status__in=(Combo.Status.GENERATOR, Combo.Status.GENERATOR_WITH_MANY_CARDS)).update(status=Combo.Status.DRAFT)
+            Combo.objects.filter(status=Combo.Status.GENERATOR).update(status=Combo.Status.DRAFT)
             generate_variants()
             self.assertEqual(Variant.objects.count(), 0)
 

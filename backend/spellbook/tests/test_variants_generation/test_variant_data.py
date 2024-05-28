@@ -11,10 +11,10 @@ class VariantDataTests(AbstractTestCaseWithSeeding):
 
     def test_combos(self):
         data = Data()
-        query = Combo.objects.filter(status__in=(Combo.Status.GENERATOR, Combo.Status.GENERATOR_WITH_MANY_CARDS, Combo.Status.UTILITY))
+        query = Combo.objects.filter(status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY))
         self.assertEqual(len(data.combos), query.count())
         self.assertDictEqual(data.id_to_combo, {c.id: c for c in query.all()})
-        self.assertEqual(set(c.id for c in data.generator_combos), set(Combo.objects.filter(status__in=(Combo.Status.GENERATOR, Combo.Status.GENERATOR_WITH_MANY_CARDS)).values_list('id', flat=True)))
+        self.assertEqual(set(c.id for c in data.generator_combos), set(Combo.objects.filter(status=Combo.Status.GENERATOR).values_list('id', flat=True)))
         self.assertDictEqual({k: data.combo_to_cards[k] for k in query.values_list('id', flat=True)}, {combo.id: list(combo.cardincombo_set.all()) for combo in query.all()})
         self.assertDictEqual({k: data.combo_to_templates[k] for k in query.values_list('id', flat=True)}, {combo.id: list(combo.templateincombo_set.all()) for combo in query.all()})
         self.assertDictEqual({k: data.combo_to_produced_features[k] for k in query.values_list('id', flat=True)}, {combo.id: list(combo.featureproducedincombo_set.all()) for combo in query.all()})

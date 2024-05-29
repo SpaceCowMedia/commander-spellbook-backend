@@ -624,16 +624,98 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
                     self.assertEqual(len(result.results), 0)
 
     def test_variants_list_view_query_by_commander_name(self):
-        # TODO: implement
-        pass
+        c = Client()
+        for search in (c.name for c in Card.objects.filter(cardinvariant__must_be_commander=True)):
+            prefix_without_spaces = search.partition(' ')[0]
+            search_without_accents = search.replace('á', 'a').replace('é', 'e').replace('í', 'i').replace('ó', 'o').replace('ú', 'u').replace('Á', 'A').replace('É', 'E').replace('Í', 'I').replace('Ó', 'O').replace('Ú', 'U')
+            search_with_simplfied_underscores_without_accents = search_without_accents.replace('_____', '_')
+            queries = [
+                (f'commander:{prefix_without_spaces}', models.Q(cardinvariant__card__name__icontains=prefix_without_spaces)),
+                (f'commander:"{prefix_without_spaces}"', models.Q(cardinvariant__card__name__icontains=prefix_without_spaces)),
+                (f'commander:"{search}"', models.Q(cardinvariant__card__name__icontains=search)),
+                (f'commander:"{search_without_accents}"', models.Q(cardinvariant__card__name_unaccented__icontains=search_without_accents)),
+                (f'commander:"{search_with_simplfied_underscores_without_accents}"', models.Q(cardinvariant__card__name_unaccented_simplified__icontains=search_with_simplfied_underscores_without_accents)),
+                (f'commander={prefix_without_spaces}', models.Q(cardinvariant__card__name__iexact=prefix_without_spaces)),
+                (f'commander="{prefix_without_spaces}"', models.Q(cardinvariant__card__name__iexact=prefix_without_spaces)),
+                (f'commander="{search}"', models.Q(cardinvariant__card__name__iexact=search)),
+                (f'commander="{search_without_accents}"', models.Q(cardinvariant__card__name_unaccented__iexact=search_without_accents)),
+                (f'commander="{search_with_simplfied_underscores_without_accents}"', models.Q(cardinvariant__card__name_unaccented_simplified__iexact=search_with_simplfied_underscores_without_accents)),
+            ]
+            for q, q_django in queries:
+                with self.subTest(f'query by commander name: {search} with query {q}'):
+                    response = c.get('/variants', data={'q': q}, follow=True)
+                    self.assertEqual(response.status_code, 200)
+                    self.assertEqual(response.get('Content-Type'), 'application/json')
+                    result = json.loads(response.content, object_hook=json_to_python_lambda)
+                    variants = self.public_variants.filter(q_django, cardinvariant__must_be_commander=True).distinct()
+                    self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
+                    for v in result.results:
+                        self.variant_assertions(v)
 
     def test_variants_list_view_query_by_legality(self):
-        # TODO: implement
-        pass
+        c = Client()
+        for legality in [f.removeprefix('legal_') for f in Variant.legalities_fields()]:
+            queries = [
+                (f'legal:{legality}', models.Q(**{f'legal_{legality}': True})),
+                (f'format:{legality}', models.Q(**{f'legal_{legality}': True})),
+                (f'banned:{legality}', models.Q(**{f'legal_{legality}': False})),
+            ]
+            for q, q_django in queries:
+                with self.subTest(f'query by legality: {legality} with query {q}'):
+                    response = c.get('/variants', data={'q': q}, follow=True)
+                    self.assertEqual(response.status_code, 200)
+                    self.assertEqual(response.get('Content-Type'), 'application/json')
+                    result = json.loads(response.content, object_hook=json_to_python_lambda)
+                    variants = self.public_variants.filter(q_django).distinct()
+                    self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
+                    for v in result.results:
+                        self.variant_assertions(v)
 
     def test_variants_list_view_query_by_price(self):
-        # TODO: implement
-        pass
+        c = Client()
+        for price in range(10):
+            queries = [
+                (f'price={price}', models.Q(price_cardkingdom=price)),
+                (f'price:{price}', models.Q(price_cardkingdom=price)),
+                (f'price>={price}', models.Q(price_cardkingdom__gte=price)),
+                (f'price<={price}', models.Q(price_cardkingdom__lte=price)),
+                (f'price>{price}', models.Q(price_cardkingdom__gt=price)),
+                (f'price<{price}', models.Q(price_cardkingdom__lt=price)),
+                (f'usd={price}', models.Q(price_cardkingdom=price)),
+                (f'usd:{price}', models.Q(price_cardkingdom=price)),
+                (f'usd>={price}', models.Q(price_cardkingdom__gte=price)),
+                (f'usd<={price}', models.Q(price_cardkingdom__lte=price)),
+                (f'usd>{price}', models.Q(price_cardkingdom__gt=price)),
+                (f'usd<{price}', models.Q(price_cardkingdom__lt=price)),
+                (f'eur={price}', models.Q(price_cardmarket=price)),
+                (f'eur:{price}', models.Q(price_cardmarket=price)),
+                (f'eur>={price}', models.Q(price_cardmarket__gte=price)),
+                (f'eur<={price}', models.Q(price_cardmarket__lte=price)),
+                (f'eur>{price}', models.Q(price_cardmarket__gt=price)),
+                (f'eur<{price}', models.Q(price_cardmarket__lt=price)),
+                *[
+                    x
+                    for store in {s.removeprefix('price_') for s in Variant.prices_fields()}
+                    for x in [
+                        (f'{store}={price}', models.Q(**{f'price_{store}': price})),
+                        (f'{store}:{price}', models.Q(**{f'price_{store}': price})),
+                        (f'{store}>={price}', models.Q(**{f'price_{store}__gte': price})),
+                        (f'{store}<={price}', models.Q(**{f'price_{store}__lte': price})),
+                        (f'{store}>{price}', models.Q(**{f'price_{store}__gt': price})),
+                        (f'{store}<{price}', models.Q(**{f'price_{store}__lt': price})),
+                    ]
+                ]
+            ]
+            for q, q_django in queries:
+                with self.subTest(f'query by price: {price} with query {q}'):
+                    response = c.get('/variants', data={'q': q}, follow=True)
+                    self.assertEqual(response.status_code, 200)
+                    self.assertEqual(response.get('Content-Type'), 'application/json')
+                    result = json.loads(response.content, object_hook=json_to_python_lambda)
+                    variants = self.public_variants.filter(q_django).distinct()
+                    self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
+                    for v in result.results:
+                        self.variant_assertions(v)
 
     def test_variants_list_view_query_by_a_combination_of_terms(self):
         c = Client()

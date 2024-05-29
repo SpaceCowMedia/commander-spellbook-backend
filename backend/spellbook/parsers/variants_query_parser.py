@@ -17,7 +17,7 @@ class QueryValue:
     value: str
 
 
-def card_search(card_value: QueryValue) -> Q:
+def card_search(card_value: QueryValue) -> list[Q]:
     value_is_digit = card_value.value.isdigit()
     match card_value.operator:
         case ':' if not value_is_digit:
@@ -42,10 +42,10 @@ def card_search(card_value: QueryValue) -> Q:
             card_query = Q(cards_count=card_value.value)
         case _:
             raise NotSupportedError(f'Operator {card_value.operator} is not supported for card search with {"numbers" if value_is_digit else "strings"}.')
-    return card_query
+    return [card_query]
 
 
-def card_type_search(card_type_value: QueryValue) -> Q:
+def card_type_search(card_type_value: QueryValue) -> list[Q]:
     match card_type_value.operator:
         case ':':
             card_type_query = Q(uses__type_line__icontains=card_type_value.value)
@@ -53,10 +53,10 @@ def card_type_search(card_type_value: QueryValue) -> Q:
             card_type_query = Q(uses__type_line__iexact=card_type_value.value)
         case _:
             raise NotSupportedError(f'Operator {card_type_value.operator} is not supported for card type search.')
-    return card_type_query
+    return [card_type_query]
 
 
-def card_oracle_search(card_oracle_value: QueryValue) -> Q:
+def card_oracle_search(card_oracle_value: QueryValue) -> list[Q]:
     match card_oracle_value.operator:
         case ':':
             card_oracle_query = Q(uses__oracle_text__icontains=card_oracle_value.value)
@@ -64,19 +64,19 @@ def card_oracle_search(card_oracle_value: QueryValue) -> Q:
             card_oracle_query = Q(uses__oracle_text__iexact=card_oracle_value.value)
         case _:
             raise NotSupportedError(f'Operator {card_oracle_value.operator} is not supported for card oracle search.')
-    return card_oracle_query
+    return [card_oracle_query]
 
 
-def card_keyword_search(card_keyword_value: QueryValue) -> Q:
+def card_keyword_search(card_keyword_value: QueryValue) -> list[Q]:
     match card_keyword_value.operator:
         case ':':
             card_keyword_query = Q(uses__keywords__icontains=card_keyword_value.value)
         case _:
             raise NotSupportedError(f'Operator {card_keyword_value.operator} is not supported for card keyword search.')
-    return card_keyword_query
+    return [card_keyword_query]
 
 
-def card_mana_value_search(card_mana_value_value: QueryValue) -> Q:
+def card_mana_value_search(card_mana_value_value: QueryValue) -> list[Q]:
     value_is_digit = card_mana_value_value.value.isdigit()
     match card_mana_value_value.operator:
         case ':' | '=' if value_is_digit:
@@ -91,10 +91,10 @@ def card_mana_value_search(card_mana_value_value: QueryValue) -> Q:
             card_mana_value_query = Q(uses__mana_value__gte=card_mana_value_value.value)
         case _:
             raise NotSupportedError(f'Operator {card_mana_value_value.operator} is not supported for card mana value search with {"numbers" if value_is_digit else "strings"}.')
-    return card_mana_value_query
+    return [card_mana_value_query]
 
 
-def identity_search(identity_value: QueryValue) -> Q:
+def identity_search(identity_value: QueryValue) -> list[Q]:
     value_is_digit = identity_value.value.isdigit()
     identity = ''
     not_in_identity = ''
@@ -109,39 +109,39 @@ def identity_search(identity_value: QueryValue) -> Q:
                 not_in_identity += color
     match identity_value.operator:
         case '=' if not value_is_digit:
-            identity_query = Q(identity=identity or 'C')
+            identity_queries = [Q(identity=identity or 'C')]
         case '<' if not value_is_digit:
-            identity_query = Q(identity_count__lt=len(identity))
+            identity_queries = [Q(identity_count__lt=len(identity))]
             for color in not_in_identity:
-                identity_query &= ~Q(identity__contains=color)
+                identity_queries.append(~Q(identity__contains=color))
         case ':' | '<=' if not value_is_digit:
-            identity_query = Q(identity_count__lte=len(identity))
+            identity_queries = [Q(identity_count__lte=len(identity))]
             for color in not_in_identity:
-                identity_query &= ~Q(identity__contains=color)
+                identity_queries.append(~Q(identity__contains=color))
         case '>' if not value_is_digit:
-            identity_query = Q(identity_count__gt=len(identity))
+            identity_queries = [Q(identity_count__gt=len(identity))]
             for color in identity:
-                identity_query &= Q(identity__contains=color)
+                identity_queries.append(Q(identity__contains=color))
         case '>=' if not value_is_digit:
-            identity_query = Q(identity_count__gte=len(identity))
+            identity_queries = [Q(identity_count__gte=len(identity))]
             for color in identity:
-                identity_query &= Q(identity__contains=color)
+                identity_queries.append(Q(identity__contains=color))
         case '=' | ':' if value_is_digit:
-            identity_query = Q(identity_count=identity_value.value)
+            identity_queries = [Q(identity_count=identity_value.value)]
         case '<' if value_is_digit:
-            identity_query = Q(identity_count__lt=identity_value.value)
+            identity_queries = [Q(identity_count__lt=identity_value.value)]
         case '<=' if value_is_digit:
-            identity_query = Q(identity_count__lte=identity_value.value)
+            identity_queries = [Q(identity_count__lte=identity_value.value)]
         case '>' if value_is_digit:
-            identity_query = Q(identity_count__gt=identity_value.value)
+            identity_queries = [Q(identity_count__gt=identity_value.value)]
         case '>=' if value_is_digit:
-            identity_query = Q(identity_count__gte=identity_value.value)
+            identity_queries = [Q(identity_count__gte=identity_value.value)]
         case _:
             raise NotSupportedError(f'Operator {identity_value.operator} is not supported for identity search with {"numbers" if value_is_digit else "strings"}.')
-    return identity_query
+    return identity_queries
 
 
-def prerequisites_search(prerequisites_value: QueryValue) -> Q:
+def prerequisites_search(prerequisites_value: QueryValue) -> list[Q]:
     value_is_digit = prerequisites_value.value.isdigit()
     match prerequisites_value.operator:
         case ':' if not value_is_digit:
@@ -160,10 +160,10 @@ def prerequisites_search(prerequisites_value: QueryValue) -> Q:
             prerequisites_query = Q(other_prerequisites_line_count=prerequisites_value.value)
         case _:
             raise NotSupportedError(f'Operator {prerequisites_value.operator} is not supported for prerequisites search.')
-    return prerequisites_query & Q(status=Variant.Status.OK)
+    return [prerequisites_query, Q(status=Variant.Status.OK)]
 
 
-def description_search(description_value: QueryValue) -> Q:
+def description_search(description_value: QueryValue) -> list[Q]:
     value_is_digit = description_value.value.isdigit()
     match description_value.operator:
         case ':' if not value_is_digit:
@@ -182,10 +182,10 @@ def description_search(description_value: QueryValue) -> Q:
             steps_query = Q(description_line_count=description_value.value)
         case _:
             raise NotSupportedError(f'Operator {description_value.operator} is not supported for prerequisites search.')
-    return steps_query & Q(status=Variant.Status.OK)
+    return [steps_query, Q(status=Variant.Status.OK)]
 
 
-def results_search(results_value: QueryValue) -> Q:
+def results_search(results_value: QueryValue) -> list[Q]:
     value_is_digit = results_value.value.isdigit()
     match results_value.operator:
         case ':' if not value_is_digit:
@@ -204,10 +204,10 @@ def results_search(results_value: QueryValue) -> Q:
             results_query = Q(results_count=results_value.value)
         case _:
             raise NotSupportedError(f'Operator {results_value.operator} is not supported for results search with {"numbers" if value_is_digit else "strings"}.')
-    return results_query
+    return [results_query]
 
 
-def tag_search(tag_value: QueryValue) -> Q:
+def tag_search(tag_value: QueryValue) -> list[Q]:
     if tag_value.operator != ':':
         raise NotSupportedError(f'Operator {tag_value.operator} is not supported for tag search.')
     match tag_value.value.lower():
@@ -236,30 +236,36 @@ def tag_search(tag_value: QueryValue) -> Q:
             tag_query = Q(uses__latest_printing_set__in=featured_sets, uses__reprinted=False)
         case _:
             raise NotSupportedError(f'Value {tag_value.value} is not supported for tag search.')
-    return tag_query
+    return [tag_query]
 
 
-def spellbook_id_search(spellbook_id_value: QueryValue) -> Q:
+def spellbook_id_search(spellbook_id_value: QueryValue) -> list[Q]:
     match spellbook_id_value.operator:
         case ':' | '=':
             spellbook_id_query = Q(id__iexact=spellbook_id_value.value) | Q(aliases__id__iexact=spellbook_id_value.value)
         case _:
             raise NotSupportedError(f'Operator {spellbook_id_value.operator} is not supported for spellbook id search.')
-    return spellbook_id_query
+    return [spellbook_id_query]
 
 
-def commander_name_search(commander_name_value: QueryValue) -> Q:
+def commander_name_search(commander_name_value: QueryValue) -> list[Q]:
     match commander_name_value.operator:
         case ':':
-            commander_name_query = Q(cardinvariant__must_be_commander=True, cardinvariant__card__name__icontains=commander_name_value.value)
+            card_query = Q(cardinvariant__card__name__icontains=commander_name_value.value) \
+                | Q(cardinvariant__card__name_unaccented__icontains=commander_name_value.value) \
+                | Q(cardinvariant__card__name_unaccented_simplified__icontains=commander_name_value.value) \
+                | Q(cardinvariant__card__name_unaccented_simplified_with_spaces__icontains=commander_name_value.value)
         case '=':
-            commander_name_query = Q(cardinvariant__must_be_commander=True, cardinvariant__card__name__iexact=commander_name_value.value)
+            card_query = Q(cardinvariant__card__name__iexact=commander_name_value.value) \
+                | Q(cardinvariant__card__name_unaccented__iexact=commander_name_value.value) \
+                | Q(cardinvariant__card__name_unaccented_simplified__iexact=commander_name_value.value) \
+                | Q(cardinvariant__card__name_unaccented_simplified_with_spaces__iexact=commander_name_value.value)
         case _:
             raise NotSupportedError(f'Operator {commander_name_value.operator} is not supported for commander name search.')
-    return commander_name_query
+    return [Q(cardinvariant__must_be_commander=True), card_query]
 
 
-def legality_search(legality_value: QueryValue) -> Q:
+def legality_search(legality_value: QueryValue) -> list[Q]:
     if legality_value.operator != ':':
         raise NotSupportedError(f'Operator {legality_value.operator} is not supported for legality search.')
     format = legality_value.value.lower()
@@ -270,10 +276,10 @@ def legality_search(legality_value: QueryValue) -> Q:
     match legality_value.key.lower():
         case 'banned':
             q = ~q
-    return q
+    return [q]
 
 
-def price_search(price_value: QueryValue) -> Q:
+def price_search(price_value: QueryValue) -> list[Q]:
     match price_value.key.lower():
         case 'usd' | 'price':
             store = 'cardkingdom'
@@ -299,10 +305,10 @@ def price_search(price_value: QueryValue) -> Q:
             q = Q(**{f'price_{store}__gte': price_value.value})
         case _:
             raise NotSupportedError(f'Operator {price_value.operator} is not supported for price search.')
-    return q
+    return [q]
 
 
-def popularity_search(popularity_value: QueryValue) -> Q:
+def popularity_search(popularity_value: QueryValue) -> list[Q]:
     if not popularity_value.value.isdigit():
         raise NotSupportedError(f'Value {popularity_value.value} is not supported for popularity search.')
     match popularity_value.operator:
@@ -318,10 +324,10 @@ def popularity_search(popularity_value: QueryValue) -> Q:
             popularity_query = Q(popularity__gte=popularity_value.value)
         case _:
             raise NotSupportedError(f'Operator {popularity_value.operator} is not supported for popularity search.')
-    return popularity_query
+    return [popularity_query]
 
 
-keyword_map: dict[str, Callable[[QueryValue], Q]] = {
+keyword_map: dict[str, Callable[[QueryValue], list[Q]]] = {
     'card': card_search,
     'cardtype': card_type_search,
     'cardoracle': card_oracle_search,
@@ -430,11 +436,11 @@ def variants_query_parser_filter(base: QuerySet[Variant], query_string: str) -> 
     filters: list[Filter] = []
     for key, values in parsed_queries.items():
         for value in values:
-            q = keyword_map[key](value)
+            qq = keyword_map[key](value)
             if value.prefix == '':
-                filters.append(Filter(q=q, positive=True))
+                filters.extend(Filter(q=q, positive=True) for q in qq)
             elif value.prefix == '-':
-                filters.append(Filter(q=q, positive=False))
+                filters.extend(Filter(q=q, positive=False) for q in qq)
             elif value.prefix != '':
                 raise NotSupportedError(f'Prefix {value.prefix} is not supported for {key} search.')
     return smart_apply_filters(base, filters)

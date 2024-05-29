@@ -14,6 +14,28 @@ class Filter:
     positive: bool
 
 
+def get_field_from_q(q: Q) -> str:
+    if q.connector == Q.OR:
+        children = q.children[:1]
+    else:
+        children = q.children
+    field: str | None = None
+    for child in children:
+        if isinstance(child, tuple):
+            assert len(child) == 2
+            assert isinstance(child[0], str)
+            field_name = child[0].split('__')[0]
+        else:
+            assert isinstance(child, Q)
+            field_name = get_field_from_q(child)
+        if field is None:
+            field = field_name
+        else:
+            assert field == field_name
+    assert field is not None
+    return field
+
+
 def smart_apply_filters(base: QuerySet[T], q: list[Filter]) -> QuerySet[T]:
     '''
     This function avoids queries that would result in a cartesian product
@@ -34,7 +56,7 @@ def smart_apply_filters(base: QuerySet[T], q: list[Filter]) -> QuerySet[T]:
     queryset = base
     grouped_q = defaultdict[str, list[tuple[Q, bool]]](list)
     for f in q:
-        field_name = f.q.children[0][0].split('__')[0]
+        field_name = get_field_from_q(f.q)
         grouped_q[field_name].append((f.q, f.positive))
     for q_list in grouped_q.values():
         q_list.sort(key=lambda q: q[0].children)

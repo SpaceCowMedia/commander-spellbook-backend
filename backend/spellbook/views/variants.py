@@ -14,6 +14,8 @@ class VariantViewSet(viewsets.ReadOnlyModelViewSet):
         'results_count',
         'cards_count',
         'mana_value_needed',
+        'description_line_count',
+        'other_prerequisites_line_count',
         'created',
         'updated',
         '?'

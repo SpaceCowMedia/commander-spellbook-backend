@@ -1,7 +1,7 @@
 import re
 import unicodedata
-from typing import Iterable, Callable
-from .validators import MANA_SYMBOL
+from typing import Iterable
+from .validators import MANA_SYMBOL, ORACLE_SYMBOL, COMPARISON_OPERATORS, MANA_COMPARABLE_VARIABLE
 from django.utils.text import normalize_newlines
 from django.db.models import Expression, F, Value
 from django.db.models.functions import Replace, Trim
@@ -96,8 +96,27 @@ def mana_value(mana: str) -> int:
     return value
 
 
+def upper_oracle_symbols(text: str):
+    return re.sub(r'\{' + ORACLE_SYMBOL + r'\}', lambda m: m.group(0).upper(), text, flags=re.IGNORECASE)
+
+
+def auto_fix_missing_braces_to_oracle_symbols(text: str):
+    if re.compile(r'^' + ORACLE_SYMBOL + r'+$', flags=re.IGNORECASE).match(text):
+        return re.sub(r'\{?(' + ORACLE_SYMBOL + r')\}?', r'{\1}', text, flags=re.IGNORECASE)
+    return text
+
+
 def sanitize_mana(mana: str) -> str:
-    return re.sub(r'\{([WUBRG])P\}', r'{\1/P}', mana)
+    mana = auto_fix_missing_braces_to_oracle_symbols(mana)
+    mana = re.sub(r'\{([WUBRG])P\}', r'{\1/P}', mana, flags=re.IGNORECASE)
+    mana = upper_oracle_symbols(mana)
+    return mana
+
+
+def sanitize_scryfall_query(text: str):
+    result = re.sub(r'\s*-?(?:f|format|legal):[^\s]+\s*', '', text, flags=re.IGNORECASE)
+    result = re.sub(rf'(\s*)({MANA_COMPARABLE_VARIABLE})({COMPARISON_OPERATORS})([^\s]+)(\s*)', lambda m: f'{m[1]}{m[2]}{m[3]}{sanitize_mana(m[4])}{m[5]}', result, flags=re.IGNORECASE)
+    return result
 
 
 def sanitize_newlines_apostrophes_and_quotes(s: str) -> str:
@@ -106,21 +125,6 @@ def sanitize_newlines_apostrophes_and_quotes(s: str) -> str:
         for c in chars:
             s = s.replace(c, replacement)
     return s
-
-
-def apply_recursively_to_strings(data: dict | list, func: Callable[[str], str]) -> None:
-    if isinstance(data, dict):
-        for key, value in data.items():
-            if isinstance(value, str):
-                data[key] = func(value)
-            else:
-                apply_recursively_to_strings(value, func)
-    elif isinstance(data, list):
-        for i, value in enumerate(data):
-            if isinstance(value, str):
-                data[i] = func(value)
-            else:
-                apply_recursively_to_strings(value, func)
 
 
 def simplify_card_name_on_database(field: str) -> Expression:

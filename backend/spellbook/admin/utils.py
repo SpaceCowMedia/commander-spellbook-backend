@@ -1,4 +1,3 @@
-import re
 from datetime import datetime
 from typing import Any
 from django.db.models import TextField, Count, Q
@@ -10,30 +9,14 @@ from django.forms import Textarea
 from django.contrib.admin import ModelAdmin
 from django.contrib.admin.views.main import ORDER_VAR
 from adminsortable2.admin import SortableAdminBase
-from spellbook.models.validators import ORACLE_SYMBOL
 from spellbook.variants.variants_generator import DEFAULT_CARD_LIMIT
-from spellbook.models.utils import sanitize_newlines_apostrophes_and_quotes, SORTED_COLORS
+from spellbook.models.utils import sanitize_newlines_apostrophes_and_quotes, sanitize_mana, sanitize_scryfall_query, SORTED_COLORS
 
 
 def datetime_to_html(datetime: datetime) -> str | None:
     if datetime is None:
         return None
     return format_html('<span class="local-datetime" data-iso="{}">{}</span>', datetime.isoformat(), localize(datetime))
-
-
-def upper_oracle_symbols(text: str):
-    return re.sub(r'\{' + ORACLE_SYMBOL + r'\}', lambda m: m.group(0).upper(), text, flags=re.IGNORECASE)
-
-
-def auto_fix_missing_braces_to_oracle_symbols(text: str):
-    if re.compile(r'^' + ORACLE_SYMBOL + r'+$').match(text):
-        return re.sub(r'\{?(' + ORACLE_SYMBOL + r')\}?', r'{\1}', text, flags=re.IGNORECASE)
-    return text
-
-
-def auto_fix_scryfall_query(text: str):
-    result = re.sub(r'\s*(?:f|format|legal):(?:commander|edh)\s*', '', text, flags=re.IGNORECASE)
-    return result
 
 
 class NormalizedTextareaWidget(Textarea):
@@ -57,14 +40,12 @@ class SpellbookModelAdmin(SortableAdminBase, ModelAdmin):
 
         def clean_mana_needed(self):
             if self.cleaned_data['mana_needed']:
-                result = auto_fix_missing_braces_to_oracle_symbols(self.cleaned_data['mana_needed'])
-                result = upper_oracle_symbols(result)
-                return result
+                return sanitize_mana(self.cleaned_data['mana_needed'])
             return self.cleaned_data['mana_needed']
 
         def clean_scryfall_query(self):
             if self.cleaned_data['scryfall_query']:
-                return auto_fix_scryfall_query(self.cleaned_data['scryfall_query'])
+                return sanitize_scryfall_query(self.cleaned_data['scryfall_query'])
             return self.cleaned_data['scryfall_query']
         form.clean_mana_needed = clean_mana_needed
         form.clean_scryfall_query = clean_scryfall_query

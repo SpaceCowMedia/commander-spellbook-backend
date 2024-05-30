@@ -1,7 +1,7 @@
 import json
 import logging
 from spellbook.models import VariantSuggestion
-from spellbook.models.utils import apply_recursively_to_strings, strip_accents
+from spellbook.models.utils import strip_accents
 from ..abstract_test import AbstractTestCaseWithSeeding
 from common.inspection import json_to_python_lambda
 from django.contrib.auth.models import User, Permission
@@ -274,8 +274,24 @@ class VariantSuggestionsTests(AbstractTestCaseWithSeeding):
             self.assertNotIn('\r', s)
             for color in 'WUBRG':
                 self.assertNotIn(f'{{{color}P}}', s)
-            return s
-        apply_recursively_to_strings(json.loads(response.content), assertStringSanity)
+        for c in result.uses:
+            assertStringSanity(c.card)
+            assertStringSanity(c.battlefield_card_state)
+            assertStringSanity(c.exile_card_state)
+            assertStringSanity(c.library_card_state)
+            assertStringSanity(c.graveyard_card_state)
+        for r in result.requires:
+            assertStringSanity(r.template)
+            assertStringSanity(r.battlefield_card_state)
+            assertStringSanity(r.exile_card_state)
+            assertStringSanity(r.library_card_state)
+            assertStringSanity(r.graveyard_card_state)
+        for p in result.produces:
+            assertStringSanity(p.feature)
+        assertStringSanity(result.comment)
+        assertStringSanity(result.mana_needed)
+        assertStringSanity(result.other_prerequisites)
+        assertStringSanity(result.description)
 
     def setUp(self) -> None:
         """Reduce the log level to avoid errors like 'not found'"""

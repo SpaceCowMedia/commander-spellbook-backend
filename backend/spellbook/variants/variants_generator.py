@@ -501,7 +501,7 @@ def generate_variants(job: Job | None = None, log_count: int = 100) -> tuple[int
     logging.info('Fetching data...')
     log_into_job(job, 'Fetching data...')
     data = Data()
-    to_restore = set(k for k, v in data.id_to_variant.items() if v.status == Variant.Status.RESTORE)
+    to_restore = set(k for k, v in data.id_to_variant.items() if v.status == Variant.Status.RESTORE or len(data.variant_to_of[k]) == 0)
     logging.info('Fetching all variant unique ids...')
     old_id_set = set(data.id_to_variant.keys())
     logging.info('Computing combos graph representation...')

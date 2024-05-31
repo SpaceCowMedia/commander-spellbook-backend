@@ -107,9 +107,9 @@ class Data:
             templates_in_variant = list(variant.templateinvariant_set.all())
             self.card_in_variant[variant.id] = cards_in_variant
             self.template_in_variant[variant.id] = templates_in_variant
-            self.variant_to_of[variant.id] = {o.combo_id: o for o in variant.variantofcombo_set.all()}  # type: ignore
-            self.variant_to_includes[variant.id] = {i.combo_id: i for i in variant.variantincludescombo_set.all()}  # type: ignore
-            self.variant_to_produces[variant.id] = {f.feature_id: f for f in variant.featureproducedbyvariant_set.all()}  # type: ignore
+            self.variant_to_of[variant.id] = {o.combo_id: o for o in variant.variantofcombo_set.all()}
+            self.variant_to_includes[variant.id] = {i.combo_id: i for i in variant.variantincludescombo_set.all()}
+            self.variant_to_produces[variant.id] = {f.feature_id: f for f in variant.featureproducedbyvariant_set.all()}
             for card_in_variant in cards_in_variant:
                 self.card_variant_dict[(card_in_variant.card_id, variant.id)] = card_in_variant
             for template_in_variant in templates_in_variant:

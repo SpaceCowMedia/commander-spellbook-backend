@@ -1,5 +1,6 @@
 from itertools import chain
 from multiset import FrozenMultiset
+from django.db.models import Count
 from spellbook.tests.abstract_test import AbstractTestCaseWithSeeding
 from spellbook.models import Job, Variant, Card, IngredientInCombination, CardInVariant, TemplateInVariant, Template, Combo, Feature, VariantAlias
 from spellbook.variants.variant_data import Data
@@ -262,6 +263,39 @@ class VariantsGeneratorTests(AbstractTestCaseWithSeeding):
             Combo.objects.filter(status=Combo.Status.GENERATOR).update(status=Combo.Status.DRAFT)
             generate_variants()
             self.assertEqual(Variant.objects.count(), 0)
+
+    def test_restore_zombie_variants(self):
+        Combo.objects.filter(status=Combo.Status.DRAFT).update(status=Combo.Status.GENERATOR)
+        generate_variants()
+        self.assertEqual(Variant.objects.count(), self.expected_variant_count)
+        Variant.objects.update(status=Variant.Status.OK)
+        v: Variant = Variant.objects.alias(of_count=Count('of')).filter(of_count=1).first()  # type: ignore
+        c: Combo = v.of.first()  # type: ignore
+        c.status = Combo.Status.DRAFT
+        c.save()
+        added, restored, deleted = generate_variants()
+        self.assertEqual(added, 0)
+        self.assertEqual(restored, 0)
+        self.assertGreaterEqual(deleted, 1)
+        c.status = Combo.Status.GENERATOR
+        c.save()
+        added, restored, deleted = generate_variants()
+        self.assertGreaterEqual(added, 1)
+        self.assertEqual(restored, 0)
+        self.assertEqual(deleted, 0)
+        Variant.objects.update(status=Variant.Status.OK)
+        to_restore: list[str] = list(c.variants.values_list('id', flat=True))  # type: ignore
+        c.variantofcombo_set.all().delete()  # type: ignore
+        c.description = 'New description'
+        c.save()
+        added, restored, deleted = generate_variants()
+        self.assertEqual(added, 0)
+        self.assertEqual(restored, len(to_restore))
+        self.assertEqual(deleted, 0)
+        for v_id in to_restore:
+            v: Variant = Variant.objects.get(pk=v_id)  # type: ignore
+            self.assertEqual(v.status, Variant.Status.NEW)
+            self.assertIn(c.description, v.description)
 
     def test_sync_variant_aliases(self):
         VariantAlias.objects.all().delete()

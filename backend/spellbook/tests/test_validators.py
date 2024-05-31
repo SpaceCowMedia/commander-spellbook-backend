@@ -194,6 +194,7 @@ class TestValidators(TestCase):
         self.assertRegex('t:legendary (t:goblin or t:elf)', SCRYFALL_QUERY_REGEX)
         self.assertRegex('pt>9 (mv<6 or pow>6 or tou>6)', SCRYFALL_QUERY_REGEX)
         self.assertRegex(r'keyword:/re*gex .+[^\/asd]/', SCRYFALL_QUERY_REGEX)
+        self.assertRegex(r'-mana:{W}', SCRYFALL_QUERY_REGEX)
         self.assertNotRegex(r'o:/re*gex .+[^/asd]/', SCRYFALL_QUERY_REGEX)
         self.assertNotRegex(r'o:/re*gex .+[^asd]', SCRYFALL_QUERY_REGEX)
         self.assertNotRegex('asd', SCRYFALL_QUERY_REGEX)

@@ -112,6 +112,7 @@ class TestSanitizeScryfallQuery(TestCase):
 
     def test_mana_parameters(self):
         self.assertEqual(sanitize_scryfall_query('mana={w}'), 'mana={W}')
+        self.assertEqual(sanitize_scryfall_query('tou:5   mana={w}   pow:2'), 'tou:5   mana={W}   pow:2')
         self.assertEqual(sanitize_scryfall_query('mana=w'), 'mana={W}')
         self.assertEqual(sanitize_scryfall_query('mana=c'), 'mana={C}')
         self.assertEqual(sanitize_scryfall_query('mana={w}{u}{b}{r}{g}{b/p}'), 'mana={W}{U}{B}{R}{G}{B/P}')
@@ -126,6 +127,7 @@ class TestSanitizeScryfallQuery(TestCase):
         self.assertEqual(sanitize_scryfall_query('mana={WP} b'), 'mana={W/P} b')
         self.assertEqual(sanitize_scryfall_query('mana={WP} b mana={WP}'), 'mana={W/P} b mana={W/P}')
         self.assertEqual(sanitize_scryfall_query('mana={WP} b mana={WP} c'), 'mana={W/P} b mana={W/P} c')
+        self.assertEqual(sanitize_scryfall_query('-mana:{w} -mana:{u} -mana:{b} -mana:{r} -mana:{g} -mana:{b/p}'), '-mana:{W} -mana:{U} -mana:{B} -mana:{R} -mana:{G} -mana:{B/P}')
 
     def test_removal_of_format(self):
         self.assertEqual(sanitize_scryfall_query('format:standard'), '')
@@ -133,6 +135,10 @@ class TestSanitizeScryfallQuery(TestCase):
         self.assertEqual(sanitize_scryfall_query('tou>5 format:edh format:commander'), 'tou>5')
         self.assertEqual(sanitize_scryfall_query('legal:standard f:modern'), '')
         self.assertEqual(sanitize_scryfall_query('-legal:edh tou=3 format:commander'), 'tou=3')
+        self.assertEqual(sanitize_scryfall_query('pow:2   format:standard      tou:5'), 'pow:2      tou:5')
+        self.assertEqual(sanitize_scryfall_query('f:brawl   format:standard      tou:5'), 'tou:5')
+        self.assertEqual(sanitize_scryfall_query('pow:2   format:standard      f:edh'), 'pow:2')
+        self.assertEqual(sanitize_scryfall_query('format:vintage   format:standard      legal:brawl'), '')
 
     def test_combined_transform(self):
         self.assertEqual(sanitize_scryfall_query('mana={WP} b mana={WP} c format:modern'), 'mana={W/P} b mana={W/P} c')

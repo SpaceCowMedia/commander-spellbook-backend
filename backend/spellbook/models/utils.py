@@ -114,9 +114,11 @@ def sanitize_mana(mana: str) -> str:
 
 
 def sanitize_scryfall_query(text: str):
-    result = re.sub(r'\s*-?(?:f|format|legal):[^\s]+\s*', '', text, flags=re.IGNORECASE)
-    result = re.sub(rf'(\s*)({MANA_COMPARABLE_VARIABLE})({COMPARISON_OPERATORS})([^\s]+)(\s*)', lambda m: f'{m[1]}{m[2]}{m[3]}{sanitize_mana(m[4])}{m[5]}', result, flags=re.IGNORECASE)
-    return result
+    text = re.sub(r'(?:^|\s+)-?(?:f|format|legal):[^\s]+(?=\s|$)', '', text, flags=re.IGNORECASE)
+    text = text.strip()
+    text = re.sub(rf'(^|\s+)(-?{MANA_COMPARABLE_VARIABLE})({COMPARISON_OPERATORS})([^\s]+)(?=\s|$)', lambda m: f'{m[1]}{m[2]}{m[3]}{sanitize_mana(m[4])}', text, flags=re.IGNORECASE)
+    text = text.strip()
+    return text
 
 
 def sanitize_newlines_apostrophes_and_quotes(s: str) -> str:

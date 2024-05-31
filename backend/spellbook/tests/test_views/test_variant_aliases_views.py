@@ -9,7 +9,6 @@ class VariantAliasesTests(AbstractTestCaseWithSeeding):
         a = VariantAlias.objects.get(id=alias_result.id)
         self.assertEqual(a.id, alias_result.id)
         self.assertEqual(a.variant, alias_result.variant)
-        self.assertEqual(a.description, alias_result.description)
 
     def test_variant_aliases_list_view(self):
         response = self.client.get('/variant-aliases/')

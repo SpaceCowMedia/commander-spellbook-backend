@@ -1,4 +1,5 @@
 import json
+import datetime
 from time import sleep
 from pathlib import Path
 from datetime import timedelta
@@ -61,16 +62,20 @@ class CleanJobsTest(AbstractTestCaseWithSeeding):
 
     def test_export_variants(self):
         super().generate_variants()
-        file_path = Path(settings.STATIC_BULK_FOLDER) / 'export_variants.json'
-        launch_job_command('export_variants', None, ['--file', str(file_path)])
-        self.assertTrue(file_path.exists())
-        with open(file_path) as f:
-            data = json.load(f)
-        self.assertEqual(len(data['variants']), 0)
-        for export_status in Variant.public_statuses():
-            with self.subTest(export_status=export_status):
-                Variant.objects.update(status=export_status)
-                launch_job_command('export_variants', None, ['--file', str(file_path)])
-                with open(file_path) as f:
-                    data = json.load(f)
-                self.assertEqual(len(data['variants']), 7)
+        with self.settings(VERSION='abc'):
+            file_path = Path(settings.STATIC_BULK_FOLDER) / 'test_export_variants.json'
+            launch_job_command('export_variants', None, ['--file', str(file_path)])
+            self.assertTrue(file_path.exists())
+            with open(file_path) as f:
+                data = json.load(f)
+            self.assertEqual(len(data['variants']), 0)
+            self.assertEqual(len(data['aliases']), 1)
+            self.assertEqual(data['version'], 'abc')
+            self.assertLessEqual(datetime.datetime.fromisoformat(data['timestamp']), timezone.now())
+            for export_status in Variant.public_statuses():
+                with self.subTest(export_status=export_status):
+                    Variant.objects.update(status=export_status)
+                    launch_job_command('export_variants', None, ['--file', str(file_path)])
+                    with open(file_path) as f:
+                        data = json.load(f)
+                    self.assertEqual(len(data['variants']), 7)

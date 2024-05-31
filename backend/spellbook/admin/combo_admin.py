@@ -4,7 +4,7 @@ from django.contrib.admin.options import InlineModelAdmin
 from django.db.models import Case, When, Count, Q
 from django.contrib import admin, messages
 from django.http.request import HttpRequest
-from django.forms import ModelForm
+from django.forms import ModelForm, Textarea
 from django.utils.safestring import mark_safe
 from django.urls import reverse
 from spellbook.models import Card, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion
@@ -26,6 +26,11 @@ class ComboForm(ModelForm):
             When(status=Variant.Status.NEW, then=2),
             default=2
         ), '-updated')
+
+    class Meta:
+        widgets = {
+            'notes': Textarea(attrs={'rows': 2}),
+        }
 
 
 class CardInComboAdminInline(IngredientInCombinationAdmin):
@@ -132,7 +137,7 @@ class ComboAdmin(SpellbookModelAdmin):
     fieldsets = [
         ('Generated', {'fields': ['id', 'scryfall_link']}),
         ('More Requirements', {'fields': ['mana_needed', 'other_prerequisites']}),
-        ('Description', {'fields': ['status', 'allow_many_cards', 'allow_multiple_copies', 'description']}),
+        ('Description', {'fields': ['status', 'allow_many_cards', 'allow_multiple_copies', 'description', 'notes']}),
     ]
     inlines = [
         CardInComboAdminInline,

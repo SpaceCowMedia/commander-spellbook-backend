@@ -267,6 +267,7 @@ def restore_variant(
         variant.other_prerequisites = apply_replacements('\n'.join(c.other_prerequisites for c in included_combos if len(c.other_prerequisites) > 0), replacements)
         variant.mana_needed = apply_replacements(' '.join(c.mana_needed for c in included_combos if len(c.mana_needed) > 0), replacements)
         variant.description = apply_replacements('\n'.join(c.description for c in included_combos if len(c.description) > 0), replacements)
+        variant.notes = apply_replacements('\n'.join(c.notes for c in included_combos if len(c.notes) > 0), replacements)
         for card_in_variant in used_cards:
             update_state_with_default(card_in_variant)
         for template_in_variant in required_templates:
@@ -399,7 +400,7 @@ def create_variant(
 
 def perform_bulk_saves(data: Data, to_create: list[VariantBulkSaveItem], to_update: list[VariantBulkSaveItem]):
     Variant.objects.bulk_create([v.variant for v in to_create])
-    update_fields = ['name', 'status', 'mana_needed', 'other_prerequisites', 'description', 'results_count', 'generated_by'] + Playable.playable_fields()
+    update_fields = ['name', 'status', 'mana_needed', 'other_prerequisites', 'description', 'notes', 'results_count', 'generated_by'] + Playable.playable_fields()
     Variant.objects.bulk_update([v.variant for v in to_update if v.should_update], fields=update_fields)
     CardInVariant.objects.bulk_create([c for v in to_create for c in v.uses])
     update_fields = ['zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'must_be_commander', 'order']

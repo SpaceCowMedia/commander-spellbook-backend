@@ -6,6 +6,7 @@ from django.urls import reverse, path
 from django.http import HttpRequest
 from django.shortcuts import redirect
 from django.contrib import admin, messages
+from django.forms import ModelForm, Textarea
 from spellbook.models import Variant, CardInVariant, TemplateInVariant
 from spellbook.utils import launch_job_command
 from spellbook.parsers import variants_query_parser, NotSupportedError
@@ -47,6 +48,13 @@ class TemplateInVariantAdminInline(IngredientAdmin):
 
     def has_delete_permission(self, request, obj) -> bool:
         return False
+
+
+class VariantForm(ModelForm):
+    class Meta:
+        widgets = {
+            'notes': Textarea(attrs={'rows': 2}),
+        }
 
 
 def set_status(request, queryset, status: Variant.Status):
@@ -102,6 +110,7 @@ def set_ok(modeladmin, request, queryset):
 
 @admin.register(Variant)
 class VariantAdmin(SpellbookModelAdmin):
+    form = VariantForm
     generated_readonly_fields = [
         'id',
         'produces_link',
@@ -121,6 +130,7 @@ class VariantAdmin(SpellbookModelAdmin):
             'mana_needed',
             'other_prerequisites',
             'description',
+            'notes',
         ]}),
         ('Legalities', {
             'fields': Variant.legalities_fields(),

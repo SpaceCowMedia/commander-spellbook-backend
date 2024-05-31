@@ -32,10 +32,12 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
             self.assertEqual(variant_result.mana_needed, None)
             self.assertEqual(variant_result.other_prerequisites, None)
             self.assertEqual(variant_result.description, None)
+            self.assertEqual(variant_result.notes, None)
         else:
             self.assertEqual(variant_result.mana_needed, v.mana_needed)
             self.assertEqual(variant_result.other_prerequisites, v.other_prerequisites)
             self.assertEqual(variant_result.description, v.description)
+            self.assertEqual(variant_result.notes, v.notes)
         self.assertEqual(variant_result.legalities.commander, v.legal_commander)
         self.assertEqual(variant_result.legalities.pauper_commander_main, v.legal_pauper_commander_main)
         self.assertEqual(variant_result.legalities.pauper_commander, v.legal_pauper_commander)

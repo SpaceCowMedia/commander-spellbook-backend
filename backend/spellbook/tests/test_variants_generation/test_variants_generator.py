@@ -213,6 +213,7 @@ class VariantsGeneratorTests(AbstractTestCaseWithSeeding):
                     self.assertEqual(variant.status, Variant.Status.NEW)
                     self.assertGreater(len(variant.name), 0)
                     self.assertGreater(len(variant.description), 0)
+                    self.assertGreater(len(variant.notes), 0)
                     if variant.cards():
                         self.assertTrue(any(
                             len(text_field) > 0
@@ -296,6 +297,7 @@ class VariantsGeneratorTests(AbstractTestCaseWithSeeding):
             v: Variant = Variant.objects.get(pk=v_id)  # type: ignore
             self.assertEqual(v.status, Variant.Status.NEW)
             self.assertIn(c.description, v.description)
+            self.assertIn(c.notes, v.notes)
 
     def test_sync_variant_aliases(self):
         VariantAlias.objects.all().delete()

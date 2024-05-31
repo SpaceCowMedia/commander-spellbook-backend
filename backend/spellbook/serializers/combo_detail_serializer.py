@@ -99,6 +99,7 @@ class ComboDetailSerializer(serializers.ModelSerializer):
             'mana_needed',
             'other_prerequisites',
             'description',
+            'notes',
         ]
 
     @classmethod

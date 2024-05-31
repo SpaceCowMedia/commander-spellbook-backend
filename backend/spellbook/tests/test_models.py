@@ -314,6 +314,7 @@ class ComboTests(AbstractTestCaseWithSeeding):
     def test_combo_fields(self):
         c = Combo.objects.get(id=self.b1_id)
         self.assertEqual(c.description, 'a1')
+        self.assertEqual(c.notes, 'aa1')
         self.assertEqual(c.uses.count(), 2)
         self.assertEqual(c.needs.count(), 1)
         self.assertEqual(c.requires.count(), 0)
@@ -330,6 +331,7 @@ class ComboTests(AbstractTestCaseWithSeeding):
         self.assertEqual(c.allow_multiple_copies, False)
         c = Combo.objects.get(id=self.b2_id)
         self.assertEqual(c.description, 'b2')
+        self.assertEqual(c.notes, 'bb2')
         self.assertEqual(c.uses.count(), 0)
         self.assertEqual(c.needs.count(), 1)
         self.assertEqual(c.requires.count(), 1)
@@ -459,7 +461,9 @@ class VariantTests(AbstractTestCaseWithSeeding):
         self.assertIn('{R}{R}', v.mana_needed)
         self.assertIn('Some requisites.', v.other_prerequisites)
         self.assertIn('2', v.description)
+        self.assertIn('2', v.notes)
         self.assertIn('4', v.description)
+        self.assertIn('4', v.notes)
         self.assertEqual(v.identity, 'W')
         self.assertEqual(v.generated_by.id, Job.objects.get(name='generate_variants').id)  # type: ignore
         self.assertEqual(v.legal_commander, True)

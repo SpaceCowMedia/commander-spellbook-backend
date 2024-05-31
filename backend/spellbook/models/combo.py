@@ -76,6 +76,7 @@ class Combo(Recipe, ScryfallLinkMixin):
     mana_needed = models.CharField(blank=True, max_length=200, help_text='Mana needed for this combo. Use the {1}{W}{U}{B}{R}{G}{B/P}... format.', validators=[MANA_VALIDATOR])
     other_prerequisites = models.TextField(blank=True, help_text='Other prerequisites for this combo.', validators=TEXT_VALIDATORS)
     description = models.TextField(blank=True, help_text='Long description of the combo, in steps', validators=TEXT_VALIDATORS)
+    notes = models.TextField(blank=True, help_text='Notes about the combo', validators=TEXT_VALIDATORS)
     status = models.CharField(choices=Status.choices, default=Status.GENERATOR, help_text='Is this combo a generator for variants?', verbose_name='status', max_length=2)
     allow_many_cards = models.BooleanField(default=False, help_text='Allow variants to have more cards than the default limit')
     allow_multiple_copies = models.BooleanField(default=False, help_text='Allow variants to have more copies of the same card')

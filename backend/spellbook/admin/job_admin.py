@@ -1,31 +1,19 @@
 from django.db.models import Count
 from django.contrib import admin
 from spellbook.models.job import Job
-from .utils import datetime_to_html, SpellbookModelAdmin
+from .utils import SpellbookModelAdmin
 
 
 @admin.register(Job)
 class JobAdmin(SpellbookModelAdmin):
     date_hierarchy = 'created'
-    readonly_fields = ['created_local', 'expected_termination_local', 'termination_local']
-    fields = ['id', 'name', 'status', 'created_local', 'expected_termination_local', 'termination_local', 'message', 'started_by']
-    list_display = ['id', 'name', 'status', 'created_local', 'expected_termination_local', 'termination_local', 'variants_count']
+    readonly_fields = ['created', 'expected_termination', 'termination']
+    fields = ['id', 'name', 'status', 'created', 'expected_termination', 'termination', 'message', 'started_by']
+    list_display = ['id', 'name', 'status', 'created', 'expected_termination', 'termination', 'variants_count']
     list_filter = ['name', 'status']
 
     def variants_count(self, obj):
         return obj.variants_count
-
-    @admin.display(description='Created')
-    def created_local(self, obj):
-        return datetime_to_html(obj.created)
-
-    @admin.display(description='Expected Termination')
-    def expected_termination_local(self, obj):
-        return datetime_to_html(obj.expected_termination)
-
-    @admin.display(description='Termination')
-    def termination_local(self, obj):
-        return datetime_to_html(obj.termination)
 
     def has_add_permission(self, request):
         return False

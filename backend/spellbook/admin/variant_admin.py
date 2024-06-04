@@ -6,12 +6,12 @@ from django.urls import reverse, path
 from django.http import HttpRequest
 from django.shortcuts import redirect
 from django.contrib import admin, messages
-from django.forms import ModelForm, Textarea
+from django.forms import Textarea
 from spellbook.models import Variant, CardInVariant, TemplateInVariant
 from spellbook.utils import launch_job_command
 from spellbook.parsers import variants_query_parser, NotSupportedError
 from spellbook.serializers import VariantSerializer
-from .utils import IdentityFilter, SpellbookModelAdmin, CardsCountListFilter
+from .utils import IdentityFilter, SpellbookModelAdmin, SpellbookAdminForm, CardsCountListFilter
 from .ingredient_admin import IngredientAdmin
 
 
@@ -50,7 +50,7 @@ class TemplateInVariantAdminInline(IngredientAdmin):
         return False
 
 
-class VariantForm(ModelForm):
+class VariantForm(SpellbookAdminForm):
     class Meta:
         widgets = {
             'notes': Textarea(attrs={'rows': 2}),

@@ -4,11 +4,11 @@ from django.contrib.admin.options import InlineModelAdmin
 from django.db.models import Case, When, Count, Q
 from django.contrib import admin, messages
 from django.http.request import HttpRequest
-from django.forms import ModelForm, Textarea
+from django.forms import Textarea
 from django.utils.safestring import mark_safe
 from django.urls import reverse
 from spellbook.models import Card, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion
-from .utils import SpellbookModelAdmin, CustomFilter
+from .utils import SpellbookModelAdmin, SpellbookAdminForm, CustomFilter
 from .ingredient_admin import IngredientInCombinationAdmin
 
 
@@ -16,7 +16,7 @@ def create_missing_object_message(url: str) -> str:
     return f'<a href="{url}" target="_blank"><u>Click here to add it</u></a>. Remember to refresh this page after adding the missing item.'
 
 
-class ComboForm(ModelForm):
+class ComboForm(SpellbookAdminForm):
     def variants_for_editors(self):
         if self.instance.pk is None:
             return Variant.objects.none()

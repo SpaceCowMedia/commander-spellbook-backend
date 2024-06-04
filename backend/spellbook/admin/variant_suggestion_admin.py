@@ -54,12 +54,14 @@ def set_rejected(modeladmin, request, queryset):
 @admin.register(VariantSuggestion)
 class VariantSuggestionAdmin(SpellbookModelAdmin):
     save_as = True
-    readonly_fields = ['id', 'suggested_by', 'comment']
+    readonly_fields = ['id', 'suggested_by', 'comment', 'updated', 'created']
     fieldsets = [
         ('General', {'fields': [
             'id',
             'suggested_by',
             'comment',
+            'updated',
+            'created',
         ]}),
         ('Editable', {'fields': [
             'mana_needed',
@@ -74,7 +76,7 @@ class VariantSuggestionAdmin(SpellbookModelAdmin):
     ]
     inlines = [CardUsedInVariantSuggestionAdminInline, TemplateRequiredInVariantAdminInline, FeatureProducedInVariantAdminInline]
     list_filter = ['status', CardsCountListFilter, 'spoiler']
-    list_display = ['__str__', 'id', 'status', 'spoiler']
+    list_display = ['__str__', 'id', 'status', 'spoiler', 'updated', 'created']
     actions = [set_rejected]
     search_fields = [
         'uses__card',

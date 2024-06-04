@@ -62,7 +62,7 @@ class SpellbookModelAdmin(SortableAdminBase, ModelAdmin):
                     if isinstance(f, DateTimeField):
                         field_alias = f'{field}_local'
 
-                        @admin.display(description=f.verbose_name)
+                        @admin.display(description=f.verbose_name, ordering=field)
                         def get_local_datetime(self, obj=None, f=field):
                             if obj is not None:
                                 return datetime_to_html(getattr(obj, f))

@@ -113,6 +113,8 @@ class VariantAdmin(SpellbookModelAdmin):
     form = VariantForm
     generated_readonly_fields = [
         'id',
+        'updated',
+        'created',
         'produces_link',
         'of_link',
         'includes_link',

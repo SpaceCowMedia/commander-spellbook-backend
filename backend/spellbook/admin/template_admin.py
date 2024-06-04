@@ -5,7 +5,7 @@ from .utils import SpellbookModelAdmin
 
 @admin.register(Template)
 class TemplateAdmin(SpellbookModelAdmin):
-    readonly_fields = ['id', 'scryfall_link']
-    fields = ['name', 'id', 'scryfall_query', 'scryfall_link', 'description']
-    list_display = ['name', 'id', 'scryfall_query']
+    readonly_fields = ['id', 'scryfall_link', 'updated', 'created']
+    fields = ['name', 'id', 'updated', 'created', 'scryfall_query', 'scryfall_link', 'description']
+    list_display = ['name', 'id', 'scryfall_query', 'updated']
     search_fields = ['name', 'scryfall_query']

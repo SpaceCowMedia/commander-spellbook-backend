@@ -133,9 +133,9 @@ class VariantRelatedFilter(CustomFilter):
 class ComboAdmin(SpellbookModelAdmin):
     form = ComboForm
     save_as = True
-    readonly_fields = ['id', 'scryfall_link']
+    readonly_fields = ['id', 'scryfall_link', 'updated', 'created']
     fieldsets = [
-        ('Generated', {'fields': ['id', 'scryfall_link']}),
+        ('Generated', {'fields': ['id', 'scryfall_link', 'updated', 'created']}),
         ('More Requirements', {'fields': ['mana_needed', 'other_prerequisites']}),
         ('Description', {'fields': ['status', 'allow_many_cards', 'allow_multiple_copies', 'description', 'notes']}),
     ]
@@ -156,7 +156,7 @@ class ComboAdmin(SpellbookModelAdmin):
         'produces__name',
         'needs__name'
     ]
-    list_display = ['__str__', 'id', 'status', 'allow_many_cards', 'allow_multiple_copies']
+    list_display = ['__str__', 'id', 'status', 'allow_many_cards', 'allow_multiple_copies', 'updated']
 
     def get_fieldsets(self, request, obj):
         fieldsets = super().get_fieldsets(request, obj)

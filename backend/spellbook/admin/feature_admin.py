@@ -18,13 +18,11 @@ class CardInFeatureAdminInline(IngredientAdmin):
 
 @admin.register(Feature)
 class FeatureAdmin(SpellbookModelAdmin):
-    readonly_fields = ['id', 'scryfall_link']
-    fieldsets = [
-        (None, {'fields': ['name', 'id', 'utility', 'uncountable', 'description', 'scryfall_link']}),
-    ]
+    readonly_fields = ['id', 'scryfall_link', 'updated', 'created']
+    fields = ['name', 'id', 'updated', 'created', 'utility', 'uncountable', 'description', 'scryfall_link']
     inlines = [CardInFeatureAdminInline]
     search_fields = ['name', 'cards__name']
-    list_display = ['name', 'id', 'utility']
+    list_display = ['name', 'id', 'utility', 'updated']
     list_filter = ['utility']
 
     def lookup_allowed(self, lookup: str, value: str, request) -> bool:

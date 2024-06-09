@@ -11,7 +11,7 @@ from django.utils.formats import localize
 from django.forms import Textarea
 from django.core.exceptions import FieldDoesNotExist
 from django.contrib.admin import ModelAdmin
-from django.contrib.admin.views.main import ORDER_VAR
+from django.contrib.admin.views.main import ORDER_VAR, ChangeList
 from adminsortable2.admin import SortableAdminBase
 from django.utils.safestring import SafeText
 from spellbook.variants.variants_generator import DEFAULT_CARD_LIMIT
@@ -40,6 +40,13 @@ class SpellbookAdminForm(ModelForm):
         if self.cleaned_data['scryfall_query']:
             return sanitize_scryfall_query(self.cleaned_data['scryfall_query'])
         return self.cleaned_data['scryfall_query']
+
+
+class SpellbookAdminChangelist(ChangeList):
+    def get_filters(self, request):
+        filters = super().get_filters(request)
+        self.extra_lookup_params = filters[2]
+        return filters
 
 
 class SpellbookModelAdmin(SortableAdminBase, ModelAdmin):
@@ -133,6 +140,9 @@ class SpellbookModelAdmin(SortableAdminBase, ModelAdmin):
 
     def after_save_related(self, request, form, formsets, change):
         pass
+
+    def get_changelist(self, request, **kwargs: Any) -> type[ChangeList]:
+        return SpellbookAdminChangelist
 
 
 class CustomFilter(admin.SimpleListFilter):

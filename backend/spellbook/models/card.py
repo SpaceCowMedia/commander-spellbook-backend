@@ -132,7 +132,9 @@ def update_combo_fields(sender, instance, created, raw, **kwargs):
 
 class FeatureOfCard(Ingredient):
     feature = models.ForeignKey(to=Feature, on_delete=models.CASCADE)
+    feature_id: int
     card = models.ForeignKey(to=Card, on_delete=models.CASCADE)
+    card_id: int
 
     def __str__(self):
         return f'{self.feature} for card {self.card.pk}'

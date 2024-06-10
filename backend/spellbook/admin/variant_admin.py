@@ -226,23 +226,17 @@ class VariantAdmin(SpellbookModelAdmin):
             messages.warning(request, str(e))
             return queryset, False
 
-    def save_form(self, request: Any, form: Any, change: bool) -> Any:
-        new_object = super().save_form(request, form, change)
-        if change:
-            if 'status' in form.changed_data:
-                if new_object.status in Variant.public_statuses():
-                    launch_job_command(
-                        command='notify',
-                        user=request.user,
-                        args=['variant_published', str(new_object.id)],
-                    )
-        return new_object
-
-    def save_related(self, request: Any, form: Any, formsets: Any, change: Any):
-        super().save_related(request, form, formsets, change)
+    def after_save_related(self, request, form, formsets, change):
+        variant: Variant = form.instance
+        if change and 'status' in form.changed_data:
+            if variant.status in Variant.public_statuses():
+                launch_job_command(
+                    command='notify',
+                    user=request.user,
+                    args=['variant_published', str(variant.id)],
+                )
         # Feature: update serialized JSON when variant is edited
         # effectively resulting in a real time update of the variant
-        variant: Variant = form.instance
         variant.update_serialized(VariantSerializer)
         variant.save()
 

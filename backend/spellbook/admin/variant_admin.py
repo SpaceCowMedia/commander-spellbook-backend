@@ -1,4 +1,3 @@
-from typing import Any
 from django.db.models.query import QuerySet
 from django.utils.http import urlencode
 from django.utils.html import format_html

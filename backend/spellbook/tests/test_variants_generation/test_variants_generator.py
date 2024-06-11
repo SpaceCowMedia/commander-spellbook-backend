@@ -2,7 +2,7 @@ from itertools import chain
 from multiset import FrozenMultiset
 from django.db.models import Count
 from spellbook.tests.abstract_test import AbstractTestCaseWithSeeding
-from spellbook.models import Job, Variant, Card, IngredientInCombination, CardInVariant, TemplateInVariant, Template, Combo, Feature, VariantAlias
+from spellbook.models import Job, Variant, Card, IngredientInCombination, CardInVariant, TemplateInVariant, Template, Combo, Feature, VariantAlias, FeatureOfCard
 from spellbook.variants.variant_data import Data
 from spellbook.variants.variants_generator import get_variants_from_graph, get_default_zone_location_for_card, update_state_with_default
 from spellbook.variants.variants_generator import generate_variants, apply_replacements, subtract_features, update_state
@@ -78,10 +78,11 @@ class VariantsGeneratorTests(AbstractTestCaseWithSeeding):
                 self.assertEqual(location, IngredientInCombination.ZoneLocation.BATTLEFIELD)
 
     def test_update_state_with_default(self):
+        data = Data()
         civs = (CardInVariant(card=c) for c in Card.objects.all())
         tivs = (TemplateInVariant(template=t) for t in Template.objects.all())
         for sut in chain(civs, tivs):
-            update_state_with_default(sut)
+            update_state_with_default(data, sut)
             self.assertEqual(sut.battlefield_card_state, '')
             self.assertEqual(sut.exile_card_state, '')
             self.assertEqual(sut.graveyard_card_state, '')
@@ -93,6 +94,7 @@ class VariantsGeneratorTests(AbstractTestCaseWithSeeding):
                 self.assertEqual(sut.zone_locations, IngredientInCombination._meta.get_field('zone_locations').get_default())
 
     def test_update_state(self):
+        data = Data()
         civs = list(CardInVariant(card=c) for c in Card.objects.all())
         tivs = list(TemplateInVariant(template=t) for t in Template.objects.all())
         for sut1, sut2 in zip(chain(civs, tivs), chain(reversed(civs), reversed(tivs))):  # type: ignore
@@ -102,7 +104,7 @@ class VariantsGeneratorTests(AbstractTestCaseWithSeeding):
             sut1.library_card_state = 'library_card_state'
             sut1.must_be_commander = True
             sut1.zone_locations = IngredientInCombination.ZoneLocation.COMMAND_ZONE + IngredientInCombination.ZoneLocation.BATTLEFIELD
-            update_state_with_default(sut2)
+            update_state_with_default(data, sut2)
             update_state(dst=sut2, src=sut1, overwrite=True)
             self.assertEqual(sut2.battlefield_card_state, sut1.battlefield_card_state)
             self.assertEqual(sut2.exile_card_state, sut1.exile_card_state)
@@ -298,6 +300,92 @@ class VariantsGeneratorTests(AbstractTestCaseWithSeeding):
             self.assertEqual(v.status, Variant.Status.NEW)
             self.assertIn(c.description, v.description)
             self.assertIn(c.notes, v.notes)
+
+    def test_unwanted_text_with_combo(self):
+        generate_variants()
+        self.assertEqual(Variant.objects.count(), self.expected_variant_count)
+        v: Variant = Variant.objects.first()  # type: ignore
+        useless_combo = Combo.objects.create(mana_needed='{W}', status=Combo.Status.UTILITY, description='<<<Unwanted text>>>')
+        for i, card in enumerate(v.uses.all()):
+            useless_combo.cardincombo_set.create(card=card, order=i + 1, zone_locations=IngredientInCombination.ZoneLocation.BATTLEFIELD)
+        useless_feature = Feature.objects.create(name='Useless', utility=True)
+        useless_combo.produces.add(useless_feature)
+        v.status = Variant.Status.RESTORE
+        v.save()
+        added, restored, deleted = generate_variants()
+        self.assertEqual(added, 0)
+        self.assertEqual(restored, 1)
+        self.assertEqual(deleted, 0)
+        v.refresh_from_db()
+        self.assertNotIn(useless_combo.description, v.description)
+        useless_feature.utility = False
+        useless_feature.save()
+        v.status = Variant.Status.RESTORE
+        v.save()
+        added, restored, deleted = generate_variants()
+        self.assertEqual(added, 0)
+        self.assertEqual(restored, 1)
+        self.assertEqual(deleted, 0)
+        v.refresh_from_db()
+        self.assertIn(useless_combo.description, v.description)
+        useless_feature.utility = True
+        useless_feature.save()
+        enabler = Combo.objects.create(mana_needed='{W}', status=Combo.Status.UTILITY)
+        result = Feature.objects.create(name='Result', utility=False)
+        enabler.produces.add(result)
+        enabler.needs.add(useless_feature)
+        v.status = Variant.Status.RESTORE
+        v.save()
+        added, restored, deleted = generate_variants()
+        self.assertEqual(added, 0)
+        self.assertEqual(restored, 1)
+        self.assertEqual(deleted, 0)
+        v.refresh_from_db()
+        self.assertIn(useless_combo.description, v.description)
+
+    def test_unwanted_text_with_card(self):
+        generate_variants()
+        self.assertEqual(Variant.objects.count(), self.expected_variant_count)
+        v: Variant = Variant.objects.first()  # type: ignore
+        useless_feature = Feature.objects.create(name='Useless', utility=True)
+        foc = FeatureOfCard.objects.create(
+            card=v.uses.first(),
+            feature=useless_feature,
+            zone_locations=IngredientInCombination.ZoneLocation.BATTLEFIELD,
+            battlefield_card_state='<<<Unwanted text>>>'
+        )
+        v.status = Variant.Status.RESTORE
+        v.save()
+        added, restored, deleted = generate_variants()
+        self.assertEqual(added, 0)
+        self.assertEqual(restored, 1)
+        self.assertEqual(deleted, 0)
+        v.refresh_from_db()
+        self.assertNotIn(foc.battlefield_card_state, v.cardinvariant_set.filter(card=foc.card).first().battlefield_card_state)  # type: ignore
+        useless_feature.utility = False
+        useless_feature.save()
+        v.status = Variant.Status.RESTORE
+        v.save()
+        added, restored, deleted = generate_variants()
+        self.assertEqual(added, 0)
+        self.assertEqual(restored, 1)
+        self.assertEqual(deleted, 0)
+        v.refresh_from_db()
+        self.assertIn(foc.battlefield_card_state, v.cardinvariant_set.filter(card=foc.card).first().battlefield_card_state)  # type: ignore
+        useless_feature.utility = True
+        useless_feature.save()
+        enabler = Combo.objects.create(mana_needed='{W}', status=Combo.Status.UTILITY)
+        result = Feature.objects.create(name='Result', utility=False)
+        enabler.produces.add(result)
+        enabler.needs.add(useless_feature)
+        v.status = Variant.Status.RESTORE
+        v.save()
+        added, restored, deleted = generate_variants()
+        self.assertEqual(added, 0)
+        self.assertEqual(restored, 1)
+        self.assertEqual(deleted, 0)
+        v.refresh_from_db()
+        self.assertIn(foc.battlefield_card_state, v.cardinvariant_set.filter(card=foc.card).first().battlefield_card_state)  # type: ignore
 
     def test_sync_variant_aliases(self):
         VariantAlias.objects.all().delete()

@@ -1,8 +1,8 @@
 from django.db import models
 from django.dispatch import receiver
 from django.db.models.signals import post_save
-from django.db.models.functions import Lower
-from django.contrib.postgres.indexes import GinIndex
+from django.db.models.functions import Lower, Upper
+from django.contrib.postgres.indexes import GinIndex, OpClass
 from .constants import MAX_FEATURE_NAME_LENGTH
 from .validators import NAME_VALIDATORS
 
@@ -29,7 +29,7 @@ class Feature(models.Model):
             ),
         ]
         indexes = [
-            GinIndex(fields=['name']),
+            GinIndex(OpClass(Upper('name'), name='gin_trgm_ops'), name='feature_gin_trgm_name'),
         ]
 
     def __str__(self):

@@ -3,8 +3,7 @@ from django.db import models
 from django.dispatch import receiver
 from django.db.models.signals import post_save
 from django.utils.html import format_html
-from django.contrib.postgres.indexes import GinIndex, OpClass
-from django.db.models.functions import Upper
+from django.contrib.postgres.indexes import GinIndex
 from django.core.validators import MinValueValidator
 from django.core.exceptions import ValidationError
 from .playable import Playable
@@ -123,8 +122,8 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
             models.Index(fields=['-popularity']),
             models.Index(fields=['-created']),
             models.Index(fields=['-updated']),
-            GinIndex(OpClass(Upper('other_prerequisites'), name='gin_trgm_ops'), name='variant_gin_trgm_other_prereq'),
-            GinIndex(OpClass(Upper('description'), name='gin_trgm_ops'), name='variant_gin_trgm_description'),
+            GinIndex(fields=['other_prerequisites']),
+            GinIndex(fields=['description']),
         ]
 
     def cards(self) -> list[Card]:

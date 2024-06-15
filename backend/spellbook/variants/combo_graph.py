@@ -121,7 +121,7 @@ class FeatureNode(Node[Feature]):
         self.needed_by_combos = dict(needed_by_combos)
 
 
-class ComboNode(Node):
+class ComboNode(Node[Combo]):
     def __init__(
             self,
             graph: 'Graph',
@@ -139,6 +139,10 @@ class ComboNode(Node):
         self.uncountable_features_needed = list(uncountable_features_needed)
         self.features_produced = list(features_produced)
 
+    @property
+    def features_needed(self) -> Iterable[FeatureNode]:
+        return chain(self.countable_features_needed.keys(), self.uncountable_features_needed)
+
 
 @dataclass(frozen=True)
 class VariantIngredients:
@@ -155,6 +159,8 @@ class VariantRecipe(VariantIngredients):
     features: FrozenMultiset
     combos: set[comboid]
     replacements: dict[featureid, list[VariantIngredients]]
+    needed_features: set[featureid]
+    needed_combos: set[comboid]
 
 
 class Graph:
@@ -442,6 +448,24 @@ class Graph:
                                 combo_nodes_to_visit.append(feature_combo)
                             else:
                                 feature_combo.state = NodeState.VISITED
+        # Compute needed features and combos
+        needed_feature_nodes = set[FeatureNode](  # by default needed features are not utility features
+            f
+            for f in chain(countable_feature_nodes.keys(), uncountable_feature_nodes)
+            if not f.item.utility
+        )
+        needed_combo_nodes = set[ComboNode](  # by default needed combos produce needed features
+            c
+            for c in combo_nodes
+            if any(f in needed_feature_nodes for f in c.features_produced)
+        )
+        new_features_needed_by_needed_combos = {f for c in needed_combo_nodes for f in c.features_needed}
+        while not new_features_needed_by_needed_combos.issubset(needed_feature_nodes):
+            needed_feature_nodes.update(new_features_needed_by_needed_combos)
+            new_needed_combos = {c for c in combo_nodes if any(f in new_features_needed_by_needed_combos for f in c.features_produced)}
+            needed_combo_nodes.update(new_needed_combos)
+            new_features_needed_by_needed_combos = {f for c in new_needed_combos for f in c.features_needed}
+        # Return the recipe
         return VariantRecipe(
             cards=ingredients.cards,
             templates=ingredients.templates,
@@ -452,4 +476,6 @@ class Graph:
             }),
             combos={cn.item.id for cn in combo_nodes if cn.state == NodeState.VISITED},
             replacements=replacements,
+            needed_features={fn.item.id for fn in needed_feature_nodes},
+            needed_combos={cn.item.id for cn in needed_combo_nodes},
         )

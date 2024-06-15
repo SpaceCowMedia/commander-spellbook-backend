@@ -30,6 +30,8 @@ class VariantDefinition(VariantRecipeDefinition):
     feature_ids: Multiset
     included_ids: set[int]
     feature_replacements: defaultdict[int, list[VariantRecipeDefinition]]
+    needed_features: set[int]
+    needed_combos: set[int]
 
 
 def get_variants_from_graph(data: Data, job: Job | None, log_count: int) -> dict[str, VariantDefinition]:
@@ -78,6 +80,8 @@ def get_variants_from_graph(data: Data, job: Job | None, log_count: int) -> dict
                 templates_ids = variant.templates
                 id = id_from_cards_and_templates_ids(cards_ids.distinct_elements(), templates_ids.distinct_elements())
                 feature_ids = variant.features
+                needed_feature_ids = variant.needed_features
+                needed_combo_ids = variant.needed_combos
                 combo_ids = variant.combos
                 feature_replacements = {
                     feature: [
@@ -100,6 +104,8 @@ def get_variants_from_graph(data: Data, job: Job | None, log_count: int) -> dict
                         included_ids=combo_ids,
                         of_ids={combo.id},
                         feature_replacements=defaultdict(list, feature_replacements),
+                        needed_features=needed_feature_ids,
+                        needed_combos=needed_combo_ids,
                     )
             if len(variant_set) > 50 or index % log_count == 0 or index == total - 1:
                 log(f'{index + 1}/{total} combos processed (just processed combo {combo.id})')
@@ -256,19 +262,11 @@ def restore_variant(
         requires[template_in_variant.template_id] = template_in_variant
     if restore_fields:
         # prepare data for the update
-        needed_utility_features = {
-            f.feature_id
-            for c in variant_def.included_ids
-            for f in data.combo_to_needed_features[c]
-            if data.id_to_feature[f.feature_id].utility
-        }
+        needed_features = variant_def.needed_features
         combos_included_for_a_reason = [
             c
             for c in included_combos
-            if not all(
-                data.id_to_feature[f.feature_id].utility and f.feature_id not in needed_utility_features
-                for f in data.combo_to_produced_features[c.id]
-            ) or data.combo_to_removed_features[c.id]
+            if c.id in variant_def.needed_combos
         ]
         # update the variant status
         variant.status = Variant.Status.NEW
@@ -292,7 +290,7 @@ def restore_variant(
         requires_updated = set[int]()
         for to_edit in used_cards:
             for feature_of_card in data.card_to_features[to_edit.card_id]:
-                if not data.id_to_feature[feature_of_card.feature_id].utility or feature_of_card.feature_id in needed_utility_features:
+                if not data.id_to_feature[feature_of_card.feature_id].utility or feature_of_card.feature_id in needed_features:
                     if to_edit.card_id not in uses_updated:
                         update_state(to_edit, feature_of_card, overwrite=True)
                         uses_updated.add(to_edit.card_id)

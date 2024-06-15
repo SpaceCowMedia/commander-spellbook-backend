@@ -54,7 +54,7 @@ class AbstractTestCase(TestCase):
                 for feature in result:
                     assert not feature.startswith('-')
                     feature_id = feature_ids_by_name.setdefault(feature, reduce(lambda x, y: max(x, y), feature_ids_by_name.values(), 0) + 1)
-                    f, _ = Feature.objects.get_or_create(pk=feature_id, name=feature, description='Test Feature', utility=False)
+                    f, _ = Feature.objects.get_or_create(pk=feature_id, name=feature, description='Test Feature', utility=feature.startswith('u'))
                     FeatureOfCard.objects.create(card=c, feature=f, zone_locations=IngredientInCombination.ZoneLocation.BATTLEFIELD, quantity=quantity)
             else:
                 for element in recipe:
@@ -81,7 +81,7 @@ class AbstractTestCase(TestCase):
                     CardInCombo.objects.create(card=c, combo=combo, order=i, zone_locations=IngredientInCombination.ZoneLocation.BATTLEFIELD, quantity=quantity)
                 for feature, quantity in features.items():
                     feature_id = feature_ids_by_name.setdefault(feature, reduce(lambda x, y: max(x, y), feature_ids_by_name.values(), 0) + 1)
-                    f, _ = Feature.objects.get_or_create(pk=feature_id, name=feature, description='Test Feature', utility=False)
+                    f, _ = Feature.objects.get_or_create(pk=feature_id, name=feature, description='Test Feature', utility=feature.startswith('u'))
                     FeatureNeededInCombo.objects.create(feature=f, combo=combo, quantity=quantity)
                 for i, (template, quantity) in enumerate(templates.items(), start=1):
                     template_id = template_ids_by_name.setdefault(template, reduce(lambda x, y: max(x, y), template_ids_by_name.values(), 0) + 1)
@@ -91,11 +91,11 @@ class AbstractTestCase(TestCase):
                     if feature.startswith('-'):
                         feature = feature[1:]
                         feature_id = feature_ids_by_name.setdefault(feature, reduce(lambda x, y: max(x, y), feature_ids_by_name.values(), 0) + 1)
-                        f, _ = Feature.objects.get_or_create(pk=feature_id, name=feature, description='Test Feature', utility=False)
+                        f, _ = Feature.objects.get_or_create(pk=feature_id, name=feature, description='Test Feature', utility=feature.startswith('u'))
                         FeatureRemovedInCombo.objects.create(feature=f, combo=combo)
                     else:
                         feature_id = feature_ids_by_name.setdefault(feature, reduce(lambda x, y: max(x, y), feature_ids_by_name.values(), 0) + 1)
-                        f, _ = Feature.objects.get_or_create(pk=feature_id, name=feature, description='Test Feature', utility=False)
+                        f, _ = Feature.objects.get_or_create(pk=feature_id, name=feature, description='Test Feature', utility=feature.startswith('u'))
                         FeatureProducedInCombo.objects.create(feature=f, combo=combo)
                 combo_id += 1
 

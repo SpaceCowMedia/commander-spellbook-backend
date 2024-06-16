@@ -84,12 +84,9 @@ class VariantDataTests(AbstractTestCaseWithSeeding):
             self.assertEqual(debug_queries() - q, 1)
 
     def test_number_of_queries(self):
-        with self.settings(DEBUG=True):
-            q = debug_queries()
+        with self.assertNumQueries(20):
             Data()
-            self.assertEqual(debug_queries() - q, 20)
-        with self.settings(DEBUG=True):
-            q = debug_queries()
+        with self.assertNumQueries(0):
             Data(
                 cards=[],
                 templates=[],
@@ -97,4 +94,3 @@ class VariantDataTests(AbstractTestCaseWithSeeding):
                 features=[],
                 variants=[],
             )
-            self.assertEqual(debug_queries() - q, 0)

@@ -9,35 +9,42 @@ class ComboGraphTest(AbstractTestCaseWithSeeding):
     def test_empty_graph(self):
         Combo.objects.exclude(id=self.b2_id).delete()
         combo_graph = Graph(Data())
-        self.assertCountEqual(combo_graph.results(combo_graph.variants(self.b2_id)), [])
+        with self.assertNumQueries(0):
+            self.assertCountEqual(combo_graph.results(combo_graph.variants(self.b2_id)), [])
 
     def test_variants(self):
         combo_graph = Graph(Data())
-        variants = combo_graph.variants(self.b2_id)
-        self.assertEqual(len(variants), 3)
-        self.assertIsInstance(variants, VariantSet)
+        with self.assertNumQueries(0):
+            variants = combo_graph.variants(self.b2_id)
+            self.assertEqual(len(variants), 3)
+            self.assertIsInstance(variants, VariantSet)
 
     def test_results(self):
         combo_graph = Graph(Data())
-        variants = combo_graph.variants(self.b2_id)
-        results = combo_graph.results(variants)
-        self.assertEqual(len(list(results)), 3)
-        for result in results:
-            self.assertIsInstance(result, VariantRecipe)
+        with self.assertNumQueries(0):
+            variants = combo_graph.variants(self.b2_id)
+            results = combo_graph.results(variants)
+            self.assertEqual(len(list(results)), 3)
+            for result in results:
+                self.assertIsInstance(result, VariantRecipe)
 
     def test_graph(self):
         combo_graph = Graph(Data())
-        variants = list(combo_graph.results(combo_graph.variants(self.b2_id)))
-        self.assertEqual(variants, list(combo_graph.results(combo_graph.variants(self.b2_id))))
-        self.assertEqual(len(variants), 3)
+        with self.assertNumQueries(0):
+            variants = list(combo_graph.results(combo_graph.variants(self.b2_id)))
+            self.assertEqual(variants, list(combo_graph.results(combo_graph.variants(self.b2_id))))
+            self.assertEqual(len(variants), 3)
 
     def test_variant_limit(self):
         combo_graph = Graph(Data(), log=lambda _: None, variant_limit=0)
-        self.assertRaises(Graph.GraphError, lambda: combo_graph.variants(self.b2_id))
+        with self.assertNumQueries(0):
+            self.assertRaises(Graph.GraphError, lambda: combo_graph.variants(self.b2_id))
         combo_graph = Graph(Data(), log=lambda _: None, variant_limit=1)
-        self.assertRaises(Graph.GraphError, lambda: combo_graph.variants(self.b2_id))
+        with self.assertNumQueries(0):
+            self.assertRaises(Graph.GraphError, lambda: combo_graph.variants(self.b2_id))
         combo_graph = Graph(Data(), log=lambda _: None, variant_limit=20)
-        self.assertEqual(len(list(combo_graph.results(combo_graph.variants(self.b2_id)))), 3)
+        with self.assertNumQueries(0):
+            self.assertEqual(len(list(combo_graph.results(combo_graph.variants(self.b2_id)))), 3)
 
     def test_default_log(self):
         def test():
@@ -48,17 +55,23 @@ class ComboGraphTest(AbstractTestCaseWithSeeding):
     def test_card_limit(self):
         self.maxDiff = None
         combo_graph = Graph(Data(), log=lambda _: None, card_limit=0)
-        self.assertCountEqual(combo_graph.results(combo_graph.variants(self.b2_id)), [])
+        with self.assertNumQueries(0):
+            self.assertCountEqual(combo_graph.results(combo_graph.variants(self.b2_id)), [])
         combo_graph = Graph(Data(), log=lambda _: None, card_limit=1)
-        self.assertCountEqual(combo_graph.results(combo_graph.variants(self.b2_id)), [])
+        with self.assertNumQueries(0):
+            self.assertCountEqual(combo_graph.results(combo_graph.variants(self.b2_id)), [])
         combo_graph = Graph(Data(), log=lambda _: None, card_limit=2)
-        self.assertCountEqual(combo_graph.results(combo_graph.variants(self.b2_id)), [])
+        with self.assertNumQueries(0):
+            self.assertCountEqual(combo_graph.results(combo_graph.variants(self.b2_id)), [])
         combo_graph = Graph(Data(), log=lambda _: None, card_limit=3)
-        self.assertEqual(len(list(combo_graph.results(combo_graph.variants(self.b2_id)))), 1)
+        with self.assertNumQueries(0):
+            self.assertEqual(len(list(combo_graph.results(combo_graph.variants(self.b2_id)))), 1)
         combo_graph = Graph(Data(), log=lambda _: None, card_limit=4)
-        self.assertEqual(len(list(combo_graph.results(combo_graph.variants(self.b2_id)))), 2)
+        with self.assertNumQueries(0):
+            self.assertEqual(len(list(combo_graph.results(combo_graph.variants(self.b2_id)))), 2)
         combo_graph = Graph(Data(), log=lambda _: None, card_limit=5)
-        self.assertEqual(len(list(combo_graph.results(combo_graph.variants(self.b2_id)))), 3)
+        with self.assertNumQueries(0):
+            self.assertEqual(len(list(combo_graph.results(combo_graph.variants(self.b2_id)))), 3)
 
     def test_allow_multiple_copies(self):
         self.maxDiff = None
@@ -68,14 +81,17 @@ class ComboGraphTest(AbstractTestCaseWithSeeding):
         card_needed.quantity = 2
         card_needed.save()
         combo_graph = Graph(Data(), log=lambda _: None, allow_multiple_copies=False)
-        self.assertEqual(len(list(combo_graph.results(combo_graph.variants(self.b2_id)))), 2)
+        with self.assertNumQueries(0):
+            self.assertEqual(len(list(combo_graph.results(combo_graph.variants(self.b2_id)))), 2)
         combo_graph = Graph(Data(), log=lambda _: None, allow_multiple_copies=True)
-        self.assertEqual(len(list(combo_graph.results(combo_graph.variants(self.b2_id)))), 3)
+        with self.assertNumQueries(0):
+            self.assertEqual(len(list(combo_graph.results(combo_graph.variants(self.b2_id)))), 3)
 
     def test_replacements(self):
         data = Data()
         combo_graph = Graph(data=data)
-        variants = list(combo_graph.results(combo_graph.variants(self.b2_id)))
+        with self.assertNumQueries(0):
+            variants = list(combo_graph.results(combo_graph.variants(self.b2_id)))
         for variant in variants:
             card_ids = {c for c in variant.cards}
             template_ids = {t for t in variant.templates}

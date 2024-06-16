@@ -1,10 +1,8 @@
-import logging
 import random
 import uuid
 from functools import reduce
-from multiset import BaseMultiset
 from collections import defaultdict
-from django.test import TestCase
+from common.abstract_test_case import AbstractTestCase as TestCase
 from django.conf import settings
 from spellbook.models import Card, Feature, Combo, CardInCombo, Template, TemplateInCombo
 from spellbook.models import CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, FeatureProducedInVariantSuggestion
@@ -16,9 +14,8 @@ from spellbook.serializers import VariantSerializer
 
 class AbstractTestCase(TestCase):
     def setUp(self) -> None:
+        super().setUp()
         settings.ASYNC_GENERATION = False
-        logging.disable(logging.INFO)
-        random.seed(42)
 
     def generate_variants(self):
         launch_job_command('generate_variants', None)
@@ -98,13 +95,6 @@ class AbstractTestCase(TestCase):
                         f, _ = Feature.objects.get_or_create(pk=feature_id, name=feature, description='Test Feature', utility=feature.startswith('u'))
                         FeatureProducedInCombo.objects.create(feature=f, combo=combo)
                 combo_id += 1
-
-    def assertMultisetEqual(self, a, b):
-        if isinstance(a, BaseMultiset):
-            a = {k: v for k, v in a.items()}
-        if isinstance(b, BaseMultiset):
-            b = {k: v for k, v in b.items()}
-        self.assertDictEqual(a, b)
 
 
 class AbstractTestCaseWithSeeding(AbstractTestCase):

@@ -2,8 +2,6 @@ import re
 from typing import Callable
 from collections import defaultdict
 from dataclasses import dataclass
-from functools import reduce
-from operator import or_
 from django.db.models import Q, QuerySet
 from spellbook.models import Variant, FeatureProducedByVariant, CardInVariant
 from website.models import WebsiteProperty, FEATURED_SET_CODES
@@ -48,7 +46,7 @@ def card_search(card_value: QueryValue) -> list[VariantFilter]:
             )]
         case '<=' if value_is_digit:
             filters = [VariantFilter(
-                q=Q(cards_count__lt=card_value.value)
+                q=Q(cards_count__lte=card_value.value)
             )]
         case '>=' if value_is_digit:
             filters = [VariantFilter(
@@ -534,32 +532,25 @@ def variants_query_parser(base: QuerySet[Variant], query_string: str) -> QuerySe
             parsed_queries[key].append(QueryValue(group_dict['prefix'], original_key, group_dict['operator'], value_term))
     if len(parsed_queries) > MAX_QUERY_PARAMETERS:
         raise NotSupportedError('Too many search parameters.')
-    cards_filters: list[VariantFilter] = []
-    results_filters: list[VariantFilter] = []
-    variant_filters: list[VariantFilter] = []
+    filtered_variants = base
     for key, values in parsed_queries.items():
         for value in values:
             filters = keyword_map[key](value)
             match value.prefix:
                 case '':
-                    pass
+                    positive = True
                 case '-':
-                    for f in filters:
-                        f.q = ~f.q
+                    positive = False
                 case _:
                     raise NotSupportedError(f'Prefix {value.prefix} is not supported for {key} search.')
-            for f in filters:
-                if f.on_cards:
-                    cards_filters.append(f)
-                elif f.on_features_produced:
-                    results_filters.append(f)
+            for filter in filters:
+                if filter.on_features_produced:
+                    filtered_produces = FeatureProducedByVariant.objects.filter(filter.q)
+                    q = Q(pk__in=filtered_produces.values('variant').distinct())
+                elif filter.on_cards:
+                    filtered_cards = CardInVariant.objects.filter(filter.q)
+                    q = Q(pk__in=filtered_cards.values('variant').distinct())
                 else:
-                    variant_filters.append(f)
-    filtered_variants = base.filter(*(f.q for f in variant_filters))
-    if results_filters:
-        filtered_produces = FeatureProducedByVariant.objects.filter(reduce(or_, (f.q for f in results_filters)))
-        filtered_variants = filtered_variants.filter(pk__in=filtered_produces.values('variant').distinct())
-    if cards_filters:
-        filtered_uses = CardInVariant.objects.filter(reduce(or_, (f.q for f in cards_filters)))
-        filtered_variants = filtered_variants.filter(pk__in=filtered_uses.values('variant').distinct())
+                    q = filter.q
+                filtered_variants = filtered_variants.filter(q) if positive else filtered_variants.exclude(q)
     return filtered_variants

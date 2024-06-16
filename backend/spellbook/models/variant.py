@@ -1,9 +1,10 @@
 from typing import Iterable
-from django.db import models
+from django.db import models, connection
 from django.dispatch import receiver
 from django.db.models.signals import post_save
 from django.utils.html import format_html
-from django.contrib.postgres.indexes import GinIndex
+from django.db.models.functions import Upper
+from django.contrib.postgres.indexes import GinIndex, OpClass
 from django.core.validators import MinValueValidator
 from django.core.exceptions import ValidationError
 from .playable import Playable
@@ -122,9 +123,10 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
             models.Index(fields=['-popularity']),
             models.Index(fields=['-created']),
             models.Index(fields=['-updated']),
-            GinIndex(fields=['other_prerequisites']),
-            GinIndex(fields=['description']),
-        ]
+        ] + ([
+            GinIndex(OpClass(Upper('other_prerequisites'), name='gin_trgm_ops'), name='variant_other_prereq_trgm_idx'),
+            GinIndex(OpClass(Upper('description'), name='gin_trgm_ops'), name='variant_description_trgm_idx'),
+        ] if connection.vendor == 'postgresql' else [])
 
     def cards(self) -> list[Card]:
         return list(self.uses.order_by('cardinvariant'))

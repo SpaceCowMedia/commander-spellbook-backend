@@ -1,15 +1,16 @@
 import re
-from django.db.models import Q, QuerySet
-from collections import defaultdict
 from typing import Callable
+from collections import defaultdict
 from dataclasses import dataclass
-from spellbook.models import Variant
+from functools import reduce
+from operator import or_
+from django.db.models import Q, QuerySet
+from spellbook.models import Variant, FeatureProducedByVariant, CardInVariant
 from website.models import WebsiteProperty, FEATURED_SET_CODES
-from common.query import smart_apply_filters, Filter
 from .color_parser import parse_identity
 
 
-@dataclass
+@dataclass(frozen=True)
 class QueryValue:
     prefix: str
     key: str
@@ -17,84 +18,131 @@ class QueryValue:
     value: str
 
 
-def card_search(card_value: QueryValue) -> list[Q]:
+@dataclass
+class VariantFilter:
+    q: Q
+    on_features_produced: bool = False
+    on_cards: bool = False
+
+
+def card_search(card_value: QueryValue) -> list[VariantFilter]:
     value_is_digit = card_value.value.isdigit()
     match card_value.operator:
         case ':' if not value_is_digit:
-            card_query = Q(uses__name__icontains=card_value.value) \
-                | Q(uses__name_unaccented__icontains=card_value.value) \
-                | Q(uses__name_unaccented_simplified__icontains=card_value.value) \
-                | Q(uses__name_unaccented_simplified_with_spaces__icontains=card_value.value)
+            filters = [VariantFilter(
+                q=Q(card__name__icontains=card_value.value) | Q(card__name_unaccented__icontains=card_value.value) | Q(card__name_unaccented_simplified__icontains=card_value.value) | Q(card__name_unaccented_simplified_with_spaces__icontains=card_value.value),
+                on_cards=True
+            )]
         case '=' if not value_is_digit:
-            card_query = Q(uses__name__iexact=card_value.value) \
-                | Q(uses__name_unaccented__iexact=card_value.value) \
-                | Q(uses__name_unaccented_simplified__iexact=card_value.value) \
-                | Q(uses__name_unaccented_simplified_with_spaces__iexact=card_value.value)
+            filters = [VariantFilter(
+                q=Q(card__name__iexact=card_value.value) | Q(card__name_unaccented__iexact=card_value.value) | Q(card__name_unaccented_simplified__iexact=card_value.value) | Q(card__name_unaccented_simplified_with_spaces__iexact=card_value.value),
+                on_cards=True
+            )]
         case '<' if value_is_digit:
-            card_query = Q(cards_count__lt=card_value.value)
+            filters = [VariantFilter(
+                q=Q(cards_count__lt=card_value.value)
+            )]
         case '>' if value_is_digit:
-            card_query = Q(cards_count__gt=card_value.value)
+            filters = [VariantFilter(
+                q=Q(cards_count__gt=card_value.value)
+            )]
         case '<=' if value_is_digit:
-            card_query = Q(cards_count__lte=card_value.value)
+            filters = [VariantFilter(
+                q=Q(cards_count__lt=card_value.value)
+            )]
         case '>=' if value_is_digit:
-            card_query = Q(cards_count__gte=card_value.value)
+            filters = [VariantFilter(
+                q=Q(cards_count__gte=card_value.value)
+            )]
         case ':' | '=' if value_is_digit:
-            card_query = Q(cards_count=card_value.value)
+            filters = [VariantFilter(
+                q=Q(cards_count=card_value.value)
+            )]
         case _:
             raise NotSupportedError(f'Operator {card_value.operator} is not supported for card search with {"numbers" if value_is_digit else "strings"}.')
-    return [card_query]
+    return filters
 
 
-def card_type_search(card_type_value: QueryValue) -> list[Q]:
+def card_type_search(card_type_value: QueryValue) -> list[VariantFilter]:
     match card_type_value.operator:
         case ':':
-            card_type_query = Q(uses__type_line__icontains=card_type_value.value)
+            filters = [VariantFilter(
+                q=Q(card__type_line__icontains=card_type_value.value),
+                on_cards=True,
+            )]
         case '=':
-            card_type_query = Q(uses__type_line__iexact=card_type_value.value)
+            filters = [VariantFilter(
+                q=Q(card__type_line__iexact=card_type_value.value),
+                on_cards=True,
+            )]
         case _:
             raise NotSupportedError(f'Operator {card_type_value.operator} is not supported for card type search.')
-    return [card_type_query]
+    return filters
 
 
-def card_oracle_search(card_oracle_value: QueryValue) -> list[Q]:
+def card_oracle_search(card_oracle_value: QueryValue) -> list[VariantFilter]:
     match card_oracle_value.operator:
         case ':':
-            card_oracle_query = Q(uses__oracle_text__icontains=card_oracle_value.value)
+            filters = [VariantFilter(
+                q=Q(card__oracle_text__icontains=card_oracle_value.value),
+                on_cards=True,
+            )]
         case '=':
-            card_oracle_query = Q(uses__oracle_text__iexact=card_oracle_value.value)
+            filters = [VariantFilter(
+                q=Q(card__oracle_text__iexact=card_oracle_value.value),
+                on_cards=True,
+            )]
         case _:
             raise NotSupportedError(f'Operator {card_oracle_value.operator} is not supported for card oracle search.')
-    return [card_oracle_query]
+    return filters
 
 
-def card_keyword_search(card_keyword_value: QueryValue) -> list[Q]:
+def card_keyword_search(card_keyword_value: QueryValue) -> list[VariantFilter]:
     match card_keyword_value.operator:
         case ':':
-            card_keyword_query = Q(uses__keywords__icontains=card_keyword_value.value)
+            filters = [VariantFilter(
+                q=Q(card__keywords__icontains=card_keyword_value.value),
+                on_cards=True,
+            )]
         case _:
             raise NotSupportedError(f'Operator {card_keyword_value.operator} is not supported for card keyword search.')
-    return [card_keyword_query]
+    return filters
 
 
-def card_mana_value_search(card_mana_value_value: QueryValue) -> list[Q]:
+def card_mana_value_search(card_mana_value_value: QueryValue) -> list[VariantFilter]:
     value_is_digit = card_mana_value_value.value.isdigit()
     match card_mana_value_value.operator:
         case ':' | '=' if value_is_digit:
-            card_mana_value_query = Q(uses__mana_value=card_mana_value_value.value)
+            filters = [VariantFilter(
+                q=Q(card__mana_value=card_mana_value_value.value),
+                on_cards=True,
+            )]
         case '<' if value_is_digit:
-            card_mana_value_query = Q(uses__mana_value__lt=card_mana_value_value.value)
+            filters = [VariantFilter(
+                q=Q(card__mana_value__lt=card_mana_value_value.value),
+                on_cards=True,
+            )]
         case '<=' if value_is_digit:
-            card_mana_value_query = Q(uses__mana_value__lte=card_mana_value_value.value)
+            filters = [VariantFilter(
+                q=Q(card__mana_value__lte=card_mana_value_value.value),
+                on_cards=True,
+            )]
         case '>' if value_is_digit:
-            card_mana_value_query = Q(uses__mana_value__gt=card_mana_value_value.value)
+            filters = [VariantFilter(
+                q=Q(card__mana_value__gt=card_mana_value_value.value),
+                on_cards=True,
+            )]
         case '>=' if value_is_digit:
-            card_mana_value_query = Q(uses__mana_value__gte=card_mana_value_value.value)
+            filters = [VariantFilter(
+                q=Q(card__mana_value__gte=card_mana_value_value.value),
+                on_cards=True,
+            )]
         case _:
             raise NotSupportedError(f'Operator {card_mana_value_value.operator} is not supported for card mana value search with {"numbers" if value_is_digit else "strings"}.')
-    return [card_mana_value_query]
+    return filters
 
 
-def identity_search(identity_value: QueryValue) -> list[Q]:
+def identity_search(identity_value: QueryValue) -> list[VariantFilter]:
     value_is_digit = identity_value.value.isdigit()
     identity = ''
     not_in_identity = ''
@@ -138,10 +186,10 @@ def identity_search(identity_value: QueryValue) -> list[Q]:
             identity_queries = [Q(identity_count__gte=identity_value.value)]
         case _:
             raise NotSupportedError(f'Operator {identity_value.operator} is not supported for identity search with {"numbers" if value_is_digit else "strings"}.')
-    return identity_queries
+    return [VariantFilter(q=q) for q in identity_queries]
 
 
-def prerequisites_search(prerequisites_value: QueryValue) -> list[Q]:
+def prerequisites_search(prerequisites_value: QueryValue) -> list[VariantFilter]:
     value_is_digit = prerequisites_value.value.isdigit()
     match prerequisites_value.operator:
         case ':' if not value_is_digit:
@@ -160,10 +208,10 @@ def prerequisites_search(prerequisites_value: QueryValue) -> list[Q]:
             prerequisites_query = Q(other_prerequisites_line_count=prerequisites_value.value)
         case _:
             raise NotSupportedError(f'Operator {prerequisites_value.operator} is not supported for prerequisites search.')
-    return [prerequisites_query, Q(status=Variant.Status.OK)]
+    return [VariantFilter(q=prerequisites_query), VariantFilter(q=~Q(status=Variant.Status.EXAMPLE))]
 
 
-def description_search(description_value: QueryValue) -> list[Q]:
+def description_search(description_value: QueryValue) -> list[VariantFilter]:
     value_is_digit = description_value.value.isdigit()
     match description_value.operator:
         case ':' if not value_is_digit:
@@ -182,104 +230,157 @@ def description_search(description_value: QueryValue) -> list[Q]:
             steps_query = Q(description_line_count=description_value.value)
         case _:
             raise NotSupportedError(f'Operator {description_value.operator} is not supported for prerequisites search.')
-    return [steps_query, Q(status=Variant.Status.OK)]
+    return [VariantFilter(q=steps_query), VariantFilter(q=~Q(status=Variant.Status.EXAMPLE))]
 
 
-def results_search(results_value: QueryValue) -> list[Q]:
+def results_search(results_value: QueryValue) -> list[VariantFilter]:
     value_is_digit = results_value.value.isdigit()
     match results_value.operator:
         case ':' if not value_is_digit:
-            results_query = Q(produces__name__icontains=results_value.value)
+            filters = [VariantFilter(
+                q=Q(feature__name__icontains=results_value.value),
+                on_features_produced=True,
+            )]
         case '=' if not value_is_digit:
-            results_query = Q(produces__name__iexact=results_value.value)
+            filters = [VariantFilter(
+                q=Q(feature__name__iexact=results_value.value),
+                on_features_produced=True,
+            )]
         case '<' if value_is_digit:
-            results_query = Q(results_count__lt=results_value.value)
+            filters = [VariantFilter(
+                q=Q(results_count__lt=results_value.value),
+            )]
         case '<=' if value_is_digit:
-            results_query = Q(results_count__lte=results_value.value)
+            filters = [VariantFilter(
+                q=Q(results_count__lte=results_value.value),
+            )]
         case '>' if value_is_digit:
-            results_query = Q(results_count__gt=results_value.value)
+            filters = [VariantFilter(
+                q=Q(results_count__gt=results_value.value),
+            )]
         case '>=' if value_is_digit:
-            results_query = Q(results_count__gte=results_value.value)
+            filters = [VariantFilter(
+                q=Q(results_count__gte=results_value.value),
+            )]
         case ':' | '=' if value_is_digit:
-            results_query = Q(results_count=results_value.value)
+            filters = [VariantFilter(
+                q=Q(results_count=results_value.value),
+            )]
         case _:
             raise NotSupportedError(f'Operator {results_value.operator} is not supported for results search with {"numbers" if value_is_digit else "strings"}.')
-    return [results_query]
+    return filters
 
 
-def tag_search(tag_value: QueryValue) -> list[Q]:
+def tag_search(tag_value: QueryValue) -> list[VariantFilter]:
     if tag_value.operator != ':':
         raise NotSupportedError(f'Operator {tag_value.operator} is not supported for tag search.')
     match tag_value.value.lower():
         case 'preview' | 'previewed' | 'spoiler' | 'spoiled':
-            tag_query = Q(spoiler=True)
+            filters = [VariantFilter(
+                q=Q(spoiler=True),
+            )]
         case 'commander':
-            tag_query = Q(cardinvariant__must_be_commander=True)
+            filters = [VariantFilter(
+                q=Q(must_be_commander=True),
+                on_cards=True,
+            )]
         case 'reserved':
-            tag_query = Q(uses__reserved=True)
+            filters = [VariantFilter(
+                q=Q(card__reserved=True),
+                on_cards=True,
+            )]
         case 'mandatory':
-            tag_query = Q(produces__name='Mandatory Loop')
+            filters = [VariantFilter(
+                q=Q(feature__name='Mandatory Loop'),
+                on_features_produced=True,
+            )]
         case 'lock':
-            tag_query = Q(produces__name='Lock')
+            filters = [VariantFilter(
+                q=Q(feature__name='Lock'),
+                on_features_produced=True,
+            )]
         case 'infinite':
-            tag_query = Q(produces__name='Infinite')
+            filters = [VariantFilter(
+                q=Q(feature__name='Infinite'),
+                on_features_produced=True,
+            )]
         case 'risky' | 'allin':
-            tag_query = Q(produces__name='Risky')
+            filters = [VariantFilter(
+                q=Q(feature__name='Risky'),
+                on_features_produced=True,
+            )]
         case 'winning' | 'gamewinning' | 'win':
-            tag_query = Q(produces__name__in=[
-                'Win the game',
-                'Win the game at the beginning of your next upkeep',
-                'Each opponent loses the game',
-            ])
+            filters = [VariantFilter(
+                q=Q(feature__name__in=[
+                    'Win the game',
+                    'Win the game at the beginning of your next upkeep',
+                    'Each opponent loses the game',
+                ]),
+                on_features_produced=True,
+            )]
         case 'featured':
             featured_sets = {s.strip().lower() for s in WebsiteProperty.objects.get(key=FEATURED_SET_CODES).value.split(',')}
-            tag_query = Q(uses__latest_printing_set__in=featured_sets, uses__reprinted=False)
+            filters = [VariantFilter(
+                q=Q(card__latest_printing_set__in=featured_sets, card__reprinted=False),
+                on_cards=True,
+            )]
         case _:
             raise NotSupportedError(f'Value {tag_value.value} is not supported for tag search.')
-    return [tag_query]
+    return filters
 
 
-def spellbook_id_search(spellbook_id_value: QueryValue) -> list[Q]:
+def spellbook_id_search(spellbook_id_value: QueryValue) -> list[VariantFilter]:
     match spellbook_id_value.operator:
         case ':' | '=':
-            spellbook_id_query = Q(id__iexact=spellbook_id_value.value) | Q(aliases__id__iexact=spellbook_id_value.value)
+            filters = [VariantFilter(
+                q=Q(id__iexact=spellbook_id_value.value) | Q(aliases__id__iexact=spellbook_id_value.value),
+            )]
         case _:
             raise NotSupportedError(f'Operator {spellbook_id_value.operator} is not supported for spellbook id search.')
-    return [spellbook_id_query]
+    return filters
 
 
-def commander_name_search(commander_name_value: QueryValue) -> list[Q]:
+def commander_name_search(commander_name_value: QueryValue) -> list[VariantFilter]:
     match commander_name_value.operator:
         case ':':
-            card_query = Q(cardinvariant__card__name__icontains=commander_name_value.value) \
-                | Q(cardinvariant__card__name_unaccented__icontains=commander_name_value.value) \
-                | Q(cardinvariant__card__name_unaccented_simplified__icontains=commander_name_value.value) \
-                | Q(cardinvariant__card__name_unaccented_simplified_with_spaces__icontains=commander_name_value.value)
+            card_query = Q(card__name__icontains=commander_name_value.value) \
+                | Q(card__name_unaccented__icontains=commander_name_value.value) \
+                | Q(card__name_unaccented_simplified__icontains=commander_name_value.value) \
+                | Q(card__name_unaccented_simplified_with_spaces__icontains=commander_name_value.value)
+            filters = [VariantFilter(
+                q=card_query & Q(must_be_commander=True),
+                on_cards=True,
+            )]
         case '=':
-            card_query = Q(cardinvariant__card__name__iexact=commander_name_value.value) \
-                | Q(cardinvariant__card__name_unaccented__iexact=commander_name_value.value) \
-                | Q(cardinvariant__card__name_unaccented_simplified__iexact=commander_name_value.value) \
-                | Q(cardinvariant__card__name_unaccented_simplified_with_spaces__iexact=commander_name_value.value)
+            card_query = Q(card__name__iexact=commander_name_value.value) \
+                | Q(card__name_unaccented__iexact=commander_name_value.value) \
+                | Q(card__name_unaccented_simplified__iexact=commander_name_value.value) \
+                | Q(card__name_unaccented_simplified_with_spaces__iexact=commander_name_value.value)
+            filters = [VariantFilter(
+                q=card_query & Q(must_be_commander=True),
+                on_cards=True,
+            )]
         case _:
             raise NotSupportedError(f'Operator {commander_name_value.operator} is not supported for commander name search.')
-    return [Q(cardinvariant__must_be_commander=True), card_query]
+    return filters
 
 
-def legality_search(legality_value: QueryValue) -> list[Q]:
+def legality_search(legality_value: QueryValue) -> list[VariantFilter]:
     if legality_value.operator != ':':
         raise NotSupportedError(f'Operator {legality_value.operator} is not supported for legality search.')
     format = legality_value.value.lower()
     supported_formats = {f.removeprefix('legal_') for f in Variant.legalities_fields()}
     if format not in supported_formats:
         raise NotSupportedError(f'Format {format} is not supported for legality search.')
-    q = Q(**{f'legal_{format}': True})
+    legal = True
     match legality_value.key.lower():
         case 'banned':
-            q = ~q
-    return [q]
+            legal = False
+    q = Q(**{f'legal_{format}': legal})
+    return [VariantFilter(q=q)]
 
 
-def price_search(price_value: QueryValue) -> list[Q]:
+def price_search(price_value: QueryValue) -> list[VariantFilter]:
     match price_value.key.lower():
         case 'usd' | 'price':
             store = 'cardkingdom'
@@ -305,29 +406,29 @@ def price_search(price_value: QueryValue) -> list[Q]:
             q = Q(**{f'price_{store}__gte': price_value.value})
         case _:
             raise NotSupportedError(f'Operator {price_value.operator} is not supported for price search.')
-    return [q]
+    return [VariantFilter(q=q)]
 
 
-def popularity_search(popularity_value: QueryValue) -> list[Q]:
+def popularity_search(popularity_value: QueryValue) -> list[VariantFilter]:
     if not popularity_value.value.isdigit():
         raise NotSupportedError(f'Value {popularity_value.value} is not supported for popularity search.')
     match popularity_value.operator:
         case ':' | '=':
-            popularity_query = Q(popularity=popularity_value.value)
+            q = Q(popularity=popularity_value.value)
         case '<':
-            popularity_query = Q(popularity__lt=popularity_value.value)
+            q = Q(popularity__lt=popularity_value.value)
         case '<=':
-            popularity_query = Q(popularity__lte=popularity_value.value)
+            q = Q(popularity__lte=popularity_value.value)
         case '>':
-            popularity_query = Q(popularity__gt=popularity_value.value)
+            q = Q(popularity__gt=popularity_value.value)
         case '>=':
-            popularity_query = Q(popularity__gte=popularity_value.value)
+            q = Q(popularity__gte=popularity_value.value)
         case _:
             raise NotSupportedError(f'Operator {popularity_value.operator} is not supported for popularity search.')
-    return [popularity_query]
+    return [VariantFilter(q=q)]
 
 
-keyword_map: dict[str, Callable[[QueryValue], list[Q]]] = {
+keyword_map: dict[str, Callable[[QueryValue], list[VariantFilter]]] = {
     'card': card_search,
     'cardtype': card_type_search,
     'cardoracle': card_oracle_search,
@@ -407,7 +508,7 @@ class NotSupportedError(Exception):
     pass
 
 
-def variants_query_parser_filter(base: QuerySet[Variant], query_string: str) -> QuerySet[Variant]:
+def variants_query_parser(base: QuerySet[Variant], query_string: str) -> QuerySet:
     query_string = query_string.strip()
     regex_matches = re.finditer(QUERY_REGEX, query_string)
     parsed_queries = defaultdict[str, list[QueryValue]](list)
@@ -433,24 +534,32 @@ def variants_query_parser_filter(base: QuerySet[Variant], query_string: str) -> 
             parsed_queries[key].append(QueryValue(group_dict['prefix'], original_key, group_dict['operator'], value_term))
     if len(parsed_queries) > MAX_QUERY_PARAMETERS:
         raise NotSupportedError('Too many search parameters.')
-    filters: list[Filter] = []
+    cards_filters: list[VariantFilter] = []
+    results_filters: list[VariantFilter] = []
+    variant_filters: list[VariantFilter] = []
     for key, values in parsed_queries.items():
         for value in values:
-            qq = keyword_map[key](value)
-            if value.prefix == '':
-                filters.extend(Filter(q=q, positive=True) for q in qq)
-            elif value.prefix == '-':
-                filters.extend(Filter(q=q, positive=False) for q in qq)
-            elif value.prefix != '':
-                raise NotSupportedError(f'Prefix {value.prefix} is not supported for {key} search.')
-    return smart_apply_filters(base, filters)
-
-
-def variants_query_parser(base: QuerySet[Variant], query_string: str) -> QuerySet:
-    """
-    Parses a query string and filters a queryset of Variants.
-    Does not support parentheses.
-    Does not support or queries.
-    """
-    filtered_queryset = variants_query_parser_filter(base, query_string)
-    return base.filter(id__in=filtered_queryset.values('id').distinct())
+            filters = keyword_map[key](value)
+            match value.prefix:
+                case '':
+                    pass
+                case '-':
+                    for f in filters:
+                        f.q = ~f.q
+                case _:
+                    raise NotSupportedError(f'Prefix {value.prefix} is not supported for {key} search.')
+            for f in filters:
+                if f.on_cards:
+                    cards_filters.append(f)
+                elif f.on_features_produced:
+                    results_filters.append(f)
+                else:
+                    variant_filters.append(f)
+    filtered_variants = base.filter(*(f.q for f in variant_filters))
+    if results_filters:
+        filtered_produces = FeatureProducedByVariant.objects.filter(reduce(or_, (f.q for f in results_filters)))
+        filtered_variants = filtered_variants.filter(pk__in=filtered_produces.values('variant').distinct())
+    if cards_filters:
+        filtered_uses = CardInVariant.objects.filter(reduce(or_, (f.q for f in cards_filters)))
+        filtered_variants = filtered_variants.filter(pk__in=filtered_uses.values('variant').distinct())
+    return filtered_variants

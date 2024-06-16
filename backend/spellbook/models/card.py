@@ -1,7 +1,8 @@
-from django.db import models
+from django.db import models, connection
 from django.dispatch import receiver
 from django.db.models.signals import post_save
-from django.contrib.postgres.indexes import GinIndex
+from django.db.models.functions import Upper
+from django.contrib.postgres.indexes import GinIndex, OpClass
 from .constants import MAX_CARD_NAME_LENGTH
 from .playable import Playable
 from .utils import strip_accents, simplify_card_name_on_database, simplify_card_name_with_spaces_on_database
@@ -63,16 +64,14 @@ class Card(Playable, PreSaveModelMixin, ScryfallLinkMixin):
         default_manager_name = 'objects'
         ordering = ['name']
         indexes = [
-            GinIndex(fields=[
-                'name',
-                'name_unaccented',
-                'name_unaccented_simplified',
-                'name_unaccented_simplified_with_spaces',
-            ]),
-            GinIndex(fields=['type_line']),
-            GinIndex(fields=['oracle_text']),
-            GinIndex(fields=['keywords']),
-        ]
+            GinIndex(OpClass(Upper('name'), name='gin_trgm_ops'), name='card_name_trgm_idx'),
+            GinIndex(OpClass(Upper('name_unaccented'), name='gin_trgm_ops'), name='card_name_unacc_trgm_idx'),
+            GinIndex(OpClass(Upper('name_unaccented_simplified'), name='gin_trgm_ops'), name='card_name_unac_sim_trgm_idx'),
+            GinIndex(OpClass(Upper('name_unaccented_simplified_with_spaces'), name='gin_trgm_ops'), name='card_name_unac_sim_sp_trgm_idx'),
+            GinIndex(OpClass(Upper('type_line'), name='gin_trgm_ops'), name='card_type_line_trgm_idx'),
+            GinIndex(OpClass(Upper('oracle_text'), name='gin_trgm_ops'), name='card_oracle_text_trgm_idx'),
+            GinIndex(fields=['keywords'], name='card_keywords_trgm_idx'),
+        ] if connection.vendor == 'postgresql' else []
 
     def __str__(self):
         return self.name

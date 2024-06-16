@@ -1,7 +1,7 @@
 import os
 import sys
 from .settings import *  # noqa: F403, F401
-from .settings import BASE_DIR, REST_FRAMEWORK
+from .settings import BASE_DIR, REST_FRAMEWORK, INSTALLED_APPS
 from urllib.parse import urlparse
 
 TESTING = sys.argv[1:2] == ['test']
@@ -62,6 +62,9 @@ DATABASES = {
         "PORT": os.getenv('KUBE_SQL_PORT', os.environ.get("SQL_PORT", "5432")),
     }
 }
+
+if DATABASES['default']['ENGINE'] == 'django.db.backends.postgresql':
+    INSTALLED_APPS.append('django.contrib.postgres')
 
 REST_FRAMEWORK = {
     **REST_FRAMEWORK,

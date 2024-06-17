@@ -3,7 +3,6 @@
 import django.db.models.deletion
 import django.core.validators
 from django.db import migrations, models
-from spellbook.serializers import VariantSerializer
 
 
 def migrate_variant_produces_through(apps, schema_editor):

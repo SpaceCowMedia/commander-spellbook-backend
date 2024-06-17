@@ -152,31 +152,6 @@ def reverse_migrate_variant_of_combo_through(apps, schema_editor):
         obj.save(force_insert=True)
 
 
-def update_serialized_representation(apps, schema_editor):
-    Variant = apps.get_model('spellbook', 'Variant')
-    FeatureProducedByVariant = apps.get_model('spellbook', 'FeatureProducedByVariant')
-    variants_source = list(Variant.objects
-        .prefetch_related(
-            'cardinvariant_set',
-            'templateinvariant_set',
-            models.Prefetch(
-                'featureproducedbyvariant_set',
-                queryset=FeatureProducedByVariant.objects
-                .select_related('feature')
-                .filter(feature__utility=False),
-            ),
-            'cardinvariant_set__card',
-            'templateinvariant_set__template',
-            'of',
-            'includes',
-        )
-    )
-    for variant in variants_source:
-        variant.pre_save = lambda: None
-        variant.serialized = VariantSerializer(variant).data  # type: ignore
-    Variant.objects.bulk_update(objs=variants_source, fields=['serialized'], batch_size=5000)  # type: ignore
-
-
 def set_default_uncountable_features(apps, schema_editor):
     Feature = apps.get_model('spellbook', 'Feature')
     Feature.objects.filter(models.Q(utility=False) | models.Q(name__icontains='infinite')).update(uncountable=True)
@@ -358,9 +333,5 @@ class Migration(migrations.Migration):
             model_name='variant',
             name='of',
             field=models.ManyToManyField(editable=False, help_text='Combo that this variant is an instance of', related_name='variants', through='spellbook.VariantOfCombo', to='spellbook.combo'),
-        ),
-        migrations.RunPython(
-            code=update_serialized_representation,
-            reverse_code=migrations.RunPython.noop,
         ),
     ]

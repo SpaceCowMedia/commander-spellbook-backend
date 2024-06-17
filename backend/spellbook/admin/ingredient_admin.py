@@ -1,7 +1,8 @@
-from django.forms import ModelForm, MultipleChoiceField, ValidationError, CheckboxSelectMultiple, Textarea
+from django.forms import MultipleChoiceField, ValidationError, CheckboxSelectMultiple, Textarea
 from django.contrib.admin import TabularInline
 from adminsortable2.admin import SortableTabularInline
 from spellbook.models import IngredientInCombination
+from .utils import SpellbookAdminForm
 
 
 class CheckboxSelectMultipleAsCharField(CheckboxSelectMultiple):
@@ -27,7 +28,7 @@ def _textarea():
     return Textarea(attrs={'rows': 1, 'cols': 25, 'style': 'resize: vertical; min-height: 2em;'})
 
 
-class IngredientInCombinationForm(ModelForm):
+class IngredientInCombinationForm(SpellbookAdminForm):
     zone_locations = MultipleChoiceFieldAsCharField(choices=IngredientInCombination.ZoneLocation.choices, required=True)
 
     def clean(self):

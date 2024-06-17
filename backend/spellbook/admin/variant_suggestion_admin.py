@@ -3,7 +3,7 @@ from django.db.models import Count
 from django.contrib import admin
 from spellbook.models import VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, FeatureProducedInVariantSuggestion
 from .ingredient_admin import IngredientInCombinationAdmin
-from .utils import SpellbookModelAdmin, CardsCountListFilter, sanitize_scryfall_query
+from .utils import SpellbookModelAdmin, CardsCountListFilter
 from spellbook.utils import launch_job_command
 
 
@@ -16,13 +16,7 @@ class CardUsedInVariantSuggestionAdminInline(IngredientInCombinationAdmin):
     max_num = VariantSuggestion.max_cards
 
 
-class TemplateRequiredInVariantAdminForm(IngredientInCombinationAdmin.form):
-    def clean_scryfall_query(self):
-        return sanitize_scryfall_query(self.cleaned_data['scryfall_query'])
-
-
 class TemplateRequiredInVariantAdminInline(IngredientInCombinationAdmin):
-    form = TemplateRequiredInVariantAdminForm
     fields = ['template', 'scryfall_query', *IngredientInCombinationAdmin.fields]
     model = TemplateRequiredInVariantSuggestion
     verbose_name = 'Template'

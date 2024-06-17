@@ -93,11 +93,6 @@ class FeatureRemovedInComboAdminInline(admin.TabularInline):
     autocomplete_fields = ['feature']
     classes = ['collapse']
 
-    def get_extra(self, request: HttpRequest, obj, **kwargs: Any) -> int:
-        if hasattr(request, 'from_suggestion') and request.from_suggestion is not None:  # type: ignore
-            return len(request.from_suggestion.removes_list)  # type: ignore
-        return super().get_extra(request, obj, **kwargs)
-
 
 class PayoffFilter(CustomFilter):
     title = 'is payoff'

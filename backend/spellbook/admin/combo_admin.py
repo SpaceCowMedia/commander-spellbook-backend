@@ -247,6 +247,7 @@ class ComboAdmin(SpellbookModelAdmin):
                 for suggested_card in suggested_used_cards:
                     formset_kwargs['initial'].append({
                         'card': found_used_cards_names_to_id.get(suggested_card.card, None),
+                        'quantity': suggested_card.quantity,
                         'zone_locations': suggested_card.zone_locations,
                         'battlefield_card_state': suggested_card.battlefield_card_state,
                         'exile_card_state': suggested_card.exile_card_state,
@@ -257,10 +258,12 @@ class ComboAdmin(SpellbookModelAdmin):
             elif isinstance(inline, TemplateInComboAdminInline):
                 formset_kwargs['initial'] = []
                 found_required_templates_names_to_id = {t.name: t.pk for t in request.from_suggestion.requires_list}  # type: ignore
-                for suggested_template in request.from_suggestion.suggested_required_templates:  # type: ignore
+                suggested_required_templates: list[TemplateRequiredInVariantSuggestion] = request.from_suggestion.suggested_required_templates  # type: ignore
+                for suggested_template in suggested_required_templates:
                     if suggested_template.template in found_required_templates_names_to_id:
                         formset_kwargs['initial'].append({
                             'template': found_required_templates_names_to_id[suggested_template.template],
+                            'quantity': suggested_template.quantity,
                             'zone_locations': suggested_template.zone_locations,
                             'battlefield_card_state': suggested_template.battlefield_card_state,
                             'exile_card_state': suggested_template.exile_card_state,

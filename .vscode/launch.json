@@ -224,7 +224,6 @@
             "args": [
                 "migrate",
                 "spellbook",
-                "0010",
             ],
             "django": true,
             "justMyCode": false,

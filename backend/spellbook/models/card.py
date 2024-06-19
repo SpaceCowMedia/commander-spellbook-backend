@@ -77,7 +77,7 @@ class Card(Playable, PreSaveModelMixin, ScryfallLinkMixin):
         return self.name
 
     def cards(self):
-        return [self]
+        return [self.name] if self.name else []
 
     def pre_save(self):
         self.name_unaccented = strip_accents(self.name)

@@ -5,11 +5,11 @@ from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from .constants import MAX_CARD_NAME_LENGTH, MAX_FEATURE_NAME_LENGTH
 from .mixins import PreSaveModelMixin
+from .recipe import Recipe
 from .card import Card
-from .feature import Feature
 from .template import Template
 from .variant import Variant
-from .ingredient import IngredientInCombination, Recipe
+from .ingredient import IngredientInCombination
 from .validators import TEXT_VALIDATORS, MANA_VALIDATOR, SCRYFALL_QUERY_HELP, SCRYFALL_QUERY_VALIDATOR, NAME_VALIDATORS, NOT_URL_VALIDATOR
 from .scryfall import SCRYFALL_MAX_QUERY_LENGTH
 from .utils import id_from_cards_and_templates_ids, simplify_card_name_on_database, simplify_card_name_with_spaces_on_database, strip_accents
@@ -56,14 +56,14 @@ class VariantSuggestion(Recipe):
             'created'
         ]
 
-    def cards(self) -> list[Card]:
-        return list(self.uses.all())  # type: ignore
+    def cards(self) -> dict[str, int]:
+        return {c.card: c.quantity for c in self.uses.all()}
 
-    def templates(self) -> list[Template]:
-        return list(self.requires.all())  # type: ignore
+    def templates(self) -> dict[str, int]:
+        return {t.template: t.quantity for t in self.requires.all()}
 
-    def features_produced(self) -> list[Feature]:
-        return list(self.produces.all())  # type: ignore
+    def features_produced(self) -> dict[str, int]:
+        return {f.feature: 1 for f in self.produces.all()}
 
     @classmethod
     def validate(cls, cards: list[str], templates: list[str], produces: list[str]):

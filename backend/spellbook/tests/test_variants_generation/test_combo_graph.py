@@ -96,7 +96,7 @@ class ComboGraphTest(AbstractTestCaseWithSeeding):
             card_ids = {c for c in variant.cards}
             template_ids = {t for t in variant.templates}
             replacements = variant.replacements
-            feature_needed_by_combos = {f.id for f in data.id_to_combo[self.b2_id].features_needed()}  # type: set[int]
+            feature_needed_by_combos: set[int] = {f for f in data.id_to_combo[self.b2_id].needs.values_list('pk', flat=True)}
             self.assertTrue(set(replacements.keys()).issuperset(feature_needed_by_combos))
             for replacement_values in replacements.values():
                 self.assertGreaterEqual(len(replacement_values), 1)

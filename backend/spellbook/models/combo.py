@@ -4,10 +4,11 @@ from django.dispatch import receiver
 from django.core.validators import MinValueValidator
 from django.core.exceptions import ValidationError
 from .mixins import ScryfallLinkMixin
+from .recipe import Recipe
 from .card import Card
 from .feature import Feature
 from .template import Template
-from .ingredient import IngredientInCombination, Recipe
+from .ingredient import IngredientInCombination
 from .validators import MANA_VALIDATOR, TEXT_VALIDATORS
 
 
@@ -83,17 +84,17 @@ class Combo(Recipe, ScryfallLinkMixin):
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, editable=False)
 
-    def cards(self) -> list[Card]:
-        return list(self.uses.order_by('cardincombo'))
+    def cards(self) -> dict[str, int]:
+        return {c.card.name: c.quantity for c in self.cardincombo_set.all()}
 
-    def templates(self) -> list[Template]:
-        return list(self.requires.order_by('templateincombo'))
+    def templates(self) -> dict[str, int]:
+        return {t.template.name: t.quantity for t in self.templateincombo_set.all()}
 
-    def features_produced(self) -> list[Feature]:
-        return list(self.produces.all())
+    def features_produced(self) -> dict[str, int]:
+        return {f.feature.name: 1 for f in self.featureproducedincombo_set.all()}
 
-    def features_needed(self) -> list[Feature]:
-        return list(self.needs.all())
+    def features_needed(self) -> dict[str, int]:
+        return {f.feature.name: f.quantity for f in self.featureneededincombo_set.all()}
 
     class Meta:
         verbose_name = 'combo'
@@ -187,6 +188,6 @@ def recipe_changed(sender, instance: Recipe, action: str, reverse: bool, model: 
 @receiver([post_save, post_delete], sender=Combo.needs.through, dispatch_uid='combo_needs_changed')
 @receiver([post_save, post_delete], sender=Combo.produces.through, dispatch_uid='combo_produces_changed')
 @receiver([post_save, post_delete], sender=Combo.removes.through, dispatch_uid='combo_removes_changed')
-def recipe_changed_2(sender, instance: CardInCombo, **kwargs) -> None:
+def recipe_changed_2(sender, instance: CardInCombo | TemplateInCombo | FeatureNeededInCombo | FeatureProducedInCombo | FeatureRemovedInCombo, **kwargs) -> None:
     instance.combo.name = instance.combo._str()
     instance.combo.save()

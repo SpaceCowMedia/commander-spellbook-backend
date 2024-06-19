@@ -346,10 +346,18 @@ def restore_variant(
 
     # Recomputing some variant fields
     variant.name = Variant.compute_name(
-        cards=[data.id_to_card[civ.card_id] for civ in uses_list()],  # type: ignore
-        templates=[data.id_to_template[tiv.template_id] for tiv in requires_list()],  # type: ignore
-        features_needed=[],
-        features_produced=sorted([f.feature for f in produced_features], key=lambda f: f.name),
+        cards={data.id_to_card[civ.card_id].name: civ.quantity for civ in uses_list()},
+        templates={data.id_to_template[tiv.template_id].name: tiv.quantity for tiv in requires_list()},
+        features_needed={},
+        features_produced={
+            f: q
+            for f, q in sorted(
+                [
+                    (data.id_to_feature[f.feature_id].name, f.quantity)
+                    for f in produced_features
+                ],
+            )
+        },
     )
     variant.results_count = len(produces_ids)
 

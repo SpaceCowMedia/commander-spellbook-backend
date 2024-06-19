@@ -349,11 +349,11 @@ class ComboTests(AbstractTestCaseWithSeeding):
     def test_ingredients(self):
         for c in Combo.objects.all():
             cic = sorted(c.cardincombo_set.all(), key=lambda x: x.order)
-            self.assertEqual(c.cards(), list(map(lambda x: x.card, cic)))
+            self.assertDictEqual(c.cards(), {ci.card.name: ci.quantity for ci in cic})
             tic = sorted(c.templateincombo_set.all(), key=lambda x: x.order)
-            self.assertEqual(c.templates(), list(map(lambda x: x.template, tic)))
-            self.assertEqual(c.features_needed(), list(c.needs.all()))
-            self.assertEqual(c.features_produced(), list(c.produces.all()))
+            self.assertDictEqual(c.templates(), {ti.template.name: ti.quantity for ti in tic})
+            self.assertDictEqual(c.features_needed(), {f.feature.name: f.quantity for f in c.featureneededincombo_set.all()})
+            self.assertDictEqual(c.features_produced(), {f.feature.name: 1 for f in c.featureproducedincombo_set.all()})
 
     def test_query_string(self):
         c = Combo.objects.get(id=self.b1_id)
@@ -564,11 +564,11 @@ class VariantSuggestionTests(AbstractTestCaseWithSeeding):
     def test_ingredients(self):
         for s in VariantSuggestion.objects.all():
             civ = sorted(s.uses.all(), key=lambda x: x.order)
-            self.assertEqual(s.cards(), civ)
+            self.assertDictEqual(s.cards(), {ci.card: ci.quantity for ci in civ})
             tiv = sorted(s.requires.all(), key=lambda x: x.order)
-            self.assertEqual(s.templates(), tiv)
-            self.assertEqual(s.features_produced(), list(s.produces.all()))
-            self.assertEqual(s.features_needed(), [])
+            self.assertDictEqual(s.templates(), {ti.template: ti.quantity for ti in tiv})
+            self.assertDictEqual(s.features_produced(), {f.feature: 1 for f in s.produces.all()})
+            self.assertDictEqual(s.features_needed(), {})
 
     def test_method_count(self):
         self.assertEqual(count_methods(VariantSuggestion), 4)

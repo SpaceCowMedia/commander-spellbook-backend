@@ -8,11 +8,12 @@ from django.contrib.postgres.indexes import GinIndex, OpClass
 from django.core.validators import MinValueValidator
 from django.core.exceptions import ValidationError
 from .playable import Playable
+from .recipe import Recipe
 from .mixins import ScryfallLinkMixin, PreSaveSerializedModelMixin, PreSaveSerializedManager
 from .card import Card
 from .template import Template
 from .feature import Feature
-from .ingredient import IngredientInCombination, Recipe
+from .ingredient import IngredientInCombination
 from .combo import Combo
 from .job import Job
 from .validators import TEXT_VALIDATORS, MANA_VALIDATOR
@@ -128,14 +129,14 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
             GinIndex(OpClass(Upper('description'), name='gin_trgm_ops'), name='variant_description_trgm_idx'),
         ] if connection.vendor == 'postgresql' else [])
 
-    def cards(self) -> list[Card]:
-        return list(self.uses.order_by('cardinvariant'))
+    def cards(self) -> dict[str, int]:
+        return {c.card.name: c.quantity for c in self.cardinvariant_set.all()}
 
-    def templates(self) -> list[Template]:
-        return list(self.requires.order_by('templateinvariant'))
+    def templates(self) -> dict[str, int]:
+        return {t.template.name: t.quantity for t in self.templateinvariant_set.all()}
 
-    def features_produced(self) -> list[Feature]:
-        return list(self.produces.all())
+    def features_produced(self) -> dict[str, int]:
+        return {f.feature.name: 1 for f in self.featureproducedbyvariant_set.all()}
 
     def pre_save(self):
         self.mana_value_needed = mana_value(self.mana_needed)
@@ -258,9 +259,10 @@ class VariantIncludesCombo(models.Model):
 
 @receiver(post_save, sender=Variant.uses.through, dispatch_uid='update_variant_on_cards')
 @receiver(post_save, sender=Variant.requires.through, dispatch_uid='update_variant_on_templates')
-def update_variant_on_ingredient(sender, instance, **kwargs):
+def update_variant_on_ingredient(sender, instance: CardInVariant | TemplateInVariant, **kwargs):
     variant = instance.variant
     requires_commander = any(civ.must_be_commander for civ in variant.cardinvariant_set.all()) \
         or any(tiv.must_be_commander for tiv in variant.templateinvariant_set.all())
-    if variant.update(variant.uses.all(), requires_commander):
-        variant.save()
+    variant.update(variant.uses.all(), requires_commander)
+    variant.name = variant._str()
+    variant.save()

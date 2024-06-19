@@ -6,22 +6,19 @@ from .scryfall import scryfall_query_string_for_card_names, scryfall_link_for_qu
 
 
 class ScryfallLinkMixin:
-    def cards(self) -> list:
+    def cards(self) -> Iterable[str]:
         raise NotImplementedError
 
-    def query_string(self, cards: list | None = None):
-        cards = cards or self.cards()
-        return scryfall_query_string_for_card_names([card.name for card in cards])
+    def query_string(self):
+        return scryfall_query_string_for_card_names(list(self.cards()))
 
     def scryfall_link(self, raw=False):
-        cards = self.cards()
+        cards = list(self.cards())
         match cards:
             case []:
                 return None
-            case [card] if card.id is None:
-                return None
             case _:
-                link = scryfall_link_for_query(self.query_string(cards))
+                link = scryfall_link_for_query(scryfall_query_string_for_card_names(cards))
                 if raw:
                     return link
                 plural = 's' if len(cards) > 1 else ''

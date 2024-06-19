@@ -1,9 +1,7 @@
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
-from .constants import MAX_CARD_NAME_LENGTH, MAX_FEATURE_NAME_LENGTH
 from .validators import TEXT_VALIDATORS
-from .utils import recipe
 
 
 class Ingredient(models.Model):
@@ -50,48 +48,3 @@ class IngredientInCombination(Ingredient):
     class Meta(Ingredient.Meta):
         abstract = True
         ordering = ['order', 'id']
-
-
-class Recipe(models.Model):
-    name = models.CharField(max_length=MAX_CARD_NAME_LENGTH * 10 + MAX_FEATURE_NAME_LENGTH * 5 + 10, editable=False)
-
-    def cards(self) -> list:
-        return []
-
-    def templates(self) -> list:
-        return []
-
-    def features_needed(self) -> list:
-        return []
-
-    def features_produced(self) -> list:
-        return []
-
-    def _str(self) -> str:
-        if self.pk is None:
-            base = f'New {self._meta.model_name}'
-            if hasattr(self, 'id') and self.id is not None:  # type: ignore
-                base += f' with unique id <{self.id}>'  # type: ignore
-            return base
-        return self.compute_name(self.cards(), self.templates(), self.features_needed(), self.features_produced())
-
-    def __str__(self) -> str:
-        if self.name:
-            return self.name
-        return self._str()
-
-    @classmethod
-    def compute_name(
-        cls,
-        cards: list,
-        templates: list,
-        features_needed: list,
-        features_produced: list,
-    ) -> str:
-        return recipe(
-            [str(card) for card in cards] + [str(feature) for feature in features_needed] + [str(template) for template in templates],
-            [str(feature) for feature in features_produced][:4]
-        )
-
-    class Meta:
-        abstract = True

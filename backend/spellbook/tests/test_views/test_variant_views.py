@@ -66,6 +66,7 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
             vic = CardInVariant.objects.get(variant=v.id, card=c)
             self.assertEqual(set(u.zone_locations), set(vic.zone_locations))
             self.assertEqual(u.must_be_commander, vic.must_be_commander)
+            self.assertEqual(u.quantity, vic.quantity)
             if v.status == Variant.Status.EXAMPLE:
                 self.assertEqual(u.battlefield_card_state, None)
                 self.assertEqual(u.exile_card_state, None)
@@ -88,6 +89,7 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
             tiv = TemplateInVariant.objects.get(variant=v.id, template=t)
             self.assertEqual(set(r.zone_locations), set(tiv.zone_locations))
             self.assertEqual(r.must_be_commander, tiv.must_be_commander)
+            self.assertEqual(r.quantity, tiv.quantity)
             if v.status == Variant.Status.EXAMPLE:
                 self.assertEqual(r.battlefield_card_state, None)
                 self.assertEqual(r.exile_card_state, None)

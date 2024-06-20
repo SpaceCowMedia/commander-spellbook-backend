@@ -14,17 +14,17 @@ from .ingredient import Ingredient
 
 class Card(Playable, PreSaveModelMixin, ScryfallLinkMixin):
     id: int
-    oracle_id = models.UUIDField(unique=True, blank=True, null=True, help_text='Scryfall Oracle ID', verbose_name='Scryfall Oracle ID of card')
-    name = models.CharField(max_length=MAX_CARD_NAME_LENGTH, unique=True, blank=False, help_text='Card name', verbose_name='name of card')
-    name_unaccented = models.CharField(max_length=MAX_CARD_NAME_LENGTH, unique=True, blank=False, help_text='Card name without accents', verbose_name='name of card without accents', editable=False)
+    oracle_id = models.UUIDField(unique=True, blank=True, null=True, verbose_name='Scryfall Oracle ID of card')
+    name = models.CharField(max_length=MAX_CARD_NAME_LENGTH, unique=True, blank=False, verbose_name='name of card')
+    name_unaccented = models.CharField(max_length=MAX_CARD_NAME_LENGTH, unique=True, blank=False, verbose_name='name of card without accents', editable=False)
     name_unaccented_simplified = models.GeneratedField(
         db_persist=True,
         expression=simplify_card_name_on_database('name_unaccented'),
-        output_field=models.CharField(max_length=MAX_CARD_NAME_LENGTH, unique=True, blank=False, help_text='Card name without accents or hyphens', verbose_name='name of card without accents or hyphens', editable=False))
+        output_field=models.CharField(max_length=MAX_CARD_NAME_LENGTH, unique=True, blank=False, verbose_name='name of card without accents or hyphens', editable=False))
     name_unaccented_simplified_with_spaces = models.GeneratedField(
         db_persist=True,
         expression=simplify_card_name_with_spaces_on_database('name_unaccented'),
-        output_field=models.CharField(max_length=MAX_CARD_NAME_LENGTH, unique=True, blank=False, help_text='Card name without accents or hyphens, with spaces', verbose_name='name of card without accents or hyphens, with spaces', editable=False))
+        output_field=models.CharField(max_length=MAX_CARD_NAME_LENGTH, unique=True, blank=False, verbose_name='name of card without accents or hyphens, with spaces', editable=False))
 
     @classmethod
     def scryfall_fields(cls):
@@ -39,10 +39,10 @@ class Card(Playable, PreSaveModelMixin, ScryfallLinkMixin):
             'latest_printing_set',
             'reprinted',
         ]
-    type_line = models.CharField(max_length=MAX_CARD_NAME_LENGTH, blank=True, help_text='Card type line', verbose_name='type line of card')
-    oracle_text = models.TextField(blank=True, help_text='Card oracle text', verbose_name='oracle text of card')
-    keywords = KeywordsField(help_text='Oracle card keywords', verbose_name='oracle keywords of card')
-    mana_value = models.PositiveSmallIntegerField(default=0, help_text='Mana value of card', verbose_name='mana value of card')
+    type_line = models.CharField(max_length=MAX_CARD_NAME_LENGTH, blank=True, verbose_name='type line of card')
+    oracle_text = models.TextField(blank=True, verbose_name='oracle text of card')
+    keywords = KeywordsField(verbose_name='oracle keywords of card')
+    mana_value = models.PositiveSmallIntegerField(default=0, verbose_name='mana value of card')
     reserved = models.BooleanField(default=False, help_text='Whether this card is part of the Reserved List', verbose_name='reserved list card')
     latest_printing_set = models.CharField(max_length=10, blank=True, help_text='Set code of latest printing of card', verbose_name='latest printing set of card')
     reprinted = models.BooleanField(default=False, help_text='Whether this card has been reprinted', verbose_name='reprinted card')

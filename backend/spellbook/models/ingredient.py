@@ -1,20 +1,58 @@
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
+from django.forms import MultipleChoiceField, ValidationError as FormValidationError, CheckboxSelectMultiple
 from .validators import TEXT_VALIDATORS
 
 
-class Ingredient(models.Model):
-    class ZoneLocation(models.TextChoices):
-        HAND = 'H'
-        BATTLEFIELD = 'B'
-        COMMAND_ZONE = 'C'
-        EXILE = 'E'
-        GRAVEYARD = 'G'
-        LIBRARY = 'L'
+class CheckboxSelectMultipleAsCharField(CheckboxSelectMultiple):
+    def format_value(self, value):
+        if value is not None and isinstance(value, str):
+            value = list(value)
+        return super().format_value(value)
 
+
+class MultipleChoiceFieldAsCharField(MultipleChoiceField):
+    def __init__(self, *args, **kwargs) -> None:
+        kwargs.pop('max_length', None)
+        kwargs['widget'] = CheckboxSelectMultipleAsCharField
+        super().__init__(*args, **kwargs)
+
+    def to_python(self, value):
+        return ''.join(super().to_python(value))  # type: ignore
+
+    def validate(self, value):
+        super().validate(value)
+        if len(value) > len(self.choices):  # type: ignore
+            raise FormValidationError('Too many choices.')
+
+
+class ZoneLocation(models.TextChoices):
+    HAND = 'H'
+    BATTLEFIELD = 'B'
+    COMMAND_ZONE = 'C'
+    EXILE = 'E'
+    GRAVEYARD = 'G'
+    LIBRARY = 'L'
+
+
+class ZoneLocationsField(models.CharField):
+    def __init__(self, *args, **kwargs) -> None:
+        kwargs.setdefault('default', ZoneLocation.HAND)
+        kwargs.setdefault('help_text', 'Starting location(s) for the card.')
+        kwargs.setdefault('verbose_name', 'starting location')
+        kwargs['max_length'] = len(ZoneLocation.choices)
+        super().__init__(*args, **kwargs)
+
+    def formfield(self, **kwargs):
+        kwargs['form_class'] = MultipleChoiceFieldAsCharField
+        kwargs['choices'] = ZoneLocation.choices
+        return super().formfield(**kwargs)
+
+
+class Ingredient(models.Model):
     quantity = models.PositiveSmallIntegerField(default=1, blank=False, help_text='Quantity of the card in the combo.', verbose_name='quantity', validators=[MinValueValidator(1)])
-    zone_locations = models.CharField(default=ZoneLocation.HAND, max_length=len(ZoneLocation.choices), blank=False, help_text='Starting location(s) for the card.', verbose_name='starting location')
+    zone_locations = ZoneLocationsField(blank=False)
     battlefield_card_state = models.CharField(max_length=200, blank=True, help_text='State of the card on the battlefield, if present.', validators=TEXT_VALIDATORS, verbose_name='battlefield starting card state')
     exile_card_state = models.CharField(max_length=200, blank=True, help_text='State of the card in exile, if present.', validators=TEXT_VALIDATORS, verbose_name='exile starting card state')
     graveyard_card_state = models.CharField(max_length=200, blank=True, help_text='State of the card in the graveyard, if present.', validators=TEXT_VALIDATORS, verbose_name='graveyard starting card state')
@@ -26,15 +64,15 @@ class Ingredient(models.Model):
 
     @classmethod
     def clean_data(cls, data: dict) -> None:
-        if data['zone_locations'] == IngredientInCombination.ZoneLocation.COMMAND_ZONE and not data['must_be_commander']:
+        if data['zone_locations'] == ZoneLocation.COMMAND_ZONE and not data['must_be_commander']:
             raise ValidationError('Any card that can only start in command zone must be a commander. Please check the "must be commander" checkbox.')
-        if IngredientInCombination.ZoneLocation.BATTLEFIELD not in data['zone_locations'] and data['battlefield_card_state']:
+        if ZoneLocation.BATTLEFIELD not in data['zone_locations'] and data['battlefield_card_state']:
             raise ValidationError('Battlefield card state is only valid if the card starts on the battlefield.')
-        if IngredientInCombination.ZoneLocation.EXILE not in data['zone_locations'] and data['exile_card_state']:
+        if ZoneLocation.EXILE not in data['zone_locations'] and data['exile_card_state']:
             raise ValidationError('Exile card state is only valid if the card starts in exile.')
-        if IngredientInCombination.ZoneLocation.GRAVEYARD not in data['zone_locations'] and data['graveyard_card_state']:
+        if ZoneLocation.GRAVEYARD not in data['zone_locations'] and data['graveyard_card_state']:
             raise ValidationError('Graveyard card state is only valid if the card starts in the graveyard.')
-        if IngredientInCombination.ZoneLocation.LIBRARY not in data['zone_locations'] and data['library_card_state']:
+        if ZoneLocation.LIBRARY not in data['zone_locations'] and data['library_card_state']:
             raise ValidationError('Library card state is only valid if the card starts in the library.')
 
     class Meta:

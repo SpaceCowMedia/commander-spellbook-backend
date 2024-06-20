@@ -5,7 +5,7 @@ from decimal import Decimal
 from django.contrib.auth.models import User
 from common.inspection import count_methods
 from .abstract_test import AbstractTestCaseWithSeeding
-from spellbook.models import merge_identities, Card, Feature, Template, Combo, Job, IngredientInCombination, Variant, VariantSuggestion, CardUsedInVariantSuggestion, VariantAlias, PreSerializedSerializer
+from spellbook.models import merge_identities, Card, Feature, Template, Combo, Job, Variant, VariantSuggestion, CardUsedInVariantSuggestion, VariantAlias, PreSerializedSerializer, ZoneLocation
 from spellbook.models.scryfall import SCRYFALL_API_ROOT, SCRYFALL_WEBSITE_CARD_SEARCH
 from spellbook.models import id_from_cards_and_templates_ids
 from spellbook.models.utils import auto_fix_missing_braces_to_oracle_symbols, upper_oracle_symbols, sanitize_mana, sanitize_scryfall_query
@@ -324,8 +324,8 @@ class ComboTests(AbstractTestCaseWithSeeding):
         self.assertEqual(c.other_prerequisites, 'Some requisites.')
         self.assertEqual(c.status, Combo.Status.GENERATOR)
         self.assertEqual(c.cardincombo_set.count(), 2)
-        self.assertEqual(c.cardincombo_set.get(card__oracle_id='00000000-0000-0000-0000-000000000002').zone_locations, IngredientInCombination.ZoneLocation.HAND)
-        self.assertEqual(c.cardincombo_set.get(card__oracle_id='00000000-0000-0000-0000-000000000003').zone_locations, IngredientInCombination.ZoneLocation.BATTLEFIELD)
+        self.assertEqual(c.cardincombo_set.get(card__oracle_id='00000000-0000-0000-0000-000000000002').zone_locations, ZoneLocation.HAND)
+        self.assertEqual(c.cardincombo_set.get(card__oracle_id='00000000-0000-0000-0000-000000000003').zone_locations, ZoneLocation.BATTLEFIELD)
         self.assertEqual(c.templateincombo_set.count(), 0)
         self.assertEqual(c.allow_many_cards, False)
         self.assertEqual(c.allow_multiple_copies, False)
@@ -342,7 +342,7 @@ class ComboTests(AbstractTestCaseWithSeeding):
         self.assertEqual(c.status, Combo.Status.GENERATOR)
         self.assertEqual(c.cardincombo_set.count(), 0)
         self.assertEqual(c.templateincombo_set.count(), 1)
-        self.assertEqual(c.templateincombo_set.get(template__name='TA').zone_locations, IngredientInCombination.ZoneLocation.GRAVEYARD)
+        self.assertEqual(c.templateincombo_set.get(template__name='TA').zone_locations, ZoneLocation.GRAVEYARD)
         self.assertEqual(c.allow_many_cards, False)
         self.assertEqual(c.allow_multiple_copies, False)
 
@@ -612,7 +612,7 @@ class VariantSuggestionTests(AbstractTestCaseWithSeeding):
 
     def test_card_in_variant_suggestion_validation(self):
         s = VariantSuggestion.objects.get(id=self.s1_id)
-        c = CardUsedInVariantSuggestion(card='A card', variant=s, order=1, zone_locations=IngredientInCombination.ZoneLocation.COMMAND_ZONE)
+        c = CardUsedInVariantSuggestion(card='A card', variant=s, order=1, zone_locations=ZoneLocation.COMMAND_ZONE)
         self.assertRaises(ValidationError, lambda: c.full_clean())
 
 

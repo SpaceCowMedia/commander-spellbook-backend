@@ -1,14 +1,14 @@
 from django.db import transaction
 from django.db.models import QuerySet
 from rest_framework import serializers
-from spellbook.models import CardUsedInVariantSuggestion, FeatureProducedInVariantSuggestion, TemplateRequiredInVariantSuggestion, VariantSuggestion, IngredientInCombination
+from spellbook.models import CardUsedInVariantSuggestion, FeatureProducedInVariantSuggestion, TemplateRequiredInVariantSuggestion, VariantSuggestion, IngredientInCombination, ZoneLocation
 from spellbook.models.utils import sanitize_newlines_apostrophes_and_quotes, sanitize_mana, sanitize_scryfall_query
 from .user_serializer import UserSerializer
 from .utils import StringMultipleChoiceField
 
 
 class IngredientInVariantSuggestionSerializer(serializers.ModelSerializer):
-    zone_locations = StringMultipleChoiceField(choices=IngredientInCombination.ZoneLocation.choices, allow_empty=False)
+    zone_locations = StringMultipleChoiceField(choices=ZoneLocation.choices, allow_empty=False)
 
     def validate(self, attrs):
         IngredientInCombination.clean_data(attrs)

@@ -6,7 +6,7 @@ from common.abstract_test_case import AbstractTestCase as TestCase
 from django.conf import settings
 from spellbook.models import Card, Feature, Combo, CardInCombo, Template, TemplateInCombo
 from spellbook.models import CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, FeatureProducedInVariantSuggestion
-from spellbook.models import VariantSuggestion, VariantAlias, IngredientInCombination, Variant
+from spellbook.models import VariantSuggestion, VariantAlias, Variant, ZoneLocation
 from spellbook.models import FeatureOfCard, FeatureNeededInCombo, FeatureProducedInCombo, FeatureRemovedInCombo
 from spellbook.utils import launch_job_command
 from spellbook.serializers import VariantSerializer
@@ -52,7 +52,7 @@ class AbstractTestCase(TestCase):
                     assert not feature.startswith('-')
                     feature_id = feature_ids_by_name.setdefault(feature, reduce(lambda x, y: max(x, y), feature_ids_by_name.values(), 0) + 1)
                     f, _ = Feature.objects.get_or_create(pk=feature_id, name=feature, description='Test Feature', utility=feature.startswith('u'))
-                    FeatureOfCard.objects.create(card=c, feature=f, zone_locations=IngredientInCombination.ZoneLocation.BATTLEFIELD, quantity=quantity)
+                    FeatureOfCard.objects.create(card=c, feature=f, zone_locations=ZoneLocation.BATTLEFIELD, quantity=quantity)
             else:
                 for element in recipe:
                     if '*' in element:
@@ -75,7 +75,7 @@ class AbstractTestCase(TestCase):
                 for i, (card, quantity) in enumerate(cards.items()):
                     card_id = card_ids_by_name.setdefault(card, reduce(lambda x, y: max(x, y), card_ids_by_name.values(), 0) + 1)
                     c, _ = Card.objects.get_or_create(pk=card_id, name=card, identity='W', legal_commander=True, spoiler=False, type_line='Test Card')
-                    CardInCombo.objects.create(card=c, combo=combo, order=i, zone_locations=IngredientInCombination.ZoneLocation.BATTLEFIELD, quantity=quantity)
+                    CardInCombo.objects.create(card=c, combo=combo, order=i, zone_locations=ZoneLocation.BATTLEFIELD, quantity=quantity)
                 for feature, quantity in features.items():
                     feature_id = feature_ids_by_name.setdefault(feature, reduce(lambda x, y: max(x, y), feature_ids_by_name.values(), 0) + 1)
                     f, _ = Feature.objects.get_or_create(pk=feature_id, name=feature, description='Test Feature', utility=feature.startswith('u'))
@@ -83,7 +83,7 @@ class AbstractTestCase(TestCase):
                 for i, (template, quantity) in enumerate(templates.items(), start=1):
                     template_id = template_ids_by_name.setdefault(template, reduce(lambda x, y: max(x, y), template_ids_by_name.values(), 0) + 1)
                     t, _ = Template.objects.get_or_create(pk=template_id, name=template, scryfall_query='o:test', description='Test Template')
-                    TemplateInCombo.objects.create(template=t, combo=combo, order=i, zone_locations=IngredientInCombination.ZoneLocation.BATTLEFIELD, quantity=quantity)
+                    TemplateInCombo.objects.create(template=t, combo=combo, order=i, zone_locations=ZoneLocation.BATTLEFIELD, quantity=quantity)
                 for feature in result:
                     if feature.startswith('-'):
                         feature = feature[1:]
@@ -151,43 +151,43 @@ class AbstractTestCaseWithSeeding(AbstractTestCase):
         b8 = Combo.objects.create(mana_needed='{W}{U}{B}{R}{G}', other_prerequisites='Some requisites.', description='g7', status=Combo.Status.NEEDS_REVIEW, notes='gg7')
         t1 = Template.objects.create(name='TA', scryfall_query='tou>5', description='hello.')
         t2 = Template.objects.create(name='TB', scryfall_query='o:/asd dsa*/')
-        FeatureOfCard.objects.create(card=c1, feature=f1, zone_locations=IngredientInCombination.ZoneLocation.BATTLEFIELD, quantity=1)
+        FeatureOfCard.objects.create(card=c1, feature=f1, zone_locations=ZoneLocation.BATTLEFIELD, quantity=1)
         FeatureNeededInCombo.objects.create(feature=f1, combo=b1, quantity=1)
-        CardInCombo.objects.create(card=c2, combo=b1, order=1, zone_locations=IngredientInCombination.ZoneLocation.HAND, quantity=1)
-        CardInCombo.objects.create(card=c3, combo=b1, order=2, zone_locations=IngredientInCombination.ZoneLocation.BATTLEFIELD, battlefield_card_state='tapped', quantity=1)
+        CardInCombo.objects.create(card=c2, combo=b1, order=1, zone_locations=ZoneLocation.HAND, quantity=1)
+        CardInCombo.objects.create(card=c3, combo=b1, order=2, zone_locations=ZoneLocation.BATTLEFIELD, battlefield_card_state='tapped', quantity=1)
         FeatureProducedInCombo.objects.create(feature=f2, combo=b1)
         FeatureProducedInCombo.objects.create(feature=f3, combo=b1)
         FeatureNeededInCombo.objects.create(feature=f2, combo=b2, quantity=1)
         FeatureRemovedInCombo.objects.create(feature=f3, combo=b2)
-        TemplateInCombo.objects.create(template=t1, combo=b2, order=1, zone_locations=IngredientInCombination.ZoneLocation.GRAVEYARD, graveyard_card_state='on top')
+        TemplateInCombo.objects.create(template=t1, combo=b2, order=1, zone_locations=ZoneLocation.GRAVEYARD, graveyard_card_state='on top')
         FeatureProducedInCombo.objects.create(feature=f4, combo=b2)
-        CardInCombo.objects.create(card=c4, combo=b3, order=1, zone_locations=IngredientInCombination.ZoneLocation.HAND)
-        CardInCombo.objects.create(card=c5, combo=b3, order=2, zone_locations=IngredientInCombination.ZoneLocation.BATTLEFIELD + IngredientInCombination.ZoneLocation.HAND + IngredientInCombination.ZoneLocation.COMMAND_ZONE)
-        CardInCombo.objects.create(card=c6, combo=b3, order=3, zone_locations=IngredientInCombination.ZoneLocation.COMMAND_ZONE, must_be_commander=True)
-        CardInCombo.objects.create(card=c7, combo=b3, order=4, zone_locations=IngredientInCombination.ZoneLocation.LIBRARY, library_card_state='on top')
+        CardInCombo.objects.create(card=c4, combo=b3, order=1, zone_locations=ZoneLocation.HAND)
+        CardInCombo.objects.create(card=c5, combo=b3, order=2, zone_locations=ZoneLocation.BATTLEFIELD + ZoneLocation.HAND + ZoneLocation.COMMAND_ZONE)
+        CardInCombo.objects.create(card=c6, combo=b3, order=3, zone_locations=ZoneLocation.COMMAND_ZONE, must_be_commander=True)
+        CardInCombo.objects.create(card=c7, combo=b3, order=4, zone_locations=ZoneLocation.LIBRARY, library_card_state='on top')
         FeatureProducedInCombo.objects.create(feature=f1, combo=b3)
-        CardInCombo.objects.create(card=c5, combo=b5, order=1, zone_locations=IngredientInCombination.ZoneLocation.HAND)
-        CardInCombo.objects.create(card=c6, combo=b5, order=2, zone_locations=IngredientInCombination.ZoneLocation.BATTLEFIELD, battlefield_card_state='attacking')
+        CardInCombo.objects.create(card=c5, combo=b5, order=1, zone_locations=ZoneLocation.HAND)
+        CardInCombo.objects.create(card=c6, combo=b5, order=2, zone_locations=ZoneLocation.BATTLEFIELD, battlefield_card_state='attacking')
         FeatureProducedInCombo.objects.create(feature=f1, combo=b5)
         FeatureProducedInCombo.objects.create(feature=f2, combo=b4)
-        CardInCombo.objects.create(card=c8, combo=b4, order=1, zone_locations=IngredientInCombination.ZoneLocation.HAND)
-        CardInCombo.objects.create(card=c1, combo=b4, order=2, zone_locations=IngredientInCombination.ZoneLocation.BATTLEFIELD, battlefield_card_state='blocking')
+        CardInCombo.objects.create(card=c8, combo=b4, order=1, zone_locations=ZoneLocation.HAND)
+        CardInCombo.objects.create(card=c1, combo=b4, order=2, zone_locations=ZoneLocation.BATTLEFIELD, battlefield_card_state='blocking')
         FeatureProducedInCombo.objects.create(feature=f4, combo=b6)
-        CardInCombo.objects.create(card=c1, combo=b6, order=1, zone_locations=IngredientInCombination.ZoneLocation.HAND)
-        CardInCombo.objects.create(card=c2, combo=b6, order=2, zone_locations=IngredientInCombination.ZoneLocation.BATTLEFIELD, battlefield_card_state='face down')
-        CardInCombo.objects.create(card=c3, combo=b6, order=3, zone_locations=IngredientInCombination.ZoneLocation.GRAVEYARD, graveyard_card_state='with a sticker')
-        CardInCombo.objects.create(card=c4, combo=b6, order=4, zone_locations=IngredientInCombination.ZoneLocation.EXILE, exile_card_state='with a cage counter')
-        CardInCombo.objects.create(card=c5, combo=b6, order=5, zone_locations=IngredientInCombination.ZoneLocation.COMMAND_ZONE, must_be_commander=True)
-        CardInCombo.objects.create(card=c6, combo=b6, order=6, zone_locations=IngredientInCombination.ZoneLocation.LIBRARY, library_card_state='at the bottom')
+        CardInCombo.objects.create(card=c1, combo=b6, order=1, zone_locations=ZoneLocation.HAND)
+        CardInCombo.objects.create(card=c2, combo=b6, order=2, zone_locations=ZoneLocation.BATTLEFIELD, battlefield_card_state='face down')
+        CardInCombo.objects.create(card=c3, combo=b6, order=3, zone_locations=ZoneLocation.GRAVEYARD, graveyard_card_state='with a sticker')
+        CardInCombo.objects.create(card=c4, combo=b6, order=4, zone_locations=ZoneLocation.EXILE, exile_card_state='with a cage counter')
+        CardInCombo.objects.create(card=c5, combo=b6, order=5, zone_locations=ZoneLocation.COMMAND_ZONE, must_be_commander=True)
+        CardInCombo.objects.create(card=c6, combo=b6, order=6, zone_locations=ZoneLocation.LIBRARY, library_card_state='at the bottom')
         FeatureProducedInCombo.objects.create(feature=f5, combo=b7)
         FeatureNeededInCombo.objects.create(feature=f4, combo=b7, quantity=1)
         FeatureProducedInCombo.objects.create(feature=f5, combo=b8)
         FeatureNeededInCombo.objects.create(feature=f4, combo=b8, quantity=1)
 
         s1 = VariantSuggestion.objects.create(status=VariantSuggestion.Status.NEW, mana_needed='{W}{W}', other_prerequisites='Some requisites.', description='1', spoiler=True, suggested_by=None)
-        CardUsedInVariantSuggestion.objects.create(card=c1.name, variant=s1, order=1, zone_locations=IngredientInCombination.ZoneLocation.HAND)
-        CardUsedInVariantSuggestion.objects.create(card=c2.name, variant=s1, order=2, zone_locations=IngredientInCombination.ZoneLocation.BATTLEFIELD, battlefield_card_state='tapped')
-        TemplateRequiredInVariantSuggestion.objects.create(template=t1.name, variant=s1, order=1, zone_locations=IngredientInCombination.ZoneLocation.GRAVEYARD, graveyard_card_state='on top')
+        CardUsedInVariantSuggestion.objects.create(card=c1.name, variant=s1, order=1, zone_locations=ZoneLocation.HAND)
+        CardUsedInVariantSuggestion.objects.create(card=c2.name, variant=s1, order=2, zone_locations=ZoneLocation.BATTLEFIELD, battlefield_card_state='tapped')
+        TemplateRequiredInVariantSuggestion.objects.create(template=t1.name, variant=s1, order=1, zone_locations=ZoneLocation.GRAVEYARD, graveyard_card_state='on top')
         FeatureProducedInVariantSuggestion.objects.create(feature=f1.name, variant=s1)
 
         a1 = VariantAlias.objects.create(id='1', description='a1')

@@ -2,7 +2,7 @@ from .playable import Playable
 from .feature import Feature
 from .card import Card, FeatureOfCard
 from .template import Template
-from .ingredient import IngredientInCombination, Ingredient
+from .ingredient import IngredientInCombination, Ingredient, ZoneLocation
 from .combo import Combo, CardInCombo, TemplateInCombo, FeatureNeededInCombo, FeatureProducedInCombo, FeatureRemovedInCombo
 from .variant import Variant, CardInVariant, TemplateInVariant, FeatureProducedByVariant, VariantIncludesCombo, VariantOfCombo
 from .job import Job

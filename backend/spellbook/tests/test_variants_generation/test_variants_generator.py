@@ -2,7 +2,7 @@ from itertools import chain
 from multiset import FrozenMultiset
 from django.db.models import Count
 from spellbook.tests.abstract_test import AbstractTestCaseWithSeeding
-from spellbook.models import Job, Variant, Card, IngredientInCombination, CardInVariant, TemplateInVariant, Template, Combo, Feature, VariantAlias, FeatureOfCard
+from spellbook.models import Job, Variant, Card, IngredientInCombination, CardInVariant, TemplateInVariant, Template, Combo, Feature, VariantAlias, FeatureOfCard, ZoneLocation
 from spellbook.variants.variant_data import Data
 from spellbook.variants.variants_generator import get_variants_from_graph, get_default_zone_location_for_card, update_state_with_default
 from spellbook.variants.variants_generator import generate_variants, apply_replacements, subtract_features, update_state
@@ -34,7 +34,7 @@ class VariantsGeneratorTests(AbstractTestCaseWithSeeding):
 
     def test_subtract_features(self):
         c = Combo.objects.create(mana_needed='{W}', status=Combo.Status.UTILITY)
-        c.cardincombo_set.create(card_id=self.c1_id, order=1, zone_locations=IngredientInCombination.ZoneLocation.BATTLEFIELD)
+        c.cardincombo_set.create(card_id=self.c1_id, order=1, zone_locations=ZoneLocation.BATTLEFIELD)
         c.removes.add(self.f1_id)
         c.removes.add(self.f2_id)
         data = Data()
@@ -47,7 +47,7 @@ class VariantsGeneratorTests(AbstractTestCaseWithSeeding):
         c.status = Combo.Status.GENERATOR
         c.save()
         c2 = Combo.objects.create(mana_needed='{W}', status=Combo.Status.UTILITY)
-        c2.cardincombo_set.create(card_id=self.c1_id, order=1, zone_locations=IngredientInCombination.ZoneLocation.BATTLEFIELD)
+        c2.cardincombo_set.create(card_id=self.c1_id, order=1, zone_locations=ZoneLocation.BATTLEFIELD)
         c2.removes.add(self.f3_id)
         data = Data()
         features = subtract_features(
@@ -73,9 +73,9 @@ class VariantsGeneratorTests(AbstractTestCaseWithSeeding):
             self.assertIsInstance(location, str)
             self.assertGreater(len(location), 0)
             if any(ct in card.type_line for ct in ('Instant', 'Sorcery')):
-                self.assertEqual(location, IngredientInCombination.ZoneLocation.HAND)
+                self.assertEqual(location, ZoneLocation.HAND)
             else:
-                self.assertEqual(location, IngredientInCombination.ZoneLocation.BATTLEFIELD)
+                self.assertEqual(location, ZoneLocation.BATTLEFIELD)
 
     def test_update_state_with_default(self):
         data = Data()
@@ -103,7 +103,7 @@ class VariantsGeneratorTests(AbstractTestCaseWithSeeding):
             sut1.graveyard_card_state = 'graveyard_card_state'
             sut1.library_card_state = 'library_card_state'
             sut1.must_be_commander = True
-            sut1.zone_locations = IngredientInCombination.ZoneLocation.COMMAND_ZONE + IngredientInCombination.ZoneLocation.BATTLEFIELD
+            sut1.zone_locations = ZoneLocation.COMMAND_ZONE + ZoneLocation.BATTLEFIELD
             update_state_with_default(data, sut2)
             update_state(dst=sut2, src=sut1, overwrite=True)
             self.assertEqual(sut2.battlefield_card_state, sut1.battlefield_card_state)
@@ -117,7 +117,7 @@ class VariantsGeneratorTests(AbstractTestCaseWithSeeding):
             sut2.graveyard_card_state = 'graveyard_card_state2'
             sut2.library_card_state = 'library_card_state2'
             sut2.must_be_commander = False
-            sut2.zone_locations = IngredientInCombination.ZoneLocation.BATTLEFIELD + IngredientInCombination.ZoneLocation.EXILE
+            sut2.zone_locations = ZoneLocation.BATTLEFIELD + ZoneLocation.EXILE
             update_state(dst=sut2, src=sut1, overwrite=False)
             self.assertIn(sut1.battlefield_card_state, sut2.battlefield_card_state)
             self.assertIn('battlefield_card_state2', sut2.battlefield_card_state)
@@ -128,8 +128,8 @@ class VariantsGeneratorTests(AbstractTestCaseWithSeeding):
             self.assertIn(sut1.library_card_state, sut2.library_card_state)
             self.assertIn('library_card_state2', sut2.library_card_state)
             self.assertEqual(sut2.must_be_commander, True)
-            self.assertEqual(sut2.zone_locations, IngredientInCombination.ZoneLocation.BATTLEFIELD)
-            sut2.zone_locations = IngredientInCombination.ZoneLocation.HAND
+            self.assertEqual(sut2.zone_locations, ZoneLocation.BATTLEFIELD)
+            sut2.zone_locations = ZoneLocation.HAND
             update_state(dst=sut2, src=sut1, overwrite=False)
             self.assertEqual(sut2.zone_locations, sut1.zone_locations)
 
@@ -307,7 +307,7 @@ class VariantsGeneratorTests(AbstractTestCaseWithSeeding):
         v: Variant = Variant.objects.first()  # type: ignore
         useless_combo = Combo.objects.create(mana_needed='{W}', status=Combo.Status.UTILITY, description='<<<Unwanted text>>>')
         for i, card in enumerate(v.uses.all()):
-            useless_combo.cardincombo_set.create(card=card, order=i + 1, zone_locations=IngredientInCombination.ZoneLocation.BATTLEFIELD)
+            useless_combo.cardincombo_set.create(card=card, order=i + 1, zone_locations=ZoneLocation.BATTLEFIELD)
         useless_feature = Feature.objects.create(name='Useless', utility=True)
         useless_combo.produces.add(useless_feature)
         v.status = Variant.Status.RESTORE
@@ -351,7 +351,7 @@ class VariantsGeneratorTests(AbstractTestCaseWithSeeding):
         foc = FeatureOfCard.objects.create(
             card=v.uses.first(),
             feature=useless_feature,
-            zone_locations=IngredientInCombination.ZoneLocation.BATTLEFIELD,
+            zone_locations=ZoneLocation.BATTLEFIELD,
             battlefield_card_state='<<<Unwanted text>>>'
         )
         v.status = Variant.Status.RESTORE

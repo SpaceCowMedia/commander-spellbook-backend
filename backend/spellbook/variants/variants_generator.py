@@ -8,7 +8,7 @@ from django.db import transaction
 from .utils import includes_any
 from .variant_data import Data, debug_queries
 from .combo_graph import Graph, VariantSet
-from spellbook.models import Combo, Job, Variant, CardInVariant, TemplateInVariant, id_from_cards_and_templates_ids, Playable, Card, Template, VariantAlias, Ingredient, Feature, FeatureProducedByVariant, VariantOfCombo, VariantIncludesCombo
+from spellbook.models import Combo, Job, Variant, CardInVariant, TemplateInVariant, id_from_cards_and_templates_ids, Playable, Card, Template, VariantAlias, Ingredient, Feature, FeatureProducedByVariant, VariantOfCombo, VariantIncludesCombo, ZoneLocation
 from spellbook.utils import log_into_job
 
 
@@ -138,8 +138,8 @@ class VariantBulkSaveItem:
 
 def get_default_zone_location_for_card(card: Card) -> str:
     if card.is_instant() or card.is_sorcery():
-        return Ingredient.ZoneLocation.HAND
-    return Ingredient.ZoneLocation.BATTLEFIELD
+        return ZoneLocation.HAND
+    return ZoneLocation.BATTLEFIELD
 
 
 def update_state_with_default(data: Data, dst: Ingredient):

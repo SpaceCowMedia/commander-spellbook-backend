@@ -80,7 +80,7 @@ class Combo(Recipe, ScryfallLinkMixin):
     notes = models.TextField(blank=True, help_text='Notes about the combo', validators=TEXT_VALIDATORS)
     status = models.CharField(choices=Status.choices, default=Status.GENERATOR, help_text='Is this combo a generator for variants?', verbose_name='status', max_length=2)
     allow_many_cards = models.BooleanField(default=False, help_text='Allow variants to have more cards than the default limit')
-    allow_multiple_copies = models.BooleanField(default=False, help_text='Allow variants to have more copies of the same card')
+    allow_multiple_copies = models.BooleanField(default=False, help_text='Allow variants to have more copies of the same card or template')
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, editable=False)
 

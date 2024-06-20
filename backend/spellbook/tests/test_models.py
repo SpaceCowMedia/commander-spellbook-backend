@@ -450,9 +450,9 @@ class VariantTests(AbstractTestCaseWithSeeding):
     def test_variant_fields(self):
         v = Variant.objects.get(id=self.v1_id)
         self.assertSetEqual(set(v.uses.values_list('id', flat=True)), {self.c8_id, self.c1_id})
-        self.assertSetEqual(set(c.id for c in v.cards()), {self.c8_id, self.c1_id})
+        self.assertDictEqual(v.cards(), {Card.objects.get(pk=self.c8_id).name: 1, Card.objects.get(pk=self.c1_id).name: 1})
         self.assertSetEqual(set(v.requires.values_list('id', flat=True)), {self.t1_id})
-        self.assertSetEqual(set(t.id for t in v.templates()), {self.t1_id})
+        self.assertDictEqual(v.templates(), {Template.objects.get(pk=self.t1_id).name: 1})
         self.assertSetEqual(set(v.produces.values_list('id', flat=True)), {self.f4_id, self.f2_id})
         self.assertSetEqual(set(v.includes.values_list('id', flat=True)), {self.b4_id, self.b2_id})
         self.assertSetEqual(set(v.of.values_list('id', flat=True)), {self.b2_id})
@@ -477,9 +477,9 @@ class VariantTests(AbstractTestCaseWithSeeding):
     def test_ingredients(self):
         for v in Variant.objects.all():
             civ = sorted(v.cardinvariant_set.all(), key=lambda x: x.order)
-            self.assertEqual(v.cards(), list(map(lambda x: x.card, civ)))
+            self.assertDictEqual(v.cards(), {ci.card.name: ci.quantity for ci in civ})
             tiv = sorted(v.templateinvariant_set.all(), key=lambda x: x.order)
-            self.assertEqual(v.templates(), list(map(lambda x: x.template, tiv)))
+            self.assertDictEqual(v.templates(), {ti.template.name: ti.quantity for ti in tiv})
 
     def test_query_string(self):
         v = Variant.objects.get(id=self.v1_id)

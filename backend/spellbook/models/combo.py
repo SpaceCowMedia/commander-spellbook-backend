@@ -8,7 +8,7 @@ from .recipe import Recipe
 from .card import Card
 from .feature import Feature
 from .template import Template
-from .ingredient import IngredientInCombination
+from .ingredient import IngredientInCombination, ZoneLocationsField
 from .validators import MANA_VALIDATOR, TEXT_VALIDATORS
 
 
@@ -135,6 +135,7 @@ class FeatureNeededInCombo(models.Model):
     combo = models.ForeignKey(to=Combo, on_delete=models.CASCADE)
     combo_id: int
     quantity = models.PositiveSmallIntegerField(default=1, blank=False, help_text='Quantity of the feature needed in the combo.', verbose_name='quantity', validators=[MinValueValidator(1)])
+    zone_locations_override = ZoneLocationsField(blank=True, default='', verbose_name='zone locations override', help_text='Option to override the zone locations for the card(s) this feature replaces.')
 
     def __str__(self):
         return f'{self.feature} needed in combo {self.combo.pk}'

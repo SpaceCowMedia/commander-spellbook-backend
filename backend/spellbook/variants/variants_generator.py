@@ -296,6 +296,8 @@ def restore_variant(
                         uses_updated.add(to_edit.card_id)
                     else:
                         update_state(to_edit, feature_of_card)
+        card_zone_locations_overrides = defaultdict[int, defaultdict[str, int]](lambda: defaultdict(int))
+        template_zone_locations_overrides = defaultdict[int, defaultdict[str, int]](lambda: defaultdict(int))
         for combo in combos_included_for_a_reason:
             for card_in_combo in data.combo_to_cards[combo.id]:
                 if card_in_combo.card_id in uses:
@@ -313,11 +315,39 @@ def restore_variant(
                         requires_updated.add(to_edit.template_id)
                     else:
                         update_state(to_edit, template_in_combo)
+            for feature_in_combo in data.combo_to_needed_features[combo.id]:
+                if feature_in_combo.zone_locations_override:
+                    for replacement in variant_def.feature_replacements[feature_in_combo.feature_id]:
+                        for card in replacement.card_ids:
+                            for location in feature_in_combo.zone_locations_override:
+                                card_zone_locations_overrides[card][location] += 1
+                        for template in replacement.template_ids:
+                            for location in feature_in_combo.zone_locations_override:
+                                template_zone_locations_overrides[template][location] += 1
         for used_card in used_cards:
             used_card.battlefield_card_state = apply_replacements(used_card.battlefield_card_state, replacements)
             used_card.exile_card_state = apply_replacements(used_card.exile_card_state, replacements)
             used_card.graveyard_card_state = apply_replacements(used_card.graveyard_card_state, replacements)
             used_card.library_card_state = apply_replacements(used_card.library_card_state, replacements)
+            override_score = max(card_zone_locations_overrides[used_card.card_id].values(), default=0)
+            if override_score > 0:
+                used_card.zone_locations = ''.join(
+                    location
+                    for location, count in card_zone_locations_overrides[used_card.card_id].items()
+                    if count == override_score
+                )
+        for required_template in required_templates:
+            required_template.battlefield_card_state = apply_replacements(required_template.battlefield_card_state, replacements)
+            required_template.exile_card_state = apply_replacements(required_template.exile_card_state, replacements)
+            required_template.graveyard_card_state = apply_replacements(required_template.graveyard_card_state, replacements)
+            required_template.library_card_state = apply_replacements(required_template.library_card_state, replacements)
+            override_score = max(template_zone_locations_overrides[required_template.template_id].values(), default=0)
+            if override_score > 0:
+                required_template.zone_locations = ''.join(
+                    location
+                    for location, count in template_zone_locations_overrides[required_template.template_id].items()
+                    if count == override_score
+                )
 
     # Ordering ingredients by descending replaceability and ascending order in combos
     cards_ordering: dict[int, tuple[int, int]] = {c: (0, 0) for c in uses}

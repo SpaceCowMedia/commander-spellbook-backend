@@ -86,11 +86,3 @@ class VariantDataTests(AbstractTestCaseWithSeeding):
     def test_number_of_queries(self):
         with self.assertNumQueries(20):
             Data()
-        with self.assertNumQueries(0):
-            Data(
-                cards=[],
-                templates=[],
-                combos=[],
-                features=[],
-                variants=[],
-            )

@@ -58,7 +58,12 @@ class CleanJobsTest(AbstractTestCaseWithSeeding):
         self.assertEqual(j.status, Job.Status.SUCCESS)
         self.assertEqual(j.started_by, u)
         variant_ids = {v.id for v in Variant.objects.all()}
-        self.assertEqual(variant_ids, {self.v1_id, self.v2_id, self.v3_id, self.v4_id, self.v5_id, self.v6_id, self.v7_id})
+        self.assertSetEqual(variant_ids, {self.v1_id, self.v2_id, self.v3_id, self.v4_id, self.v5_id, self.v6_id, self.v7_id})
+        single_combo_generator = Variant.objects.get(id=self.v1_id).of.first()
+        expected_variants_ids = set(single_combo_generator.variants.values_list('id', flat=True))
+        Variant.objects.all().delete()
+        launch_job_command('generate_variants', u, ['--combo', single_combo_generator.id])
+        self.assertSetEqual(set(Variant.objects.values_list('id', flat=True)), expected_variants_ids)
 
     def test_export_variants(self):
         super().generate_variants()

@@ -36,7 +36,7 @@ jobs:
         uses: EasyDesk/action-semver-checkout@v1
 
       - name: Build and export image 🏗️
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           push: false
           load: true

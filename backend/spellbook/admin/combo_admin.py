@@ -6,7 +6,9 @@ from django.contrib import admin, messages
 from django.http.request import HttpRequest
 from django.forms import Textarea
 from django.utils.safestring import mark_safe
-from django.urls import reverse
+from django.urls import reverse, path
+from django.shortcuts import redirect
+from spellbook.utils import launch_job_command
 from spellbook.models import Card, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion
 from .utils import SpellbookModelAdmin, SpellbookAdminForm, CustomFilter
 from .ingredient_admin import IngredientInCombinationAdmin
@@ -335,3 +337,20 @@ class ComboAdmin(SpellbookModelAdmin):
             ).update(status=Variant.Status.RESTORE)
             if updated:
                 messages.info(request, f'Set {updated} "New" variants to "Restore" status.')
+
+    def generate_variants(self, request: HttpRequest, id: int):
+        if request.method == 'POST' and request.user.is_authenticated:
+            if launch_job_command('generate_variants', request.user, args=['--combo', str(id)]):  # type: ignore
+                messages.info(request, f'Variant generation job for combo {id} started.')
+            else:
+                messages.warning(request, 'Variant generation is already running.')
+        return redirect('admin:spellbook_job_changelist')
+
+    def get_urls(self):
+        return [
+            path(
+                'generate-variants/<int:id>',
+                self.admin_site.admin_view(view=self.generate_variants, cacheable=False),
+                name='spellbook_combo_generate_variants'
+            )
+        ] + super().get_urls()

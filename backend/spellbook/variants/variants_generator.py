@@ -34,12 +34,13 @@ class VariantDefinition(VariantRecipeDefinition):
     needed_combos: set[int]
 
 
-def get_variants_from_graph(data: Data, job: Job | None, log_count: int) -> dict[str, VariantDefinition]:
+def get_variants_from_graph(data: Data, single_combo: int | None, job: Job | None, log_count: int) -> dict[str, VariantDefinition]:
     def log(msg: str):
         logging.info(msg)
         log_into_job(job, msg)
     combos_by_status = dict[tuple[bool, bool], list[Combo]]()
-    for combo in data.generator_combos:
+    generator_combos = (data.id_to_combo[single_combo],) if single_combo is not None else data.generator_combos
+    for combo in generator_combos:
         allows_many_cards = combo.allow_many_cards
         allows_multiple_copies = combo.allow_multiple_copies
         combos_by_status.setdefault((allows_many_cards, allows_multiple_copies), []).append(combo)
@@ -226,18 +227,22 @@ def restore_variant(
         restore_fields: bool,
 ) -> VariantBulkSaveItem:
     # Prepare related objects collections
-    used_cards = [
-        data.card_variant_dict[(c_id, variant.id)]
-        if (c_id, variant.id) in data.card_variant_dict
-        else CardInVariant(card=data.id_to_card[c_id], variant=variant, quantity=quantity)
-        for c_id, quantity in variant_def.card_ids.items()
-    ]
-    required_templates = [
-        data.template_variant_dict[(t_id, variant.id)]
-        if (t_id, variant.id) in data.template_variant_dict
-        else TemplateInVariant(template=data.id_to_template[t_id], variant=variant, quantity=quantity)
-        for t_id, quantity in variant_def.template_ids.items()
-    ]
+    used_cards: list[CardInVariant] = []
+    for c_id, quantity in variant_def.card_ids.items():
+        if (c_id, variant.id) in data.card_variant_dict:
+            civ = data.card_variant_dict[(c_id, variant.id)]
+            civ.quantity = quantity
+        else:
+            civ = CardInVariant(card=data.id_to_card[c_id], variant=variant, quantity=quantity)
+        used_cards.append(civ)
+    required_templates: list[TemplateInVariant] = []
+    for t_id, quantity in variant_def.template_ids.items():
+        if (t_id, variant.id) in data.template_variant_dict:
+            tiv = data.template_variant_dict[(t_id, variant.id)]
+            tiv.quantity = quantity
+        else:
+            tiv = TemplateInVariant(template=data.id_to_template[t_id], variant=variant, quantity=quantity)
+        required_templates.append(tiv)
     generator_combos = [data.id_to_combo[c_id] for c_id in variant_def.of_ids]
     included_combos = [data.id_to_combo[c_id] for c_id in variant_def.included_ids]
     produces_ids = subtract_features(data, variant_def.included_ids, variant_def.feature_ids)
@@ -456,10 +461,10 @@ def perform_bulk_saves(data: Data, to_create: list[VariantBulkSaveItem], to_upda
     update_fields = ['name', 'status', 'mana_needed', 'other_prerequisites', 'description', 'notes', 'results_count', 'generated_by'] + Playable.playable_fields()
     Variant.objects.bulk_update([v.variant for v in to_update if v.should_update], fields=update_fields)
     CardInVariant.objects.bulk_create([c for v in to_create for c in v.uses])
-    update_fields = ['zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'must_be_commander', 'order']
+    update_fields = ['zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'must_be_commander', 'order', 'quantity']
     CardInVariant.objects.bulk_update([c for v in to_update if v.should_update for c in v.uses], fields=update_fields)
     TemplateInVariant.objects.bulk_create([t for v in to_create for t in v.requires])
-    update_fields = ['zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'must_be_commander', 'order']
+    update_fields = ['zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'must_be_commander', 'order', 'quantity']
     TemplateInVariant.objects.bulk_update([t for v in to_update if v.should_update for t in v.requires], fields=update_fields)
     to_delete_of = [
         i.pk
@@ -551,7 +556,11 @@ def sync_variant_aliases(data: Data, added_variants_ids: set[str], deleted_varia
     return added_count, deleted_count
 
 
-def generate_variants(job: Job | None = None, log_count: int = 100) -> tuple[int, int, int]:
+def generate_variants(combo: int | None = None, job: Job | None = None, log_count: int = 100) -> tuple[int, int, int]:
+    if combo is not None:
+        log_into_job(job, f'Variant generation started for combo {combo}.')
+    else:
+        log_into_job(job, 'Variant generation started for all combos.')
     logging.info('Fetching data...')
     log_into_job(job, 'Fetching data...')
     data = Data()
@@ -561,7 +570,7 @@ def generate_variants(job: Job | None = None, log_count: int = 100) -> tuple[int
     logging.info('Computing combos graph representation...')
     log_into_job(job, 'Computing combos graph representation...')
     debug_queries()
-    variants = get_variants_from_graph(data, job, log_count)
+    variants = get_variants_from_graph(data, combo, job, log_count)
     logging.info(f'Saving {len(variants)} variants...')
     log_into_job(job, f'Saving {len(variants)} variants...')
     debug_queries()
@@ -589,11 +598,14 @@ def generate_variants(job: Job | None = None, log_count: int = 100) -> tuple[int
     with transaction.atomic():
         perform_bulk_saves(data, to_bulk_create, to_bulk_update)
         new_id_set = set(variants.keys())
-        to_delete = old_id_set - new_id_set
         added = new_id_set - old_id_set
         restored = new_id_set & to_restore
         logging.info(f'Added {len(added)} new variants.')
         logging.info(f'Updated {len(restored)} variants.')
+        if combo is None:
+            to_delete = old_id_set - new_id_set
+        else:
+            to_delete = set()
         delete_query = Variant.objects.filter(id__in=to_delete)
         deleted_count = len(to_delete)
         delete_query.delete()

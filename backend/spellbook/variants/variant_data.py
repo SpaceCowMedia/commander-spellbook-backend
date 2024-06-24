@@ -11,24 +11,14 @@ from .variant_set import VariantSet
 
 
 class Data:
-    def __init__(
-            self,
-            cards: list[Card] | None = None,
-            features: list[Feature] | None = None,
-            combos: list[Combo] | None = None,
-            templates: list[Template] | None = None,
-            variants: list[Variant] | None = None,
-    ):
-        if combos is None:
-            self.combos = list(Combo.objects.filter(status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY)).prefetch_related(
-                'cardincombo_set',
-                'templateincombo_set',
-                'featureproducedincombo_set',
-                'featureneededincombo_set',
-                'featureremovedincombo_set',
-            ))
-        else:
-            self.combos = combos
+    def __init__(self):
+        self.combos = list(Combo.objects.filter(status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY)).prefetch_related(
+            'cardincombo_set',
+            'templateincombo_set',
+            'featureproducedincombo_set',
+            'featureneededincombo_set',
+            'featureremovedincombo_set',
+        ))
         self.id_to_combo: dict[int, Combo] = {c.id: c for c in self.combos}
         self.combo_to_cards = dict[int, list[CardInCombo]]()
         self.combo_to_templates = dict[int, list[TemplateInCombo]]()
@@ -47,19 +37,13 @@ class Data:
         for combo_to_templates in self.combo_to_templates.values():
             combo_to_templates.sort(key=lambda tic: tic.order)
         self.card_to_features = dict[int, list[FeatureOfCard]]()
-        if cards is None:
-            self.cards = list(Card.objects.prefetch_related(
-                'featureofcard_set',
-            ))
-        else:
-            self.cards = cards
+        self.cards = list(Card.objects.prefetch_related(
+            'featureofcard_set',
+        ))
         for card in self.cards:
             self.card_to_features[card.id] = list(card.featureofcard_set.all())
         self.id_to_card = {c.id: c for c in self.cards}
-        if templates is None:
-            self.templates = list(Template.objects.all())
-        else:
-            self.templates = templates
+        self.templates = list(Template.objects.all())
         self.id_to_template = {t.id: t for t in self.templates}
 
         def fetch_not_working_variants(variants: list[Variant]) -> VariantSet:
@@ -72,27 +56,21 @@ class Data:
                 )
             return variant_set
 
-        if features is None:
-            self.features = list(Feature.objects.prefetch_related(
-                'featureofcard_set',
-                'featureneededincombo_set',
-                'featureproducedincombo_set',
-                'featureremovedincombo_set',
-            ))
-        else:
-            self.features = features
+        self.features = list(Feature.objects.prefetch_related(
+            'featureofcard_set',
+            'featureneededincombo_set',
+            'featureproducedincombo_set',
+            'featureremovedincombo_set',
+        ))
         self.utility_features_ids = frozenset(f.id for f in self.features if f.utility)
         self.id_to_feature: dict[int, Feature] = {f.id: f for f in self.features}
-        if variants is None:
-            self.variants: list[Variant] = list(Variant.objects.prefetch_related(
-                'cardinvariant_set',
-                'templateinvariant_set',
-                'variantofcombo_set',
-                'variantincludescombo_set',
-                'featureproducedbyvariant_set',
-            ))
-        else:
-            self.variants = variants
+        self.variants: list[Variant] = list(Variant.objects.prefetch_related(
+            'cardinvariant_set',
+            'templateinvariant_set',
+            'variantofcombo_set',
+            'variantincludescombo_set',
+            'featureproducedbyvariant_set',
+        ))
         self.not_working_variants = fetch_not_working_variants(self.variants).variants()
         self.id_to_variant = {v.id: v for v in self.variants}
         self.card_in_variant = dict[str, list[CardInVariant]]()

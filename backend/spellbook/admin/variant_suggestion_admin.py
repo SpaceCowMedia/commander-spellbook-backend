@@ -36,12 +36,13 @@ class FeatureProducedInVariantAdminInline(admin.TabularInline):
 
 @admin.action(description='Mark selected suggestions as REJECTED')
 def set_rejected(modeladmin, request, queryset):
-    ids = queryset.values_list('id', flat=True)
     queryset.update(status=VariantSuggestion.Status.REJECTED)
+    ids = queryset.exclude(suggested_by=request.user).values_list('id', flat=True)
     launch_job_command(
         command='notify',
         user=request.user,
         args=['variant_suggestion_rejected', *map(str, ids)],
+        allow_multiples=True,
     )
 
 
@@ -90,19 +91,22 @@ class VariantSuggestionAdmin(SpellbookModelAdmin):
     def save_form(self, request: Any, form: Any, change: bool) -> Any:
         new_object = super().save_form(request, form, change)
         if change:
-            if 'status' in form.changed_data:
-                if new_object.status == VariantSuggestion.Status.ACCEPTED:
-                    launch_job_command(
-                        command='notify',
-                        user=request.user,
-                        args=['variant_suggestion_accepted', str(new_object.id)],
-                    )
-                elif new_object.status == VariantSuggestion.Status.REJECTED:
-                    launch_job_command(
-                        command='notify',
-                        user=request.user,
-                        args=['variant_suggestion_rejected', str(new_object.id)],
-                    )
+            if 'status' in form.changed_data and request.user != new_object.suggested_by:
+                match new_object.status:
+                    case VariantSuggestion.Status.ACCEPTED:
+                        launch_job_command(
+                            command='notify',
+                            user=request.user,
+                            args=['variant_suggestion_accepted', str(new_object.id)],
+                            allow_multiples=True,
+                        )
+                    case VariantSuggestion.Status.REJECTED:
+                        launch_job_command(
+                            command='notify',
+                            user=request.user,
+                            args=['variant_suggestion_rejected', str(new_object.id)],
+                            allow_multiples=True,
+                        )
         return new_object
 
     def save_model(self, request: Any, obj: Any, form: Any, change: bool):

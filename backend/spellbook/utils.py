@@ -24,16 +24,19 @@ def launch_command_async(command: str, args: list[str] = []):
         subprocess.Popen(args=args)
 
 
-def launch_job_command(command: str, user: User | None = None, args: list[str] = []) -> bool:
+def launch_job_command(command: str, user: User | None = None, args: list[str] = [], allow_multiples: bool = False) -> bool:
     """
     Launch a command asynchronously and create a Job object to track it.
     The command must be a management command that can take a --id parameter with the Job id.
-    Returns true if the command was launched, false if there is already a job.
+    Returns true if the command was launched, false in case of errors or
+    if there is already a job ongoing with the same name, unless allow_multiples is passed.
     """
     job = Job.start(
         name=command,
         duration=None,
-        user=user)
+        user=user,
+        allow_multiples=allow_multiples,
+    )
     if job is not None:
         logger = logging.getLogger(command)
         try:

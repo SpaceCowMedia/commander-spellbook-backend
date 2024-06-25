@@ -69,6 +69,7 @@ def set_status(request, queryset, status: Variant.Status):
             command='notify',
             user=request.user,
             args=['variant_published', *[str(variant.id) for variant in variants]],
+            allow_multiples=True,
         )
 
 
@@ -233,6 +234,7 @@ class VariantAdmin(SpellbookModelAdmin):
                     command='notify',
                     user=request.user,
                     args=['variant_published', str(variant.id)],
+                    allow_multiples=True,
                 )
         # Feature: update serialized JSON when variant is edited
         # effectively resulting in a real time update of the variant

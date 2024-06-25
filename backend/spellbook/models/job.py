@@ -25,10 +25,10 @@ class Job(models.Model):
         help_text='User that started this job')
 
     @classmethod
-    def start(cls, name: str, duration: timezone.timedelta | None = None, user: User | None = None):
+    def start(cls, name: str, duration: timezone.timedelta | None = None, user: User | None = None, allow_multiples: bool = False):
         try:
             with transaction.atomic():
-                if Job.objects.filter(
+                if not allow_multiples and Job.objects.filter(
                         name=name,
                         expected_termination__gte=timezone.now(),
                         status=Job.Status.PENDING).exists():

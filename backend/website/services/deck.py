@@ -3,5 +3,5 @@ from dataclasses import dataclass
 
 @dataclass
 class Deck:
-    cards: list[str]
+    main: list[str]
     commanders: list[str]

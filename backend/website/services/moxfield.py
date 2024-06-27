@@ -22,7 +22,7 @@ def moxfield(url: str) -> Deck | None:
     try:
         main = [card for card in result['mainboard']]
         commanders = [card for card in result['commanders']]
-        return Deck(cards=main, commanders=commanders)
+        return Deck(main=main, commanders=commanders)
     except KeyError:
         return None
 

@@ -33,7 +33,7 @@ def archidekt(url: str) -> Deck | None:
             for card, categories in cards_with_categories.items()
             if 'commander' in categories
         ]
-        return Deck(cards=main, commanders=commanders)
+        return Deck(main=main, commanders=commanders)
     except KeyError:
         return None
 

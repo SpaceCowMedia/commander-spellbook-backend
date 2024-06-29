@@ -158,7 +158,12 @@ class VariantSetTests(TestCase):
         variant_set_1.parameters.allow_multiple_copies = False
         variant_set_2.parameters.allow_multiple_copies = False
         self.assertEqual(use_hashable_dict((variant_set_1 + variant_set_2).variants()), use_hashable_dict([
+            (FrozenMultiset({1: 1, 2: 3, 3: 129, 4: 4}), FrozenMultiset()),
+            (FrozenMultiset({1: 1, 2: 2, 3: 229, 4: 4}), FrozenMultiset({2: 1})),
+            (FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 9}), FrozenMultiset({2: 1})),
             (FrozenMultiset({2: 1}), FrozenMultiset({1: 1})),
+            (FrozenMultiset({3: 100}), FrozenMultiset({1: 1, 2: 1})),
+            (FrozenMultiset({4: 5}), FrozenMultiset({1: 1, 2: 1})),
             (FrozenMultiset({5: 1}), FrozenMultiset({1: 2, 2: 1})),
         ]))
 
@@ -188,15 +193,26 @@ class VariantSetTests(TestCase):
         self.assertEqual(use_hashable_dict((variant_set ** 0).variants()), use_hashable_dict([]))
         self.assertEqual(use_hashable_dict((variant_set ** 1).variants()), use_hashable_dict(variant_set.variants()))
         self.assertEqual(use_hashable_dict((variant_set ** 2).variants()), use_hashable_dict([
+            (FrozenMultiset({1: 3, 2: 1}), FrozenMultiset({1: 3})),
             (FrozenMultiset({1: 1, 2: 1, 4: 1}), FrozenMultiset({1: 2})),
             (FrozenMultiset({1: 1, 2: 1, 5: 1}), FrozenMultiset({1: 7})),
             (FrozenMultiset({1: 1, 2: 1}), FrozenMultiset({1: 2, 2: 2})),
+            (FrozenMultiset({1: 2, 4: 1}), FrozenMultiset({1: 1})),
+            (FrozenMultiset({1: 2, 5: 1}), FrozenMultiset({1: 6})),
+            (FrozenMultiset({1: 2}), FrozenMultiset({1: 1, 2: 2})),
             (FrozenMultiset({4: 1, 5: 1}), FrozenMultiset({1: 5})),
             (FrozenMultiset({4: 1}), FrozenMultiset({2: 2})),
             (FrozenMultiset({5: 1}), FrozenMultiset({1: 5, 2: 2})),
             (FrozenMultiset(), FrozenMultiset({2: 4})),
         ]))
         self.assertEqual(use_hashable_dict((variant_set ** 3).variants()), use_hashable_dict([
+            (FrozenMultiset({1: 3, 2: 1, 4: 1}), FrozenMultiset({1: 3})),
+            (FrozenMultiset({1: 2, 5: 1}), FrozenMultiset({1: 6, 2: 2})),
+            (FrozenMultiset({1: 2, 4: 1}), FrozenMultiset({1: 1, 2: 2})),
+            (FrozenMultiset({1: 3, 2: 1, 5: 1}), FrozenMultiset({1: 8})),
+            (FrozenMultiset({1: 2, 4: 1, 5: 1}), FrozenMultiset({1: 6})),
+            (FrozenMultiset({1: 2}), FrozenMultiset({1: 1, 2: 4})),
+            (FrozenMultiset({1: 3, 2: 1}), FrozenMultiset({1: 3, 2: 2})),
             (FrozenMultiset({1: 1, 2: 1, 4: 1, 5: 1}), FrozenMultiset({1: 7})),
             (FrozenMultiset({1: 1, 2: 1, 4: 1}), FrozenMultiset({1: 2, 2: 2})),
             (FrozenMultiset({1: 1, 2: 1, 5: 1}), FrozenMultiset({1: 7, 2: 2})),

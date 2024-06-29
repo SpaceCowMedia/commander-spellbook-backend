@@ -303,7 +303,8 @@ def restore_variant(
                     else:
                         update_state(to_edit, feature_of_card)
                     additional_other_prerequisites.append(feature_of_card.other_prerequisites)
-        variant.other_prerequisites = f'{apply_replacements('\n'.join(additional_other_prerequisites), replacements)}\n{variant.other_prerequisites}'
+        if additional_other_prerequisites:
+            variant.other_prerequisites = apply_replacements('\n'.join(additional_other_prerequisites), replacements) + '\n' + variant.other_prerequisites
         card_zone_locations_overrides = defaultdict[int, defaultdict[str, int]](lambda: defaultdict(int))
         template_zone_locations_overrides = defaultdict[int, defaultdict[str, int]](lambda: defaultdict(int))
         for combo in combos_included_for_a_reason:

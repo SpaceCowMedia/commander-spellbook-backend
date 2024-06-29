@@ -1,5 +1,5 @@
 from typing import Iterable, Callable
-from itertools import product
+from itertools import product, combinations
 from functools import reduce
 from dataclasses import dataclass
 from multiset import FrozenMultiset
@@ -101,14 +101,15 @@ class VariantSet:
             result._add(key)
         return result
 
+    def _check_if_multiset_contains_multiple_copies(self, key: FrozenMultiset) -> bool:
+        return any(key[item] > 1 for item in key if item[0] == 'C')
+
     def __add__(self, other: 'VariantSet'):
         result = VariantSet(_parameters=self.parameters)
         left_keys = list(self._keys())
         right_keys = list(other._keys())
         for left_key, right_key in product(left_keys, right_keys):
             key = left_key + right_key
-            if not self.parameters.allow_multiple_copies and any(key[item] > 1 for item in key if item[0] == 'C'):
-                continue
             if len(key.distinct_elements()) > self.parameters.max_depth:
                 continue
             result._add(key)
@@ -117,7 +118,21 @@ class VariantSet:
     def __pow__(self, power: int):
         if power < 0:
             raise ValueError('Exponent must be a non-negative integer.')
-        return self.sum_sets([self] * power, limit=self.parameters.max_depth, allow_multiple_copies=self.parameters.allow_multiple_copies)
+        if self.parameters.allow_multiple_copies:
+            return self.sum_sets([self] * power, limit=self.parameters.max_depth, allow_multiple_copies=self.parameters.allow_multiple_copies)
+        else:
+            result = VariantSet(_parameters=self.parameters)
+            keys = list(self._keys())
+            for key_combination in product(*[keys] * power):
+                cards_sets = [frozenset(c for c in key if c[0] == 'C') for key in key_combination]
+                cards_sets = [s for s in cards_sets if len(s) > 0]
+                if len(cards_sets) != len(set(cards_sets)):
+                    continue
+                key = sum(key_combination, FrozenMultiset())
+                if len(key.distinct_elements()) > self.parameters.max_depth:
+                    continue
+                result._add(key)
+            return result
 
     def variants(self) -> list[tuple[FrozenMultiset, FrozenMultiset]]:
         return [self.key_to_ingredients(key) for key in self._keys()]

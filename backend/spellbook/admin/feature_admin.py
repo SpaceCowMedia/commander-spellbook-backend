@@ -1,5 +1,6 @@
 from django.contrib import admin
-from django.db.models import QuerySet, Case, When
+from django.db.models import QuerySet, Case, When, TextField
+from django.forms.widgets import Textarea
 from django.utils.html import format_html
 from spellbook.models import Feature, FeatureOfCard
 from spellbook.models.scryfall import scryfall_link_for_query, scryfall_query_string_for_card_names, SCRYFALL_MAX_QUERY_LENGTH
@@ -8,12 +9,15 @@ from .ingredient_admin import IngredientAdmin
 
 
 class CardInFeatureAdminInline(IngredientAdmin):
-    fields = ['card', *IngredientAdmin.fields]
+    fields = ['card', *IngredientAdmin.fields, 'other_prerequisites']
     model = FeatureOfCard
     extra = 0
     autocomplete_fields = ['card']
     verbose_name = 'Produced by card'
     verbose_name_plural = 'Produced by cards'
+    formfield_overrides = {
+        TextField: {'widget': Textarea(attrs={'rows': 1, 'cols': 25, 'style': 'resize: vertical; min-height: 2em;'})},
+    }
 
 
 @admin.register(Feature)

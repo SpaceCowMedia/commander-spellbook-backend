@@ -1,7 +1,8 @@
 from typing import Any
 from django.contrib import admin
-from django.db.models import Count, Q
+from django.db.models import Count, Q, TextField
 from django.db.models.query import QuerySet
+from django.forms.widgets import Textarea
 from django.http.request import HttpRequest
 from spellbook.models import Card, Variant, FeatureOfCard
 from .utils import IdentityFilter, SpellbookModelAdmin, CustomFilter
@@ -26,6 +27,9 @@ class FeatureOfCardAdminInline(IngredientAdmin):
     verbose_name = 'Feature'
     verbose_name_plural = 'Features'
     autocomplete_fields = ['feature']
+    formfield_overrides = {
+        TextField: {'widget': Textarea(attrs={'rows': 1, 'cols': 25, 'style': 'resize: vertical; min-height: 2em;'})},
+    }
 
 
 @admin.register(Card)

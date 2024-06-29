@@ -151,7 +151,7 @@ class AbstractTestCaseWithSeeding(AbstractTestCase):
         b8 = Combo.objects.create(mana_needed='{W}{U}{B}{R}{G}', other_prerequisites='Some requisites.', description='g7', status=Combo.Status.NEEDS_REVIEW, notes='gg7')
         t1 = Template.objects.create(name='TA', scryfall_query='tou>5', description='hello.')
         t2 = Template.objects.create(name='TB', scryfall_query='o:/asd dsa*/')
-        FeatureOfCard.objects.create(card=c1, feature=f1, zone_locations=ZoneLocation.BATTLEFIELD, quantity=1)
+        FeatureOfCard.objects.create(card=c1, feature=f1, zone_locations=ZoneLocation.BATTLEFIELD, quantity=1, other_prerequisites='Some requisites for card.')
         FeatureNeededInCombo.objects.create(feature=f1, combo=b1, quantity=1)
         CardInCombo.objects.create(card=c2, combo=b1, order=1, zone_locations=ZoneLocation.HAND, quantity=1)
         CardInCombo.objects.create(card=c3, combo=b1, order=2, zone_locations=ZoneLocation.BATTLEFIELD, battlefield_card_state='tapped', quantity=1)

@@ -857,3 +857,23 @@ class ComboGraphTestGeneration(AbstractTestCase):
         })
         self.assertSetEqual(variants[0].needed_combos, {1, 2})
         self.assertSetEqual(variants[0].needed_features, {1, 2})
+
+    def test_always_sum_templates_when_multiple_copies_of_cards_are_not_enabled(self):
+        self.save_combo_model({
+            ('A', '3 * T1'): ('x',),
+            ('B', 'T1', 'T2'): ('x',),
+            ('2 * x',): ('y',),
+        })
+        combo_graph = Graph(Data(), allow_multiple_copies=False)
+        variants = list(combo_graph.results(combo_graph.variants(3)))
+        self.assertEqual(len(variants), 1)
+        self.assertMultisetEqual(variants[0].cards, {1: 1, 2: 1})
+        self.assertMultisetEqual(variants[0].templates, {1: 4, 2: 1})
+        self.assertMultisetEqual(variants[0].features, {1: 2, 2: 1})
+        self.assertSetEqual(variants[0].combos, {1, 2, 3})
+        self.assertReplacementsEqual(variants[0].replacements, {
+            1: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset({1: 3})), VariantIngredients(FrozenMultiset({2: 1}), FrozenMultiset({1: 1, 2: 1}))],
+            2: [VariantIngredients(FrozenMultiset({1: 1, 2: 1}), FrozenMultiset({1: 4, 2: 1}))],
+        })
+        self.assertSetEqual(variants[0].needed_combos, {1, 2, 3})
+        self.assertSetEqual(variants[0].needed_features, {1, 2})

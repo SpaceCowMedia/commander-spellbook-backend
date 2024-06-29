@@ -52,7 +52,7 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
     def preview_statuses(cls):
         return (cls.Status.DRAFT, cls.Status.NEEDS_REVIEW)
 
-    id = models.CharField(max_length=128, primary_key=True, help_text='Unique ID for this variant')
+    id = models.CharField(max_length=128, primary_key=True, help_text='Unique ID for this variant', verbose_name='ID')
     uses = models.ManyToManyField(
         to=Card,
         related_name='used_in_variants',

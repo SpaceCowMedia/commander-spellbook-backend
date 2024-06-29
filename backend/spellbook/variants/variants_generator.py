@@ -293,6 +293,7 @@ def restore_variant(
             update_state_with_default(data, template_in_variant)
         uses_updated = set[int]()
         requires_updated = set[int]()
+        additional_other_prerequisites: list[str] = []
         for to_edit in used_cards:
             for feature_of_card in data.card_to_features[to_edit.card_id]:
                 if not data.id_to_feature[feature_of_card.feature_id].utility or feature_of_card.feature_id in needed_features:
@@ -301,6 +302,8 @@ def restore_variant(
                         uses_updated.add(to_edit.card_id)
                     else:
                         update_state(to_edit, feature_of_card)
+                    additional_other_prerequisites.append(feature_of_card.other_prerequisites)
+        variant.other_prerequisites = f'{apply_replacements('\n'.join(additional_other_prerequisites), replacements)}\n{variant.other_prerequisites}'
         card_zone_locations_overrides = defaultdict[int, defaultdict[str, int]](lambda: defaultdict(int))
         template_zone_locations_overrides = defaultdict[int, defaultdict[str, int]](lambda: defaultdict(int))
         for combo in combos_included_for_a_reason:

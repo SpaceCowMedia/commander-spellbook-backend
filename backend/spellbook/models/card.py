@@ -4,6 +4,7 @@ from django.db.models.signals import post_save
 from django.db.models.functions import Upper
 from django.contrib.postgres.indexes import GinIndex, OpClass
 from .constants import MAX_CARD_NAME_LENGTH
+from .validators import TEXT_VALIDATORS
 from .playable import Playable
 from .utils import strip_accents, simplify_card_name_on_database, simplify_card_name_with_spaces_on_database
 from .mixins import ScryfallLinkMixin, PreSaveModelMixin
@@ -134,6 +135,7 @@ class FeatureOfCard(Ingredient):
     feature_id: int
     card = models.ForeignKey(to=Card, on_delete=models.CASCADE)
     card_id: int
+    other_prerequisites = models.TextField(blank=True, help_text='Other prerequisites for this feature.', validators=TEXT_VALIDATORS)
 
     def __str__(self):
         return f'{self.feature} for card {self.card.pk}'

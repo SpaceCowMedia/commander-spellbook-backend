@@ -21,7 +21,7 @@ class ManagedByScryfallFilter(CustomFilter):
 
 
 class FeatureOfCardAdminInline(IngredientAdmin):
-    fields = ['feature', *IngredientAdmin.fields]
+    fields = ['feature', *IngredientAdmin.fields, 'other_prerequisites']
     model = FeatureOfCard
     verbose_name = 'Feature'
     verbose_name_plural = 'Features'

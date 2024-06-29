@@ -423,6 +423,7 @@ def update_variant(
     ok = status in Variant.public_statuses() or \
         status != Variant.Status.NOT_WORKING and not includes_any(v=variant_def.card_ids, others=(c for c, _ in data.not_working_variants))
     old_results_count = variant.results_count
+    old_name = variant.name
     save_item = restore_variant(
         data=data,
         variant=variant,
@@ -433,7 +434,7 @@ def update_variant(
         variant.status = Variant.Status.NOT_WORKING
     if restore:
         variant.generated_by = job
-    save_item.should_update = restore or status != variant.status or old_results_count != variant.results_count
+    save_item.should_update = restore or status != variant.status or old_results_count != variant.results_count or variant.name != old_name
     return save_item
 
 

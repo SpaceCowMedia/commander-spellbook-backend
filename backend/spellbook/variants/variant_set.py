@@ -1,5 +1,5 @@
 from typing import Iterable, Callable
-from itertools import product, combinations
+from itertools import product
 from functools import reduce
 from dataclasses import dataclass
 from multiset import FrozenMultiset

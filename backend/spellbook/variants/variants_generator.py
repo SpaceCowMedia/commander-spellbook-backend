@@ -2,7 +2,7 @@ import logging
 import re
 from collections import defaultdict
 from multiset import FrozenMultiset, Multiset, BaseMultiset
-from itertools import chain
+from itertools import chain, repeat
 from dataclasses import dataclass
 from django.db import transaction
 from .utils import includes_any
@@ -35,9 +35,6 @@ class VariantDefinition(VariantRecipeDefinition):
 
 
 def get_variants_from_graph(data: Data, single_combo: int | None, job: Job | None, log_count: int) -> dict[str, VariantDefinition]:
-    def log(msg: str):
-        logging.info(msg)
-        log_into_job(job, msg)
     combos_by_status = dict[tuple[bool, bool], list[Combo]]()
     generator_combos = (data.id_to_combo[single_combo],) if single_combo is not None else data.generator_combos
     for combo in generator_combos:
@@ -48,7 +45,7 @@ def get_variants_from_graph(data: Data, single_combo: int | None, job: Job | Non
     for (allows_many_cards, allows_multiple_copies), combos in combos_by_status.items():
         conditions = ([f'at most {HIGHER_CARD_LIMIT} cards'] if allows_many_cards else [f'at most {DEFAULT_CARD_LIMIT} cards']) + \
             (['multiple copies'] if allows_multiple_copies else ['only singleton copies'])
-        log('Processing combos that allow ' + ' and '.join(conditions) + '...')
+        log_into_job(job, 'Processing combos that allow ' + ' and '.join(conditions) + '...')
         card_limit = DEFAULT_CARD_LIMIT
         variant_limit = DEFAULT_VARIANT_LIMIT
         if allows_many_cards:
@@ -56,12 +53,12 @@ def get_variants_from_graph(data: Data, single_combo: int | None, job: Job | Non
             variant_limit = LOWER_VARIANT_LIMIT
         graph = Graph(
             data,
-            log=log,
+            log=lambda msg: log_into_job(job, msg),
             card_limit=card_limit,
             variant_limit=variant_limit,
             allow_multiple_copies=allows_multiple_copies,
         )
-        log('Computing all variants recipes, following combos\' requirements graphs...')
+        log_into_job(job, 'Computing all variants recipes, following combos\' requirements graphs...')
         total = len(combos)
         index = 0
         variant_sets: list[tuple[Combo, VariantSet]] = []
@@ -69,13 +66,13 @@ def get_variants_from_graph(data: Data, single_combo: int | None, job: Job | Non
             variant_set = graph.variants(combo.id)
             variant_sets.append((combo, variant_set))
             if len(variant_set) > 50 or index % log_count == 0 or index == total - 1:
-                log(f'{index + 1}/{total} combos processed (just processed combo {combo.id})')
+                log_into_job(job, f'{index + 1}/{total} combos processed (just processed combo {combo.id})')
             index += 1
-        log('Processing all recipes to find all the produced results and more...')
+        log_into_job(job, 'Processing all recipes to find all the produced results and more...')
         index = 0
         for combo, variant_set in variant_sets:
             if len(variant_set) > 50:
-                log(f'About to process results for combo {combo.id} ({index + 1}/{total}) with {len(variant_set)} variants...')
+                log_into_job(job, f'About to process results for combo {combo.id} ({index + 1}/{total}) with {len(variant_set)} variants...')
             for variant in graph.results(variant_set):
                 cards_ids = variant.cards
                 templates_ids = variant.templates
@@ -109,7 +106,7 @@ def get_variants_from_graph(data: Data, single_combo: int | None, job: Job | Non
                         needed_combos=needed_combo_ids,
                     )
             if len(variant_set) > 50 or index % log_count == 0 or index == total - 1:
-                log(f'{index + 1}/{total} combos processed (just processed combo {combo.id})')
+                log_into_job(job, f'{index + 1}/{total} combos processed (just processed combo {combo.id})')
             index += 1
     return result
 
@@ -358,18 +355,19 @@ def restore_variant(
                     if count == override_score
                 )
 
-    # Ordering ingredients by descending replaceability and ascending order in combos
-    cards_ordering: dict[int, tuple[int, int]] = {c: (0, 0) for c in uses}
-    templates_ordering: dict[int, tuple[int, int]] = {t: (0, 0) for t in requires}
-    for i, combo in enumerate(chain(included_combos, generator_combos)):
-        for j, card_in_combo in enumerate(reversed(data.combo_to_cards[combo.id])):
-            if card_in_combo.card_id in cards_ordering:
-                t = cards_ordering[card_in_combo.card_id]
-                cards_ordering[card_in_combo.card_id] = (t[0] + i, t[1] + j)
-        for j, template_in_combo in enumerate(reversed(data.combo_to_templates[combo.id])):
-            if template_in_combo.template_id in templates_ordering:
-                t = templates_ordering[template_in_combo.template_id]
-                templates_ordering[template_in_combo.template_id] = (t[0] + i, t[1] + j)
+    # Ordering ingredients by ascending replaceability and ascending order in combos
+    cards_ordering: dict[int, tuple[int, int, int, int]] = {c: (0, 0, 0, 0) for c in uses}
+    templates_ordering: dict[int, tuple[int, int, int, int]] = {t: (0, 0, 0, 0) for t in requires}
+    for combos, is_generator in ((generator_combos, True), (included_combos, False)):
+        for combo in combos:
+            for i, card_in_combo in enumerate(reversed(data.combo_to_cards[combo.id]), start=1):
+                if card_in_combo.card_id in cards_ordering:
+                    t = cards_ordering[card_in_combo.card_id]
+                    cards_ordering[card_in_combo.card_id] = (t[0] + 1, t[1] + i, t[2], t[3]) if is_generator else (t[0], t[1], t[2] + 1, t[3] + i)
+            for i, template_in_combo in enumerate(reversed(data.combo_to_templates[combo.id]), start=1):
+                if template_in_combo.template_id in templates_ordering:
+                    t = templates_ordering[template_in_combo.template_id]
+                    templates_ordering[template_in_combo.template_id] = (t[0] + 1, t[1] + i, t[2], t[3]) if is_generator else (t[0], t[1], t[2] + 1, t[3] + i)
 
     def uses_list():
         for i, v in enumerate(sorted(cards_ordering, key=lambda k: cards_ordering[k], reverse=True)):
@@ -566,17 +564,14 @@ def generate_variants(combo: int | None = None, job: Job | None = None, log_coun
         log_into_job(job, f'Variant generation started for combo {combo}.')
     else:
         log_into_job(job, 'Variant generation started for all combos.')
-    logging.info('Fetching data...')
     log_into_job(job, 'Fetching data...')
     data = Data()
     to_restore = set(k for k, v in data.id_to_variant.items() if v.status == Variant.Status.RESTORE or len(data.variant_to_of[k]) == 0)
-    logging.info('Fetching all variant unique ids...')
+    log_into_job(job, 'Fetching all variant unique ids...')
     old_id_set = set(data.id_to_variant.keys())
-    logging.info('Computing combos graph representation...')
     log_into_job(job, 'Computing combos graph representation...')
     debug_queries()
     variants = get_variants_from_graph(data, combo, job, log_count)
-    logging.info(f'Saving {len(variants)} variants...')
     log_into_job(job, f'Saving {len(variants)} variants...')
     debug_queries()
     to_bulk_update = list[VariantBulkSaveItem]()
@@ -605,8 +600,8 @@ def generate_variants(combo: int | None = None, job: Job | None = None, log_coun
         new_id_set = set(variants.keys())
         added = new_id_set - old_id_set
         restored = new_id_set & to_restore
-        logging.info(f'Added {len(added)} new variants.')
-        logging.info(f'Updated {len(restored)} variants.')
+        log_into_job(job, f'Added {len(added)} new variants.')
+        log_into_job(job, f'Updated {len(restored)} variants.')
         if combo is None:
             to_delete = old_id_set - new_id_set
         else:
@@ -614,9 +609,9 @@ def generate_variants(combo: int | None = None, job: Job | None = None, log_coun
         delete_query = Variant.objects.filter(id__in=to_delete)
         deleted_count = len(to_delete)
         delete_query.delete()
-        logging.info(f'Deleted {deleted_count} variants...')
+        log_into_job(job, f'Deleted {deleted_count} variants...')
         added_aliases, deleted_aliases = sync_variant_aliases(data, added, to_delete)
-        logging.info(f'Added {added_aliases} new aliases, deleted {deleted_aliases} aliases.')
-        logging.info('Done.')
+        log_into_job(job, f'Added {added_aliases} new aliases, deleted {deleted_aliases} aliases.')
+        log_into_job(job, 'Done.')
         debug_queries(True)
         return len(added), len(restored), deleted_count

@@ -20,7 +20,7 @@ from spellbook.models.utils import sanitize_newlines_apostrophes_and_quotes, san
 
 def datetime_to_html(datetime: datetime | None) -> SafeText:
     if datetime is None:
-        return mark_safe('never')
+        return mark_safe('-')
     return format_html('<span class="local-datetime" data-iso="{}">{}</span>', datetime.isoformat(), localize(datetime))
 
 

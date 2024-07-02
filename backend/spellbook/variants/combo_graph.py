@@ -178,60 +178,57 @@ class Graph:
         self.variant_limit = variant_limit
         self.allow_multiple_copies = allow_multiple_copies
         self.filter: VariantIngredients | None = None
-        if data is not None:
-            self.data = data
-            # Construct card nodes
-            self.cnodes = dict[int, CardNode]((card.id, CardNode(self, card)) for card in data.cards)
-            for c in self.cnodes.values():
-                c.variant_set = self._new_variant_set()
-                c.variant_set.add(FrozenMultiset({c.item.id: 1}), FrozenMultiset())
-            # Construct template nodes
-            self.tnodes = dict[int, TemplateNode]((template.id, TemplateNode(self, template)) for template in data.templates)
-            for t in self.tnodes.values():
-                t.variant_set = self._new_variant_set()
-                t.variant_set.add(FrozenMultiset(), FrozenMultiset({t.item.id: 1}))
-            # Construct feature nodes
-            self.fnodes = dict[int, FeatureNode]()
-            for feature in data.features:
-                node = FeatureNode(self, feature)
-                self.fnodes[feature.id] = node
-                for i in feature.featureofcard_set.all():  # type: ignore
-                    if i.card_id in self.cnodes:
-                        cardNode = self.cnodes[i.card_id]
-                        node.produced_by_cards.update({cardNode: i.quantity})
-                        cardNode.features.update({node: i.quantity})
-            # Construct combo nodes
-            self.bnodes = dict[int, ComboNode]()
-            for combo in data.combos:
-                if all(i.card_id in self.cnodes for i in combo.cardincombo_set.all()) and \
-                        all(i.template_id in self.tnodes for i in combo.templateincombo_set.all()):
-                    node = ComboNode(
-                        self,
-                        combo,
-                        cards={self.cnodes[i.card_id]: i.quantity for i in combo.cardincombo_set.all()},
-                        templates={self.tnodes[i.template_id]: i.quantity for i in combo.templateincombo_set.all()},
-                        countable_features_needed={self.fnodes[i.feature_id]: i.quantity for i in combo.featureneededincombo_set.all() if not self.fnodes[i.feature_id].item.uncountable},
-                        uncountable_features_needed=[self.fnodes[i.feature_id] for i in combo.featureneededincombo_set.all() if self.fnodes[i.feature_id].item.uncountable],
-                        features_produced=[self.fnodes[i.feature_id] for i in combo.featureproducedincombo_set.all()],
-                    )
-                    self.bnodes[combo.id] = node
-                    for i in combo.featureproducedincombo_set.all():
-                        featureNode = self.fnodes[i.feature_id]
-                        featureNode.produced_by_combos.append(node)
-                    for i in combo.featureneededincombo_set.all():
-                        featureNode = self.fnodes[i.feature_id]
-                        featureNode.needed_by_combos.update({node: i.quantity})
-                    for i in combo.cardincombo_set.all():
-                        cardNode = self.cnodes[i.card_id]
-                        cardNode.combos.update({node: i.quantity})
-                    for i in combo.templateincombo_set.all():
-                        templateNode = self.tnodes[i.template_id]
-                        templateNode.combos.update({node: i.quantity})
-            self._to_reset_nodes_state = set[Node]()
-            self._to_reset_nodes_filtered_state = set[Node]()
-            self._to_reset_nodes_filtered_variant_set = set[Node]()
-        else:
-            self._error('Invalid arguments')
+        self.data = data
+        # Construct card nodes
+        self.cnodes = dict[int, CardNode]((card.id, CardNode(self, card)) for card in data.id_to_card.values())
+        for c in self.cnodes.values():
+            c.variant_set = self._new_variant_set()
+            c.variant_set.add(FrozenMultiset({c.item.id: 1}), FrozenMultiset())
+        # Construct template nodes
+        self.tnodes = dict[int, TemplateNode]((template.id, TemplateNode(self, template)) for template in data.id_to_template.values())
+        for t in self.tnodes.values():
+            t.variant_set = self._new_variant_set()
+            t.variant_set.add(FrozenMultiset(), FrozenMultiset({t.item.id: 1}))
+        # Construct feature nodes
+        self.fnodes = dict[int, FeatureNode]()
+        for feature in data.id_to_feature.values():
+            node = FeatureNode(self, feature)
+            self.fnodes[feature.id] = node
+            for i in data.features_to_cards[feature.id]:
+                if i.card_id in self.cnodes:
+                    cardNode = self.cnodes[i.card_id]
+                    node.produced_by_cards.update({cardNode: i.quantity})
+                    cardNode.features.update({node: i.quantity})
+        # Construct combo nodes
+        self.bnodes = dict[int, ComboNode]()
+        for combo in data.id_to_combo.values():
+            if all(i.card_id in self.cnodes for i in data.combo_to_cards[combo.id]) \
+                    and all(i.template_id in self.tnodes for i in data.combo_to_templates[combo.id]):
+                node = ComboNode(
+                    self,
+                    combo,
+                    cards={self.cnodes[i.card_id]: i.quantity for i in data.combo_to_cards[combo.id]},
+                    templates={self.tnodes[i.template_id]: i.quantity for i in data.combo_to_templates[combo.id]},
+                    countable_features_needed={self.fnodes[i.feature_id]: i.quantity for i in data.combo_to_needed_features[combo.id] if not self.fnodes[i.feature_id].item.uncountable},
+                    uncountable_features_needed=[self.fnodes[i.feature_id] for i in data.combo_to_needed_features[combo.id] if self.fnodes[i.feature_id].item.uncountable],
+                    features_produced=[self.fnodes[i.feature_id] for i in data.combo_to_produced_features[combo.id]],
+                )
+                self.bnodes[combo.id] = node
+                for i in data.combo_to_produced_features[combo.id]:
+                    featureNode = self.fnodes[i.feature_id]
+                    featureNode.produced_by_combos.append(node)
+                for i in data.combo_to_needed_features[combo.id]:
+                    featureNode = self.fnodes[i.feature_id]
+                    featureNode.needed_by_combos.update({node: i.quantity})
+                for i in data.combo_to_cards[combo.id]:
+                    cardNode = self.cnodes[i.card_id]
+                    cardNode.combos.update({node: i.quantity})
+                for i in data.combo_to_templates[combo.id]:
+                    templateNode = self.tnodes[i.template_id]
+                    templateNode.combos.update({node: i.quantity})
+        self._to_reset_nodes_state = set[Node]()
+        self._to_reset_nodes_filtered_state = set[Node]()
+        self._to_reset_nodes_filtered_variant_set = set[Node]()
 
     def _new_variant_set(self) -> VariantSet:
         return VariantSet(limit=self.card_limit, allow_multiple_copies=self.allow_multiple_copies)

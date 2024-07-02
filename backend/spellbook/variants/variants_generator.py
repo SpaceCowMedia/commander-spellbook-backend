@@ -2,7 +2,6 @@ import logging
 import re
 from collections import defaultdict
 from multiset import FrozenMultiset, Multiset, BaseMultiset
-from itertools import chain, repeat
 from dataclasses import dataclass
 from django.db import transaction
 from .utils import includes_any
@@ -10,12 +9,7 @@ from .variant_data import Data, debug_queries
 from .combo_graph import Graph, VariantSet
 from spellbook.models import Combo, Job, Variant, CardInVariant, TemplateInVariant, id_from_cards_and_templates_ids, Playable, Card, Template, VariantAlias, Ingredient, Feature, FeatureProducedByVariant, VariantOfCombo, VariantIncludesCombo, ZoneLocation
 from spellbook.utils import log_into_job
-
-
-DEFAULT_CARD_LIMIT = 5
-DEFAULT_VARIANT_LIMIT = 10000
-HIGHER_CARD_LIMIT = 100
-LOWER_VARIANT_LIMIT = 100
+from spellbook.models.constants import DEFAULT_CARD_LIMIT, DEFAULT_VARIANT_LIMIT, HIGHER_CARD_LIMIT, LOWER_VARIANT_LIMIT
 
 
 @dataclass
@@ -226,16 +220,16 @@ def restore_variant(
     # Prepare related objects collections
     used_cards: list[CardInVariant] = []
     for c_id, quantity in variant_def.card_ids.items():
-        if (c_id, variant.id) in data.card_variant_dict:
-            civ = data.card_variant_dict[(c_id, variant.id)]
+        if (c_id, variant.id) in data.card_in_variant_dict:
+            civ = data.card_in_variant_dict[(c_id, variant.id)]
             civ.quantity = quantity
         else:
             civ = CardInVariant(card=data.id_to_card[c_id], variant=variant, quantity=quantity)
         used_cards.append(civ)
     required_templates: list[TemplateInVariant] = []
     for t_id, quantity in variant_def.template_ids.items():
-        if (t_id, variant.id) in data.template_variant_dict:
-            tiv = data.template_variant_dict[(t_id, variant.id)]
+        if (t_id, variant.id) in data.template_in_variant_dict:
+            tiv = data.template_in_variant_dict[(t_id, variant.id)]
             tiv.quantity = quantity
         else:
             tiv = TemplateInVariant(template=data.id_to_template[t_id], variant=variant, quantity=quantity)
@@ -470,13 +464,13 @@ def perform_bulk_saves(data: Data, to_create: list[VariantBulkSaveItem], to_upda
     update_fields = ['zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'must_be_commander', 'order', 'quantity']
     TemplateInVariant.objects.bulk_update([t for v in to_update if v.should_update for t in v.requires], fields=update_fields)
     to_delete_of = [
-        i.pk
+        c
         for v in to_update
-        for c, i in data.variant_to_of[v.variant.id].items()
+        for c in data.variant_to_of_sets[v.variant.id]
         if c not in v.of
     ]
     if to_delete_of:
-        VariantOfCombo.objects.filter(pk__in=to_delete_of).delete()
+        VariantOfCombo.objects.filter(id__in=to_delete_of).delete()
     del to_delete_of
     to_create_of = [
         VariantOfCombo(variant_id=v.variant.id, combo_id=c)
@@ -486,18 +480,18 @@ def perform_bulk_saves(data: Data, to_create: list[VariantBulkSaveItem], to_upda
         VariantOfCombo(variant_id=v.variant.id, combo_id=c)
         for v in to_update
         for c in v.of
-        if c not in data.variant_to_of[v.variant.id]
+        if c not in data.variant_to_of_sets[v.variant.id]
     ]
     VariantOfCombo.objects.bulk_create(to_create_of)
     del to_create_of
     to_delete_includes = [
-        i.pk
+        c
         for v in to_update
-        for c, i in data.variant_to_includes[v.variant.id].items()
+        for c in data.variant_to_includes_sets[v.variant.id]
         if c not in v.includes
     ]
     if to_delete_includes:
-        VariantIncludesCombo.objects.filter(pk__in=to_delete_includes).delete()
+        VariantIncludesCombo.objects.filter(id__in=to_delete_includes).delete()
     del to_delete_includes
     to_create_includes = [
         VariantIncludesCombo(variant_id=v.variant.id, combo_id=c)
@@ -507,18 +501,18 @@ def perform_bulk_saves(data: Data, to_create: list[VariantBulkSaveItem], to_upda
         VariantIncludesCombo(variant_id=v.variant.id, combo_id=c)
         for v in to_update
         for c in v.includes
-        if c not in data.variant_to_includes[v.variant.id]
+        if c not in data.variant_to_includes_sets[v.variant.id]
     ]
     VariantIncludesCombo.objects.bulk_create(to_create_includes)
     del to_create_includes
     to_delete_produces = [
-        i.pk
+        f.id
         for v in to_update
-        for f, i in data.variant_to_produces[v.variant.id].items()
-        if f not in v.produces_ids()
+        for f in data.variant_to_produces[v.variant.id]
+        if f.id not in v.produces_ids()
     ]
     if to_delete_produces:
-        FeatureProducedByVariant.objects.filter(pk__in=to_delete_produces).delete()
+        FeatureProducedByVariant.objects.filter(id__in=to_delete_produces).delete()
     del to_delete_produces
     to_create_produces = [
         i
@@ -528,18 +522,18 @@ def perform_bulk_saves(data: Data, to_create: list[VariantBulkSaveItem], to_upda
         i
         for v in to_update
         for i in v.produces
-        if i.feature_id not in data.variant_to_produces[v.variant.id]
+        if (i.feature_id, v.variant.id) not in data.variant_to_produces_dict
     ]
     FeatureProducedByVariant.objects.bulk_create(to_create_produces)
     del to_create_produces
     to_update_produces: list[FeatureProducedByVariant] = []
     for v in to_update:
         for i in v.produces:
-            old_instance = data.variant_to_produces[v.variant.id].get(i.feature_id)
+            old_instance = data.variant_to_produces_dict.get((i.feature_id, v.variant.id))
             if old_instance is not None and \
                     old_instance.quantity != i.quantity:
-                i.pk = old_instance.pk
-                to_update_produces.append(i)
+                old_instance.quantity = i.quantity
+                to_update_produces.append(old_instance)
     update_fields = ['quantity']
     FeatureProducedByVariant.objects.bulk_update(to_update_produces, fields=update_fields)
 
@@ -566,7 +560,7 @@ def generate_variants(combo: int | None = None, job: Job | None = None, log_coun
         log_into_job(job, 'Variant generation started for all combos.')
     log_into_job(job, 'Fetching data...')
     data = Data()
-    to_restore = set(k for k, v in data.id_to_variant.items() if v.status == Variant.Status.RESTORE or len(data.variant_to_of[k]) == 0)
+    to_restore = set(k for k, v in data.id_to_variant.items() if v.status == Variant.Status.RESTORE or len(data.variant_to_of_sets[k]) == 0)
     log_into_job(job, 'Fetching all variant unique ids...')
     old_id_set = set(data.id_to_variant.keys())
     log_into_job(job, 'Computing combos graph representation...')

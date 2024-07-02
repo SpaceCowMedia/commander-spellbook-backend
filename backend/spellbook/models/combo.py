@@ -10,14 +10,16 @@ from .feature import Feature
 from .template import Template
 from .ingredient import IngredientInCombination, ZoneLocationsField
 from .validators import MANA_VALIDATOR, TEXT_VALIDATORS
+from .constants import HIGHER_CARD_LIMIT, DEFAULT_CARD_LIMIT, LOWER_VARIANT_LIMIT, DEFAULT_VARIANT_LIMIT
+from .feature_attribute import WithFeatureAttributes, WithFeatureAttributesMatcher
 
 
 class RecipePrefetchedManager(models.Manager):
     def get_queryset(self):
         return super().get_queryset().prefetch_related(
             models.Prefetch('uses', queryset=Card.objects.order_by('cardincombo')),
-            'needs',
             models.Prefetch('requires', queryset=Template.objects.order_by('templateincombo')),
+            'needs',
             'produces',
             'cardincombo_set',
             'templateincombo_set',
@@ -79,7 +81,7 @@ class Combo(Recipe, ScryfallLinkMixin):
     description = models.TextField(blank=True, help_text='Long description of the combo, in steps', validators=TEXT_VALIDATORS)
     notes = models.TextField(blank=True, help_text='Notes about the combo', validators=TEXT_VALIDATORS)
     status = models.CharField(choices=Status.choices, default=Status.GENERATOR, help_text='Is this combo a generator for variants?', verbose_name='status', max_length=2)
-    allow_many_cards = models.BooleanField(default=False, help_text='Allow variants to have more cards than the default limit')
+    allow_many_cards = models.BooleanField(default=False, help_text=f'Allow variants to have more cards ({HIGHER_CARD_LIMIT}) than the default limit ({DEFAULT_CARD_LIMIT}). On the other hand, with this option enabled, the limit on the number of allowed variants is lowered to {LOWER_VARIANT_LIMIT}, instead of the default {DEFAULT_VARIANT_LIMIT}.')
     allow_multiple_copies = models.BooleanField(default=False, help_text='Allow variants to have more copies of the same card or template')
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, editable=False)
@@ -104,6 +106,7 @@ class Combo(Recipe, ScryfallLinkMixin):
 
 
 class CardInCombo(IngredientInCombination):
+    id: int
     card = models.ForeignKey(to=Card, on_delete=models.CASCADE)
     card_id: int
     combo = models.ForeignKey(to=Combo, on_delete=models.CASCADE)
@@ -117,6 +120,7 @@ class CardInCombo(IngredientInCombination):
 
 
 class TemplateInCombo(IngredientInCombination):
+    id: int
     template = models.ForeignKey(to=Template, on_delete=models.CASCADE)
     template_id: int
     combo = models.ForeignKey(to=Combo, on_delete=models.CASCADE)
@@ -129,7 +133,8 @@ class TemplateInCombo(IngredientInCombination):
         unique_together = [('template', 'combo')]
 
 
-class FeatureNeededInCombo(models.Model):
+class FeatureNeededInCombo(WithFeatureAttributesMatcher):
+    id: int
     feature = models.ForeignKey(to=Feature, on_delete=models.CASCADE)
     feature_id: int
     combo = models.ForeignKey(to=Combo, on_delete=models.CASCADE)
@@ -149,7 +154,8 @@ class FeatureNeededInCombo(models.Model):
             raise ValidationError('Uncountable features can only appear in one copy.')
 
 
-class FeatureProducedInCombo(models.Model):
+class FeatureProducedInCombo(WithFeatureAttributes):
+    id: int
     feature = models.ForeignKey(to=Feature, on_delete=models.CASCADE)
     feature_id: int
     combo = models.ForeignKey(to=Combo, on_delete=models.CASCADE)
@@ -163,6 +169,7 @@ class FeatureProducedInCombo(models.Model):
 
 
 class FeatureRemovedInCombo(models.Model):
+    id: int
     feature = models.ForeignKey(to=Feature, on_delete=models.CASCADE)
     feature_id: int
     combo = models.ForeignKey(to=Combo, on_delete=models.CASCADE)

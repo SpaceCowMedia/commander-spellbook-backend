@@ -11,6 +11,7 @@ from .mixins import ScryfallLinkMixin, PreSaveModelMixin
 from .feature import Feature
 from .fields import KeywordsField
 from .ingredient import Ingredient
+from .feature_attribute import WithFeatureAttributes
 
 
 class Card(Playable, PreSaveModelMixin, ScryfallLinkMixin):
@@ -130,7 +131,8 @@ def update_combo_fields(sender, instance, created, raw, **kwargs):
     Combo.objects.bulk_update(combos_to_save, fields=['name'])
 
 
-class FeatureOfCard(Ingredient):
+class FeatureOfCard(Ingredient, WithFeatureAttributes):
+    id: int
     feature = models.ForeignKey(to=Feature, on_delete=models.CASCADE)
     feature_id: int
     card = models.ForeignKey(to=Card, on_delete=models.CASCADE)

@@ -9,7 +9,7 @@ from .ingredient_admin import IngredientAdmin
 
 
 class CardInFeatureAdminInline(IngredientAdmin):
-    fields = ['card', *IngredientAdmin.fields, 'other_prerequisites']
+    fields = ['card', *IngredientAdmin.fields, 'other_prerequisites', 'attributes']
     model = FeatureOfCard
     extra = 0
     autocomplete_fields = ['card']

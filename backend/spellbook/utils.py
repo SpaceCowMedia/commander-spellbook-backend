@@ -63,6 +63,7 @@ def launch_job_command(command: str, user: User | None = None, args: list[str] =
 
 
 def log_into_job(job: Job | None, message: str, reset=False):
+    logging.info(message)
     if job:
         if reset:
             job.message = message

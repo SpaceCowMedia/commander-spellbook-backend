@@ -1,4 +1,5 @@
 import logging
+from typing import Iterable
 from multiset import FrozenMultiset
 from django.conf import settings
 from django.db import connection, reset_queries
@@ -12,86 +13,108 @@ from .variant_set import VariantSet
 
 class Data:
     def __init__(self):
-        self.combos = list(Combo.objects.filter(status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY)).prefetch_related(
-            'cardincombo_set',
-            'templateincombo_set',
-            'featureproducedincombo_set',
-            'featureneededincombo_set',
-            'featureremovedincombo_set',
-        ))
-        self.id_to_combo: dict[int, Combo] = {c.id: c for c in self.combos}
-        self.combo_to_cards = dict[int, list[CardInCombo]]()
-        self.combo_to_templates = dict[int, list[TemplateInCombo]]()
-        self.combo_to_produced_features = dict[int, list[FeatureProducedInCombo]]()
-        self.combo_to_needed_features = dict[int, list[FeatureNeededInCombo]]()
-        self.combo_to_removed_features = dict[int, list[FeatureRemovedInCombo]]()
-        self.generator_combos = [c for c in self.combos if c.status == Combo.Status.GENERATOR]
-        for combo in self.combos:
-            self.combo_to_cards[combo.id] = list(combo.cardincombo_set.all())
-            self.combo_to_templates[combo.id] = list(combo.templateincombo_set.all())
-            self.combo_to_produced_features[combo.id] = list(combo.featureproducedincombo_set.all())
-            self.combo_to_needed_features[combo.id] = list(combo.featureneededincombo_set.all())
-            self.combo_to_removed_features[combo.id] = list(combo.featureremovedincombo_set.all())
-        for combo_to_cards in self.combo_to_cards.values():
-            combo_to_cards.sort(key=lambda cic: cic.order)
-        for combo_to_templates in self.combo_to_templates.values():
-            combo_to_templates.sort(key=lambda tic: tic.order)
-        self.card_to_features = dict[int, list[FeatureOfCard]]()
-        self.cards = list(Card.objects.prefetch_related(
-            'featureofcard_set',
-        ))
-        for card in self.cards:
-            self.card_to_features[card.id] = list(card.featureofcard_set.all())
-        self.id_to_card = {c.id: c for c in self.cards}
-        self.templates = list(Template.objects.all())
-        self.id_to_template = {t.id: t for t in self.templates}
+        # Features
+        features = list(Feature.objects.all())
+        # Cards
+        cards = list(Card.objects.all())
+        featureofcards = list(FeatureOfCard.objects.all())
+        featureofcard_attributes = list(FeatureOfCard.attributes.through.objects.all())
+        # Templates
+        templates = list(Template.objects.all())
+        # Combos
+        combos = list(Combo.objects.filter(status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY)))
+        cardincombos = list(CardInCombo.objects.filter(combo__status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY)))
+        templateincombos = list(TemplateInCombo.objects.filter(combo__status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY)))
+        featureproducedincombos = list(FeatureProducedInCombo.objects.filter(combo__status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY)))
+        featureneededincombos = list(FeatureNeededInCombo.objects.filter(combo__status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY)))
+        featureremovedincombos = list(FeatureRemovedInCombo.objects.filter(combo__status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY)))
+        featureneededincombo_anyofattributes = list(FeatureNeededInCombo.any_of_attributes.through.objects.filter(featureneededincombo__combo__status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY)))
+        featureneededincombo_allofattributes = list(FeatureNeededInCombo.all_of_attributes.through.objects.filter(featureneededincombo__combo__status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY)))
+        featureneededincombo_noneofattributes = list(FeatureNeededInCombo.none_of_attributes.through.objects.filter(featureneededincombo__combo__status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY)))
+        featureproducedincombo_attributes = list(FeatureProducedInCombo.attributes.through.objects.filter(featureproducedincombo__combo__status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY)))
+        # Variants
+        variants = list[Variant](Variant.objects.all())
+        cardinvariants = list(CardInVariant.objects.all())
+        templateinvariants = list(TemplateInVariant.objects.all())
+        variantofcombos = list(VariantOfCombo.objects.all())
+        variantincludescombos = list(VariantIncludesCombo.objects.all())
+        featureproducedbyvariants = list(FeatureProducedByVariant.objects.all())
+        # Data
+        self.id_to_card = {c.id: c for c in cards}
+        self.id_to_template = {t.id: t for t in templates}
+        self.id_to_combo = {c.id: c for c in combos}
+        self.id_to_variant = {v.id: v for v in variants}
+        self.id_to_feature = {f.id: f for f in features}
+        self.generator_combos = [c for c in combos if c.status == Combo.Status.GENERATOR]
+        self.combo_to_cards = {c.id: list[CardInCombo]() for c in combos}
+        for cardincombo in cardincombos:
+            self.combo_to_cards[cardincombo.combo_id].append(cardincombo)
+        for i in self.combo_to_cards.values():
+            i.sort(key=lambda cic: cic.order)
+        self.combo_to_templates = {c.id: list[TemplateInCombo]() for c in combos}
+        for i in templateincombos:
+            self.combo_to_templates[i.combo_id].append(i)
+        for i in self.combo_to_templates.values():
+            i.sort(key=lambda tic: tic.order)
+        self.combo_to_produced_features = {c.id: list[FeatureProducedInCombo]() for c in combos}
+        for i in featureproducedincombos:
+            self.combo_to_produced_features[i.combo_id].append(i)
+        self.combo_to_needed_features = {c.id: list[FeatureNeededInCombo]() for c in combos}
+        for i in featureneededincombos:
+            self.combo_to_needed_features[i.combo_id].append(i)
+        self.combo_to_removed_features = {c.id: list[FeatureRemovedInCombo]() for c in combos}
+        for i in featureremovedincombos:
+            self.combo_to_removed_features[i.combo_id].append(i)
+        self.feature_needed_in_combo_to_any_of_attributes = {f.id: set[int]() for f in featureneededincombos}
+        for i in featureneededincombo_anyofattributes:
+            self.feature_needed_in_combo_to_any_of_attributes[i.featureneededincombo_id].add(i.featureattribute_id)
+        self.feature_needed_in_combo_to_all_of_attributes = {f.id: set[int]() for f in featureneededincombos}
+        for i in featureneededincombo_allofattributes:
+            self.feature_needed_in_combo_to_all_of_attributes[i.featureneededincombo_id].add(i.featureattribute_id)
+        self.feature_needed_in_combo_to_none_of_attributes = {f.id: set[int]() for f in featureneededincombos}
+        for i in featureneededincombo_noneofattributes:
+            self.feature_needed_in_combo_to_none_of_attributes[i.featureneededincombo_id].add(i.featureattribute_id)
+        self.feature_produced_in_combo_to_attributes = {f.id: set[int]() for f in featureproducedincombos}
+        for i in featureproducedincombo_attributes:
+            self.feature_produced_in_combo_to_attributes[i.featureproducedincombo_id].add(i.featureattribute_id)
+        self.card_to_features = {c.id: list[FeatureOfCard]() for c in cards}
+        self.features_to_cards = {f.id: list[FeatureOfCard]() for f in features}
+        for i in featureofcards:
+            self.card_to_features[i.card_id].append(i)
+            self.features_to_cards[i.feature_id].append(i)
+        self.feature_of_card_to_attributes = {f.id: set[int]() for f in featureofcards}
+        for i in featureofcard_attributes:
+            self.feature_of_card_to_attributes[i.featureofcard_id].add(i.featureattribute_id)
+        self.variant_to_cards = {v.id: list[CardInVariant]() for v in variants}
+        for i in cardinvariants:
+            self.variant_to_cards[i.variant_id].append(i)
+        self.card_in_variant_dict = {(c.card_id, c.variant_id): c for c in cardinvariants}
+        self.variant_to_templates = {v.id: list[TemplateInVariant]() for v in variants}
+        for i in templateinvariants:
+            self.variant_to_templates[i.variant_id].append(i)
+        self.template_in_variant_dict = {(t.template_id, t.variant_id): t for t in templateinvariants}
+        self.variant_to_of_sets = {v.id: set[int]() for v in variants}
+        for i in variantofcombos:
+            self.variant_to_of_sets[i.variant_id].add(i.combo_id)
+        self.variant_to_includes_sets = {v.id: set[int]() for v in variants}
+        for i in variantincludescombos:
+            self.variant_to_includes_sets[i.variant_id].add(i.combo_id)
+        self.variant_to_produces = {v.id: list[FeatureProducedByVariant]() for v in variants}
+        for i in featureproducedbyvariants:
+            self.variant_to_produces[i.variant_id].append(i)
+        self.variant_to_produces_dict = {(f.feature_id, f.variant_id): f for f in featureproducedbyvariants}
 
-        def fetch_not_working_variants(variants: list[Variant]) -> VariantSet:
+        def fetch_not_working_variants(variants: Iterable[Variant]) -> VariantSet:
             variants = [v for v in variants if v.status == Variant.Status.NOT_WORKING]
             variant_set = VariantSet()
             for v in variants:
                 variant_set.add(
-                    FrozenMultiset({c.card_id: c.quantity for c in v.cardinvariant_set.all()}),  # type: ignore
-                    FrozenMultiset({t.template_id: t.quantity for t in v.templateinvariant_set.all()}),  # type: ignore
+                    FrozenMultiset({c.card_id: c.quantity for c in self.variant_to_cards[v.id]}),
+                    FrozenMultiset({t.template_id: t.quantity for t in self.variant_to_templates[v.id]}),
                 )
             return variant_set
-
-        self.features = list(Feature.objects.prefetch_related(
-            'featureofcard_set',
-            'featureneededincombo_set',
-            'featureproducedincombo_set',
-            'featureremovedincombo_set',
-        ))
-        self.utility_features_ids = frozenset(f.id for f in self.features if f.utility)
-        self.id_to_feature: dict[int, Feature] = {f.id: f for f in self.features}
-        self.variants: list[Variant] = list(Variant.objects.prefetch_related(
-            'cardinvariant_set',
-            'templateinvariant_set',
-            'variantofcombo_set',
-            'variantincludescombo_set',
-            'featureproducedbyvariant_set',
-        ))
-        self.not_working_variants = fetch_not_working_variants(self.variants).variants()
-        self.id_to_variant = {v.id: v for v in self.variants}
-        self.card_in_variant = dict[str, list[CardInVariant]]()
-        self.template_in_variant = dict[str, list[TemplateInVariant]]()
-        self.card_variant_dict = dict[tuple[int, str], CardInVariant]()
-        self.template_variant_dict = dict[tuple[int, str], TemplateInVariant]()
-        self.variant_to_of = dict[str, dict[int, VariantOfCombo]]()
-        self.variant_to_includes = dict[str, dict[int, VariantIncludesCombo]]()
-        self.variant_to_produces = dict[str, dict[int, FeatureProducedByVariant]]()
-        for variant in self.variants:
-            cards_in_variant = list(variant.cardinvariant_set.all())
-            templates_in_variant = list(variant.templateinvariant_set.all())
-            self.card_in_variant[variant.id] = cards_in_variant
-            self.template_in_variant[variant.id] = templates_in_variant
-            self.variant_to_of[variant.id] = {o.combo_id: o for o in variant.variantofcombo_set.all()}
-            self.variant_to_includes[variant.id] = {i.combo_id: i for i in variant.variantincludescombo_set.all()}
-            self.variant_to_produces[variant.id] = {f.feature_id: f for f in variant.featureproducedbyvariant_set.all()}
-            for card_in_variant in cards_in_variant:
-                self.card_variant_dict[(card_in_variant.card_id, variant.id)] = card_in_variant
-            for template_in_variant in templates_in_variant:
-                self.template_variant_dict[(template_in_variant.template_id, variant.id)] = template_in_variant
+        self.utility_features_ids = frozenset(f.id for f in self.id_to_feature.values() if f.utility)
+        self.not_working_variants = fetch_not_working_variants(self.id_to_variant.values()).variants()
 
 
 count = 0

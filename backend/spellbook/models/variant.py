@@ -187,6 +187,7 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
 
 
 class CardInVariant(IngredientInCombination):
+    id: int
     card = models.ForeignKey(to=Card, on_delete=models.CASCADE)
     card_id: int
     variant = models.ForeignKey(to=Variant, on_delete=models.CASCADE)
@@ -200,6 +201,7 @@ class CardInVariant(IngredientInCombination):
 
 
 class TemplateInVariant(IngredientInCombination):
+    id: int
     template = models.ForeignKey(to=Template, on_delete=models.CASCADE)
     template_id: int
     variant = models.ForeignKey(to=Variant, on_delete=models.CASCADE)
@@ -213,6 +215,7 @@ class TemplateInVariant(IngredientInCombination):
 
 
 class FeatureProducedByVariant(models.Model):
+    id: int
     feature = models.ForeignKey(to=Feature, on_delete=models.CASCADE)
     feature_id: int
     variant = models.ForeignKey(to=Variant, on_delete=models.CASCADE)
@@ -232,6 +235,7 @@ class FeatureProducedByVariant(models.Model):
 
 
 class VariantOfCombo(models.Model):
+    id: int
     variant = models.ForeignKey(to=Variant, on_delete=models.CASCADE)
     variant_id: str
     combo = models.ForeignKey(to=Combo, on_delete=models.CASCADE)
@@ -245,6 +249,7 @@ class VariantOfCombo(models.Model):
 
 
 class VariantIncludesCombo(models.Model):
+    id: int
     variant = models.ForeignKey(to=Variant, on_delete=models.CASCADE)
     variant_id: str
     combo = models.ForeignKey(to=Combo, on_delete=models.CASCADE)

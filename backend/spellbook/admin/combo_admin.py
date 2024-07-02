@@ -63,10 +63,11 @@ class TemplateInComboAdminInline(IngredientInCombinationAdmin):
 
 class FeatureNeededInComboAdminInline(admin.TabularInline):
     model = Combo.needs.through
+    fields = ['feature', 'quantity', 'zone_locations_override', 'any_of_attributes', 'all_of_attributes', 'none_of_attributes']
     extra = 0
     verbose_name = 'Feature'
     verbose_name_plural = 'Required Features'
-    autocomplete_fields = ['feature']
+    autocomplete_fields = ['feature', 'any_of_attributes', 'all_of_attributes', 'none_of_attributes']
 
     def get_extra(self, request: HttpRequest, obj, **kwargs: Any) -> int:
         if hasattr(request, 'from_suggestion') and request.from_suggestion is not None:  # type: ignore
@@ -76,10 +77,11 @@ class FeatureNeededInComboAdminInline(admin.TabularInline):
 
 class FeatureProducedInComboAdminInline(admin.TabularInline):
     model = Combo.produces.through
+    fields = ['feature', 'attributes']
     extra = 0
     verbose_name = 'Feature'
     verbose_name_plural = 'Produced Features'
-    autocomplete_fields = ['feature']
+    autocomplete_fields = ['feature', 'attributes']
 
     def get_extra(self, request: HttpRequest, obj, **kwargs: Any) -> int:
         if hasattr(request, 'from_suggestion') and request.from_suggestion is not None:  # type: ignore

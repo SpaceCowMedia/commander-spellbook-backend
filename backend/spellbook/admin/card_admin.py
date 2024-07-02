@@ -22,11 +22,11 @@ class ManagedByScryfallFilter(CustomFilter):
 
 
 class FeatureOfCardAdminInline(IngredientAdmin):
-    fields = ['feature', *IngredientAdmin.fields, 'other_prerequisites']
+    fields = ['feature', *IngredientAdmin.fields, 'other_prerequisites', 'attributes']
     model = FeatureOfCard
     verbose_name = 'Feature'
     verbose_name_plural = 'Features'
-    autocomplete_fields = ['feature']
+    autocomplete_fields = ['feature', 'attributes']
     formfield_overrides = {
         TextField: {'widget': Textarea(attrs={'rows': 1, 'cols': 25, 'style': 'resize: vertical; min-height: 2em;'})},
     }

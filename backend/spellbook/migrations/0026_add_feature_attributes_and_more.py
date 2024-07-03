@@ -3,6 +3,7 @@
 import django.core.validators
 import spellbook.models.variant_alias
 from django.db import migrations, models
+from ._utils import PopulateNameField
 
 
 class Migration(migrations.Migration):
@@ -66,4 +67,5 @@ class Migration(migrations.Migration):
             name='attributes',
             field=models.ManyToManyField(blank=True, related_name='used_as_attribute_in_%(class)s', to='spellbook.featureattribute'),
         ),
+        PopulateNameField(),
     ]

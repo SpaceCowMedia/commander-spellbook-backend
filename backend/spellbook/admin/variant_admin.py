@@ -245,6 +245,7 @@ class VariantAdmin(SpellbookModelAdmin):
         if lookup in (
             'generated_by__id',
             'of__id',
+            'includes__id',
         ):
             return True
         return super().lookup_allowed(lookup, value, request)  # type: ignore for deprecated typing

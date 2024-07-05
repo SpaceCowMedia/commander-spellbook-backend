@@ -19,10 +19,20 @@ def create_missing_object_message(url: str) -> str:
 
 
 class ComboForm(SpellbookAdminForm):
-    def variants_for_editors(self):
+    def variants_of_this(self):
         if self.instance.pk is None:
             return Variant.objects.none()
         return self.instance.variants.order_by(Case(
+            When(status=Variant.Status.NEEDS_REVIEW, then=0),
+            When(status=Variant.Status.DRAFT, then=1),
+            When(status=Variant.Status.NEW, then=2),
+            default=2
+        ), '-updated')
+
+    def variants_that_include_this(self):
+        if self.instance.pk is None:
+            return Variant.objects.none()
+        return self.instance.included_in_variants.order_by(Case(
             When(status=Variant.Status.NEEDS_REVIEW, then=0),
             When(status=Variant.Status.DRAFT, then=1),
             When(status=Variant.Status.NEW, then=2),
@@ -115,7 +125,7 @@ class VariantRelatedFilter(CustomFilter):
     parameter_name = 'in_variants'
 
     def lookups(self, request, model_admin):
-        return [('unused', 'Unused'), ('overlapping', 'Overlapping'), ('redundant', 'Potentially redundant')]
+        return [('unused', 'Unused'), ('overlapping', 'Overlapping')]
 
     def filter(self, value: str) -> Q:
         match value:
@@ -123,8 +133,6 @@ class VariantRelatedFilter(CustomFilter):
                 return Q(included_in_variants__isnull=True)
             case 'overlapping':
                 return Q(possible_overlaps__gt=1)
-            case 'redundant':
-                return Q(possible_redundancies__gt=1)
         return Q()
 
 
@@ -169,7 +177,7 @@ class ComboAdmin(SpellbookModelAdmin):
             needs_count=Count('needs', distinct=True),
             is_payoff=Q(needs_count__gt=0, needs_utility_count=0),
             possible_overlaps=Count('variants__of', distinct=True),
-            possible_redundancies=Count('variants__includes', distinct=True, filter=Q(variants__generated_by__name='import_combos')))
+        )
 
     def get_changeform_initial_data(self, request: HttpRequest) -> dict[str, str]:
         initial_data = super().get_changeform_initial_data(request)

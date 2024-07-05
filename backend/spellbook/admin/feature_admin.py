@@ -12,7 +12,7 @@ class CardInFeatureAdminInline(IngredientAdmin):
     fields = ['card', *IngredientAdmin.fields, 'other_prerequisites', 'attributes']
     model = FeatureOfCard
     extra = 0
-    autocomplete_fields = ['card']
+    autocomplete_fields = ['card', 'attributes']
     verbose_name = 'Produced by card'
     verbose_name_plural = 'Produced by cards'
     formfield_overrides = {

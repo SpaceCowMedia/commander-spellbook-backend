@@ -509,7 +509,7 @@ def perform_bulk_saves(data: Data, to_create: list[VariantBulkSaveItem], to_upda
         f.id
         for v in to_update
         for f in data.variant_to_produces[v.variant.id]
-        if f.id not in v.produces_ids()
+        if f.feature_id not in v.produces_ids()
     ]
     if to_delete_produces:
         FeatureProducedByVariant.objects.filter(id__in=to_delete_produces).delete()

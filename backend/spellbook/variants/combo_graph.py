@@ -214,7 +214,7 @@ class Graph:
                     attributes,
                     FeatureWithAttributesNode(
                         self,
-                        feature_produced_by_card.feature,
+                        data.id_to_feature[feature_produced_by_card.feature_id],
                         attributes
                     )
                 )

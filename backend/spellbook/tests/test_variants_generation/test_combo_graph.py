@@ -1,5 +1,5 @@
 from multiset import FrozenMultiset
-from spellbook.models import Combo
+from spellbook.models import Card, Combo, FeatureAttribute
 from spellbook.variants.variant_data import Data
 from spellbook.variants.combo_graph import Graph, VariantIngredients, VariantSet, VariantRecipe
 from spellbook.tests.abstract_test import AbstractTestCaseWithSeeding, AbstractTestCase
@@ -877,3 +877,77 @@ class ComboGraphTestGeneration(AbstractTestCase):
         })
         self.assertSetEqual(variants[0].needed_combos, {1, 2, 3})
         self.assertSetEqual(variants[0].needed_features, {1, 2})
+
+    def test_feature_attributes(self):
+        self.save_combo_model({
+            'A': ('x',),
+            ('B', ): ('x',),
+            ('x',): ('y',),
+        })
+        fa1 = FeatureAttribute.objects.create(name='FA1')
+        fa2 = FeatureAttribute.objects.create(name='FA2')
+        fa3 = FeatureAttribute.objects.create(name='FA3')
+        with self.subTest('without attributes'):
+            combo_graph = Graph(Data())
+            variants = list(combo_graph.results(combo_graph.variants(2)))
+            self.assertEqual(len(variants), 2)
+            variants.sort(key=lambda v: sorted(v.cards))
+            self.assertMultisetEqual(variants[0].cards, {1: 1})
+            self.assertMultisetEqual(variants[1].cards, {2: 1})
+        with self.subTest('using any of against single card'):
+            c = Card.objects.get(name='A')
+            cf = c.featureofcard_set.first()
+            assert cf is not None
+            cf.attributes.add(fa1)
+            b2 = Combo.objects.get(id=2)
+            b2f = b2.featureneededincombo_set.first()
+            assert b2f is not None
+            b2f.any_of_attributes.add(fa1, fa2)
+            combo_graph = Graph(Data())
+            variants = list(combo_graph.results(combo_graph.variants(2)))
+            self.assertEqual(len(variants), 1)
+            self.assertMultisetEqual(variants[0].cards, {1: 1})
+        with self.subTest('using any of against combo'):
+            cf.attributes.clear()
+            b = Combo.objects.get(id=1)
+            b1f = b.featureproducedincombo_set.first()
+            assert b1f is not None
+            b1f.attributes.add(fa2)
+            combo_graph = Graph(Data())
+            variants = list(combo_graph.results(combo_graph.variants(2)))
+            self.assertEqual(len(variants), 1)
+            self.assertMultisetEqual(variants[0].cards, {2: 1})
+        with self.subTest('using all of against single card'):
+            b2f.any_of_attributes.clear()
+            b2f.all_of_attributes.add(fa1, fa2)
+            cf.attributes.add(fa1, fa2)
+            combo_graph = Graph(Data())
+            variants = list(combo_graph.results(combo_graph.variants(2)))
+            self.assertEqual(len(variants), 1)
+            self.assertMultisetEqual(variants[0].cards, {1: 1})
+        with self.subTest('using all of against combo'):
+            b2f.all_of_attributes.add(fa3)
+            b1f.attributes.set([fa1, fa2, fa3])
+            combo_graph = Graph(Data())
+            variants = list(combo_graph.results(combo_graph.variants(2)))
+            self.assertEqual(len(variants), 1)
+            self.assertMultisetEqual(variants[0].cards, {2: 1})
+        with self.subTest('using all with any'):
+            b2f.any_of_attributes.add(fa1)
+            b2f.all_of_attributes.remove(fa1)
+            combo_graph = Graph(Data())
+            variants = list(combo_graph.results(combo_graph.variants(2)))
+            self.assertEqual(len(variants), 1)
+            self.assertMultisetEqual(variants[0].cards, {2: 1})
+        with self.subTest('using any with all and none'):
+            b2f.all_of_attributes.remove(fa3)
+            b2f.none_of_attributes.add(fa3)
+            combo_graph = Graph(Data())
+            variants = list(combo_graph.results(combo_graph.variants(2)))
+            self.assertEqual(len(variants), 1)
+            self.assertMultisetEqual(variants[0].cards, {1: 1})
+        with self.subTest('using none'):
+            cf.attributes.add(fa3)
+            combo_graph = Graph(Data())
+            variants = list(combo_graph.results(combo_graph.variants(2)))
+            self.assertEqual(len(variants), 0)

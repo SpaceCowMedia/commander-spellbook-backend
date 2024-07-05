@@ -7,7 +7,7 @@ from django.conf import settings
 from spellbook.models import Card, Feature, Combo, CardInCombo, Template, TemplateInCombo
 from spellbook.models import CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, FeatureProducedInVariantSuggestion
 from spellbook.models import VariantSuggestion, VariantAlias, Variant, ZoneLocation
-from spellbook.models import FeatureOfCard, FeatureNeededInCombo, FeatureProducedInCombo, FeatureRemovedInCombo
+from spellbook.models import FeatureOfCard, FeatureNeededInCombo, FeatureProducedInCombo, FeatureRemovedInCombo, FeatureAttribute
 from spellbook.utils import launch_job_command
 from spellbook.serializers import VariantSerializer
 
@@ -128,6 +128,8 @@ class AbstractTestCaseWithSeeding(AbstractTestCase):
         random.seed(42)
 
     def populate_db(self):
+        fa1 = FeatureAttribute.objects.create(name='FA1')
+        fa2 = FeatureAttribute.objects.create(name='FA2')
         c1 = Card.objects.create(name='A A', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000001'), identity='W', legal_commander=True, spoiler=False, type_line='Instant', oracle_text='x1', keywords=['keyword1', 'keyword2'])
         c2 = Card.objects.create(name='B B', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000002'), identity='U', legal_commander=True, spoiler=False, type_line='Sorcery', oracle_text='x2 x3', mana_value=3)
         c3 = Card.objects.create(name='C C', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000003'), identity='B', legal_commander=False, spoiler=False, type_line='Creature', oracle_text='xx4', price_tcgplayer=2.71, price_cardkingdom=3.14, price_cardmarket=1.59)
@@ -151,25 +153,33 @@ class AbstractTestCaseWithSeeding(AbstractTestCase):
         b8 = Combo.objects.create(mana_needed='{W}{U}{B}{R}{G}', other_prerequisites='Some requisites.', description='g7', status=Combo.Status.NEEDS_REVIEW, notes='gg7')
         t1 = Template.objects.create(name='TA', scryfall_query='tou>5', description='hello.')
         t2 = Template.objects.create(name='TB', scryfall_query='o:/asd dsa*/')
-        FeatureOfCard.objects.create(card=c1, feature=f1, zone_locations=ZoneLocation.BATTLEFIELD, quantity=1, other_prerequisites='Some requisites for card.')
-        FeatureNeededInCombo.objects.create(feature=f1, combo=b1, quantity=1)
+        fc1 = FeatureOfCard.objects.create(card=c1, feature=f1, zone_locations=ZoneLocation.BATTLEFIELD, quantity=1, other_prerequisites='Some requisites for card.')
+        fc1.attributes.add(fa2)
+        fn1 = FeatureNeededInCombo.objects.create(feature=f1, combo=b1, quantity=1)
+        fn1.any_of_attributes.add(fa1, fa2)
         CardInCombo.objects.create(card=c2, combo=b1, order=1, zone_locations=ZoneLocation.HAND, quantity=1)
         CardInCombo.objects.create(card=c3, combo=b1, order=2, zone_locations=ZoneLocation.BATTLEFIELD, battlefield_card_state='tapped', quantity=1)
-        FeatureProducedInCombo.objects.create(feature=f2, combo=b1)
+        fp1 = FeatureProducedInCombo.objects.create(feature=f2, combo=b1)
+        fp1.attributes.add(fa1, fa2)
         FeatureProducedInCombo.objects.create(feature=f3, combo=b1)
-        FeatureNeededInCombo.objects.create(feature=f2, combo=b2, quantity=1)
+        fn2 = FeatureNeededInCombo.objects.create(feature=f2, combo=b2, quantity=1)
+        fn2.all_of_attributes.add(fa1, fa2)
         FeatureRemovedInCombo.objects.create(feature=f3, combo=b2)
         TemplateInCombo.objects.create(template=t1, combo=b2, order=1, zone_locations=ZoneLocation.GRAVEYARD, graveyard_card_state='on top')
-        FeatureProducedInCombo.objects.create(feature=f4, combo=b2)
+        fp3 = FeatureProducedInCombo.objects.create(feature=f4, combo=b2)
+        fp3.attributes.add(fa2)
         CardInCombo.objects.create(card=c4, combo=b3, order=1, zone_locations=ZoneLocation.HAND)
         CardInCombo.objects.create(card=c5, combo=b3, order=2, zone_locations=ZoneLocation.BATTLEFIELD + ZoneLocation.HAND + ZoneLocation.COMMAND_ZONE)
         CardInCombo.objects.create(card=c6, combo=b3, order=3, zone_locations=ZoneLocation.COMMAND_ZONE, must_be_commander=True)
         CardInCombo.objects.create(card=c7, combo=b3, order=4, zone_locations=ZoneLocation.LIBRARY, library_card_state='on top')
-        FeatureProducedInCombo.objects.create(feature=f1, combo=b3)
+        fp4 = FeatureProducedInCombo.objects.create(feature=f1, combo=b3)
+        fp4.attributes.add(fa1)
         CardInCombo.objects.create(card=c5, combo=b5, order=1, zone_locations=ZoneLocation.HAND)
         CardInCombo.objects.create(card=c6, combo=b5, order=2, zone_locations=ZoneLocation.BATTLEFIELD, battlefield_card_state='attacking')
-        FeatureProducedInCombo.objects.create(feature=f1, combo=b5)
-        FeatureProducedInCombo.objects.create(feature=f2, combo=b4)
+        fp5 = FeatureProducedInCombo.objects.create(feature=f1, combo=b5)
+        fp5.attributes.add(fa2)
+        fp6 = FeatureProducedInCombo.objects.create(feature=f2, combo=b4)
+        fp6.attributes.add(fa1, fa2)
         CardInCombo.objects.create(card=c8, combo=b4, order=1, zone_locations=ZoneLocation.HAND)
         CardInCombo.objects.create(card=c1, combo=b4, order=2, zone_locations=ZoneLocation.BATTLEFIELD, battlefield_card_state='blocking')
         FeatureProducedInCombo.objects.create(feature=f4, combo=b6)
@@ -180,7 +190,8 @@ class AbstractTestCaseWithSeeding(AbstractTestCase):
         CardInCombo.objects.create(card=c5, combo=b6, order=5, zone_locations=ZoneLocation.COMMAND_ZONE, must_be_commander=True)
         CardInCombo.objects.create(card=c6, combo=b6, order=6, zone_locations=ZoneLocation.LIBRARY, library_card_state='at the bottom')
         FeatureProducedInCombo.objects.create(feature=f5, combo=b7)
-        FeatureNeededInCombo.objects.create(feature=f4, combo=b7, quantity=1)
+        fn3 = FeatureNeededInCombo.objects.create(feature=f4, combo=b7, quantity=1)
+        fn3.none_of_attributes.add(fa1)
         FeatureProducedInCombo.objects.create(feature=f5, combo=b8)
         FeatureNeededInCombo.objects.create(feature=f4, combo=b8, quantity=1)
 

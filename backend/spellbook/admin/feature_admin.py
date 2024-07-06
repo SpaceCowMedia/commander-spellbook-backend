@@ -30,6 +30,8 @@ class FeatureForm(SpellbookAdminForm):
         ).filter(
             produced_count=1,
             needed_count=1,
+            uses=None,
+            requires=None,
             needs=self.instance,
         ).order_by('name')
 
@@ -42,6 +44,8 @@ class FeatureForm(SpellbookAdminForm):
         ).filter(
             produced_count=1,
             needed_count=1,
+            uses=None,
+            requires=None,
             produces=self.instance,
         ).order_by('name')
 

@@ -342,7 +342,7 @@ class ComboAdmin(SpellbookModelAdmin):
 
     def after_save_related(self, request, form, formsets, change):
         instance: Combo = form.instance
-        duplicate_combos_query = Combo.objects
+        duplicate_combos_query = Combo.objects.all()
         card_ids = list(instance.uses.values_list('id', flat=True))
         template_ids = list(instance.requires.values_list('id', flat=True))
         feature_ids = list(instance.needs.values_list('id', flat=True))

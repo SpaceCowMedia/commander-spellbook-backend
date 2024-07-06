@@ -64,7 +64,6 @@ class FeatureForm(SpellbookAdminForm):
         )
 
 
-
 @admin.register(Feature)
 class FeatureAdmin(SpellbookModelAdmin):
     form = FeatureForm

@@ -53,9 +53,10 @@ class CardInComboAdminInline(IngredientInCombinationAdmin):
     autocomplete_fields = ['card']
 
     def get_extra(self, request: HttpRequest, obj, **kwargs: Any) -> int:
+        result = super().get_extra(request, obj, **kwargs)
         if hasattr(request, 'from_suggestion') and request.from_suggestion is not None:  # type: ignore
-            return len(request.from_suggestion.uses_list)  # type: ignore
-        return super().get_extra(request, obj, **kwargs)
+            result += len(request.from_suggestion.uses_list)  # type: ignore
+        return result
 
 
 class TemplateInComboAdminInline(IngredientInCombinationAdmin):
@@ -66,9 +67,10 @@ class TemplateInComboAdminInline(IngredientInCombinationAdmin):
     autocomplete_fields = ['template']
 
     def get_extra(self, request: HttpRequest, obj, **kwargs: Any) -> int:
+        result = super().get_extra(request, obj, **kwargs)
         if hasattr(request, 'from_suggestion') and request.from_suggestion is not None:  # type: ignore
-            return len(request.from_suggestion.requires_list)  # type: ignore
-        return super().get_extra(request, obj, **kwargs)
+            result += len(request.from_suggestion.requires_list)  # type: ignore
+        return result
 
 
 class FeatureNeededInComboAdminInline(admin.TabularInline):
@@ -80,13 +82,14 @@ class FeatureNeededInComboAdminInline(admin.TabularInline):
     autocomplete_fields = ['feature', 'any_of_attributes', 'all_of_attributes', 'none_of_attributes']
 
     def get_extra(self, request: HttpRequest, obj, **kwargs: Any) -> int:
+        result = super().get_extra(request, obj, **kwargs)
         if hasattr(request, 'from_suggestion') and request.from_suggestion is not None:  # type: ignore
-            return len(request.from_suggestion.needs_list)  # type: ignore
+            result += len(request.from_suggestion.needs_list)  # type: ignore
         if hasattr(request, 'parent_feature') and request.parent_feature is not None:  # type: ignore
-            return 1
+            result += 1
         if hasattr(request, 'child_feature') and request.child_feature is not None:  # type: ignore
-            return 1
-        return super().get_extra(request, obj, **kwargs)
+            result += 1
+        return result
 
 
 class FeatureProducedInComboAdminInline(admin.TabularInline):
@@ -98,13 +101,14 @@ class FeatureProducedInComboAdminInline(admin.TabularInline):
     autocomplete_fields = ['feature', 'attributes']
 
     def get_extra(self, request: HttpRequest, obj, **kwargs: Any) -> int:
+        result = super().get_extra(request, obj, **kwargs)
         if hasattr(request, 'from_suggestion') and request.from_suggestion is not None:  # type: ignore
-            return len(request.from_suggestion.produces_list)  # type: ignore
+            result += len(request.from_suggestion.produces_list)  # type: ignore
         if hasattr(request, 'parent_feature') and request.parent_feature is not None:  # type: ignore
-            return 1
+            result += 1
         if hasattr(request, 'child_feature') and request.child_feature is not None:  # type: ignore
-            return 1
-        return super().get_extra(request, obj, **kwargs)
+            result += 1
+        return result
 
 
 class FeatureRemovedInComboAdminInline(admin.TabularInline):
@@ -192,18 +196,6 @@ class ComboAdmin(SpellbookModelAdmin):
         from_suggestion_id = request.GET.get('from_variant_suggestion', None)
         parent_feature = request.GET.get('parent_feature', None)
         child_feature = request.GET.get('child_feature', None)
-        if parent_feature:
-            try:
-                feature = Feature.objects.get(pk=parent_feature)
-                request.parent_feature = feature  # type: ignore
-            except Feature.DoesNotExist:
-                pass
-        if child_feature:
-            try:
-                feature = Feature.objects.get(pk=child_feature)
-                request.child_feature = feature  # type: ignore
-            except Feature.DoesNotExist:
-                pass
         if from_suggestion_id:
             try:
                 from_suggestion = VariantSuggestion.objects.get(pk=from_suggestion_id)
@@ -244,20 +236,22 @@ class ComboAdmin(SpellbookModelAdmin):
                 request.from_suggestion.requires_list = [template for template in found_required_templates if template.name not in found_needed_features_names]  # type: ignore
             except VariantSuggestion.DoesNotExist:
                 pass
+        if parent_feature:
+            try:
+                feature = Feature.objects.get(pk=parent_feature)
+                request.parent_feature = feature  # type: ignore
+            except Feature.DoesNotExist:
+                pass
+        if child_feature:
+            try:
+                feature = Feature.objects.get(pk=child_feature)
+                request.child_feature = feature  # type: ignore
+            except Feature.DoesNotExist:
+                pass
         return initial_data
 
     def get_formset_kwargs(self, request: HttpRequest, obj: Any, inline: InlineModelAdmin, prefix: str) -> dict[str, Any]:
         formset_kwargs = super().get_formset_kwargs(request, obj, inline, prefix)
-        if not obj.id and hasattr(request, 'parent_feature') and request.parent_feature is not None and isinstance(inline, FeatureNeededInComboAdminInline):  # type: ignore
-            initial: list = formset_kwargs.setdefault('initial', [])
-            initial.append({
-                'feature': request.parent_feature.pk,  # type: ignore
-            })
-        if not obj.id and hasattr(request, 'child_feature') and request.child_feature is not None and isinstance(inline, FeatureProducedInComboAdminInline):  # type: ignore
-            initial: list = formset_kwargs.setdefault('initial', [])
-            initial.append({
-                'feature': request.child_feature.pk,  # type: ignore
-            })
         if not obj.id and hasattr(request, 'from_suggestion') and request.from_suggestion is not None:  # type: ignore
             initial: list = formset_kwargs.setdefault('initial', [])
             if isinstance(inline, CardInComboAdminInline):
@@ -326,6 +320,16 @@ class ComboAdmin(SpellbookModelAdmin):
                     initial.append({
                         'feature': feature_id,
                     })
+        if not obj.id and hasattr(request, 'parent_feature') and request.parent_feature is not None and isinstance(inline, FeatureNeededInComboAdminInline):  # type: ignore
+            initial: list = formset_kwargs.setdefault('initial', [])
+            initial.append({
+                'feature': request.parent_feature.pk,  # type: ignore
+            })
+        if not obj.id and hasattr(request, 'child_feature') and request.child_feature is not None and isinstance(inline, FeatureProducedInComboAdminInline):  # type: ignore
+            initial: list = formset_kwargs.setdefault('initial', [])
+            initial.append({
+                'feature': request.child_feature.pk,  # type: ignore
+            })
         return formset_kwargs
 
     def lookup_allowed(self, lookup: str, value: str, request) -> bool:

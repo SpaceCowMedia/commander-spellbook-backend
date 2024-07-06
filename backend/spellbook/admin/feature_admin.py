@@ -1,10 +1,10 @@
 from django.contrib import admin
-from django.db.models import QuerySet, Case, When, TextField
+from django.db.models import QuerySet, Case, When, TextField, Count
 from django.forms.widgets import Textarea
 from django.utils.html import format_html
-from spellbook.models import Feature, FeatureOfCard
+from spellbook.models import Feature, FeatureOfCard, Combo
 from spellbook.models.scryfall import scryfall_link_for_query, scryfall_query_string_for_card_names, SCRYFALL_MAX_QUERY_LENGTH
-from .utils import SpellbookModelAdmin
+from .utils import SpellbookModelAdmin, SpellbookAdminForm
 from .ingredient_admin import IngredientAdmin
 
 
@@ -20,8 +20,54 @@ class CardInFeatureAdminInline(IngredientAdmin):
     }
 
 
+class FeatureForm(SpellbookAdminForm):
+    def child_feature_combos(self):
+        if self.instance.pk is None:
+            return Combo.objects.none()
+        return Combo.objects.alias(
+            produced_count=Count('produces', distinct=True),
+            needed_count=Count('needs', distinct=True),
+        ).filter(
+            produced_count=1,
+            needed_count=1,
+            needs=self.instance,
+        ).order_by('name')
+
+    def parent_feature_combos(self):
+        if self.instance.pk is None:
+            return Combo.objects.none()
+        return Combo.objects.alias(
+            produced_count=Count('produces', distinct=True),
+            needed_count=Count('needs', distinct=True),
+        ).filter(
+            produced_count=1,
+            needed_count=1,
+            produces=self.instance,
+        ).order_by('name')
+
+    def needed_by_combos(self):
+        if self.instance.pk is None:
+            return Combo.objects.none()
+        return Combo.objects.filter(
+            needs=self.instance,
+        ).exclude(
+            pk__in=self.child_feature_combos(),
+        )
+
+    def produced_by_combos(self):
+        if self.instance.pk is None:
+            return Combo.objects.none()
+        return Combo.objects.filter(
+            produces=self.instance,
+        ).exclude(
+            pk__in=self.parent_feature_combos(),
+        )
+
+
+
 @admin.register(Feature)
 class FeatureAdmin(SpellbookModelAdmin):
+    form = FeatureForm
     readonly_fields = ['id', 'scryfall_link', 'updated', 'created']
     fields = ['name', 'id', 'updated', 'created', 'utility', 'uncountable', 'description', 'scryfall_link']
     inlines = [CardInFeatureAdminInline]

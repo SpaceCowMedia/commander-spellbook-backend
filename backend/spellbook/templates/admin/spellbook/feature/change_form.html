@@ -51,7 +51,7 @@
             {% endfor %}
             {% if original.pk %}
                 <tr class="form-row">
-                    <td class="field-combo">
+                    <td class="field-combo" colspan="2">
                         <p>
                             <a href="{% url 'admin:spellbook_combo_add' %}?parent_feature={{ original.pk }}">Add a child feature...</a>
                         </p>
@@ -88,7 +88,7 @@
             {% endfor %}
             {% if original.pk %}
                 <tr class="form-row">
-                    <td class="field-combo">
+                    <td class="field-combo" colspan="2">
                         <p>
                             <a href="{% url 'admin:spellbook_combo_add' %}?child_feature={{ original.pk }}">Add a parent feature...</a>
                         </p>

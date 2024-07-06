@@ -24,7 +24,7 @@ class FeatureForm(SpellbookAdminForm):
     def child_feature_combos(self):
         if self.instance.pk is None:
             return Combo.objects.none()
-        return Combo.objects.alias(
+        return Combo.objects.prefetch_related('produces').alias(
             produced_count=Count('produces', distinct=True),
             needed_count=Count('needs', distinct=True),
         ).filter(
@@ -36,7 +36,7 @@ class FeatureForm(SpellbookAdminForm):
     def parent_feature_combos(self):
         if self.instance.pk is None:
             return Combo.objects.none()
-        return Combo.objects.alias(
+        return Combo.objects.prefetch_related('needs').alias(
             produced_count=Count('produces', distinct=True),
             needed_count=Count('needs', distinct=True),
         ).filter(

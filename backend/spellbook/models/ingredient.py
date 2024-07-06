@@ -38,7 +38,6 @@ class ZoneLocation(models.TextChoices):
 
 class ZoneLocationsField(models.CharField):
     def __init__(self, *args, **kwargs) -> None:
-        kwargs.setdefault('default', ZoneLocation.HAND)
         kwargs.setdefault('help_text', 'Starting location(s) for the card.')
         kwargs.setdefault('verbose_name', 'starting location')
         kwargs['max_length'] = len(ZoneLocation.choices)

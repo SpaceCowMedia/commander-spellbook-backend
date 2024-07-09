@@ -1,9 +1,7 @@
 import json
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError
-
-
-FAKE_USERAGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.102 Safari/537.36'
+from .useragent import FAKE_USERAGENT
 
 
 def get(url: str) -> dict | None:
@@ -14,5 +12,5 @@ def get(url: str) -> dict | None:
         with urlopen(req) as res:
             data = json.load(res)
             return data
-    except HTTPError:
+    except HTTPError | json.JSONDecodeError:
         return None

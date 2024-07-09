@@ -10,6 +10,8 @@ from .models import WebsiteProperty
 from .serializers import WebsitePropertySerializer
 from .services.moxfield import moxfield, MOXFIELD_HOSTNAME
 from .services.archidekt import archidekt, ARCHIDEKT_HOSTNAME
+from .services.deckstats import deckstats, DECKSTATS_HOSTNAME
+from .services.tappedout import tappedout, TAPPEDOUT_HOSTNAME
 
 
 class WebsitePropertyViewSet(viewsets.ReadOnlyModelViewSet):
@@ -20,6 +22,8 @@ class WebsitePropertyViewSet(viewsets.ReadOnlyModelViewSet):
 SUPPORTED_DECKBUILDING_WEBSITES = {
     MOXFIELD_HOSTNAME: moxfield,
     ARCHIDEKT_HOSTNAME: archidekt,
+    DECKSTATS_HOSTNAME: deckstats,
+    TAPPEDOUT_HOSTNAME: tappedout,
 }
 
 

@@ -15,12 +15,22 @@ class QueryValue:
     operator: str
     value: str
 
+    def is_negated(self) -> bool:
+        match self.prefix:
+            case '':
+                return False
+            case '-':
+                return True
+            case _:
+                raise NotSupportedError(f'Prefix {self.prefix} is not supported for {self.key} search.')
+
 
 @dataclass
 class VariantFilter:
     q: Q
     on_features_produced: bool = False
     on_cards: bool = False
+    negative: bool = False
 
 
 def card_search(card_value: QueryValue) -> list[VariantFilter]:
@@ -29,32 +39,39 @@ def card_search(card_value: QueryValue) -> list[VariantFilter]:
         case ':' if not value_is_digit:
             filters = [VariantFilter(
                 q=Q(card__name__icontains=card_value.value) | Q(card__name_unaccented__icontains=card_value.value) | Q(card__name_unaccented_simplified__icontains=card_value.value) | Q(card__name_unaccented_simplified_with_spaces__icontains=card_value.value),
-                on_cards=True
+                on_cards=True,
+                negative=card_value.is_negated(),
             )]
         case '=' if not value_is_digit:
             filters = [VariantFilter(
                 q=Q(card__name__iexact=card_value.value) | Q(card__name_unaccented__iexact=card_value.value) | Q(card__name_unaccented_simplified__iexact=card_value.value) | Q(card__name_unaccented_simplified_with_spaces__iexact=card_value.value),
-                on_cards=True
+                on_cards=True,
+                negative=card_value.is_negated(),
             )]
         case '<' if value_is_digit:
             filters = [VariantFilter(
-                q=Q(cards_count__lt=card_value.value)
+                q=Q(cards_count__lt=card_value.value),
+                negative=card_value.is_negated(),
             )]
         case '>' if value_is_digit:
             filters = [VariantFilter(
-                q=Q(cards_count__gt=card_value.value)
+                q=Q(cards_count__gt=card_value.value),
+                negative=card_value.is_negated(),
             )]
         case '<=' if value_is_digit:
             filters = [VariantFilter(
-                q=Q(cards_count__lte=card_value.value)
+                q=Q(cards_count__lte=card_value.value),
+                negative=card_value.is_negated(),
             )]
         case '>=' if value_is_digit:
             filters = [VariantFilter(
-                q=Q(cards_count__gte=card_value.value)
+                q=Q(cards_count__gte=card_value.value),
+                negative=card_value.is_negated(),
             )]
         case ':' | '=' if value_is_digit:
             filters = [VariantFilter(
-                q=Q(cards_count=card_value.value)
+                q=Q(cards_count=card_value.value),
+                negative=card_value.is_negated(),
             )]
         case _:
             raise NotSupportedError(f'Operator {card_value.operator} is not supported for card search with {"numbers" if value_is_digit else "strings"}.')
@@ -67,11 +84,13 @@ def card_type_search(card_type_value: QueryValue) -> list[VariantFilter]:
             filters = [VariantFilter(
                 q=Q(card__type_line__icontains=card_type_value.value),
                 on_cards=True,
+                negative=card_type_value.is_negated(),
             )]
         case '=':
             filters = [VariantFilter(
                 q=Q(card__type_line__iexact=card_type_value.value),
                 on_cards=True,
+                negative=card_type_value.is_negated(),
             )]
         case _:
             raise NotSupportedError(f'Operator {card_type_value.operator} is not supported for card type search.')
@@ -84,11 +103,13 @@ def card_oracle_search(card_oracle_value: QueryValue) -> list[VariantFilter]:
             filters = [VariantFilter(
                 q=Q(card__oracle_text__icontains=card_oracle_value.value),
                 on_cards=True,
+                negative=card_oracle_value.is_negated(),
             )]
         case '=':
             filters = [VariantFilter(
                 q=Q(card__oracle_text__iexact=card_oracle_value.value),
                 on_cards=True,
+                negative=card_oracle_value.is_negated(),
             )]
         case _:
             raise NotSupportedError(f'Operator {card_oracle_value.operator} is not supported for card oracle search.')
@@ -101,6 +122,7 @@ def card_keyword_search(card_keyword_value: QueryValue) -> list[VariantFilter]:
             filters = [VariantFilter(
                 q=Q(card__keywords__icontains=card_keyword_value.value),
                 on_cards=True,
+                negative=card_keyword_value.is_negated(),
             )]
         case _:
             raise NotSupportedError(f'Operator {card_keyword_value.operator} is not supported for card keyword search.')
@@ -114,26 +136,31 @@ def card_mana_value_search(card_mana_value_value: QueryValue) -> list[VariantFil
             filters = [VariantFilter(
                 q=Q(card__mana_value=card_mana_value_value.value),
                 on_cards=True,
+                negative=card_mana_value_value.is_negated(),
             )]
         case '<' if value_is_digit:
             filters = [VariantFilter(
                 q=Q(card__mana_value__lt=card_mana_value_value.value),
                 on_cards=True,
+                negative=card_mana_value_value.is_negated(),
             )]
         case '<=' if value_is_digit:
             filters = [VariantFilter(
                 q=Q(card__mana_value__lte=card_mana_value_value.value),
                 on_cards=True,
+                negative=card_mana_value_value.is_negated(),
             )]
         case '>' if value_is_digit:
             filters = [VariantFilter(
                 q=Q(card__mana_value__gt=card_mana_value_value.value),
                 on_cards=True,
+                negative=card_mana_value_value.is_negated(),
             )]
         case '>=' if value_is_digit:
             filters = [VariantFilter(
                 q=Q(card__mana_value__gte=card_mana_value_value.value),
                 on_cards=True,
+                negative=card_mana_value_value.is_negated(),
             )]
         case _:
             raise NotSupportedError(f'Operator {card_mana_value_value.operator} is not supported for card mana value search with {"numbers" if value_is_digit else "strings"}.')
@@ -184,7 +211,7 @@ def identity_search(identity_value: QueryValue) -> list[VariantFilter]:
             identity_queries = [Q(identity_count__gte=identity_value.value)]
         case _:
             raise NotSupportedError(f'Operator {identity_value.operator} is not supported for identity search with {"numbers" if value_is_digit else "strings"}.')
-    return [VariantFilter(q=q) for q in identity_queries]
+    return [VariantFilter(q=q, negative=identity_value.is_negated()) for q in identity_queries]
 
 
 def prerequisites_search(prerequisites_value: QueryValue) -> list[VariantFilter]:
@@ -206,7 +233,7 @@ def prerequisites_search(prerequisites_value: QueryValue) -> list[VariantFilter]
             prerequisites_query = Q(other_prerequisites_line_count=prerequisites_value.value)
         case _:
             raise NotSupportedError(f'Operator {prerequisites_value.operator} is not supported for prerequisites search.')
-    return [VariantFilter(q=prerequisites_query), VariantFilter(q=~Q(status=Variant.Status.EXAMPLE))]
+    return [VariantFilter(q=prerequisites_query, negative=prerequisites_value.is_negated()), VariantFilter(q=~Q(status=Variant.Status.EXAMPLE))]
 
 
 def description_search(description_value: QueryValue) -> list[VariantFilter]:
@@ -228,7 +255,7 @@ def description_search(description_value: QueryValue) -> list[VariantFilter]:
             steps_query = Q(description_line_count=description_value.value)
         case _:
             raise NotSupportedError(f'Operator {description_value.operator} is not supported for prerequisites search.')
-    return [VariantFilter(q=steps_query), VariantFilter(q=~Q(status=Variant.Status.EXAMPLE))]
+    return [VariantFilter(q=steps_query, negative=description_value.is_negated()), VariantFilter(q=~Q(status=Variant.Status.EXAMPLE))]
 
 
 def results_search(results_value: QueryValue) -> list[VariantFilter]:
@@ -238,31 +265,38 @@ def results_search(results_value: QueryValue) -> list[VariantFilter]:
             filters = [VariantFilter(
                 q=Q(feature__name__icontains=results_value.value),
                 on_features_produced=True,
+                negative=results_value.is_negated(),
             )]
         case '=' if not value_is_digit:
             filters = [VariantFilter(
                 q=Q(feature__name__iexact=results_value.value),
                 on_features_produced=True,
+                negative=results_value.is_negated(),
             )]
         case '<' if value_is_digit:
             filters = [VariantFilter(
                 q=Q(results_count__lt=results_value.value),
+                negative=results_value.is_negated(),
             )]
         case '<=' if value_is_digit:
             filters = [VariantFilter(
                 q=Q(results_count__lte=results_value.value),
+                negative=results_value.is_negated(),
             )]
         case '>' if value_is_digit:
             filters = [VariantFilter(
                 q=Q(results_count__gt=results_value.value),
+                negative=results_value.is_negated(),
             )]
         case '>=' if value_is_digit:
             filters = [VariantFilter(
                 q=Q(results_count__gte=results_value.value),
+                negative=results_value.is_negated(),
             )]
         case ':' | '=' if value_is_digit:
             filters = [VariantFilter(
                 q=Q(results_count=results_value.value),
+                negative=results_value.is_negated(),
             )]
         case _:
             raise NotSupportedError(f'Operator {results_value.operator} is not supported for results search with {"numbers" if value_is_digit else "strings"}.')
@@ -276,36 +310,43 @@ def tag_search(tag_value: QueryValue) -> list[VariantFilter]:
         case 'preview' | 'previewed' | 'spoiler' | 'spoiled':
             filters = [VariantFilter(
                 q=Q(spoiler=True),
+                negative=tag_value.is_negated(),
             )]
         case 'commander':
             filters = [VariantFilter(
                 q=Q(must_be_commander=True),
                 on_cards=True,
+                negative=tag_value.is_negated(),
             )]
         case 'reserved':
             filters = [VariantFilter(
                 q=Q(card__reserved=True),
                 on_cards=True,
+                negative=tag_value.is_negated(),
             )]
         case 'mandatory':
             filters = [VariantFilter(
                 q=Q(feature__name='Mandatory Loop'),
                 on_features_produced=True,
+                negative=tag_value.is_negated(),
             )]
         case 'lock':
             filters = [VariantFilter(
                 q=Q(feature__name='Lock'),
                 on_features_produced=True,
+                negative=tag_value.is_negated(),
             )]
         case 'infinite':
             filters = [VariantFilter(
                 q=Q(feature__name='Infinite'),
                 on_features_produced=True,
+                negative=tag_value.is_negated(),
             )]
         case 'risky' | 'allin':
             filters = [VariantFilter(
                 q=Q(feature__name='Risky'),
                 on_features_produced=True,
+                negative=tag_value.is_negated(),
             )]
         case 'winning' | 'gamewinning' | 'win':
             filters = [VariantFilter(
@@ -315,12 +356,14 @@ def tag_search(tag_value: QueryValue) -> list[VariantFilter]:
                     'Each opponent loses the game',
                 ]),
                 on_features_produced=True,
+                negative=tag_value.is_negated(),
             )]
         case 'featured':
             featured_sets = {s.strip().lower() for s in WebsiteProperty.objects.get(key=FEATURED_SET_CODES).value.split(',')}
             filters = [VariantFilter(
                 q=Q(card__latest_printing_set__in=featured_sets, card__reprinted=False),
                 on_cards=True,
+                negative=tag_value.is_negated(),
             )]
         case _:
             raise NotSupportedError(f'Value {tag_value.value} is not supported for tag search.')
@@ -332,6 +375,7 @@ def spellbook_id_search(spellbook_id_value: QueryValue) -> list[VariantFilter]:
         case ':' | '=':
             filters = [VariantFilter(
                 q=Q(id__iexact=spellbook_id_value.value) | Q(aliases__id__iexact=spellbook_id_value.value),
+                negative=spellbook_id_value.is_negated(),
             )]
         case _:
             raise NotSupportedError(f'Operator {spellbook_id_value.operator} is not supported for spellbook id search.')
@@ -348,6 +392,7 @@ def commander_name_search(commander_name_value: QueryValue) -> list[VariantFilte
             filters = [VariantFilter(
                 q=card_query & Q(must_be_commander=True),
                 on_cards=True,
+                negative=commander_name_value.is_negated(),
             )]
         case '=':
             card_query = Q(card__name__iexact=commander_name_value.value) \
@@ -357,6 +402,7 @@ def commander_name_search(commander_name_value: QueryValue) -> list[VariantFilte
             filters = [VariantFilter(
                 q=card_query & Q(must_be_commander=True),
                 on_cards=True,
+                negative=commander_name_value.is_negated(),
             )]
         case _:
             raise NotSupportedError(f'Operator {commander_name_value.operator} is not supported for commander name search.')
@@ -375,7 +421,7 @@ def legality_search(legality_value: QueryValue) -> list[VariantFilter]:
         case 'banned':
             legal = False
     q = Q(**{f'legal_{format}': legal})
-    return [VariantFilter(q=q)]
+    return [VariantFilter(q=q, negative=legality_value.is_negated())]
 
 
 def price_search(price_value: QueryValue) -> list[VariantFilter]:
@@ -404,7 +450,7 @@ def price_search(price_value: QueryValue) -> list[VariantFilter]:
             q = Q(**{f'price_{store}__gte': price_value.value})
         case _:
             raise NotSupportedError(f'Operator {price_value.operator} is not supported for price search.')
-    return [VariantFilter(q=q)]
+    return [VariantFilter(q=q, negative=price_value.is_negated())]
 
 
 def popularity_search(popularity_value: QueryValue) -> list[VariantFilter]:
@@ -423,7 +469,7 @@ def popularity_search(popularity_value: QueryValue) -> list[VariantFilter]:
             q = Q(popularity__gte=popularity_value.value)
         case _:
             raise NotSupportedError(f'Operator {popularity_value.operator} is not supported for popularity search.')
-    return [VariantFilter(q=q)]
+    return [VariantFilter(q=q, negative=popularity_value.is_negated())]
 
 
 keyword_map: dict[str, Callable[[QueryValue], list[VariantFilter]]] = {
@@ -536,13 +582,6 @@ def variants_query_parser(base: QuerySet[Variant], query_string: str) -> QuerySe
     for key, values in parsed_queries.items():
         for value in values:
             filters = keyword_map[key](value)
-            match value.prefix:
-                case '':
-                    positive = True
-                case '-':
-                    positive = False
-                case _:
-                    raise NotSupportedError(f'Prefix {value.prefix} is not supported for {key} search.')
             for filter in filters:
                 if filter.on_features_produced:
                     filtered_produces = FeatureProducedByVariant.objects.filter(filter.q)
@@ -552,5 +591,5 @@ def variants_query_parser(base: QuerySet[Variant], query_string: str) -> QuerySe
                     q = Q(pk__in=filtered_cards.values('variant').distinct())
                 else:
                     q = filter.q
-                filtered_variants = filtered_variants.filter(q) if positive else filtered_variants.exclude(q)
+                filtered_variants = filtered_variants.exclude(q) if filter.negative else filtered_variants.filter(q)
     return filtered_variants

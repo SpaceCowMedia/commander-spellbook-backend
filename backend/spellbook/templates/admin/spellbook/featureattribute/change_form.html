@@ -1,0 +1,34 @@
+{% extends "admin/change_form.html" %}
+{% load static %}
+
+{% block after-content %}
+    <table>
+        <thead>
+            <tr>
+                <th class="column-combo">Used in</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in adminform.form.used_in_combos|slice:suggested_slice %}
+                <tr class="form-row">
+                    <td class="field-combo">
+                        <p>
+                            <a href="{% url 'admin:spellbook_combo_change' item.id %}">{{ item }}</a>
+                        </p>
+                    </td>
+                </tr>
+            {% endfor %}
+            {% with combos_count=original.used_in_combos.count %}
+            {% if combos_count > 0 %}
+                <tr class="form-row">
+                    <td class="field-combo">
+                        <p>
+                            In total there are {{ combos_count }} combos where {{ original.name }} is used.
+                        </p>
+                    </td>
+                </tr>
+            {% endif %}
+            {% endwith %}
+        </tbody>
+    </table>
+{% endblock %}

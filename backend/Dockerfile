@@ -44,16 +44,16 @@ WORKDIR $APP_HOME
 RUN echo "@testing https://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories && \
     apk add --no-cache nginx pypy3@testing && \
     mkdir -p /run/nginx && \
-    apk --update add libpq postgresql-dev --no-cache && \
+    apk --update add --no-cache libpq postgresql-dev && \
     ln -s $(which pypy3) $(dirname $(which pypy3))/pypy && \
-    pypy -m ensurepip && pypy -m pip install --upgrade pip
+    pypy -m ensurepip && pypy -m pip install --no-cache-dir --upgrade pip
 COPY --from=builder /usr/src/app/python/wheels /python/wheels
 COPY --from=builder /usr/src/app/pypy/wheels /pypy/wheels
 COPY --from=builder /usr/src/app/requirements.txt .
-RUN pip install --no-cache /python/wheels/* --no-deps
-RUN pip install --no-cache psycopg[binary] gunicorn
-RUN pypy -m pip install --no-cache /pypy/wheels/* --no-deps
-RUN pypy -m pip install --no-cache psycopg
+RUN pip install --no-cache-dir /python/wheels/* --no-deps
+RUN pip install --no-cache-dir psycopg[binary] gunicorn
+RUN pypy -m pip install --no-cache-dir /pypy/wheels/* --no-deps
+RUN pypy -m pip install --no-cache-dir psycopg
 
 # copy project
 COPY --chown=app:app . $APP_HOME

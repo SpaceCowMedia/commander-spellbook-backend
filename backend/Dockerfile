@@ -3,7 +3,7 @@
 ###########
 
 # pull official base image
-FROM python:3.12.4-alpine as builder
+FROM python:3.12.4-alpine AS builder
 
 # set work directory
 WORKDIR /usr/src/app

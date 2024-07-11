@@ -1,6 +1,8 @@
+from typing import Any
 from django.contrib import admin
 from django.db.models import QuerySet, Case, When, TextField, Count
 from django.forms.widgets import Textarea
+from django.http import HttpRequest
 from django.utils.html import format_html
 from spellbook.models import Feature, FeatureOfCard, Combo
 from spellbook.models.scryfall import scryfall_link_for_query, scryfall_query_string_for_card_names, SCRYFALL_MAX_QUERY_LENGTH
@@ -75,7 +77,7 @@ class FeatureAdmin(SpellbookModelAdmin):
     fields = ['name', 'id', 'updated', 'created', 'utility', 'uncountable', 'description', 'scryfall_link']
     inlines = [CardInFeatureAdminInline]
     search_fields = ['name', 'cards__name']
-    list_display = ['name', 'id', 'utility', 'updated']
+    list_display = ['name', 'id', 'utility', 'produced_by_count', 'updated']
     list_filter = ['utility']
 
     def lookup_allowed(self, lookup: str, value: str, request) -> bool:
@@ -112,3 +114,14 @@ class FeatureAdmin(SpellbookModelAdmin):
             else:
                 return 'Query too long for generating a scryfall link with all cards producing this feature'
         return None
+
+    def get_queryset(self, request: HttpRequest) -> QuerySet[Any]:
+        return super().get_queryset(request).annotate(
+            produced_by_count=Count('produced_by_variants', distinct=True) + Count('cards', distinct=True),
+        )
+
+    @admin.display(description='Produced by variants or cards', ordering='produced_by_count')
+    def produced_by_count(self, obj: Feature):
+        if obj.pk is None:
+            return 0
+        return obj.produced_by_count  # type: ignore

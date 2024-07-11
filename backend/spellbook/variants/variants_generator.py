@@ -4,6 +4,7 @@ from collections import defaultdict
 from multiset import FrozenMultiset, Multiset, BaseMultiset
 from dataclasses import dataclass
 from django.db import transaction
+from django.utils.functional import cached_property
 from .utils import includes_any
 from .variant_data import Data, debug_queries
 from .combo_graph import Graph, VariantSet
@@ -122,10 +123,9 @@ class VariantBulkSaveItem:
     of: set[int]
     includes: set[int]
 
+    @cached_property
     def produces_ids(self) -> set[int]:
-        if not hasattr(self, '_produces_ids'):
-            self._produces_ids = {p.feature_id for p in self.produces}
-        return self._produces_ids
+        return {p.feature_id for p in self.produces}
 
 
 def get_default_zone_location_for_card(card: Card) -> str:
@@ -293,7 +293,8 @@ def restore_variant(
                         uses_updated.add(to_edit.card_id)
                     else:
                         update_state(to_edit, feature_of_card)
-                    additional_other_prerequisites.append(feature_of_card.other_prerequisites)
+                    if feature_of_card.other_prerequisites:
+                        additional_other_prerequisites.append(feature_of_card.other_prerequisites)
         if additional_other_prerequisites:
             variant.other_prerequisites = apply_replacements('\n'.join(additional_other_prerequisites), replacements) + '\n' + variant.other_prerequisites
         card_zone_locations_overrides = defaultdict[int, defaultdict[str, int]](lambda: defaultdict(int))

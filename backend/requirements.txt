@@ -84,7 +84,7 @@ s3transfer==0.10.0
     # via boto3
 six==1.16.0
     # via python-dateutil
-social-auth-app-django==5.4.1
+social-auth-app-django==5.4.2
     # via -r requirements.in
 social-auth-core==4.4.2
     # via social-auth-app-django

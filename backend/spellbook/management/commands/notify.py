@@ -15,10 +15,12 @@ class Command(AbstractCommand):
     variant_suggestion_accepted = 'variant_suggestion_accepted'
     variant_suggestion_rejected = 'variant_suggestion_rejected'
     variant_published = 'variant_published'
+    variant_updated = 'variant_updated'
     events = [
         variant_suggestion_accepted,
         variant_suggestion_rejected,
         variant_published,
+        variant_updated,
     ]
 
     def add_arguments(self, parser):
@@ -93,10 +95,10 @@ class Command(AbstractCommand):
                 self.variant_suggestion_event(accepted=True, identifiers=options['identifiers'])
             case self.variant_suggestion_rejected:
                 self.variant_suggestion_event(accepted=False, identifiers=options['identifiers'])
-            case self.variant_published:
+            case self.variant_published | self.variant_updated:
                 plural = 's' if len(options['identifiers']) > 1 else ''
                 verb = 'have' if len(options['identifiers']) > 1 else 'has'
-                webhook_text = f'The following combo{plural} {verb} been added to the site:\n'
+                webhook_text = f'The following combo{plural} {verb} been ' + ('added to the site' if options['event'] == self.variant_published else 'updated') + ':\n'
                 variants: list[Variant] = list(Variant.objects.filter(pk__in=options['identifiers']))
                 if variants:
                     for variant in variants:

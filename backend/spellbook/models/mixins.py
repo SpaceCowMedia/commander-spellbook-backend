@@ -61,6 +61,7 @@ class PreSaveSerializedManager(PreSaveManager):
     def bulk_serialize(self, objs: Iterable['PreSaveSerializedModelMixin'], serializer: type[ModelSerializer], *args, **kwargs) -> int:
         objs = list(objs)
         for obj in objs:
+            obj.pre_save()
             obj.update_serialized(serializer)
         fields: list = kwargs.pop('fields', [])
         if 'serialized' not in fields:

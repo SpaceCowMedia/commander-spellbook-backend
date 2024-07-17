@@ -59,18 +59,30 @@ class VariantForm(SpellbookAdminForm):
 def set_status(request, queryset, status: Variant.Status):
     # JSON preserialization has to be updated when the status changes, in case it becomes public.
     variants = list(VariantSerializer.prefetch_related(queryset))
+    unpublished = [variant for variant in variants if not variant.published]
+    published = [variant for variant in variants if variant.published]
+    publish = status in Variant.public_statuses()
     for variant in variants:
+        variant.published = publish
         variant.status = status
-    Variant.objects.bulk_serialize(variants, fields=['status'], serializer=VariantSerializer)  # type: ignore
+    Variant.objects.bulk_serialize(variants, fields=['status', 'published'], serializer=VariantSerializer)  # type: ignore
     plural = 's' if len(variants) > 1 else ''
     messages.success(request, f'{len(variants)} variant{plural} marked as {status.name}.')
-    if status in Variant.public_statuses():
-        launch_job_command(
-            command='notify',
-            user=request.user,
-            args=['variant_published', *[str(variant.id) for variant in variants]],
-            allow_multiples=True,
-        )
+    if publish:
+        if unpublished:
+            launch_job_command(
+                command='notify',
+                user=request.user,
+                args=['variant_published', *[str(variant.id) for variant in unpublished]],
+                allow_multiples=True,
+            )
+        if published:
+            launch_job_command(
+                command='notify',
+                user=request.user,
+                args=['variant_updated', *[str(variant.id) for variant in published]],
+                allow_multiples=True,
+            )
 
 
 @admin.action(description='Mark selected variants as RESTORE')
@@ -230,12 +242,21 @@ class VariantAdmin(SpellbookModelAdmin):
         variant: Variant = form.instance
         if change and 'status' in form.changed_data:
             if variant.status in Variant.public_statuses():
-                launch_job_command(
-                    command='notify',
-                    user=request.user,
-                    args=['variant_published', str(variant.id)],
-                    allow_multiples=True,
-                )
+                if variant.published:
+                    launch_job_command(
+                        command='notify',
+                        user=request.user,
+                        args=['variant_updated', str(variant.id)],
+                        allow_multiples=True,
+                    )
+                else:
+                    variant.published = True
+                    launch_job_command(
+                        command='notify',
+                        user=request.user,
+                        args=['variant_published', str(variant.id)],
+                        allow_multiples=True,
+                    )
         # Feature: update serialized JSON when variant is edited
         # effectively resulting in a real time update of the variant
         variant.update_serialized(VariantSerializer)

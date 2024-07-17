@@ -103,6 +103,7 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
     other_prerequisites_line_count = models.PositiveIntegerField(editable=False, help_text='Number of lines in the other prerequisites')
     cards_count = models.PositiveIntegerField(editable=False)
     results_count = models.PositiveIntegerField(editable=False)
+    published = models.BooleanField(editable=False, default=False, help_text='Whether the variant has been published')
 
     class Meta:
         verbose_name = 'variant'

@@ -10,9 +10,9 @@ class LarkGrammarValidator:
     code = 'invalid'
 
     def __init__(
-        self, parser: Lark, message: str | None = None, code: str | None = None
+        self, grammar: str, parser='lalr', message: str | None = None, code: str | None = None
     ):
-        self.parser = parser
+        self.parser = Lark(grammar, parser=parser)
         if message is not None:
             self.message = message
         if code is not None:

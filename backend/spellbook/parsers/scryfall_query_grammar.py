@@ -1,4 +1,3 @@
-from lark import Lark
 from pathlib import Path
 from ..regexs import MANA_SYMBOL
 
@@ -18,7 +17,7 @@ VARIABLES_SUPPORTED = [
 ]
 
 with open(Path(__file__).parent / 'scryfall_query_grammar.lark', 'r') as f:
-    grammar = f.read() + f'''
+    SCRYFALL_GRAMMAR = f.read() + f'''
         MANA_SYMBOL.5 : /\\{{{MANA_SYMBOL}\\}}/
         COMPARISON_OPERATOR : {' | '.join(f'"{v}"' for v in COMPARISON_OPERATORS)}
         NUMERIC_VARIABLE.4 : {' | '.join(f'"{v}"' for v in NUMERIC_VARIABLES)}
@@ -26,4 +25,3 @@ with open(Path(__file__).parent / 'scryfall_query_grammar.lark', 'r') as f:
         COMPARABLE_STRING_VARIABLE.2 : {' | '.join(f'"{v}"' for v in STRING_COMPARABLE_VARIABLES)}
         UNCOMPARABLE_STRING_VARIABLE.1 : {' | '.join(f'"{v}"' for v in STRING_UNCOMPARABLE_VARIABLES)}
     '''
-    SCRYFALL_PARSER = Lark(grammar, parser='lalr')

@@ -3,7 +3,7 @@ import unicodedata
 from typing import Iterable
 
 from ..regexs import MANA_SYMBOL, ORACLE_SYMBOL
-from ..parsers.scryfall_query_parser import COMPARISON_OPERATORS, MANA_COMPARABLE_VARIABLES
+from ..parsers.scryfall_query_grammar import COMPARISON_OPERATORS, MANA_COMPARABLE_VARIABLES
 from django.utils.text import normalize_newlines
 from django.db.models import Expression, F, Value
 from django.db.models.functions import Replace, Trim

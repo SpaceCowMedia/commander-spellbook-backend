@@ -57,6 +57,8 @@ jmespath==1.0.1
     # via
     #   boto3
     #   botocore
+lark==1.1.9
+    # via -r requirements.in
 multiset==3.1.0
     # via -r requirements.in
 oauthlib==3.2.2
@@ -89,6 +91,8 @@ social-auth-app-django==5.4.2
 social-auth-core==4.4.2
     # via social-auth-app-django
 sqlparse==0.5.0
+    # via django
+tzdata==2024.1
     # via django
 urllib3==1.26.19
     # via

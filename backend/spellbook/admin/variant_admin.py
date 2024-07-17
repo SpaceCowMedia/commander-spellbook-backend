@@ -8,7 +8,7 @@ from django.contrib import admin, messages
 from django.forms import Textarea
 from spellbook.models import Variant, CardInVariant, TemplateInVariant
 from spellbook.utils import launch_job_command
-from spellbook.parsers import variants_query_parser, NotSupportedError
+from spellbook.transformers.variants_query_transformer import variants_query_parser, NotSupportedError
 from spellbook.serializers import VariantSerializer
 from .utils import IdentityFilter, SpellbookModelAdmin, SpellbookAdminForm, CardsCountListFilter
 from .ingredient_admin import IngredientAdmin

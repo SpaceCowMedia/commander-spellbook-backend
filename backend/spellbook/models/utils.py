@@ -1,14 +1,18 @@
 import re
 import unicodedata
 from typing import Iterable
-from .validators import MANA_SYMBOL, ORACLE_SYMBOL, COMPARISON_OPERATORS, MANA_COMPARABLE_VARIABLE
+
+from ..regexs import MANA_SYMBOL, ORACLE_SYMBOL
+from ..parsers.scryfall_query_parser import COMPARISON_OPERATORS, MANA_COMPARABLE_VARIABLES
 from django.utils.text import normalize_newlines
 from django.db.models import Expression, F, Value
 from django.db.models.functions import Replace, Trim
 
 
+COMPARISON_OPERATOR = rf'(?:{"|".join(COMPARISON_OPERATORS)})'
 MANA_SEARCH_REGEX = r'\{(' + MANA_SYMBOL + r')\}'
 MANA_PREFIX_REGEX = r'(^(?:\s*' + MANA_SEARCH_REGEX + r')*)'
+MANA_COMPARABLE_VARIABLE = rf'(?:{"|".join(MANA_COMPARABLE_VARIABLES)})'
 SANITIZATION_REPLACEMENTS = {
     'ʹʻʼʾˈ՚′＇ꞌ': '\'',  # apostrophes
     'ʻʼ‘’❛❜': '\'',  # quotes
@@ -116,7 +120,7 @@ def sanitize_mana(mana: str) -> str:
 def sanitize_scryfall_query(text: str):
     text = re.sub(r'(?:^|\s+)-?(?:f|format|legal):[^\s]+(?=\s|$)', '', text, flags=re.IGNORECASE)
     text = text.strip()
-    text = re.sub(rf'(^|\s+)(-?{MANA_COMPARABLE_VARIABLE})({COMPARISON_OPERATORS})([^\s]+)(?=\s|$)', lambda m: f'{m[1]}{m[2]}{m[3]}{sanitize_mana(m[4])}', text, flags=re.IGNORECASE)
+    text = re.sub(rf'(^|\s+)(-?{MANA_COMPARABLE_VARIABLE})({COMPARISON_OPERATOR})([^\s]+)(?=\s|$)', lambda m: f'{m[1]}{m[2]}{m[3]}{sanitize_mana(m[4])}', text, flags=re.IGNORECASE)
     text = text.strip()
     return text
 

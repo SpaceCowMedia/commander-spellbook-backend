@@ -1,0 +1,43 @@
+%import common.WS -> _WS
+%import common.SIGNED_INT -> INTEGER
+
+?start : expression
+
+?expression : term | expression OR term
+
+?term : factor | term (AND | _WS) factor
+
+?factor : matcher | LPAREN expression RPAREN
+
+?matcher: NEGATION_OPERATOR? value
+
+?value: "!" LONG_LITERAL | pair
+
+pair : COMPARABLE_STRING_VARIABLE COMPARISON_OPERATOR string_value
+    | NUMERIC_VARIABLE COMPARISON_OPERATOR numeric_value
+    | MANA_VARIABLE COMPARISON_OPERATOR mana_value
+    | UNCOMPARABLE_STRING_VARIABLE ":" string_value
+
+?string_value : SHORT_LITERAL | LONG_LITERAL | REGEX_VALUE
+
+?numeric_value : INTEGER | NUMERIC_VARIABLE
+
+?mana_value : INTEGER | mana_expression
+
+?mana_expression : MANA_SYMBOL+
+
+LONG_LITERAL.10 : /"[^"]+"/
+
+OR.9 : " OR " | " or "
+
+AND.9 : " AND " | " and " | " && "
+
+LPAREN.9 : "("
+
+RPAREN.9 : ")"
+
+SHORT_LITERAL.-1 : /[^\/\s:<>!="()][^\s:<>!="()]*/
+
+REGEX_VALUE : /\/(?:\\\/|[^\/])+\//
+
+NEGATION_OPERATOR : "-"

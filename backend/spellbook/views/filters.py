@@ -2,7 +2,7 @@ from django.db.models import QuerySet, Case, Value, When, Q, F
 from django.template import loader
 from rest_framework import filters
 from django.utils.encoding import force_str
-from spellbook.parsers import variants_query_parser, NotSupportedError
+from spellbook.transformers.variants_query_transformer import variants_query_parser, NotSupportedError
 
 
 class AbstractQueryFilter(filters.BaseFilterBackend):

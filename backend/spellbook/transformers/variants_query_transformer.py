@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from django.db.models import Q, QuerySet
 from spellbook.models import Variant, FeatureProducedByVariant, CardInVariant
 from website.models import WebsiteProperty, FEATURED_SET_CODES
-from .color_parser import parse_identity
+from ..parsers.color_parser import parse_identity
 
 
 @dataclass(frozen=True)

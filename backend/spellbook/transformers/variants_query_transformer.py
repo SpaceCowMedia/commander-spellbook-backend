@@ -6,6 +6,74 @@ from django.db.models import Q, QuerySet
 from spellbook.models import Variant, FeatureProducedByVariant, CardInVariant
 from website.models import WebsiteProperty, FEATURED_SET_CODES
 from ..parsers.color_parser import parse_identity
+from ..parsers.variants_query_grammar import VARIANTS_QUERY_GRAMMAR
+from lark import Lark, Transformer
+
+
+class VariantsQueryTransformer(Transformer):
+    def card_search_shortcut(self, values):
+        return None
+
+    def card_search(self, values):
+        return None
+
+    def card_type_search(self, values):
+        return None
+
+    def card_oracle_search(self, values):
+        return None
+
+    def card_keyword_search(self, values):
+        return None
+
+    def card_mana_value_search(self, values):
+        return None
+
+    def identity_search(self, values):
+        return None
+
+    def prerequisites_search(self, values):
+        return None
+
+    def steps_search(self, values):
+        return None
+
+    def results_search(self, values):
+        return None
+
+    def spellbook_id_search(self, values):
+        return None
+
+    def tag_search(self, values):
+        return None
+
+    def commander_search(self, values):
+        return None
+
+    def legality_search(self, values):
+        return None
+
+    def price_search(self, values):
+        return None
+
+    def popularity_search(self, values):
+        return None
+
+    # composition
+    def factor(self, values):
+        return None
+
+    def term(self, values):
+        return None
+
+    def query(self, values):
+        return None
+
+    def start(self, values):
+        return None
+
+
+PARSER = Lark(VARIANTS_QUERY_GRAMMAR, parser='lalr', transformer=VariantsQueryTransformer())
 
 
 @dataclass(frozen=True)
@@ -554,6 +622,7 @@ class NotSupportedError(Exception):
 
 def variants_query_parser(base: QuerySet[Variant], query_string: str) -> QuerySet:
     query_string = query_string.strip()
+    _ = PARSER.parse(query_string)
     regex_matches = re.finditer(QUERY_REGEX, query_string)
     parsed_queries = defaultdict[str, list[QueryValue]](list)
     query_match_count = 0

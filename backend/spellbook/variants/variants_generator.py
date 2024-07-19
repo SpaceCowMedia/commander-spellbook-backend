@@ -74,7 +74,10 @@ def get_variants_from_graph(data: Data, single_combo: int | None, job: Job | Non
                 id = id_from_cards_and_templates_ids(cards_ids.distinct_elements(), templates_ids.distinct_elements())
                 feature_ids = variant.features
                 needed_feature_ids = variant.needed_features
-                needed_combo_ids = variant.needed_combos
+                needed_combo_ids = variant.needed_combos.copy()
+                # Adding the current combo to the needed combos in case it is not already there
+                # Which can happen if the combo does not produce useful features
+                needed_combo_ids.add(combo.id)
                 combo_ids = variant.combos
                 feature_replacements = {
                     feature: [

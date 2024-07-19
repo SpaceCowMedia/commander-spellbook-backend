@@ -1,7 +1,7 @@
 from typing import Any
 from types import MethodType
 from datetime import datetime
-from django.db.models import TextField, DateTimeField, Count, Q
+from django.db.models import TextField, DateTimeField, Count, Q, When, Case
 from django.contrib import admin
 from django.db.models.query import QuerySet
 from django.forms import ModelForm
@@ -106,11 +106,13 @@ class SpellbookModelAdmin(SortableAdminBase, ModelAdmin):
         may_have_duplicates = False
         search_done = False
         split_by_or = search_term.replace(' + ', ' ').split(' | ')
+        sub_terms: list[str] = []
         if len(split_by_or) > 1:
             first = True
             for sub_term in split_by_or:
                 sub_term = sub_term.strip()
                 if sub_term:
+                    sub_terms.append(sub_term)
                     partial_result, d = super().get_search_results(request, queryset, sub_term)
                     search_done = True
                     may_have_duplicates |= d
@@ -124,15 +126,31 @@ class SpellbookModelAdmin(SortableAdminBase, ModelAdmin):
             for sub_term in split_by_and:
                 sub_term = sub_term.strip()
                 if sub_term:
+                    sub_terms.append(sub_term)
                     result, d = super().get_search_results(request, result, sub_term)
                     search_done = True
                     may_have_duplicates |= d
         if search_done and not request.GET.get(ORDER_VAR):
-            result = self.sort_search_results(request, result, search_term)
+            result = self.sort_search_results(request, result, search_term, sub_terms)
         return result, may_have_duplicates
 
-    def sort_search_results(self, request, queryset: QuerySet, search_term: str) -> QuerySet:
-        return queryset
+    def sort_search_results(self, request, queryset: QuerySet, search_term: str, sub_terms: list[str]) -> QuerySet:
+        cases: list[When] = []
+        max_points = len(sub_terms) * len(self.search_fields)
+        matchers = ['iexact', 'istartswith', 'icontains']
+        for x, matcher in enumerate(matchers, start=1):
+            base_points = (len(matchers) - x) * max_points
+            for i, term in enumerate(sub_terms):
+                for j, field in enumerate(self.search_fields):
+                    points = base_points + (len(sub_terms) - i) * len(self.search_fields) - j
+                    cases.append(When(**{f'{field}__{matcher}': term, 'then': points}))
+        # Here using annotate instead of alias avoids repeating the case when clause three times in the query
+        return queryset.annotate(
+            _match_points=Case(
+                *cases,
+                default=0,
+            )
+        ).order_by('-_match_points')
 
     def save_related(self, request, form, formsets, change):
         super().save_related(request, form, formsets, change)

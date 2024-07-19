@@ -1,6 +1,6 @@
 from typing import Any
 from django.contrib import admin
-from django.db.models import QuerySet, Case, When, TextField, Count
+from django.db.models import QuerySet, TextField, Count
 from django.forms.widgets import Textarea
 from django.http import HttpRequest
 from django.utils.html import format_html
@@ -86,21 +86,6 @@ class FeatureAdmin(SpellbookModelAdmin):
         ):
             return True
         return super().lookup_allowed(lookup, value, request)  # type: ignore for deprecated typing
-
-    def sort_search_results(self, request, queryset: QuerySet, search_term: str) -> QuerySet:
-        search_terms = [sub_term.strip() for term in search_term.split(' | ') for sub_term in term.split(' + ') if sub_term.strip()]
-        cases: list[When] = []
-        for i, term in enumerate(search_terms):
-            points = len(search_terms) - i
-            cases.append(When(name__iexact=term, then=10 * points + 4))
-            cases.append(When(name__istartswith=term, then=10 * points + 3))
-            cases.append(When(name__icontains=term, then=10 * points + 2))
-        return queryset.alias(
-            match_points=Case(
-                *cases,
-                default=1,
-            )
-        ).order_by('-match_points')
 
     @admin.display(description='Scryfall link')
     def scryfall_link(self, obj: Feature):

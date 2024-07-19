@@ -12,6 +12,7 @@ def no_variant_with_this_id(value: str) -> None:
 class VariantAlias(models.Model):
     id = models.CharField(max_length=Variant._meta.get_field('id').max_length, primary_key=True, validators=[no_variant_with_this_id], help_text='Unique id of this variant alias', verbose_name='ID')
     variant = models.ForeignKey(to=Variant, on_delete=models.SET_NULL, null=True, blank=True, related_name='aliases', verbose_name='redirects to', help_text='Variant this alias redirects to')
+    variant_id: str
     description = models.TextField(blank=True, help_text='Description of this variant alias')
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, editable=False)
@@ -22,6 +23,6 @@ class VariantAlias(models.Model):
         default_manager_name = 'objects'
 
     def __str__(self):
-        if self.variant:
-            return f'Variant alias: {recipe([self.id], [self.variant.id])}'
+        if self.variant_id:
+            return f'Variant alias: {recipe([self.id], [self.variant_id])}'
         return f'Variant alias (dangling): {self.id}'

@@ -3,7 +3,7 @@
 %import common.INT -> NUMBER
 %import common.NUMBER -> PRICE
 
-?start: query?
+start: query?
 
 ?query: term //| query OR term
 
@@ -11,13 +11,13 @@
 
 ?factor: matcher | LPAREN query RPAREN
 
-?matcher: card_search_shortcut | pair
+?matcher: CARD_SEARCH_SHORTCUT -> card_search_shortcut | pair
 
 STRING: SHORT_LITERAL | LONG_LITERAL
 
 STRING_OR_NUMBER: STRING | NUMBER
 
-card_search_shortcut: NEGATION_OPERATOR? STRING
+CARD_SEARCH_SHORTCUT: NEGATION_OPERATOR? STRING
 
 ?pair: CARD_SEARCH -> card_search
     | CARD_TYPE_SEARCH -> card_type_search
@@ -69,9 +69,9 @@ PRICE_SEARCH: NEGATION_OPERATOR? PRICE_SEARCH_KEY COMPARISON_OPERATOR PRICE
 
 POPULARITY_SEARCH: NEGATION_OPERATOR? POPULARITY_SEARCH_KEY COMPARISON_OPERATOR NUMBER
 
-OR.5: "OR" | "or" | "||" | "|"
+OR.5: "OR" | "||" | "|"
 
-AND.5: "AND" | "and" | "&&" | "&"
+AND.5: "AND" | "&&" | "&"
 
 LPAREN: "("
 

@@ -1,8 +1,10 @@
 from django.db.models import QuerySet, Case, Value, When, Q, F
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.template import loader
 from rest_framework import filters
+from rest_framework.exceptions import ValidationError
 from django.utils.encoding import force_str
-from spellbook.transformers.variants_query_transformer import variants_query_parser, NotSupportedError
+from spellbook.transformers.variants_query_transformer import variants_query_parser
 
 
 class AbstractQueryFilter(filters.BaseFilterBackend):
@@ -25,12 +27,11 @@ class AbstractQueryFilter(filters.BaseFilterBackend):
 
     def filter_queryset(self, request, queryset, view):
         search_terms = self.get_search_terms(request)
-
         try:
             queryset = self.query_parser(queryset, search_terms)
-            return queryset
-        except NotSupportedError:
-            return queryset.none()
+        except DjangoValidationError as e:
+            raise ValidationError(detail={self.search_param: e.messages}) from e
+        return queryset
 
     def to_html(self, request, queryset, view):
         term = self.get_search_terms(request)

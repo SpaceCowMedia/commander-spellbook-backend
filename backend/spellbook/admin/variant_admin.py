@@ -236,7 +236,8 @@ class VariantAdmin(SpellbookModelAdmin):
             result = variants_query_parser(queryset, search_term)
             return result, False
         except ValidationError as e:
-            messages.warning(request, str(e))
+            for message in e.messages:
+                messages.warning(request, message)
             return queryset, False
 
     def after_save_related(self, request, form, formsets, change):

@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError
 from django.db.models.query import QuerySet
 from django.utils.http import urlencode
 from django.utils.html import format_html
@@ -8,7 +9,7 @@ from django.contrib import admin, messages
 from django.forms import Textarea
 from spellbook.models import Variant, CardInVariant, TemplateInVariant
 from spellbook.utils import launch_job_command
-from spellbook.transformers.variants_query_transformer import variants_query_parser, NotSupportedError
+from spellbook.transformers.variants_query_transformer import variants_query_parser
 from spellbook.serializers import VariantSerializer
 from .utils import IdentityFilter, SpellbookModelAdmin, SpellbookAdminForm, CardsCountListFilter
 from .ingredient_admin import IngredientAdmin
@@ -234,7 +235,7 @@ class VariantAdmin(SpellbookModelAdmin):
         try:
             result = variants_query_parser(queryset, search_term)
             return result, False
-        except NotSupportedError as e:
+        except ValidationError as e:
             messages.warning(request, str(e))
             return queryset, False
 

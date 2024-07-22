@@ -135,6 +135,6 @@ def variants_query_parser(base: QuerySet[Variant], query_string: str) -> QuerySe
             raise ValidationError(f'Invalid search query: something is missing after character {e.column}.')
         raise ValidationError(f'Invalid search query: something is wrong at character {e.column + 1}.')
     except UnexpectedCharacters as e:
-        raise ValidationError(f'Invalid search query: unexpected character at position {e.column}.')
+        raise ValidationError(f'Invalid search query: unexpected character {query_string[e.column - 1]} at position {e.column}.')
     except LarkError as e:
         raise ValidationError(f'Invalid search query: {e}')

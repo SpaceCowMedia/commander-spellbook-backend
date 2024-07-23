@@ -17,38 +17,40 @@ def identity_filter(identity_value: QueryValue) -> VariantFilterCollection:
                 not_in_identity += color
     match identity_value.operator:
         case '=' if not value_is_digit:
-            identity_queries = [Q(identity=identity or 'C')]
+            q = Q(identity=identity or 'C')
         case '<' if not value_is_digit:
-            identity_queries = [Q(identity_count__lt=len(identity))]
+            q = Q(identity_count__lt=len(identity))
             for color in not_in_identity:
-                identity_queries.append(~Q(identity__contains=color))
+                q &= ~Q(identity__contains=color)
         case ':' | '<=' if not value_is_digit:
-            identity_queries = [Q(identity_count__lte=len(identity))]
+            q = Q(identity_count__lte=len(identity))
             for color in not_in_identity:
-                identity_queries.append(~Q(identity__contains=color))
+                q &= ~Q(identity__contains=color)
         case '>' if not value_is_digit:
-            identity_queries = [Q(identity_count__gt=len(identity))]
+            q = Q(identity_count__gt=len(identity))
             for color in identity:
-                identity_queries.append(Q(identity__contains=color))
+                q &= Q(identity__contains=color)
         case '>=' if not value_is_digit:
-            identity_queries = [Q(identity_count__gte=len(identity))]
+            q = Q(identity_count__gte=len(identity))
             for color in identity:
-                identity_queries.append(Q(identity__contains=color))
+                q &= Q(identity__contains=color)
         case '=' | ':' if value_is_digit:
-            identity_queries = [Q(identity_count=identity_value.value)]
+            q = Q(identity_count=identity_value.value)
         case '<' if value_is_digit:
-            identity_queries = [Q(identity_count__lt=identity_value.value)]
+            q = Q(identity_count__lt=identity_value.value)
         case '<=' if value_is_digit:
-            identity_queries = [Q(identity_count__lte=identity_value.value)]
+            q = Q(identity_count__lte=identity_value.value)
         case '>' if value_is_digit:
-            identity_queries = [Q(identity_count__gt=identity_value.value)]
+            q = Q(identity_count__gt=identity_value.value)
         case '>=' if value_is_digit:
-            identity_queries = [Q(identity_count__gte=identity_value.value)]
+            q = Q(identity_count__gte=identity_value.value)
         case _:
             raise ValidationError(f'Operator {identity_value.operator} is not supported for identity search with {"numbers" if value_is_digit else "strings"}.')
     return VariantFilterCollection(
-        variants_filters=tuple(
-            VariantFilter(q=q, negated=identity_value.is_negated())
-            for q in identity_queries
+        variants_filters=(
+            VariantFilter(
+                q=q,
+                negated=identity_value.is_negated(),
+            ),
         ),
     )

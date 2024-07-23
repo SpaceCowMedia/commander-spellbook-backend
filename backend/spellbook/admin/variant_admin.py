@@ -199,7 +199,7 @@ class VariantAdmin(SpellbookModelAdmin):
 
     def generate(self, request: HttpRequest):
         if request.method == 'POST' and request.user.is_authenticated:
-            if launch_job_command('generate_variants', request.user):  # type: ignore
+            if launch_job_command('generate_variants', request.user, group='all'):  # type: ignore
                 messages.info(request, 'Variant generation job started.')
             else:
                 messages.warning(request, 'Variant generation is already running.')

@@ -24,7 +24,7 @@ def launch_command_async(command: str, args: list[str] = []):
         subprocess.Popen(args=args)
 
 
-def launch_job_command(command: str, user: User | None = None, args: list[str] = [], allow_multiples: bool = False) -> bool:
+def launch_job_command(command: str, user: User | None = None, args: list[str] = [], allow_multiples: bool = False, group: str | None = None) -> bool:
     """
     Launch a command asynchronously and create a Job object to track it.
     The command must be a management command that can take a --id parameter with the Job id.
@@ -33,6 +33,8 @@ def launch_job_command(command: str, user: User | None = None, args: list[str] =
     """
     job = Job.start(
         name=command,
+        args=args,
+        group=group,
         duration=None,
         user=user,
         allow_multiples=allow_multiples,

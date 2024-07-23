@@ -13,6 +13,7 @@ class AbstractCommand(BaseCommand):
     name = 'abstract_command'
     job: Job | None = None
     interpreter: str = python_implementation()
+    args: list[str] = []
 
     def log(self, message, style=lambda x: x):
         self.stdout.write(style(message))
@@ -26,8 +27,12 @@ class AbstractCommand(BaseCommand):
             dest='job_id',
         )
 
+    def run_from_argv(self, argv: list[str]) -> None:
+        self.args = argv[2:]
+        return super().run_from_argv(argv)
+
     def handle(self, *args, **options):
-        self.job = Job.get_or_start(self.name, options['job_id'])
+        self.job = Job.get_or_start(options['job_id'], self.name, self.args)
         if self.job is None and options['job_id'] is not None:
             raise CommandError('Job with id %s does not exist' % options['job_id'])
         elif self.job is None:

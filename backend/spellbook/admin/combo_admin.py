@@ -383,7 +383,7 @@ class ComboAdmin(SpellbookModelAdmin):
 
     def generate_variants(self, request: HttpRequest, id: int):
         if request.method == 'POST' and request.user.is_authenticated:
-            if launch_job_command('generate_variants', request.user, args=['--combo', str(id)]):  # type: ignore
+            if launch_job_command('generate_variants', request.user, args=['--combo', str(id)], group='single'):  # type: ignore
                 messages.info(request, f'Variant generation job for combo {id} started.')
             else:
                 messages.warning(request, 'Variant generation is already running.')

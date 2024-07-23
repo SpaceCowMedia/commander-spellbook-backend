@@ -11,6 +11,8 @@ class Job(models.Model):
         PENDING = 'P'
     id: int
     name = models.CharField(max_length=255, blank=False, verbose_name='name of job')
+    args = models.JSONField(default=list, blank=True, verbose_name='arguments for job')
+    group = models.CharField(max_length=255, blank=True, null=True, verbose_name='group of job')
     created = models.DateTimeField(auto_now_add=True, blank=False)
     expected_termination = models.DateTimeField(blank=False)
     termination = models.DateTimeField(blank=True, null=True)
@@ -25,7 +27,9 @@ class Job(models.Model):
         help_text='User that started this job')
 
     @classmethod
-    def start(cls, name: str, duration: timezone.timedelta | None = None, user: User | None = None, allow_multiples: bool = False):
+    def start(cls, name: str, args: list[str] | None = None, group: str | None = None, duration: timezone.timedelta | None = None, user: User | None = None, allow_multiples: bool = False):
+        if args is None:
+            args = []
         try:
             with transaction.atomic():
                 if not allow_multiples and Job.objects.filter(
@@ -34,8 +38,8 @@ class Job(models.Model):
                         status=Job.Status.PENDING).exists():
                     return None
                 if duration is None:
-                    past_runs_duration: timezone.timedelta = Job.objects \
-                        .filter(name=name, status=Job.Status.SUCCESS) \
+                    past_runs_duration: timezone.timedelta | None = Job.objects \
+                        .filter(name=name, group=group, status=Job.Status.SUCCESS) \
                         .order_by('-created')[:5] \
                         .annotate(duration=models.F('termination') - models.F('created')) \
                         .aggregate(average_duration=models.Avg('duration'))['average_duration']
@@ -45,6 +49,8 @@ class Job(models.Model):
                         duration = past_runs_duration * 1.2
                 return Job.objects.create(
                     name=name,
+                    args=args,
+                    group=group,
                     expected_termination=timezone.now() + duration,
                     started_by=user)
         except OperationalError as e:
@@ -52,13 +58,13 @@ class Job(models.Model):
             return None
 
     @classmethod
-    def get_or_start(cls, name: str, id: int | None = None, duration: timezone.timedelta | None = None):
+    def get_or_start(cls, id: int | None, name: str, args: list[str] | None = None, group: str | None = None, duration: timezone.timedelta | None = None):
         if id is not None:
             try:
                 return Job.objects.get(id=id)
             except Job.DoesNotExist:
                 return None
-        return cls.start(name=name, duration=duration)
+        return cls.start(name=name, args=args, group=group, duration=duration)
 
     class Meta:
         verbose_name = 'job'

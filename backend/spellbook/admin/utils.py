@@ -1,7 +1,7 @@
 from typing import Any
 from types import MethodType
 from datetime import datetime
-from django.db.models import TextField, DateTimeField, Count, Q, When, Case
+from django.db.models import TextField, DateTimeField, Count, Q, When, Case, Max
 from django.contrib import admin
 from django.db.models.query import QuerySet
 from django.forms import ModelForm
@@ -103,11 +103,11 @@ class SpellbookModelAdmin(SortableAdminBase, ModelAdmin):
 
     def get_search_results(self, request, queryset, search_term: str):
         result = queryset
-        may_have_duplicates = False
         search_done = False
         split_by_or = search_term.replace(' + ', ' ').split(' | ')
         sub_terms: list[str] = []
         if len(split_by_or) > 1:
+            may_have_duplicates = False
             first = True
             for sub_term in split_by_or:
                 sub_term = sub_term.strip()
@@ -122,6 +122,7 @@ class SpellbookModelAdmin(SortableAdminBase, ModelAdmin):
                     else:
                         result = result | partial_result
         else:
+            may_have_duplicates = True
             split_by_and = search_term.split(' + ')
             for sub_term in split_by_and:
                 sub_term = sub_term.strip()
@@ -129,7 +130,7 @@ class SpellbookModelAdmin(SortableAdminBase, ModelAdmin):
                     sub_terms.append(sub_term)
                     result, d = super().get_search_results(request, result, sub_term)
                     search_done = True
-                    may_have_duplicates |= d
+                    may_have_duplicates &= d
         if search_done and not request.GET.get(ORDER_VAR):
             result = self.sort_search_results(request, result, search_term, sub_terms)
         return result, may_have_duplicates
@@ -146,9 +147,11 @@ class SpellbookModelAdmin(SortableAdminBase, ModelAdmin):
                     cases.append(When(**{f'{field}__{matcher}': term, 'then': points}))
         # Here using annotate instead of alias avoids repeating the case when clause three times in the query
         return queryset.annotate(
-            _match_points=Case(
-                *cases,
-                default=0,
+            _match_points=Max(
+                Case(
+                    *cases,
+                    default=0,
+                )
             )
         ).order_by('-_match_points')
 

@@ -101,8 +101,7 @@ def update_cards(cards: list[Card], scryfall: dict[str, dict], log=lambda t: pri
             fields_before = card_fields(card)
             card_identity = merge_identities(card_in_db['color_identity'])
             card.identity = card_identity
-            card.spoiler = card_in_db['legalities']['commander'] != 'legal' \
-                and not card_in_db['reprint'] \
+            card.spoiler = not card_in_db['reprint'] \
                 and datetime.datetime.strptime(card_in_db['released_at'], '%Y-%m-%d').date() > timezone.now().date()
             card.type_line = card_in_db['type_line']
             if 'card_faces' in card_in_db:

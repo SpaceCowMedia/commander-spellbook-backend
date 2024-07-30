@@ -3,7 +3,7 @@ from django.core.exceptions import ValidationError
 from django.contrib.auth.models import User
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
-from .constants import MAX_CARD_NAME_LENGTH, MAX_FEATURE_NAME_LENGTH
+from .constants import MAX_CARD_NAME_LENGTH, MAX_FEATURE_NAME_LENGTH, MAX_MANA_NEEDED_LENGTH
 from .mixins import PreSaveModelMixin
 from .recipe import Recipe
 from .card import Card
@@ -29,7 +29,7 @@ class VariantSuggestion(Recipe):
     id: int
     status = models.CharField(choices=Status.choices, default=Status.NEW, help_text='Suggestion status for editors', max_length=2)
     notes = models.TextField(blank=True, help_text='Notes written by editors', validators=TEXT_VALIDATORS)
-    mana_needed = models.CharField(blank=True, max_length=200, help_text='Mana needed for this combo. Use the {1}{W}{U}{B}{R}{G}{B/P}... format.', validators=[MANA_VALIDATOR])
+    mana_needed = models.CharField(blank=True, max_length=MAX_MANA_NEEDED_LENGTH, help_text='Mana needed for this combo. Use the {1}{W}{U}{B}{R}{G}{B/P}... format.', validators=[MANA_VALIDATOR])
     other_prerequisites = models.TextField(blank=True, help_text='Other prerequisites for this combo.', validators=TEXT_VALIDATORS)
     description = models.TextField(blank=False, help_text='Long description, in steps', validators=TEXT_VALIDATORS)
     spoiler = models.BooleanField(default=False, help_text='Is this combo a spoiler?', verbose_name='is spoiler')

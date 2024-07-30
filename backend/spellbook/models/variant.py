@@ -18,6 +18,7 @@ from .combo import Combo
 from .job import Job
 from .validators import TEXT_VALIDATORS, MANA_VALIDATOR
 from .utils import mana_value, merge_identities
+from .constants import MAX_MANA_NEEDED_LENGTH
 
 
 class RecipePrefetchedManager(PreSaveSerializedManager):
@@ -90,7 +91,7 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
         through='VariantOfCombo')
     variantofcombo_set: models.Manager['VariantOfCombo']
     status = models.CharField(choices=Status.choices, db_default=Status.NEW, help_text='Variant status for editors', max_length=2)
-    mana_needed = models.CharField(blank=True, max_length=200, help_text='Mana needed for this combo. Use the {1}{W}{U}{B}{R}{G}{B/P}... format.', validators=[MANA_VALIDATOR])
+    mana_needed = models.CharField(blank=True, max_length=MAX_MANA_NEEDED_LENGTH, help_text='Mana needed for this combo. Use the {1}{W}{U}{B}{R}{G}{B/P}... format.', validators=[MANA_VALIDATOR])
     mana_value_needed = models.PositiveIntegerField(editable=False, help_text='Mana value needed for this combo. Calculated from mana_needed.')
     other_prerequisites = models.TextField(blank=True, help_text='Other prerequisites for this variant.', validators=TEXT_VALIDATORS)
     description = models.TextField(blank=True, help_text='Long description, in steps', validators=TEXT_VALIDATORS)

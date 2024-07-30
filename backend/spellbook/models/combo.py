@@ -10,7 +10,7 @@ from .feature import Feature
 from .template import Template
 from .ingredient import IngredientInCombination, ZoneLocationsField
 from .validators import MANA_VALIDATOR, TEXT_VALIDATORS
-from .constants import HIGHER_CARD_LIMIT, DEFAULT_CARD_LIMIT, LOWER_VARIANT_LIMIT, DEFAULT_VARIANT_LIMIT
+from .constants import HIGHER_CARD_LIMIT, DEFAULT_CARD_LIMIT, LOWER_VARIANT_LIMIT, DEFAULT_VARIANT_LIMIT, MAX_MANA_NEEDED_LENGTH
 from .feature_attribute import WithFeatureAttributes, WithFeatureAttributesMatcher
 
 
@@ -76,7 +76,7 @@ class Combo(Recipe, ScryfallLinkMixin):
         verbose_name='removed features',
         through='FeatureRemovedInCombo')
     featureremovedincombo_set: models.Manager['FeatureRemovedInCombo']
-    mana_needed = models.CharField(blank=True, max_length=200, help_text='Mana needed for this combo. Use the {1}{W}{U}{B}{R}{G}{B/P}... format.', validators=[MANA_VALIDATOR])
+    mana_needed = models.CharField(blank=True, max_length=MAX_MANA_NEEDED_LENGTH, help_text='Mana needed for this combo. Use the {1}{W}{U}{B}{R}{G}{B/P}... format.', validators=[MANA_VALIDATOR])
     other_prerequisites = models.TextField(blank=True, help_text='Other prerequisites for this combo.', validators=TEXT_VALIDATORS)
     description = models.TextField(blank=True, help_text='Long description of the combo, in steps', validators=TEXT_VALIDATORS)
     notes = models.TextField(blank=True, help_text='Notes about the combo', validators=TEXT_VALIDATORS)

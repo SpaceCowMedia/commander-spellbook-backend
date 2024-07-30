@@ -3,6 +3,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.forms import MultipleChoiceField, ValidationError as FormValidationError, CheckboxSelectMultiple
 from .validators import TEXT_VALIDATORS
+from .constants import MAX_LOCATION_STATE_LENGTH
 
 
 class CheckboxSelectMultipleAsCharField(CheckboxSelectMultiple):
@@ -52,10 +53,10 @@ class ZoneLocationsField(models.CharField):
 class Ingredient(models.Model):
     quantity = models.PositiveSmallIntegerField(default=1, blank=False, help_text='Quantity of the card in the combo.', verbose_name='quantity', validators=[MinValueValidator(1)])
     zone_locations = ZoneLocationsField(blank=False)
-    battlefield_card_state = models.CharField(max_length=200, blank=True, help_text='State of the card on the battlefield, if present.', validators=TEXT_VALIDATORS, verbose_name='battlefield starting card state')
-    exile_card_state = models.CharField(max_length=200, blank=True, help_text='State of the card in exile, if present.', validators=TEXT_VALIDATORS, verbose_name='exile starting card state')
-    graveyard_card_state = models.CharField(max_length=200, blank=True, help_text='State of the card in the graveyard, if present.', validators=TEXT_VALIDATORS, verbose_name='graveyard starting card state')
-    library_card_state = models.CharField(max_length=200, blank=True, help_text='State of the card in the library, if present.', validators=TEXT_VALIDATORS, verbose_name='library starting card state')
+    battlefield_card_state = models.CharField(max_length=MAX_LOCATION_STATE_LENGTH, blank=True, help_text='State of the card on the battlefield, if present.', validators=TEXT_VALIDATORS, verbose_name='battlefield starting card state')
+    exile_card_state = models.CharField(max_length=MAX_LOCATION_STATE_LENGTH, blank=True, help_text='State of the card in exile, if present.', validators=TEXT_VALIDATORS, verbose_name='exile starting card state')
+    graveyard_card_state = models.CharField(max_length=MAX_LOCATION_STATE_LENGTH, blank=True, help_text='State of the card in the graveyard, if present.', validators=TEXT_VALIDATORS, verbose_name='graveyard starting card state')
+    library_card_state = models.CharField(max_length=MAX_LOCATION_STATE_LENGTH, blank=True, help_text='State of the card in the library, if present.', validators=TEXT_VALIDATORS, verbose_name='library starting card state')
     must_be_commander = models.BooleanField(default=False, help_text='Does the card have to be a commander?', verbose_name='must be commander')
 
     def clean(self) -> None:

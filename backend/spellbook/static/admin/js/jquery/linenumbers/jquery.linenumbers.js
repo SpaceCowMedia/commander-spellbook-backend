@@ -9,6 +9,7 @@
     * [textarea] should have an integer line height to avoid rounding errors.
     * 
     * Source: https://stackoverflow.com/a/45252226/8589004
+    * --> then updated and fixed.
     */
     function countLines(textarea, text=null) {
         if (_buffer == null) {
@@ -60,13 +61,13 @@
                 $editor.prepend('<div class="line-numbers"></div>');
                 const $lineNumbers = $editor.find('div.line-numbers');
                 function updateLineNumbers() {
-                    const current = $lineNumbers.children().length;
-                    const lines = countLines($this[0]);
-                    if (lines == current) {
+                    const current = $lineNumbers.children('span.number').length;
+                    const rows = $this.val().split('\n') || [];
+                    if (rows.length == current) {
                         return;
                     }
+                    const lines = countLines($this[0]);
                     $lineNumbers.empty();
-                    const rows = $this.val().split('\n') || [];
                     for (let i = 0; i < rows.length; i++) {
                         $lineNumbers.append(`<span class="number"></span>`);
                         const lines = countLines($this[0], rows[i]);

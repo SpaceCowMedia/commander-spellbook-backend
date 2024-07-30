@@ -9,7 +9,6 @@
     * [textarea] should have an integer line height to avoid rounding errors.
     * 
     * Source: https://stackoverflow.com/a/45252226/8589004
-    * --> then updated and fixed.
     */
     function countLines(textarea, text=null) {
         if (_buffer == null) {
@@ -56,12 +55,12 @@
             return this.each(function(_, e) {
                 options = $.extend({}, $.fn.linenumbers.defaults, options);
                 const $this = $(e);
-                $this.wrap('<div class="editor"></div>');
+                $this.wrap(`<div class="${options.editorClass}"></div>`);
                 const $editor = $this.parent();
-                $editor.prepend('<div class="line-numbers"></div>');
-                const $lineNumbers = $editor.find('div.line-numbers');
+                $editor.prepend(`<div class="${options.lineNumbersClass}"></div>`);
+                const $lineNumbers = $editor.find(`div.${options.lineNumbersClass}`);
                 function updateLineNumbers() {
-                    const current = $lineNumbers.children('span.number').length;
+                    const current = $lineNumbers.children(`span.${options.numberClass}`).length;
                     const rows = $this.val().split('\n') || [];
                     if (rows.length == current) {
                         return;
@@ -69,7 +68,7 @@
                     const lines = countLines($this[0]);
                     $lineNumbers.empty();
                     for (let i = 0; i < rows.length; i++) {
-                        $lineNumbers.append(`<span class="number"></span>`);
+                        $lineNumbers.append(`<span class="${options.numberClass}"></span>`);
                         const lines = countLines($this[0], rows[i]);
                         for (let j = 0; j < lines - 1; j++) {
                             $lineNumbers.append(`<span></span>`);
@@ -77,15 +76,16 @@
                     }
                 }
                 updateLineNumbers();
-                $this.on('input', _ => {
-                    updateLineNumbers();
-                });
-                new ResizeObserver(updateLineNumbers).observe($this[0]);
+                $this.on('input', _ => updateLineNumbers());
+                const observer = new ResizeObserver(updateLineNumbers);
+                $this.each((_, e) => observer.observe(e));
             });
         }
     };
 
     $.fn.linenumbers.defaults = {
-        // default options
+        editorClass: 'editor',
+        lineNumbersClass: 'line-numbers',
+        numberClass: 'number',
     };
 })(django.jQuery);

@@ -60,12 +60,14 @@
                 $editor.prepend(`<div class="${options.lineNumbersClass}"></div>`);
                 const $lineNumbers = $editor.find(`div.${options.lineNumbersClass}`);
                 function updateLineNumbers() {
-                    const current = $lineNumbers.children(`span.${options.numberClass}`).length;
+                    const children = $lineNumbers.children('span');
+                    const currentLineCount = children.length;
+                    const currentNewLineCount = children.filter(`.${options.numberClass}`).length;
+                    const lines = countLines($this[0]);
                     const rows = $this.val().split('\n') || [];
-                    if (rows.length == current) {
+                    if (rows.length == currentNewLineCount && lines == currentLineCount) {
                         return;
                     }
-                    const lines = countLines($this[0]);
                     $lineNumbers.empty();
                     for (let i = 0; i < rows.length; i++) {
                         $lineNumbers.append(`<span class="${options.numberClass}"></span>`);

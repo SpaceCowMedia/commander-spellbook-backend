@@ -244,7 +244,7 @@ class VariantOfCombo(models.Model):
     combo_id: int
 
     def __str__(self):
-        return f'Variant {self.variant.pk} of {self.combo.pk}'
+        return f'Variant {self.variant.pk} of {self.combo_id}'
 
     class Meta:
         unique_together = [('variant', 'combo')]
@@ -258,7 +258,7 @@ class VariantIncludesCombo(models.Model):
     combo_id: int
 
     def __str__(self):
-        return f'Variant {self.variant.pk} includes {self.combo.pk}'
+        return f'Variant {self.variant.pk} includes {self.combo_id}'
 
     class Meta:
         unique_together = [('variant', 'combo')]

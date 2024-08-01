@@ -113,7 +113,7 @@ class CardInCombo(IngredientInCombination):
     combo_id: int
 
     def __str__(self):
-        return f'{self.card} in combo {self.combo.pk}'
+        return f'{self.card} in combo {self.combo_id}'
 
     class Meta(IngredientInCombination.Meta):
         unique_together = [('card', 'combo')]
@@ -127,7 +127,7 @@ class TemplateInCombo(IngredientInCombination):
     combo_id: int
 
     def __str__(self):
-        return f'{self.template} in combo {self.combo.pk}'
+        return f'{self.template} in combo {self.combo_id}'
 
     class Meta(IngredientInCombination.Meta):
         unique_together = [('template', 'combo')]
@@ -143,7 +143,7 @@ class FeatureNeededInCombo(WithFeatureAttributesMatcher):
     zone_locations_override = ZoneLocationsField(blank=True, default='', verbose_name='zone locations override', help_text='Option to override the zone locations for the card(s) this feature replaces.')
 
     def __str__(self):
-        return f'{self.feature} needed in combo {self.combo.pk}'
+        return f'{self.feature} needed in combo {self.combo_id}'
 
     class Meta:
         unique_together = [('feature', 'combo')]
@@ -162,7 +162,7 @@ class FeatureProducedInCombo(WithFeatureAttributes):
     combo_id: int
 
     def __str__(self):
-        return f'{self.feature} produced in combo {self.combo.pk}'
+        return f'{self.feature} produced in combo {self.combo_id}'
 
     class Meta:
         unique_together = [('feature', 'combo')]
@@ -176,7 +176,7 @@ class FeatureRemovedInCombo(models.Model):
     combo_id: int
 
     def __str__(self):
-        return f'{self.feature} removed in combo {self.combo.pk}'
+        return f'{self.feature} removed in combo {self.combo_id}'
 
     class Meta:
         unique_together = [('feature', 'combo')]

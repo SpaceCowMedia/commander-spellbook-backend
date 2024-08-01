@@ -159,7 +159,7 @@ class FeatureProducedInVariantSuggestion(models.Model):
 @receiver([post_save, post_delete], sender=CardUsedInVariantSuggestion, dispatch_uid='card_used_in_variant_suggestion_saved')
 @receiver([post_save, post_delete], sender=TemplateRequiredInVariantSuggestion, dispatch_uid='template_required_in_variant_suggestion_saved')
 @receiver([post_save, post_delete], sender=FeatureProducedInVariantSuggestion, dispatch_uid='feature_produced_in_variant_suggestion_saved')
-def update_variant_suggestion_name(sender, instance, raw: bool, **kwargs):
+def update_variant_suggestion_name(sender, instance, raw=False, **kwargs):
     if raw:
         return
     variant_suggestion = instance.variant

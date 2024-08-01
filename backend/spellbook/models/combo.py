@@ -196,7 +196,7 @@ def recipe_changed(sender, instance: Recipe, action: str, reverse: bool, model: 
 @receiver([post_save, post_delete], sender=Combo.needs.through, dispatch_uid='combo_needs_changed')
 @receiver([post_save, post_delete], sender=Combo.produces.through, dispatch_uid='combo_produces_changed')
 @receiver([post_save, post_delete], sender=Combo.removes.through, dispatch_uid='combo_removes_changed')
-def recipe_changed_2(sender, instance: CardInCombo | TemplateInCombo | FeatureNeededInCombo | FeatureProducedInCombo | FeatureRemovedInCombo, raw: bool, **kwargs) -> None:
+def recipe_changed_2(sender, instance: CardInCombo | TemplateInCombo | FeatureNeededInCombo | FeatureProducedInCombo | FeatureRemovedInCombo, raw=False, **kwargs) -> None:
     if raw:
         return
     instance.combo.name = instance.combo._str()

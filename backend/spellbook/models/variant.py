@@ -266,7 +266,7 @@ class VariantIncludesCombo(models.Model):
 
 @receiver(post_save, sender=Variant.uses.through, dispatch_uid='update_variant_on_cards')
 @receiver(post_save, sender=Variant.requires.through, dispatch_uid='update_variant_on_templates')
-def update_variant_on_ingredient(sender, instance: CardInVariant | TemplateInVariant, raw: bool, **kwargs):
+def update_variant_on_ingredient(sender, instance: CardInVariant | TemplateInVariant, raw=False, **kwargs):
     if raw:
         return
     variant = instance.variant

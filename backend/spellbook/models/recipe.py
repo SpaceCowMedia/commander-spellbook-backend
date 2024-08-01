@@ -43,8 +43,8 @@ class Recipe(models.Model):
         def element(name: str, quantity: int) -> str:
             return f'{quantity} {name}' if quantity > 1 else name
         return recipe(
-            [element(card, q) for card, q in cards.items()] + [element(feature, q) for feature, q in features_needed.items()] + [element(template, q) for template, q in templates.items()],
-            [element(feature, q) for feature, q in features_produced.items()][:4]
+            ingredients=[element(card, q) for card, q in cards.items()] + [element(feature, q) for feature, q in features_needed.items()] + [element(template, q) for template, q in templates.items()],
+            results=[element(feature, q) for feature, q in features_produced.items()]
         )
 
     class Meta:

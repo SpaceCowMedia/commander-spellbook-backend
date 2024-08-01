@@ -99,9 +99,9 @@ class Card(Playable, PreSaveModelMixin, ScryfallLinkMixin):
 
 @receiver(post_save, sender=Card, dispatch_uid='update_variant_fields')
 def update_variant_fields(sender, instance, created, raw, **kwargs):
-    from .variant import Variant
     if raw or created:
         return
+    from .variant import Variant
     variants = Variant.recipes_prefetched.filter(uses=instance)
     variants_to_save = []
     for variant in variants:
@@ -118,9 +118,9 @@ def update_variant_fields(sender, instance, created, raw, **kwargs):
 
 @receiver(post_save, sender=Card, dispatch_uid='update_combo_fields')
 def update_combo_fields(sender, instance, created, raw, **kwargs):
-    from .combo import Combo
     if raw or created:
         return
+    from .combo import Combo
     combos = Combo.recipes_prefetched.filter(uses=instance)
     combos_to_save = []
     for combo in combos:

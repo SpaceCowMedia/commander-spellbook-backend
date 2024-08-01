@@ -38,9 +38,9 @@ class Feature(models.Model):
 
 @receiver(post_save, sender=Feature, dispatch_uid='update_variant_fields')
 def update_variant_fields(sender, instance, created, raw, **kwargs):
-    from .variant import Variant
     if raw or created:
         return
+    from .variant import Variant
     variants = Variant.recipes_prefetched.filter(produces=instance)
     variants_to_save = []
     for variant in variants:
@@ -53,9 +53,9 @@ def update_variant_fields(sender, instance, created, raw, **kwargs):
 
 @receiver(post_save, sender=Feature, dispatch_uid='update_combo_fields')
 def update_combo_fields(sender, instance, created, raw, **kwargs):
-    from .combo import Combo
     if raw or created:
         return
+    from .combo import Combo
     combos = Combo.objects.filter(models.Q(produces=instance) | models.Q(needs=instance))
     combos_to_save = []
     for combo in combos:

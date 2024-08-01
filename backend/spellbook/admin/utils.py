@@ -52,6 +52,7 @@ class SpellbookAdminChangelist(ChangeList):
 class SpellbookModelAdmin(SortableAdminBase, ModelAdmin):
     form = SpellbookAdminForm
     search_help_text = 'Type text to search for, using spaces to separate multiple terms.' \
+        ' Wrap terms in quotes to search for exact phrases.' \
         ' Use " + " instead of space to require multiple terms to be present on different related objects.' \
         ' Use " | " instead of space to require at least one of the terms to be present.' \
         ' You can\'t use " + " and " | " together.'

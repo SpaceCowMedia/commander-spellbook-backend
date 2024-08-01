@@ -20,7 +20,7 @@
             "envFile": "${workspaceFolder}/backend/.env",
             "preLaunchTask": "Prelaunch",
             "django": true,
-            "justMyCode": true,
+            "justMyCode": false,
             "presentation": {
                 "hidden": false,
                 "group": "Django",

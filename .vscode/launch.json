@@ -233,5 +233,24 @@
                 "order": 13
             },
         },
+        {
+            "name": "Debug Schema Validation",
+            "type": "debugpy",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/backend",
+            "program": "manage.py",
+            "args": [
+                "spectacular",
+                "--validate",
+                "--traceback",
+            ],
+            "django": true,
+            "justMyCode": false,
+            "presentation": {
+                "hidden": false,
+                "group": "Spellbook",
+                "order": 13
+            },
+        },
     ]
 }

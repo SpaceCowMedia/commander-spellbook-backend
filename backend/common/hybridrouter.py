@@ -1,6 +1,7 @@
 from collections import OrderedDict
 from django.urls import NoReverseMatch
 from rest_framework import routers, views, reverse, response
+from drf_spectacular.utils import extend_schema
 
 
 class HybridRouter(routers.DefaultRouter):
@@ -40,6 +41,7 @@ class HybridRouter(routers.DefaultRouter):
             _ignore_model_permissions = True
             exclude_from_schema = True
 
+            @extend_schema(responses=dict)
             def get(self, request, *args, **kwargs):
                 ret = OrderedDict()
                 namespace = request.resolver_match.namespace

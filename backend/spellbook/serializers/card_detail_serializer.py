@@ -1,5 +1,6 @@
 from django.db.models import QuerySet
 from rest_framework import serializers
+from drf_spectacular.utils import extend_schema_field
 from spellbook.models import Card, FeatureOfCard
 from .feature_serializer import FeatureSerializer
 from .legalities_serializer import LegalitiesSerializer
@@ -20,6 +21,7 @@ class FeatureOfCardSerializer(serializers.ModelSerializer):
     feature = FeatureSerializer(many=False, read_only=True)
     zone_locations = serializers.SerializerMethodField()
 
+    @extend_schema_field(serializers.ListSerializer(child=serializers.CharField()))
     def get_zone_locations(self, obj):
         return list(obj.zone_locations)
 

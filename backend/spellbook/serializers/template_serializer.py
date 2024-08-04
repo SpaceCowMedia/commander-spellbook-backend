@@ -4,6 +4,8 @@ from spellbook.models import Template
 
 
 class TemplateSerializer(serializers.ModelSerializer):
+    scryfall_api = serializers.CharField(read_only=True)
+
     class Meta:
         model = Template
         fields = ['id', 'name', 'scryfall_query', 'scryfall_api']

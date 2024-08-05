@@ -8,9 +8,9 @@ asgiref==3.7.2
     # via
     #   django
     #   django-cors-headers
-boto3==1.34.149
+boto3==1.34.153
     # via -r requirements.in
-botocore==1.34.149
+botocore==1.34.153
     # via
     #   boto3
     #   s3transfer

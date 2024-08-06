@@ -460,7 +460,7 @@ def create_variant(
 
 def perform_bulk_saves(data: Data, to_create: list[VariantBulkSaveItem], to_update: list[VariantBulkSaveItem]):
     Variant.objects.bulk_create([v.variant for v in to_create])
-    update_fields = ['name', 'status', 'mana_needed', 'other_prerequisites', 'description', 'notes', 'results_count', 'generated_by'] + Playable.playable_fields()
+    update_fields = ['name', 'status', 'mana_needed', 'other_prerequisites', 'description', 'public_notes', 'notes', 'results_count', 'generated_by'] + Playable.playable_fields()
     Variant.objects.bulk_update([v.variant for v in to_update if v.should_update], fields=update_fields)
     CardInVariant.objects.bulk_create([c for v in to_create for c in v.uses])
     update_fields = ['zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'must_be_commander', 'order', 'quantity']

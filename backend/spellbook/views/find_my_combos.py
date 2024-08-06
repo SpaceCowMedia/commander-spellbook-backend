@@ -1,11 +1,13 @@
 from django.db.models import Count, Q, F
-from rest_framework import parsers
+from rest_framework import parsers, serializers
 from rest_framework.decorators import api_view, parser_classes, permission_classes
 from rest_framework.response import Response
 from rest_framework.request import Request
 from rest_framework.permissions import AllowAny
 from rest_framework.settings import api_settings
+from drf_spectacular.utils import extend_schema, inline_serializer
 from spellbook.models import Card, merge_identities, CardInVariant
+from spellbook.serializers import VariantSerializer
 from dataclasses import dataclass
 from spellbook.views.variants import VariantViewSet
 
@@ -83,6 +85,26 @@ class JsonDeckListParser(parsers.JSONParser):
         return RawDeck(cards=main_cards, commanders=commanders)
 
 
+@extend_schema(
+    request={
+        'application/json': inline_serializer(
+            name='FindMyCombosRequest',
+            fields={
+                'main': serializers.ListField(child=serializers.CharField(), max_length=500),
+                'commanders': serializers.ListField(child=serializers.CharField(), max_length=500),
+            }
+        ),
+        'text/plain': str,
+    },
+    responses=inline_serializer(
+        name='FindMyCombosResponse',
+        fields={
+            'identity': serializers.CharField(),
+            'included': VariantSerializer(many=True),
+        }
+    ),
+    methods=['GET', 'POST'],
+)
 @api_view(http_method_names=['GET', 'POST'])
 @parser_classes([JsonDeckListParser, PlainTextDeckListParser])
 @permission_classes([AllowAny])
@@ -103,8 +125,8 @@ def find_my_combos(request: Request) -> Response:
             total_count=Count('variant')
         ) \
         .filter(present_count__gte=F('total_count'))
-
-    variants_query = VariantViewSet().get_queryset().filter(id__in=variant_id_list)
+    viewset = VariantViewSet()
+    variants_query = viewset.get_queryset().filter(id__in=variant_id_list)
 
     pagination_class = api_settings.DEFAULT_PAGINATION_CLASS
     paginator = pagination_class()  # type: ignore
@@ -121,7 +143,7 @@ def find_my_combos(request: Request) -> Response:
     almost_included_variants_by_adding_colors_and_changing_commanders = []
 
     for variant in variants_page:
-        variant_data: dict = VariantViewSet.serializer_class(variant).data  # type: ignore
+        variant_data: dict = viewset.serializer_class(variant).data  # type: ignore
         variant_cards = {civ['card']['id'] for civ in variant_data['uses']}
         variant_commanders = {civ['card']['id'] for civ in variant_data['uses'] if civ['must_be_commander']}
         variant_identity = set(variant_data['identity']) - {'C'}

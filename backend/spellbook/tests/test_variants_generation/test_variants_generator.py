@@ -216,6 +216,7 @@ class VariantsGeneratorTests(AbstractTestCaseWithSeeding):
                     self.assertGreater(len(variant.name), 0)
                     self.assertGreater(len(variant.description), 0)
                     self.assertGreater(len(variant.notes), 0)
+                    self.assertGreater(len(variant.public_notes), 0)
                     if variant.cards():
                         self.assertTrue(any(
                             len(text_field) > 0
@@ -300,6 +301,7 @@ class VariantsGeneratorTests(AbstractTestCaseWithSeeding):
             self.assertEqual(v.status, Variant.Status.NEW)
             self.assertIn(c.description, v.description)
             self.assertIn(c.notes, v.notes)
+            self.assertIn(c.public_notes, v.public_notes)
 
     def test_unwanted_text_with_combo(self):
         generate_variants()

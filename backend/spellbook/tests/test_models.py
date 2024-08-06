@@ -314,7 +314,8 @@ class ComboTests(AbstractTestCaseWithSeeding):
     def test_combo_fields(self):
         c = Combo.objects.get(id=self.b1_id)
         self.assertEqual(c.description, 'a1')
-        self.assertEqual(c.notes, 'aa1')
+        self.assertEqual(c.notes, '***1')
+        self.assertEqual(c.public_notes, 'aa1')
         self.assertEqual(c.uses.count(), 2)
         self.assertEqual(c.needs.count(), 1)
         self.assertEqual(c.requires.count(), 0)
@@ -331,7 +332,8 @@ class ComboTests(AbstractTestCaseWithSeeding):
         self.assertEqual(c.allow_multiple_copies, False)
         c = Combo.objects.get(id=self.b2_id)
         self.assertEqual(c.description, 'b2')
-        self.assertEqual(c.notes, 'bb2')
+        self.assertEqual(c.notes, '***2')
+        self.assertEqual(c.public_notes, 'bb2')
         self.assertEqual(c.uses.count(), 0)
         self.assertEqual(c.needs.count(), 1)
         self.assertEqual(c.requires.count(), 1)
@@ -463,7 +465,7 @@ class VariantTests(AbstractTestCaseWithSeeding):
         self.v4_id = id_from_cards_and_templates_ids([self.c8_id, self.c1_id], [])
 
     def test_variant_fields(self):
-        v = Variant.objects.get(id=self.v1_id)
+        v: Variant = Variant.objects.get(id=self.v1_id)
         self.assertSetEqual(set(v.uses.values_list('id', flat=True)), {self.c8_id, self.c1_id})
         self.assertDictEqual(v.cards(), {Card.objects.get(pk=self.c8_id).name: 1, Card.objects.get(pk=self.c1_id).name: 1})
         self.assertSetEqual(set(v.requires.values_list('id', flat=True)), {self.t1_id})
@@ -477,8 +479,10 @@ class VariantTests(AbstractTestCaseWithSeeding):
         self.assertIn('Some requisites.', v.other_prerequisites)
         self.assertIn('2', v.description)
         self.assertIn('2', v.notes)
+        self.assertIn('2', v.public_notes)
         self.assertIn('4', v.description)
         self.assertIn('4', v.notes)
+        self.assertIn('4', v.public_notes)
         self.assertEqual(v.identity, 'W')
         self.assertEqual(v.generated_by.id, Job.objects.get(name='generate_variants').id)  # type: ignore
         self.assertEqual(v.legal_commander, True)

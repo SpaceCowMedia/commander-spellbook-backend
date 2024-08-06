@@ -281,6 +281,7 @@ def restore_variant(
         variant.mana_needed = apply_replacements(' '.join(c.mana_needed for c in combos_included_for_a_reason if len(c.mana_needed) > 0), replacements)
         variant.description = apply_replacements('\n'.join(c.description for c in combos_included_for_a_reason if len(c.description) > 0), replacements)
         variant.notes = apply_replacements('\n'.join(c.notes for c in combos_included_for_a_reason if len(c.notes) > 0), replacements)
+        variant.public_notes = apply_replacements('\n'.join(c.public_notes for c in combos_included_for_a_reason if len(c.public_notes) > 0), replacements)
         for card_in_variant in used_cards:
             update_state_with_default(data, card_in_variant)
         for template_in_variant in required_templates:

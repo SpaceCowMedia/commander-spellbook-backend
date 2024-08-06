@@ -23,7 +23,7 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
         self.ok_variants = self.public_variants.filter(status=Variant.Status.OK)
 
     def variant_assertions(self, variant_result):
-        v = Variant.objects.get(id=variant_result.id)
+        v: Variant = Variant.objects.get(id=variant_result.id)
         self.assertEqual(variant_result.id, v.id)
         self.assertEqual(variant_result.status, v.status)
         self.assertEqual(variant_result.identity, v.identity)
@@ -37,7 +37,7 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
             self.assertEqual(variant_result.mana_needed, v.mana_needed)
             self.assertEqual(variant_result.other_prerequisites, v.other_prerequisites)
             self.assertEqual(variant_result.description, v.description)
-            self.assertEqual(variant_result.notes, v.notes)
+            self.assertEqual(variant_result.notes, v.public_notes)
         self.assertEqual(variant_result.legalities.commander, v.legal_commander)
         self.assertEqual(variant_result.legalities.pauper_commander_main, v.legal_pauper_commander_main)
         self.assertEqual(variant_result.legalities.pauper_commander, v.legal_pauper_commander)

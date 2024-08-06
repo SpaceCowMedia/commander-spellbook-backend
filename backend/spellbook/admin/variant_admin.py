@@ -54,6 +54,7 @@ class VariantForm(SpellbookAdminForm):
     class Meta:
         widgets = {
             'notes': Textarea(attrs={'rows': 2}),
+            'public_notes': Textarea(attrs={'rows': 2}),
         }
 
 
@@ -145,6 +146,7 @@ class VariantAdmin(SpellbookModelAdmin):
             'mana_needed',
             'other_prerequisites',
             'description',
+            'public_notes',
             'notes',
         ]}),
         ('Legalities', {

@@ -134,7 +134,7 @@ class VariantSerializer(serializers.ModelSerializer):
     def get_notes(self, obj):
         if obj.status == Variant.Status.EXAMPLE:
             return None
-        return obj.notes
+        return obj.public_notes
 
     class Meta:
         model = Variant

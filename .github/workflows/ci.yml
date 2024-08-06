@@ -139,7 +139,7 @@ jobs:
         run: docker compose -f docker-compose.yml up -d --no-build
         working-directory: backend
       - name: Unit test inside container 🧪
-        run: docker exec -e CI=true -i backend_web_1 python manage.py test --no-input --parallel auto --settings=backend.production_settings
+        run: docker exec -e CI=true -i backend-web-1 python manage.py test --no-input --parallel auto --settings=backend.production_settings
 
 
   release:

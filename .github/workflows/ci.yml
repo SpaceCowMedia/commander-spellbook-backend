@@ -136,7 +136,7 @@ jobs:
           docker load --input /tmp/spellbook-backend.tar
           docker image ls -a
       - name: Docker compose up 🧫
-        run: docker-compose -f docker-compose.yml up -d --no-build
+        run: docker compose -f docker-compose.yml up -d --no-build
         working-directory: backend
       - name: Unit test inside container 🧪
         run: docker exec -e CI=true -i backend_web_1 python manage.py test --no-input --parallel auto --settings=backend.production_settings

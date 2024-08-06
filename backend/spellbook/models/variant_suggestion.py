@@ -23,6 +23,7 @@ class VariantSuggestion(Recipe):
     class Status(models.TextChoices):
         NEW = 'N'
         NEEDS_REVIEW = 'NR'
+        READY = 'RE'
         ACCEPTED = 'A'
         REJECTED = 'R'
 

@@ -97,13 +97,12 @@ class JsonDeckListParser(parsers.JSONParser):
         'text/plain': str,
     },
     responses=inline_serializer(
-        name='FindMyCombosResponse',
+        name='FindMyCombosResult',
         fields={
             'identity': serializers.CharField(),
             'included': VariantSerializer(many=True),
         }
     ),
-    methods=['GET', 'POST'],
 )
 @api_view(http_method_names=['GET', 'POST'])
 @parser_classes([JsonDeckListParser, PlainTextDeckListParser])

@@ -1,14 +1,16 @@
 from urllib.parse import urlparse
 from django.core.validators import URLValidator
 from django.core.exceptions import ValidationError
-from rest_framework import viewsets, serializers
+from rest_framework import viewsets
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.request import Request
-from drf_spectacular.utils import extend_schema, OpenApiParameter, inline_serializer
+from rest_framework.exceptions import APIException
+from drf_spectacular.utils import extend_schema, OpenApiParameter
+from common.serializers import DeckSerializer
 from .models import WebsiteProperty
-from .serializers import WebsitePropertySerializer, DeckSerializer
+from .serializers import WebsitePropertySerializer
 from .services.moxfield import moxfield, MOXFIELD_HOSTNAME
 from .services.archidekt import archidekt, ARCHIDEKT_HOSTNAME
 from .services.deckstats import deckstats, DECKSTATS_HOSTNAME
@@ -28,12 +30,21 @@ SUPPORTED_DECKBUILDING_WEBSITES = {
 }
 
 
+class InvalidUrl(APIException):
+    status_code = 400
+    default_detail = 'Invalid URL'
+    default_code = 'invalid_url'
+
+
+class UnsupportedWebsite(APIException):
+    status_code = 400
+    default_detail = 'Unsupported website'
+    default_code = 'unsupported_website'
+
+
 @extend_schema(
     parameters=[OpenApiParameter(name='url', type=str)],
-    responses={
-        200: DeckSerializer,
-        400: inline_serializer('error', {'error': serializers.CharField()}),
-    },
+    responses=DeckSerializer,
 )
 @api_view(['GET'])
 @permission_classes([AllowAny])
@@ -42,12 +53,12 @@ def card_list_from_url(request: Request) -> Response:
     try:
         URLValidator()(url)
     except ValidationError:
-        return Response({'error': 'Invalid URL'}, status=400)
+        raise InvalidUrl()
     parsed_url = urlparse(url)
     hostname = (parsed_url.hostname or '').lower().removeprefix('www.')
     if hostname not in SUPPORTED_DECKBUILDING_WEBSITES:
-        return Response({'error': 'Unsupported website'}, status=400)
+        raise UnsupportedWebsite()
     deck = SUPPORTED_DECKBUILDING_WEBSITES[hostname](url)
     if deck is None:
-        return Response({'error': 'Invalid URL'}, status=400)
+        raise UnsupportedWebsite()
     return Response(DeckSerializer(deck).data)

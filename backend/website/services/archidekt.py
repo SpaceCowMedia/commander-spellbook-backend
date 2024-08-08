@@ -1,7 +1,7 @@
 import re
 from urllib.parse import urlparse
 from .json_api import get
-from .deck import Deck
+from common.abstractions import Deck
 
 ARCHIDEKT_HOSTNAME = 'archidekt.com'
 

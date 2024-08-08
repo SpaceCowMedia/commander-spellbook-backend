@@ -1,5 +1,6 @@
 # Rules
-* RTFM, if you don't know what that means, look it up. In particular, read:
+* Be sure to have read all the necessary available documentation before diving into the code
+* In addition, read:
     * The [Code of Conduct](CODE_OF_CONDUCT.md)
     * The [README](README.md)
     * The [Developer Docs](https://spacecowmedia.github.io/commander-spellbook-backend/)

@@ -1,4 +1,3 @@
-from rest_framework.fields import empty
 from drf_spectacular.extensions import OpenApiSerializerExtension
 from drf_spectacular.plumbing import force_instance
 from rest_framework import serializers

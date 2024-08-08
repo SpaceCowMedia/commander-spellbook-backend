@@ -10,7 +10,7 @@ class IsSelf(permissions.BasePermission):
 User = get_user_model()
 
 
-class UserSerializer(serializers.ModelSerializer):
+class UserDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'username', 'password', 'email', 'is_staff', 'is_active', 'first_name', 'last_name']
@@ -29,7 +29,7 @@ class UserViewSet(
         mixins.DestroyModelMixin,
         mixins.ListModelMixin,
         viewsets.GenericViewSet):
-    serializer_class = UserSerializer
+    serializer_class = UserDetailSerializer
     permission_classes = [IsSelf]
 
     def get_queryset(self):

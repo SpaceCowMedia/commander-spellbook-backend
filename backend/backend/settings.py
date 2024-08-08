@@ -70,6 +70,8 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
     'django_filters',
+    'drf_spectacular',
+    'drf_spectacular_sidecar',
 ]
 
 MIDDLEWARE = [
@@ -224,7 +226,25 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_PAGINATION_CLASS': 'backend.pagination.CustomPagination',
     'PAGE_SIZE': 100,
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
+
+# Spectacular settings
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Commander Spellbook API',
+    'DESCRIPTION': 'API for Commander Spellbook, the combo database engine for Magic: The Gathering',
+    'VERSION': VERSION,
+    'SCHEMA_PATH_PREFIX': '',
+    'SERVE_INCLUDE_SCHEMA': False,
+    # TODO: camelize?
+    'SWAGGER_UI_DIST': 'SIDECAR',
+    'SWAGGER_UI_FAVICON_HREF': 'SIDECAR',
+    'REDOC_DIST': 'SIDECAR',
+    'COMPONENT_SPLIT_REQUEST': True,
+}
+
+# Logging
 
 LOGGING = {
     'version': 1,

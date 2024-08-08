@@ -1,5 +1,6 @@
 from django.db.models import QuerySet, Prefetch
 from rest_framework import serializers
+from drf_spectacular.utils import extend_schema_field
 from spellbook.models import Variant, CardInVariant, TemplateInVariant, FeatureProducedByVariant
 from .combo_serializer import ComboSerializer
 from .feature_serializer import FeatureSerializer
@@ -17,24 +18,29 @@ class IngredientInVariantSerializer(serializers.ModelSerializer):
     graveyard_card_state = serializers.SerializerMethodField()
     must_be_commander = serializers.BooleanField(read_only=True)
 
+    @extend_schema_field(serializers.ListSerializer(child=serializers.CharField()))
     def get_zone_locations(self, obj):
         return list(obj.zone_locations)
 
+    @extend_schema_field(serializers.CharField(required=False))
     def get_battlefield_card_state(self, obj):
         if obj.variant.status == Variant.Status.EXAMPLE:
             return None
         return obj.battlefield_card_state
 
+    @extend_schema_field(serializers.CharField(required=False))
     def get_exile_card_state(self, obj):
         if obj.variant.status == Variant.Status.EXAMPLE:
             return None
         return obj.exile_card_state
 
+    @extend_schema_field(serializers.CharField(required=False))
     def get_library_card_state(self, obj):
         if obj.variant.status == Variant.Status.EXAMPLE:
             return None
         return obj.library_card_state
 
+    @extend_schema_field(serializers.CharField(required=False))
     def get_graveyard_card_state(self, obj):
         if obj.variant.status == Variant.Status.EXAMPLE:
             return None
@@ -111,26 +117,31 @@ class VariantSerializer(serializers.ModelSerializer):
     legalities = VariantLegalitiesSerializer(source='*', read_only=True)
     prices = VariantPricesSerializer(source='*', read_only=True)
 
+    @extend_schema_field(serializers.CharField(required=False))
     def get_mana_needed(self, obj):
         if obj.status == Variant.Status.EXAMPLE:
             return None
         return obj.mana_needed
 
+    @extend_schema_field(serializers.CharField(required=False))
     def get_mana_value_needed(self, obj):
         if obj.status == Variant.Status.EXAMPLE:
             return None
         return obj.mana_value_needed
 
+    @extend_schema_field(serializers.CharField(required=False))
     def get_other_prerequisites(self, obj):
         if obj.status == Variant.Status.EXAMPLE:
             return None
         return obj.other_prerequisites
 
+    @extend_schema_field(serializers.CharField(required=False))
     def get_description(self, obj):
         if obj.status == Variant.Status.EXAMPLE:
             return None
         return obj.description
 
+    @extend_schema_field(serializers.CharField(required=False))
     def get_notes(self, obj):
         if obj.status == Variant.Status.EXAMPLE:
             return None

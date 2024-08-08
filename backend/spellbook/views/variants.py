@@ -1,8 +1,11 @@
 from rest_framework import viewsets
+from drf_spectacular.utils import extend_schema
 from spellbook.models import Variant, PreSerializedSerializer
+from spellbook.serializers import VariantSerializer
 from .filters import SpellbookQueryFilter, OrderingFilterWithNullsLast
 
 
+@extend_schema(responses=VariantSerializer)
 class VariantViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Variant.serialized_objects
     filter_backends = [SpellbookQueryFilter, OrderingFilterWithNullsLast]

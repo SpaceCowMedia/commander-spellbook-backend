@@ -8,6 +8,10 @@ asgiref==3.7.2
     # via
     #   django
     #   django-cors-headers
+attrs==24.1.0
+    # via
+    #   jsonschema
+    #   referencing
 boto3==1.34.154
     # via -r requirements.in
 botocore==1.34.154
@@ -36,6 +40,8 @@ django==5.0.7
     #   django-filter
     #   djangorestframework
     #   djangorestframework-simplejwt
+    #   drf-spectacular
+    #   drf-spectacular-sidecar
     #   social-auth-app-django
 django-admin-sortable2==2.2.1
     # via -r requirements.in
@@ -47,16 +53,27 @@ djangorestframework==3.15.2
     # via
     #   -r requirements.in
     #   djangorestframework-simplejwt
+    #   drf-spectacular
 djangorestframework-camel-case==1.4.2
     # via -r requirements.in
 djangorestframework-simplejwt==5.3.1
     # via -r requirements.in
+drf-spectacular[sidecar]==0.27.2
+    # via -r requirements.in
+drf-spectacular-sidecar==2024.7.1
+    # via drf-spectacular
 idna==3.7
     # via requests
+inflection==0.5.1
+    # via drf-spectacular
 jmespath==1.0.1
     # via
     #   boto3
     #   botocore
+jsonschema==4.23.0
+    # via drf-spectacular
+jsonschema-specifications==2023.12.1
+    # via jsonschema
 lark==1.1.9
     # via -r requirements.in
 multiset==3.1.0
@@ -75,6 +92,12 @@ python-dateutil==2.8.2
     # via botocore
 python3-openid==3.2.0
     # via social-auth-core
+pyyaml==6.0.1
+    # via drf-spectacular
+referencing==0.35.1
+    # via
+    #   jsonschema
+    #   jsonschema-specifications
 requests==2.32.0
     # via
     #   discord-webhook
@@ -82,6 +105,10 @@ requests==2.32.0
     #   social-auth-core
 requests-oauthlib==1.3.1
     # via social-auth-core
+rpds-py==0.19.1
+    # via
+    #   jsonschema
+    #   referencing
 s3transfer==0.10.0
     # via boto3
 six==1.16.0
@@ -94,6 +121,8 @@ sqlparse==0.5.0
     # via django
 tzdata==2024.1
     # via django
+uritemplate==4.1.1
+    # via drf-spectacular
 urllib3==1.26.19
     # via
     #   botocore

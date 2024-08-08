@@ -1,7 +1,7 @@
+from rest_framework.fields import empty
 from drf_spectacular.extensions import OpenApiSerializerExtension
 from drf_spectacular.plumbing import force_instance
 from rest_framework import serializers
-from rest_framework_dataclasses.serializers import DataclassSerializer
 from .abstractions import Deck
 
 
@@ -29,6 +29,14 @@ class PaginationWrapperExtension(OpenApiSerializerExtension):
         return paginated_schema
 
 
-class DeckSerializer(DataclassSerializer):
-    class Meta:
-        dataclass = Deck
+class DeckSerializer(serializers.Serializer):
+    main = serializers.ListField(child=serializers.CharField(), max_length=500, default=list)
+    commanders = serializers.ListField(child=serializers.CharField(), max_length=500, default=list)
+
+    def create(self, validated_data):
+        return Deck(**validated_data)
+
+    def update(self, instance, validated_data):
+        instance.main = validated_data.get('main', instance.main)
+        instance.commanders = validated_data.get('commanders', instance.commanders)
+        return instance

@@ -26,6 +26,9 @@ def deck_from_raw(raw_deck: RawDeck, cards_dict: dict[str, int]) -> Deck:
     commanders = set[int]()
 
     def next_card(line: str, card_set: set[int]):
+        line = line.strip().lower()
+        if not line:
+            return
         if line in cards_dict:
             card_set.add(cards_dict[line])
         elif line.isdigit():
@@ -95,7 +98,7 @@ class FindMyCombosView(APIView):
         raw_deck: RawDeck | dict = request.data  # type: ignore
         if isinstance(raw_deck, dict):
             raw_deck = RawDeck(main=list(), commanders=list())
-        cards_data = Card.objects.values_list('name', 'id', 'identity')
+        cards_data = list(Card.objects.values_list('name', 'id', 'identity'))
         cards_data_dict: dict[str, int] = {name.lower(): id for name, id, _ in cards_data}
         deck = deck_from_raw(raw_deck, cards_data_dict)
         cards = deck.main.union(deck.commanders)

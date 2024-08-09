@@ -18,7 +18,8 @@
     "mypy-type-checker.cwd": "${workspaceFolder}/backend",
     "python.analysis.diagnosticMode": "workspace",
     "python.analysis.exclude": [
-        "backend/*/migrations"
+        "backend/*/migrations",
+        "client/python"
     ],
     "todo-tree.tree.scanMode": "workspace only",
     "debug.inlineValues": "off"

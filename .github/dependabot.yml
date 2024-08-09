@@ -6,6 +6,12 @@ updates:
     directory: backend/
     schedule:
       interval: weekly
+  - package-ecosystem: pip
+    labels:
+      - dependencies
+    directory: client/python/
+    schedule:
+      interval: weekly
   - package-ecosystem: docker
     labels:
       - dependencies

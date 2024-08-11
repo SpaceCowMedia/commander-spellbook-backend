@@ -5,9 +5,7 @@
 #    pip-compile
 #
 anyio==4.4.0
-    # via
-    #   httpcore
-    #   httpx
+    # via httpx
 certifi==2024.7.4
     # via
     #   httpcore
@@ -22,10 +20,8 @@ h2==4.1.0
     # via httpx
 hpack==4.0.0
     # via h2
-httpcore[asyncio]==1.0.5
-    # via
-    #   -r requirements.in
-    #   httpx
+httpcore==1.0.5
+    # via httpx
 httpx[http2]==0.27.0
     # via microsoft-kiota-http
 hyperframe==6.0.1

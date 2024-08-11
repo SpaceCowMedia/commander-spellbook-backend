@@ -3,7 +3,7 @@
 ###########
 
 # pull official base image
-FROM python:3.12.4-alpine AS builder
+FROM python:3.12.5-alpine AS builder
 
 # set work directory
 WORKDIR /usr/src/app
@@ -30,7 +30,7 @@ RUN pypy3 -m pip wheel --no-cache-dir --no-deps --wheel-dir /usr/src/app/pypy/wh
 #########
 
 # pull official base image
-FROM python:3.12.4-alpine AS base
+FROM python:3.12.5-alpine AS base
 
 # create the app user
 RUN addgroup -S app && adduser -S app -G app

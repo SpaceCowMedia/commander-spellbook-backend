@@ -110,7 +110,7 @@ class ComboGraphTest(TestCaseMixinWithSeeding, TestCase):
                     self.assertTrue(template_ids.issuperset(replacement_template_ids))
 
 
-class ComboGraphTestGeneration(TestCaseMixin):
+class ComboGraphTestGeneration(TestCaseMixin, TestCase):
     def assertReplacementsEqual(self, replacements: dict[int, list[VariantIngredients]], expected: dict[int, list[VariantIngredients]]):
         self.assertEqual(len(replacements), len(expected))
         for replacement in replacements:

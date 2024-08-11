@@ -279,7 +279,7 @@ jobs:
       - name: Checkout 🛎️
         uses: actions/checkout@v4
       - name: Install dependencies 🧶
-        run: pip install --no-cache-dir --no-deps requirements.txt
+        run: pip install --no-cache-dir --no-deps -r requirements.txt
       - name: Chmod scripts 👑
         run: chmod +x *.sh
       - name: Generate OpenApi 🧬

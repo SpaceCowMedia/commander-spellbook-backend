@@ -315,6 +315,9 @@ jobs:
       - name: Install client dependencies 🧶
         run: pip install --no-cache-dir --no-deps -r requirements.txt
         working-directory: client/python
+      - name: Install test dependencies 🧶
+        run: pip install --no-cache-dir --no-deps -r requirements.txt
+        working-directory: backend
       - name: Run python tests 🧪
         run: python backend/manage.py test client/python/tests/ --no-input --parallel auto
         working-directory: .

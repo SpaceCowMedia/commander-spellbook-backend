@@ -313,15 +313,12 @@ jobs:
       - name: Genrate client with Kiota 🏗️
         run: ./generate-client.sh
       - name: Install client dependencies 🧶
+        # It is important to not use --no-deps here, otherwise httpcore will raise an error during the tests
         run: pip install --no-cache-dir -r requirements.txt
         working-directory: client/python
       - name: Install test dependencies 🧶
         run: pip install --no-cache-dir --no-deps -r requirements.txt
         working-directory: backend
-      # - name: Fix dependencies 🩹
-      #   run: |
-      #     pip uninstall -y --no-input --no-cache-di httpcore
-      #     pip install --no-cache-dir --no-deps httpcore[asyncio]
       - name: Run python tests 🧪
         run: python backend/manage.py test client/python/tests/ --no-input --parallel auto
         working-directory: .

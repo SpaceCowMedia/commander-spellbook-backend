@@ -268,7 +268,7 @@ jobs:
 
   client:
     runs-on: ubuntu-latest
-    needs: [test, integration-test]
+    needs: test
     defaults:
       run:
         shell: bash

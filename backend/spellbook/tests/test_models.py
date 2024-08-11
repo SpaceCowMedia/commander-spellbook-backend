@@ -4,7 +4,7 @@ from django.utils import timezone
 from decimal import Decimal
 from django.contrib.auth.models import User
 from common.inspection import count_methods
-from .abstract_test import AbstractTestCaseWithSeeding
+from .testing import TestCaseMixinWithSeeding
 from spellbook.models import merge_identities, Card, Feature, Template, Combo, Job, Variant, VariantSuggestion, CardUsedInVariantSuggestion, VariantAlias, PreSerializedSerializer, ZoneLocation
 from spellbook.models.scryfall import SCRYFALL_API_ROOT, SCRYFALL_WEBSITE_CARD_SEARCH
 from spellbook.models import id_from_cards_and_templates_ids
@@ -165,7 +165,7 @@ class UtilsTests(TestCase):
         self.assertSetEqual(set(merge_identities(['g', 'r'])), set('RG'))
 
 
-class CardTests(AbstractTestCaseWithSeeding):
+class CardTests(TestCaseMixinWithSeeding, TestCase):
     def test_card_fields(self):
         c = Card.objects.get(id=self.c1_id)
         self.assertEqual(c.name, 'A A')
@@ -257,7 +257,7 @@ class CardTests(AbstractTestCaseWithSeeding):
         self.assertEqual(c.name_unaccented, 'aaaeeeiiiooouuu')
 
 
-class FeatureTests(AbstractTestCaseWithSeeding):
+class FeatureTests(TestCaseMixinWithSeeding, TestCase):
     def test_feature_fields(self):
         f = Feature.objects.get(id=self.f1_id)
         self.assertEqual(f.name, 'FA')
@@ -274,7 +274,7 @@ class FeatureTests(AbstractTestCaseWithSeeding):
         self.assertEqual(count_methods(Feature), 1)
 
 
-class TemplateTests(AbstractTestCaseWithSeeding):
+class TemplateTests(TestCaseMixinWithSeeding, TestCase):
     def test_template_fields(self):
         t = Template.objects.get(id=self.t1_id)
         self.assertEqual(t.name, 'TA')
@@ -310,7 +310,7 @@ class TemplateTests(AbstractTestCaseWithSeeding):
         self.assertEqual(count_methods(Template), 4)
 
 
-class ComboTests(AbstractTestCaseWithSeeding):
+class ComboTests(TestCaseMixinWithSeeding, TestCase):
     def test_combo_fields(self):
         c = Combo.objects.get(id=self.b1_id)
         self.assertEqual(c.description, 'a1')
@@ -368,7 +368,7 @@ class ComboTests(AbstractTestCaseWithSeeding):
         self.assertEqual(count_methods(Combo), 4)
 
 
-class JobTests(AbstractTestCaseWithSeeding):
+class JobTests(TestCaseMixinWithSeeding, TestCase):
     def setUp(self):
         super().setUp()
         User.objects.create_user(username='test', password='test', is_staff=True)
@@ -455,7 +455,7 @@ class JobTests(AbstractTestCaseWithSeeding):
         self.assertEqual(count_methods(Job), 3)
 
 
-class VariantTests(AbstractTestCaseWithSeeding):
+class VariantTests(TestCaseMixinWithSeeding, TestCase):
     def setUp(self):
         super().setUp()
         self.generate_variants()
@@ -564,7 +564,7 @@ class VariantTests(AbstractTestCaseWithSeeding):
         self.assertEqual(r, v.serialized)
 
 
-class VariantSuggestionTests(AbstractTestCaseWithSeeding):
+class VariantSuggestionTests(TestCaseMixinWithSeeding, TestCase):
     def test_variant_suggestion_fields(self):
         s = VariantSuggestion.objects.get(id=self.s1_id)
         card_names = {Card.objects.get(id=self.c1_id).name, Card.objects.get(id=self.c2_id).name}
@@ -635,7 +635,7 @@ class VariantSuggestionTests(AbstractTestCaseWithSeeding):
         self.assertRaises(ValidationError, lambda: c.full_clean())
 
 
-class VariantAliasTests(AbstractTestCaseWithSeeding):
+class VariantAliasTests(TestCaseMixinWithSeeding, TestCase):
     def test_variant_alias_fields(self):
         a = VariantAlias.objects.get(id=self.a1_id)
         self.assertEqual(a.id, '1')

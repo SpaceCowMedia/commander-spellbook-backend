@@ -1,13 +1,14 @@
 import json
 import logging
+from django.test import TestCase
 from spellbook.models import VariantSuggestion
 from spellbook.models.utils import strip_accents
-from ..abstract_test import AbstractTestCaseWithSeeding
+from ..testing import TestCaseMixinWithSeeding
 from common.inspection import json_to_python_lambda
 from django.contrib.auth.models import User, Permission
 
 
-class VariantSuggestionsTests(AbstractTestCaseWithSeeding):
+class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
     def suggestion_assertions(self, suggestion_result):
         vs = VariantSuggestion.objects.get(id=suggestion_result.id)
         self.assertEqual(suggestion_result.id, vs.id)

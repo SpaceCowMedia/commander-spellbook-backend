@@ -1,11 +1,11 @@
 import json
-from django.test import Client
+from django.test import TestCase
 from spellbook.models import Feature
-from ..abstract_test import AbstractTestCaseWithSeeding
+from ..testing import TestCaseMixinWithSeeding
 from common.inspection import json_to_python_lambda
 
 
-class FeatureViewsTests(AbstractTestCaseWithSeeding):
+class FeatureViewsTests(TestCaseMixinWithSeeding, TestCase):
     def feature_assertions(self, feature_result):
         f = Feature.objects.get(id=feature_result.id)
         self.assertEqual(feature_result.id, f.id)
@@ -13,8 +13,7 @@ class FeatureViewsTests(AbstractTestCaseWithSeeding):
         self.assertEqual(feature_result.uncountable, f.uncountable)
 
     def test_features_list_view(self):
-        c = Client()
-        response = c.get('/features', follow=True)
+        response = self.client.get('/features', follow=True)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get('Content-Type'), 'application/json')
         result = json.loads(response.content, object_hook=json_to_python_lambda)
@@ -24,8 +23,7 @@ class FeatureViewsTests(AbstractTestCaseWithSeeding):
             self.feature_assertions(result.results[i])
 
     def test_features_detail_view(self):
-        c = Client()
-        response = c.get('/features/{}'.format(self.f2_id), follow=True)
+        response = self.client.get('/features/{}'.format(self.f2_id), follow=True)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get('Content-Type'), 'application/json')
         result = json.loads(response.content, object_hook=json_to_python_lambda)

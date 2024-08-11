@@ -1,17 +1,17 @@
 import json
 import random
-from django.test import Client
+from django.test import TestCase
 from django.db import models
 from spellbook.models import Card, Template, Feature, Variant, CardInVariant, TemplateInVariant, Combo
 from spellbook.models.utils import SORTED_COLORS
 from spellbook.views import VariantViewSet
 from spellbook.serializers import VariantSerializer
 from website.models import WebsiteProperty, FEATURED_SET_CODES
-from ..abstract_test import AbstractTestCaseWithSeeding
+from ..testing import TestCaseMixinWithSeeding
 from common.inspection import json_to_python_lambda
 
 
-class VariantViewsTests(AbstractTestCaseWithSeeding):
+class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
     def setUp(self) -> None:
         super().setUp()
         super().generate_variants()
@@ -115,8 +115,7 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
             self.assertIn(i.id, includes_list)
 
     def test_variants_list_view(self):
-        c = Client()
-        response = c.get('/variants', follow=True)
+        response = self.client.get('/variants', follow=True)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get('Content-Type'), 'application/json')
         result = json.loads(response.content, object_hook=json_to_python_lambda)
@@ -126,8 +125,7 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
             self.variant_assertions(result.results[i])
 
     def test_variants_detail_view(self):
-        c = Client()
-        response = c.get(f'/variants/{self.v1_id}', follow=True)
+        response = self.client.get(f'/variants/{self.v1_id}', follow=True)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get('Content-Type'), 'application/json')
         result = json.loads(response.content, object_hook=json_to_python_lambda)
@@ -135,7 +133,6 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
         self.variant_assertions(result)
 
     def test_variants_list_view_query_by_card_name(self):
-        c = Client()
         for card, search in ((c, name) for c in Card.objects.all() for name in (c.name, c.name_unaccented, c.name_unaccented.replace('-', ''), c.name_unaccented.replace('-', ' '))):
             prefix_without_spaces = search.partition(' ')[0]
             search_without_underscores = search.replace('_', '').strip()
@@ -156,7 +153,7 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
             queries += [q.upper() for q in queries if not q.isupper() and q.isascii()] + [q.lower() for q in queries if not q.islower() and q.isascii()]
             for q in queries:
                 with self.subTest(f'query by card name: {search} with query {q}'):
-                    response = c.get('/variants', data={'q': q}, follow=True)
+                    response = self.client.get('/variants', data={'q': q}, follow=True)
                     self.assertEqual(response.status_code, 200)
                     self.assertEqual(response.get('Content-Type'), 'application/json')
                     result = json.loads(response.content, object_hook=json_to_python_lambda)
@@ -166,7 +163,6 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
                         self.variant_assertions(v)
 
     def test_variants_list_view_query_by_card_count(self):
-        c = Client()
         min_cards, max_cards = self.public_variants.aggregate(min_cards=models.Min('cards_count'), max_cards=models.Max('cards_count')).values()
         self.assertGreaterEqual(max_cards, min_cards)
         for card_count in (min_cards, max_cards, (min_cards + max_cards) // 2):
@@ -182,7 +178,7 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
                 q = f'cards{o}{card_count}'
                 q_django = {f'cards_count__{o_django}': card_count}
                 with self.subTest(f'query by card count: {card_count} with query {q}'):
-                    response = c.get('/variants', data={'q': q}, follow=True)
+                    response = self.client.get('/variants', data={'q': q}, follow=True)
                     self.assertEqual(response.status_code, 200)
                     self.assertEqual(response.get('Content-Type'), 'application/json')
                     result = json.loads(response.content, object_hook=json_to_python_lambda)
@@ -192,7 +188,6 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
                         self.variant_assertions(v)
 
     def test_variants_list_view_query_by_card_type(self):
-        c = Client()
         for card_type in ('instant', 'creature'):
             queries = [
                 f'cardtype:{card_type}',
@@ -203,7 +198,7 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
             ]
             for q in queries:
                 with self.subTest(f'query by card type: {card_type} with query {q}'):
-                    response = c.get('/variants', data={'q': q}, follow=True)
+                    response = self.client.get('/variants', data={'q': q}, follow=True)
                     self.assertEqual(response.status_code, 200)
                     self.assertEqual(response.get('Content-Type'), 'application/json')
                     result = json.loads(response.content, object_hook=json_to_python_lambda)
@@ -216,7 +211,6 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
                         self.variant_assertions(v)
 
     def test_variants_list_view_query_by_card_oracle_text(self):
-        c = Client()
         for i in range(10):
             queries = [
                 f'cardoracle:"x{i}"',
@@ -228,7 +222,7 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
             ]
             for q in queries:
                 with self.subTest(f'query by card oracle text: x{i} with query {q}'):
-                    response = c.get('/variants', data={'q': q}, follow=True)
+                    response = self.client.get('/variants', data={'q': q}, follow=True)
                     self.assertEqual(response.status_code, 200)
                     self.assertEqual(response.get('Content-Type'), 'application/json')
                     result = json.loads(response.content, object_hook=json_to_python_lambda)
@@ -241,7 +235,6 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
                         self.variant_assertions(v)
 
     def test_variants_list_view_query_by_card_keywords(self):
-        c = Client()
         for keyword in {k for v in Variant.objects.values_list('uses__keywords', flat=True) for k in v}:
             queries = [
                 f'cardkeywords:{keyword}',
@@ -252,7 +245,7 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
             ]
             for q in queries:
                 with self.subTest(f'query by card keyword: {keyword} with query {q}'):
-                    response = c.get('/variants', data={'q': q}, follow=True)
+                    response = self.client.get('/variants', data={'q': q}, follow=True)
                     self.assertEqual(response.status_code, 200)
                     self.assertEqual(response.get('Content-Type'), 'application/json')
                     result = json.loads(response.content, object_hook=json_to_python_lambda)
@@ -262,7 +255,6 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
                         self.variant_assertions(v)
 
     def test_variants_list_view_query_by_card_mana_value(self):
-        c = Client()
         operators = {
             '>': 'gt',
             '<': 'lt',
@@ -282,7 +274,7 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
                 for q in queries:
                     q_django = {f'uses__mana_value__{operator_django}': mv}
                     with self.subTest(f'query by card mana value: {mv} with query {q}'):
-                        response = c.get('/variants', data={'q': q}, follow=True)
+                        response = self.client.get('/variants', data={'q': q}, follow=True)
                         self.assertEqual(response.status_code, 200)
                         self.assertEqual(response.get('Content-Type'), 'application/json')
                         result = json.loads(response.content, object_hook=json_to_python_lambda)
@@ -292,7 +284,6 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
                             self.variant_assertions(v)
 
     def test_variants_list_view_query_by_identity(self):
-        c = Client()
         operators = {
             '>': 'gt',
             '<': 'lt',
@@ -332,7 +323,7 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
                 ])
             for q, identity in queries:
                 with self.subTest(f'query by identity: {identity} with query {q}'):
-                    response = c.get('/variants', data={'q': q}, follow=True)
+                    response = self.client.get('/variants', data={'q': q}, follow=True)
                     self.assertEqual(response.status_code, 200)
                     self.assertEqual(response.get('Content-Type'), 'application/json')
                     result = json.loads(response.content, object_hook=json_to_python_lambda)
@@ -359,7 +350,6 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
                         self.variant_assertions(v)
 
     def test_variants_list_view_query_by_prerequisites(self):
-        c = Client()
         operators = {
             '>': 'gt',
             '<': 'lt',
@@ -379,7 +369,7 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
                 for q in queries:
                     q_django = {f'other_prerequisites_line_count__{operator_django}': i}
                     with self.subTest(f'query by prerequisites: {i} with query {q}'):
-                        response = c.get('/variants', data={'q': q}, follow=True)
+                        response = self.client.get('/variants', data={'q': q}, follow=True)
                         self.assertEqual(response.status_code, 200)
                         self.assertEqual(response.get('Content-Type'), 'application/json')
                         result = json.loads(response.content, object_hook=json_to_python_lambda)
@@ -396,7 +386,7 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
         ]
         for q in queries:
             with self.subTest(f'query by prerequisites: {prereq} with query {q}'):
-                response = c.get('/variants', data={'q': q}, follow=True)
+                response = self.client.get('/variants', data={'q': q}, follow=True)
                 self.assertEqual(response.status_code, 200)
                 self.assertEqual(response.get('Content-Type'), 'application/json')
                 result = json.loads(response.content, object_hook=json_to_python_lambda)
@@ -411,7 +401,7 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
         ]
         for q in queries:
             with self.subTest(f'query by prerequisites: {prereq} with query {q}'):
-                response = c.get('/variants', data={'q': q}, follow=True)
+                response = self.client.get('/variants', data={'q': q}, follow=True)
                 self.assertEqual(response.status_code, 200)
                 self.assertEqual(response.get('Content-Type'), 'application/json')
                 result = json.loads(response.content, object_hook=json_to_python_lambda)
@@ -421,7 +411,6 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
                     self.variant_assertions(v)
 
     def test_variants_list_view_query_by_steps(self):
-        c = Client()
         operators = {
             '>': 'gt',
             '<': 'lt',
@@ -441,7 +430,7 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
                 for q in queries:
                     q_django = {f'description_line_count__{operator_django}': i}
                     with self.subTest(f'query by steps: {i} with query {q}'):
-                        response = c.get('/variants', data={'q': q}, follow=True)
+                        response = self.client.get('/variants', data={'q': q}, follow=True)
                         self.assertEqual(response.status_code, 200)
                         self.assertEqual(response.get('Content-Type'), 'application/json')
                         result = json.loads(response.content, object_hook=json_to_python_lambda)
@@ -458,7 +447,7 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
         ]
         for q in queries:
             with self.subTest(f'query by steps: {steps} with query {q}'):
-                response = c.get('/variants', data={'q': q}, follow=True)
+                response = self.client.get('/variants', data={'q': q}, follow=True)
                 self.assertEqual(response.status_code, 200)
                 self.assertEqual(response.get('Content-Type'), 'application/json')
                 result = json.loads(response.content, object_hook=json_to_python_lambda)
@@ -473,7 +462,7 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
         ]
         for q in queries:
             with self.subTest(f'query by steps: {steps} with query {q}'):
-                response = c.get('/variants', data={'q': q}, follow=True)
+                response = self.client.get('/variants', data={'q': q}, follow=True)
                 self.assertEqual(response.status_code, 200)
                 self.assertEqual(response.get('Content-Type'), 'application/json')
                 result = json.loads(response.content, object_hook=json_to_python_lambda)
@@ -483,7 +472,6 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
                     self.variant_assertions(v)
 
     def test_variants_list_view_query_by_results(self):
-        c = Client()
         min_results, max_results = self.public_variants.aggregate(min_results=models.Min('results_count'), max_results=models.Max('results_count')).values()
         self.assertGreaterEqual(max_results, min_results)
         for results_count in (min_results, max_results, (min_results + max_results) // 2):
@@ -503,7 +491,7 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
                 for q in queries:
                     q_django = {f'results_count__{o_django}': results_count}
                     with self.subTest(f'query by results count: {results_count} with query {q}'):
-                        response = c.get('/variants', data={'q': q}, follow=True)
+                        response = self.client.get('/variants', data={'q': q}, follow=True)
                         self.assertEqual(response.status_code, 200)
                         self.assertEqual(response.get('Content-Type'), 'application/json')
                         result = json.loads(response.content, object_hook=json_to_python_lambda)
@@ -518,7 +506,7 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
             ]
             for q in queries:
                 with self.subTest(f'query by results: {feature} with query {q}'):
-                    response = c.get('/variants', data={'q': q}, follow=True)
+                    response = self.client.get('/variants', data={'q': q}, follow=True)
                     self.assertEqual(response.status_code, 200)
                     self.assertEqual(response.get('Content-Type'), 'application/json')
                     result = json.loads(response.content, object_hook=json_to_python_lambda)
@@ -531,7 +519,6 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
                         self.variant_assertions(v)
 
     def test_variants_list_view_query_by_tag(self):
-        c = Client()
         for preview_tag in (
             'preview',
             'previewed',
@@ -540,7 +527,7 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
         ):
             query = f'is:{preview_tag}'
             with self.subTest(f'query by tag: {preview_tag} with query {query}'):
-                response = c.get('/variants', data={'q': query}, follow=True)
+                response = self.client.get('/variants', data={'q': query}, follow=True)
                 self.assertEqual(response.status_code, 200)
                 self.assertEqual(response.get('Content-Type'), 'application/json')
                 result = json.loads(response.content, object_hook=json_to_python_lambda)
@@ -550,7 +537,7 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
                     self.variant_assertions(v)
         query = 'is:commander'
         with self.subTest(f'query by tag: commander with query {query}'):
-            response = c.get('/variants', data={'q': query}, follow=True)
+            response = self.client.get('/variants', data={'q': query}, follow=True)
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.get('Content-Type'), 'application/json')
             result = json.loads(response.content, object_hook=json_to_python_lambda)
@@ -566,7 +553,7 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
             v.save()
         query = 'is:reserved'
         with self.subTest(f'query by tag: reserved with query {query}'):
-            response = c.get('/variants', data={'q': query}, follow=True)
+            response = self.client.get('/variants', data={'q': query}, follow=True)
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.get('Content-Type'), 'application/json')
             result = json.loads(response.content, object_hook=json_to_python_lambda)
@@ -589,7 +576,7 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
         c3.save()
         query = 'is:featured'
         with self.subTest(f'query by tag: featured with query {query}'):
-            response = c.get('/variants', data={'q': query}, follow=True)
+            response = self.client.get('/variants', data={'q': query}, follow=True)
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.get('Content-Type'), 'application/json')
             result = json.loads(response.content, object_hook=json_to_python_lambda)
@@ -599,7 +586,6 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
                 self.variant_assertions(v)
 
     def test_variants_list_view_query_by_spellbook_id(self):
-        c = Client()
         for variant in Variant.objects.all()[:3]:
             queries = [
                 f'spellbookid:"{variant.id}"',
@@ -611,7 +597,7 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
             ]
             for q in queries:
                 with self.subTest(f'query by variant id: {variant.id} with query {q}'):
-                    response = c.get('/variants', data={'q': q}, follow=True)
+                    response = self.client.get('/variants', data={'q': q}, follow=True)
                     self.assertEqual(response.status_code, 200)
                     self.assertEqual(response.get('Content-Type'), 'application/json')
                     result = json.loads(response.content, object_hook=json_to_python_lambda)
@@ -621,14 +607,13 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
                         self.variant_assertions(result.results[i])
             for q in negative_queries:
                 with self.subTest(f'query by variant id: {variant.id} with query {q}'):
-                    response = c.get('/variants', data={'q': q}, follow=True)
+                    response = self.client.get('/variants', data={'q': q}, follow=True)
                     self.assertEqual(response.status_code, 200)
                     self.assertEqual(response.get('Content-Type'), 'application/json')
                     result = json.loads(response.content, object_hook=json_to_python_lambda)
                     self.assertEqual(len(result.results), 0)
 
     def test_variants_list_view_query_by_commander_name(self):
-        c = Client()
         for search in (c.name for c in Card.objects.filter(cardinvariant__must_be_commander=True)):
             prefix_without_spaces = search.partition(' ')[0]
             search_without_accents = search.replace('á', 'a').replace('é', 'e').replace('í', 'i').replace('ó', 'o').replace('ú', 'u').replace('Á', 'A').replace('É', 'E').replace('Í', 'I').replace('Ó', 'O').replace('Ú', 'U')
@@ -647,7 +632,7 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
             ]
             for q, q_django in queries:
                 with self.subTest(f'query by commander name: {search} with query {q}'):
-                    response = c.get('/variants', data={'q': q}, follow=True)
+                    response = self.client.get('/variants', data={'q': q}, follow=True)
                     self.assertEqual(response.status_code, 200)
                     self.assertEqual(response.get('Content-Type'), 'application/json')
                     result = json.loads(response.content, object_hook=json_to_python_lambda)
@@ -657,7 +642,6 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
                         self.variant_assertions(v)
 
     def test_variants_list_view_query_by_legality(self):
-        c = Client()
         for legality in [f.removeprefix('legal_') for f in Variant.legalities_fields()]:
             queries = [
                 (f'legal:{legality}', models.Q(**{f'legal_{legality}': True})),
@@ -666,7 +650,7 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
             ]
             for q, q_django in queries:
                 with self.subTest(f'query by legality: {legality} with query {q}'):
-                    response = c.get('/variants', data={'q': q}, follow=True)
+                    response = self.client.get('/variants', data={'q': q}, follow=True)
                     self.assertEqual(response.status_code, 200)
                     self.assertEqual(response.get('Content-Type'), 'application/json')
                     result = json.loads(response.content, object_hook=json_to_python_lambda)
@@ -676,7 +660,6 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
                         self.variant_assertions(v)
 
     def test_variants_list_view_query_by_price(self):
-        c = Client()
         for price in range(10):
             queries = [
                 (f'price={price}', models.Q(price_cardkingdom=price)),
@@ -712,7 +695,7 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
             ]
             for q, q_django in queries:
                 with self.subTest(f'query by price: {price} with query {q}'):
-                    response = c.get('/variants', data={'q': q}, follow=True)
+                    response = self.client.get('/variants', data={'q': q}, follow=True)
                     self.assertEqual(response.status_code, 200)
                     self.assertEqual(response.get('Content-Type'), 'application/json')
                     result = json.loads(response.content, object_hook=json_to_python_lambda)
@@ -722,13 +705,12 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
                         self.variant_assertions(v)
 
     def test_variants_list_view_query_by_a_combination_of_terms(self):
-        c = Client()
         queries = [
             ('result=FD A result:B', self.public_variants.filter(uses__name__icontains='A').filter(produces__name__iexact='FD').filter(produces__name__icontains='B').distinct()),
         ]
         for q, variants in queries:
             with self.subTest(f'query by a combination of terms: {q}'):
-                response = c.get('/variants', data={'q': q}, follow=True)
+                response = self.client.get('/variants', data={'q': q}, follow=True)
                 self.assertEqual(response.status_code, 200)
                 self.assertEqual(response.get('Content-Type'), 'application/json')
                 result = json.loads(response.content, object_hook=json_to_python_lambda)
@@ -742,10 +724,9 @@ class VariantViewsTests(AbstractTestCaseWithSeeding):
         for popularity, variant in enumerate(variants):
             variant.popularity = popularity if popularity > 0 else None
         self.bulk_serialize_variants(q=variants, extra_fields=['popularity'])
-        c = Client()
         for order in ('popularity', '-popularity'):
             with self.subTest(f'order by {order}'):
-                response = c.get('/variants', data={'ordering': order}, follow=True)
+                response = self.client.get('/variants', data={'ordering': order}, follow=True)
                 self.assertEqual(response.status_code, 200)
                 self.assertEqual(response.get('Content-Type'), 'application/json')
                 result = json.loads(response.content, object_hook=json_to_python_lambda)

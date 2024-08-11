@@ -1,10 +1,11 @@
-from spellbook.tests.abstract_test import AbstractTestCaseWithSeeding
+from multiset import FrozenMultiset
+from django.test import TestCase
+from spellbook.tests.testing import TestCaseMixinWithSeeding
 from spellbook.variants.variant_data import Data, debug_queries
 from spellbook.models import Variant, Combo, Feature, Card, Template, id_from_cards_and_templates_ids
-from multiset import FrozenMultiset
 
 
-class VariantDataTests(AbstractTestCaseWithSeeding):
+class VariantDataTests(TestCaseMixinWithSeeding, TestCase):
     def setUp(self):
         super().setUp()
         super().generate_variants()

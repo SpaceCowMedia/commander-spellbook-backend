@@ -9,6 +9,7 @@ class HybridRouter(routers.DefaultRouter):
     def __init__(self, *args, **kwargs):
         super(HybridRouter, self).__init__(*args, **kwargs)
         self._api_view_urls = {}
+        self.trailing_slash = '/?'  # Make trailing slash optional
 
     def add_api_view(self, name, url):
         self._api_view_urls[name] = url

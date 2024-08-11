@@ -106,6 +106,25 @@
             },
         },
         {
+            "name": "Test Client",
+            "type": "debugpy",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "program": "backend/manage.py",
+            "args": [
+                "test",
+                "client/python/tests"
+            ],
+            "preLaunchTask": "Apply migrations",
+            "django": true,
+            "justMyCode": false,
+            "presentation": {
+                "hidden": false,
+                "group": "Django",
+                "order": 3
+            },
+        },
+        {
             "name": "Generate Variants",
             "type": "debugpy",
             "request": "launch",

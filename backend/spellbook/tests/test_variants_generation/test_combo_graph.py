@@ -1,11 +1,12 @@
 from multiset import FrozenMultiset
+from django.test import TestCase
 from spellbook.models import Card, Combo, FeatureAttribute
 from spellbook.variants.variant_data import Data
 from spellbook.variants.combo_graph import Graph, VariantIngredients, VariantSet, VariantRecipe
-from spellbook.tests.abstract_test import AbstractTestCaseWithSeeding, AbstractTestCase
+from spellbook.tests.testing import TestCaseMixinWithSeeding, TestCaseMixin
 
 
-class ComboGraphTest(AbstractTestCaseWithSeeding):
+class ComboGraphTest(TestCaseMixinWithSeeding, TestCase):
     def test_empty_graph(self):
         Combo.objects.exclude(id=self.b2_id).delete()
         combo_graph = Graph(Data())
@@ -109,7 +110,7 @@ class ComboGraphTest(AbstractTestCaseWithSeeding):
                     self.assertTrue(template_ids.issuperset(replacement_template_ids))
 
 
-class ComboGraphTestGeneration(AbstractTestCase):
+class ComboGraphTestGeneration(TestCaseMixin):
     def assertReplacementsEqual(self, replacements: dict[int, list[VariantIngredients]], expected: dict[int, list[VariantIngredients]]):
         self.assertEqual(len(replacements), len(expected))
         for replacement in replacements:

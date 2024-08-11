@@ -1,6 +1,7 @@
 *
+!__init__.py
 !tests
-!tests/**
+!tests/test*.py
 !.gitignore
 !requirements.in
 !requirements.txt

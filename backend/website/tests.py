@@ -1,7 +1,7 @@
 import json
 import logging
 import random
-from django.test import Client, TestCase
+from django.test import TestCase
 from django.core.management import call_command
 from common.stream import StreamToLogger
 from common.inspection import json_to_python_lambda
@@ -21,8 +21,7 @@ class WebsitePropertiesViewTests(TestCase):
         )
 
     def test_website_properties_view(self):
-        c = Client()
-        response = c.get('/properties', follow=True)
+        response = self.client.get('/properties', follow=True)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get('Content-Type'), 'application/json')
         result = json.loads(response.content, object_hook=json_to_python_lambda)

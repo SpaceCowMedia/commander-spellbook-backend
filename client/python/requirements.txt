@@ -36,11 +36,17 @@ microsoft-kiota-abstractions==1.3.3
     # via
     #   -r requirements.in
     #   microsoft-kiota-http
+    #   microsoft-kiota-serialization-form
     #   microsoft-kiota-serialization-json
+    #   microsoft-kiota-serialization-multipart
     #   microsoft-kiota-serialization-text
 microsoft-kiota-http==1.3.2
     # via -r requirements.in
+microsoft-kiota-serialization-form==0.1.0
+    # via -r requirements.in
 microsoft-kiota-serialization-json==1.3.0
+    # via -r requirements.in
+microsoft-kiota-serialization-multipart==0.1.0
     # via -r requirements.in
 microsoft-kiota-serialization-text==1.0.0
     # via -r requirements.in
@@ -57,7 +63,9 @@ opentelemetry-sdk==1.26.0
 opentelemetry-semantic-conventions==0.47b0
     # via opentelemetry-sdk
 pendulum==3.0.0
-    # via microsoft-kiota-serialization-json
+    # via
+    #   microsoft-kiota-serialization-form
+    #   microsoft-kiota-serialization-json
 python-dateutil==2.9.0.post0
     # via
     #   microsoft-kiota-serialization-text

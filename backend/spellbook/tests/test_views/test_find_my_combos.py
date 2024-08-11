@@ -3,14 +3,14 @@ import itertools
 import random
 import os
 from unittest import skipUnless
-from django.test import Client
+from django.test import TestCase
 from spellbook.models import Card, Variant, merge_identities
 from spellbook.serializers import VariantSerializer
-from ..abstract_test import AbstractTestCaseWithSeeding
+from ..testing import TestCaseMixinWithSeeding
 from common.inspection import json_to_python_lambda
 
 
-class FindMyCombosViewTests(AbstractTestCaseWithSeeding):
+class FindMyCombosViewTests(TestCaseMixinWithSeeding, TestCase):
     def setUp(self) -> None:
         super().setUp()
         super().generate_variants()
@@ -72,11 +72,10 @@ class FindMyCombosViewTests(AbstractTestCaseWithSeeding):
 
     @skipUnless('CI' in os.environ, reason='This test is too slow to run locally.')
     def test_find_my_combos_views(self):
-        c = Client()
         for content_type in ['text/plain', 'application/json']:
             for using_ids in [False, True]:
                 with self.subTest('empty input'):
-                    response = c.get('/find-my-combos', follow=True, headers={'Content-Type': content_type})  # type: ignore
+                    response = self.client.get('/find-my-combos', follow=True, headers={'Content-Type': content_type})  # type: ignore
                     self.assertEqual(response.status_code, 200)
                     self.assertEqual(response.get('Content-Type'), 'application/json')
                     result = json.loads(response.content, object_hook=json_to_python_lambda)
@@ -92,7 +91,7 @@ class FindMyCombosViewTests(AbstractTestCaseWithSeeding):
                     else:
                         deck_list = card_str
                     identity = card.identity
-                    response = c.generic('GET', '/find-my-combos', data=deck_list, follow=True, headers={'Content-Type': content_type})  # type: ignore
+                    response = self.client.generic('GET', '/find-my-combos', data=deck_list, follow=True, headers={'Content-Type': content_type})  # type: ignore
                     self.assertEqual(response.status_code, 200)  # type: ignore
                     self.assertEqual(response.get('Content-Type'), 'application/json')  # type: ignore
                     result = json.loads(response.content, object_hook=json_to_python_lambda)  # type: ignore
@@ -120,7 +119,7 @@ class FindMyCombosViewTests(AbstractTestCaseWithSeeding):
                                     deck_list_str = '\n'.join(['// Command'] + commander_list + ['// Main'] + deck_list)
                                 identity = merge_identities(c.identity for c in Card.objects.filter(name__in=deck_list + commander_list))
                                 identity_set = set(identity) | {'C'}
-                                response = c.generic('GET', '/find-my-combos', data=deck_list_str, follow=True, headers={'Content-Type': content_type})  # type: ignore
+                                response = self.client.generic('GET', '/find-my-combos', data=deck_list_str, follow=True, headers={'Content-Type': content_type})  # type: ignore
                                 self.assertEqual(response.status_code, 200)  # type: ignore
                                 self.assertEqual(response.get('Content-Type'), 'application/json')  # type: ignore
                                 result = json.loads(response.content, object_hook=json_to_python_lambda)  # type: ignore

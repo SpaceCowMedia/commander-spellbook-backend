@@ -3,16 +3,17 @@ import datetime
 from time import sleep
 from pathlib import Path
 from datetime import timedelta
+from django.test import TestCase
 from django.utils import timezone
 from django.conf import settings
 from django.contrib.auth.models import User
 from spellbook.models import Job, Variant
 from spellbook.utils import launch_job_command
-from .abstract_test import AbstractTestCaseWithSeeding
+from .testing import TestCaseMixinWithSeeding
 from spellbook.models import id_from_cards_and_templates_ids
 
 
-class CleanJobsTest(AbstractTestCaseWithSeeding):
+class CleanJobsTest(TestCaseMixinWithSeeding, TestCase):
     def test_clean_jobs(self):
         j = Job(
             name='test',

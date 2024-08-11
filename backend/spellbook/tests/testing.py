@@ -2,7 +2,7 @@ import random
 import uuid
 from functools import reduce
 from collections import defaultdict
-from common.abstract_test_case import AbstractTestCase as TestCase
+from common.testing import TestCaseMixin as BaseTestCaseMixin
 from django.conf import settings
 from spellbook.models import Card, Feature, Combo, CardInCombo, Template, TemplateInCombo
 from spellbook.models import CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, FeatureProducedInVariantSuggestion
@@ -12,7 +12,7 @@ from spellbook.utils import launch_job_command
 from spellbook.serializers import VariantSerializer
 
 
-class AbstractTestCase(TestCase):
+class TestCaseMixin(BaseTestCaseMixin):
     def setUp(self) -> None:
         super().setUp()
         settings.ASYNC_GENERATION = False
@@ -97,7 +97,7 @@ class AbstractTestCase(TestCase):
                 combo_id += 1
 
 
-class AbstractTestCaseWithSeeding(AbstractTestCase):
+class TestCaseMixinWithSeeding(TestCaseMixin):
     c1_id = 0
     c2_id = 0
     c3_id = 0

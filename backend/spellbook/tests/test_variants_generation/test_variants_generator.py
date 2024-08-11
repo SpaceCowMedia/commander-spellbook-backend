@@ -1,7 +1,8 @@
 from itertools import chain
 from multiset import FrozenMultiset
+from django.test import TestCase
 from django.db.models import Count
-from spellbook.tests.abstract_test import AbstractTestCaseWithSeeding
+from spellbook.tests.testing import TestCaseMixinWithSeeding
 from spellbook.models import Job, Variant, Card, IngredientInCombination, CardInVariant, TemplateInVariant, Template, Combo, Feature, VariantAlias, FeatureOfCard, ZoneLocation
 from spellbook.variants.variant_data import Data
 from spellbook.variants.variants_generator import get_variants_from_graph, get_default_zone_location_for_card, update_state_with_default
@@ -10,7 +11,7 @@ from spellbook.variants.variants_generator import sync_variant_aliases
 from spellbook.utils import launch_job_command
 
 
-class VariantsGeneratorTests(AbstractTestCaseWithSeeding):
+class VariantsGeneratorTests(TestCaseMixinWithSeeding, TestCase):
     def test_get_variants_from_graph(self):
         job = Job.start('test_get_variants_from_graph')
         if job is None:

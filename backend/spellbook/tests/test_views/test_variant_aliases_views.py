@@ -1,10 +1,11 @@
 import json
+from django.test import TestCase
 from spellbook.models import VariantAlias
-from ..abstract_test import AbstractTestCaseWithSeeding
+from ..testing import TestCaseMixinWithSeeding
 from common.inspection import json_to_python_lambda
 
 
-class VariantAliasesTests(AbstractTestCaseWithSeeding):
+class VariantAliasesTests(TestCaseMixinWithSeeding, TestCase):
     def variant_alias_assertions(self, alias_result):
         a = VariantAlias.objects.get(id=alias_result.id)
         self.assertEqual(a.id, alias_result.id)

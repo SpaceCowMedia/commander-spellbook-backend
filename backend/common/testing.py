@@ -1,10 +1,10 @@
 import logging
 import random
 from multiset import BaseMultiset
-from django.test import TestCase
+from django.test import SimpleTestCase
 
 
-class AbstractTestCase(TestCase):
+class TestCaseMixin(SimpleTestCase):
     def setUp(self) -> None:
         logging.disable(logging.INFO)
         random.seed(42)

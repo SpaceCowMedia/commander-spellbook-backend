@@ -22,5 +22,8 @@
         "client/python"
     ],
     "todo-tree.tree.scanMode": "workspace only",
-    "debug.inlineValues": "off"
+    "debug.inlineValues": "off",
+    "python.analysis.extraPaths": [
+        "./backend"
+    ]
 }

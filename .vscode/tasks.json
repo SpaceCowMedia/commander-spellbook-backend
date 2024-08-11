@@ -40,9 +40,9 @@
             ],
         },
         {
-            "label": "Flush",
+            "label": "Upkeep",
             "type": "shell",
-            "command": "python backend/manage.py flush",
+            "command": "python backend/manage.py upkeep",
             "group": "none",
             "dependsOn": [
                 "Apply migrations"
@@ -54,7 +54,7 @@
             "dependsOn": [
                 "Apply migrations",
                 "Clean pending jobs",
-                "Flush"
+                "Upkeep"
             ],
         },
         {

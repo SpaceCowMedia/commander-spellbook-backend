@@ -25,6 +25,11 @@ class TestCaseMixin(BaseTestCaseMixin):
             q = Variant.objects.all()
         Variant.objects.bulk_serialize(q, serializer=VariantSerializer, fields=extra_fields)  # type: ignore
 
+    def generate_and_publish_variants(self):
+        self.generate_variants()
+        self.bulk_serialize_variants()
+        Variant.objects.update(status=Variant.Status.OK)
+
     def save_combo_model(self, model: dict[tuple[str, ...] | str, tuple[str, ...]]):
         card_ids_by_name: dict[str, int] = {}
         feature_ids_by_name: dict[str, int] = {}

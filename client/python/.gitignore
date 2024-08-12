@@ -1,7 +1,8 @@
 *
 !__init__.py
-!tests
-!tests/test*.py
 !.gitignore
 !requirements.in
 !requirements.txt
+!tests
+!tests/test*.py
+!pytest.ini

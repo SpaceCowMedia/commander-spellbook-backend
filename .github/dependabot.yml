@@ -3,13 +3,10 @@ updates:
   - package-ecosystem: pip
     labels:
       - dependencies
-    directory: backend/
-    schedule:
-      interval: weekly
-  - package-ecosystem: pip
-    labels:
-      - dependencies
-    directory: client/python/
+    directories:
+      - backend/
+      - client/python/
+      - bot/*/
     schedule:
       interval: weekly
   - package-ecosystem: docker

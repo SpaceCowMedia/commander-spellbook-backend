@@ -133,6 +133,17 @@ class TestCaseMixinWithSeeding(TestCaseMixin):
         random.seed(42)
 
     def populate_db(self):
+        '''
+        Populate the database with some test data.
+        If used to generate variants, the expected generated variants are:
+        - <Variant: A A + B B + C C + D' D + E É + F F ➜ 2 FB + 2 FC + FD> with id '1-2-3-4-5-6'
+        - <Variant: H-H + A A ➜ FB> with id '1-8'
+        - <Variant: B B + E É + C C + F F + TA ➜ FB + FD> with id '2-3-5-6--1'
+        - <Variant: B B + C C + A A + TA ➜ FB + FD> with id '1-2-3--1'
+        - <Variant: H-H + A A + TA ➜ FB + FD> with id '1-8--1'
+        - <Variant: B B + C C + A A ➜ FB + FC> with id '1-2-3'
+        - <Variant: B B + C C + E É + F F ➜ FB + FC> with id '2-3-5-6'
+        '''
         fa1 = FeatureAttribute.objects.create(name='FA1')
         fa2 = FeatureAttribute.objects.create(name='FA2')
         c1 = Card.objects.create(name='A A', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000001'), identity='W', legal_commander=True, spoiler=False, type_line='Instant', oracle_text='x1', keywords=['keyword1', 'keyword2'])

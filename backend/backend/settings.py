@@ -237,11 +237,14 @@ SPECTACULAR_SETTINGS = {
     'VERSION': VERSION,
     'SCHEMA_PATH_PREFIX': '',
     'SERVE_INCLUDE_SCHEMA': False,
-    # TODO: camelize?
     'SWAGGER_UI_DIST': 'SIDECAR',
     'SWAGGER_UI_FAVICON_HREF': 'SIDECAR',
     'REDOC_DIST': 'SIDECAR',
     'COMPONENT_SPLIT_REQUEST': True,
+    'POSTPROCESSING_HOOKS': [
+        'drf_spectacular.hooks.postprocess_schema_enums',
+        'drf_spectacular.contrib.djangorestframework_camel_case.camelize_serializer_fields',
+    ],
 }
 
 # Logging

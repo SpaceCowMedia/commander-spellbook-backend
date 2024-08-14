@@ -16,7 +16,9 @@ RUN apk --update add gcc python3-dev libffi-dev musl-dev --no-cache
 RUN pip install --upgrade pip
 
 # install dependencies
-COPY backend/requirements.txt .
+COPY client/python/requirements.txt requirements-client.txt
+COPY bot/discord/requirements.txt requirements-bot.txt
+RUN cat requirements-client.txt requirements-bot.txt > requirements.txt
 RUN pip wheel --no-cache-dir --no-deps --wheel-dir /usr/src/app/python/wheels -r requirements.txt
 
 
@@ -38,9 +40,9 @@ COPY --from=builder /usr/src/app/requirements.txt .
 RUN pip install --no-cache-dir /python/wheels/* --no-deps
 
 # copy project
-COPY --chown=app:app bot/discord/ common/ $APP_HOME
+COPY --chown=app:app bot/discord/ common/ client/python/ $APP_HOME
 
 # change to the app user
 USER app
 
-CMD [ "spellbook_discord.py" ]
+CMD python spellbook_discord.py

@@ -15,6 +15,7 @@ updates:
     directories:
       - backend/
       - bot/*/
+      - /
     schedule:
       interval: weekly
   - package-ecosystem: github-actions

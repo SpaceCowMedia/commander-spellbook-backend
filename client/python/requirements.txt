@@ -85,6 +85,8 @@ typing-extensions==4.12.2
     # via opentelemetry-sdk
 tzdata==2024.1
     # via pendulum
+urllib3==2.2.2
+    # via -r requirements.in
 wrapt==1.16.0
     # via deprecated
 zipp==3.19.2

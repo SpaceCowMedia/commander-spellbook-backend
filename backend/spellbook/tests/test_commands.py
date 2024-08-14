@@ -85,3 +85,8 @@ class CleanJobsTest(TestCaseMixinWithSeeding, TestCase):
                     with open(file_path) as f:
                         data = json.load(f)
                     self.assertEqual(len(data['variants']), 7)
+
+    def test_notify(self):
+        # The only meaningful test is to check that discord utils are available
+        import discord_utils
+        discord_utils.discord_chunk('test')

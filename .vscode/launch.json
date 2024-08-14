@@ -18,6 +18,9 @@
                 "-Wd"
             ],
             "envFile": "${workspaceFolder}/backend/.env",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}${/}common",
+            },
             "preLaunchTask": "Prelaunch",
             "django": true,
             "justMyCode": false,
@@ -45,6 +48,9 @@
                 "--settings=backend.production_settings"
             ],
             "envFile": "${workspaceFolder}/backend/.env",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}${/}common",
+            },
             "preLaunchTask": "Prelaunch",
             "django": true,
             "justMyCode": false,
@@ -71,6 +77,9 @@
                 "--settings=backend.debug_settings",
             ],
             "envFile": "${workspaceFolder}/backend/.env",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}${/}common",
+            },
             "preLaunchTask": "Profile Prelaunch",
             "django": true,
             "justMyCode": true,
@@ -96,6 +105,9 @@
                 "test",
                 // "spellbook.tests.test_models"
             ],
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}${/}common",
+            },
             "preLaunchTask": "Apply migrations",
             "django": true,
             "justMyCode": false,
@@ -115,6 +127,9 @@
                 "test",
                 "client/python/tests"
             ],
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}${/}common",
+            },
             "preLaunchTask": "Apply migrations",
             "django": true,
             "justMyCode": false,
@@ -133,6 +148,9 @@
             "args": [
                 "generate_variants"
             ],
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}${/}common",
+            },
             "preLaunchTask": "Prelaunch",
             "django": true,
             "justMyCode": true,
@@ -151,6 +169,9 @@
             "args": [
                 "-o", "${workspaceFolder}/backend/temp/profiles/generate_variants.prof", "manage.py", "generate_variants"
             ],
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}${/}common",
+            },
             "preLaunchTask": "Profile Prelaunch",
             "django": true,
             "justMyCode": true,
@@ -169,6 +190,9 @@
             "args": [
                 "export_variants"
             ],
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}${/}common",
+            },
             "preLaunchTask": "Prelaunch",
             "django": true,
             "justMyCode": true,
@@ -187,6 +211,9 @@
             "args": [
                 "update_cards"
             ],
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}${/}common",
+            },
             "preLaunchTask": "Prelaunch",
             "django": true,
             "justMyCode": true,
@@ -205,6 +232,9 @@
             "args": [
                 "update_variants"
             ],
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}${/}common",
+            },
             "preLaunchTask": "Prelaunch",
             "django": true,
             "justMyCode": true,
@@ -225,6 +255,9 @@
                 "-c",
                 "from spellbook.models import *; Variant.objects.all().delete(); Combo.objects.all().delete(); Feature.objects.all().delete();"
             ],
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}${/}common",
+            },
             "preLaunchTask": "Apply migrations",
             "django": true,
             "justMyCode": true,
@@ -244,6 +277,9 @@
                 "migrate",
                 "spellbook",
             ],
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}${/}common",
+            },
             "django": true,
             "justMyCode": false,
             "presentation": {
@@ -263,13 +299,40 @@
                 "--validate",
                 "--traceback",
             ],
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}${/}common",
+            },
             "django": true,
             "justMyCode": false,
             "presentation": {
                 "hidden": false,
                 "group": "Spellbook",
-                "order": 13
+                "order": 14
             },
         },
+        {
+            "name": "Launch Discord Bot",
+            "type": "debugpy",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/bot/discord",
+            "envFile": "${workspaceFolder}/bot/discord/.env",
+            "windows": {
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}${/}common;${workspaceFolder}${/}client${/}python",
+                },
+            },
+            "linux": {
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}${/}common:${workspaceFolder}${/}client${/}python",
+                },
+            },
+            "program": "spellbook_discord.py",
+            "justMyCode": true,
+            "presentation": {
+                "hidden": false,
+                "group": "Spellbook",
+                "order": 15
+            }
+        }
     ]
 }

@@ -1,8 +1,1 @@
-*
-!__init__.py
-!.gitignore
-!requirements.in
-!requirements.txt
-!tests
-!tests/test*.py
-!pytest.ini
+spellbook_client/

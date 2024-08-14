@@ -7,7 +7,10 @@
             "command": "python manage.py migrate",
             "group": "none",
             "options": {
-                "cwd": "${workspaceFolder}/backend"
+                "cwd": "${workspaceFolder}/backend",
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}${/}common",
+                },
             }
         },
         {
@@ -38,6 +41,11 @@
             "dependsOn": [
                 "Apply migrations"
             ],
+            "options": {
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}${/}common",
+                },
+            }
         },
         {
             "label": "Upkeep",
@@ -47,6 +55,11 @@
             "dependsOn": [
                 "Apply migrations"
             ],
+            "options": {
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}${/}common",
+                },
+            }
         },
         {
             "label": "Prelaunch",
@@ -56,6 +69,11 @@
                 "Clean pending jobs",
                 "Upkeep"
             ],
+            "options": {
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}${/}common",
+                },
+            }
         },
         {
             "label": "Profile Prelaunch",
@@ -63,6 +81,11 @@
             "dependsOn": [
                 "Prelaunch",
             ],
+            "options": {
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}${/}common",
+                },
+            }
         }
     ]
 }

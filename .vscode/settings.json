@@ -11,7 +11,6 @@
     "python.analysis.typeCheckingMode": "basic",
     "python.testing.pytestArgs": [
         "backend",
-        "client/python",
     ],
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true,
@@ -25,6 +24,8 @@
     "todo-tree.tree.scanMode": "workspace only",
     "debug.inlineValues": "off",
     "python.analysis.extraPaths": [
-        "backend"
+        "common",
+        "backend",
+        "client/python"
     ]
 }

@@ -12,7 +12,9 @@ updates:
   - package-ecosystem: docker
     labels:
       - dependencies
-    directory: backend/
+    directories:
+      - backend/
+      - bot/*/
     schedule:
       interval: weekly
   - package-ecosystem: github-actions

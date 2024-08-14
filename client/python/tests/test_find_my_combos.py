@@ -1,5 +1,5 @@
 from .testing import SpellbookClientTest
-from ..models.deck_request import DeckRequest
+from ..spellbook_client.models.deck_request import DeckRequest
 
 
 class TestFindMyCombos(SpellbookClientTest):
@@ -20,6 +20,21 @@ class TestFindMyCombos(SpellbookClientTest):
         self.assertSetEqual({'2-3-5-6', '2-3-5-6--1'}, {v.id for v in result.results.included})
         self.assertSetEqual(set(), {v.id for v in result.results.included_by_changing_commanders})
         self.assertSetEqual({'1-2-3', '1-2-3--1'}, {v.id for v in result.results.almost_included})
+        self.assertSetEqual(set(), {v.id for v in result.results.almost_included_by_adding_colors})
+        self.assertSetEqual(set(), {v.id for v in result.results.almost_included_by_changing_commanders})
+        self.assertSetEqual(set(), {v.id for v in result.results.almost_included_by_adding_colors_and_changing_commanders})
+
+    async def test_with_json_body_but_empty(self):
+        result = await self.spellbook_client_anonymous.find_my_combos.post(
+            body=DeckRequest(
+                commanders=[],
+                main=[],
+            )
+        )
+        self.assertEqual(result.results.identity, 'C')
+        self.assertSetEqual(set(), {v.id for v in result.results.included})
+        self.assertSetEqual(set(), {v.id for v in result.results.included_by_changing_commanders})
+        self.assertSetEqual(set(), {v.id for v in result.results.almost_included})
         self.assertSetEqual(set(), {v.id for v in result.results.almost_included_by_adding_colors})
         self.assertSetEqual(set(), {v.id for v in result.results.almost_included_by_changing_commanders})
         self.assertSetEqual(set(), {v.id for v in result.results.almost_included_by_adding_colors_and_changing_commanders})

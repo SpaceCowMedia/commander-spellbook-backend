@@ -3,10 +3,8 @@ from django.conf import settings
 from discord_webhook import DiscordWebhook
 from spellbook.models import VariantSuggestion, Variant
 from social_django.models import UserSocialAuth
+from discord_utils import discord_chunk
 from common.markdown import escape_markdown
-
-
-DISCORD_MESSAGE_LIMIT = 2000
 
 
 class Command(AbstractCommand):
@@ -38,17 +36,7 @@ class Command(AbstractCommand):
 
     def discord_webhook(self, content: str):
         if settings.DISCORD_WEBHOOK_URL:
-            messages = []
-            while content:
-                next_block = content[:DISCORD_MESSAGE_LIMIT]
-                if len(content) > DISCORD_MESSAGE_LIMIT and '\n' in next_block:
-                    split = next_block.rindex('\n')
-                elif len(content) > DISCORD_MESSAGE_LIMIT and ' ' in next_block:
-                    split = next_block.rindex(' ')
-                else:
-                    split = DISCORD_MESSAGE_LIMIT
-                messages.append(content[:split])
-                content = content[split + 1:]
+            messages = discord_chunk(content)
             for message in messages:
                 webhook = DiscordWebhook(url=settings.DISCORD_WEBHOOK_URL, content=message)
                 response = webhook.execute()

@@ -1,0 +1,48 @@
+###########
+# BUILDER #
+###########
+FROM python:3.12.5-alpine AS builder
+
+# set work directory
+WORKDIR /usr/src/app
+
+# set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+
+# install dependencies
+
+# pip
+RUN pip install --upgrade pip
+
+# install dependencies
+COPY requirements.txt .
+RUN pip wheel --no-cache-dir --no-deps --wheel-dir /usr/src/app/python/wheels -r requirements.txt
+
+
+#########
+# BASE  #
+#########
+FROM python:3.12.5-alpine AS base
+
+# create the app user
+RUN addgroup -S app && adduser -S app -G app
+
+# create the appropriate directories
+ENV HOME=/home/app APP_HOME=/home/app/web
+RUN chown -R app:app $APP_HOME
+WORKDIR $APP_HOME
+
+# install dependencies
+COPY --from=builder /usr/src/app/python/wheels /python/wheels
+COPY --from=builder /usr/src/app/requirements.txt .
+RUN pip install --no-cache-dir /python/wheels/* --no-deps
+
+# copy project
+COPY --chown=app:app . $APP_HOME
+# copy common
+COPY --chown=app:app ../../common $APP_HOME
+
+# change to the app user
+USER app
+
+CMD [ "spellbook_discord.py" ]

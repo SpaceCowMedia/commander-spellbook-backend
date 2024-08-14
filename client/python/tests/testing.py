@@ -2,7 +2,7 @@ from django.test import LiveServerTestCase
 from kiota_abstractions.authentication.anonymous_authentication_provider import AnonymousAuthenticationProvider
 from kiota_http.httpx_request_adapter import HttpxRequestAdapter
 from kiota_abstractions.base_request_configuration import RequestConfiguration
-from ..models.paginated_variant_list import PaginatedVariantList
+from ..spellbook_client.models.paginated_variant_list import PaginatedVariantList
 from ..spellbook_client import SpellbookClient
 from spellbook.tests.testing import TestCaseMixinWithSeeding
 

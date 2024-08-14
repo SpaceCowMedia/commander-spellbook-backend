@@ -1,8 +1,6 @@
 ###########
 # BUILDER #
 ###########
-
-# pull official base image
 FROM python:3.12.5-alpine AS builder
 
 # set work directory
@@ -28,8 +26,6 @@ RUN pypy3 -m pip wheel --no-cache-dir --no-deps --wheel-dir /usr/src/app/pypy/wh
 #########
 # BASE  #
 #########
-
-# pull official base image
 FROM python:3.12.5-alpine AS base
 
 # create the app user
@@ -57,6 +53,8 @@ RUN pypy -m pip install --no-cache-dir psycopg
 
 # copy project
 COPY --chown=app:app . $APP_HOME
+# copy common
+COPY --chown=app:app ../common $APP_HOME
 
 # change to the app user
 USER app
@@ -78,7 +76,6 @@ RUN echo -e 'gunicorn backend.wsgi:application --bind 0.0.0.0:8000\n' > entrypoi
 #########
 # DEMO  #
 #########
-
 FROM base AS demo
 
 RUN echo -e 'set -e\n\
@@ -94,7 +91,6 @@ gunicorn backend.wsgi:application --bind 0.0.0.0:8000\n' > entrypoint.prod.sh
 ##############
 # PRODUCTION #
 ##############
-
 FROM base AS production
 
 ADD nginx/production.conf /etc/nginx/nginx.conf

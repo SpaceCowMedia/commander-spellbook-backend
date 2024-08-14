@@ -322,3 +322,18 @@ jobs:
       - name: Run python tests 🧪
         run: python backend/manage.py test client/python/tests/ --no-input --parallel auto
         working-directory: .
+
+  bot-discord:
+    runs-on: ubuntu-latest
+    needs: [client-python]
+    defaults:
+      run:
+        shell: bash
+        working-directory: bot/discord
+    steps:
+      - name: Checkout 🛎️
+        uses: actions/checkout@v4
+      - name: Install dependencies 🧶
+        run: pip install --no-cache-dir --no-deps -r requirements.txt
+      - name: Build Docker image 🐳
+        run: docker build -t spellbook-discord-bot .

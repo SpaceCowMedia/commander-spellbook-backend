@@ -38,9 +38,7 @@ COPY --from=builder /usr/src/app/requirements.txt .
 RUN pip install --no-cache-dir /python/wheels/* --no-deps
 
 # copy project
-COPY --chown=app:app . $APP_HOME
-# copy common
-COPY --chown=app:app ../../common $APP_HOME
+COPY --chown=app:app bot/discord/ common/ $APP_HOME
 
 # change to the app user
 USER app

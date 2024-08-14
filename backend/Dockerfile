@@ -52,9 +52,7 @@ RUN pypy -m pip install --no-cache-dir /pypy/wheels/* --no-deps
 RUN pypy -m pip install --no-cache-dir psycopg
 
 # copy project
-COPY --chown=app:app . $APP_HOME
-# copy common
-COPY --chown=app:app ../common $APP_HOME
+COPY --chown=app:app backend/ common/ $APP_HOME
 
 # change to the app user
 USER app

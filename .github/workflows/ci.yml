@@ -114,7 +114,7 @@ jobs:
         run: python manage.py version
         working-directory: backend
       - name: Unit Test 🧪
-        run: python -Wd manage.py test --no-input ${{ !startsWith(matrix.python-version, 'pypy') && '--parallel auto' || '' }}
+        run: python -Wd manage.py test --no-input ${{ !startsWith(matrix.python-version, 'pypy') && '--parallel auto' || '' }} --pythonpath ../common
         working-directory: backend
 
 

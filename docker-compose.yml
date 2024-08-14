@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   nginx:
     image: nginx:1.23-alpine
@@ -9,12 +7,13 @@ services:
       - web
     volumes:
       - static_volume:/home/app/web/staticfiles:ro
-      - ./nginx/demo.conf:/etc/nginx/templates/default.conf.template
+      - ./backend/nginx/demo.conf:/etc/nginx/templates/default.conf.template
     restart: always
 
   web:
     build:
       context: .
+      dockerfile: backend/Dockerfile
       target: demo
       args:
         VERSION: demo
@@ -28,6 +27,8 @@ services:
       - db
     volumes:
       - static_volume:/home/app/web/staticfiles:rw
+    env_file:
+      - backend/.env
     environment:
       SQL_ENGINE: django.db.backends.postgresql
       SQL_DATABASE: spellbook_db_test
@@ -56,6 +57,23 @@ services:
       timeout: 5s
       retries: 5
     restart: always
+
+  discord-bot:
+    build:
+      context: .
+      dockerfile: bot/discord/Dockerfile
+    image: spellbook-discord-bot
+    depends_on:
+      web:
+        condition: service_healthy
+    links:
+      - web
+    env_file:
+      - bot/discord/.env
+    environment:
+      SPELLBOOK_API_URL: http://web:8000
+    restart: always
+
 
 volumes:
   static_volume:

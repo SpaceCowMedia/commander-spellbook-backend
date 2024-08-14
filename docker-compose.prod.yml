@@ -1,0 +1,26 @@
+services:
+  web:
+    extends:
+      file: docker-compose.yml
+      service: web
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      target: production
+      args:
+        VERSION: production
+    ports:
+      - 80:80
+
+  db:
+    extends:
+      file: docker-compose.yml
+      service: db
+
+  discord-bot:
+    extends:
+      file: docker-compose.yml
+      service: discord-bot
+
+volumes:
+  postgres_data:

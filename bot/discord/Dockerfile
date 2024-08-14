@@ -10,12 +10,13 @@ WORKDIR /usr/src/app
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 
 # install dependencies
+RUN apk --update add gcc python3-dev libffi-dev musl-dev --no-cache
 
 # pip
 RUN pip install --upgrade pip
 
 # install dependencies
-COPY requirements.txt .
+COPY backend/requirements.txt .
 RUN pip wheel --no-cache-dir --no-deps --wheel-dir /usr/src/app/python/wheels -r requirements.txt
 
 
@@ -29,7 +30,6 @@ RUN addgroup -S app && adduser -S app -G app
 
 # create the appropriate directories
 ENV HOME=/home/app APP_HOME=/home/app/web
-RUN chown -R app:app $APP_HOME
 WORKDIR $APP_HOME
 
 # install dependencies

@@ -18,7 +18,7 @@ RUN pip install --upgrade pip
 RUN pypy3 -m ensurepip && pypy3 -m pip install --upgrade pip
 
 # install dependencies
-COPY requirements.txt .
+COPY backend/requirements.txt .
 RUN pip wheel --no-cache-dir --no-deps --wheel-dir /usr/src/app/python/wheels -r requirements.txt
 RUN pypy3 -m pip wheel --no-cache-dir --no-deps --wheel-dir /usr/src/app/pypy/wheels $(grep -ivE "#|cryptography|cffi" requirements.txt)
 
@@ -93,7 +93,7 @@ gunicorn backend.wsgi:application --bind 0.0.0.0:8000\n' > entrypoint.prod.sh
 ##############
 FROM base AS production
 
-ADD nginx/production.conf /etc/nginx/nginx.conf
+ADD backend/nginx/production.conf /etc/nginx/nginx.conf
 
 # Switch to user root in order to run nginx on port 80
 USER root

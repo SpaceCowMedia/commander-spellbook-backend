@@ -40,7 +40,7 @@ jobs:
         with:
           push: false
           load: true
-          context: backend
+          file: backend/Dockerfile
           tags: spellbook-backend:latest
           target: production
           build-args: VERSION=${{ steps.semver.outputs.version }}
@@ -335,5 +335,11 @@ jobs:
         uses: actions/checkout@v4
       - name: Install dependencies 🧶
         run: pip install --no-cache-dir --no-deps -r requirements.txt
-      - name: Build Docker image 🐳
-        run: docker build -t spellbook-discord-bot .
+      - name: Build and export image 🏗️
+        uses: docker/build-push-action@v6
+        with:
+          push: false
+          load: true
+          file: bot/discord/Dockerfile
+          tags: spellbook-backend:latest
+          outputs: type=docker,dest=/tmp/spellbook-backend.tar

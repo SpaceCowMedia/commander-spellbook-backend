@@ -9,6 +9,7 @@ services:
       target: production
       args:
         VERSION: production
+    volumes: !reset []
     ports:
       - 80:80
 

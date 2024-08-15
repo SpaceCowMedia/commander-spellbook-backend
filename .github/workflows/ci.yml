@@ -208,6 +208,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: spellbook-discord-bot
+          path: /tmp
       - name: Load image from artifact 🐳
         run: |
           docker load --input /tmp/spellbook-backend.tar

@@ -117,9 +117,7 @@ async def on_message(message: discord.Message):
     if not queries:
         return
     await message.add_reaction('🔍')
-    reply_kwargs = {
-        'embed': None,
-    }
+    embed: discord.Embed | None = None
     reply = ''
     messages: list[discord.Message] = []
     for query in queries:
@@ -156,7 +154,7 @@ async def on_message(message: discord.Message):
                         variant_color = discord.Colour.from_str('#500B90')
                     case _:
                         variant_color = discord.Colour.gold()
-                reply_kwargs['embed'] = discord.Embed(
+                embed = discord.Embed(
                     colour=variant_color,
                     title=compute_variant_name(variant),
                     url=variant_url,
@@ -165,7 +163,7 @@ async def on_message(message: discord.Message):
                 reply += f'\n\n### Showing 1 result for {query_summary}\n\n'
             elif len(result.results) > 0:
                 if len(queries) == 1:
-                    reply_kwargs['embed'] = discord.Embed(
+                    embed = discord.Embed(
                         colour=discord.Colour.from_str('#d68fc5'),
                         title=f'View all results for "`{query}`" on Commander Spellbook',
                         url=query_url,
@@ -175,10 +173,11 @@ async def on_message(message: discord.Message):
                 reply += compute_variants_results(result.results[:limit_results])
             else:
                 reply += f'\n\nNo results found for {query_summary}'
+            chunks = discord_chunk(reply)
             messages = await chunk_diff_async(
-                new_chunks=discord_chunk(reply),
-                add=lambda _, c: message.reply(content=c, suppress_embeds=reply_kwargs.get('embed') is None, **reply_kwargs),
-                update=lambda _, m, c: m.edit(content=c, suppress=reply_kwargs.get('embed') is None, **reply_kwargs),
+                new_chunks=chunks,
+                add=lambda i, c: message.reply(content=c, suppress_embeds=embed is None or i != len(chunks) - 1, embed=embed if i == len(chunks) - 1 else None),
+                update=lambda i, m, c: m.edit(content=c, suppress=embed is None or i != len(chunks) - 1, embed=embed if i == len(chunks) - 1 else None),
                 remove=lambda _, m: m.delete(),
                 old_chunks_wrappers=messages,
                 unwrap=lambda m: m.content,
@@ -187,10 +186,11 @@ async def on_message(message: discord.Message):
             await message.remove_reaction('🔍', bot.user)
             await message.add_reaction('❌')
             reply += f'\n\nFailed to fetch results for `{query}`'
+            chunks = discord_chunk(reply)
             messages = await chunk_diff_async(
-                new_chunks=discord_chunk(reply),
-                add=lambda _, c: message.reply(content=c, suppress_embeds=reply_kwargs.get('embed') is None, **reply_kwargs),
-                update=lambda _, m, c: m.edit(content=c, suppress=reply_kwargs.get('embed') is None, **reply_kwargs),
+                new_chunks=chunks,
+                add=lambda i, c: message.reply(content=c, suppress_embeds=embed is None or i != len(chunks) - 1, embed=embed if i == len(chunks) - 1 else None),
+                update=lambda i, m, c: m.edit(content=c, suppress=embed is None or i != len(chunks) - 1, embed=embed if i == len(chunks) - 1 else None),
                 remove=lambda _, m: m.delete(),
                 old_chunks_wrappers=messages,
                 unwrap=lambda m: m.content,
@@ -232,9 +232,6 @@ class FindMyCombosModal(ui.Modal, title='Find My Combos'):
             await interaction.message.add_reaction('🔍')
         commanders = process_decklist(self.commanders.value)
         main = process_decklist(self.main.value)
-        message_kwargs = {
-            'embed': None,
-        }
         try:
             result = await API.find_my_combos.post(
                 body=DeckRequest(
@@ -269,15 +266,16 @@ class FindMyCombosModal(ui.Modal, title='Find My Combos'):
                     and len(result.results.almost_included_by_adding_colors_and_changing_commanders) == 0:
                 reply += 'No combos found.'
             if interaction.guild is not None:
+                chunks = discord_chunk(reply)
                 await chunk_diff_async(
-                    new_chunks=discord_chunk(reply),
-                    add=lambda _, c: interaction.user.send(content=c, suppress_embeds=message_kwargs.get('embed') is None, **message_kwargs),
+                    new_chunks=chunks,
+                    add=lambda _, c: interaction.user.send(content=c, suppress_embeds=True),
                 )
-                await interaction.response.send_message('I\'ve sent your results in a DM!', ephemeral=True, **message_kwargs)
+                await interaction.response.send_message('I\'ve sent your results in a DM!', ephemeral=True)
             else:
                 await chunk_diff_async(
                     new_chunks=discord_chunk(reply),
-                    add=lambda i, c: interaction.response.send_message(content=c, suppress_embeds=message_kwargs.get('embed') is None, **message_kwargs) if i == 0 else interaction.user.send(content=c, suppress_embeds=message_kwargs.get('embed') is None, **message_kwargs),
+                    add=lambda i, c: interaction.response.send_message(content=c, suppress_embeds=True) if i == 0 else interaction.user.send(content=c, suppress_embeds=True),
                 )
             if interaction.message:
                 await interaction.message.remove_reaction('🔍', bot.user)

@@ -266,12 +266,12 @@ class FindMyCombosModal(ui.Modal, title='Find My Combos'):
                     and len(result.results.almost_included_by_adding_colors_and_changing_commanders) == 0:
                 reply += 'No combos found.'
             if interaction.guild is not None:
+                await interaction.response.send_message('I\'ve sent your results in a DM!', ephemeral=True)
                 chunks = discord_chunk(reply)
                 await chunk_diff_async(
                     new_chunks=chunks,
                     add=lambda _, c: interaction.user.send(content=c, suppress_embeds=True),
                 )
-                await interaction.response.send_message('I\'ve sent your results in a DM!', ephemeral=True)
             else:
                 await chunk_diff_async(
                     new_chunks=discord_chunk(reply),

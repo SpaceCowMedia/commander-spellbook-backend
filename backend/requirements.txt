@@ -74,7 +74,7 @@ jsonschema==4.23.0
     # via drf-spectacular
 jsonschema-specifications==2023.12.1
     # via jsonschema
-lark==1.2.1
+lark==1.2.2
     # via -r requirements.in
 multiset==3.1.0
     # via -r requirements.in

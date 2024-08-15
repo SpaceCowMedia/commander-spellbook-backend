@@ -29,6 +29,8 @@ services:
       - static_volume:/home/app/web/staticfiles:rw
     env_file:
       - backend/.env
+      - path: backend/secrets.env
+        required: false
     environment:
       SQL_ENGINE: django.db.backends.postgresql
       SQL_DATABASE: spellbook_db_test
@@ -76,6 +78,8 @@ services:
       - web
     env_file:
       - bot/discord/.env
+      - path: bot/discord/secrets.env
+        required: false
     environment:
       SPELLBOOK_API_URL: http://web:8000
     restart: always

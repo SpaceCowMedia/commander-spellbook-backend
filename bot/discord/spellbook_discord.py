@@ -36,7 +36,7 @@ administration_guilds = [int(guild) for guild in (os.getenv(f'ADMIN_GUILD__{i}')
 administration_users = [int(user) for user in (os.getenv(f'ADMIN_USER__{i}') for i in range(10)) if user is not None]
 API = AnonymousSpellbookClient(base_url=os.getenv('SPELLBOOK_API_URL', ''))
 WEBSITE_URL = os.getenv('SPELLBOOK_WEBSITE_URL', '')
-MAX_SEARCH_RESULTS = 5
+MAX_SEARCH_RESULTS = 8
 
 
 @bot.command()
@@ -95,7 +95,7 @@ def compute_variants_results(variants: list[Variant]):
         variant_url = f'{WEBSITE_URL}/combo/{variant.id}'
         variant_name = compute_variant_name(variant)
         variant_results = ', '.join(result.feature.name for result in variant.produces[:4]) + ('...' if len(variant.produces) > 4 else '')
-        result += f'* {convert_mana_identity_to_emoji(variant.identity)} [{variant_name} ➜ {variant_results}]({variant_url})\n'
+        result += f'* {convert_mana_identity_to_emoji(variant.identity)} [{variant_name} ➜ {variant_results}]({variant_url}) (in {variant.popularity} decks)\n'
     return result
 
 
@@ -118,17 +118,18 @@ async def on_message(message: discord.Message):
     reply = ''
     messages: list[discord.Message] = []
     for query in queries:
-        actual_query = query
-        if not any(f'{key}:' in actual_query for key in ('legal', 'banned', 'format')):
-            actual_query += ' format:commander'
-        query_url = f'{WEBSITE_URL}/search/?q={encode_query(actual_query)}'
+        patched_query = query
+        if not any(f'{key}:' in patched_query for key in ('legal', 'banned', 'format')):
+            patched_query += ' format:commander'
+        query_url = f'{WEBSITE_URL}/search/?q={encode_query(query)}'
         query_summary = f'["`{query}`"]({query_url})'
         try:
             result = await API.variants.get(
                 request_configuration=RequestConfiguration[API.variants.VariantsRequestBuilderGetQueryParameters](
                     query_parameters=API.variants.VariantsRequestBuilderGetQueryParameters(
-                        q=query,
+                        q=patched_query,
                         limit=MAX_SEARCH_RESULTS,
+                        ordering='-popularity',
                     ),
                 ),
             )
@@ -165,10 +166,12 @@ async def on_message(message: discord.Message):
                 limit_results = min(MAX_SEARCH_RESULTS, len(result.results))
                 reply += f'\n\n### Showing {limit_results} of {result.count} results for {query_summary}\n\n'
                 reply += compute_variants_results(result.results[:limit_results])
+            else:
+                reply += f'\n\nNo results found for {query_summary}'
             messages = await chunk_diff_async(
                 new_chunks=discord_chunk(reply),
-                add=lambda _, c: message.reply(content=c, **reply_kwargs),
-                update=lambda _, m, c: m.edit(content=c, suppress=True, **reply_kwargs),
+                add=lambda _, c: message.reply(content=c, suppress_embeds=reply_kwargs.get('embed') is None, **reply_kwargs),
+                update=lambda _, m, c: m.edit(content=c, suppress=reply_kwargs.get('embed') is None, **reply_kwargs),
                 remove=lambda _, m: m.delete(),
                 old_chunks_wrappers=messages,
                 unwrap=lambda m: m.content,
@@ -179,8 +182,8 @@ async def on_message(message: discord.Message):
             reply += f'\n\nFailed to fetch results for `{query}`'
             messages = await chunk_diff_async(
                 new_chunks=discord_chunk(reply),
-                add=lambda _, c: message.reply(content=c, **reply_kwargs),
-                update=lambda _, m, c: m.edit(content=c, **reply_kwargs),
+                add=lambda _, c: message.reply(content=c, suppress_embeds=reply_kwargs.get('embed') is None, **reply_kwargs),
+                update=lambda _, m, c: m.edit(content=c, suppress=reply_kwargs.get('embed') is None, **reply_kwargs),
                 remove=lambda _, m: m.delete(),
                 old_chunks_wrappers=messages,
                 unwrap=lambda m: m.content,
@@ -247,13 +250,13 @@ class FindMyCombosModal(ui.Modal, title='Find My Combos'):
             if interaction.guild is not None:
                 await chunk_diff_async(
                     new_chunks=discord_chunk(reply),
-                    add=lambda _, c: interaction.user.send(content=c, **message_kwargs),
+                    add=lambda _, c: interaction.user.send(content=c, suppress_embeds=message_kwargs.get('embed') is None, **message_kwargs),
                 )
                 await interaction.response.send_message('I\'ve sent your results in a DM!', ephemeral=True, **message_kwargs)
             else:
                 await chunk_diff_async(
                     new_chunks=discord_chunk(reply),
-                    add=lambda i, c: interaction.response.send_message(content=c, **message_kwargs) if i == 0 else interaction.user.send(content=c, **message_kwargs),
+                    add=lambda i, c: interaction.response.send_message(content=c, suppress_embeds=message_kwargs.get('embed') is None, **message_kwargs) if i == 0 else interaction.user.send(content=c, suppress_embeds=message_kwargs.get('embed') is None, **message_kwargs),
                 )
             if interaction.message:
                 await interaction.message.remove_reaction('🔍', bot.user)

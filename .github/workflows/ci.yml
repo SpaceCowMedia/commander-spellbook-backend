@@ -155,11 +155,15 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Download image artifact ⬇
+      - name: Download backend image artifact ⬇
         uses: actions/download-artifact@v4
         with:
           name: spellbook-backend
           path: release
+      - name: Download discord bot image artifact ⬇
+        uses: actions/download-artifact@v4
+        with:
+          name: spellbook-discord-bot
       - name: Release 📧
         uses: EasyDesk/action-semver-release@v1
         with:
@@ -195,14 +199,19 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v2
         with:
           mask-password: true
-      - name: Download image artifact ⬇
+      - name: Download backend image artifact ⬇
         uses: actions/download-artifact@v4
         with:
           name: spellbook-backend
           path: /tmp
+      - name: Download discord bot image artifact ⬇
+        uses: actions/download-artifact@v4
+        with:
+          name: spellbook-discord-bot
       - name: Load image from artifact 🐳
         run: |
           docker load --input /tmp/spellbook-backend.tar
+          docker load --input /tmp/spellbook-discord-bot.tar
           docker image ls -a
       - name: Push versioned image to Amazon ECR 📦
         env:

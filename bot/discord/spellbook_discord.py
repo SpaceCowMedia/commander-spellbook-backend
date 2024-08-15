@@ -20,6 +20,10 @@ bot = commands.Bot(
     command_prefix='?',
     intents=intents,
     description='Powered by [Commander Spellbook](https://commanderspellbook.com/)',
+    activity=discord.Game(
+        name='a combo on turn 3',
+        platform='https://commanderspellbook.com/',
+    ),
 )
 permissions = discord.Permissions(
     view_channel=True,
@@ -82,6 +86,7 @@ def compute_variant_results(variant: Variant):
 
 def convert_mana_identity_to_emoji(identity: str):
     return identity \
+        .replace('C', '<:manac:673716795667906570>') \
         .replace('W', '<:manaw:673716795991130151>') \
         .replace('U', '<:manau:673716795890335747>') \
         .replace('B', '<:manab:673716795651391519>') \
@@ -137,6 +142,8 @@ async def on_message(message: discord.Message):
                 variant = result.results[0]
                 variant_url = f'{WEBSITE_URL}/combo/{variant.id}'
                 match variant.identity[:1]:
+                    case 'C':
+                        variant_color = discord.Colour.light_grey()
                     case 'R':
                         variant_color = discord.Colour.red()
                     case 'U':
@@ -192,6 +199,20 @@ async def on_message(message: discord.Message):
     await message.remove_reaction('🔍', bot.user)
 
 
+DECKLIST_LINE_REGEX = re.compile(r'^(?:\d+x?\s+)?(.*?)(?:(?:\s+<\w+>)?\s+\[\w+\](?:\s+\(\w+\))?)?$')
+
+
+def process_decklist(decklist: str) -> list[str]:
+    result = []
+    for line in decklist.split('\n'):
+        line = line.strip()
+        if line and not line.startswith('//'):
+            match = DECKLIST_LINE_REGEX.match(line)
+            if match:
+                result.append(match.group(1).strip())
+    return result
+
+
 class FindMyCombosModal(ui.Modal, title='Find My Combos'):
     commanders = ui.TextInput(
         label='Commanders',
@@ -209,8 +230,8 @@ class FindMyCombosModal(ui.Modal, title='Find My Combos'):
     async def on_submit(self, interaction: discord.Interaction[commands.Bot]) -> None:
         if interaction.message is not None:
             await interaction.message.add_reaction('🔍')
-        commanders = [stripped_line for stripped_line in (line.strip() for line in self.commanders.value.split('\n')) if stripped_line and not stripped_line.startswith('//')]
-        main = [stripped_line for stripped_line in (line.strip() for line in self.main.value.split('\n')) if stripped_line and not stripped_line.startswith('//')]
+        commanders = process_decklist(self.commanders.value)
+        main = process_decklist(self.main.value)
         message_kwargs = {
             'embed': None,
         }

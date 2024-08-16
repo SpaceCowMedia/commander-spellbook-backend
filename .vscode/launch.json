@@ -315,7 +315,7 @@
             "type": "debugpy",
             "request": "launch",
             "cwd": "${workspaceFolder}/bot/discord",
-            "envFile": "${workspaceFolder}/bot/discord/.env",
+            "envFile": "${workspaceFolder}/bot/discord/secrets.env",
             "windows": {
                 "env": {
                     "PYTHONPATH": "${workspaceFolder}${/}common;${workspaceFolder}${/}client${/}python",
@@ -327,11 +327,35 @@
                 },
             },
             "program": "spellbook_discord.py",
-            "justMyCode": true,
+            "justMyCode": false,
             "presentation": {
                 "hidden": false,
                 "group": "Spellbook",
                 "order": 15
+            }
+        },
+        {
+            "name": "Launch Reddit Bot",
+            "type": "debugpy",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/bot/reddit",
+            "envFile": "${workspaceFolder}/bot/reddit/secrets.env",
+            "windows": {
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}${/}common;${workspaceFolder}${/}client${/}python",
+                },
+            },
+            "linux": {
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}${/}common:${workspaceFolder}${/}client${/}python",
+                },
+            },
+            "program": "spellbook_reddit.py",
+            "justMyCode": false,
+            "presentation": {
+                "hidden": false,
+                "group": "Spellbook",
+                "order": 16
             }
         }
     ]

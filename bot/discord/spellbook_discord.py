@@ -12,6 +12,7 @@ from spellbook_client import RequestConfiguration
 from spellbook_client.models.variant import Variant
 from spellbook_client.models.deck_request import DeckRequest
 from discord_utils import discord_chunk, chunk_diff_async
+from bot_utils import parse_queries, patch_query
 
 
 intents = discord.Intents(messages=True, guilds=True)
@@ -67,9 +68,6 @@ async def on_guild_join(guild: discord.Guild):
     await bot.tree.sync(guild=guild)
 
 
-QUERY_REGEX = re.compile(r'{{(.*?)}}')
-
-
 def compute_variant_name(variant: Variant):
     return ' + '.join(chain(
         ((f'{card.quantity}x ' if card.quantity > 1 else '') + card.card.name for card in variant.uses),
@@ -109,11 +107,7 @@ async def on_message(message: discord.Message):
     await bot.process_commands(message)
     if message.author.bot:
         return
-    queries = []
-    for match in QUERY_REGEX.finditer(message.content):
-        query = match.group(1).strip()
-        if query:
-            queries.append(query)
+    queries = parse_queries(message.content)
     if not queries:
         return
     await message.add_reaction('🔍')
@@ -121,9 +115,7 @@ async def on_message(message: discord.Message):
     reply = ''
     messages: list[discord.Message] = []
     for query in queries:
-        patched_query = query
-        if not any(f'{key}:' in patched_query for key in ('legal', 'banned', 'format')):
-            patched_query += ' format:commander'
+        patched_query = patch_query(query)
         query_url = f'{WEBSITE_URL}/search/?q={encode_query(query)}'
         query_summary = f'["`{query}`"]({query_url})'
         try:

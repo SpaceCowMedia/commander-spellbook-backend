@@ -2,14 +2,15 @@ import os
 import re
 import random
 import asyncpraw
-import asyncpraw.models.reddit.redditor
 import asyncprawcore
 import asyncio
 import asyncpraw.models
 import asyncpraw.models.reddit
 import asyncpraw.models.reddit.comment
+import asyncpraw.models.reddit.redditor
 import asyncpraw.models.reddit.submission
 import asyncpraw.models.reddit.subreddit
+from bot_utils import parse_queries
 
 
 REDDIT_USERNAME = os.getenv('REDDIT_USERNAME')
@@ -46,9 +47,10 @@ GOOD_BOT_RESPONSES = [
 ]
 
 
-async def process_input(text: str, ) -> str | None:
-    if 'hello bot' in text:
-        return 'Hello World!'
+async def process_input(text: str) -> str | None:
+    queries = parse_queries(text)
+    if not queries:
+        return None
     return None
 
 

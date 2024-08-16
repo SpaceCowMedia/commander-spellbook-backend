@@ -136,10 +136,16 @@ jobs:
         with:
           name: spellbook-discord-bot
           path: /tmp
+      - name: Download reddit bot image artifact ⬇
+        uses: actions/download-artifact@v4
+        with:
+          name: spellbook-reddit-bot
+          path: /tmp
       - name: Load docker image 🐳
         run: |
           docker load --input /tmp/spellbook-backend.tar
           docker load --input /tmp/spellbook-discord-bot.tar
+          docker load --input /tmp/spellbook-reddit-bot.tar
           docker image ls -a
       - name: Docker compose up 🧫
         run: docker compose -f docker-compose.yml up -d --no-build 
@@ -164,6 +170,12 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: spellbook-discord-bot
+          path: release
+      - name: Download reddit bot image artifact ⬇
+        uses: actions/download-artifact@v4
+        with:
+          name: spellbook-reddit-bot
+          path: release
       - name: Release 📧
         uses: EasyDesk/action-semver-release@v1
         with:
@@ -209,10 +221,16 @@ jobs:
         with:
           name: spellbook-discord-bot
           path: /tmp
+      - name: Download reddit bot image artifact ⬇
+        uses: actions/download-artifact@v4
+        with:
+          name: spellbook-reddit-bot
+          path: /tmp
       - name: Load image from artifact 🐳
         run: |
           docker load --input /tmp/spellbook-backend.tar
           docker load --input /tmp/spellbook-discord-bot.tar
+          docker load --input /tmp/spellbook-reddit-bot.tar
           docker image ls -a
       - name: Push versioned image to Amazon ECR 📦
         env:

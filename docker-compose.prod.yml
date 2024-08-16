@@ -23,5 +23,10 @@ services:
       file: docker-compose.yml
       service: discord-bot
 
+  reddit-bot:
+    extends:
+      file: docker-compose.yml
+      service: reddit-bot
+
 volumes:
   postgres_data:

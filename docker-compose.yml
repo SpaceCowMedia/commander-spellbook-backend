@@ -84,6 +84,24 @@ services:
       SPELLBOOK_API_URL: http://web:8000
     restart: always
 
+  reddit-bot:
+    build:
+      context: .
+      dockerfile: bot/reddit/Dockerfile
+    image: spellbook-reddit-bot
+    depends_on:
+      web:
+        condition: service_healthy
+    links:
+      - web
+    env_file:
+      - bot/reddit/.env
+      - path: bot/reddit/secrets.env
+        required: false
+    environment:
+      SPELLBOOK_API_URL: http://web:8000
+    restart: always
+
 
 volumes:
   static_volume:

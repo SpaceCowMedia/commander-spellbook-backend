@@ -1,4 +1,6 @@
 import os
+import re
+import random
 import asyncpraw
 import asyncpraw.models.reddit.redditor
 import asyncprawcore
@@ -33,8 +35,21 @@ SUBREDDITS = [
 ]
 
 
-async def process_input(input: str) -> str | None:
-    return input
+GOOD_BOT_RESPONSES = [
+    'Thank you! I try my best to help.',
+    'I appreciate the kind words!',
+    'I am here to help!',
+    'I am glad you think so!',
+    'Thank you for the compliment!',
+    '👍',
+    '😊',
+]
+
+
+async def process_input(text: str, ) -> str | None:
+    if 'hello bot' in text:
+        return 'Hello World!'
+    return None
 
 
 async def process_submissions(reddit: asyncpraw.Reddit):
@@ -60,8 +75,16 @@ async def process_comments(reddit: asyncpraw.Reddit):
         author: asyncpraw.models.reddit.redditor.Redditor = comment.author
         if author.name == REDDIT_USERNAME:
             continue
-        formatted_input = f'{comment.body}'
-        answer = await process_input(formatted_input)
+        formatted_input = f'{comment.body.strip()}'
+        parent = await comment.parent()
+        await parent.load()
+        if parent.author.name == REDDIT_USERNAME and re.match(r'^(?:(?:good|amazing|great) (?:bot|job)|thanks?|thank you|gj)', formatted_input, re.IGNORECASE):
+            if getattr(parent, 'body', None) in GOOD_BOT_RESPONSES:
+                answer = '👍'
+            else:
+                answer = random.choice(GOOD_BOT_RESPONSES)
+        else:
+            answer = await process_input(formatted_input)
         if answer:
             try:
                 await comment.reply(answer)

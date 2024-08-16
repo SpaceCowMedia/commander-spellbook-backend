@@ -14,12 +14,12 @@ from spellbook_client.models.deck_request import DeckRequest
 from discord_utils import discord_chunk, chunk_diff_async
 
 
-intents = discord.Intents(messages=True)
+intents = discord.Intents(messages=True, guilds=True)
 intents.message_content = True
 bot = commands.Bot(
     command_prefix='?',
     intents=intents,
-    description='Powered by [Commander Spellbook](https://commanderspellbook.com/)',
+    description='Powered by Commander Spellbook (https://commanderspellbook.com/)',
     activity=discord.Game(
         name='a combo on turn 3',
         platform='https://commanderspellbook.com/',
@@ -43,7 +43,7 @@ WEBSITE_URL = os.getenv('SPELLBOOK_WEBSITE_URL', '')
 MAX_SEARCH_RESULTS = 8
 
 
-@bot.command()
+@bot.command(hidden=True)
 async def sync(ctx: commands.Context):
     if ctx.guild is not None and ctx.guild.id in administration_guilds or ctx.author.id in administration_users:
         await ctx.message.add_reaction('👍')
@@ -199,7 +199,7 @@ async def on_message(message: discord.Message):
     await message.remove_reaction('🔍', bot.user)
 
 
-DECKLIST_LINE_REGEX = re.compile(r'^(?:\d+x?\s+)?(.*?)(?:(?:\s+<\w+>)?\s+\[\w+\](?:\s+\(\w+\))?)?$')
+DECKLIST_LINE_REGEX = re.compile(r'^(?:\d+x?\s+)?(.*?)(?:(?:\s+<\w+>)?\s+(?:\[\w+\](?:\s+\(\w+\))?|\(\w+\)(?:\s\d+)?))?$')
 
 
 def process_decklist(decklist: str) -> list[str]:
@@ -275,7 +275,7 @@ class FindMyCombosModal(ui.Modal, title='Find My Combos'):
             else:
                 await chunk_diff_async(
                     new_chunks=discord_chunk(reply),
-                    add=lambda i, c: interaction.response.send_message(content=c, suppress_embeds=True) if i == 0 else interaction.user.send(content=c, suppress_embeds=True),
+                    add=lambda i, c: interaction.response.send_message(content=c, suppress_embeds=True) if i == 0 else interaction.followup.send(content=c, suppress_embeds=True),
                 )
             if interaction.message:
                 await interaction.message.remove_reaction('🔍', bot.user)

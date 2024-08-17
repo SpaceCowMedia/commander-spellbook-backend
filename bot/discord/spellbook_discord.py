@@ -2,17 +2,14 @@ import os
 import re
 import discord
 import logging
-from itertools import chain
-from urllib.parse import quote_plus as encode_query
 from discord.ext import commands
 from discord import ui, utils
-from anonymous_spellbook_client import AnonymousSpellbookClient
 from kiota_abstractions.api_error import APIError
 from spellbook_client import RequestConfiguration
 from spellbook_client.models.variant import Variant
 from spellbook_client.models.deck_request import DeckRequest
 from discord_utils import discord_chunk, chunk_diff_async
-from bot_utils import parse_queries, patch_query
+from bot_utils import parse_queries, SpellbookQuery, url_from_variant, compute_variant_name, compute_variant_results, API, compute_variant_recipe
 
 
 intents = discord.Intents(messages=True, guilds=True)
@@ -39,8 +36,7 @@ permissions = discord.Permissions(
 )
 administration_guilds = [int(guild) for guild in (os.getenv(f'ADMIN_GUILD__{i}') for i in range(10)) if guild is not None]
 administration_users = [int(user) for user in (os.getenv(f'ADMIN_USER__{i}') for i in range(10)) if user is not None]
-API = AnonymousSpellbookClient(base_url=os.getenv('SPELLBOOK_API_URL', ''))
-WEBSITE_URL = os.getenv('SPELLBOOK_WEBSITE_URL', '')
+
 MAX_SEARCH_RESULTS = 8
 
 
@@ -49,13 +45,13 @@ async def sync(ctx: commands.Context):
     if ctx.guild is not None and ctx.guild.id in administration_guilds or ctx.author.id in administration_users:
         await ctx.message.add_reaction('👍')
         await bot.tree.sync(guild=ctx.guild)
-        await ctx.message.remove_reaction('👍', bot.user)
+        await ctx.message.remove_reaction('👍', bot.user)  # type: ignore
         await ctx.message.add_reaction('✅')
 
 
 @bot.tree.command()
 async def invite(interaction: discord.Interaction):
-    invite_link = utils.oauth_url(bot.user.id, permissions=permissions)
+    invite_link = utils.oauth_url(bot.user.id, permissions=permissions)  # type: ignore
     button = ui.Button(label='Invite', url=invite_link, style=discord.ButtonStyle.link)
     view = ui.View()
     view.add_item(button)
@@ -66,20 +62,6 @@ async def invite(interaction: discord.Interaction):
 async def on_guild_join(guild: discord.Guild):
     logging.info(f'Joined guild: {guild.name}')
     await bot.tree.sync(guild=guild)
-
-
-def compute_variant_name(variant: Variant):
-    return ' + '.join(chain(
-        ((f'{card.quantity}x ' if card.quantity > 1 else '') + card.card.name for card in variant.uses),
-        ((f'{template.quantity}x ' if template.quantity > 1 else '') + template.template.name for template in variant.requires),
-    ))
-
-
-def compute_variant_results(variant: Variant):
-    return '\n'.join(
-        (f'{result.quantity}x ' if result.quantity > 1 else '') + result.feature.name
-        for result in variant.produces
-    )
 
 
 def convert_mana_identity_to_emoji(identity: str):
@@ -95,10 +77,9 @@ def convert_mana_identity_to_emoji(identity: str):
 def compute_variants_results(variants: list[Variant]):
     result = ''
     for variant in variants:
-        variant_url = f'{WEBSITE_URL}/combo/{variant.id}'
-        variant_name = compute_variant_name(variant)
-        variant_results = ', '.join(result.feature.name for result in variant.produces[:4]) + ('...' if len(variant.produces) > 4 else '')
-        result += f'* {convert_mana_identity_to_emoji(variant.identity)} [{variant_name} ➜ {variant_results}]({variant_url}) (in {variant.popularity} decks)\n'
+        variant_url = url_from_variant(variant)
+        variant_recipe = compute_variant_recipe(variant)
+        result += f'* {convert_mana_identity_to_emoji(variant.identity)} [{variant_recipe}]({variant_url}) (in {variant.popularity} decks)\n'
     return result
 
 
@@ -115,14 +96,12 @@ async def on_message(message: discord.Message):
     reply = ''
     messages: list[discord.Message] = []
     for query in queries:
-        patched_query = patch_query(query)
-        query_url = f'{WEBSITE_URL}/search/?q={encode_query(query)}'
-        query_summary = f'["`{query}`"]({query_url})'
+        query_info = SpellbookQuery(query)
         try:
             result = await API.variants.get(
                 request_configuration=RequestConfiguration[API.variants.VariantsRequestBuilderGetQueryParameters](
                     query_parameters=API.variants.VariantsRequestBuilderGetQueryParameters(
-                        q=patched_query,
+                        q=query_info.patched_query,
                         limit=MAX_SEARCH_RESULTS,
                         ordering='-popularity',
                     ),
@@ -130,7 +109,7 @@ async def on_message(message: discord.Message):
             )
             if len(queries) == 1 and len(result.results) == 1:
                 variant = result.results[0]
-                variant_url = f'{WEBSITE_URL}/combo/{variant.id}'
+                variant_url = url_from_variant(variant)
                 match variant.identity[:1]:
                     case 'C':
                         variant_color = discord.Colour.light_grey()
@@ -152,43 +131,43 @@ async def on_message(message: discord.Message):
                     url=variant_url,
                     description=f'### Identity: {convert_mana_identity_to_emoji(variant.identity)}\n\n### Results\n{compute_variant_results(variant)}',
                 )
-                reply += f'\n\n### Showing 1 result for {query_summary}\n\n'
+                reply += f'\n\n### Showing 1 result for {query_info.summary}\n\n'
             elif len(result.results) > 0:
                 if len(queries) == 1:
                     embed = discord.Embed(
                         colour=discord.Colour.from_str('#d68fc5'),
                         title=f'View all results for "`{query}`" on Commander Spellbook',
-                        url=query_url,
+                        url=query_info.url,
                     )
                 limit_results = min(MAX_SEARCH_RESULTS, len(result.results))
-                reply += f'\n\n### Showing {limit_results} of {result.count} results for {query_summary}\n\n'
+                reply += f'\n\n### Showing {limit_results} of {result.count} results for {query_info.summary}\n\n'
                 reply += compute_variants_results(result.results[:limit_results])
             else:
-                reply += f'\n\nNo results found for {query_summary}'
+                reply += f'\n\nNo results found for {query_info.summary}'
             chunks = discord_chunk(reply)
             messages = await chunk_diff_async(
                 new_chunks=chunks,
-                add=lambda i, c: message.reply(content=c, suppress_embeds=embed is None or i != len(chunks) - 1, embed=embed if i == len(chunks) - 1 else None),
+                add=lambda i, c: message.reply(content=c, suppress_embeds=embed is None or i != len(chunks) - 1, embed=embed if i == len(chunks) - 1 else None),  # type: ignore
                 update=lambda i, m, c: m.edit(content=c, suppress=embed is None or i != len(chunks) - 1, embed=embed if i == len(chunks) - 1 else None),
                 remove=lambda _, m: m.delete(),
                 old_chunks_wrappers=messages,
                 unwrap=lambda m: m.content,
             )
         except APIError:
-            await message.remove_reaction('🔍', bot.user)
+            await message.remove_reaction('🔍', bot.user)  # type: ignore
             await message.add_reaction('❌')
-            reply += f'\n\nFailed to fetch results for `{query}`'
+            reply += f'\n\nFailed to fetch results for {query_info.summary}'
             chunks = discord_chunk(reply)
             messages = await chunk_diff_async(
                 new_chunks=chunks,
-                add=lambda i, c: message.reply(content=c, suppress_embeds=embed is None or i != len(chunks) - 1, embed=embed if i == len(chunks) - 1 else None),
+                add=lambda i, c: message.reply(content=c, suppress_embeds=embed is None or i != len(chunks) - 1, embed=embed if i == len(chunks) - 1 else None),  # type: ignore
                 update=lambda i, m, c: m.edit(content=c, suppress=embed is None or i != len(chunks) - 1, embed=embed if i == len(chunks) - 1 else None),
                 remove=lambda _, m: m.delete(),
                 old_chunks_wrappers=messages,
                 unwrap=lambda m: m.content,
             )
             break
-    await message.remove_reaction('🔍', bot.user)
+    await message.remove_reaction('🔍', bot.user)  # type: ignore
 
 
 DECKLIST_LINE_REGEX = re.compile(r'^(?:\d+x?\s+)?(.*?)(?:(?:\s+<\w+>)?\s+(?:\[\w+\](?:\s+\(\w+\))?|\(\w+\)(?:\s\d+)?))?$')
@@ -270,11 +249,11 @@ class FindMyCombosModal(ui.Modal, title='Find My Combos'):
                     add=lambda i, c: interaction.response.send_message(content=c, suppress_embeds=True) if i == 0 else interaction.followup.send(content=c, suppress_embeds=True),
                 )
             if interaction.message:
-                await interaction.message.remove_reaction('🔍', bot.user)
+                await interaction.message.remove_reaction('🔍', bot.user)  # type: ignore
                 await interaction.message.add_reaction('✅')
         except APIError:
             if interaction.message is not None:
-                await interaction.message.remove_reaction('🔍', bot.user)
+                await interaction.message.remove_reaction('🔍', bot.user)  # type: ignore
                 await interaction.message.add_reaction('❌')
             else:
                 await interaction.response.send_message('Failed to fetch results.', ephemeral=True)

@@ -329,6 +329,8 @@ async def find_my_combos(interaction: discord.Interaction, decklist: str | None 
                 if interaction.message:
                     await interaction.message.add_reaction('❌')
                 await interaction.response.send_message('Failed to fetch decklist.', ephemeral=True)
+        else:
+            await interaction.response.send_message('Invalid url provided.', ephemeral=True)
     else:    
         await interaction.response.send_modal(FindMyCombosModal())
 

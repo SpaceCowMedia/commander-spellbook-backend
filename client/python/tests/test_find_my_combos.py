@@ -1,5 +1,6 @@
 from .testing import SpellbookClientTest
 from ..spellbook_client.models.deck_request import DeckRequest
+from spellbook.models.utils import id_from_cards_and_templates_ids
 
 
 class TestFindMyCombos(SpellbookClientTest):
@@ -17,9 +18,9 @@ class TestFindMyCombos(SpellbookClientTest):
             )
         )
         self.assertEqual(result.results.identity, 'GWUB')
-        self.assertSetEqual({'2-3-5-6', '2-3-5-6--1'}, {v.id for v in result.results.included})
+        self.assertSetEqual({id_from_cards_and_templates_ids([self.c2_id, self.c3_id, self.c5_id, self.c6_id], []), id_from_cards_and_templates_ids([self.c2_id, self.c3_id, self.c5_id, self.c6_id], [self.t1_id])}, {v.id for v in result.results.included})
         self.assertSetEqual(set(), {v.id for v in result.results.included_by_changing_commanders})
-        self.assertSetEqual({'1-2-3', '1-2-3--1'}, {v.id for v in result.results.almost_included})
+        self.assertSetEqual({id_from_cards_and_templates_ids([self.c1_id, self.c2_id, self.c3_id], []), id_from_cards_and_templates_ids([self.c1_id, self.c2_id, self.c3_id], [self.t1_id])}, {v.id for v in result.results.almost_included})
         self.assertSetEqual(set(), {v.id for v in result.results.almost_included_by_adding_colors})
         self.assertSetEqual(set(), {v.id for v in result.results.almost_included_by_changing_commanders})
         self.assertSetEqual(set(), {v.id for v in result.results.almost_included_by_adding_colors_and_changing_commanders})

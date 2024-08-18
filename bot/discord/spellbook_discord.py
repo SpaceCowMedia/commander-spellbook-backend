@@ -18,7 +18,7 @@ intents.message_content = True
 bot = commands.Bot(
     command_prefix='?',
     intents=intents,
-    description='Powered by Commander Spellbook (https://commanderspellbook.com/)',
+    description='Powered by Commander Spellbook (https://commanderspellbook.com/),\nUse the `{{query}}` syntax to search for combos, or launch one of the slash (/) commands.',
     activity=discord.Game(
         name='a combo on turn 3',
         platform='https://commanderspellbook.com/',
@@ -89,17 +89,18 @@ async def handle_queries(
     add: Callable[[int, dict], Awaitable[None]] | None = None,
     message: discord.Message | None = None,
 ):
+    if message:
+        await message.add_reaction('🔍')
+    if add is None and message is None:
+        raise ValueError('Both message and add are none')
+    reply = ''
+    embed: discord.Embed | None = None
+    chunks: list[str]
     add_kwargs = lambda i, c: {
         'content': c,
         'suppress_embeds': embed is None or i != len(chunks) - 1,
         'embed': embed if i == len(chunks) - 1 else None,
     }
-    if message:
-        await message.add_reaction('🔍')
-    if add is None and message is None:
-        raise ValueError('Both message and add are none')
-    embed: discord.Embed | None = None
-    reply = ''
     messages: list[discord.Message] = []
     for query in queries:
         query_info = SpellbookQuery(query)
@@ -189,6 +190,7 @@ async def handle_queries(
 @bot.tree.command()
 async def search(interaction: discord.Interaction, query: str):
     '''This command returns some results for a Commander Spellbook query.
+    Same as {{query}}.
 
     Parameters
     -----------
@@ -249,8 +251,8 @@ async def handle_find_my_combos(interaction: discord.Interaction, commanders: li
                 and len(result.results.almost_included_by_adding_colors) == 0 \
                 and len(result.results.almost_included_by_adding_colors_and_changing_commanders) == 0:
             reply += 'No combos found.'
-        if interaction.guild is not None:
-            await interaction.response.send_message('I\'ve sent your results in a DM!', ephemeral=True)
+        if interaction.guild:
+            await interaction.followup.send(content='I\'ve sent your results in a DM!')
             chunks = discord_chunk(reply)
             await chunk_diff_async(
                 new_chunks=chunks,
@@ -259,16 +261,16 @@ async def handle_find_my_combos(interaction: discord.Interaction, commanders: li
         else:
             await chunk_diff_async(
                 new_chunks=discord_chunk(reply),
-                add=lambda i, c: interaction.response.send_message(content=c, suppress_embeds=True) if i == 0 else interaction.followup.send(content=c, suppress_embeds=True),
+                add=lambda i, c: interaction.followup.send(content=c, suppress_embeds=True),
             )
         if interaction.message:
             await interaction.message.remove_reaction('🔍', bot.user)  # type: ignore
             await interaction.message.add_reaction('✅')
     except APIError:
-        if interaction.message is not None:
+        if interaction.message:
             await interaction.message.remove_reaction('🔍', bot.user)  # type: ignore
             await interaction.message.add_reaction('❌')
-        await interaction.response.send_message('Failed to fetch results.', ephemeral=True)
+        await interaction.followup.send(content='Failed to fetch results.')
 
 
 def process_decklist(decklist: str) -> list[str]:
@@ -297,6 +299,7 @@ class FindMyCombosModal(ui.Modal, title='Find My Combos'):
     )
 
     async def on_submit(self, interaction: discord.Interaction[commands.Bot]) -> None:
+        await interaction.response.defer(ephemeral=interaction.guild is not None)
         if interaction.message is not None:
             await interaction.message.add_reaction('🔍')
         commanders = process_decklist(self.commanders.value)
@@ -316,6 +319,7 @@ async def find_my_combos(interaction: discord.Interaction, decklist: str | None 
     '''
     if decklist:
         if uri_validator(decklist):
+            await interaction.response.defer(ephemeral=interaction.guild is not None)
             try:
                 result = await API.card_list_from_url.get(
                     request_configuration=RequestConfiguration[API.card_list_from_url.CardListFromUrlRequestBuilderGetQueryParameters](
@@ -325,10 +329,10 @@ async def find_my_combos(interaction: discord.Interaction, decklist: str | None 
                     )
                 )
                 await handle_find_my_combos(interaction=interaction, commanders=result.commanders, main=result.main)
-            except APIError:
+            except APIError as e:
                 if interaction.message:
                     await interaction.message.add_reaction('❌')
-                await interaction.response.send_message('Failed to fetch decklist.', ephemeral=True)
+                await interaction.followup.send(f'Failed to fetch decklist.', ephemeral=True)
         else:
             await interaction.response.send_message('Invalid url provided.', ephemeral=True)
     else:    

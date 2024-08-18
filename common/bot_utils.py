@@ -1,7 +1,7 @@
 import re
 import os
 from itertools import chain
-from urllib.parse import quote_plus as encode_query
+from urllib.parse import quote_plus as encode_query, urlparse
 from functools import cached_property
 from anonymous_spellbook_client import AnonymousSpellbookClient
 from spellbook_client.models.variant import Variant
@@ -59,6 +59,14 @@ def compute_variant_results(variant: Variant):
         (f'{result.quantity}x ' if result.quantity > 1 else '') + result.feature.name
         for result in variant.produces
     )
+
+
+def uri_validator(x: str):
+    try:
+        result = urlparse(x)
+        return all([result.scheme, result.netloc])
+    except AttributeError:
+        return False
 
 
 

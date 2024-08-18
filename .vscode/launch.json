@@ -357,6 +357,30 @@
                 "group": "Spellbook",
                 "order": 16
             }
+        },
+        {
+            "name": "Launch Telegram Bot",
+            "type": "debugpy",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/bot/telegram",
+            "envFile": "${workspaceFolder}/bot/telegram/secrets.env",
+            "windows": {
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}${/}common;${workspaceFolder}${/}client${/}python",
+                },
+            },
+            "linux": {
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}${/}common:${workspaceFolder}${/}client${/}python",
+                },
+            },
+            "program": "spellbook_telegram.py",
+            "justMyCode": false,
+            "presentation": {
+                "hidden": false,
+                "group": "Spellbook",
+                "order": 17
+            }
         }
     ]
 }

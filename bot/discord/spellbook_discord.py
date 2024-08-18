@@ -2,14 +2,15 @@ import os
 import re
 import discord
 import logging
+from typing import Awaitable, Callable
 from discord.ext import commands
-from discord import ui, utils
+from discord import ui, utils, app_commands
 from kiota_abstractions.api_error import APIError
 from spellbook_client import RequestConfiguration
 from spellbook_client.models.variant import Variant
 from spellbook_client.models.deck_request import DeckRequest
 from discord_utils import discord_chunk, chunk_diff_async
-from bot_utils import parse_queries, SpellbookQuery, url_from_variant, compute_variant_name, compute_variant_results, API, compute_variant_recipe
+from bot_utils import parse_queries, SpellbookQuery, url_from_variant, compute_variant_name, compute_variant_results, API, compute_variant_recipe, uri_validator
 
 
 intents = discord.Intents(messages=True, guilds=True)
@@ -37,7 +38,7 @@ permissions = discord.Permissions(
 administration_guilds = [int(guild) for guild in (os.getenv(f'ADMIN_GUILD__{i}') for i in range(10)) if guild is not None]
 administration_users = [int(user) for user in (os.getenv(f'ADMIN_USER__{i}') for i in range(10)) if user is not None]
 
-MAX_SEARCH_RESULTS = 8
+MAX_SEARCH_RESULTS = 7
 
 
 @bot.command(hidden=True)
@@ -83,15 +84,20 @@ def compute_variants_results(variants: list[Variant]):
     return result
 
 
-@bot.event
-async def on_message(message: discord.Message):
-    await bot.process_commands(message)
-    if message.author.bot:
-        return
-    queries = parse_queries(message.content)
-    if not queries:
-        return
-    await message.add_reaction('🔍')
+async def handle_queries(
+    queries: list[str],
+    add: Callable[[int, dict], Awaitable[None]] | None = None,
+    message: discord.Message | None = None,
+):
+    add_kwargs = lambda i, c: {
+        'content': c,
+        'suppress_embeds': embed is None or i != len(chunks) - 1,
+        'embed': embed if i == len(chunks) - 1 else None,
+    }
+    if message:
+        await message.add_reaction('🔍')
+    if add is None and message is None:
+        raise ValueError('Both message and add are none')
     embed: discord.Embed | None = None
     reply = ''
     messages: list[discord.Message] = []
@@ -144,33 +150,125 @@ async def on_message(message: discord.Message):
                 reply += compute_variants_results(result.results[:limit_results])
             else:
                 reply += f'\n\nNo results found for {query_info.summary}'
-            chunks = discord_chunk(reply)
-            messages = await chunk_diff_async(
-                new_chunks=chunks,
-                add=lambda i, c: message.reply(content=c, suppress_embeds=embed is None or i != len(chunks) - 1, embed=embed if i == len(chunks) - 1 else None),  # type: ignore
-                update=lambda i, m, c: m.edit(content=c, suppress=embed is None or i != len(chunks) - 1, embed=embed if i == len(chunks) - 1 else None),
-                remove=lambda _, m: m.delete(),
-                old_chunks_wrappers=messages,
-                unwrap=lambda m: m.content,
-            )
+            if message:
+                chunks = discord_chunk(reply)
+                messages = await chunk_diff_async(
+                    new_chunks=chunks,
+                    add=lambda i, c: message.reply(**add_kwargs(i, c)),
+                    update=lambda i, m, c: m.edit(content=c, suppress=embed is None or i != len(chunks) - 1, embed=embed if i == len(chunks) - 1 else None),
+                    remove=lambda _, m: m.delete(),
+                    old_chunks_wrappers=messages,
+                    unwrap=lambda m: m.content,
+                )
         except APIError:
-            await message.remove_reaction('🔍', bot.user)  # type: ignore
-            await message.add_reaction('❌')
+            if message:
+                await message.remove_reaction('🔍', bot.user)  # type: ignore
+                await message.add_reaction('❌')
             reply += f'\n\nFailed to fetch results for {query_info.summary}'
-            chunks = discord_chunk(reply)
-            messages = await chunk_diff_async(
-                new_chunks=chunks,
-                add=lambda i, c: message.reply(content=c, suppress_embeds=embed is None or i != len(chunks) - 1, embed=embed if i == len(chunks) - 1 else None),  # type: ignore
-                update=lambda i, m, c: m.edit(content=c, suppress=embed is None or i != len(chunks) - 1, embed=embed if i == len(chunks) - 1 else None),
-                remove=lambda _, m: m.delete(),
-                old_chunks_wrappers=messages,
-                unwrap=lambda m: m.content,
-            )
+            if message:
+                chunks = discord_chunk(reply)
+                messages = await chunk_diff_async(
+                    new_chunks=chunks,
+                    add=lambda i, c: message.reply(**add_kwargs(i, c)),
+                    update=lambda i, m, c: m.edit(content=c, suppress=embed is None or i != len(chunks) - 1, embed=embed if i == len(chunks) - 1 else None),
+                    remove=lambda _, m: m.delete(),
+                    old_chunks_wrappers=messages,
+                    unwrap=lambda m: m.content,
+                )
             break
-    await message.remove_reaction('🔍', bot.user)  # type: ignore
+    if message:
+        await message.remove_reaction('🔍', bot.user)  # type: ignore
+    elif add:
+        chunks = discord_chunk(reply)
+        await chunk_diff_async(
+            new_chunks=chunks,
+            add=lambda i, c: add(i, add_kwargs(i, c)),
+        )
+
+
+@bot.tree.command()
+async def search(interaction: discord.Interaction, query: str):
+    '''This command returns some results for a Commander Spellbook query.
+
+    Parameters
+    -----------
+    query: str
+        The Commander Spellbook query, such as "id=WUB cards=2"
+    '''
+    if query:
+        await handle_queries([query], add=lambda i, kw: interaction.response.send_message(**kw) if i == 0 else interaction.followup.send(**kw))
+    else:
+        await interaction.response.send_message(content='Missing query after command')
+
+
+@bot.event
+async def on_message(message: discord.Message):
+    await bot.process_commands(message)
+    if message.author.bot:
+        return
+    queries = parse_queries(message.content)
+    if not queries:
+        return
+    await handle_queries(queries, message=message)
 
 
 DECKLIST_LINE_REGEX = re.compile(r'^(?:\d+x?\s+)?(.*?)(?:(?:\s+<\w+>)?\s+(?:\[\w+\](?:\s+\(\w+\))?|\(\w+\)(?:\s\d+)?))?$')
+
+
+async def handle_find_my_combos(interaction: discord.Interaction, commanders: list[str], main: list[str]):
+    try:
+        result = await API.find_my_combos.post(
+            body=DeckRequest(
+                commanders=commanders,
+                main=main,
+            )
+        )
+        reply = f'## Find My Combos results for your deck\n### Deck identity: {convert_mana_identity_to_emoji(result.results.identity)}\n'
+        if len(result.results.included) > 0:
+            reply += f'### {len(result.results.included)} combos found\n'
+            reply += compute_variants_results(result.results.included)
+        if len(result.results.included_by_changing_commanders) > 0:
+            reply += f'### {len(result.results.included_by_changing_commanders)} combos found by changing commanders\n'
+            reply += compute_variants_results(result.results.included_by_changing_commanders)
+        if len(result.results.almost_included) > 0:
+            reply += f'### {len(result.results.almost_included)} potential combos found\n'
+            reply += compute_variants_results(result.results.almost_included)
+        if len(result.results.almost_included_by_changing_commanders) > 0:
+            reply += f'### {len(result.results.almost_included_by_changing_commanders)} potential combos found by changing commanders with the same color identity\n'
+            reply += compute_variants_results(result.results.almost_included_by_changing_commanders)
+        if len(result.results.almost_included_by_adding_colors) > 0:
+            reply += f'### {len(result.results.almost_included_by_adding_colors)} potential combos found by adding colors to the identity\n'
+            reply += compute_variants_results(result.results.almost_included_by_adding_colors)
+        if len(result.results.almost_included_by_adding_colors_and_changing_commanders) > 0:
+            reply += f'### {len(result.results.almost_included_by_adding_colors_and_changing_commanders)} potential combos found by changing commanders and their color identities\n'
+            reply += compute_variants_results(result.results.almost_included_by_adding_colors_and_changing_commanders)
+        if len(result.results.included) == 0 \
+            and len(result.results.included_by_changing_commanders) == 0 \
+                and len(result.results.almost_included) == 0 \
+                and len(result.results.almost_included_by_changing_commanders) == 0 \
+                and len(result.results.almost_included_by_adding_colors) == 0 \
+                and len(result.results.almost_included_by_adding_colors_and_changing_commanders) == 0:
+            reply += 'No combos found.'
+        if interaction.guild is not None:
+            await interaction.response.send_message('I\'ve sent your results in a DM!', ephemeral=True)
+            chunks = discord_chunk(reply)
+            await chunk_diff_async(
+                new_chunks=chunks,
+                add=lambda _, c: interaction.user.send(content=c, suppress_embeds=True),
+            )
+        else:
+            await chunk_diff_async(
+                new_chunks=discord_chunk(reply),
+                add=lambda i, c: interaction.response.send_message(content=c, suppress_embeds=True) if i == 0 else interaction.followup.send(content=c, suppress_embeds=True),
+            )
+        if interaction.message:
+            await interaction.message.remove_reaction('🔍', bot.user)  # type: ignore
+            await interaction.message.add_reaction('✅')
+    except APIError:
+        if interaction.message is not None:
+            await interaction.message.remove_reaction('🔍', bot.user)  # type: ignore
+            await interaction.message.add_reaction('❌')
+        await interaction.response.send_message('Failed to fetch results.', ephemeral=True)
 
 
 def process_decklist(decklist: str) -> list[str]:
@@ -203,65 +301,36 @@ class FindMyCombosModal(ui.Modal, title='Find My Combos'):
             await interaction.message.add_reaction('🔍')
         commanders = process_decklist(self.commanders.value)
         main = process_decklist(self.main.value)
-        try:
-            result = await API.find_my_combos.post(
-                body=DeckRequest(
-                    commanders=commanders,
-                    main=main,
-                )
-            )
-            reply = f'## Find My Combos results for your deck\n### Deck identity: {convert_mana_identity_to_emoji(result.results.identity)}\n'
-            if len(result.results.included) > 0:
-                reply += f'### {len(result.results.included)} combos found\n'
-                reply += compute_variants_results(result.results.included)
-            if len(result.results.included_by_changing_commanders) > 0:
-                reply += f'### {len(result.results.included_by_changing_commanders)} combos found by changing commanders\n'
-                reply += compute_variants_results(result.results.included_by_changing_commanders)
-            if len(result.results.almost_included) > 0:
-                reply += f'### {len(result.results.almost_included)} potential combos found\n'
-                reply += compute_variants_results(result.results.almost_included)
-            if len(result.results.almost_included_by_changing_commanders) > 0:
-                reply += f'### {len(result.results.almost_included_by_changing_commanders)} potential combos found by changing commanders with the same color identity\n'
-                reply += compute_variants_results(result.results.almost_included_by_changing_commanders)
-            if len(result.results.almost_included_by_adding_colors) > 0:
-                reply += f'### {len(result.results.almost_included_by_adding_colors)} potential combos found by adding colors to the identity\n'
-                reply += compute_variants_results(result.results.almost_included_by_adding_colors)
-            if len(result.results.almost_included_by_adding_colors_and_changing_commanders) > 0:
-                reply += f'### {len(result.results.almost_included_by_adding_colors_and_changing_commanders)} potential combos found by changing commanders and their color identities\n'
-                reply += compute_variants_results(result.results.almost_included_by_adding_colors_and_changing_commanders)
-            if len(result.results.included) == 0 \
-                and len(result.results.included_by_changing_commanders) == 0 \
-                    and len(result.results.almost_included) == 0 \
-                    and len(result.results.almost_included_by_changing_commanders) == 0 \
-                    and len(result.results.almost_included_by_adding_colors) == 0 \
-                    and len(result.results.almost_included_by_adding_colors_and_changing_commanders) == 0:
-                reply += 'No combos found.'
-            if interaction.guild is not None:
-                await interaction.response.send_message('I\'ve sent your results in a DM!', ephemeral=True)
-                chunks = discord_chunk(reply)
-                await chunk_diff_async(
-                    new_chunks=chunks,
-                    add=lambda _, c: interaction.user.send(content=c, suppress_embeds=True),
-                )
-            else:
-                await chunk_diff_async(
-                    new_chunks=discord_chunk(reply),
-                    add=lambda i, c: interaction.response.send_message(content=c, suppress_embeds=True) if i == 0 else interaction.followup.send(content=c, suppress_embeds=True),
-                )
-            if interaction.message:
-                await interaction.message.remove_reaction('🔍', bot.user)  # type: ignore
-                await interaction.message.add_reaction('✅')
-        except APIError:
-            if interaction.message is not None:
-                await interaction.message.remove_reaction('🔍', bot.user)  # type: ignore
-                await interaction.message.add_reaction('❌')
-            else:
-                await interaction.response.send_message('Failed to fetch results.', ephemeral=True)
+        await handle_find_my_combos(interaction=interaction, commanders=commanders, main=main)
 
 
 @bot.tree.command(name='find-my-combos')
-async def find_my_combos(interaction: discord.Interaction):
-    await interaction.response.send_modal(FindMyCombosModal())
+async def find_my_combos(interaction: discord.Interaction, decklist: str | None = None):
+    '''This command searches and suggests combos for your deck. You can either provide
+    a decklist url or submit your deck with the modal form.
+
+    Parameters
+    -----------
+    decklist: str
+        The url of a decklist from one of our supported deckbuilding sites.
+    '''
+    if decklist:
+        if uri_validator(decklist):
+            try:
+                result = await API.card_list_from_url.get(
+                    request_configuration=RequestConfiguration[API.card_list_from_url.CardListFromUrlRequestBuilderGetQueryParameters](
+                        query_parameters=API.card_list_from_url.CardListFromUrlRequestBuilderGetQueryParameters(
+                            url=decklist,
+                        )
+                    )
+                )
+                await handle_find_my_combos(interaction=interaction, commanders=result.commanders, main=result.main)
+            except APIError:
+                if interaction.message:
+                    await interaction.message.add_reaction('❌')
+                await interaction.response.send_message('Failed to fetch decklist.', ephemeral=True)
+    else:    
+        await interaction.response.send_modal(FindMyCombosModal())
 
 
 bot.run(os.getenv('DISCORD_TOKEN', ''))

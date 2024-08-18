@@ -120,7 +120,7 @@ jobs:
 
   integration-test:
     runs-on: ubuntu-latest
-    needs: [build, bot-discord, bot-reddit]
+    needs: [build, bot-discord, bot-reddit, bot-telegram]
     steps:
       - name: Checkout 🛎️
         uses: actions/checkout@v4
@@ -141,11 +141,17 @@ jobs:
         with:
           name: spellbook-reddit-bot
           path: /tmp
+      - name: Download telegram bot image artifact ⬇
+        uses: actions/download-artifact@v4
+        with:
+          name: spellbook-telegram-bot
+          path: /tmp
       - name: Load docker image 🐳
         run: |
           docker load --input /tmp/spellbook-backend.tar
           docker load --input /tmp/spellbook-discord-bot.tar
           docker load --input /tmp/spellbook-reddit-bot.tar
+          docker load --input /tmp/spellbook-telegram-bot.tar
           docker image ls -a
       - name: Docker compose up 🧫
         run: docker compose -f docker-compose.yml up -d --no-build 
@@ -155,7 +161,7 @@ jobs:
 
   release:
     runs-on: ubuntu-latest
-    needs: [build, lint, test, integration-test, client-python, bot-discord, bot-reddit]
+    needs: [build, lint, test, integration-test, client-python, bot-discord, bot-reddit, bot-telegram]
     if: needs.build.outputs.should-release == 'true'
     concurrency: release
     permissions:
@@ -175,6 +181,11 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: spellbook-reddit-bot
+          path: release
+      - name: Download telegram bot image artifact ⬇
+        uses: actions/download-artifact@v4
+        with:
+          name: spellbook-telegram-bot
           path: release
       - name: Release 📧
         uses: EasyDesk/action-semver-release@v1
@@ -226,11 +237,17 @@ jobs:
         with:
           name: spellbook-reddit-bot
           path: /tmp
+      - name: Download telegram bot image artifact ⬇
+        uses: actions/download-artifact@v4
+        with:
+          name: spellbook-telegram-bot
+          path: /tmp
       - name: Load image from artifact 🐳
         run: |
           docker load --input /tmp/spellbook-backend.tar
           docker load --input /tmp/spellbook-discord-bot.tar
           docker load --input /tmp/spellbook-reddit-bot.tar
+          docker load --input /tmp/spellbook-telegram-bot.tar
           docker image ls -a
       - name: Push versioned image to Amazon ECR 📦
         env:
@@ -301,7 +318,6 @@ jobs:
 
   open-api:
     runs-on: ubuntu-latest
-    needs: test
     defaults:
       run:
         shell: bash
@@ -358,7 +374,7 @@ jobs:
 
   bot-discord:
     runs-on: ubuntu-latest
-    needs: [client-python]
+    needs: client-python
     defaults:
       run:
         shell: bash
@@ -384,7 +400,7 @@ jobs:
 
   bot-reddit:
     runs-on: ubuntu-latest
-    needs: [client-python]
+    needs: client-python
     defaults:
       run:
         shell: bash
@@ -407,3 +423,29 @@ jobs:
         with:
           name: spellbook-reddit-bot
           path: /tmp/spellbook-reddit-bot.tar
+
+  bot-telegram:
+    runs-on: ubuntu-latest
+    needs: client-python
+    defaults:
+      run:
+        shell: bash
+        working-directory: bot/telegram
+    steps:
+      - name: Setup Docker Buildx 🐳
+        uses: docker/setup-buildx-action@v3
+      - name: Checkout 🛎️
+        uses: actions/checkout@v4
+      - name: Build and export image 🏗️
+        uses: docker/build-push-action@v6
+        with:
+          push: false
+          load: true
+          file: bot/telegram/Dockerfile
+          tags: spellbook-telegram-bot:latest
+          outputs: type=docker,dest=/tmp/spellbook-telegram-bot.tar
+      - name: Upload image artifact 📦
+        uses: actions/upload-artifact@v4
+        with:
+          name: spellbook-telegram-bot
+          path: /tmp/spellbook-telegram-bot.tar

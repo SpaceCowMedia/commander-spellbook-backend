@@ -28,5 +28,10 @@ services:
       file: docker-compose.yml
       service: reddit-bot
 
+  telegram-bot:
+    extends:
+      file: docker-compose.yml
+      service: telegram-bot
+
 volumes:
   postgres_data:

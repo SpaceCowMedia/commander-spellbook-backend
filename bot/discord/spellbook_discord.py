@@ -4,12 +4,12 @@ import discord
 import logging
 from typing import Awaitable, Callable
 from discord.ext import commands
-from discord import ui, utils, app_commands
+from discord import ui, utils
 from kiota_abstractions.api_error import APIError
 from spellbook_client import RequestConfiguration
 from spellbook_client.models.variant import Variant
 from spellbook_client.models.deck_request import DeckRequest
-from discord_utils import discord_chunk, chunk_diff_async
+from text_utils import discord_chunk, chunk_diff_async
 from bot_utils import parse_queries, SpellbookQuery, url_from_variant, compute_variant_name, compute_variant_results, API, compute_variant_recipe, uri_validator
 
 
@@ -75,7 +75,7 @@ def convert_mana_identity_to_emoji(identity: str):
         .replace('G', '<:manag:673716795491876895>')
 
 
-def compute_variants_results(variants: list[Variant]):
+def compute_variants_results(variants: list[Variant]) -> str:
     result = ''
     for variant in variants:
         variant_url = url_from_variant(variant)
@@ -86,16 +86,18 @@ def compute_variants_results(variants: list[Variant]):
 
 async def handle_queries(
     queries: list[str],
-    add: Callable[[int, dict], Awaitable[None]] | None = None,
+    interaction: discord.Interaction | None = None,
     message: discord.Message | None = None,
 ):
+    if interaction is not None and message is not None:
+        raise ValueError('Either interaction or message must be provided')
+    if interaction is None and message is None:
+        raise ValueError('Either interaction or message must be provided, not both')
     if message:
         await message.add_reaction('🔍')
-    if add is None and message is None:
-        raise ValueError('Both message and add are none')
     reply = ''
     embed: discord.Embed | None = None
-    chunks: list[str]
+    chunks: list[str] = []
     add_kwargs = lambda i, c: {
         'content': c,
         'suppress_embeds': embed is None or i != len(chunks) - 1,
@@ -114,7 +116,7 @@ async def handle_queries(
                     ),
                 ),
             )
-            if len(queries) == 1 and len(result.results) == 1:
+            if len(queries) == 1 and result.count == 1:
                 variant = result.results[0]
                 variant_url = url_from_variant(variant)
                 match variant.identity[:1]:
@@ -139,16 +141,15 @@ async def handle_queries(
                     description=f'### Identity: {convert_mana_identity_to_emoji(variant.identity)}\n\n### Results\n{compute_variant_results(variant)}',
                 )
                 reply += f'\n\n### Showing 1 result for {query_info.summary}\n\n'
-            elif len(result.results) > 0:
+            elif result.count > 0:
                 if len(queries) == 1:
                     embed = discord.Embed(
                         colour=discord.Colour.from_str('#d68fc5'),
                         title=f'View all results for "`{query}`" on Commander Spellbook',
                         url=query_info.url,
                     )
-                limit_results = min(MAX_SEARCH_RESULTS, len(result.results))
-                reply += f'\n\n### Showing {limit_results} of {result.count} results for {query_info.summary}\n\n'
-                reply += compute_variants_results(result.results[:limit_results])
+                reply += f'\n\n### Showing {len(result.results)} of {result.count} results for {query_info.summary}\n\n'
+                reply += compute_variants_results(result.results)
             else:
                 reply += f'\n\nNo results found for {query_info.summary}'
             if message:
@@ -179,11 +180,11 @@ async def handle_queries(
             break
     if message:
         await message.remove_reaction('🔍', bot.user)  # type: ignore
-    elif add:
+    if interaction:
         chunks = discord_chunk(reply)
         await chunk_diff_async(
             new_chunks=chunks,
-            add=lambda i, c: add(i, add_kwargs(i, c)),
+            add=lambda i, c: interaction.response.send_message(**add_kwargs(i, c)) if i == 0 else interaction.followup.send(**add_kwargs(i, c)),
         )
 
 
@@ -198,7 +199,7 @@ async def search(interaction: discord.Interaction, query: str):
         The Commander Spellbook query, such as "id=WUB cards=2"
     '''
     if query:
-        await handle_queries([query], add=lambda i, kw: interaction.response.send_message(**kw) if i == 0 else interaction.followup.send(**kw))
+        await handle_queries([query], interaction=interaction)
     else:
         await interaction.response.send_message(content='Missing query after command')
 

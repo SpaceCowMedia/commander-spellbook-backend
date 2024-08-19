@@ -3,7 +3,7 @@ from django.conf import settings
 from discord_webhook import DiscordWebhook
 from spellbook.models import VariantSuggestion, Variant
 from social_django.models import UserSocialAuth
-from discord_utils import discord_chunk
+from text_utils import discord_chunk
 from common.markdown import escape_markdown
 
 

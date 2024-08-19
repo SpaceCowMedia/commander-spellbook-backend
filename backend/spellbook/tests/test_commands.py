@@ -88,5 +88,5 @@ class CleanJobsTest(TestCaseMixinWithSeeding, TestCase):
 
     def test_notify(self):
         # The only meaningful test is to check that discord utils are available
-        import discord_utils
-        discord_utils.discord_chunk('test')
+        import text_utils
+        text_utils.discord_chunk('test')

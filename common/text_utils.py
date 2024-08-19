@@ -2,9 +2,10 @@ from typing import Any, Callable, TypeVar, Awaitable
 
 
 DISCORD_MESSAGE_LIMIT = 2000
+TELEGRAM_MESSAGE_LIMIT = 4096
 
 
-def discord_chunk(message: str, size=DISCORD_MESSAGE_LIMIT) -> list[str]:
+def text_chunk(message: str, size: int) -> list[str]:
     messages = []
     content = message
     while content:
@@ -18,6 +19,14 @@ def discord_chunk(message: str, size=DISCORD_MESSAGE_LIMIT) -> list[str]:
         messages.append(content[:split])
         content = content[split + 1:]
     return messages
+
+
+def discord_chunk(message: str) -> list[str]:
+    return text_chunk(message, DISCORD_MESSAGE_LIMIT)
+
+
+def telegram_chunk(message: str) -> list[str]:
+    return text_chunk(message, TELEGRAM_MESSAGE_LIMIT)
 
 
 T = TypeVar('T')

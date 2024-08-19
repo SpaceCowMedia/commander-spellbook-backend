@@ -1,13 +1,13 @@
 from urllib.parse import urlparse
 from django.core.validators import URLValidator
 from django.core.exceptions import ValidationError
-from rest_framework import viewsets
+from rest_framework import viewsets, serializers
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.request import Request
 from rest_framework.exceptions import APIException
-from drf_spectacular.utils import extend_schema, OpenApiParameter
+from drf_spectacular.utils import extend_schema, OpenApiParameter, inline_serializer
 from common.serializers import DeckSerializer
 from .models import WebsiteProperty
 from .serializers import WebsitePropertySerializer
@@ -44,7 +44,15 @@ class UnsupportedWebsite(APIException):
 
 @extend_schema(
     parameters=[OpenApiParameter(name='url', type=str)],
-    responses=DeckSerializer,
+    responses={
+        200: DeckSerializer,
+        400: inline_serializer(
+            'InvalidUrlResponse',
+            fields={
+                'detail': serializers.CharField(),
+            },
+        )
+    },
 )
 @api_view(['GET'])
 @permission_classes([AllowAny])

@@ -9,6 +9,7 @@ from kiota_abstractions.api_error import APIError
 from spellbook_client import RequestConfiguration
 from spellbook_client.models.variant import Variant
 from spellbook_client.models.deck_request import DeckRequest
+from spellbook_client.models.invalid_url_response import InvalidUrlResponse
 from text_utils import discord_chunk, chunk_diff_async
 from bot_utils import parse_queries, SpellbookQuery, url_from_variant, compute_variant_name, compute_variant_results, API, compute_variant_recipe, uri_validator
 
@@ -247,10 +248,10 @@ async def handle_find_my_combos(interaction: discord.Interaction, commanders: li
             reply += compute_variants_results(result.results.almost_included_by_adding_colors_and_changing_commanders)
         if len(result.results.included) == 0 \
             and len(result.results.included_by_changing_commanders) == 0 \
-                and len(result.results.almost_included) == 0 \
-                and len(result.results.almost_included_by_changing_commanders) == 0 \
-                and len(result.results.almost_included_by_adding_colors) == 0 \
-                and len(result.results.almost_included_by_adding_colors_and_changing_commanders) == 0:
+            and len(result.results.almost_included) == 0 \
+            and len(result.results.almost_included_by_changing_commanders) == 0 \
+            and len(result.results.almost_included_by_adding_colors) == 0 \
+            and len(result.results.almost_included_by_adding_colors_and_changing_commanders) == 0:
             reply += 'No combos found.'
         if interaction.guild:
             await interaction.followup.send(content='I\'ve sent your results in a DM!')
@@ -262,7 +263,7 @@ async def handle_find_my_combos(interaction: discord.Interaction, commanders: li
         else:
             await chunk_diff_async(
                 new_chunks=discord_chunk(reply),
-                add=lambda i, c: interaction.followup.send(content=c, suppress_embeds=True),
+                add=lambda _, c: interaction.followup.send(content=c, suppress_embeds=True),
             )
         if interaction.message:
             await interaction.message.remove_reaction('🔍', bot.user)  # type: ignore
@@ -330,10 +331,14 @@ async def find_my_combos(interaction: discord.Interaction, decklist: str | None 
                     )
                 )
                 await handle_find_my_combos(interaction=interaction, commanders=result.commanders, main=result.main)
-            except APIError as e:
+            except InvalidUrlResponse as e:
                 if interaction.message:
                     await interaction.message.add_reaction('❌')
-                await interaction.followup.send(f'Failed to fetch decklist.', ephemeral=True)
+                await interaction.followup.send(content=f'{e.detail.removesuffix('.')}.', ephemeral=True)
+            except APIError:
+                if interaction.message:
+                    await interaction.message.add_reaction('❌')
+                await interaction.followup.send('Failed to fetch decklist.', ephemeral=True)
         else:
             await interaction.response.send_message('Invalid url provided.', ephemeral=True)
     else:    

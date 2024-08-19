@@ -213,10 +213,10 @@ async def handle_find_my_combos(message: telegram.Message, commanders: list[str]
             reply += compute_variants_results(result.results.almost_included_by_adding_colors_and_changing_commanders)
         if len(result.results.included) == 0 \
             and len(result.results.included_by_changing_commanders) == 0 \
-            and len(result.results.almost_included) == 0 \
-            and len(result.results.almost_included_by_changing_commanders) == 0 \
-            and len(result.results.almost_included_by_adding_colors) == 0 \
-            and len(result.results.almost_included_by_adding_colors_and_changing_commanders) == 0:
+                and len(result.results.almost_included) == 0 \
+                and len(result.results.almost_included_by_changing_commanders) == 0 \
+                and len(result.results.almost_included_by_adding_colors) == 0 \
+                and len(result.results.almost_included_by_adding_colors_and_changing_commanders) == 0:
             reply += 'No combos found.'
         if message.chat.type == telegram.Chat.PRIVATE:
             await message.set_reaction('👍')

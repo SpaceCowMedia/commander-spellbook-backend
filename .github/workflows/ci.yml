@@ -77,8 +77,12 @@ jobs:
           cache: pip
       - name: Install Linter 🧴
         run: pip install flake8
-      - name: Lint 🧹
+      - name: Lint backend 🧹
         working-directory: backend
+        run: flake8 .
+      - name: Lint bots 🧹
+        if: ${{ matrix.python-version == '3.12' }}
+        working-directory: bot
         run: flake8 .
 
 

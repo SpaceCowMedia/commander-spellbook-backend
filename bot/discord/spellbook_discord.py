@@ -2,7 +2,6 @@ import os
 import re
 import discord
 import logging
-from typing import Awaitable, Callable
 from discord.ext import commands
 from discord import ui, utils
 from kiota_abstractions.api_error import APIError
@@ -99,11 +98,13 @@ async def handle_queries(
     reply = ''
     embed: discord.Embed | None = None
     chunks: list[str] = []
-    add_kwargs = lambda i, c: {
-        'content': c,
-        'suppress_embeds': embed is None or i != len(chunks) - 1,
-        'embed': embed if i == len(chunks) - 1 else None,
-    }
+
+    def add_kwargs(i: int, c: str):
+        return {
+            'content': c,
+            'suppress_embeds': embed is None or i != len(chunks) - 1,
+            'embed': embed if i == len(chunks) - 1 else None,
+        }
     messages: list[discord.Message] = []
     for query in queries:
         query_info = SpellbookQuery(query)
@@ -248,10 +249,10 @@ async def handle_find_my_combos(interaction: discord.Interaction, commanders: li
             reply += compute_variants_results(result.results.almost_included_by_adding_colors_and_changing_commanders)
         if len(result.results.included) == 0 \
             and len(result.results.included_by_changing_commanders) == 0 \
-            and len(result.results.almost_included) == 0 \
-            and len(result.results.almost_included_by_changing_commanders) == 0 \
-            and len(result.results.almost_included_by_adding_colors) == 0 \
-            and len(result.results.almost_included_by_adding_colors_and_changing_commanders) == 0:
+                and len(result.results.almost_included) == 0 \
+                and len(result.results.almost_included_by_changing_commanders) == 0 \
+                and len(result.results.almost_included_by_adding_colors) == 0 \
+                and len(result.results.almost_included_by_adding_colors_and_changing_commanders) == 0:
             reply += 'No combos found.'
         if interaction.guild:
             await interaction.followup.send(content='I\'ve sent your results in a DM!')
@@ -341,7 +342,7 @@ async def find_my_combos(interaction: discord.Interaction, decklist: str | None 
                 await interaction.followup.send('Failed to fetch decklist.', ephemeral=True)
         else:
             await interaction.response.send_message('Invalid url provided.', ephemeral=True)
-    else:    
+    else:
         await interaction.response.send_modal(FindMyCombosModal())
 
 

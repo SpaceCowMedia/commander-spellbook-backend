@@ -45,4 +45,4 @@ COPY --chown=app:app bot/reddit/ common/ client/python/ $APP_HOME
 # change to the app user
 USER app
 
-CMD [python spellbook_reddit.py]
+CMD ["python", "spellbook_reddit.py"]

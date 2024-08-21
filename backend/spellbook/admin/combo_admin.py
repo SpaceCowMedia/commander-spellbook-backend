@@ -130,7 +130,13 @@ class PayoffFilter(CustomFilter):
         return [(True, 'Yes'), (False, 'No')]
 
     def filter(self, value: data_type) -> Q:
-        return Q(is_payoff=value)
+        return Q(
+            pk__in=Combo.objects.alias(
+                needs_utility_count=Count('needs', distinct=True, filter=Q(needs__utility=True)),
+                needs_count=Count('needs', distinct=True),
+                is_payoff=Q(needs_count__gt=0, needs_utility_count=0),
+            ).filter(is_payoff=value),
+        )
 
 
 class VariantRelatedFilter(CustomFilter):
@@ -145,7 +151,11 @@ class VariantRelatedFilter(CustomFilter):
             case 'unused':
                 return Q(included_in_variants__isnull=True)
             case 'overlapping':
-                return Q(possible_overlaps__gt=1)
+                return Q(
+                    pk__in=Combo.objects.alias(
+                        possible_overlaps=Count('variants__of', distinct=True),
+                    ).filter(possible_overlaps__gt=1),
+                )
         return Q()
 
 
@@ -183,14 +193,6 @@ class ComboAdmin(SpellbookModelAdmin):
         if not obj or obj.uses.count() == 0:
             fieldsets = fieldsets[1:]
         return fieldsets
-
-    def get_queryset(self, request):
-        return Combo.objects.alias(
-            needs_utility_count=Count('needs', distinct=True, filter=Q(needs__utility=True)),
-            needs_count=Count('needs', distinct=True),
-            is_payoff=Q(needs_count__gt=0, needs_utility_count=0),
-            possible_overlaps=Count('variants__of', distinct=True),
-        )
 
     def get_changeform_initial_data(self, request: HttpRequest) -> dict[str, str]:
         initial_data = super().get_changeform_initial_data(request)

@@ -291,7 +291,9 @@ spec:
           livenessProbe:
             exec:
               command:
-                - ls
+                - curl
+                - -f
+                - https://backend.commanderspellbook.com
             initialDelaySeconds: 40
             periodSeconds: 20
             timeoutSeconds: 5
@@ -301,3 +303,13 @@ spec:
                 secretKeyRef:
                   name: discord-bot-secrets
                   key: discord-token
+            - name: KUBE_ADMIN_USER__0
+              valueFrom:
+                secretKeyRef:
+                  name: discord-bot-secrets
+                  key: deloo-discord-id
+            - name: KUBE_ADMIN_USER__1
+              valueFrom:
+                secretKeyRef:
+                  name: discord-bot-secrets
+                  key: andy-discord-id

@@ -35,8 +35,8 @@ permissions = discord.Permissions(
     add_reactions=True,
     use_external_emojis=True,
 )
-administration_guilds = [int(guild) for guild in (os.getenv(f'ADMIN_GUILD__{i}') for i in range(10)) if guild is not None]
-administration_users = [int(user) for user in (os.getenv(f'ADMIN_USER__{i}') for i in range(10)) if user is not None]
+administration_guilds = [int(guild) for guild in (os.getenv(f'KUBE_ADMIN_GUILD__{i}', os.getenv(f'ADMIN_GUILD__{i}')) for i in range(10)) if guild is not None]
+administration_users = [int(user) for user in (os.getenv(f'KUBE_ADMIN_USER__{i}', os.getenv(f'ADMIN_USER__{i}')) for i in range(10)) if user is not None]
 
 MAX_SEARCH_RESULTS = 7
 
@@ -346,4 +346,4 @@ async def find_my_combos(interaction: discord.Interaction, decklist: str | None 
         await interaction.response.send_modal(FindMyCombosModal())
 
 
-bot.run(os.getenv('DISCORD_TOKEN', ''))
+bot.run(os.getenv('KUBE_DISCORD_TOKEN', os.getenv('DISCORD_TOKEN', '')))

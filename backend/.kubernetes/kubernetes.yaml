@@ -264,3 +264,40 @@ roleRef:
   name: spellbook-ns-full-access
   apiGroup: rbac.authorization.k8s.io
 
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: spellbook
+  name: spellbook-discord-bot
+  labels:
+    app: spellbook-discord-bot
+spec:
+  selector:
+    matchLabels:
+      app: spellbook-discord-bot
+  template:
+    metadata:
+      labels:
+        app: spellbook-discord-bot
+    spec:
+      serviceAccountName: app-service-account
+      containers:
+        - name: spellbook-discord-bot-app
+          image: 083767677168.dkr.ecr.us-east-2.amazonaws.com/spellbook-prod-discord-ecr
+          ports:
+            - containerPort: 80
+          livenessProbe:
+            exec:
+              command:
+                - ls
+            initialDelaySeconds: 40
+            periodSeconds: 20
+            timeoutSeconds: 5
+          env:
+            - name: KUBE_DISCORD_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: discord-bot-secrets
+                  key: discord-token

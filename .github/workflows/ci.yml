@@ -368,8 +368,11 @@ jobs:
         working-directory: ${{ steps.migration-artifacts.outputs.download-path }}
         run: |
           export KUBECONFIG=spellbookkubeconfig.yaml
-          kubectl rollout restart deployment/spellbook-api -n spellbook
-          timeout ${KUBECTL_TIMEOUT} kubectl rollout status deployment/spellbook-api -n spellbook
+          declare -a deployments=("spellbook-api" "spellbook-discord-bot")
+          for deployment in "${deployments[@]}"; do
+            kubectl rollout restart deployment/$deployment -n spellbook
+            timeout ${KUBECTL_TIMEOUT} kubectl rollout status deployment/$deployment -n spellbook
+          done
 
 
   open-api:

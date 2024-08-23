@@ -302,7 +302,7 @@ class FindMyCombosModal(ui.Modal, title='Find My Combos'):
     )
 
     async def on_submit(self, interaction: discord.Interaction[commands.Bot]) -> None:
-        await interaction.response.defer(ephemeral=interaction.guild is not None)
+        await interaction.response.defer(ephemeral=interaction.guild is not None, thinking=True)
         if interaction.message is not None:
             await interaction.message.add_reaction('🔍')
         commanders = process_decklist(self.commanders.value)
@@ -322,7 +322,7 @@ async def find_my_combos(interaction: discord.Interaction, decklist: str | None 
     '''
     if decklist:
         if uri_validator(decklist):
-            await interaction.response.defer(ephemeral=interaction.guild is not None)
+            await interaction.response.defer(ephemeral=interaction.guild is not None, thinking=True)
             try:
                 result = await API.card_list_from_url.get(
                     request_configuration=RequestConfiguration[API.card_list_from_url.CardListFromUrlRequestBuilderGetQueryParameters](

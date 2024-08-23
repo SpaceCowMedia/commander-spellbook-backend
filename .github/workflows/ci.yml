@@ -28,6 +28,7 @@ jobs:
       should-release: ${{ steps.semver.outputs.should-release }}
       is-prerelease: ${{ steps.semver.outputs.is-github-prerelease }}
     steps:
+
       - name: Setup Docker Buildx 🐳
         uses: docker/setup-buildx-action@v3
 
@@ -51,6 +52,7 @@ jobs:
         with:
           name: spellbook-backend
           path: /tmp/spellbook-backend.tar
+
       - name: Upload migration artifatcs 📦
         uses: actions/upload-artifact@v4
         with:
@@ -68,18 +70,23 @@ jobs:
           - '3.11'
           - '3.10'
     steps:
+
       - name: Checkout 🛎️
         uses: actions/checkout@v4
+
       - name: Setup Python 🐍
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
+
       - name: Install Linter 🧴
         run: pip install flake8
+
       - name: Lint backend 🧹
         working-directory: backend
         run: flake8 .
+
       - name: Lint bots 🧹
         if: ${{ matrix.python-version == '3.12' }}
         working-directory: bot
@@ -104,19 +111,24 @@ jobs:
       run:
         shell: bash
     steps:
+
       - name: Checkout 🛎️
         uses: actions/checkout@v4
+
       - name: Setup Python 🐍
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
+
       - name: Install dependencies 🧶
         run: pip install --no-cache-dir --no-deps tblib $(grep -ivE "#|cryptography|cffi" requirements.txt)
         working-directory: backend
+
       - name: Print Django version 🐍
         run: python manage.py version
         working-directory: backend
+
       - name: Unit Test 🧪
         run: python -Wd manage.py test --no-input ${{ !startsWith(matrix.python-version, 'pypy') && '--parallel auto' || '' }} --pythonpath ../common
         working-directory: backend
@@ -126,30 +138,37 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build, bot-discord, bot-reddit, bot-telegram]
     steps:
+
       - name: Checkout 🛎️
         uses: actions/checkout@v4
+
       - name: Setup Docker Buildx 🐳
         uses: docker/setup-buildx-action@v3
+
       - name: Download backend image artifact ⬇
         uses: actions/download-artifact@v4
         with:
           name: spellbook-backend
           path: /tmp
+
       - name: Download discord bot image artifact ⬇
         uses: actions/download-artifact@v4
         with:
           name: spellbook-discord-bot
           path: /tmp
+
       - name: Download reddit bot image artifact ⬇
         uses: actions/download-artifact@v4
         with:
           name: spellbook-reddit-bot
           path: /tmp
+
       - name: Download telegram bot image artifact ⬇
         uses: actions/download-artifact@v4
         with:
           name: spellbook-telegram-bot
           path: /tmp
+
       - name: Load docker image 🐳
         run: |
           docker load --input /tmp/spellbook-backend.tar
@@ -157,8 +176,10 @@ jobs:
           docker load --input /tmp/spellbook-reddit-bot.tar
           docker load --input /tmp/spellbook-telegram-bot.tar
           docker image ls -a
+
       - name: Docker compose up 🧫
-        run: docker compose -f docker-compose.yml up -d --no-build 
+        run: docker compose -f docker-compose.yml up -d --no-build
+
       - name: Unit test inside container 🧪
         run: docker exec -e CI=true -i commander-spellbook-backend-web-1 python manage.py test --no-input --parallel auto --settings=backend.production_settings
 
@@ -171,26 +192,31 @@ jobs:
     permissions:
       contents: write
     steps:
+
       - name: Download backend image artifact ⬇
         uses: actions/download-artifact@v4
         with:
           name: spellbook-backend
           path: release
+
       - name: Download discord bot image artifact ⬇
         uses: actions/download-artifact@v4
         with:
           name: spellbook-discord-bot
           path: release
+
       - name: Download reddit bot image artifact ⬇
         uses: actions/download-artifact@v4
         with:
           name: spellbook-reddit-bot
           path: release
+
       - name: Download telegram bot image artifact ⬇
         uses: actions/download-artifact@v4
         with:
           name: spellbook-telegram-bot
           path: release
+
       - name: Release 📧
         uses: EasyDesk/action-semver-release@v1
         with:
@@ -213,39 +239,47 @@ jobs:
     env:
       KUBECTL_TIMEOUT: 1800
     steps:
+
       - name: SetupDocker Buildx 🐳
         uses: docker/setup-buildx-action@v3
+
       - name: Configure AWS credentials 🛠
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::083767677168:role/spellbook-deploy
           role-session-name: github-actions
           aws-region: ${{ secrets.AWS_REGION }}
+
       - name: Login to Amazon ECR 📦
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
         with:
           mask-password: true
+
       - name: Download backend image artifact ⬇
         uses: actions/download-artifact@v4
         with:
           name: spellbook-backend
           path: /tmp
+
       - name: Download discord bot image artifact ⬇
         uses: actions/download-artifact@v4
         with:
           name: spellbook-discord-bot
           path: /tmp
+
       - name: Download reddit bot image artifact ⬇
         uses: actions/download-artifact@v4
         with:
           name: spellbook-reddit-bot
           path: /tmp
+
       - name: Download telegram bot image artifact ⬇
         uses: actions/download-artifact@v4
         with:
           name: spellbook-telegram-bot
           path: /tmp
+
       - name: Load image from artifact 🐳
         run: |
           docker load --input /tmp/spellbook-backend.tar
@@ -253,6 +287,7 @@ jobs:
           docker load --input /tmp/spellbook-reddit-bot.tar
           docker load --input /tmp/spellbook-telegram-bot.tar
           docker image ls -a
+
       - name: Push versioned image to Amazon ECR 📦
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -261,19 +296,24 @@ jobs:
         run: |
           docker tag spellbook-backend:latest $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
       - name: Download migration artifacts ⬇
         id: migration-artifacts
         uses: actions/download-artifact@v4
         with:
           name: spellbook-backend-migrations
           path: /tmp/migrations
+
       - name: Configure kubernetes 🐙
         working-directory: ${{ steps.migration-artifacts.outputs.download-path }}
         run: aws eks --region ${{ secrets.AWS_REGION }} update-kubeconfig --name spellbook-prod-cluster --kubeconfig spellbookkubeconfig.yaml
+
       - name: Install and configure kubectl 🐙
         uses: azure/setup-kubectl@v4
+
       - name: Setup Kustomize 🛠
         uses: imranismail/setup-kustomize@v2
+
       - name: Run Kustomize to set image to sha 🛠
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -282,6 +322,7 @@ jobs:
         working-directory: ${{ steps.migration-artifacts.outputs.download-path }}
         run: |
           kustomize edit set image $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
       - name: Run migrations 🚶‍♂️
         working-directory: ${{ steps.migration-artifacts.outputs.download-path }}
         run: |
@@ -304,6 +345,7 @@ jobs:
           echo "Deleting job..."
           kubectl delete job/spellbook-migration -n spellbook
           exit $exit_code
+
       - name: Push image to Amazon ECR 📦
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -337,15 +379,20 @@ jobs:
         shell: bash
         working-directory: client
     steps:
+
       - name: Checkout 🛎️
         uses: actions/checkout@v4
+
       - name: Install spectacular dependencies 🧶
         run: pip install --no-cache-dir --no-deps -r requirements.txt
         working-directory: backend
+
       - name: Chmod scripts 👑
         run: chmod +x *.sh
+
       - name: Generate OpenApi 🧬
         run: ./generate-openapi.sh
+
       - name: Upload OpenApi artifact 📦
         uses: actions/upload-artifact@v4
         with:
@@ -362,29 +409,38 @@ jobs:
         shell: bash
         working-directory: client
     steps:
+
       - name: Setup Kiota 🧱
         uses: microsoft/setup-kiota@v0.5.0
+
       - name: Checkout 🛎️
         uses: actions/checkout@v4
+
       - name: Chmod scripts 👑
         run: chmod +x *.sh
+
       - name: Download OpenApi artifact ⬇
         uses: actions/download-artifact@v4
         with:
           name: spellbook-openapi
           path: client
+
       - name: Genrate client with Kiota 🏗️
         run: ./generate-client.sh
+
       - name: Install client dependencies 🧶
         # It is important to not use --no-deps here, otherwise httpcore will raise an error during the tests
         run: pip install --no-cache-dir -r requirements.txt
         working-directory: client/python
+
       - name: Install test dependencies 🧶
         run: pip install --no-cache-dir --no-deps -r requirements.txt
         working-directory: backend
+
       - name: Run python tests 🧪
         run: python backend/manage.py test client/python/tests/ --no-input --parallel auto
         working-directory: .
+
       - name: Upload client artifact 📦
         uses: actions/upload-artifact@v4
         with:
@@ -399,15 +455,19 @@ jobs:
         shell: bash
         working-directory: bot/discord
     steps:
+
       - name: Setup Docker Buildx 🐳
         uses: docker/setup-buildx-action@v3
+
       - name: Checkout 🛎️
         uses: actions/checkout@v4
+
       - name: Download client artifact ⬇
         uses: actions/download-artifact@v4
         with:
           name: spellbook-client-python
           path: client/python/spellbook_client
+
       - name: Build and export image 🏗️
         uses: docker/build-push-action@v6
         with:
@@ -416,6 +476,7 @@ jobs:
           file: bot/discord/Dockerfile
           tags: spellbook-discord-bot:latest
           outputs: type=docker,dest=/tmp/spellbook-discord-bot.tar
+
       - name: Upload image artifact 📦
         uses: actions/upload-artifact@v4
         with:
@@ -430,10 +491,13 @@ jobs:
         shell: bash
         working-directory: bot/reddit
     steps:
+
       - name: Setup Docker Buildx 🐳
         uses: docker/setup-buildx-action@v3
+
       - name: Checkout 🛎️
         uses: actions/checkout@v4
+
       - name: Build and export image 🏗️
         uses: docker/build-push-action@v6
         with:
@@ -442,6 +506,7 @@ jobs:
           file: bot/reddit/Dockerfile
           tags: spellbook-reddit-bot:latest
           outputs: type=docker,dest=/tmp/spellbook-reddit-bot.tar
+
       - name: Upload image artifact 📦
         uses: actions/upload-artifact@v4
         with:
@@ -456,10 +521,13 @@ jobs:
         shell: bash
         working-directory: bot/telegram
     steps:
+
       - name: Setup Docker Buildx 🐳
         uses: docker/setup-buildx-action@v3
+
       - name: Checkout 🛎️
         uses: actions/checkout@v4
+
       - name: Build and export image 🏗️
         uses: docker/build-push-action@v6
         with:
@@ -468,6 +536,7 @@ jobs:
           file: bot/telegram/Dockerfile
           tags: spellbook-telegram-bot:latest
           outputs: type=docker,dest=/tmp/spellbook-telegram-bot.tar
+
       - name: Upload image artifact 📦
         uses: actions/upload-artifact@v4
         with:

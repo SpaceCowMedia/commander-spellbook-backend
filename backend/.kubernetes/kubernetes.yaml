@@ -313,3 +313,7 @@ spec:
                 secretKeyRef:
                   name: discord-bot-secrets
                   key: andy-discord-id
+            - name: SPELLBOOK_API_URL
+              value: https://backend.commanderspellbook.com
+            - name: SPELLBOOK_WEBSITE_URL
+              value: https://commanderspellbook.com

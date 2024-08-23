@@ -42,6 +42,7 @@ jobs:
           push: false
           load: true
           file: backend/Dockerfile
+          context: .
           tags: spellbook-backend:latest
           target: production
           build-args: VERSION=${{ steps.semver.outputs.version }}
@@ -477,6 +478,7 @@ jobs:
           push: false
           load: true
           file: bot/discord/Dockerfile
+          context: .
           tags: spellbook-discord-bot:latest
           outputs: type=docker,dest=/tmp/spellbook-discord-bot.tar
 
@@ -507,6 +509,7 @@ jobs:
           push: false
           load: true
           file: bot/reddit/Dockerfile
+          context: .
           tags: spellbook-reddit-bot:latest
           outputs: type=docker,dest=/tmp/spellbook-reddit-bot.tar
 
@@ -537,6 +540,7 @@ jobs:
           push: false
           load: true
           file: bot/telegram/Dockerfile
+          context: .
           tags: spellbook-telegram-bot:latest
           outputs: type=docker,dest=/tmp/spellbook-telegram-bot.tar
 

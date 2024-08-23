@@ -1,6 +1,8 @@
 **/*.git
 **/*.env
 **/*.sqlite3
+**/.gitignore
+**/.dockerignore
 **/*docker-*.yml
 **/Dockerfile
 **/Dockerfile.*
@@ -17,3 +19,5 @@ demo/
 .vscode/
 backend/.kubernetes/
 backend/backend/debug_settings.py
+client/*/tests
+client/*/pytest.ini

@@ -9,6 +9,7 @@ from spellbook_client import RequestConfiguration
 from spellbook_client.models.variant import Variant
 from spellbook_client.models.deck_request import DeckRequest
 from spellbook_client.models.invalid_url_response import InvalidUrlResponse
+from spellbook_client.models.variants_query_validation_error import VariantsQueryValidationError
 from text_utils import discord_chunk, chunk_diff_async
 from bot_utils import parse_queries, SpellbookQuery, url_from_variant, compute_variant_name, compute_variant_results, API, compute_variant_recipe, uri_validator
 
@@ -154,6 +155,29 @@ async def handle_queries(
                 reply += compute_variants_results(result.results)
             else:
                 reply += f'\n\nNo results found for {query_info.summary}'
+            if message:
+                chunks = discord_chunk(reply)
+                messages = await chunk_diff_async(
+                    new_chunks=chunks,
+                    add=lambda i, c: message.reply(**add_kwargs(i, c)),
+                    update=lambda i, m, c: m.edit(content=c, suppress=embed is None or i != len(chunks) - 1, embed=embed if i == len(chunks) - 1 else None),
+                    remove=lambda _, m: m.delete(),
+                    old_chunks_wrappers=messages,
+                    unwrap=lambda m: m.content,
+                )
+        except VariantsQueryValidationError as e:
+            if message:
+                await message.remove_reaction('🔍', bot.user)  # type: ignore
+                await message.add_reaction('⚠')
+            error_messages = e.q or []
+            reply += f'\n\nThere {'is a problem' if len(error_messages) <= 1 else 'are problems'} with {query_info.summary}'
+            if error_messages:
+                if len(error_messages) > 1:
+                    reply += ':\n'
+                    for error_message in error_messages:
+                        reply += f'\n* {error_message}'
+                else:
+                    reply += f'. {error_messages[0]}'
             if message:
                 chunks = discord_chunk(reply)
                 messages = await chunk_diff_async(

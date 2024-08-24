@@ -1,11 +1,16 @@
-from rest_framework import viewsets
-from drf_spectacular.utils import extend_schema
+from rest_framework import viewsets, serializers
+from drf_spectacular.utils import extend_schema, inline_serializer
 from spellbook.models import Variant, PreSerializedSerializer
 from spellbook.serializers import VariantSerializer
 from .filters import SpellbookQueryFilter, OrderingFilterWithNullsLast
 
 
-@extend_schema(responses=VariantSerializer)
+@extend_schema(responses={
+    200: VariantSerializer,
+    400: inline_serializer('VariantsQueryValidationError', {
+        'q': serializers.ListSerializer(child=serializers.CharField(), required=False),
+    })
+})
 class VariantViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Variant.serialized_objects
     filter_backends = [SpellbookQueryFilter, OrderingFilterWithNullsLast]

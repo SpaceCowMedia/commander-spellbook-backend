@@ -430,7 +430,7 @@ jobs:
           name: spellbook-openapi
           path: client
 
-      - name: Genrate client with Kiota 🏗️
+      - name: Generate client 🏗️
         run: ./generate-client.sh
 
       - name: Install client dependencies 🧶

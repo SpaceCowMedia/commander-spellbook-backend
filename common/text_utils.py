@@ -1,4 +1,4 @@
-from typing import Any, Callable, TypeVar, Awaitable
+from typing import Callable, TypeVar, Awaitable
 
 
 DISCORD_MESSAGE_LIMIT = 2000

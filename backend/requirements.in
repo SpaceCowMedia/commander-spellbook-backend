@@ -1,5 +1,5 @@
 multiset==3.1.0
-boto3==1.35.0
+boto3==1.35.5
 Django==5.1
 django-filter==24.3
 django-cors-headers==4.4.0

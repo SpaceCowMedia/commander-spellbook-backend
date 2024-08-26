@@ -3,14 +3,16 @@ import os
 from itertools import chain
 from urllib.parse import quote_plus as encode_query, urlparse
 from functools import cached_property
-from anonymous_spellbook_client import AnonymousSpellbookClient
+from spellbook_client import ApiClient, Configuration
 from spellbook_client.models.variant import Variant
 
 
 WEBSITE_URL = os.getenv('SPELLBOOK_WEBSITE_URL', '')
-API = AnonymousSpellbookClient(base_url=os.getenv('SPELLBOOK_API_URL', ''))
-
 QUERY_REGEX = re.compile(r'{{(.*?)}}')
+
+
+def API():
+    return ApiClient(configuration=Configuration(host=os.getenv('SPELLBOOK_API_URL', '')))
 
 
 def parse_queries(text: str) -> list[str]:

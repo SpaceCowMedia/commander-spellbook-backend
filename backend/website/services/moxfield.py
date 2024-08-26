@@ -1,7 +1,7 @@
 import re
 from urllib.parse import urlparse
 from .json_api import get
-from common.abstractions import Deck
+from common.abstractions import Deck, CardInDeck
 
 
 MOXFIELD_HOSTNAME = 'moxfield.com'
@@ -20,10 +20,16 @@ def moxfield(url: str) -> Deck | None:
     if result is None:
         return None
     try:
-        main = [card for card in result['mainboard']]
-        commanders = [card for card in result['commanders']]
+        main = [
+            CardInDeck(card=card, quantity=int(item['quantity']))
+            for card, item in result['mainboard'].items()
+        ]
+        commanders = [
+            CardInDeck(card=card, quantity=int(item['quantity']))
+            for card, item in result['commanders'].items()
+        ]
         return Deck(main=main, commanders=commanders)
-    except KeyError:
+    except KeyError | ValueError | AttributeError:
         return None
 
 

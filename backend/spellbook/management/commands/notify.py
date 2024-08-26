@@ -4,7 +4,7 @@ from discord_webhook import DiscordWebhook
 from spellbook.models import VariantSuggestion, Variant
 from social_django.models import UserSocialAuth
 from text_utils import discord_chunk
-from common.markdown import escape_markdown
+from common.markdown_utils import escape_markdown
 
 
 class Command(AbstractCommand):

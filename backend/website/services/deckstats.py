@@ -1,7 +1,7 @@
 import re
 from urllib.parse import urlparse
 from .json_api import get
-from common.abstractions import Deck
+from common.abstractions import Deck, CardInDeck
 
 
 DECKSTATS_HOSTNAME = 'deckstats.net'
@@ -21,21 +21,25 @@ def deckstats(url: str) -> Deck | None:
     if result is None:
         return None
     try:
-        main = []
-        commanders = []
+        main: list[CardInDeck] = []
+        commanders: list[CardInDeck] = []
         for section in result['sections']:
             if section['name'].startswith('Command'):
                 for card in section['cards']:
                     if card['valid']:
-                        commanders.append(card['name'])
+                        name: str = card['name']
+                        quantity: int = int(card['amount'] or 1)
+                        if quantity > 0:
+                            commanders.append(CardInDeck(card=name, quantity=quantity))
             else:
                 for card in section['cards']:
                     if card['valid']:
-                        name = card['name']
+                        name: str = card['name']
+                        quantity: int = int(card['amount'] or 1)
                         if 'isCommander' in card and card['isCommander']:
-                            commanders.append(name)
+                            commanders.append(CardInDeck(card=name, quantity=quantity))
                         else:
-                            main.append(name)
+                            main.append(CardInDeck(card=name, quantity=quantity))
         return Deck(main=main, commanders=commanders)
     except KeyError:
         return None

@@ -1,7 +1,7 @@
 import re
 from urllib.parse import urlparse
 from .csv_api import get
-from common.abstractions import Deck
+from common.abstractions import Deck, CardInDeck
 
 
 TAPPEDOUT_HOSTNAME = 'tappedout.net'
@@ -20,17 +20,18 @@ def tappedout(url: str) -> Deck | None:
     if result is None:
         return None
     try:
-        main = []
-        commanders = []
+        main: list[CardInDeck] = []
+        commanders: list[CardInDeck] = []
         for row in result:
             if row['Board'] == 'main':
-                name = row['Name']
+                name: str = row['Name']  # type: ignore
+                quantity = int(row['Qty'])  # type: ignore
                 if 'Commander' in row and row['Commander'] == 'True':
-                    commanders.append(name)
+                    commanders.append(CardInDeck(card=name, quantity=quantity))
                 else:
-                    main.append(name)
+                    main.append(CardInDeck(card=name, quantity=quantity))
         return Deck(main=main, commanders=commanders)
-    except KeyError:
+    except KeyError | ValueError:
         return None
 
 

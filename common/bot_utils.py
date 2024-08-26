@@ -41,33 +41,32 @@ def url_from_variant(variant: Variant) -> str:
     return f'{WEBSITE_URL}/combo/{variant.id}'
 
 
-def compute_variant_name(variant: Variant):
+def compute_variant_name(variant: Variant) -> str:
     return ' + '.join(chain(
-        ((f'{card.quantity}x ' if card.quantity > 1 else '') + card.card.name for card in variant.uses),
-        ((f'{template.quantity}x ' if template.quantity > 1 else '') + template.template.name for template in variant.requires),
+        ((f'{card.quantity}x ' if card.quantity > 1 else '') + card.card.name for card in variant.uses),  # type: ignore
+        ((f'{template.quantity}x ' if template.quantity > 1 else '') + template.template.name for template in variant.requires),  # type: ignore
     ))
 
 
-def compute_variant_recipe(variant: Variant):
+def compute_variant_recipe(variant: Variant) -> str:
     variant_name = compute_variant_name(variant)
-    variant_results = ', '.join(result.feature.name for result in variant.produces[:4]) + ('...' if len(variant.produces) > 4 else '')
+    variant_results = ', '.join(result.feature.name for result in variant.produces[:4]) + ('...' if len(variant.produces) > 4 else '')  # type: ignore
     return f'{variant_name} ➜ {variant_results}'
 
 
-def compute_variant_results(variant: Variant):
+def compute_variant_results(variant: Variant) -> str:
     return '\n'.join(
-        (f'{result.quantity}x ' if result.quantity > 1 else '') + result.feature.name
-        for result in variant.produces
+        (f'{result.quantity}x ' if result.quantity > 1 else '') + result.feature.name  # type: ignore
+        for result in variant.produces  # type: ignore
     )
 
 
-def uri_validator(x: str):
+def uri_validator(x: str) -> bool:
     try:
         result = urlparse(x)
         return all([result.scheme, result.netloc])
     except AttributeError:
         return False
-
 
 
 class SpellbookQuery:

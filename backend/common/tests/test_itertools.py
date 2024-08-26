@@ -1,5 +1,5 @@
 from django.test import TestCase
-from common.itertools import roundrobin
+from common.itertools_utils import roundrobin
 
 
 class TestRoundrobin(TestCase):

@@ -1,1 +1,3 @@
 spellbook_client/
+.openapi-generator/
+*README.md

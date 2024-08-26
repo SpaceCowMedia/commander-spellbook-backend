@@ -1,7 +1,5 @@
 urllib3==2.2.2
-microsoft-kiota-abstractions==1.3.3
-microsoft-kiota-http==1.3.3
-microsoft-kiota-serialization-json==1.3.0
-microsoft-kiota-serialization-text==1.0.0
-microsoft-kiota-serialization-form==0.1.0
-microsoft-kiota-serialization-multipart==0.1.0
+python-dateutil==2.9.0.post0
+aiohttp==3.10.5
+aiohttp-retry==2.8.3
+pydantic==2.8.2

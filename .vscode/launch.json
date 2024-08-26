@@ -127,8 +127,15 @@
                 "test",
                 "client/python/tests"
             ],
-            "env": {
-                "PYTHONPATH": "${workspaceFolder}${/}common",
+            "windows": {
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}${/}common;${workspaceFolder}${/}client${/}python",
+                },
+            },
+            "linux": {
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}${/}common:${workspaceFolder}${/}client${/}python",
+                },
             },
             "preLaunchTask": "Apply migrations",
             "django": true,

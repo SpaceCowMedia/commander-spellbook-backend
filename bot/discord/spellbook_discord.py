@@ -1,5 +1,4 @@
 import os
-import re
 import discord
 import logging
 from discord.ext import commands
@@ -10,6 +9,8 @@ from spellbook_client.models.variant import Variant
 from spellbook_client.models.deck_request import DeckRequest
 from spellbook_client.models.invalid_url_response import InvalidUrlResponse
 from spellbook_client.models.variants_query_validation_error import VariantsQueryValidationError
+from spellbook_client.models.deck_request import DeckRequest
+from spellbook_client.models.card_in_deck_request import CardInDeckRequest
 from text_utils import discord_chunk, chunk_diff_async
 from bot_utils import parse_queries, SpellbookQuery, url_from_variant, compute_variant_name, compute_variant_results, API, compute_variant_recipe, uri_validator
 
@@ -81,7 +82,8 @@ def compute_variants_results(variants: list[Variant]) -> str:
     for variant in variants:
         variant_url = url_from_variant(variant)
         variant_recipe = compute_variant_recipe(variant)
-        result += f'* {convert_mana_identity_to_emoji(variant.identity)} [{variant_recipe}]({variant_url}) (in {variant.popularity} decks)\n'
+        variant_identity: str = variant.identity  # type: ignore
+        result += f'* {convert_mana_identity_to_emoji(variant_identity)} [{variant_recipe}]({variant_url}) (in {variant.popularity} decks)\n'
     return result
 
 
@@ -119,10 +121,13 @@ async def handle_queries(
                     ),
                 ),
             )
-            if len(queries) == 1 and result.count == 1:
-                variant = result.results[0]
+            result_count: int = result.count  # type: ignore
+            results: list[Variant] = result.results  # type: ignore
+            if len(queries) == 1 and result_count == 1:
+                variant = results[0]
                 variant_url = url_from_variant(variant)
-                match variant.identity[:1]:
+                variant_identity: str = variant.identity  # type: ignore
+                match variant_identity[:1]:
                     case 'C':
                         variant_color = discord.Colour.light_grey()
                     case 'R':
@@ -141,18 +146,18 @@ async def handle_queries(
                     colour=variant_color,
                     title=compute_variant_name(variant),
                     url=variant_url,
-                    description=f'### Identity: {convert_mana_identity_to_emoji(variant.identity)}\n\n### Results\n{compute_variant_results(variant)}',
+                    description=f'### Identity: {convert_mana_identity_to_emoji(variant_identity)}\n\n### Results\n{compute_variant_results(variant)}',
                 )
                 reply += f'\n\n### Showing 1 result for {query_info.summary}\n\n'
-            elif result.count > 0:
+            elif result_count > 0:
                 if len(queries) == 1:
                     embed = discord.Embed(
                         colour=discord.Colour.from_str('#d68fc5'),
                         title=f'View all results for "`{query}`" on Commander Spellbook',
                         url=query_info.url,
                     )
-                reply += f'\n\n### Showing {len(result.results)} of {result.count} results for {query_info.summary}\n\n'
-                reply += compute_variants_results(result.results)
+                reply += f'\n\n### Showing {len(results)} of {result_count} results for {query_info.summary}\n\n'
+                reply += compute_variants_results(results)
             else:
                 reply += f'\n\nNo results found for {query_info.summary}'
             if message:
@@ -241,42 +246,41 @@ async def on_message(message: discord.Message):
     await handle_queries(queries, message=message)
 
 
-DECKLIST_LINE_REGEX = re.compile(r'^(?:\d+x?\s+)?(.*?)(?:(?:\s+<\w+>)?\s+(?:\[\w+\](?:\s+\(\w+\))?|\(\w+\)(?:\s\d+)?))?$')
-
-
-async def handle_find_my_combos(interaction: discord.Interaction, commanders: list[str], main: list[str]):
+async def handle_find_my_combos(interaction: discord.Interaction, deck: DeckRequest):
     try:
-        result = await API.find_my_combos.post(
-            body=DeckRequest(
-                commanders=commanders,
-                main=main,
-            )
-        )
-        reply = f'## Find My Combos results for your deck\n### Deck identity: {convert_mana_identity_to_emoji(result.results.identity)}\n'
-        if len(result.results.included) > 0:
-            reply += f'### {len(result.results.included)} combos found\n'
-            reply += compute_variants_results(result.results.included)
-        if len(result.results.included_by_changing_commanders) > 0:
-            reply += f'### {len(result.results.included_by_changing_commanders)} combos found by changing commanders\n'
-            reply += compute_variants_results(result.results.included_by_changing_commanders)
-        if len(result.results.almost_included) > 0:
-            reply += f'### {len(result.results.almost_included)} potential combos found\n'
-            reply += compute_variants_results(result.results.almost_included)
-        if len(result.results.almost_included_by_changing_commanders) > 0:
-            reply += f'### {len(result.results.almost_included_by_changing_commanders)} potential combos found by changing commanders with the same color identity\n'
-            reply += compute_variants_results(result.results.almost_included_by_changing_commanders)
-        if len(result.results.almost_included_by_adding_colors) > 0:
-            reply += f'### {len(result.results.almost_included_by_adding_colors)} potential combos found by adding colors to the identity\n'
-            reply += compute_variants_results(result.results.almost_included_by_adding_colors)
-        if len(result.results.almost_included_by_adding_colors_and_changing_commanders) > 0:
-            reply += f'### {len(result.results.almost_included_by_adding_colors_and_changing_commanders)} potential combos found by changing commanders and their color identities\n'
-            reply += compute_variants_results(result.results.almost_included_by_adding_colors_and_changing_commanders)
-        if len(result.results.included) == 0 \
-            and len(result.results.included_by_changing_commanders) == 0 \
-                and len(result.results.almost_included) == 0 \
-                and len(result.results.almost_included_by_changing_commanders) == 0 \
-                and len(result.results.almost_included_by_adding_colors) == 0 \
-                and len(result.results.almost_included_by_adding_colors_and_changing_commanders) == 0:
+        result = await API.find_my_combos.post(body=deck)
+        results_identity: str = result.results.identity  # type: ignore
+        reply = f'## Find My Combos results for your deck\n### Deck identity: {convert_mana_identity_to_emoji(results_identity)}\n'
+        results_included: list[Variant] = result.results.included  # type: ignore
+        results_included_by_changing_commanders: list[Variant] = result.results.included_by_changing_commanders  # type: ignore
+        results_almost_included: list[Variant] = result.results.almost_included  # type: ignore
+        results_almost_included_by_changing_commanders: list[Variant] = result.results.almost_included_by_changing_commanders  # type: ignore
+        results_almost_included_by_adding_colors: list[Variant] = result.results.almost_included_by_adding_colors  # type: ignore
+        results_almost_included_by_adding_colors_and_changing_commanders: list[Variant] = result.results.almost_included_by_adding_colors_and_changing_commanders  # type: ignore
+        if len(results_included) > 0:
+            reply += f'### {len(results_included)} combos found\n'
+            reply += compute_variants_results(results_included)
+        if len(results_included_by_changing_commanders) > 0:
+            reply += f'### {len(results_included_by_changing_commanders)} combos found by changing commanders\n'
+            reply += compute_variants_results(results_included_by_changing_commanders)
+        if len(results_almost_included) > 0:
+            reply += f'### {len(results_almost_included)} potential combos found\n'
+            reply += compute_variants_results(results_almost_included)
+        if len(results_almost_included_by_changing_commanders) > 0:
+            reply += f'### {len(results_almost_included_by_changing_commanders)} potential combos found by changing commanders with the same color identity\n'
+            reply += compute_variants_results(results_almost_included_by_changing_commanders)
+        if len(results_almost_included_by_adding_colors) > 0:
+            reply += f'### {len(results_almost_included_by_adding_colors)} potential combos found by adding colors to the identity\n'
+            reply += compute_variants_results(results_almost_included_by_adding_colors)
+        if len(results_almost_included_by_adding_colors_and_changing_commanders) > 0:
+            reply += f'### {len(results_almost_included_by_adding_colors_and_changing_commanders)} potential combos found by changing commanders and their color identities\n'
+            reply += compute_variants_results(results_almost_included_by_adding_colors_and_changing_commanders)
+        if len(results_included) == 0 \
+            and len(results_included_by_changing_commanders) == 0 \
+                and len(results_almost_included) == 0 \
+                and len(results_almost_included_by_changing_commanders) == 0 \
+                and len(results_almost_included_by_adding_colors) == 0 \
+                and len(results_almost_included_by_adding_colors_and_changing_commanders) == 0:
             reply += 'No combos found.'
         if interaction.guild:
             await interaction.followup.send(content='I\'ve sent your results in a DM!')
@@ -298,17 +302,6 @@ async def handle_find_my_combos(interaction: discord.Interaction, commanders: li
             await interaction.message.remove_reaction('🔍', bot.user)  # type: ignore
             await interaction.message.add_reaction('❌')
         await interaction.followup.send(content='Failed to fetch results.')
-
-
-def process_decklist(decklist: str) -> list[str]:
-    result = []
-    for line in decklist.split('\n'):
-        line = line.strip()
-        if line and not line.startswith('//'):
-            match = DECKLIST_LINE_REGEX.match(line)
-            if match:
-                result.append(match.group(1).strip())
-    return result
 
 
 class FindMyCombosModal(ui.Modal, title='Find My Combos'):
@@ -355,7 +348,9 @@ async def find_my_combos(interaction: discord.Interaction, decklist: str | None 
                         )
                     )
                 )
-                await handle_find_my_combos(interaction=interaction, commanders=result.commanders, main=result.main)
+                commanders: list[str] = result.commanders  # type: ignore
+                main: list[str] = result.main  # type: ignore
+                await handle_find_my_combos(interaction=interaction, commanders=commanders, main=main)
             except InvalidUrlResponse as e:
                 if interaction.message:
                     await interaction.message.add_reaction('❌')

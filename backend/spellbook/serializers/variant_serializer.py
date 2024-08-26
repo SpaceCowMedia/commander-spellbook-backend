@@ -113,7 +113,7 @@ class VariantSerializer(serializers.ModelSerializer):
     other_prerequisites = serializers.SerializerMethodField()
     description = serializers.SerializerMethodField()
     notes = serializers.SerializerMethodField()
-    popularity = serializers.IntegerField(read_only=True)
+    popularity = serializers.IntegerField(read_only=True, min_value=0, allow_null=True)
     legalities = VariantLegalitiesSerializer(source='*', read_only=True)
     prices = VariantPricesSerializer(source='*', read_only=True)
 
@@ -123,7 +123,7 @@ class VariantSerializer(serializers.ModelSerializer):
             return None
         return obj.mana_needed
 
-    @extend_schema_field(serializers.CharField(required=False))
+    @extend_schema_field(serializers.IntegerField(required=False, min_value=0))
     def get_mana_value_needed(self, obj):
         if obj.status == Variant.Status.EXAMPLE:
             return None

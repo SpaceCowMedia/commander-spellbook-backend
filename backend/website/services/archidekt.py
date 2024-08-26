@@ -1,7 +1,7 @@
 import re
 from urllib.parse import urlparse
 from .json_api import get
-from common.abstractions import Deck
+from common.abstractions import Deck, CardInDeck
 
 ARCHIDEKT_HOSTNAME = 'archidekt.com'
 
@@ -19,18 +19,18 @@ def archidekt(url: str) -> Deck | None:
     if result is None:
         return None
     try:
-        cards_with_categories: dict[str, set[str]] = {
-            card['card']['oracleCard']['name']: {c.lower() for c in card['categories']}
+        cards_with_quantity_and_categories: dict[str, tuple[int, set[str]]] = {
+            card['card']['oracleCard']['name']: (card['quantity'] or 1, {c.lower() for c in card['categories'] or []})
             for card in result['cards']
         }
         main = [
-            card
-            for card, categories in cards_with_categories.items()
+            CardInDeck(card=card, quantity=quantity)
+            for card, (quantity, categories) in cards_with_quantity_and_categories.items()
             if 'commander' not in categories and 'sideboard' not in categories and 'maybeboard' not in categories and 'considering' not in categories
         ]
         commanders = [
-            card
-            for card, categories in cards_with_categories.items()
+            CardInDeck(card=card, quantity=quantity)
+            for card, (quantity, categories) in cards_with_quantity_and_categories.items()
             if 'commander' in categories
         ]
         return Deck(main=main, commanders=commanders)

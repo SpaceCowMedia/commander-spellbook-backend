@@ -5,7 +5,7 @@ from multiset import FrozenMultiset
 
 class MinimalSetOfSetsTests(TestCase):
     def setUp(self) -> None:
-        self.subject = MinimalSetOfMultisets({
+        self.subject = MinimalSetOfMultisets[int]({
             FrozenMultiset([1, 1, 2, 3]),
             FrozenMultiset([1, 1, 2, 3, 4]),
             FrozenMultiset([3, 4, 5, 5, 5]),

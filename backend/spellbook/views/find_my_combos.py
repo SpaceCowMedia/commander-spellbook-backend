@@ -19,16 +19,16 @@ from spellbook.regexs.compiled import DECKLIST_LINE_REGEX
 
 @dataclass
 class Deck:
-    main: FrozenMultiset
-    commanders: FrozenMultiset
+    main: FrozenMultiset[int]
+    commanders: FrozenMultiset[int]
 
 
 def deck_from_raw(raw_deck: RawDeck, cards_dict: dict[str, int]) -> Deck:
     valid_card_ids: set[int] = set(cards_dict.values())
-    main = Multiset()
-    commanders = Multiset()
+    main = Multiset[int]()
+    commanders = Multiset[int]()
 
-    def next_card(raw_card: RawCardInDeck, card_set: Multiset):
+    def next_card(raw_card: RawCardInDeck, card_set: Multiset[int]):
         card = raw_card.card.strip().lower()
         quantity = raw_card.quantity
         if not card or quantity < 1:
@@ -141,8 +141,8 @@ class FindMyCombosView(APIView):
 
         for variant in variants_page:
             variant_data: dict = viewset.serializer_class(variant).data  # type: ignore
-            variant_cards = FrozenMultiset({civ['card']['id']: civ['quantity'] for civ in variant_data['uses']})
-            variant_commanders = FrozenMultiset({civ['card']['id']: civ['quantity'] for civ in variant_data['uses'] if civ['must_be_commander']})
+            variant_cards = FrozenMultiset[int]({civ['card']['id']: civ['quantity'] for civ in variant_data['uses']})
+            variant_commanders = FrozenMultiset[int]({civ['card']['id']: civ['quantity'] for civ in variant_data['uses'] if civ['must_be_commander']})
             variant_identity = set(variant_data['identity']) - {'C'}
             if variant_commanders.issubset(deck.commanders):
                 if variant_cards.issubset(cards):

@@ -2,14 +2,14 @@ from typing import TypeVar, Iterable, Set
 from multiset import BaseMultiset
 
 
-T = TypeVar('T')
+_T = TypeVar('_T')
 
 
-def includes_any(v: BaseMultiset, others: Iterable[BaseMultiset | Set[T]]) -> bool:
+def includes_any(v: BaseMultiset[_T], others: Iterable[BaseMultiset[_T] | Set[_T]]) -> bool:
     return any(v.issuperset(o) for o in others)
 
 
-def count_contains(v: BaseMultiset, other: BaseMultiset) -> int:
+def count_contains(v: BaseMultiset[_T], other: BaseMultiset[_T]) -> int:
     if len(other) == 0:
         raise ValueError('Cannot count the number of times an empty multiset is contained in another multiset')
     if v.issuperset(other):

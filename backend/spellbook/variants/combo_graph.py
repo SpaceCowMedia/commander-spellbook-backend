@@ -10,7 +10,7 @@ from spellbook.models.feature import Feature
 from spellbook.models.combo import Combo
 from spellbook.models.template import Template
 from .variant_data import Data
-from .variant_set import VariantSet
+from .variant_set import VariantSet, cardid, templateid
 from .utils import count_contains
 
 
@@ -167,8 +167,8 @@ class ComboNode(Node[Combo]):
 
 @dataclass(frozen=True)
 class VariantIngredients:
-    cards: FrozenMultiset
-    templates: FrozenMultiset
+    cards: FrozenMultiset[cardid]
+    templates: FrozenMultiset[templateid]
 
 
 featureid = int
@@ -177,7 +177,7 @@ comboid = int
 
 @dataclass(frozen=True)
 class VariantRecipe(VariantIngredients):
-    features: FrozenMultiset
+    features: FrozenMultiset[featureid]
     combos: set[comboid]
     replacements: dict[featureid, list[VariantIngredients]]
     needed_features: set[featureid]

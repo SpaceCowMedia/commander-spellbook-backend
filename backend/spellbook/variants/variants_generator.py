@@ -7,7 +7,7 @@ from django.db import transaction
 from django.utils.functional import cached_property
 from .utils import includes_any
 from .variant_data import Data, debug_queries
-from .combo_graph import Graph, VariantSet
+from .combo_graph import Graph, VariantSet, cardid, templateid, featureid
 from spellbook.models import Combo, Job, Variant, CardInVariant, TemplateInVariant, id_from_cards_and_templates_ids, Playable, Card, Template, VariantAlias, Ingredient, Feature, FeatureProducedByVariant, VariantOfCombo, VariantIncludesCombo, ZoneLocation
 from spellbook.utils import log_into_job
 from spellbook.models.constants import DEFAULT_CARD_LIMIT, DEFAULT_VARIANT_LIMIT, HIGHER_CARD_LIMIT, LOWER_VARIANT_LIMIT
@@ -15,14 +15,14 @@ from spellbook.models.constants import DEFAULT_CARD_LIMIT, DEFAULT_VARIANT_LIMIT
 
 @dataclass
 class VariantRecipeDefinition:
-    card_ids: FrozenMultiset
-    template_ids: FrozenMultiset
+    card_ids: FrozenMultiset[cardid]
+    template_ids: FrozenMultiset[templateid]
 
 
 @dataclass
 class VariantDefinition(VariantRecipeDefinition):
     of_ids: set[int]
-    feature_ids: Multiset
+    feature_ids: Multiset[featureid]
     included_ids: set[int]
     feature_replacements: defaultdict[int, list[VariantRecipeDefinition]]
     needed_features: set[int]
@@ -109,7 +109,7 @@ def get_variants_from_graph(data: Data, single_combo: int | None, job: Job | Non
     return result
 
 
-def subtract_features(data: Data, includes: set[int], features: BaseMultiset) -> FrozenMultiset:
+def subtract_features(data: Data, includes: set[int], features: BaseMultiset[featureid]) -> FrozenMultiset[featureid]:
     to_remove = {r.feature_id for c in includes for r in data.combo_to_removed_features[c]}
     return FrozenMultiset({f: c for f, c in features.items() if f not in data.utility_features_ids and f not in to_remove})
 

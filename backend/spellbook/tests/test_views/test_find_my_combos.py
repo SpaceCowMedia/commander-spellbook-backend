@@ -28,8 +28,8 @@ class FindMyCombosViewTests(TestCaseMixinWithSeeding, TestCase):
     def _check_result(self,
             result,
             identity: str,
-            cards: FrozenMultiset,
-            commanders: FrozenMultiset):
+            cards: FrozenMultiset[str],
+            commanders: FrozenMultiset[str]):
         self.assertEqual(result.results.identity, identity)
         identity_set = set(identity) | {'C'}
         for v in result.results.included:
@@ -112,9 +112,9 @@ class FindMyCombosViewTests(TestCaseMixinWithSeeding, TestCase):
                 for commander_count in [0, 1, 2, 4]:
                     with self.subTest(f'{card_count} cards with {commander_count} commanders'):
                         for card_set in itertools.combinations(card_names, card_count):
-                            card_set = FrozenMultiset({c: q for q, c in enumerate(card_set, start=1)})
+                            card_set = FrozenMultiset[str]({c: q for q, c in enumerate(card_set, start=1)})
                             for commander_set in itertools.combinations(card_set.items(), commander_count):
-                                commander_set = FrozenMultiset(dict(commander_set))
+                                commander_set = FrozenMultiset[str](dict(commander_set))
                                 commander_list = list(commander_set.items())
                                 deck_list = list((card_set - commander_set).items())
                                 random.shuffle(deck_list)

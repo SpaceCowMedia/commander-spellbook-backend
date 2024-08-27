@@ -123,11 +123,11 @@ def variants_query_parser(base: QuerySet[Variant], query_string: str) -> QuerySe
             filtered_variants = filtered_variants.exclude(filter.q) if filter.negated else filtered_variants.filter(filter.q)
         for filter in filters.cards_filters:
             filtered_cards = CardInVariant.objects.filter(filter.q)
-            q = Q(pk__in=filtered_cards.values('variant').distinct())
+            q = Q(pk__in=filtered_cards.values('variant_id').distinct())
             filtered_variants = filtered_variants.exclude(q) if filter.negated else filtered_variants.filter(q)
         for filter in filters.results_filters:
             filtered_produces = FeatureProducedByVariant.objects.filter(filter.q)
-            q = Q(pk__in=filtered_produces.values('variant').distinct())
+            q = Q(pk__in=filtered_produces.values('variant_id').distinct())
             filtered_variants = filtered_variants.exclude(q) if filter.negated else filtered_variants.filter(q)
         return filtered_variants
     except UnexpectedToken as e:

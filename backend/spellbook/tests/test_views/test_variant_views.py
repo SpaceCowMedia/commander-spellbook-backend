@@ -133,6 +133,8 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
         self.variant_assertions(result)
 
     def test_variants_list_view_query_by_card_name(self):
+        a_card = Card.objects.first()
+        assert a_card is not None
         for card, search in ((c, name) for c in Card.objects.all() for name in (c.name, c.name_unaccented, c.name_unaccented.replace('-', ''), c.name_unaccented.replace('-', ' '))):
             prefix_without_spaces = search.partition(' ')[0]
             search_without_underscores = search.replace('_', '').strip()
@@ -158,6 +160,16 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
                     self.assertEqual(response.get('Content-Type'), 'application/json')
                     result = json.loads(response.content, object_hook=json_to_python_lambda)
                     variants = self.public_variants.filter(uses__id=card.id).distinct()
+                    self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
+                    for v in result.results:
+                        self.variant_assertions(v)
+                qq = f'{q} card:"{a_card.name}"'
+                with self.subTest(f'query by card name: {search} with additional card {a_card} and query {q}'):
+                    response = self.client.get('/variants', data={'q': qq}, follow=True)
+                    self.assertEqual(response.status_code, 200)
+                    self.assertEqual(response.get('Content-Type'), 'application/json')
+                    result = json.loads(response.content, object_hook=json_to_python_lambda)
+                    variants = self.public_variants.filter(uses__id=card.id).filter(uses__id=a_card.id).distinct()
                     self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
                     for v in result.results:
                         self.variant_assertions(v)

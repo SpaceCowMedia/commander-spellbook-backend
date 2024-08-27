@@ -45,21 +45,21 @@ def url_from_variant(variant: Variant) -> str:
 
 def compute_variant_name(variant: Variant) -> str:
     return ' + '.join(chain(
-        ((f'{card.quantity}x ' if card.quantity > 1 else '') + card.card.name for card in variant.uses),  # type: ignore
-        ((f'{template.quantity}x ' if template.quantity > 1 else '') + template.template.name for template in variant.requires),  # type: ignore
+        ((f'{card.quantity}x ' if card.quantity and card.quantity > 1 else '') + card.card.name for card in variant.uses),
+        ((f'{template.quantity}x ' if template.quantity and template.quantity > 1 else '') + template.template.name for template in variant.requires),
     ))
 
 
 def compute_variant_recipe(variant: Variant) -> str:
     variant_name = compute_variant_name(variant)
-    variant_results = ', '.join(result.feature.name for result in variant.produces[:4]) + ('...' if len(variant.produces) > 4 else '')  # type: ignore
+    variant_results = ', '.join(result.feature.name for result in variant.produces[:4]) + ('...' if len(variant.produces) > 4 else '')
     return f'{variant_name} ➜ {variant_results}'
 
 
 def compute_variant_results(variant: Variant) -> str:
     return '\n'.join(
-        (f'{result.quantity}x ' if result.quantity > 1 else '') + result.feature.name  # type: ignore
-        for result in variant.produces  # type: ignore
+        (f'{result.quantity}x ' if result.quantity and result.quantity > 1 else '') + result.feature.name
+        for result in variant.produces
     )
 
 

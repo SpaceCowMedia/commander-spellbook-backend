@@ -12,8 +12,7 @@ import asyncpraw.models.reddit.comment
 import asyncpraw.models.reddit.redditor
 import asyncpraw.models.reddit.submission
 import asyncpraw.models.reddit.subreddit
-from kiota_abstractions.api_error import APIError
-from spellbook_client import RequestConfiguration
+from spellbook_client import VariantsApi, ApiException
 from bot_utils import parse_queries, SpellbookQuery, API, compute_variant_recipe, url_from_variant
 
 
@@ -69,15 +68,13 @@ async def process_input(text: str) -> str | None:
     for query in queries:
         query_info = SpellbookQuery(query)
         try:
-            result = await API.variants.get(
-                request_configuration=RequestConfiguration[API.variants.VariantsRequestBuilderGetQueryParameters](
-                    query_parameters=API.variants.VariantsRequestBuilderGetQueryParameters(
-                        q=query_info.patched_query,
-                        limit=MAX_SEARCH_RESULTS,
-                        ordering='-popularity',
-                    )
+            async with API() as api_client:
+                api = VariantsApi(api_client)
+                result = await api.variants_list(
+                    q=query_info.patched_query,
+                    limit=MAX_SEARCH_RESULTS,
+                    ordering='-popularity',
                 )
-            )
             match result.count:
                 case 0:
                     reply += f'{'* ' if len(queries) > 1 else ''}No results found for {query_info.summary}\n'
@@ -97,7 +94,7 @@ async def process_input(text: str) -> str | None:
                         variant_url = url_from_variant(variant)
                         variant_link = f'[{variant_recipe}]({variant_url})'
                         reply += f'  1. {variant_link} (found in {variant.popularity} decks)\n'
-        except APIError:
+        except ApiException:
             if len(queries) == 1:
                 reply += f'Failed to fetch results for {query_info.summary}\n'
             else:

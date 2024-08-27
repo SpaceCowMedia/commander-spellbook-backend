@@ -3,14 +3,8 @@ import discord
 import logging
 from discord.ext import commands
 from discord import ui, utils
-from kiota_abstractions.api_error import APIError
-from spellbook_client import RequestConfiguration
-from spellbook_client.models.variant import Variant
-from spellbook_client.models.deck_request import DeckRequest
-from spellbook_client.models.invalid_url_response import InvalidUrlResponse
-from spellbook_client.models.variants_query_validation_error import VariantsQueryValidationError
-from spellbook_client.models.deck_request import DeckRequest
-from spellbook_client.models.card_in_deck_request import CardInDeckRequest
+from spellbook_client import ApiException, Variant, VariantsApi, InvalidUrlResponse, VariantsQueryValidationError, DeckRequest, CardInDeckRequest, FindMyCombosApi, CardListFromUrlApi
+from spellbook_client.extensions import find_my_combos_create_plain
 from text_utils import discord_chunk, chunk_diff_async
 from bot_utils import parse_queries, SpellbookQuery, url_from_variant, compute_variant_name, compute_variant_results, API, compute_variant_recipe, uri_validator
 
@@ -112,17 +106,15 @@ async def handle_queries(
     for query in queries:
         query_info = SpellbookQuery(query)
         try:
-            result = await API.variants.get(
-                request_configuration=RequestConfiguration[API.variants.VariantsRequestBuilderGetQueryParameters](
-                    query_parameters=API.variants.VariantsRequestBuilderGetQueryParameters(
-                        q=query_info.patched_query,
-                        limit=MAX_SEARCH_RESULTS,
-                        ordering='-popularity',
-                    ),
-                ),
-            )
-            result_count: int = result.count  # type: ignore
-            results: list[Variant] = result.results  # type: ignore
+            async with API() as api_client:
+                api = VariantsApi(api_client)
+                result = await api.variants_list(
+                    q=query_info.patched_query,
+                    limit=MAX_SEARCH_RESULTS,
+                    ordering='-popularity',
+                )
+            result_count: int = result.count
+            results: list[Variant] = result.results
             if len(queries) == 1 and result_count == 1:
                 variant = results[0]
                 variant_url = url_from_variant(variant)
@@ -160,55 +152,47 @@ async def handle_queries(
                 reply += compute_variants_results(results)
             else:
                 reply += f'\n\nNo results found for {query_info.summary}'
-            if message:
-                chunks = discord_chunk(reply)
-                messages = await chunk_diff_async(
-                    new_chunks=chunks,
-                    add=lambda i, c: message.reply(**add_kwargs(i, c)),
-                    update=lambda i, m, c: m.edit(content=c, suppress=embed is None or i != len(chunks) - 1, embed=embed if i == len(chunks) - 1 else None),
-                    remove=lambda _, m: m.delete(),
-                    old_chunks_wrappers=messages,
-                    unwrap=lambda m: m.content,
-                )
-        except VariantsQueryValidationError as e:
-            if message:
-                await message.remove_reaction('🔍', bot.user)  # type: ignore
-                await message.add_reaction('⚠')
-            error_messages = e.q or []
-            reply += f'\n\nThere {'is a problem' if len(error_messages) <= 1 else 'are problems'} with {query_info.summary}'
-            if error_messages:
-                if len(error_messages) > 1:
-                    reply += ':\n'
-                    for error_message in error_messages:
-                        reply += f'\n* {error_message}'
-                else:
-                    reply += f'. {error_messages[0]}'
-            if message:
-                chunks = discord_chunk(reply)
-                messages = await chunk_diff_async(
-                    new_chunks=chunks,
-                    add=lambda i, c: message.reply(**add_kwargs(i, c)),
-                    update=lambda i, m, c: m.edit(content=c, suppress=embed is None or i != len(chunks) - 1, embed=embed if i == len(chunks) - 1 else None),
-                    remove=lambda _, m: m.delete(),
-                    old_chunks_wrappers=messages,
-                    unwrap=lambda m: m.content,
-                )
-        except APIError:
-            if message:
-                await message.remove_reaction('🔍', bot.user)  # type: ignore
-                await message.add_reaction('❌')
-            reply += f'\n\nFailed to fetch results for {query_info.summary}'
-            if message:
-                chunks = discord_chunk(reply)
-                messages = await chunk_diff_async(
-                    new_chunks=chunks,
-                    add=lambda i, c: message.reply(**add_kwargs(i, c)),
-                    update=lambda i, m, c: m.edit(content=c, suppress=embed is None or i != len(chunks) - 1, embed=embed if i == len(chunks) - 1 else None),
-                    remove=lambda _, m: m.delete(),
-                    old_chunks_wrappers=messages,
-                    unwrap=lambda m: m.content,
-                )
-            break
+        except ApiException as e:
+            data = e.data
+            if isinstance(data, VariantsQueryValidationError):
+                error_messages = data.q or []
+                if message:
+                    await message.remove_reaction('🔍', bot.user)  # type: ignore
+                    await message.add_reaction('⚠')
+                reply += f'\n\nThere {'is a problem' if len(error_messages) <= 1 else 'are problems'} with {query_info.summary}'
+                if error_messages:
+                    if len(error_messages) > 1:
+                        reply += ':\n'
+                        for error_message in error_messages:
+                            reply += f'\n* {error_message}'
+                    else:
+                        reply += f'. {error_messages[0]}'
+            else:
+                if message:
+                    await message.remove_reaction('🔍', bot.user)  # type: ignore
+                    await message.add_reaction('❌')
+                reply += f'\n\nFailed to fetch results for {query_info.summary}'
+                if message:
+                    chunks = discord_chunk(reply)
+                    messages = await chunk_diff_async(
+                        new_chunks=chunks,
+                        add=lambda i, c: message.reply(**add_kwargs(i, c)),
+                        update=lambda i, m, c: m.edit(content=c, suppress=embed is None or i != len(chunks) - 1, embed=embed if i == len(chunks) - 1 else None),
+                        remove=lambda _, m: m.delete(),
+                        old_chunks_wrappers=messages,
+                        unwrap=lambda m: m.content,
+                    )
+                break
+        if message:
+            chunks = discord_chunk(reply)
+            messages = await chunk_diff_async(
+                new_chunks=chunks,
+                add=lambda i, c: message.reply(**add_kwargs(i, c)),
+                update=lambda i, m, c: m.edit(content=c, suppress=embed is None or i != len(chunks) - 1, embed=embed if i == len(chunks) - 1 else None),
+                remove=lambda _, m: m.delete(),
+                old_chunks_wrappers=messages,
+                unwrap=lambda m: m.content,
+            )
     if message:
         await message.remove_reaction('🔍', bot.user)  # type: ignore
     if interaction:
@@ -246,17 +230,22 @@ async def on_message(message: discord.Message):
     await handle_queries(queries, message=message)
 
 
-async def handle_find_my_combos(interaction: discord.Interaction, deck: DeckRequest):
+async def handle_find_my_combos(interaction: discord.Interaction, deck: DeckRequest | str):
     try:
-        result = await API.find_my_combos.post(body=deck)
+        async with API() as api_client:
+            api = FindMyCombosApi(api_client)
+            if isinstance(deck, str):
+                result = await find_my_combos_create_plain(api, deck)
+            else:
+                result = await api.find_my_combos_create(deck_request=deck)
         results_identity: str = result.results.identity  # type: ignore
         reply = f'## Find My Combos results for your deck\n### Deck identity: {convert_mana_identity_to_emoji(results_identity)}\n'
-        results_included: list[Variant] = result.results.included  # type: ignore
-        results_included_by_changing_commanders: list[Variant] = result.results.included_by_changing_commanders  # type: ignore
-        results_almost_included: list[Variant] = result.results.almost_included  # type: ignore
-        results_almost_included_by_changing_commanders: list[Variant] = result.results.almost_included_by_changing_commanders  # type: ignore
-        results_almost_included_by_adding_colors: list[Variant] = result.results.almost_included_by_adding_colors  # type: ignore
-        results_almost_included_by_adding_colors_and_changing_commanders: list[Variant] = result.results.almost_included_by_adding_colors_and_changing_commanders  # type: ignore
+        results_included: list[Variant] = result.results.included
+        results_included_by_changing_commanders: list[Variant] = result.results.included_by_changing_commanders
+        results_almost_included: list[Variant] = result.results.almost_included
+        results_almost_included_by_changing_commanders: list[Variant] = result.results.almost_included_by_changing_commanders
+        results_almost_included_by_adding_colors: list[Variant] = result.results.almost_included_by_adding_colors
+        results_almost_included_by_adding_colors_and_changing_commanders: list[Variant] = result.results.almost_included_by_adding_colors_and_changing_commanders
         if len(results_included) > 0:
             reply += f'### {len(results_included)} combos found\n'
             reply += compute_variants_results(results_included)
@@ -297,7 +286,7 @@ async def handle_find_my_combos(interaction: discord.Interaction, deck: DeckRequ
         if interaction.message:
             await interaction.message.remove_reaction('🔍', bot.user)  # type: ignore
             await interaction.message.add_reaction('✅')
-    except APIError:
+    except ApiException:
         if interaction.message:
             await interaction.message.remove_reaction('🔍', bot.user)  # type: ignore
             await interaction.message.add_reaction('❌')
@@ -322,9 +311,8 @@ class FindMyCombosModal(ui.Modal, title='Find My Combos'):
         await interaction.response.defer(ephemeral=interaction.guild is not None, thinking=True)
         if interaction.message is not None:
             await interaction.message.add_reaction('🔍')
-        commanders = process_decklist(self.commanders.value)
-        main = process_decklist(self.main.value)
-        await handle_find_my_combos(interaction=interaction, commanders=commanders, main=main)
+        decklist = f'// Commanders\n{self.commanders.value}\n\n// Main\n{self.main.value}'
+        await handle_find_my_combos(interaction=interaction, deck=decklist)
 
 
 @bot.tree.command(name='find-my-combos')
@@ -341,26 +329,26 @@ async def find_my_combos(interaction: discord.Interaction, decklist: str | None 
         if uri_validator(decklist):
             await interaction.response.defer(ephemeral=interaction.guild is not None, thinking=True)
             try:
-                result = await API.card_list_from_url.get(
-                    request_configuration=RequestConfiguration[API.card_list_from_url.CardListFromUrlRequestBuilderGetQueryParameters](
-                        query_parameters=API.card_list_from_url.CardListFromUrlRequestBuilderGetQueryParameters(
-                            url=decklist,
-                        )
-                    )
+                async with API() as api_client:
+                    api = CardListFromUrlApi(api_client)
+                    result = await api.card_list_from_url_retrieve(url=decklist)
+                await handle_find_my_combos(
+                    interaction=interaction,
+                    deck=DeckRequest(
+                        commanders=[CardInDeckRequest(card=c.card, quantity=c.quantity) for c in result.commanders] if result.commanders else None,
+                        main=[CardInDeckRequest(card=c.card, quantity=c.quantity) for c in result.main] if result.main else None,
+                    ),
                 )
-                commanders: list[str] = result.commanders  # type: ignore
-                main: list[str] = result.main  # type: ignore
-                await handle_find_my_combos(interaction=interaction, commanders=commanders, main=main)
-            except InvalidUrlResponse as e:
+            except ApiException as e:
+                data = e.data
                 if interaction.message:
                     await interaction.message.add_reaction('❌')
-                await interaction.followup.send(content=f'{e.detail.removesuffix('.')}.', ephemeral=True)
-            except APIError:
-                if interaction.message:
-                    await interaction.message.add_reaction('❌')
-                await interaction.followup.send('Failed to fetch decklist.', ephemeral=True)
+                if isinstance(data, InvalidUrlResponse):
+                    await interaction.followup.send(content=f'{data.detail.removesuffix('.')}.', ephemeral=True)
+                else:
+                    await interaction.followup.send(content='Failed to fetch decklist.', ephemeral=True)
         else:
-            await interaction.response.send_message('Invalid url provided.', ephemeral=True)
+            await interaction.response.send_message('Invalid url provided.', ephemeral=interaction.guild is not None)
     else:
         await interaction.response.send_modal(FindMyCombosModal())
 

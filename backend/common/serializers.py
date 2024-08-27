@@ -29,7 +29,7 @@ class PaginationWrapperExtension(OpenApiSerializerExtension):
 
 
 class CardInDeckSerializer(serializers.Serializer):
-    card = serializers.CharField(max_length=500)
+    card = serializers.CharField(max_length=500, allow_blank=True)
     quantity = serializers.IntegerField(min_value=1, default=1)
 
     def create(self, validated_data):

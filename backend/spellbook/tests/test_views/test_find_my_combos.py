@@ -1,9 +1,7 @@
 import json
 import itertools
 import random
-import os
 from multiset import FrozenMultiset
-from unittest import skipUnless
 from django.test import TestCase
 from spellbook.models import Card, Variant, merge_identities, CardInVariant
 from ..testing import TestCaseMixinWithSeeding
@@ -15,10 +13,8 @@ class FindMyCombosViewTests(TestCaseMixinWithSeeding, TestCase):
         super().setUp()
         super().generate_and_publish_variants()
         Variant.objects.filter(id__in=random.sample(list(Variant.objects.values_list('id', flat=True)), 3)).update(status=Variant.Status.EXAMPLE)
-        super().bulk_serialize_variants(Variant.objects.filter(status__in=Variant.public_statuses()))
-        c = CardInVariant.objects.order_by('variant_id')[0]
-        c.quantity = 2
-        c.save()
+        CardInVariant.objects.filter(card_id=self.c1_id, variant__cards_count=2).update(quantity=2)
+        super().bulk_serialize_variants()
         self.variants = Variant.objects.filter(status__in=Variant.public_statuses()).prefetch_related('cardinvariant_set', 'cardinvariant_set__card')
         self.variants_dict = {v.id: v for v in self.variants}
         self.variants_cards = {v.id: FrozenMultiset({c.card.name: c.quantity for c in v.cardinvariant_set.all()}) for v in self.variants}
@@ -72,7 +68,6 @@ class FindMyCombosViewTests(TestCaseMixinWithSeeding, TestCase):
             self.assertFalse(set(v.identity).issubset(identity_set))
             self.assertFalse(self.variants_commanders[v.id].issubset(commanders))
 
-    @skipUnless('CI' in os.environ, reason='This test is too slow to run locally.')
     def test_find_my_combos_views(self):
         for content_type in ['text/plain', 'application/json']:
             for using_ids in [False, True]:

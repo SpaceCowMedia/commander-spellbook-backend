@@ -1,0 +1,5 @@
+import re
+from . import DECKLIST_LINE_REGEX as _DECKLIST_LINE_REGEX
+
+
+DECKLIST_LINE_REGEX = re.compile(_DECKLIST_LINE_REGEX)

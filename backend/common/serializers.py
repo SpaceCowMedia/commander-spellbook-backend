@@ -1,7 +1,7 @@
 from drf_spectacular.extensions import OpenApiSerializerExtension
 from drf_spectacular.plumbing import force_instance
 from rest_framework import serializers
-from .abstractions import Deck
+from .abstractions import Deck, CardInDeck
 
 
 class PaginationWrapper(serializers.BaseSerializer):
@@ -28,14 +28,20 @@ class PaginationWrapperExtension(OpenApiSerializerExtension):
         return paginated_schema
 
 
-class DeckSerializer(serializers.Serializer):
-    main = serializers.ListField(child=serializers.CharField(), max_length=500, default=list)
-    commanders = serializers.ListField(child=serializers.CharField(), max_length=500, default=list)
+class CardInDeckSerializer(serializers.Serializer):
+    card = serializers.CharField(max_length=500, allow_blank=True)
+    quantity = serializers.IntegerField(min_value=1, default=1)
 
     def create(self, validated_data):
-        return Deck(**validated_data)
+        return CardInDeck(**validated_data)
 
-    def update(self, instance, validated_data):
-        instance.main = validated_data.get('main', instance.main)
-        instance.commanders = validated_data.get('commanders', instance.commanders)
-        return instance
+
+class DeckSerializer(serializers.Serializer):
+    main = serializers.ListField(child=CardInDeckSerializer(), max_length=500, default=list)
+    commanders = serializers.ListField(child=CardInDeckSerializer(), max_length=500, default=list)
+
+    def create(self, validated_data):
+        return Deck(
+            main=[self.get_fields()['main'].child.create(item) for item in validated_data.get('main', [])],  # type: ignore
+            commanders=[self.get_fields()['commanders'].child.create(item) for item in validated_data.get('commanders', [])]  # type: ignore
+        )

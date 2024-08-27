@@ -1,5 +1,5 @@
 from django.test import TestCase
-from common.markdown import escape_markdown
+from common.markdown_utils import escape_markdown
 
 
 class TestEscapeMarkdown(TestCase):

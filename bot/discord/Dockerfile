@@ -16,9 +16,7 @@ RUN apk --update add gcc python3-dev libffi-dev musl-dev --no-cache
 RUN pip install --upgrade pip
 
 # install dependencies
-COPY client/python/requirements.txt requirements-client.txt
-COPY bot/discord/requirements.txt requirements-bot.txt
-RUN cat requirements-client.txt requirements-bot.txt > requirements.txt
+COPY bot/discord/requirements.txt requirements.txt
 RUN pip wheel --no-cache-dir --no-deps --wheel-dir /usr/src/app/python/wheels -r requirements.txt
 
 

@@ -3,14 +3,16 @@ import os
 from itertools import chain
 from urllib.parse import quote_plus as encode_query, urlparse
 from functools import cached_property
-from anonymous_spellbook_client import AnonymousSpellbookClient
+from spellbook_client import ApiClient, Configuration
 from spellbook_client.models.variant import Variant
 
 
 WEBSITE_URL = os.getenv('SPELLBOOK_WEBSITE_URL', '')
-API = AnonymousSpellbookClient(base_url=os.getenv('SPELLBOOK_API_URL', ''))
-
 QUERY_REGEX = re.compile(r'{{(.*?)}}')
+
+
+def API():
+    return ApiClient(configuration=Configuration(host=os.getenv('SPELLBOOK_API_URL', '')))
 
 
 def parse_queries(text: str) -> list[str]:
@@ -41,33 +43,32 @@ def url_from_variant(variant: Variant) -> str:
     return f'{WEBSITE_URL}/combo/{variant.id}'
 
 
-def compute_variant_name(variant: Variant):
+def compute_variant_name(variant: Variant) -> str:
     return ' + '.join(chain(
-        ((f'{card.quantity}x ' if card.quantity > 1 else '') + card.card.name for card in variant.uses),
-        ((f'{template.quantity}x ' if template.quantity > 1 else '') + template.template.name for template in variant.requires),
+        ((f'{card.quantity}x ' if card.quantity and card.quantity > 1 else '') + card.card.name for card in variant.uses),
+        ((f'{template.quantity}x ' if template.quantity and template.quantity > 1 else '') + template.template.name for template in variant.requires),
     ))
 
 
-def compute_variant_recipe(variant: Variant):
+def compute_variant_recipe(variant: Variant) -> str:
     variant_name = compute_variant_name(variant)
     variant_results = ', '.join(result.feature.name for result in variant.produces[:4]) + ('...' if len(variant.produces) > 4 else '')
     return f'{variant_name} ➜ {variant_results}'
 
 
-def compute_variant_results(variant: Variant):
+def compute_variant_results(variant: Variant) -> str:
     return '\n'.join(
-        (f'{result.quantity}x ' if result.quantity > 1 else '') + result.feature.name
+        (f'{result.quantity}x ' if result.quantity and result.quantity > 1 else '') + result.feature.name
         for result in variant.produces
     )
 
 
-def uri_validator(x: str):
+def uri_validator(x: str) -> bool:
     try:
         result = urlparse(x)
         return all([result.scheme, result.netloc])
     except AttributeError:
         return False
-
 
 
 class SpellbookQuery:

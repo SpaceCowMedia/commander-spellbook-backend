@@ -3,11 +3,7 @@ import telegram
 import telegram.ext
 import logging
 from typing import Callable, Awaitable
-from kiota_abstractions.base_request_configuration import RequestConfiguration
-from kiota_abstractions.api_error import APIError
-from spellbook_client.models.variant import Variant
-from spellbook_client.models.deck_request import DeckRequest
-from spellbook_client.models.invalid_url_response import InvalidUrlResponse
+from spellbook_client import VariantsApi, InvalidUrlResponse, ApiException, Variant, FindMyCombosApi, DeckRequest, CardInDeckRequest, CardListFromUrlApi
 from bot_utils import parse_queries, uri_validator, SpellbookQuery, API, url_from_variant, compute_variant_recipe, compute_variant_name, compute_variant_results
 from text_utils import telegram_chunk, chunk_diff_async
 
@@ -52,7 +48,7 @@ def compute_variants_results(variants: list[Variant]) -> str:
     for variant in variants:
         variant_url = url_from_variant(variant)
         variant_recipe = compute_variant_recipe(variant)
-        result += f'• {convert_mana_identity_to_emoji(variant.identity)} [{variant_recipe}]({variant_url}) (in {variant.popularity} decks)\n'
+        result += f'• {convert_mana_identity_to_emoji(variant.identity)} [{variant_recipe}]({variant_url}) (in {variant.popularity} decks)\n'  # type: ignore
     return result
 
 
@@ -66,15 +62,13 @@ async def handle_queries(
     for query in queries:
         query_info = SpellbookQuery(query)
         try:
-            result = await API.variants.get(
-                request_configuration=RequestConfiguration[API.variants.VariantsRequestBuilderGetQueryParameters](
-                    query_parameters=API.variants.VariantsRequestBuilderGetQueryParameters(
-                        q=query_info.patched_query,
-                        limit=MAX_SEARCH_RESULTS,
-                        ordering='-popularity',
-                    ),
-                ),
-            )
+            async with API() as api_client:
+                api = VariantsApi(api_client)
+                result = await api.variants_list(
+                    q=query_info.patched_query,
+                    limit=MAX_SEARCH_RESULTS,
+                    ordering='-popularity',
+                )
             if len(queries) == 1 and result.count == 1:
                 variant = result.results[0]
                 variant_url = url_from_variant(variant)
@@ -94,7 +88,7 @@ async def handle_queries(
                 old_chunks_wrappers=messages,
                 unwrap=lambda m: m.text or '',
             )
-        except APIError:
+        except ApiException:
             await message.set_reaction('👎')
             reply += f'\n\nFailed to fetch results for {query_info.summary}'
             edit_message: Callable[[int, telegram.Message, str], Awaitable[telegram.Message]] = lambda _, m, c: m.edit_text(c, parse_mode=telegram.constants.ParseMode.MARKDOWN, disable_web_page_preview=True)  # type: ignore
@@ -132,16 +126,14 @@ async def search_inline(update: telegram.Update, context: telegram.ext.ContextTy
             return
         current_offset = int(inline_query.offset or 0)
         query_info = SpellbookQuery(query)
-        result = await API.variants.get(
-            request_configuration=RequestConfiguration[API.variants.VariantsRequestBuilderGetQueryParameters](
-                query_parameters=API.variants.VariantsRequestBuilderGetQueryParameters(
-                    q=query_info.patched_query,
-                    limit=max_search_result,
-                    ordering='-popularity',
-                    offset=current_offset,
-                ),
-            ),
-        )
+        async with API() as api_client:
+            api = VariantsApi(api_client)
+            result = await api.variants_list(
+                q=query_info.patched_query,
+                limit=max_search_result,
+                ordering='-popularity',
+                offset=current_offset,
+            )
         next_offset = current_offset + max_search_result
         inline_results = [
             telegram.InlineQueryResultArticle(
@@ -184,14 +176,11 @@ async def search_inline(update: telegram.Update, context: telegram.ext.ContextTy
         )
 
 
-async def handle_find_my_combos(message: telegram.Message, commanders: list[str], main: list[str]):
+async def handle_find_my_combos(message: telegram.Message, deck: DeckRequest):
     try:
-        result = await API.find_my_combos.post(
-            body=DeckRequest(
-                commanders=commanders,
-                main=main,
-            ),
-        )
+        async with API() as api_client:
+            api = FindMyCombosApi(api_client)
+            result = await api.find_my_combos_create(deck_request=deck)
         reply = f'Find My Combos results for your deck\n\nDeck identity: {convert_mana_identity_to_emoji(result.results.identity)}\n\n'
         if len(result.results.included) > 0:
             reply += f'__{len(result.results.included)} combos found__\n'
@@ -231,7 +220,7 @@ async def handle_find_my_combos(message: telegram.Message, commanders: list[str]
             except telegram.error.Forbidden:
                 await message.set_reaction('👎')
                 await message.reply_text('I can\'t send you a private message. In order to receive the results, open a private chat with me.')
-    except APIError:
+    except ApiException:
         await message.set_reaction('👎')
         await message.reply_text('Failed to fetch results for your deck.')
 
@@ -246,18 +235,23 @@ async def find_my_combos(update: telegram.Update, context: telegram.ext.ContextT
             case [url]:
                 if uri_validator(url):
                     try:
-                        result = await API.card_list_from_url.get(
-                            request_configuration=RequestConfiguration[API.card_list_from_url.CardListFromUrlRequestBuilderGetQueryParameters](
-                                query_parameters=API.card_list_from_url.CardListFromUrlRequestBuilderGetQueryParameters(
-                                    url=url,
-                                ),
+                        async with API() as api_client:
+                            api = CardListFromUrlApi(api_client)
+                            result = await api.card_list_from_url_retrieve(url=url)
+                        await update.message.reply_chat_action('typing')
+                        await handle_find_my_combos(
+                            message=update.message,
+                            deck=DeckRequest(
+                                commanders=[CardInDeckRequest(card=commander.card, quantity=commander.quantity) for commander in result.commanders] if result.commanders else None,
+                                main=[CardInDeckRequest(card=card.card, quantity=card.quantity) for card in result.main] if result.main else None,
                             ),
                         )
-                        await update.message.reply_chat_action('typing')
-                        await handle_find_my_combos(message=update.message, commanders=result.commanders, main=result.main)
-                    except InvalidUrlResponse as e:
+                    except ApiException as e:
                         await update.message.set_reaction('👎')
-                        await update.message.reply_text(f'{e.detail.removesuffix('.')}.')
+                        if isinstance(e.data, InvalidUrlResponse):
+                            await update.message.reply_text(f'{e.data.detail.removesuffix('.')}.')
+                        else:
+                            await update.message.reply_text('Failed to fetch results for your deck.')
                 else:
                     await update.message.set_reaction('👎')
                     await update.message.reply_text('The url you have provided is not valid.')

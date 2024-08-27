@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from multiset import FrozenMultiset, Multiset
 from django.db.models import F, Sum, Case, When, Value
+from django.db.models.functions import Greatest
 from rest_framework import parsers, serializers
 from rest_framework.response import Response
 from rest_framework.request import Request
@@ -119,11 +120,8 @@ class FindMyCombosView(APIView):
 
         variant_id_list = CardInVariant.objects \
             .values('variant') \
-            .alias(
-                present_count=Sum(quantity_in_deck),
-                total_count=Sum('quantity')
-            ) \
-            .filter(present_count__gte=F('total_count') - 1)
+            .alias(missing_count=Sum(Greatest(F('quantity') - quantity_in_deck, Value(0)))) \
+            .filter(missing_count__lte=1)
 
         viewset = VariantViewSet()
         variants_query = viewset.get_queryset().filter(id__in=variant_id_list)

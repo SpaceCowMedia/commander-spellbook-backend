@@ -2,10 +2,10 @@ import json
 import itertools
 import random
 import os
+from multiset import FrozenMultiset
 from unittest import skipUnless
 from django.test import TestCase
-from spellbook.models import Card, Variant, merge_identities
-from spellbook.serializers import VariantSerializer
+from spellbook.models import Card, Variant, merge_identities, CardInVariant
 from ..testing import TestCaseMixinWithSeeding
 from common.inspection import json_to_python_lambda
 
@@ -13,20 +13,23 @@ from common.inspection import json_to_python_lambda
 class FindMyCombosViewTests(TestCaseMixinWithSeeding, TestCase):
     def setUp(self) -> None:
         super().setUp()
-        super().generate_variants()
-        Variant.objects.update(status=Variant.Status.OK)
+        super().generate_and_publish_variants()
         Variant.objects.filter(id__in=random.sample(list(Variant.objects.values_list('id', flat=True)), 3)).update(status=Variant.Status.EXAMPLE)
-        Variant.objects.bulk_serialize(Variant.objects.filter(status__in=Variant.public_statuses()), VariantSerializer)
+        super().bulk_serialize_variants(Variant.objects.filter(status__in=Variant.public_statuses()))
+        c = CardInVariant.objects.filter(variant_id=self.v1_id).first()
+        assert c is not None
+        c.quantity = 2
+        c.save()
         self.variants = Variant.objects.filter(status__in=Variant.public_statuses()).prefetch_related('cardinvariant_set', 'cardinvariant_set__card')
         self.variants_dict = {v.id: v for v in self.variants}
-        self.variants_cards = {v.id: {c.card.name for c in v.cardinvariant_set.all()} for v in self.variants}
-        self.variants_commanders = {v.id: {c.card.name for c in v.cardinvariant_set.filter(must_be_commander=True)} for v in self.variants}
+        self.variants_cards = {v.id: FrozenMultiset({c.card.name: c.quantity for c in v.cardinvariant_set.all()}) for v in self.variants}
+        self.variants_commanders = {v.id: FrozenMultiset({c.card.name: c.quantity for c in v.cardinvariant_set.filter(must_be_commander=True)}) for v in self.variants}
 
     def _check_result(self,
             result,
             identity: str,
-            cards: set[str],
-            commanders: set[str]):
+            cards: FrozenMultiset,
+            commanders: FrozenMultiset):
         self.assertEqual(result.results.identity, identity)
         identity_set = set(identity) | {'C'}
         for v in result.results.included:
@@ -83,11 +86,13 @@ class FindMyCombosViewTests(TestCaseMixinWithSeeding, TestCase):
                     self.assertEqual(len(result.results.included), 0)
                     self.assertEqual(len(result.results.almost_included), 0)
                     self.assertEqual(len(result.results.almost_included_by_adding_colors), 0)
+                    self.assertEqual(len(result.results.almost_included_by_changing_commanders), 0)
+                    self.assertEqual(len(result.results.almost_included_by_adding_colors_and_changing_commanders), 0)
                 with self.subTest('single card'):
-                    card = Card.objects.get(oracle_id='00000000-0000-0000-0000-000000000001')
+                    card = Card.objects.get(id=self.c1_id)
                     card_str = str(card.id) if using_ids else card.name
                     if 'json' in content_type:
-                        deck_list = json.dumps({'main': [card_str]})
+                        deck_list = json.dumps({'main': [{'card': card_str}]})
                     else:
                         deck_list = card_str
                     identity = card.identity
@@ -97,34 +102,35 @@ class FindMyCombosViewTests(TestCaseMixinWithSeeding, TestCase):
                     result = json.loads(response.content, object_hook=json_to_python_lambda)  # type: ignore
                     self.assertEqual(result.results.identity, identity)
                     self.assertEqual(len(result.results.included), 0)
-                    self.assertEqual(len(result.results.almost_included), 2)
+                    self.assertEqual(len(result.results.almost_included), 1)
                     self.assertEqual(len(result.results.almost_included_by_adding_colors), 0)
                     self.assertEqual(len(result.results.almost_included_by_changing_commanders), 0)
                     self.assertEqual(len(result.results.almost_included_by_adding_colors_and_changing_commanders), 0)
-                    self._check_result(result, identity, {card.name}, set())
+                    self._check_result(result, identity, FrozenMultiset({card.name}), FrozenMultiset())
             card_names = list(Card.objects.values_list('name', flat=True))
             for card_count in [4, Card.objects.count()]:
                 for commander_count in [0, 1, 2, 4]:
                     with self.subTest(f'{card_count} cards with {commander_count} commanders'):
                         for card_set in itertools.combinations(card_names, card_count):
-                            card_set = set(card_set)
-                            for commander_set in itertools.combinations(card_set, commander_count):
-                                deck_list = list(c for c in card_set if c not in commander_set)
-                                commander_list = list(commander_set)
+                            card_set = FrozenMultiset({c: q for q, c in enumerate(card_set, start=1)})
+                            for commander_set in itertools.combinations(card_set.items(), commander_count):
+                                commander_set = FrozenMultiset(dict(commander_set))
+                                commander_list = list(commander_set.items())
+                                deck_list = list((card_set - commander_set).items())
                                 random.shuffle(deck_list)
                                 random.shuffle(commander_list)
                                 if 'json' in content_type:
-                                    deck_list_str = json.dumps({'main': deck_list, 'commanders': commander_list})
+                                    deck_list_str = json.dumps({'main': [{'card': c, 'quantity': q} for c, q in deck_list], 'commanders': [{'card': c, 'quantity': q} for c, q in commander_list]})
                                 else:
-                                    deck_list_str = '\n'.join(['// Command'] + commander_list + ['// Main'] + deck_list)
-                                identity = merge_identities(c.identity for c in Card.objects.filter(name__in=deck_list + commander_list))
+                                    deck_list_str = '\n'.join(['// Command'] + [f'{q}x {c} [ALFA]' for c, q in commander_list] + ['// Main'] + [f'{q} {c} (XD)' for c, q in deck_list])
+                                identity = merge_identities(c.identity for c in Card.objects.filter(name__in=[c for c, _ in deck_list + commander_list]))
                                 identity_set = set(identity) | {'C'}
                                 response = self.client.generic('GET', '/find-my-combos', data=deck_list_str, follow=True, headers={'Content-Type': content_type})  # type: ignore
                                 self.assertEqual(response.status_code, 200)  # type: ignore
                                 self.assertEqual(response.get('Content-Type'), 'application/json')  # type: ignore
                                 result = json.loads(response.content, object_hook=json_to_python_lambda)  # type: ignore
                                 self.assertEqual(result.results.identity, identity)
-                                related = [v for v in self.variants if len(self.variants_cards[v.id]) > len(self.variants_cards[v.id].difference(card_set)) <= 1]
+                                related = [v for v in self.variants if len(self.variants_cards[v.id].difference(card_set)) <= 1]
                                 included_within_commander = [v for v in related if self.variants_cards[v.id].issubset(card_set) and self.variants_commanders[v.id].issubset(commander_set)]
                                 included_outside_commander = [v for v in related if self.variants_cards[v.id].issubset(card_set) and not self.variants_commanders[v.id].issubset(commander_set)]
                                 related_but_not_included = [v for v in related if not self.variants_cards[v.id].issubset(card_set)]
@@ -138,4 +144,4 @@ class FindMyCombosViewTests(TestCaseMixinWithSeeding, TestCase):
                                 self.assertEqual(len(result.results.almost_included_by_changing_commanders), len(almost_included_within_identity_but_not_commanders))
                                 self.assertEqual(len(result.results.almost_included_by_adding_colors), len(almost_included_within_commanders_but_not_identity))
                                 self.assertEqual(len(result.results.almost_included_by_adding_colors_and_changing_commanders), len(almost_included_outside_identity_outside_commanders))
-                                self._check_result(result, identity, set(card_set), set(commander_set))
+                                self._check_result(result, identity, card_set, commander_set)

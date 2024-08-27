@@ -125,7 +125,6 @@ class TestCaseMixinWithSeeding(TestCaseMixin):
     b6_id = 0
     b7_id = 0
     s1_id = 0
-    v1_id = '1-8'
     expected_variant_count = 7
 
     def setUp(self) -> None:

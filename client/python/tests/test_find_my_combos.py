@@ -1,5 +1,6 @@
 from .testing import SpellbookClientTest
 from spellbook_client import DeckRequest, CardInDeckRequest, PaginatedFindMyComboResponseList, FindMyCombosApi
+from spellbook_client.extensions import find_my_combos_create_plain
 from spellbook.models.utils import id_from_cards_and_templates_ids
 from textwrap import dedent
 
@@ -53,9 +54,9 @@ class TestFindMyCombos(SpellbookClientTest):
     async def test_with_plain_text_body(self):
         async with self.anonymous_api_client as api_client:
             api_instance = FindMyCombosApi(api_client)
-            result = await api_instance.find_my_combos_create(
-                _content_type='text/plain',
-                deck_request=dedent(  # type: ignore
+            result = await find_my_combos_create_plain(
+                api_instance,
+                decklist=dedent(  # type: ignore
                     '''
                     // Commander
                     1x F F

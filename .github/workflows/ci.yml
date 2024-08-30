@@ -235,10 +235,10 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: spellbook-client-typescript
-          path: typescript-client/spellbook_client
+          path: spellbook_client
 
       - name: Bundle typescript client 📦
-        run: tar -cvzf release/spellbook-client-typescript.tar.gz typescript-client/spellbook_client
+        run: tar -cvzf release/spellbook-client-typescript.tar.gz spellbook_client
 
       - name: Release 📧
         uses: EasyDesk/action-semver-release@v1

@@ -238,8 +238,7 @@ jobs:
           path: typescript-client/spellbook_client
 
       - name: Bundle typescript client 📦
-        run: tar -cvzf release/spellbook-client-typescript.tar.gz spellbook_client
-        working-directory: typescript-client
+        run: tar -cvzf release/spellbook-client-typescript.tar.gz typescript-client/spellbook_client
 
       - name: Release 📧
         uses: EasyDesk/action-semver-release@v1

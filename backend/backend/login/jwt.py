@@ -23,6 +23,8 @@ class LoginCode(BlacklistMixin, Token):
 
 
 class TokenObtainPairSerializer(BaseTokenObtainPairSerializer):
+    refresh = CharField(read_only=True)
+    access = CharField(read_only=True)
     code_param = 'code'
     code = False
 
@@ -33,6 +35,10 @@ class TokenObtainPairSerializer(BaseTokenObtainPairSerializer):
             self.fields.clear()
             self.fields[self.code_param] = CharField(write_only=True)
             self.code = True
+        else:
+            self.fields[self.code_param] = CharField(write_only=True, required=False)
+            for field in self.fields.values():
+                field.required = False
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, str]:
         if not self.code:

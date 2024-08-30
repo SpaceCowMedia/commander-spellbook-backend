@@ -122,7 +122,7 @@ class FindMyCombosView(APIView):
         )
 
         variant_id_list = CardInVariant.objects \
-            .values('variant') \
+            .values('variant_id') \
             .alias(missing_count=Sum(Greatest(F('quantity') - quantity_in_deck, Value(0)))) \
             .filter(missing_count__lte=1)
 

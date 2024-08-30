@@ -17,6 +17,9 @@ from spellbook.views.variants import VariantViewSet
 from spellbook.regexs.compiled import DECKLIST_LINE_REGEX
 
 
+MAX_DECKLIST_LINES = RawDeckSerializer.MAX_MAIN_LIST_LENGTH + RawDeckSerializer.MAX_COMMANDERS_LIST_LENGTH + 10
+
+
 @dataclass
 class Deck:
     main: FrozenMultiset[int]
@@ -47,7 +50,7 @@ def deck_from_raw(raw_deck: RawDeck, cards_dict: dict[str, int]) -> Deck:
 
 
 def raw_from_text(text: str) -> RawDeck:
-    lines = text.splitlines()[:500]
+    lines = text.splitlines()[:MAX_DECKLIST_LINES]
     main = list[RawCardInDeck]()
     commanders = list[RawCardInDeck]()
     current_set = main

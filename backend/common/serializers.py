@@ -37,8 +37,10 @@ class CardInDeckSerializer(serializers.Serializer):
 
 
 class DeckSerializer(serializers.Serializer):
-    main = serializers.ListField(child=CardInDeckSerializer(), max_length=500, default=list)
-    commanders = serializers.ListField(child=CardInDeckSerializer(), max_length=500, default=list)
+    MAX_MAIN_LIST_LENGTH = 600
+    MAX_COMMANDERS_LIST_LENGTH = 100
+    main = serializers.ListField(child=CardInDeckSerializer(), max_length=MAX_MAIN_LIST_LENGTH, default=list)
+    commanders = serializers.ListField(child=CardInDeckSerializer(), max_length=MAX_COMMANDERS_LIST_LENGTH, default=list)
 
     def create(self, validated_data):
         return Deck(

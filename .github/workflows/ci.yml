@@ -235,10 +235,10 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: spellbook-client-typescript
-          path: typescript-client
+          path: typescript-client/spellbook_client
 
       - name: Bundle typescript client 📦
-        run: ls -alhR && tar -cvzf release/spellbook-client-typescript.tar.gz spellbook_client
+        run: tar -cvzf release/spellbook-client-typescript.tar.gz spellbook_client
         working-directory: typescript-client
 
       - name: Release 📧

@@ -191,7 +191,16 @@ jobs:
 
   release:
     runs-on: ubuntu-latest
-    needs: [build, lint, test, integration-test, client-python, bot-discord, bot-reddit, bot-telegram]
+    needs: 
+      - build
+      - lint
+      - test
+      - integration-test
+      - client-python
+      - client-typescript
+      - bot-discord
+      - bot-reddit
+      - bot-telegram
     if: needs.build.outputs.should-release == 'true'
     concurrency: release
     permissions:

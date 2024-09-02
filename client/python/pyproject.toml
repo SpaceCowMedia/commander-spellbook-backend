@@ -1,0 +1,23 @@
+[project]
+name = "spellbook_client"
+description = "An Open Api generated client for the Commander Spellbook backend REST API."
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dynamic = ["version", "dependencies"]
+
+[project.urls]
+homepage = "https://github.com/SpaceCowMedia/commander-spellbook-backend"
+
+[build-system]
+requires = ["hatchling", "hatch-requirements-txt"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "spellbook_client/__init__.py"
+
+[tool.hatch.metadata.hooks.requirements_txt]
+files = ["requirements.in"]

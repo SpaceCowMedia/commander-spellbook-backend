@@ -251,6 +251,7 @@ jobs:
         run: |
           npm version ${{ needs.build.outputs.version }}
           npm ci
+          npm run build
           npm publish --access public
 
       - name: Release 📧

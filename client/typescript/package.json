@@ -1,0 +1,35 @@
+{
+    "name": "@spacecowmedia/spellbook-client",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/SpaceCowMedia/commander-spellbook-backend.git"
+    },
+    "publishConfig": {
+        "registry": "https://npm.pkg.github.com"
+    },
+    "description": "An Open Api generated client for the Commander Spellbook backend REST API.",
+    "keywords": [
+        "magic",
+        "mtg",
+        "magic the gathering",
+        "commander",
+        "spellbook",
+        "api",
+        "client"
+    ],
+    "homepage": "https://backend.commanderspellbook.com",
+    "bugs": {
+        "url": "https://github.com/SpaceCowMedia/commander-spellbook-backend/issues"
+    },
+    "license": "MIT",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "devDependencies": {
+        "typescript": "^5.5.4"
+    },
+    "scripts": {
+        "build": "tsc",
+        "watch": "tsc -w"
+    },
+    "version": ""
+}

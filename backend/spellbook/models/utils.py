@@ -20,6 +20,7 @@ SANITIZATION_REPLACEMENTS = {
 }
 SORTED_COLORS = {
     frozenset[str](): 'C',
+    frozenset('C'): 'C',
     **{frozenset(i): i for i in [
         'W',
         'U',

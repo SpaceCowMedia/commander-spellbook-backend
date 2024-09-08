@@ -322,6 +322,11 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
                     (f'c{operator}{identity}', identity),
                     (f'ci{operator}{identity}', identity),
                 ])
+            for identity_name, identity in [('simic', 'UG'), ('Golgari', 'BG'), ('COLORLESS', 'C')]:
+                queries.extend([
+                    (f'coloridentity{operator}{identity_name}', identity),
+                    (f'identity{operator}"{identity_name}"', identity),
+                ])
             for i in range(7):
                 queries.extend([
                     (f'coloridentity{operator}{i}', i),

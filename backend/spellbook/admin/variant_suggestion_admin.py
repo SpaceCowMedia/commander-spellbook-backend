@@ -1,6 +1,7 @@
 from typing import Any
 from django.db.models import Count
 from django.contrib import admin
+from django.utils import timezone
 from spellbook.models import VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, FeatureProducedInVariantSuggestion
 from .ingredient_admin import IngredientInCombinationAdmin
 from .utils import SpellbookModelAdmin, CardsCountListFilter
@@ -36,7 +37,7 @@ class FeatureProducedInVariantAdminInline(admin.TabularInline):
 
 @admin.action(description='Mark selected suggestions as REJECTED')
 def set_rejected(modeladmin, request, queryset):
-    queryset.update(status=VariantSuggestion.Status.REJECTED)
+    queryset.update(status=VariantSuggestion.Status.REJECTED, updated=timezone.now())
     ids = queryset.exclude(suggested_by=request.user).values_list('id', flat=True)
     launch_job_command(
         command='notify',

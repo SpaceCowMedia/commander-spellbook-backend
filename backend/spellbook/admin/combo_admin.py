@@ -8,6 +8,7 @@ from django.forms import Textarea
 from django.utils.safestring import mark_safe
 from django.urls import reverse, path
 from django.shortcuts import redirect
+from django.utils import timezone
 from spellbook.utils import launch_job_command
 from spellbook.models import Card, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion
 from .utils import SpellbookModelAdmin, SpellbookAdminForm, CustomFilter
@@ -380,7 +381,7 @@ class ComboAdmin(SpellbookModelAdmin):
             updated = Variant.objects.filter(
                 of=instance,
                 status=Variant.Status.NEW
-            ).update(status=Variant.Status.RESTORE)
+            ).update(status=Variant.Status.RESTORE, updated=timezone.now())
             if updated:
                 messages.info(request, f'Set {updated} "New" variants to "Restore" status.')
 

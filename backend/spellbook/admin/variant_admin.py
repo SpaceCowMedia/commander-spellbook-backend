@@ -7,6 +7,7 @@ from django.http import HttpRequest
 from django.shortcuts import redirect
 from django.contrib import admin, messages
 from django.forms import Textarea
+from django.utils import timezone
 from spellbook.models import Variant, CardInVariant, TemplateInVariant
 from spellbook.utils import launch_job_command
 from spellbook.transformers.variants_query_transformer import variants_query_parser
@@ -64,10 +65,12 @@ def set_status(request, queryset, status: Variant.Status):
     unpublished = [variant for variant in variants if not variant.published]
     published = [variant for variant in variants if variant.published]
     publish = status in Variant.public_statuses()
+    now = timezone.now()
     for variant in variants:
-        variant.published = publish
+        variant.published = variant.published or publish
         variant.status = status
-    Variant.objects.bulk_serialize(variants, fields=['status', 'published'], serializer=VariantSerializer)  # type: ignore
+        variant.updated = now
+    Variant.objects.bulk_serialize(variants, fields=['status', 'published', 'updated'], serializer=VariantSerializer)  # type: ignore
     plural = 's' if len(variants) > 1 else ''
     messages.success(request, f'{len(variants)} variant{plural} marked as {status.name}.')
     if publish:

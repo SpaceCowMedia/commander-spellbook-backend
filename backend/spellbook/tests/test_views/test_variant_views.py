@@ -311,7 +311,7 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
                 random.shuffle(identity)
                 identity = ''.join(identity)
                 if not identity:
-                    identity = 'C'
+                    raise ValueError('Empty identity')
                 queries.extend([
                     (f'coloridentity{operator}{identity}', identity),
                     (f'identity{operator}{identity}', identity),

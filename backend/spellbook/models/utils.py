@@ -19,7 +19,6 @@ SANITIZATION_REPLACEMENTS = {
     '“”″❞〝〞ˮ': '"',  # double quotes
 }
 SORTED_COLORS = {
-    frozenset[str](): 'C',
     frozenset('C'): 'C',
     **{frozenset(i): i for i in [
         'W',
@@ -75,7 +74,7 @@ def id_from_cards_and_templates_ids(cards: Iterable[int], templates: Iterable[in
 
 
 def sort_color_identity(identity_set: frozenset[str]) -> str:
-    return SORTED_COLORS[identity_set]
+    return SORTED_COLORS[identity_set or frozenset('C')]
 
 
 def merge_identities(identities: Iterable[str]) -> str:

@@ -58,7 +58,8 @@
                                 .from(data.color_identity)
                                 .map(i => i.toUpperCase())
                                 .sort()
-                                .join('');
+                                .join('')
+                                || 'C';
                             const color_identity = identityMap.get(color_identity_sorted);
                             django.jQuery('#id_identity').val(color_identity);
 

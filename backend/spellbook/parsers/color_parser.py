@@ -8,68 +8,71 @@ def parse_identity(value: str) -> str | None:
         return SORTED_COLORS[value_set]
     match value:
         case 'C' | 'COLORLESS':
-            return 'C'
+            value_set = frozenset('C')
         case 'WHITE' | 'MONOWHITE':
-            return 'W'
+            value_set = frozenset('W')
         case 'BLUE' | 'MONOBLUE':
-            return 'U'
+            value_set = frozenset('U')
         case 'BLACK' | 'MONOBLACK':
-            return 'B'
+            value_set = frozenset('B')
         case 'RED' | 'MONORED':
-            return 'R'
+            value_set = frozenset('R')
         case 'GREEN' | 'MONOGREEN':
-            return 'G'
+            value_set = frozenset('G')
         case 'AZORIUS':
-            return 'WU'
+            value_set = frozenset('WU')
         case 'DIMIR':
-            return 'UB'
+            value_set = frozenset('UB')
         case 'RAKDOS':
-            return 'BR'
+            value_set = frozenset('BR')
         case 'GRUUL':
-            return 'RG'
+            value_set = frozenset('RG')
         case 'SELESNYA':
-            return 'WG'
+            value_set = frozenset('WG')
         case 'ORZHOV':
-            return 'WB'
+            value_set = frozenset('WB')
         case 'IZZET':
-            return 'UR'
+            value_set = frozenset('UR')
         case 'GOLGARI':
-            return 'BG'
+            value_set = frozenset('BG')
         case 'BOROS':
-            return 'WR'
+            value_set = frozenset('WR')
         case 'SIMIC':
-            return 'UG'
+            value_set = frozenset('UG')
         case 'NAYA':
-            return 'WRG'
+            value_set = frozenset('WRG')
         case 'ESPER':
-            return 'WUB'
+            value_set = frozenset('WUB')
         case 'GRIXIS':
-            return 'UBR'
+            value_set = frozenset('UBR')
         case 'JUND':
-            return 'BRG'
+            value_set = frozenset('BRG')
         case 'BANT':
-            return 'WUG'
+            value_set = frozenset('WUG')
         case 'ABZAN':
-            return 'WBG'
+            value_set = frozenset('WBG')
         case 'TEMUR':
-            return 'URG'
+            value_set = frozenset('URG')
         case 'JESKAI':
-            return 'WUR'
+            value_set = frozenset('WUR')
         case 'MARDU':
-            return 'WBR'
+            value_set = frozenset('WBR')
         case 'SULTAI':
-            return 'UBG'
+            value_set = frozenset('UBG')
         case 'CHAOS' | 'GLINT' | 'GLINTEYE' | 'SANSWHITE':
-            return 'UBRG'
+            value_set = frozenset('UBRG')
         case 'AGGRESSION' | 'DUNE' | 'DUNEBROOD' | 'SANSBLUE':
-            return 'WBRG'
+            value_set = frozenset('WBRG')
         case 'ALTRUISM' | 'INK' | 'INKTREADER' | 'SANSBLACK':
-            return 'WURG'
+            value_set = frozenset('WURG')
         case 'GROWTH' | 'WITCH' | 'WITCHMAW' | 'SANSRED':
-            return 'WUBG'
+            value_set = frozenset('WUBG')
         case 'ARTIFICE' | 'YORE' | 'YORETILLER' | 'SANSGREEN':
-            return 'WUBR'
+            value_set = frozenset('WUBR')
         case '5COLOR' | '5COLORS' | 'FIVECOLOR' | 'FIVECOLORS' | 'PENTA' | 'PENTACOLOR':
-            return 'WUBRG'
+            value_set = frozenset('WUBRG')
         case _:
-            return None
+            value_set = frozenset()
+    if value_set in SORTED_COLORS:
+        return SORTED_COLORS[value_set]
+    return None

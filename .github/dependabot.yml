@@ -6,7 +6,7 @@ updates:
     directories:
       - backend/
       - client/python/
-      - bot/*/
+      - bot/?*/
     schedule:
       interval: weekly
   - package-ecosystem: docker

@@ -57,7 +57,7 @@ class CardInComboAdminInline(IngredientInCombinationAdmin):
     def get_extra(self, request: HttpRequest, obj, **kwargs: Any) -> int:
         result = super().get_extra(request, obj, **kwargs)
         if hasattr(request, 'from_suggestion') and request.from_suggestion is not None:  # type: ignore
-            result += len(request.from_suggestion.uses_list)  # type: ignore
+            result += len(request.from_suggestion.uses_dict)  # type: ignore
         return result
 
 
@@ -71,7 +71,7 @@ class TemplateInComboAdminInline(IngredientInCombinationAdmin):
     def get_extra(self, request: HttpRequest, obj, **kwargs: Any) -> int:
         result = super().get_extra(request, obj, **kwargs)
         if hasattr(request, 'from_suggestion') and request.from_suggestion is not None:  # type: ignore
-            result += len(request.from_suggestion.requires_list)  # type: ignore
+            result += len(request.from_suggestion.requires_dict)  # type: ignore
         return result
 
 
@@ -86,7 +86,7 @@ class FeatureNeededInComboAdminInline(admin.TabularInline):
     def get_extra(self, request: HttpRequest, obj, **kwargs: Any) -> int:
         result = super().get_extra(request, obj, **kwargs)
         if hasattr(request, 'from_suggestion') and request.from_suggestion is not None:  # type: ignore
-            result += len(request.from_suggestion.needs_list)  # type: ignore
+            result += len(request.from_suggestion.needs_dict)  # type: ignore
         if hasattr(request, 'parent_feature') and request.parent_feature is not None:  # type: ignore
             result += 1
         if hasattr(request, 'child_feature') and request.child_feature is not None:  # type: ignore
@@ -105,7 +105,7 @@ class FeatureProducedInComboAdminInline(admin.TabularInline):
     def get_extra(self, request: HttpRequest, obj, **kwargs: Any) -> int:
         result = super().get_extra(request, obj, **kwargs)
         if hasattr(request, 'from_suggestion') and request.from_suggestion is not None:  # type: ignore
-            result += len(request.from_suggestion.produces_list)  # type: ignore
+            result += len(request.from_suggestion.produces_dict)  # type: ignore
         if hasattr(request, 'parent_feature') and request.parent_feature is not None:  # type: ignore
             result += 1
         if hasattr(request, 'child_feature') and request.child_feature is not None:  # type: ignore
@@ -207,27 +207,56 @@ class ComboAdmin(SpellbookModelAdmin):
                 initial_data['description'] = from_suggestion.description
                 initial_data['mana_needed'] = from_suggestion.mana_needed
                 initial_data['other_prerequisites'] = from_suggestion.other_prerequisites
-                suggested_produced_features = list(from_suggestion.produces.values_list('feature', flat=True))
-                found_produced_features = list(Feature.objects.filter(name__in=suggested_produced_features))
-                found_produced_features_names = {f.name for f in found_produced_features}
+                # Handle suggested produced features
+                suggested_produced_features = list[str](from_suggestion.produces.values_list('feature', flat=True))
+                found_produced_features = {f.name: f for f in Feature.objects.filter(name__in=suggested_produced_features)}
                 for f in suggested_produced_features:
-                    if f not in found_produced_features_names:
+                    if f not in found_produced_features:
                         add_feature_link = reverse('admin:spellbook_feature_add') + '?' + urlencode({
                             'name': f,
                         })
                         messages.warning(request, mark_safe(
                             f'Could not find produced feature "{f}" in database. {create_missing_object_message(add_feature_link)}'
                         ))
-                request.from_suggestion.produces_list = found_produced_features  # type: ignore
-                request.from_suggestion.uses_list = list(from_suggestion.uses.all())  # type: ignore
-                suggested_required_templates: list[TemplateRequiredInVariantSuggestion] = list(from_suggestion.requires.all())
+                request.from_suggestion.suggested_produced_features = suggested_produced_features  # type: ignore
+                request.from_suggestion.produces_dict = found_produced_features  # type: ignore
+                # Handle suggested used cards
+                suggested_used_cards = list(from_suggestion.uses.all())
+                found_used_cards = dict[str, Card]()
+                for suggested_card in suggested_used_cards:
+                    card_query = Q(name__iexact=suggested_card.card) \
+                        | Q(name_unaccented__iexact=suggested_card.card) \
+                        | Q(name_unaccented_simplified__iexact=suggested_card.card) \
+                        | Q(name_unaccented_simplified_with_spaces__iexact=suggested_card.card)
+                    query_result = list(Card.objects.filter(card_query)[:2])
+                    if not query_result:
+                        card_query = Q(name__icontains=suggested_card.card) \
+                            | Q(name_unaccented__icontains=suggested_card.card) \
+                            | Q(name_unaccented_simplified__icontains=suggested_card.card) \
+                            | Q(name_unaccented_simplified_with_spaces__icontains=suggested_card.card)
+                        query_result = list(Card.objects.filter(card_query)[:2])
+                    if len(query_result) == 1:
+                        found_used_cards[suggested_card.card] = query_result[0]
+                    elif len(query_result) > 1:
+                        picked = query_result[0]
+                        messages.warning(request, f'Found multiple cards matching "{suggested_card.card}" in database. Check if {picked.name} is correct.')
+                        found_used_cards[suggested_card.card] = picked
+                    else:
+                        add_card_link = reverse('admin:spellbook_card_add') + '?' + urlencode({
+                            'name': suggested_card.card,
+                        })
+                        messages.warning(request, mark_safe(
+                            f'Could not find used card "{suggested_card.card}" in database. {create_missing_object_message(add_card_link)}'
+                        ))
+                request.from_suggestion.suggested_used_cards = suggested_used_cards  # type: ignore
+                request.from_suggestion.uses_dict = found_used_cards  # type: ignore
+                # Handle suggested required templates
+                suggested_required_templates = list(from_suggestion.requires.all())
                 suggested_template_names = [suggested_template.template for suggested_template in suggested_required_templates]
-                found_required_templates = list(Template.objects.filter(name__in=suggested_template_names))
-                found_required_templates_names = {t.name for t in found_required_templates}
-                found_needed_features = list(Feature.objects.filter(name__in=suggested_template_names))
-                found_needed_features_names = {f.name for f in found_needed_features}
+                found_required_templates = {t.name: t for t in Template.objects.filter(name__in=suggested_template_names)}
+                found_needed_features = {f.name: f for f in Feature.objects.filter(name__in=suggested_template_names)}
                 for suggested_template in suggested_required_templates:
-                    if suggested_template.template not in found_required_templates_names and suggested_template.template not in found_needed_features_names:
+                    if suggested_template.template not in found_required_templates and suggested_template.template not in found_needed_features:
                         add_template_link = reverse('admin:spellbook_template_add') + '?' + urlencode({
                             'name': suggested_template.template,
                             'scryfall_query': suggested_template.scryfall_query or '',
@@ -236,8 +265,8 @@ class ComboAdmin(SpellbookModelAdmin):
                             f'Could not find required template "{suggested_template.template}" in database. {create_missing_object_message(add_template_link)}'
                         ))
                 request.from_suggestion.suggested_required_templates = suggested_required_templates  # type: ignore
-                request.from_suggestion.needs_list = found_needed_features  # type: ignore
-                request.from_suggestion.requires_list = [template for template in found_required_templates if template.name not in found_needed_features_names]  # type: ignore
+                request.from_suggestion.needs_dict = found_needed_features  # type: ignore
+                request.from_suggestion.requires_dict = {template_name: found_required_templates[template_name] for template_name in found_required_templates.keys() - found_needed_features.keys()}  # type: ignore
             except VariantSuggestion.DoesNotExist:
                 pass
         if parent_feature:
@@ -259,36 +288,11 @@ class ComboAdmin(SpellbookModelAdmin):
         if not obj.id and hasattr(request, 'from_suggestion') and request.from_suggestion is not None:  # type: ignore
             initial: list = formset_kwargs.setdefault('initial', [])
             if isinstance(inline, CardInComboAdminInline):
-                suggested_used_cards: list[CardUsedInVariantSuggestion] = request.from_suggestion.uses_list  # type: ignore
-                found_used_cards_names_to_id = dict[str, str]()
-                for suggested_card in suggested_used_cards:
-                    card_query = Q(name__iexact=suggested_card.card) \
-                        | Q(name_unaccented__iexact=suggested_card.card) \
-                        | Q(name_unaccented_simplified__iexact=suggested_card.card) \
-                        | Q(name_unaccented_simplified_with_spaces__iexact=suggested_card.card)
-                    query_result = Card.objects.filter(card_query)
-                    if query_result.count() == 0:
-                        card_query = Q(name__icontains=suggested_card.card) \
-                            | Q(name_unaccented__icontains=suggested_card.card) \
-                            | Q(name_unaccented_simplified__icontains=suggested_card.card) \
-                            | Q(name_unaccented_simplified_with_spaces__icontains=suggested_card.card)
-                        query_result = Card.objects.filter(card_query)
-                    if query_result.count() == 1:
-                        found_used_cards_names_to_id[suggested_card.card] = query_result.first().pk  # type: ignore
-                    elif query_result.count() > 1:
-                        picked: Card = query_result.first()  # type: ignore
-                        messages.warning(request, f'Found multiple cards matching "{suggested_card.card}" in database. Check if {picked.name} is correct.')
-                        found_used_cards_names_to_id[suggested_card.card] = picked.pk
-                    else:
-                        add_card_link = reverse('admin:spellbook_card_add') + '?' + urlencode({
-                            'name': suggested_card.card,
-                        })
-                        messages.warning(request, mark_safe(
-                            f'Could not find used card "{suggested_card.card}" in database. {create_missing_object_message(add_card_link)}'
-                        ))
+                suggestion_name_to_card_id: dict[str, Any] = {name: c.pk for name, c in request.from_suggestion.uses_dict.items()}  # type: ignore
+                suggested_used_cards: list[CardUsedInVariantSuggestion] = request.from_suggestion.suggested_used_cards  # type: ignore
                 for suggested_card in suggested_used_cards:
                     initial.append({
-                        'card': found_used_cards_names_to_id.get(suggested_card.card, None),
+                        'card': suggestion_name_to_card_id.get(suggested_card.card, None),
                         'quantity': suggested_card.quantity,
                         'zone_locations': suggested_card.zone_locations,
                         'battlefield_card_state': suggested_card.battlefield_card_state,
@@ -298,12 +302,12 @@ class ComboAdmin(SpellbookModelAdmin):
                         'must_be_commander': suggested_card.must_be_commander,
                     })
             elif isinstance(inline, TemplateInComboAdminInline):
-                found_required_templates_names_to_id = {t.name: t.pk for t in request.from_suggestion.requires_list}  # type: ignore
+                suggestion_name_to_template_id: dict[str, Any] = {name: t.pk for name, t in request.from_suggestion.requires_dict.items()}  # type: ignore
                 suggested_required_templates: list[TemplateRequiredInVariantSuggestion] = request.from_suggestion.suggested_required_templates  # type: ignore
                 for suggested_template in suggested_required_templates:
-                    if suggested_template.template in found_required_templates_names_to_id:
+                    if suggested_template.template in suggestion_name_to_template_id:
                         initial.append({
-                            'template': found_required_templates_names_to_id[suggested_template.template],
+                            'template': suggestion_name_to_template_id[suggested_template.template],
                             'quantity': suggested_template.quantity,
                             'zone_locations': suggested_template.zone_locations,
                             'battlefield_card_state': suggested_template.battlefield_card_state,
@@ -313,17 +317,22 @@ class ComboAdmin(SpellbookModelAdmin):
                             'must_be_commander': suggested_template.must_be_commander,
                         })
             elif isinstance(inline, FeatureNeededInComboAdminInline):
-                found_needed_features_ids = {f.pk for f in request.from_suggestion.needs_list}  # type: ignore
-                for feature_id in found_needed_features_ids:
-                    initial.append({
-                        'feature': feature_id,
-                    })
+                suggestion_name_to_feature_id: dict[str, Any] = {name: f.pk for name, f in request.from_suggestion.needs_dict.items()}  # type: ignore
+                suggested_required_templates: list[TemplateRequiredInVariantSuggestion] = request.from_suggestion.suggested_required_templates  # type: ignore
+                for suggested_template in suggested_required_templates:
+                    if suggested_template.template in suggestion_name_to_feature_id:
+                        initial.append({
+                            'feature': suggestion_name_to_feature_id[suggested_template.template],
+                            'quantity': suggested_template.quantity,
+                        })
             elif isinstance(inline, FeatureProducedInComboAdminInline):
-                found_produced_features_ids = {f.pk for f in request.from_suggestion.produces_list}  # type: ignore
-                for feature_id in found_produced_features_ids:
-                    initial.append({
-                        'feature': feature_id,
-                    })
+                suggestion_name_to_feature_id: dict[str, Any] = {name: f.pk for name, f in request.from_suggestion.produces_dict.items()}  # type: ignore
+                suggested_produced_features: list[str] = request.from_suggestion.suggested_produced_features  # type: ignore
+                for suggested_feature in suggested_produced_features:
+                    if suggested_feature in suggestion_name_to_feature_id:
+                        initial.append({
+                            'feature': suggestion_name_to_feature_id[suggested_feature],
+                        })
         if not obj.id and hasattr(request, 'parent_feature') and request.parent_feature is not None and isinstance(inline, FeatureNeededInComboAdminInline):  # type: ignore
             initial: list = formset_kwargs.setdefault('initial', [])
             initial.append({

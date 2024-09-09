@@ -414,6 +414,7 @@ jobs:
 
   open-api:
     runs-on: ubuntu-latest
+    needs: build
     defaults:
       run:
         shell: bash
@@ -431,6 +432,8 @@ jobs:
         run: chmod +x *.sh
 
       - name: Generate OpenApi 🧬
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
         run: ./generate-openapi.sh
 
       - name: Upload OpenApi artifact 📦

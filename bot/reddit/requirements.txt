@@ -44,9 +44,9 @@ multidict==6.0.5
     # via
     #   aiohttp
     #   yarl
-pydantic==2.8.2
+pydantic==2.9.0
     # via -r requirements.in
-pydantic-core==2.20.1
+pydantic-core==2.23.2
     # via pydantic
 python-dateutil==2.9.0.post0
     # via -r requirements.in
@@ -59,6 +59,8 @@ typing-extensions==4.12.2
     #   aiosqlite
     #   pydantic
     #   pydantic-core
+tzdata==2024.1
+    # via pydantic
 update-checker==0.18.0
     # via asyncpraw
 urllib3==2.2.2

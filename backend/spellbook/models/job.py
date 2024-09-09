@@ -75,7 +75,7 @@ class Job(models.Model):
             models.Index(fields=['name'], name='job_name_index')
         ]
         constraints = [
-            models.CheckConstraint(check=models.Q(expected_termination__gte=models.F('created')), name='job_expected_termination_gte_created')
+            models.CheckConstraint(condition=models.Q(expected_termination__gte=models.F('created')), name='job_expected_termination_gte_created')
         ]
 
     def __str__(self):

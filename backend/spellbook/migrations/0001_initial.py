@@ -363,7 +363,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddConstraint(
             model_name='job',
-            constraint=models.CheckConstraint(check=models.Q(('expected_termination__gte', models.F('created'))), name='job_expected_termination_gte_created'),
+            constraint=models.CheckConstraint(condition=models.Q(('expected_termination__gte', models.F('created'))), name='job_expected_termination_gte_created'),
         ),
         migrations.AlterUniqueTogether(
             name='featureproducedinvariantsuggestion',

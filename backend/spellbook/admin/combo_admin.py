@@ -187,7 +187,7 @@ class ComboAdmin(SpellbookModelAdmin):
         'produces__name',
         'needs__name'
     ]
-    list_display = ['__str__', 'id', 'status', 'allow_many_cards', 'allow_multiple_copies', 'updated']
+    list_display = ['name', 'id', 'status', 'allow_many_cards', 'allow_multiple_copies', 'updated']
 
     def get_fieldsets(self, request, obj):
         fieldsets = super().get_fieldsets(request, obj)

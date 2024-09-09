@@ -100,8 +100,8 @@ class OrderingFilterWithNullsLast(filters.OrderingFilter):
         if ordering:
             ordering_with_nulls = []
             for field in ordering:
-                if '?' in field:
-                    ordering_with_nulls.append(field)
+                if field in ('?', '-?'):
+                    ordering_with_nulls.append('?')
                 elif field.startswith('-'):
                     ordering_with_nulls.append(F(field[1:]).desc(nulls_last=True))
                 else:

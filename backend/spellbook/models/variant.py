@@ -113,8 +113,8 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
         default_manager_name = 'objects'
         ordering = [
             models.Case(
-                models.When(status='D', then=models.Value(0)),
-                models.When(status='N', then=models.Value(1)),
+                models.When(status='N', then=models.Value(0)),
+                models.When(status='D', then=models.Value(1)),
                 models.When(status='OK', then=models.Value(2)),
                 models.When(status='E', then=models.Value(3)),
                 models.When(status='R', then=models.Value(4)),

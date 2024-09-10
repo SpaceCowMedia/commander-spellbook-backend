@@ -31,7 +31,7 @@ def tappedout(url: str) -> Deck | None:
                 else:
                     main.append(CardInDeck(card=name, quantity=quantity))
         return Deck(main=main, commanders=commanders)
-    except KeyError | ValueError:
+    except (KeyError, ValueError):
         return None
 
 

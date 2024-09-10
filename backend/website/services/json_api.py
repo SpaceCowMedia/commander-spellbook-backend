@@ -12,5 +12,5 @@ def get(url: str) -> dict | None:
         with urlopen(req) as res:
             data = json.load(res)
             return data
-    except HTTPError | json.JSONDecodeError:
+    except (HTTPError, json.JSONDecodeError):
         return None

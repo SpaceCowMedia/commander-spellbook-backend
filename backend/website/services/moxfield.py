@@ -29,7 +29,7 @@ def moxfield(url: str) -> Deck | None:
             for card, item in result['commanders'].items()
         ]
         return Deck(main=main, commanders=commanders)
-    except KeyError | ValueError | AttributeError:
+    except (KeyError, ValueError, AttributeError):
         return None
 
 

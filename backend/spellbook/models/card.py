@@ -102,7 +102,7 @@ def update_variant_fields(sender, instance, created, raw, **kwargs):
     if raw or created:
         return
     from .variant import Variant
-    variants = Variant.recipes_prefetched.filter(uses=instance)
+    variants = Variant.recipes_prefetched.prefetch_related('uses').filter(uses=instance)
     variants_to_save = []
     for variant in variants:
         requires_commander = any(civ.must_be_commander for civ in variant.cardinvariant_set.all()) \

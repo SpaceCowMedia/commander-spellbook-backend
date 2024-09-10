@@ -24,11 +24,12 @@ from .constants import MAX_MANA_NEEDED_LENGTH
 class RecipePrefetchedManager(PreSaveSerializedManager):
     def get_queryset(self):
         return super().get_queryset().prefetch_related(
-            models.Prefetch('uses', queryset=Card.objects.order_by('cardinvariant')),
-            models.Prefetch('requires', queryset=Template.objects.order_by('templateinvariant')),
-            'produces',
             'cardinvariant_set',
+            'cardinvariant_set__card',
             'templateinvariant_set',
+            'templateinvariant_set__template',
+            'featureproducedbyvariant_set',
+            'featureproducedbyvariant_set__feature',
         )
 
 

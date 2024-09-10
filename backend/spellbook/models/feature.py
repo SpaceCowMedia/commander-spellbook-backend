@@ -56,7 +56,7 @@ def update_combo_fields(sender, instance, created, raw, **kwargs):
     if raw or created:
         return
     from .combo import Combo
-    combos = Combo.objects.filter(models.Q(produces=instance) | models.Q(needs=instance))
+    combos = Combo.recipes_prefetched.filter(models.Q(produces=instance) | models.Q(needs=instance))
     combos_to_save = []
     for combo in combos:
         new_combo_name = combo._str()

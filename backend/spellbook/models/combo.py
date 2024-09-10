@@ -17,12 +17,14 @@ from .feature_attribute import WithFeatureAttributes, WithFeatureAttributesMatch
 class RecipePrefetchedManager(models.Manager):
     def get_queryset(self):
         return super().get_queryset().prefetch_related(
-            models.Prefetch('uses', queryset=Card.objects.order_by('cardincombo')),
-            models.Prefetch('requires', queryset=Template.objects.order_by('templateincombo')),
-            'needs',
-            'produces',
             'cardincombo_set',
+            'cardincombo_set__card',
             'templateincombo_set',
+            'templateincombo_set__template',
+            'featureneededincombo_set',
+            'featureneededincombo_set__feature',
+            'featureproducedincombo_set',
+            'featureproducedincombo_set__feature',
         )
 
 

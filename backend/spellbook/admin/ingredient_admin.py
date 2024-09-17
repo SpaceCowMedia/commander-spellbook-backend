@@ -40,5 +40,4 @@ class IngredientAdmin(TabularInline):
 
 
 class IngredientInCombinationAdmin(IngredientAdmin, SortableTabularInline):
-    template = 'adminsortable2/edit_inline/tabular-django-5.0.html'  # TODO: remove when https://github.com/jrief/django-admin-sortable2/issues/405 is fixed
     pass

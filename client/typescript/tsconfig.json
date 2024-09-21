@@ -1,14 +1,14 @@
 {
     "compilerOptions": {
-        "module": "es2015",
+        "module": "NodeNext",
         "esModuleInterop": true,
         "target": "es6",
-        "moduleResolution": "node",
+        "moduleResolution": "NodeNext",
         "outDir": "dist",
         "declaration": true,
         "strict": true,
     },
-    "lib": ["es2015"],
+    "lib": ["es6"],
     "exclude": [
         "node_modules",
         "dist"

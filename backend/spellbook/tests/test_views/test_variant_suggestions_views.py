@@ -16,6 +16,7 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
         self.assertEqual(suggestion_result.comment, vs.comment)
         for i, uses in enumerate(vs.uses.all()):
             self.assertEqual(uses.card, suggestion_result.uses[i].card)
+            self.assertEqual(uses.quantity, suggestion_result.uses[i].quantity)
             self.assertEqual(set(uses.zone_locations), set(suggestion_result.uses[i].zone_locations))
             self.assertEqual(uses.battlefield_card_state, suggestion_result.uses[i].battlefield_card_state)
             self.assertEqual(uses.exile_card_state, suggestion_result.uses[i].exile_card_state)
@@ -25,6 +26,7 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
             self.assertEqual(uses.card_unaccented, strip_accents(uses.card))
         for i, requires in enumerate(vs.requires.all()):
             self.assertEqual(requires.template, suggestion_result.requires[i].template)
+            self.assertEqual(requires.quantity, suggestion_result.requires[i].quantity)
             self.assertEqual(set(requires.zone_locations), set(suggestion_result.requires[i].zone_locations))
             self.assertEqual(requires.battlefield_card_state, suggestion_result.requires[i].battlefield_card_state)
             self.assertEqual(requires.exile_card_state, suggestion_result.requires[i].exile_card_state)
@@ -64,6 +66,7 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
             "uses": [
                 {
                     "card": "A card àèéìòù",
+                    "quantity": 2,
                     "zoneLocations": list("HBGEL"),
                     "battlefieldCardState": "bstate",
                     "exileCardState": "estate",
@@ -73,6 +76,7 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
                 },
                 {
                     "card": "Another card",
+                    "quantity": 1,
                     "zoneLocations": list("HC"),
                     "battlefieldCardState": "",
                     "exileCardState": "",
@@ -84,6 +88,7 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
             "requires": [
                 {
                     "template": "A template i.e. a card type",
+                    "quantity": 1,
                     "zoneLocations": list("H"),
                     "battlefieldCardState": "",
                     "exileCardState": "",
@@ -93,6 +98,7 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
                 },
                 {
                     "template": "Another template",
+                    "quantity": 4,
                     "scryfall_query": "pow=2",
                     "zoneLocations": list("GL"),
                     "battlefieldCardState": "",

@@ -20,6 +20,7 @@ class CardUsedInVariantSuggestionSerializer(IngredientInVariantSuggestionSeriali
         model = CardUsedInVariantSuggestion
         fields = [
             'card',
+            'quantity',
             'zone_locations',
             'battlefield_card_state',
             'exile_card_state',
@@ -34,6 +35,7 @@ class TemplateRequiredInVariantSuggestionSerializer(IngredientInVariantSuggestio
         model = TemplateRequiredInVariantSuggestion
         fields = [
             'template',
+            'quantity',
             'scryfall_query',
             'zone_locations',
             'battlefield_card_state',

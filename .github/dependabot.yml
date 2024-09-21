@@ -19,9 +19,15 @@ updates:
     schedule:
       interval: weekly
   - package-ecosystem: github-actions
-    directory: /
-    schedule:
-      interval: weekly
     labels:
       - CI/CD
       - dependencies
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: npm
+    labels:
+      - dependencies
+    directory: /client/typescript/
+    schedule:
+      interval: weekly

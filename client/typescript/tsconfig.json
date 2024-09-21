@@ -4,8 +4,6 @@
         "esModuleInterop": true,
         "target": "es6",
         "moduleResolution": "node",
-        "sourceMap": true,
-        "inlineSources": true,
         "outDir": "dist",
         "declaration": true,
         "strict": true,

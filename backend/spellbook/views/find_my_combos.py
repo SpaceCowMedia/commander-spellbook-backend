@@ -10,7 +10,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 from rest_framework.pagination import LimitOffsetPagination
 from drf_spectacular.utils import extend_schema, Direction
-from drf_spectacular.extensions import _SchemaType, OpenApiSerializerExtension
+from drf_spectacular.extensions import OpenApiSerializerExtension
 from common.serializers import DeckSerializer as RawDeckSerializer, CardInDeck as RawCardInDeck
 from common.abstractions import Deck as RawDeck
 from spellbook.models import Card, merge_identities, CardInVariant, Variant

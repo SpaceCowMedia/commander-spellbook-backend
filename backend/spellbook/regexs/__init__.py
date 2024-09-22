@@ -7,4 +7,3 @@ DOUBLE_SQUARE_BRACKET_TEXT_REGEX = r'^(?:[^\[]*(?:\[(?!\[)|\[{2}[^\[]+\]{2}|\[{3
 ORACLE_SYMBOL = r'(?:(?:2\/[WUBRG]|W\/U|W\/B|B\/R|B\/G|U\/B|U\/R|R\/G|R\/W|G\/W|G\/U)(?:\/P)?|CHAOS|PW|TK|[WUBRG](?:\/P)?|[1-9][0-9]{1,2}|H[WUBRG]|[0-9CPXYZSTQEA½∞])'
 SYMBOLS_TEXT_REGEX = r'^(?:[^\{]*\{' + ORACLE_SYMBOL + r'\})*[^\{]*$'
 ORDINARY_CHARACTERS_REGEX = r'^[\x0A\x0D\x20-\x7E\x80\x95\x99\xA1\xA9\xAE\xB0\xB1-\xB3\xBC-\xFF]*$'
-DECKLIST_LINE_REGEX = r'^(?:(?P<quantity>\d{1,20})x?\s{1,6})?(?P<card>.*?[^\s])(?:(?:\s{1,6}<\w{1,50}>)?(?:\s{1,6}\[\w{1,50}\](?:\s{1,6}\(\w{1,50}\))?|\s{1,6}\(\w{1,50}\)(?:\s[\w-]+(?:\s\*\w\*)?)?))?$'

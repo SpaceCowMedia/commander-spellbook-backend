@@ -1,7 +1,7 @@
 from drf_spectacular.extensions import OpenApiSerializerExtension
 from drf_spectacular.plumbing import force_instance
 from rest_framework import serializers
-from .abstractions import Deck, CardInDeck
+from .abstractions import Deck, CardInDeck, MAX_DECKLIST_LINES
 
 
 class PaginationWrapper(serializers.BaseSerializer):
@@ -37,8 +37,8 @@ class CardInDeckSerializer(serializers.Serializer):
 
 
 class DeckSerializer(serializers.Serializer):
-    MAX_MAIN_LIST_LENGTH = 600
-    MAX_COMMANDERS_LIST_LENGTH = 100
+    MAX_COMMANDERS_LIST_LENGTH = MAX_DECKLIST_LINES // 100
+    MAX_MAIN_LIST_LENGTH = MAX_DECKLIST_LINES - MAX_COMMANDERS_LIST_LENGTH
     main = serializers.ListField(child=CardInDeckSerializer(), max_length=MAX_MAIN_LIST_LENGTH, default=list)
     commanders = serializers.ListField(child=CardInDeckSerializer(), max_length=MAX_COMMANDERS_LIST_LENGTH, default=list)
 

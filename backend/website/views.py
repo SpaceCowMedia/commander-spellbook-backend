@@ -1,14 +1,15 @@
 from urllib.parse import urlparse
 from django.core.validators import URLValidator
 from django.core.exceptions import ValidationError
-from rest_framework import viewsets, serializers
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework import viewsets, serializers, parsers
+from rest_framework.decorators import api_view, permission_classes, parser_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.request import Request
 from rest_framework.exceptions import APIException
 from drf_spectacular.utils import extend_schema, OpenApiParameter, inline_serializer
 from common.serializers import DeckSerializer
+from common.abstractions import Deck
 from .models import WebsiteProperty
 from .serializers import WebsitePropertySerializer
 from .services.moxfield import moxfield, MOXFIELD_HOSTNAME
@@ -69,4 +70,28 @@ def card_list_from_url(request: Request) -> Response:
     deck = SUPPORTED_DECKBUILDING_WEBSITES[hostname](url)
     if deck is None:
         raise UnsupportedWebsite()
+    return Response(DeckSerializer(deck).data)
+
+
+class PlainTextDeckListParser(parsers.BaseParser):
+    media_type = 'text/plain'
+
+    def parse(self, stream, media_type=None, parser_context=None) -> Deck:
+        parser_context = parser_context or {}
+        encoding = parser_context.get('encoding', 'UTF-8')
+        text = stream.read().decode(encoding)
+        return Deck.from_text(text)
+
+
+@extend_schema(
+    request=str,
+    responses=DeckSerializer,
+)
+@api_view(['GET', 'POST'])
+@permission_classes([AllowAny])
+@parser_classes([PlainTextDeckListParser])
+def card_list_from_text(request: Request) -> Response:
+    deck = request.data
+    if not deck:
+        return Response(DeckSerializer(Deck(main=[], commanders=[])).data)
     return Response(DeckSerializer(deck).data)

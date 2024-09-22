@@ -16,10 +16,7 @@ from common.abstractions import Deck as RawDeck
 from spellbook.models import Card, merge_identities, CardInVariant, Variant
 from spellbook.serializers import VariantSerializer
 from spellbook.views.variants import VariantViewSet
-from spellbook.regexs.compiled import DECKLIST_LINE_REGEX
-
-
-MAX_DECKLIST_LINES = RawDeckSerializer.MAX_MAIN_LIST_LENGTH + RawDeckSerializer.MAX_COMMANDERS_LIST_LENGTH + 10
+from website.views import PlainTextDeckListParser
 
 
 @dataclass
@@ -49,34 +46,6 @@ def deck_from_raw(raw_deck: RawDeck, cards_dict: dict[str, int]) -> Deck:
     for commander in raw_deck.commanders:
         next_card(commander, commanders)
     return Deck(main=FrozenMultiset(main), commanders=FrozenMultiset(commanders))
-
-
-def raw_from_text(text: str) -> RawDeck:
-    lines = text.splitlines()[:MAX_DECKLIST_LINES]
-    main = list[RawCardInDeck]()
-    commanders = list[RawCardInDeck]()
-    current_set = main
-    for line in lines:
-        line: str = line.strip().lower()
-        if not line:
-            continue
-        elif line.startswith('// command') or line in ('commanders', 'commander', 'command', 'command zone'):
-            current_set = commanders
-        elif line.startswith('//') or line in ('main', 'deck'):
-            current_set = main
-        elif regex_match := DECKLIST_LINE_REGEX.fullmatch(line):
-            current_set.append(RawCardInDeck(card=regex_match.group('card'), quantity=int(regex_match.group('quantity') or 1)))
-    return RawDeck(main=main, commanders=commanders)
-
-
-class PlainTextDeckListParser(parsers.BaseParser):
-    media_type = 'text/plain'
-
-    def parse(self, stream, media_type=None, parser_context=None) -> RawDeck:
-        parser_context = parser_context or {}
-        encoding = parser_context.get('encoding', 'UTF-8')
-        text = stream.read().decode(encoding)
-        return raw_from_text(text)
 
 
 class JsonDeckListParser(parsers.JSONParser):

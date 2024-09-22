@@ -6,7 +6,9 @@ updates:
     directories:
       - backend/
       - client/python/
-      - bot/?*/
+      - bot/discord/
+      - bot/telegram/
+      - bot/reddit/
     schedule:
       interval: weekly
   - package-ecosystem: docker
@@ -14,7 +16,9 @@ updates:
       - dependencies
     directories:
       - backend/
-      - bot/*/
+      - bot/discord/
+      - bot/telegram/
+      - bot/reddit/
       - /
     schedule:
       interval: weekly

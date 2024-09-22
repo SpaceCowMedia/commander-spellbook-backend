@@ -149,7 +149,20 @@ class FindMyCombosResponseSerializerExtension(OpenApiSerializerExtension):
     target_class = 'spellbook.views.find_my_combos.FindMyCombosResponseSerializer'
 
     def map_serializer(self, auto_schema: AutoSchema, direction: Direction) -> dict[str, object]:
-        return super().map_serializer(auto_schema, direction)
+        required_properties = {
+            'identity': auto_schema._map_serializer_field(serializers.CharField(), direction),
+            'included': auto_schema._map_serializer_field(VariantSerializer(many=True), direction),
+            'included_by_changing_commanders': auto_schema._map_serializer_field(VariantSerializer(many=True), direction),
+            'almost_included': auto_schema._map_serializer_field(VariantSerializer(many=True), direction),
+            'almost_included_by_adding_colors': auto_schema._map_serializer_field(VariantSerializer(many=True), direction),
+            'almost_included_by_changing_commanders': auto_schema._map_serializer_field(VariantSerializer(many=True), direction),
+            'almost_included_by_adding_colors_and_changing_commanders': auto_schema._map_serializer_field(VariantSerializer(many=True), direction),
+        }
+        return {
+            'type': 'object',
+            'properties': required_properties,
+            'required': sorted(required_properties),
+        }
 
 
 class FindMyCombosView(APIView):

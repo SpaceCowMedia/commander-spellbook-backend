@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from drf_spectacular.openapi import AutoSchema
 from multiset import FrozenMultiset, Multiset
 from django.db.models import F, Sum, Case, When, Value
 from django.db.models.functions import Greatest
@@ -8,8 +9,9 @@ from rest_framework.request import Request
 from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 from rest_framework.pagination import LimitOffsetPagination
-from drf_spectacular.utils import extend_schema
-from common.serializers import PaginationWrapper, DeckSerializer as RawDeckSerializer, CardInDeck as RawCardInDeck
+from drf_spectacular.utils import extend_schema, Direction
+from drf_spectacular.extensions import _SchemaType, OpenApiSerializerExtension
+from common.serializers import DeckSerializer as RawDeckSerializer, CardInDeck as RawCardInDeck
 from common.abstractions import Deck as RawDeck
 from spellbook.models import Card, merge_identities, CardInVariant, Variant
 from spellbook.serializers import VariantSerializer
@@ -85,17 +87,86 @@ class JsonDeckListParser(parsers.JSONParser):
         return serializer.save()
 
 
-class FindMyComboResponseSerializer(serializers.Serializer):
-    identity = serializers.CharField()
-    included = VariantSerializer(many=True)
-    included_by_changing_commanders = VariantSerializer(many=True)
-    almost_included = VariantSerializer(many=True)
-    almost_included_by_adding_colors = VariantSerializer(many=True)
-    almost_included_by_changing_commanders = VariantSerializer(many=True)
-    almost_included_by_adding_colors_and_changing_commanders = VariantSerializer(many=True)
+class FindMyCombosResponseSerializer(serializers.ListSerializer):
+    child = VariantSerializer()
+
+    def to_internal_value(self, data):
+        return {
+            'variants': super().to_internal_value(data.get('variants', [])),
+            'identity': data['identity'],
+            'deck': data['deck'],
+        }
+
+    def to_representation(self, data):
+        identity = data['identity']
+        identity_set = set(identity) - {'C'}
+        deck: Deck = data['deck']
+        cards = deck.main.union(deck.commanders)
+        included_variants = []
+        included_variants_by_changing_commanders = []
+        almost_included_variants = []
+        almost_included_variants_by_adding_colors = []
+        almost_included_variants_by_changing_commanders = []
+        almost_included_variants_by_adding_colors_and_changing_commanders = []
+        variants = super().to_representation(data['variants'])
+        for variant in variants:
+            variant_data: dict = variant
+            variant_cards = FrozenMultiset[int]({civ['card']['id']: civ['quantity'] for civ in variant_data['uses']})
+            variant_commanders = FrozenMultiset[int]({civ['card']['id']: civ['quantity'] for civ in variant_data['uses'] if civ['must_be_commander']})
+            variant_identity = set(variant_data['identity']) - {'C'}
+            if variant_commanders.issubset(deck.commanders):
+                if variant_cards.issubset(cards):
+                    included_variants.append(variant_data)
+                elif variant_cards.intersection(cards):
+                    if set(variant_identity).issubset(identity_set):
+                        almost_included_variants.append(variant_data)
+                    else:
+                        almost_included_variants_by_adding_colors.append(variant_data)
+            elif variant_cards.issubset(cards):
+                included_variants_by_changing_commanders.append(variant_data)
+            elif variant_cards.intersection(cards):
+                if set(variant_identity).issubset(identity_set):
+                    almost_included_variants_by_changing_commanders.append(variant_data)
+                else:
+                    almost_included_variants_by_adding_colors_and_changing_commanders.append(variant_data)
+
+        return {
+            'identity': identity,
+            'included': included_variants,
+            'included_by_changing_commanders': included_variants_by_changing_commanders,
+            'almost_included': almost_included_variants,
+            'almost_included_by_adding_colors': almost_included_variants_by_adding_colors,
+            'almost_included_by_changing_commanders': almost_included_variants_by_changing_commanders,
+            'almost_included_by_adding_colors_and_changing_commanders': almost_included_variants_by_adding_colors_and_changing_commanders,
+        }
+
+    @property
+    def data(self):
+        return serializers.BaseSerializer.data.fget(self)  # type: ignore
+
+
+class FindMyCombosResponseSerializerExtension(OpenApiSerializerExtension):
+    target_class = 'spellbook.views.find_my_combos.FindMyCombosResponseSerializer'
+
+    def map_serializer(self, auto_schema: AutoSchema, direction: Direction) -> dict[str, object]:
+        required_properties = {
+            'identity': auto_schema._map_serializer_field(serializers.CharField(), direction),
+            'included': auto_schema._map_serializer_field(VariantSerializer(many=True), direction),
+            'included_by_changing_commanders': auto_schema._map_serializer_field(VariantSerializer(many=True), direction),
+            'almost_included': auto_schema._map_serializer_field(VariantSerializer(many=True), direction),
+            'almost_included_by_adding_colors': auto_schema._map_serializer_field(VariantSerializer(many=True), direction),
+            'almost_included_by_changing_commanders': auto_schema._map_serializer_field(VariantSerializer(many=True), direction),
+            'almost_included_by_adding_colors_and_changing_commanders': auto_schema._map_serializer_field(VariantSerializer(many=True), direction),
+        }
+        return {
+            'type': 'object',
+            'properties': required_properties,
+            'required': sorted(required_properties),
+        }
 
 
 class FindMyCombosView(APIView):
+    action = 'list'
     permission_classes = [AllowAny]
     parser_classes = [PlainTextDeckListParser, JsonDeckListParser]
     pagination_class = LimitOffsetPagination
@@ -103,7 +174,7 @@ class FindMyCombosView(APIView):
         'application/json': RawDeckSerializer,
         'text/plain': str,
     }
-    response = PaginationWrapper(FindMyComboResponseSerializer, pagination_class)
+    response = FindMyCombosResponseSerializer
 
     @extend_schema(request=request, responses=response)
     def get(self, request: Request) -> Response:
@@ -133,45 +204,11 @@ class FindMyCombosView(APIView):
         paginator.max_limit = 1000  # type: ignore
         paginator.default_limit = 1000
         variants_page: list[Variant] = paginator.paginate_queryset(variants_query, request)  # type: ignore
-
-        identity_set = set(identity) - {'C'}
-        included_variants = []
-        included_variants_by_changing_commanders = []
-        almost_included_variants = []
-        almost_included_variants_by_adding_colors = []
-        almost_included_variants_by_changing_commanders = []
-        almost_included_variants_by_adding_colors_and_changing_commanders = []
-
-        for variant in variants_page:
-            variant_data: dict = viewset.serializer_class(variant).data  # type: ignore
-            variant_cards = FrozenMultiset[int]({civ['card']['id']: civ['quantity'] for civ in variant_data['uses']})
-            variant_commanders = FrozenMultiset[int]({civ['card']['id']: civ['quantity'] for civ in variant_data['uses'] if civ['must_be_commander']})
-            variant_identity = set(variant_data['identity']) - {'C'}
-            if variant_commanders.issubset(deck.commanders):
-                if variant_cards.issubset(cards):
-                    included_variants.append(variant_data)
-                elif variant_cards.intersection(cards):
-                    if set(variant_identity).issubset(identity_set):
-                        almost_included_variants.append(variant_data)
-                    else:
-                        almost_included_variants_by_adding_colors.append(variant_data)
-            elif variant_cards.issubset(cards):
-                included_variants_by_changing_commanders.append(variant_data)
-            elif variant_cards.intersection(cards):
-                if set(variant_identity).issubset(identity_set):
-                    almost_included_variants_by_changing_commanders.append(variant_data)
-                else:
-                    almost_included_variants_by_adding_colors_and_changing_commanders.append(variant_data)
-
-        return paginator.get_paginated_response({
+        return paginator.get_paginated_response(FindMyCombosResponseSerializer({
+            'variants': variants_page,
             'identity': identity,
-            'included': included_variants,
-            'included_by_changing_commanders': included_variants_by_changing_commanders,
-            'almost_included': almost_included_variants,
-            'almost_included_by_adding_colors': almost_included_variants_by_adding_colors,
-            'almost_included_by_changing_commanders': almost_included_variants_by_changing_commanders,
-            'almost_included_by_adding_colors_and_changing_commanders': almost_included_variants_by_adding_colors_and_changing_commanders,
-        })
+            'deck': deck,
+        }).data)
 
     @extend_schema(request=request, responses=response)
     def post(self, request: Request) -> Response:

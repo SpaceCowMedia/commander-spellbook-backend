@@ -50,11 +50,11 @@ class VariantDataTests(TestCaseMixinWithSeeding, TestCase):
             set(Variant.objects.filter(status=Variant.Status.NOT_WORKING).values_list('id', flat=True)),
         )
         self.assertDictEqual(data.id_to_variant, {v.id: v for v in Variant.objects.all()})
-        self.assertDictEqual(data.variant_to_cards, {v.id: list(v.cardinvariant_set.all()) for v in Variant.objects.all()})
-        self.assertDictEqual(data.variant_to_templates, {v.id: list(v.templateinvariant_set.all()) for v in Variant.objects.all()})
-        self.assertDictEqual(data.variant_to_of_sets, {v.id: list(v.variantofcombo_set.all()) for v in Variant.objects.all()})
-        self.assertDictEqual(data.variant_to_includes_sets, {v.id: list(v.variantincludescombo_set.all()) for v in Variant.objects.all()})
-        self.assertDictEqual(data.variant_to_produces, {v.id: list(v.featureproducedbyvariant_set.all()) for v in Variant.objects.all()})
+        self.assertDictEqual(data.variant_to_cards, {v.id: set(v.cardinvariant_set.all()) for v in Variant.objects.all()})
+        self.assertDictEqual(data.variant_to_templates, {v.id: set(v.templateinvariant_set.all()) for v in Variant.objects.all()})
+        self.assertDictEqual(data.variant_to_of_sets, {v.id: set(v.variantofcombo_set.all()) for v in Variant.objects.all()})
+        self.assertDictEqual(data.variant_to_includes_sets, {v.id: set(v.variantincludescombo_set.all()) for v in Variant.objects.all()})
+        self.assertDictEqual(data.variant_to_produces, {v.id: set(v.featureproducedbyvariant_set.all()) for v in Variant.objects.all()})
 
     def test_not_working_variants(self):
         super().generate_variants()

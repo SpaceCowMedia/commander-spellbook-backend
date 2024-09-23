@@ -117,6 +117,9 @@ class FindMyCombosResponseSerializer(serializers.ListSerializer):
 class FindMyCombosResponseSerializerExtension(OpenApiSerializerExtension):
     target_class = 'spellbook.views.find_my_combos.FindMyCombosResponseSerializer'
 
+    def get_name(self, auto_schema: AutoSchema, direction: Direction) -> str | None:
+        return 'FindMyCombosResponse'
+
     def map_serializer(self, auto_schema: AutoSchema, direction: Direction) -> dict[str, object]:
         required_properties = {
             'identity': auto_schema._map_serializer_field(serializers.CharField(), direction),

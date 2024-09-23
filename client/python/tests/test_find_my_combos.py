@@ -1,12 +1,12 @@
 from .testing import SpellbookClientTest
-from spellbook_client import DeckRequest, CardInDeckRequest, PaginatedFindMyComboResponseList, FindMyCombosApi
+from spellbook_client import DeckRequest, CardInDeckRequest, PaginatedFindMyCombosResponseList, FindMyCombosApi
 from spellbook_client.extensions import find_my_combos_create_plain
 from spellbook.models.utils import id_from_cards_and_templates_ids
 from textwrap import dedent
 
 
 class TestFindMyCombos(SpellbookClientTest):
-    def find_my_combos_assertions(self, result: PaginatedFindMyComboResponseList):
+    def find_my_combos_assertions(self, result: PaginatedFindMyCombosResponseList):
         self.assertIsNotNone(result)
         self.assertEqual(result.results.identity, 'GWUB')
         self.assertSetEqual({

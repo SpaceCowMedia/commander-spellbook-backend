@@ -5,7 +5,7 @@ from typing import Iterable
 from ..regexs import MANA_SYMBOL, ORACLE_SYMBOL
 from ..parsers.scryfall_query_grammar import COMPARISON_OPERATORS, MANA_COMPARABLE_VARIABLES
 from django.utils.text import normalize_newlines
-from django.db.models import Expression, F, Value
+from django.db.models import Expression, F, Value, TextChoices
 from django.db.models.functions import Replace, Trim
 
 
@@ -54,6 +54,18 @@ SORTED_COLORS = {
         'WUBRG'
     ]}
 }
+
+
+class CardType(TextChoices):
+    CREATURE = 'Creature', 'Creature'
+    ARTIFACT = 'Artifact', 'Artifact'
+    ENCHANTMENT = 'Enchantment', 'Enchantment'
+    PLANESWALKER = 'Planeswalker', 'Planeswalker'
+    INSTANT = 'Instant', 'Instant'
+    SORCERY = 'Sorcery', 'Sorcery'
+    LAND = 'Land', 'Land'
+    BATTLE = 'Battle', 'Battle'
+    LEGENDARY = 'Legendary', 'Legendary'
 
 
 def recipe(ingredients: list[str], results: list[str], negative_results: list[str] = []):

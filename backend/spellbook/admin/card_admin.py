@@ -4,7 +4,7 @@ from django.db.models import Count, Q, TextField
 from django.db.models.query import QuerySet
 from django.forms.widgets import Textarea
 from django.http.request import HttpRequest
-from spellbook.models import Card, Variant, FeatureOfCard
+from spellbook.models import Card, Variant, FeatureOfCard, CardType
 from .utils import IdentityFilter, SpellbookModelAdmin, CustomFilter
 from .ingredient_admin import IngredientAdmin
 
@@ -19,6 +19,18 @@ class ManagedByScryfallFilter(CustomFilter):
 
     def filter(self, value: data_type) -> Q:
         return Q(oracle_id__isnull=not value)
+
+
+class CardTypeFilter(CustomFilter):
+    title = 'type'
+    parameter_name = 'type'
+    data_type = str
+
+    def lookups(self, request, model_admin):
+        return CardType.choices
+
+    def filter(self, value: data_type) -> Q:
+        return Q(type_line__icontains=value)
 
 
 class FeatureOfCardAdminInline(IngredientAdmin):
@@ -59,7 +71,7 @@ class CardAdmin(SpellbookModelAdmin):
             'description': 'Prices are updated periodically from EDHREC.'
         }),
     ]
-    list_filter = [IdentityFilter, 'legal_commander', ManagedByScryfallFilter]
+    list_filter = [IdentityFilter, CardTypeFilter, 'legal_commander', ManagedByScryfallFilter]
     search_fields = [
         'name',
         'name_unaccented',

@@ -7,7 +7,7 @@ from common.inspection import count_methods
 from .testing import TestCaseMixinWithSeeding
 from spellbook.models import merge_identities, Card, Feature, Template, Combo, Job, Variant, VariantSuggestion, CardUsedInVariantSuggestion, VariantAlias, PreSerializedSerializer, ZoneLocation
 from spellbook.models.scryfall import SCRYFALL_API_ROOT, SCRYFALL_WEBSITE_CARD_SEARCH
-from spellbook.models import id_from_cards_and_templates_ids
+from spellbook.models import id_from_cards_and_templates_ids, CardType
 from spellbook.models.utils import auto_fix_missing_braces_to_oracle_symbols, upper_oracle_symbols, sanitize_mana, sanitize_scryfall_query
 from django.core.exceptions import ValidationError
 from spellbook.serializers import VariantSerializer
@@ -196,47 +196,47 @@ class CardTests(TestCaseMixinWithSeeding, TestCase):
 
     def test_is_legendary(self):
         c = Card.objects.get(id=self.c1_id)
-        self.assertFalse(c.is_legendary())
+        self.assertFalse(c.is_of_type(CardType.LEGENDARY))
         c.type_line = 'Legendary Creature - Human'
         c.save()
-        self.assertTrue(c.is_legendary())
+        self.assertTrue(c.is_of_type(CardType.LEGENDARY))
         c.type_line = 'Legendary Sorcery'
-        self.assertTrue(c.is_legendary())
+        self.assertTrue(c.is_of_type(CardType.LEGENDARY))
         c.type_line = 'Creature - Human'
-        self.assertFalse(c.is_legendary())
+        self.assertFalse(c.is_of_type(CardType.LEGENDARY))
 
     def test_is_creature(self):
         c = Card.objects.get(id=self.c1_id)
-        self.assertFalse(c.is_creature())
+        self.assertFalse(c.is_of_type(CardType.CREATURE))
         c.type_line = 'Creature - Human'
         c.save()
-        self.assertTrue(c.is_creature())
+        self.assertTrue(c.is_of_type(CardType.CREATURE))
         c.type_line = 'Legendary Creature - Human'
-        self.assertTrue(c.is_creature())
+        self.assertTrue(c.is_of_type(CardType.CREATURE))
         c.type_line = 'Legendary Sorcery'
-        self.assertFalse(c.is_creature())
+        self.assertFalse(c.is_of_type(CardType.CREATURE))
 
     def test_is_instant(self):
         c = Card.objects.get(id=self.c2_id)
-        self.assertFalse(c.is_instant())
+        self.assertFalse(c.is_of_type(CardType.INSTANT))
         c.type_line = 'Legendary Instant'
         c.save()
-        self.assertTrue(c.is_instant())
+        self.assertTrue(c.is_of_type(CardType.INSTANT))
         c.type_line = 'Instant'
-        self.assertTrue(c.is_instant())
+        self.assertTrue(c.is_of_type(CardType.INSTANT))
         c.type_line = 'Sorcery'
-        self.assertFalse(c.is_instant())
+        self.assertFalse(c.is_of_type(CardType.INSTANT))
 
     def test_is_sorcery(self):
         c = Card.objects.get(id=self.c1_id)
-        self.assertFalse(c.is_sorcery())
+        self.assertFalse(c.is_of_type(CardType.SORCERY))
         c.type_line = 'Legendary Sorcery'
         c.save()
-        self.assertTrue(c.is_sorcery())
+        self.assertTrue(c.is_of_type(CardType.SORCERY))
         c.type_line = 'Sorcery'
-        self.assertTrue(c.is_sorcery())
+        self.assertTrue(c.is_of_type(CardType.SORCERY))
         c.type_line = 'Instant'
-        self.assertFalse(c.is_sorcery())
+        self.assertFalse(c.is_of_type(CardType.SORCERY))
 
     def test_method_count(self):
         self.assertEqual(count_methods(Card), 8)

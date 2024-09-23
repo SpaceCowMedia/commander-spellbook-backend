@@ -6,7 +6,7 @@ from django.contrib.postgres.indexes import GinIndex, OpClass
 from .constants import MAX_CARD_NAME_LENGTH
 from .validators import TEXT_VALIDATORS
 from .playable import Playable
-from .utils import strip_accents, simplify_card_name_on_database, simplify_card_name_with_spaces_on_database
+from .utils import strip_accents, simplify_card_name_on_database, simplify_card_name_with_spaces_on_database, CardType
 from .mixins import ScryfallLinkMixin, PreSaveModelMixin
 from .feature import Feature
 from .fields import KeywordsField
@@ -84,17 +84,8 @@ class Card(Playable, PreSaveModelMixin, ScryfallLinkMixin):
     def pre_save(self):
         self.name_unaccented = strip_accents(self.name)
 
-    def is_legendary(self) -> bool:
-        return 'Legendary' in self.type_line
-
-    def is_creature(self) -> bool:
-        return 'Creature' in self.type_line
-
-    def is_instant(self) -> bool:
-        return 'Instant' in self.type_line
-
-    def is_sorcery(self) -> bool:
-        return 'Sorcery' in self.type_line
+    def is_of_type(self, card_type: CardType) -> bool:
+        return card_type.value in self.type_line
 
 
 @receiver(post_save, sender=Card, dispatch_uid='update_variant_fields')

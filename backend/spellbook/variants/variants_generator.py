@@ -8,7 +8,7 @@ from django.utils.functional import cached_property
 from .utils import includes_any
 from .variant_data import Data, debug_queries
 from .combo_graph import Graph, VariantSet, cardid, templateid, featureid
-from spellbook.models import Combo, Job, Variant, CardInVariant, TemplateInVariant, id_from_cards_and_templates_ids, Playable, Card, Template, VariantAlias, Ingredient, Feature, FeatureProducedByVariant, VariantOfCombo, VariantIncludesCombo, ZoneLocation
+from spellbook.models import Combo, Job, Variant, CardInVariant, TemplateInVariant, id_from_cards_and_templates_ids, Playable, Card, Template, VariantAlias, Ingredient, Feature, FeatureProducedByVariant, VariantOfCombo, VariantIncludesCombo, ZoneLocation, CardType
 from spellbook.utils import log_into_job
 from spellbook.models.constants import DEFAULT_CARD_LIMIT, DEFAULT_VARIANT_LIMIT, HIGHER_CARD_LIMIT, LOWER_VARIANT_LIMIT
 
@@ -132,7 +132,7 @@ class VariantBulkSaveItem:
 
 
 def get_default_zone_location_for_card(card: Card) -> str:
-    if card.is_instant() or card.is_sorcery():
+    if card.is_of_type(CardType.INSTANT) or card.is_of_type(CardType.SORCERY):
         return ZoneLocation.HAND
     return ZoneLocation.BATTLEFIELD
 
@@ -188,7 +188,7 @@ def apply_replacements(
             cards, templates = replacement_list[0]
             names = [
                 c.name.split(',', 2)[0]
-                if ',' in c.name and '//' not in c.name and c.is_legendary() and c.is_creature()
+                if ',' in c.name and '//' not in c.name and c.is_of_type(CardType.LEGENDARY) and c.is_of_type(CardType.CREATURE)
                 else c.name
                 for c in cards
             ] + [

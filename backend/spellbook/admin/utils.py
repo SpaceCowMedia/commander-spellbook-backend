@@ -144,6 +144,13 @@ class SpellbookModelAdmin(SortableAdminBase, ModelAdmin):
             base_points = (len(matchers) - x) * max_points
             for i, term in enumerate(sub_terms):
                 for j, field in enumerate(self.get_search_fields(request)):
+                    field = field \
+                        .removeprefix('=') \
+                        .removeprefix('^') \
+                        .removeprefix('@') \
+                        .removesuffix('__iexact') \
+                        .removesuffix('__istartswith') \
+                        .removesuffix('__icontains')
                     points = base_points + (len(sub_terms) - i) * len(self.search_fields) - j
                     cases.append(When(**{f'{field}__{matcher}': term, 'then': points}))
         # Here using annotate instead of alias avoids repeating the case when clause three times in the query

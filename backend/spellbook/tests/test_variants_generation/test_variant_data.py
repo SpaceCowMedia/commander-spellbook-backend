@@ -52,9 +52,9 @@ class VariantDataTests(TestCaseMixinWithSeeding, TestCase):
         self.assertDictEqual(data.id_to_variant, {v.id: v for v in Variant.objects.all()})
         self.assertDictEqual(data.variant_to_cards, {v.id: list(v.cardinvariant_set.all()) for v in Variant.objects.all()})
         self.assertDictEqual(data.variant_to_templates, {v.id: list(v.templateinvariant_set.all()) for v in Variant.objects.all()})
-        self.assertDictEqual(data.variant_to_of_sets, {v.id: {i.combo_id for i in v.variantofcombo_set.all()} for v in Variant.objects.all()})
-        self.assertDictEqual(data.variant_to_includes_sets, {v.id: {i.combo_id for i in v.variantincludescombo_set.all()} for v in Variant.objects.all()})
-        self.assertDictEqual(data.variant_to_produces, {v.id: [i for i in v.featureproducedbyvariant_set.all()] for v in Variant.objects.all()})
+        self.assertDictEqual(data.variant_to_of_sets, {v.id: list(v.variantofcombo_set.all()) for v in Variant.objects.all()})
+        self.assertDictEqual(data.variant_to_includes_sets, {v.id: list(v.variantincludescombo_set.all()) for v in Variant.objects.all()})
+        self.assertDictEqual(data.variant_to_produces, {v.id: list(v.featureproducedbyvariant_set.all()) for v in Variant.objects.all()})
 
     def test_not_working_variants(self):
         super().generate_variants()
@@ -74,12 +74,12 @@ class VariantDataTests(TestCaseMixinWithSeeding, TestCase):
 
     def test_card_variant_dict(self):
         data = Data()
-        for card_id, variant_id in data.card_in_variant_dict.keys():
+        for card_id, variant_id in data.variant_uses_card_dict.keys():
             self.assertIn(card_id, set(data.id_to_variant[variant_id].uses.all().values_list('id', flat=True)))
 
     def test_template_variant_dict(self):
         data = Data()
-        for template_id, variant_id in data.template_in_variant_dict.keys():
+        for template_id, variant_id in data.variant_requires_template_dict.keys():
             self.assertIn(template_id, set(data.id_to_variant[variant_id].requires.all().values_list('id', flat=True)))
 
     def test_debug_queries(self):

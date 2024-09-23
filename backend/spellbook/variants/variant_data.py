@@ -85,24 +85,31 @@ class Data:
         self.feature_of_card_to_attributes = {f.id: set[int]() for f in featureofcards}
         for i in featureofcard_attributes:
             self.feature_of_card_to_attributes[i.featureofcard_id].add(i.featureattribute_id)
+
         self.variant_to_cards = {v.id: list[CardInVariant]() for v in variants}
         for i in cardinvariants:
             self.variant_to_cards[i.variant_id].append(i)
-        self.card_in_variant_dict = {(c.card_id, c.variant_id): c for c in cardinvariants}
+        self.variant_uses_card_dict = {(c.card_id, c.variant_id): c for c in cardinvariants}
+
         self.variant_to_templates = {v.id: list[TemplateInVariant]() for v in variants}
         for i in templateinvariants:
             self.variant_to_templates[i.variant_id].append(i)
-        self.template_in_variant_dict = {(t.template_id, t.variant_id): t for t in templateinvariants}
-        self.variant_to_of_sets = {v.id: set[int]() for v in variants}
+        self.variant_requires_template_dict = {(t.template_id, t.variant_id): t for t in templateinvariants}
+
+        self.variant_to_of_sets = {v.id: list[VariantOfCombo]() for v in variants}
         for i in variantofcombos:
-            self.variant_to_of_sets[i.variant_id].add(i.combo_id)
-        self.variant_to_includes_sets = {v.id: set[int]() for v in variants}
+            self.variant_to_of_sets[i.variant_id].append(i)
+        self.variant_of_combo_dict = {(v.combo_id, v.variant_id): v for v in variantofcombos}
+
+        self.variant_to_includes_sets = {v.id: list[VariantIncludesCombo]() for v in variants}
         for i in variantincludescombos:
-            self.variant_to_includes_sets[i.variant_id].add(i.combo_id)
+            self.variant_to_includes_sets[i.variant_id].append(i)
+        self.variant_includes_combo_dict = {(v.combo_id, v.variant_id): v for v in variantincludescombos}
+
         self.variant_to_produces = {v.id: list[FeatureProducedByVariant]() for v in variants}
         for i in featureproducedbyvariants:
             self.variant_to_produces[i.variant_id].append(i)
-        self.variant_to_produces_dict = {(f.feature_id, f.variant_id): f for f in featureproducedbyvariants}
+        self.variant_produces_feature_dict = {(f.feature_id, f.variant_id): f for f in featureproducedbyvariants}
 
         def fetch_not_working_variants(variants: Iterable[Variant]) -> VariantSet:
             variants = [v for v in variants if v.status == Variant.Status.NOT_WORKING]

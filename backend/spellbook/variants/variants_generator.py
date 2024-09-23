@@ -223,16 +223,16 @@ def restore_variant(
     # Prepare related objects collections
     used_cards: list[CardInVariant] = []
     for c_id, quantity in variant_def.card_ids.items():
-        if (c_id, variant.id) in data.card_in_variant_dict:
-            civ = data.card_in_variant_dict[(c_id, variant.id)]
+        if (c_id, variant.id) in data.variant_uses_card_dict:
+            civ = data.variant_uses_card_dict[(c_id, variant.id)]
             civ.quantity = quantity
         else:
             civ = CardInVariant(card=data.id_to_card[c_id], variant=variant, quantity=quantity)
         used_cards.append(civ)
     required_templates: list[TemplateInVariant] = []
     for t_id, quantity in variant_def.template_ids.items():
-        if (t_id, variant.id) in data.template_in_variant_dict:
-            tiv = data.template_in_variant_dict[(t_id, variant.id)]
+        if (t_id, variant.id) in data.variant_requires_template_dict:
+            tiv = data.variant_requires_template_dict[(t_id, variant.id)]
             tiv.quantity = quantity
         else:
             tiv = TemplateInVariant(template=data.id_to_template[t_id], variant=variant, quantity=quantity)
@@ -469,10 +469,10 @@ def perform_bulk_saves(data: Data, to_create: list[VariantBulkSaveItem], to_upda
     update_fields = ['zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'must_be_commander', 'order', 'quantity']
     TemplateInVariant.objects.bulk_update([t for v in to_update if v.should_update for t in v.requires], fields=update_fields)
     to_delete_of = [
-        c
+        of.id
         for v in to_update
-        for c in data.variant_to_of_sets[v.variant.id]
-        if c not in v.of
+        for of in data.variant_to_of_sets[v.variant.id]
+        if of.combo_id not in v.of
     ]
     if to_delete_of:
         VariantOfCombo.objects.filter(id__in=to_delete_of).delete()
@@ -482,18 +482,18 @@ def perform_bulk_saves(data: Data, to_create: list[VariantBulkSaveItem], to_upda
         for v in to_create
         for c in v.of
     ] + [
-        VariantOfCombo(variant_id=v.variant.id, combo_id=c)
+        VariantOfCombo(variant_id=v.variant.id, combo_id=combo_id)
         for v in to_update
-        for c in v.of
-        if c not in data.variant_to_of_sets[v.variant.id]
+        for combo_id in v.of
+        if (combo_id, v.variant.id) not in data.variant_of_combo_dict
     ]
     VariantOfCombo.objects.bulk_create(to_create_of)
     del to_create_of
     to_delete_includes = [
-        c
+        includes.id
         for v in to_update
-        for c in data.variant_to_includes_sets[v.variant.id]
-        if c not in v.includes
+        for includes in data.variant_to_includes_sets[v.variant.id]
+        if includes.combo_id not in v.includes
     ]
     if to_delete_includes:
         VariantIncludesCombo.objects.filter(id__in=to_delete_includes).delete()
@@ -503,18 +503,18 @@ def perform_bulk_saves(data: Data, to_create: list[VariantBulkSaveItem], to_upda
         for v in to_create
         for c in v.includes
     ] + [
-        VariantIncludesCombo(variant_id=v.variant.id, combo_id=c)
+        VariantIncludesCombo(variant_id=v.variant.id, combo_id=combo_id)
         for v in to_update
-        for c in v.includes
-        if c not in data.variant_to_includes_sets[v.variant.id]
+        for combo_id in v.includes
+        if (combo_id, v.variant.id) not in data.variant_includes_combo_dict
     ]
     VariantIncludesCombo.objects.bulk_create(to_create_includes)
     del to_create_includes
     to_delete_produces = [
-        f.id
+        produces.id
         for v in to_update
-        for f in data.variant_to_produces[v.variant.id]
-        if f.feature_id not in v.produces_ids
+        for produces in data.variant_to_produces[v.variant.id]
+        if produces.feature_id not in v.produces_ids
     ]
     if to_delete_produces:
         FeatureProducedByVariant.objects.filter(id__in=to_delete_produces).delete()
@@ -527,14 +527,14 @@ def perform_bulk_saves(data: Data, to_create: list[VariantBulkSaveItem], to_upda
         i
         for v in to_update
         for i in v.produces
-        if (i.feature_id, v.variant.id) not in data.variant_to_produces_dict
+        if (i.feature_id, v.variant.id) not in data.variant_produces_feature_dict
     ]
     FeatureProducedByVariant.objects.bulk_create(to_create_produces)
     del to_create_produces
     to_update_produces: list[FeatureProducedByVariant] = []
     for v in to_update:
         for i in v.produces:
-            old_instance = data.variant_to_produces_dict.get((i.feature_id, v.variant.id))
+            old_instance = data.variant_produces_feature_dict.get((i.feature_id, v.variant.id))
             if old_instance is not None and \
                     old_instance.quantity != i.quantity:
                 old_instance.quantity = i.quantity

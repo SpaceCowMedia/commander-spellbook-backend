@@ -80,7 +80,7 @@ class PlainTextDeckListParser(parsers.BaseParser):
         parser_context = parser_context or {}
         encoding = parser_context.get('encoding', 'UTF-8')
         text = stream.read().decode(encoding)
-        return Deck.from_text(text)
+        return text
 
 
 @extend_schema(
@@ -91,7 +91,9 @@ class PlainTextDeckListParser(parsers.BaseParser):
 @permission_classes([AllowAny])
 @parser_classes([PlainTextDeckListParser])
 def card_list_from_text(request: Request) -> Response:
-    deck = request.data
-    if not deck:
+    data = request.data
+    if not data:
         return Response(DeckSerializer(Deck(main=[], commanders=[])).data)
-    return Response(DeckSerializer(deck).data)
+    serializer = DeckSerializer(data=data)
+    serializer.is_valid(raise_exception=True)
+    return Response(serializer.data)

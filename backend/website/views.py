@@ -76,7 +76,7 @@ def card_list_from_url(request: Request) -> Response:
 class PlainTextDeckListParser(parsers.BaseParser):
     media_type = 'text/plain'
 
-    def parse(self, stream, media_type=None, parser_context=None) -> Deck:
+    def parse(self, stream, media_type=None, parser_context=None) -> str:
         parser_context = parser_context or {}
         encoding = parser_context.get('encoding', 'UTF-8')
         text = stream.read().decode(encoding)

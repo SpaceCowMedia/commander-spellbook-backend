@@ -49,11 +49,9 @@ def deck_from_raw(raw_deck: RawDeck, cards_dict: dict[str, int]) -> Deck:
 
 
 class JsonDeckListParser(parsers.JSONParser):
-    def parse(self, stream, media_type=None, parser_context=None) -> RawDeck:
+    def parse(self, stream, media_type=None, parser_context=None) -> dict:
         json: dict[str, list[str]] = super().parse(stream, media_type, parser_context)
-        serializer: RawDeckSerializer = RawDeckSerializer(data=json)  # type: ignore
-        serializer.is_valid(raise_exception=True)
-        return serializer.save()
+        return json
 
 
 class FindMyCombosResponseSerializer(serializers.ListSerializer):
@@ -150,9 +148,10 @@ class FindMyCombosView(APIView):
 
     @extend_schema(request=request, responses=response)
     def get(self, request: Request) -> Response:
-        raw_deck: RawDeck | dict = request.data  # type: ignore
-        if isinstance(raw_deck, dict):
-            raw_deck = RawDeck(main=[], commanders=[])
+        data: str | dict = request.data  # type: ignore
+        serializer = RawDeckSerializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        raw_deck: RawDeck = serializer.save()  # type: ignore
         cards_data = list(Card.objects.values_list('name', 'id', 'identity'))
         cards_data_dict: dict[str, int] = {name.lower(): id for name, id, _ in cards_data}
         deck = deck_from_raw(raw_deck, cards_data_dict)

@@ -1,4 +1,5 @@
 from multiset import FrozenMultiset
+from unittest import skip
 from django.test import TestCase
 from spellbook.models import Card, Combo, FeatureAttribute
 from spellbook.variants.variant_data import Data
@@ -952,3 +953,32 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
             combo_graph = Graph(Data())
             variants = list(combo_graph.results(combo_graph.variants(2)))
             self.assertEqual(len(variants), 0)
+
+    @skip('This feature is not yet implemented')
+    def test_feature_attributes_with_multiple_copies(self):
+        self.save_combo_model({
+            'A': ('x',),
+            ('B', ): ('x',),
+            ('x', '2 * x'): ('y',),
+        })
+        fa1 = FeatureAttribute.objects.create(name='FA1')
+        fa2 = FeatureAttribute.objects.create(name='FA2')
+        c = Card.objects.get(name='A')
+        cf = c.featureofcard_set.first()
+        assert cf is not None
+        cf.attributes.add(fa1)
+        b1 = Combo.objects.get(id=1)
+        b1f = b1.featureproducedincombo_set.first()
+        assert b1f is not None
+        b1f.attributes.add(fa2)
+        b2 = Combo.objects.get(id=2)
+        b2f1 = b2.featureneededincombo_set.all()[0]
+        assert b2f1 is not None
+        b2f1.any_of_attributes.add(fa1)
+        b2f2 = b2.featureneededincombo_set.all()[1]
+        assert b2f2 is not None
+        b2f2.all_of_attributes.add(fa2)
+        combo_graph = Graph(Data(), allow_multiple_copies=True)
+        variants = list(combo_graph.results(combo_graph.variants(2)))
+        self.assertEqual(len(variants), 1)
+        self.assertMultisetEqual(variants[0].cards, {1: 1, 2: 2})

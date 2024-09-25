@@ -37,8 +37,8 @@ class TestCaseMixin(BaseTestCaseMixin):
         combo_id = 1
         for recipe, result in model.items():
             cards = defaultdict[str, int](int)
-            features = defaultdict[str, int](int)
             templates = defaultdict[str, int](int)
+            features = list[tuple[str, int]]()
             if isinstance(recipe, str):
                 if '*' in recipe:
                     recipe, quantity = recipe.split('*')
@@ -71,7 +71,7 @@ class TestCaseMixin(BaseTestCaseMixin):
                         quantity = 1
                     element = element.strip()
                     if element[0].islower():
-                        features[element] += quantity
+                        features.append((element, quantity))
                     elif element[0] == 'T':
                         templates[element] += quantity
                     else:
@@ -81,7 +81,7 @@ class TestCaseMixin(BaseTestCaseMixin):
                     card_id = card_ids_by_name.setdefault(card, reduce(lambda x, y: max(x, y), card_ids_by_name.values(), 0) + 1)
                     c, _ = Card.objects.get_or_create(pk=card_id, name=card, identity='W', legal_commander=True, spoiler=False, type_line='Test Card')
                     CardInCombo.objects.create(card=c, combo=combo, order=i, zone_locations=ZoneLocation.BATTLEFIELD, quantity=quantity)
-                for feature, quantity in features.items():
+                for feature, quantity in features:
                     feature_id = feature_ids_by_name.setdefault(feature, reduce(lambda x, y: max(x, y), feature_ids_by_name.values(), 0) + 1)
                     f, _ = Feature.objects.get_or_create(pk=feature_id, name=feature, description='Test Feature', utility=feature.startswith('u'))
                     FeatureNeededInCombo.objects.create(feature=f, combo=combo, quantity=quantity)

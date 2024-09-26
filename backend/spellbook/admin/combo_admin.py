@@ -252,11 +252,16 @@ class ComboAdmin(SpellbookModelAdmin):
                 request.from_suggestion.uses_dict = found_used_cards  # type: ignore
                 # Handle suggested required templates
                 suggested_required_templates = list(from_suggestion.requires.all())
-                suggested_template_names = [suggested_template.template for suggested_template in suggested_required_templates]
-                found_required_templates = {t.name: t for t in Template.objects.filter(name__in=suggested_template_names)}
-                found_needed_features = {f.name: f for f in Feature.objects.filter(name__in=suggested_template_names)}
+                found_required_templates: dict[str, Template] = {}
+                found_needed_features: dict[str, Feature] = {}
                 for suggested_template in suggested_required_templates:
-                    if suggested_template.template not in found_required_templates and suggested_template.template not in found_needed_features:
+                    t = Template.objects.filter(name__iexact=suggested_template.template).first()
+                    if t:
+                        found_required_templates[suggested_template.template] = t
+                    f = Feature.objects.filter(name__iexact=suggested_template.template).first()
+                    if f:
+                        found_needed_features[suggested_template.template] = f
+                    if not t and not f:
                         add_template_link = reverse('admin:spellbook_template_add') + '?' + urlencode({
                             'name': suggested_template.template,
                             'scryfall_query': suggested_template.scryfall_query or '',

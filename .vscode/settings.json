@@ -26,5 +26,6 @@
         "common",
         "backend",
         "client/python"
-    ]
+    ],
+    "python.analysis.autoImportCompletions": true,
 }

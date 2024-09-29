@@ -52,8 +52,8 @@ class DeckSerializer(serializers.Serializer):
     def to_internal_value(self, data):
         if isinstance(data, str):
             lines = data.splitlines()
-            main = list[dict[str, object]]()
-            commanders = list[dict[str, object]]()
+            main = dict[str, dict[str, object]]()
+            commanders = dict[str, dict[str, object]]()
             current_set = main
             for line in lines:
                 line = line.strip()
@@ -65,8 +65,10 @@ class DeckSerializer(serializers.Serializer):
                 elif line_lower.startswith('//') or line_lower in ('main', 'deck'):
                     current_set = main
                 elif regex_match := DECKLIST_LINE_PARSER.fullmatch(line):
-                    current_set.append({'card': regex_match.group('card'), 'quantity': int(regex_match.group('quantity') or 1), })
-            data = {'main': main, 'commanders': commanders, }
+                    card_name = regex_match.group('card').strip()
+                    previous = current_set.setdefault(card_name, {'card': card_name, 'quantity': 0, })
+                    previous['quantity'] += int(regex_match.group('quantity') or 1)  # type: ignore
+            data = {'main': main.values(), 'commanders': commanders.values(), }
         return super().to_internal_value(data)
 
     def create(self, validated_data):

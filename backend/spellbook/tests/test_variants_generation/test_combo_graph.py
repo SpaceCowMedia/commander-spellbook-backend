@@ -2,8 +2,9 @@ from multiset import FrozenMultiset
 from unittest import skip
 from django.test import TestCase
 from spellbook.models import Card, Combo, FeatureAttribute
+from spellbook.models.feature import Feature
 from spellbook.variants.variant_data import Data
-from spellbook.variants.combo_graph import Graph, VariantIngredients, VariantSet, VariantRecipe
+from spellbook.variants.combo_graph import FeatureWithAttributes, Graph, VariantIngredients, VariantSet, VariantRecipe
 from spellbook.tests.testing import TestCaseMixinWithSeeding, TestCaseMixin
 
 
@@ -99,7 +100,7 @@ class ComboGraphTest(TestCaseMixinWithSeeding, TestCase):
             template_ids = {t for t in variant.templates}
             replacements = variant.replacements
             feature_needed_by_combos: set[int] = {f for f in data.id_to_combo[self.b2_id].needs.values_list('pk', flat=True)}
-            self.assertTrue(set(replacements.keys()).issuperset(feature_needed_by_combos))
+            self.assertTrue(set(f.feature.id for f in replacements.keys()).issuperset(feature_needed_by_combos))
             for replacement_values in replacements.values():
                 self.assertGreaterEqual(len(replacement_values), 1)
                 for replacement_value in replacement_values:
@@ -112,8 +113,22 @@ class ComboGraphTest(TestCaseMixinWithSeeding, TestCase):
 
 
 class ComboGraphTestGeneration(TestCaseMixin, TestCase):
-    def assertReplacementsEqual(self, replacements: dict[int, list[VariantIngredients]], expected: dict[int, list[VariantIngredients]]):
+    def assertReplacementsEqual(
+            self,
+            replacements: dict[FeatureWithAttributes, list[VariantIngredients]] | dict[int, list[VariantIngredients]],
+            expected: dict[FeatureWithAttributes, list[VariantIngredients]] | dict[int, list[VariantIngredients]],
+    ):
         self.assertEqual(len(replacements), len(expected))
+
+        def resolve(d: dict) -> dict[FeatureWithAttributes, list[VariantIngredients]]:
+            return {
+                FeatureWithAttributes(Feature.objects.get(pk=k), frozenset()) if isinstance(k, int) else k: v
+                for k, v in d.items()
+            }
+
+        replacements = resolve(replacements)
+        expected = resolve(expected)
+
         for replacement in replacements:
             self.assertIn(replacement, expected)
             self.assertSetEqual(set(replacements[replacement]), set(expected[replacement]))

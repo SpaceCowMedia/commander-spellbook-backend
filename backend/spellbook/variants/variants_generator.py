@@ -99,7 +99,7 @@ def get_variants_from_graph(data: Data, single_combo: int | None, job: Job | Non
                         feature_ids=Multiset(feature_ids),
                         included_ids=combo_ids,
                         of_ids={combo.id},
-                        feature_replacements=defaultdict(list, feature_replacements),
+                        feature_replacements=defaultdict(list, {k.feature.id: v for k, v in feature_replacements.items()}),
                         needed_features=needed_feature_ids,
                         needed_combos=needed_combo_ids,
                     )

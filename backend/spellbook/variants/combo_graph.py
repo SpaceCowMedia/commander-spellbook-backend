@@ -106,38 +106,54 @@ class TemplateNode(Node[Template]):
         self.combos = dict(combos)
 
 
-class FeatureWithAttributesNode(Node[Feature]):
+@dataclass(frozen=True)
+class FeatureWithAttributes:
+    feature: Feature
+    attributes: frozenset[int]
+
+
+class FeatureWithAttributesNode(Node[FeatureWithAttributes]):
     def __init__(
         self,
         graph: 'Graph',
-        feature: Feature,
-        attributes: frozenset[int],
+        feature: FeatureWithAttributes,
         produced_by_cards: Mapping[CardNode, int] = {},
         produced_by_combos: Iterable['ComboNode'] = [],
         matches: Iterable['FeatureWithAttributesMatcherNode'] = [],
     ):
         super().__init__(graph, feature)
-        self.attributes = attributes
         self.produced_by_cards = dict(produced_by_cards)
         self.produced_by_combos = list(produced_by_combos)
         self.matches = list(matches)
 
 
-class FeatureWithAttributesMatcherNode(Node[Feature]):
+@dataclass(frozen=True)
+class AttributesMatcher:
+    any_of: frozenset[int]
+    all_of: frozenset[int]
+    none_of: frozenset[int]
+
+    def matches(self, attributes: frozenset[int]) -> bool:
+        return (not self.any_of or any(a in attributes for a in self.any_of)) \
+            and (self.all_of <= attributes) \
+            and not (self.none_of & attributes)
+
+
+@dataclass(frozen=True)
+class FeatureWithAttributesMatcher:
+    feature: Feature
+    matcher: AttributesMatcher
+
+
+class FeatureWithAttributesMatcherNode(Node[FeatureWithAttributesMatcher]):
     def __init__(
             self,
             graph: 'Graph',
-            feature: Feature,
-            any_of_attributes: frozenset[int],
-            all_of_attributes: frozenset[int],
-            none_of_attributes: frozenset[int],
+            feature: FeatureWithAttributesMatcher,
             needed_by_combos: Mapping['ComboNode', int] = {},
             matches: Iterable[FeatureWithAttributesNode] = [],
     ):
         super().__init__(graph, feature)
-        self.any_of_attributes = any_of_attributes
-        self.all_of_attributes = all_of_attributes
-        self.none_of_attributes = none_of_attributes
         self.needed_by_combos = dict(needed_by_combos)
         self.matches = list(matches)
 
@@ -179,9 +195,16 @@ comboid = int
 class VariantRecipe(VariantIngredients):
     features: FrozenMultiset[featureid]
     combos: set[comboid]
-    replacements: dict[featureid, list[VariantIngredients]]
+    replacements: dict[FeatureWithAttributes, list[VariantIngredients]]
     needed_features: set[featureid]
     needed_combos: set[comboid]
+
+
+def satisfies(produced: Iterable[FeatureWithAttributes], needed: Iterable[FeatureWithAttributesMatcher]) -> bool:
+    for n in needed:
+        if not any(p.feature == n.feature and n.matcher.matches(p.attributes) for p in produced):
+            return False
+    return True
 
 
 class Graph:
@@ -214,8 +237,10 @@ class Graph:
                     attributes,
                     FeatureWithAttributesNode(
                         self,
-                        data.id_to_feature[feature_produced_by_card.feature_id],
-                        attributes
+                        FeatureWithAttributes(
+                            data.id_to_feature[feature_produced_by_card.feature_id],
+                            attributes,
+                        ),
                     )
                 )
                 fa.produced_by_cards[c] = feature_produced_by_card.quantity
@@ -226,7 +251,7 @@ class Graph:
             t.variant_set = self._new_variant_set()
             t.variant_set.add(FrozenMultiset(), FrozenMultiset({t.item.id: 1}))
         # Construct feature with attribute matchers nodes
-        self.famnodes = dict[featureid, dict[tuple[frozenset[int], frozenset[int], frozenset[int]], FeatureWithAttributesMatcherNode]]()
+        self.famnodes = dict[featureid, dict[AttributesMatcher, FeatureWithAttributesMatcherNode]]()
         # Construct combo nodes
         self.bnodes = dict[int, ComboNode]()
         for combo_id, combo in data.id_to_combo.items():
@@ -248,8 +273,10 @@ class Graph:
                         attributes,
                         FeatureWithAttributesNode(
                             self,
-                            data.id_to_feature[feature_produced_by_combo.feature_id],
-                            attributes
+                            FeatureWithAttributes(
+                                data.id_to_feature[feature_produced_by_combo.feature_id],
+                                attributes,
+                            ),
                         )
                     )
                     fa.produced_by_combos.append(b)
@@ -258,17 +285,18 @@ class Graph:
                     any_of_attributes = frozenset(data.feature_needed_in_combo_to_any_of_attributes[feature_needed_by_combo.id])
                     all_of_attributes = frozenset(data.feature_needed_in_combo_to_all_of_attributes[feature_needed_by_combo.id])
                     none_of_attributes = frozenset(data.feature_needed_in_combo_to_none_of_attributes[feature_needed_by_combo.id])
+                    attributes_matcher = AttributesMatcher(any_of_attributes, all_of_attributes, none_of_attributes)
                     fam = self.famnodes.setdefault(feature_needed_by_combo.feature_id, {}).setdefault(
-                        (any_of_attributes, all_of_attributes, none_of_attributes),
+                        attributes_matcher,
                         FeatureWithAttributesMatcherNode(
                             self,
-                            data.id_to_feature[feature_needed_by_combo.feature_id],
-                            any_of_attributes,
-                            all_of_attributes,
-                            none_of_attributes
+                            FeatureWithAttributesMatcher(
+                                data.id_to_feature[feature_needed_by_combo.feature_id],
+                                attributes_matcher,
+                            ),
                         )
                     )
-                    if fam.item.uncountable:
+                    if fam.item.feature.uncountable:
                         fam.needed_by_combos[b] = 1
                         b.uncountable_features_needed.append(fam)
                     else:
@@ -279,9 +307,7 @@ class Graph:
             candidates = self.fanodes.get(feature_id, {})
             for fam in d.values():
                 for attributes, matching_node in candidates.items():
-                    if (not fam.any_of_attributes or fam.any_of_attributes & attributes) \
-                            and (fam.all_of_attributes <= attributes) \
-                            and not (fam.none_of_attributes & attributes):
+                    if fam.item.matcher.matches(attributes):
                         fam.matches.append(matching_node)
                         matching_node.matches.append(fam)
         self._to_reset_nodes_state = set[Node]()
@@ -426,7 +452,7 @@ class Graph:
         combo_nodes_to_visit_with_new_countable_features: deque[ComboNode] = deque()
         combo_nodes_to_visit_with_new_uncountable_features: deque[ComboNode] = deque()
         combo_nodes: set[ComboNode] = set()
-        replacements = defaultdict[int, list[VariantIngredients]](list)
+        replacements = defaultdict[FeatureWithAttributes, list[VariantIngredients]](list)
         for card, quantity in cards.items():
             for combo in card.combos:
                 if combo.state == NodeState.NOT_VISITED:
@@ -437,13 +463,13 @@ class Graph:
                     else:
                         combo.state = NodeState.VISITED
             for feature, cards_needed in card.features.items():
-                if feature.item.uncountable:
+                if feature.item.feature.uncountable:
                     uncountable_feature_nodes.add(feature)
                     feature_count = 1
                 else:
                     feature_count = quantity // cards_needed
                     countable_feature_nodes[feature] = countable_feature_nodes.get(feature, 0) + feature_count
-                replacements[feature.item.id].append(
+                replacements[feature.item].append(
                     VariantIngredients(
                         cards=FrozenMultiset({card.item.id: cards_needed}),
                         templates=FrozenMultiset()
@@ -474,7 +500,7 @@ class Graph:
                 if any(all(ff not in uncountable_feature_nodes for ff in f.matches) for f in combo.uncountable_features_needed):
                     combo_nodes_to_visit_with_new_uncountable_features.append(combo)
                     continue
-                if not all(f.item.uncountable for f in combo.features_produced):
+                if not all(f.item.feature.uncountable for f in combo.features_produced):
                     # it makes sense to compute the variant set only if the combo produces countable features
                     # variant set is only used to determine the amount of times the combo is used
                     self.filter = ingredients
@@ -502,13 +528,13 @@ class Graph:
                     elif count_for_templates is not None:
                         quantity += count_for_templates
                 for feature in combo.features_produced:
-                    if not feature.item.uncountable:
-                        replacements[feature.item.id].extend(replacements_for_combo)
+                    if not feature.item.feature.uncountable:
+                        replacements[feature.item].extend(replacements_for_combo)
                         countable_feature_nodes[feature] = countable_feature_nodes.get(feature, 0) + quantity
                         combo_nodes_to_visit.extend(combo_nodes_to_visit_with_new_countable_features)
                         combo_nodes_to_visit_with_new_countable_features.clear()
             for feature in combo.features_produced:
-                if feature.item.uncountable and feature not in uncountable_feature_nodes:
+                if feature.item.feature.uncountable and feature not in uncountable_feature_nodes:
                     uncountable_feature_nodes.add(feature)
                     combo_nodes_to_visit.extend(combo_nodes_to_visit_with_new_uncountable_features)
                     combo_nodes_to_visit_with_new_uncountable_features.clear()
@@ -524,10 +550,10 @@ class Graph:
                                 else:
                                     feature_combo.state = NodeState.VISITED
         # Compute needed features and combos
-        interesting_features = set[Feature](  # by default interesting features are not utility features
+        interesting_features = set[FeatureWithAttributes](  # by default interesting features are not utility features
             f.item
             for f in chain(countable_feature_nodes.keys(), uncountable_feature_nodes)
-            if not f.item.utility
+            if not f.item.feature.utility
         )
         needed_combo_nodes = set[ComboNode](  # by default needed combos produce interesting features
             c
@@ -535,9 +561,17 @@ class Graph:
             if any(f.item in interesting_features for f in c.features_produced)
         )
         new_features_needed_by_needed_combos = {f.item for c in needed_combo_nodes for f in c.features_needed}
-        while not new_features_needed_by_needed_combos.issubset(interesting_features):
-            interesting_features.update(new_features_needed_by_needed_combos)
-            new_needed_combos = {c for c in combo_nodes if any(f.item in new_features_needed_by_needed_combos for f in c.features_produced)}
+        while not satisfies(interesting_features, new_features_needed_by_needed_combos):
+            new_features_produced_by_needed_combos = {
+                fa.item
+                for fa in chain(countable_feature_nodes.keys(), uncountable_feature_nodes)
+                if any(
+                    fam.feature == fa.item.feature and fam.matcher.matches(fa.item.attributes)
+                    for fam in new_features_needed_by_needed_combos
+                )
+            }
+            interesting_features.update(new_features_produced_by_needed_combos)
+            new_needed_combos = {c for c in combo_nodes if any(f.item in new_features_produced_by_needed_combos for f in c.features_produced)}
             needed_combo_nodes.update(new_needed_combos)
             new_features_needed_by_needed_combos = {f.item for c in new_needed_combos for f in c.features_needed}
         # Return the recipe
@@ -545,12 +579,12 @@ class Graph:
             cards=ingredients.cards,
             templates=ingredients.templates,
             features=FrozenMultiset({
-                f.item.id: q for f, q in countable_feature_nodes.items()
+                f.item.feature.id: q for f, q in countable_feature_nodes.items()
             } | {
-                f.item.id: 1 for f in uncountable_feature_nodes
+                f.item.feature.id: 1 for f in uncountable_feature_nodes
             }),
             combos={cn.item.id for cn in combo_nodes if cn.state == NodeState.VISITED},
             replacements=replacements,
-            needed_features={f.id for f in interesting_features},
+            needed_features={f.feature.id for f in interesting_features},
             needed_combos={cn.item.id for cn in needed_combo_nodes},
         )

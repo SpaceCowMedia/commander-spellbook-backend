@@ -78,7 +78,7 @@ class Data:
         self.combo_to_removed_features = {c.id: list[FeatureRemovedInCombo]() for c in combos}
         for i in featureremovedincombos:
             self.combo_to_removed_features[i.combo_id].append(i)
-        
+
         self.feature_needed_in_combo_to_attributes_matcher = dict[int, AttributesMatcher]()
         feature_needed_in_combo_to_any_of_attributes = {f.id: set[int]() for f in featureneededincombos}
         for i in featureneededincombo_anyofattributes:

@@ -1,15 +1,14 @@
 from itertools import chain
-from math import comb
-from multiset import FrozenMultiset, Multiset
+from multiset import FrozenMultiset
 from django.test import TestCase
 from django.db.models import Count
 from spellbook.models.combo import FeatureNeededInCombo
 from spellbook.models.feature_attribute import FeatureAttribute
 from spellbook.tests.testing import TestCaseMixinWithSeeding
-from spellbook.models import Job, Variant, Card, IngredientInCombination, CardInVariant, TemplateInVariant, Template, Combo, Feature, VariantAlias, FeatureOfCard, ZoneLocation, feature
+from spellbook.models import Job, Variant, Card, IngredientInCombination, CardInVariant, TemplateInVariant, Template, Combo, Feature, VariantAlias, FeatureOfCard, ZoneLocation
 from spellbook.variants.combo_graph import FeatureWithAttributes
 from spellbook.variants.variant_data import Data
-from spellbook.variants.variants_generator import VariantDefinition, get_variants_from_graph, get_default_zone_location_for_card, update_state_with_default
+from spellbook.variants.variants_generator import get_variants_from_graph, get_default_zone_location_for_card, update_state_with_default
 from spellbook.variants.variants_generator import generate_variants, apply_replacements, subtract_features, update_state
 from spellbook.variants.variants_generator import sync_variant_aliases
 from spellbook.utils import launch_job_command
@@ -30,7 +29,7 @@ class VariantsGeneratorTests(TestCaseMixinWithSeeding, TestCase):
         for variant_definition in result.values():
             card_set = set(variant_definition.card_ids)
             template_set = set(variant_definition.template_ids)
-            for feature, feature_replacement_list in variant_definition.feature_replacements.items():
+            for feature_replacement_list in variant_definition.feature_replacements.values():
                 self.assertGreater(len(feature_replacement_list), 0)
                 for feature_replacement in feature_replacement_list:
                     self.assertTrue(card_set.issuperset(feature_replacement.card_ids))
@@ -166,10 +165,10 @@ class VariantsGeneratorTests(TestCaseMixinWithSeeding, TestCase):
             FeatureWithAttributes(Feature.objects.get(id=self.f1_id), frozenset()): [([Card.objects.get(id=self.c1_id)], []), ([Card.objects.get(id=self.c2_id)], [])],
             FeatureWithAttributes(Feature.objects.get(id=self.f2_id), frozenset()): [([], [Template.objects.get(id=self.t1_id)]), ([], [Template.objects.get(id=self.t2_id)])],
             FeatureWithAttributes(Feature.objects.get(id=self.f3_id), frozenset()): [([Card.objects.get(id=self.c1_id), Card.objects.get(id=self.c2_id)], [Template.objects.get(id=self.t1_id), Template.objects.get(id=self.t2_id)])],
-            FeatureWithAttributes(fx, frozenset({fattr.id})): [([normal_card], [])], # Test invalid entries due to attributes
+            FeatureWithAttributes(fx, frozenset({fattr.id})): [([normal_card], [])],  # Test invalid entries due to attributes
             FeatureWithAttributes(fx, frozenset()): [([legendary_card], [])],
             FeatureWithAttributes(fy, frozenset()): [([non_legendary_card], [])],
-            FeatureWithAttributes(fy, frozenset({fattr.id})): [([normal_card], [])], # Test for multiple valid entries with different attributes
+            FeatureWithAttributes(fy, frozenset({fattr.id})): [([normal_card], [])],  # Test for multiple valid entries with different attributes
             FeatureWithAttributes(fz, frozenset()): [([legendary_modal_card], [])],
             FeatureWithAttributes(fw, frozenset()): [([legendary_card, non_legendary_card, legendary_modal_card, normal_card], [])],
         }
@@ -189,7 +188,7 @@ class VariantsGeneratorTests(TestCaseMixinWithSeeding, TestCase):
             ('Non-legendary name not cut before comma: [[FY]]', 'Non-legendary name not cut before comma: The Name, different Title'),
             ('Test replacement selector: [[FY$1]] - [[FY$2]]', 'Test replacement selector: The Name, different Title - Normal Card'),
             ('Test replacement selector alias: [[FY$1|X]] - [[FY$2|Y]] - [[X]] - [[Y]]', 'Test replacement selector alias: The Name, different Title - Normal Card - The Name, different Title - Normal Card'),
-            ('Test replacement selector postfix alias: [[FY|X$1|Y]] - [[X]] - [[X$2]] - [[Y]] - [[Y$2]]',  'Test replacement selector postfix alias: The Name, different Title - The Name, different Title - Normal Card - The Name, different Title - [[Y$2]]'),
+            ('Test replacement selector postfix alias: [[FY|X$1|Y]] - [[X]] - [[X$2]] - [[Y]] - [[Y$2]]', 'Test replacement selector postfix alias: The Name, different Title - The Name, different Title - Normal Card - The Name, different Title - [[Y$2]]'),
             ('Legendary modal name never cut: [[FZ]]', 'Legendary modal name never cut: The Name, the Title  // Another Name, Another Title'),
             ('Multiple replacements: [[FW]]', 'Multiple replacements: The Name + The Name, different Title + The Name, the Title  // Another Name, Another Title + Normal Card'),
         ]

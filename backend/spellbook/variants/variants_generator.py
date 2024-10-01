@@ -6,11 +6,10 @@ from dataclasses import dataclass
 from django.db import transaction
 from django.utils.functional import cached_property
 
-from spellbook.models.combo import FeatureNeededInCombo
 from .utils import includes_any
 from .variant_data import Data, debug_queries
 from .combo_graph import FeatureWithAttributes, Graph, VariantSet, cardid, templateid, featureid
-from spellbook.models import Combo, Job, Variant, CardInVariant, TemplateInVariant, id_from_cards_and_templates_ids, Playable, Card, Template, VariantAlias, Ingredient, Feature, FeatureProducedByVariant, VariantOfCombo, VariantIncludesCombo, ZoneLocation, CardType
+from spellbook.models import Combo, Job, Variant, CardInVariant, TemplateInVariant, id_from_cards_and_templates_ids, Playable, Card, Template, VariantAlias, Ingredient, FeatureProducedByVariant, VariantOfCombo, VariantIncludesCombo, ZoneLocation, CardType
 from spellbook.utils import log_into_job
 from spellbook.models.constants import DEFAULT_CARD_LIMIT, DEFAULT_VARIANT_LIMIT, HIGHER_CARD_LIMIT, LOWER_VARIANT_LIMIT
 
@@ -366,7 +365,7 @@ def restore_variant(
                 if feature_in_combo.zone_locations_override:
                     for feature_attributes, feature_replacements in variant_def.feature_replacements.items():
                         if feature_attributes.feature.id == feature_in_combo.feature_id \
-                            and data.feature_needed_in_combo_to_attributes_matcher[feature_in_combo.id].matches(feature_attributes.attributes):
+                                and data.feature_needed_in_combo_to_attributes_matcher[feature_in_combo.id].matches(feature_attributes.attributes):
                             for feature_replacement in feature_replacements:
                                 for card in feature_replacement.card_ids:
                                     for location in feature_in_combo.zone_locations_override:

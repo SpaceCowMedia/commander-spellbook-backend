@@ -997,3 +997,29 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
         variants = list(combo_graph.results(combo_graph.variants(2)))
         self.assertEqual(len(variants), 1)
         self.assertMultisetEqual(variants[0].cards, {1: 1, 2: 2})
+
+    def test_replacement_with_incompatible_attributes_using_cards(self):
+        self.save_combo_model({
+            'A': ('x', 'y'),
+            'B': ('y',),
+            ('A', 'y'): ('z',),
+        })
+        fa = FeatureAttribute.objects.create(name='FA')
+        card = Card.objects.get(name='A')
+        produced_feature = card.featureofcard_set.get(feature__name='y')
+        assert produced_feature is not None
+        produced_feature.attributes.add(fa)
+        combo = Combo.objects.get(id=1)
+        needed_feature = combo.featureneededincombo_set.first()
+        assert needed_feature is not None
+        needed_feature.none_of_attributes.add(fa)
+        combo_graph = Graph(Data())
+        variants = list(combo_graph.results(combo_graph.variants(1)))
+        self.assertEqual(len(variants), 1)
+        self.assertMultisetEqual(variants[0].cards, {1: 1, 2: 1})
+        self.assertMultisetEqual(variants[0].templates, {})
+        self.assertMultisetEqual(variants[0].features, {1: 1, 2: 1, 3: 1})
+        self.assertSetEqual(variants[0].combos, {1})
+        self.assertReplacementsEqual(variants[0].replacements, {
+            1: [VariantIngredients(FrozenMultiset({2: 1}), FrozenMultiset())],
+        })

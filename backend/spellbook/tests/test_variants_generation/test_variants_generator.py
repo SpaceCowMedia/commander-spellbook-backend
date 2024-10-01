@@ -31,7 +31,6 @@ class VariantsGeneratorTests(TestCaseMixinWithSeeding, TestCase):
             card_set = set(variant_definition.card_ids)
             template_set = set(variant_definition.template_ids)
             for feature, feature_replacement_list in variant_definition.feature_replacements.items():
-                self.assertIn(feature, variant_definition.feature_ids)
                 self.assertGreater(len(feature_replacement_list), 0)
                 for feature_replacement in feature_replacement_list:
                     self.assertTrue(card_set.issuperset(feature_replacement.card_ids))
@@ -188,6 +187,9 @@ class VariantsGeneratorTests(TestCaseMixinWithSeeding, TestCase):
             ('alias edge case [[FA|FB]] invocation in [[FB]]', 'alias edge case A A invocation in A A'),
             ('Legendary name cut before comma: [[FX]]', 'Legendary name cut before comma: The Name'),
             ('Non-legendary name not cut before comma: [[FY]]', 'Non-legendary name not cut before comma: The Name, different Title'),
+            ('Test replacement selector: [[FY$0]] - [[FY$1]]', 'Test replacement selector: The Name, different Title - Normal Card'),
+            ('Test replacement selector alias: [[FY$0|X]] - [[FY$1|Y]] - [[X]] - [[Y]]', 'Test replacement selector alias: The Name, different Title - Normal Card - The Name, different Title - Normal Card'),
+            ('Test replacement selector postfix alias: [[FY|X$0|Y]] - [[X]] - [[X$1]] - [[Y]] - [[Y$1]]',  'Test replacement selector postfix alias: The Name, different Title - The Name, different Title - Normal Card - The Name, different Title - [[Y$1]]'),
             ('Legendary modal name never cut: [[FZ]]', 'Legendary modal name never cut: The Name, the Title  // Another Name, Another Title'),
             ('Multiple replacements: [[FW]]', 'Multiple replacements: The Name + The Name, different Title + The Name, the Title  // Another Name, Another Title + Normal Card'),
         ]

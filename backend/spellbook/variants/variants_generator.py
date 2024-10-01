@@ -207,16 +207,42 @@ def apply_replacements(
             replacements_strings[feature.feature.name].append(replacement)
 
     def replacement_alias_strategy(key: str) -> list[str]:
+        alias = ''
         key = key.strip()
-        parts = key.split('|', 2)
+        parts = key.rsplit('|', 1)
         key = parts[0]
         if len(parts) == 2:
-            replacements_strings[parts[1]] = replacements_strings[key]
-        return replacements_strings[key]
+            alias = parts[1]
+        result = replacements_strings[key]
+        if alias:
+            replacements_strings[alias] = result
+        return result
 
     def replacement_with_fallback(key: str, otherwise: str) -> str:
+        alias = ''
+        selector = 0
+        try:
+            if key.rindex('$') < key.rindex('|'):
+                parts = key.rsplit('|', 1)
+                key = parts[0]
+                alias = parts[1]
+        except ValueError:
+            pass
+        parts = key.split('$', 1)
+        key = parts[0]
+        if len(parts) == 2:
+            try:
+                selector = int(parts[1])
+            except ValueError:
+                return otherwise
         strings = replacement_alias_strategy(key)
-        return strings[0] if strings else otherwise
+        try:
+            result = strings[selector]
+        except IndexError:
+            return otherwise
+        if alias:
+            replacements_strings[alias].append(result)
+        return result
 
     return re.sub(
         r'\[\[(?P<key>.+?)\]\]',

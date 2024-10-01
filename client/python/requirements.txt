@@ -6,7 +6,7 @@
 #
 aiohappyeyeballs==2.4.0
     # via aiohttp
-aiohttp==3.10.5
+aiohttp==3.10.8
     # via
     #   -r requirements.in
     #   aiohttp-retry
@@ -42,5 +42,5 @@ typing-extensions==4.12.2
     #   pydantic-core
 urllib3==2.2.3
     # via -r requirements.in
-yarl==1.9.4
+yarl==1.13.1
     # via aiohttp

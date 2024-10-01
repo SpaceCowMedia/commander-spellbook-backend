@@ -232,7 +232,9 @@ def apply_replacements(
         key = parts[0]
         if len(parts) == 2:
             try:
-                selector = int(parts[1])
+                selector = int(parts[1]) - 1
+                if selector < 0:
+                    return otherwise
             except ValueError:
                 return otherwise
         strings = replacement_alias_strategy(key)

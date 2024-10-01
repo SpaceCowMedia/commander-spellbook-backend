@@ -9,7 +9,7 @@ from spellbook.models.card import Card
 from spellbook.models.feature import Feature
 from spellbook.models.combo import Combo
 from spellbook.models.template import Template
-from .variant_data import Data
+from .variant_data import AttributesMatcher, Data
 from .variant_set import VariantSet, cardid, templateid
 from .utils import count_contains
 
@@ -128,18 +128,6 @@ class FeatureWithAttributesNode(Node[FeatureWithAttributes]):
 
 
 @dataclass(frozen=True)
-class AttributesMatcher:
-    any_of: frozenset[int]
-    all_of: frozenset[int]
-    none_of: frozenset[int]
-
-    def matches(self, attributes: frozenset[int]) -> bool:
-        return (not self.any_of or any(a in attributes for a in self.any_of)) \
-            and (self.all_of <= attributes) \
-            and not (self.none_of & attributes)
-
-
-@dataclass(frozen=True)
 class FeatureWithAttributesMatcher:
     feature: Feature
     matcher: AttributesMatcher
@@ -147,11 +135,11 @@ class FeatureWithAttributesMatcher:
 
 class FeatureWithAttributesMatcherNode(Node[FeatureWithAttributesMatcher]):
     def __init__(
-            self,
-            graph: 'Graph',
-            feature: FeatureWithAttributesMatcher,
-            needed_by_combos: Mapping['ComboNode', int] = {},
-            matches: Iterable[FeatureWithAttributesNode] = [],
+        self,
+        graph: 'Graph',
+        feature: FeatureWithAttributesMatcher,
+        needed_by_combos: Mapping['ComboNode', int] = {},
+        matches: Iterable[FeatureWithAttributesNode] = [],
     ):
         super().__init__(graph, feature)
         self.needed_by_combos = dict(needed_by_combos)
@@ -282,10 +270,7 @@ class Graph:
                     fa.produced_by_combos.append(b)
                     b.features_produced.append(fa)
                 for feature_needed_by_combo in data.combo_to_needed_features[combo.id]:
-                    any_of_attributes = frozenset(data.feature_needed_in_combo_to_any_of_attributes[feature_needed_by_combo.id])
-                    all_of_attributes = frozenset(data.feature_needed_in_combo_to_all_of_attributes[feature_needed_by_combo.id])
-                    none_of_attributes = frozenset(data.feature_needed_in_combo_to_none_of_attributes[feature_needed_by_combo.id])
-                    attributes_matcher = AttributesMatcher(any_of_attributes, all_of_attributes, none_of_attributes)
+                    attributes_matcher = data.feature_needed_in_combo_to_attributes_matcher[feature_needed_by_combo.id]
                     fam = self.famnodes.setdefault(feature_needed_by_combo.feature_id, {}).setdefault(
                         attributes_matcher,
                         FeatureWithAttributesMatcherNode(

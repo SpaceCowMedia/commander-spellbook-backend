@@ -1021,5 +1021,8 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
         self.assertMultisetEqual(variants[0].features, {1: 1, 2: 1, 3: 1})
         self.assertSetEqual(variants[0].combos, {1})
         self.assertReplacementsEqual(variants[0].replacements, {
-            1: [VariantIngredients(FrozenMultiset({2: 1}), FrozenMultiset())],
+            FeatureWithAttributes(Feature.objects.get(id=1), frozenset()): [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset())],
+            FeatureWithAttributes(Feature.objects.get(id=2), frozenset({fa.id})): [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset())],
+            FeatureWithAttributes(Feature.objects.get(id=2), frozenset()): [VariantIngredients(FrozenMultiset({2: 1}), FrozenMultiset())],
+            FeatureWithAttributes(Feature.objects.get(id=3), frozenset()): [VariantIngredients(FrozenMultiset({1: 1, 2: 1}), FrozenMultiset())],
         })

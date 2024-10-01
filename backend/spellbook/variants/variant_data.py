@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import logging
 from typing import Iterable
 from multiset import FrozenMultiset
@@ -9,6 +10,18 @@ from spellbook.models.combo import Combo, CardInCombo, TemplateInCombo, FeatureN
 from spellbook.models.template import Template
 from spellbook.models.variant import Variant, CardInVariant, TemplateInVariant, FeatureProducedByVariant, VariantOfCombo, VariantIncludesCombo
 from .variant_set import VariantSet
+
+
+@dataclass(frozen=True)
+class AttributesMatcher:
+    any_of: frozenset[int]
+    all_of: frozenset[int]
+    none_of: frozenset[int]
+
+    def matches(self, attributes: frozenset[int]) -> bool:
+        return (not self.any_of or any(a in attributes for a in self.any_of)) \
+            and (self.all_of <= attributes) \
+            and not (self.none_of & attributes)
 
 
 class Data:
@@ -65,15 +78,23 @@ class Data:
         self.combo_to_removed_features = {c.id: list[FeatureRemovedInCombo]() for c in combos}
         for i in featureremovedincombos:
             self.combo_to_removed_features[i.combo_id].append(i)
-        self.feature_needed_in_combo_to_any_of_attributes = {f.id: set[int]() for f in featureneededincombos}
+        
+        self.feature_needed_in_combo_to_attributes_matcher = dict[int, AttributesMatcher]()
+        feature_needed_in_combo_to_any_of_attributes = {f.id: set[int]() for f in featureneededincombos}
         for i in featureneededincombo_anyofattributes:
-            self.feature_needed_in_combo_to_any_of_attributes[i.featureneededincombo_id].add(i.featureattribute_id)
-        self.feature_needed_in_combo_to_all_of_attributes = {f.id: set[int]() for f in featureneededincombos}
+            feature_needed_in_combo_to_any_of_attributes[i.featureneededincombo_id].add(i.featureattribute_id)
+        feature_needed_in_combo_to_all_of_attributes = {f.id: set[int]() for f in featureneededincombos}
         for i in featureneededincombo_allofattributes:
-            self.feature_needed_in_combo_to_all_of_attributes[i.featureneededincombo_id].add(i.featureattribute_id)
-        self.feature_needed_in_combo_to_none_of_attributes = {f.id: set[int]() for f in featureneededincombos}
+            feature_needed_in_combo_to_all_of_attributes[i.featureneededincombo_id].add(i.featureattribute_id)
+        feature_needed_in_combo_to_none_of_attributes = {f.id: set[int]() for f in featureneededincombos}
         for i in featureneededincombo_noneofattributes:
-            self.feature_needed_in_combo_to_none_of_attributes[i.featureneededincombo_id].add(i.featureattribute_id)
+            feature_needed_in_combo_to_none_of_attributes[i.featureneededincombo_id].add(i.featureattribute_id)
+        for i in featureneededincombos:
+            self.feature_needed_in_combo_to_attributes_matcher[i.id] = AttributesMatcher(
+                any_of=frozenset(feature_needed_in_combo_to_any_of_attributes[i.id]),
+                all_of=frozenset(feature_needed_in_combo_to_all_of_attributes[i.id]),
+                none_of=frozenset(feature_needed_in_combo_to_none_of_attributes[i.id]),
+            )
         self.feature_produced_in_combo_to_attributes = {f.id: set[int]() for f in featureproducedincombos}
         for i in featureproducedincombo_attributes:
             self.feature_produced_in_combo_to_attributes[i.featureproducedincombo_id].add(i.featureattribute_id)

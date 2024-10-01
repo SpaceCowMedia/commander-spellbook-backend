@@ -1,11 +1,15 @@
 from itertools import chain
-from multiset import FrozenMultiset
+from math import comb
+from multiset import FrozenMultiset, Multiset
 from django.test import TestCase
 from django.db.models import Count
+from spellbook.models.combo import FeatureNeededInCombo
+from spellbook.models.feature_attribute import FeatureAttribute
 from spellbook.tests.testing import TestCaseMixinWithSeeding
-from spellbook.models import Job, Variant, Card, IngredientInCombination, CardInVariant, TemplateInVariant, Template, Combo, Feature, VariantAlias, FeatureOfCard, ZoneLocation
+from spellbook.models import Job, Variant, Card, IngredientInCombination, CardInVariant, TemplateInVariant, Template, Combo, Feature, VariantAlias, FeatureOfCard, ZoneLocation, feature
+from spellbook.variants.combo_graph import FeatureWithAttributes
 from spellbook.variants.variant_data import Data
-from spellbook.variants.variants_generator import get_variants_from_graph, get_default_zone_location_for_card, update_state_with_default
+from spellbook.variants.variants_generator import VariantDefinition, get_variants_from_graph, get_default_zone_location_for_card, update_state_with_default
 from spellbook.variants.variants_generator import generate_variants, apply_replacements, subtract_features, update_state
 from spellbook.variants.variants_generator import sync_variant_aliases
 from spellbook.utils import launch_job_command
@@ -155,14 +159,20 @@ class VariantsGeneratorTests(TestCaseMixinWithSeeding, TestCase):
         fy = Feature.objects.create(name='FY')
         fz = Feature.objects.create(name='FZ')
         fw = Feature.objects.create(name='FW')
+        fattr = FeatureAttribute.objects.create(name='FAttr')
+        combo = Combo.objects.create()
+        fn = FeatureNeededInCombo.objects.create(combo=combo, feature=fx)
+        fn.none_of_attributes.add(fattr)
         replacements = {
-            Feature.objects.get(id=self.f1_id): [([Card.objects.get(id=self.c1_id)], []), ([Card.objects.get(id=self.c2_id)], [])],
-            Feature.objects.get(id=self.f2_id): [([], [Template.objects.get(id=self.t1_id)]), ([], [Template.objects.get(id=self.t2_id)])],
-            Feature.objects.get(id=self.f3_id): [([Card.objects.get(id=self.c1_id), Card.objects.get(id=self.c2_id)], [Template.objects.get(id=self.t1_id), Template.objects.get(id=self.t2_id)])],
-            fx: [([legendary_card], [])],
-            fy: [([non_legendary_card], [])],
-            fz: [([legendary_modal_card], [])],
-            fw: [([legendary_card, non_legendary_card, legendary_modal_card, normal_card], [])],
+            FeatureWithAttributes(Feature.objects.get(id=self.f1_id), frozenset()): [([Card.objects.get(id=self.c1_id)], []), ([Card.objects.get(id=self.c2_id)], [])],
+            FeatureWithAttributes(Feature.objects.get(id=self.f2_id), frozenset()): [([], [Template.objects.get(id=self.t1_id)]), ([], [Template.objects.get(id=self.t2_id)])],
+            FeatureWithAttributes(Feature.objects.get(id=self.f3_id), frozenset()): [([Card.objects.get(id=self.c1_id), Card.objects.get(id=self.c2_id)], [Template.objects.get(id=self.t1_id), Template.objects.get(id=self.t2_id)])],
+            FeatureWithAttributes(fx, frozenset({fattr.id})): [([normal_card], [])], # Test invalid entries due to attributes
+            FeatureWithAttributes(fx, frozenset()): [([legendary_card], [])],
+            FeatureWithAttributes(fy, frozenset()): [([non_legendary_card], [])],
+            FeatureWithAttributes(fy, frozenset({fattr.id})): [([normal_card], [])], # Test for multiple valid entries with different attributes
+            FeatureWithAttributes(fz, frozenset()): [([legendary_modal_card], [])],
+            FeatureWithAttributes(fw, frozenset()): [([legendary_card, non_legendary_card, legendary_modal_card, normal_card], [])],
         }
         tests = [
             ('', ''),
@@ -181,8 +191,9 @@ class VariantsGeneratorTests(TestCaseMixinWithSeeding, TestCase):
             ('Legendary modal name never cut: [[FZ]]', 'Legendary modal name never cut: The Name, the Title  // Another Name, Another Title'),
             ('Multiple replacements: [[FW]]', 'Multiple replacements: The Name + The Name, different Title + The Name, the Title  // Another Name, Another Title + Normal Card'),
         ]
+        data = Data()
         for test in tests:
-            self.assertEqual(apply_replacements(test[0], replacements), test[1])
+            self.assertEqual(apply_replacements(data, test[0], replacements, {combo.id}), test[1])
 
     def test_restore_variant(self):
         # TODO: Implement

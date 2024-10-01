@@ -5,6 +5,8 @@ from multiset import FrozenMultiset, Multiset, BaseMultiset
 from dataclasses import dataclass
 from django.db import transaction
 from django.utils.functional import cached_property
+
+from spellbook.models.combo import FeatureNeededInCombo
 from .utils import includes_any
 from .variant_data import Data, debug_queries
 from .combo_graph import FeatureWithAttributes, Graph, VariantSet, cardid, templateid, featureid
@@ -179,13 +181,19 @@ def update_state(dst: Ingredient, src: Ingredient, overwrite=False):
 
 
 def apply_replacements(
+    data: Data,
     text: str,
-    replacements: dict[Feature, list[tuple[list[Card], list[Template]]]],
+    replacements: dict[FeatureWithAttributes, list[tuple[list[Card], list[Template]]]],
+    included_combos: set[int],
 ) -> str:
-    replacements_strings = dict[str, str]()
+    replacements_strings = defaultdict[str, list[str]](list)
+    features_needed_by_included_combos = [feature_needed for included_combo_id in included_combos for feature_needed in data.combo_to_needed_features[included_combo_id]]
     for feature, replacement_list in replacements.items():
-        if replacement_list:
-            cards, templates = replacement_list[0]
+        corresponding_needed_features = [feature_needed for feature_needed in features_needed_by_included_combos if feature_needed.feature_id == feature.feature.id]
+        if corresponding_needed_features and not any(data.feature_needed_in_combo_to_attributes_matcher[corresponding_needed_feature.id].matches(feature.attributes) for corresponding_needed_feature in corresponding_needed_features):
+            # if all combos needing that feature don't find a match with attributes the replacement is not applied
+            continue
+        for cards, templates in replacement_list:
             names = [
                 c.name.split(',', 2)[0]
                 if ',' in c.name and '//' not in c.name and c.is_of_type(CardType.LEGENDARY) and c.is_of_type(CardType.CREATURE)
@@ -196,20 +204,23 @@ def apply_replacements(
                 for t in templates
             ]
             replacement = ' + '.join(names)
-            replacements_strings[feature.name] = replacement
+            replacements_strings[feature.feature.name].append(replacement)
 
-    def replacement_strategy(key: str, otherwise: str) -> str:
+    def replacement_alias_strategy(key: str) -> list[str]:
         key = key.strip()
         parts = key.split('|', 2)
         key = parts[0]
-        if key in replacements_strings:
-            if len(parts) == 2:
-                replacements_strings[parts[1]] = replacements_strings[key]
-            return replacements_strings[key]
-        return otherwise
+        if len(parts) == 2:
+            replacements_strings[parts[1]] = replacements_strings[key]
+        return replacements_strings[key]
+
+    def replacement_with_fallback(key: str, otherwise: str) -> str:
+        strings = replacement_alias_strategy(key)
+        return strings[0] if strings else otherwise
+
     return re.sub(
         r'\[\[(?P<key>.+?)\]\]',
-        lambda m: replacement_strategy(m.group('key'), m.group(0)),
+        lambda m: replacement_with_fallback(m.group('key'), m.group(0)),
         text,
     )
 
@@ -277,11 +288,11 @@ def restore_variant(
             ]
             for feature_wth_attributes, recipes in variant_def.feature_replacements.items()
         }
-        variant.other_prerequisites = apply_replacements('\n'.join(c.other_prerequisites for c in combos_included_for_a_reason if len(c.other_prerequisites) > 0), replacements)
-        variant.mana_needed = apply_replacements(' '.join(c.mana_needed for c in combos_included_for_a_reason if len(c.mana_needed) > 0), replacements)
-        variant.description = apply_replacements('\n'.join(c.description for c in combos_included_for_a_reason if len(c.description) > 0), replacements)
-        variant.notes = apply_replacements('\n'.join(c.notes for c in combos_included_for_a_reason if len(c.notes) > 0), replacements)
-        variant.public_notes = apply_replacements('\n'.join(c.public_notes for c in combos_included_for_a_reason if len(c.public_notes) > 0), replacements)
+        variant.other_prerequisites = apply_replacements(data, '\n'.join(c.other_prerequisites for c in combos_included_for_a_reason if len(c.other_prerequisites) > 0), replacements, variant_def.needed_combos)
+        variant.mana_needed = apply_replacements(data, ' '.join(c.mana_needed for c in combos_included_for_a_reason if len(c.mana_needed) > 0), replacements, variant_def.needed_combos)
+        variant.description = apply_replacements(data, '\n'.join(c.description for c in combos_included_for_a_reason if len(c.description) > 0), replacements, variant_def.needed_combos)
+        variant.notes = apply_replacements(data, '\n'.join(c.notes for c in combos_included_for_a_reason if len(c.notes) > 0), replacements, variant_def.needed_combos)
+        variant.public_notes = apply_replacements(data, '\n'.join(c.public_notes for c in combos_included_for_a_reason if len(c.public_notes) > 0), replacements, variant_def.needed_combos)
         for card_in_variant in used_cards:
             update_state_with_default(data, card_in_variant)
         for template_in_variant in required_templates:
@@ -300,10 +311,11 @@ def restore_variant(
                     if feature_of_card.other_prerequisites:
                         additional_other_prerequisites.append(feature_of_card.other_prerequisites)
         if additional_other_prerequisites:
-            variant.other_prerequisites = apply_replacements('\n'.join(additional_other_prerequisites), replacements) + '\n' + variant.other_prerequisites
+            variant.other_prerequisites = apply_replacements(data, '\n'.join(additional_other_prerequisites), replacements, variant_def.needed_combos) + '\n' + variant.other_prerequisites
         card_zone_locations_overrides = defaultdict[int, defaultdict[str, int]](lambda: defaultdict(int))
         template_zone_locations_overrides = defaultdict[int, defaultdict[str, int]](lambda: defaultdict(int))
         for combo in combos_included_for_a_reason:
+            # Computing used cards initial state
             for card_in_combo in data.combo_to_cards[combo.id]:
                 if card_in_combo.card_id in uses:
                     to_edit = uses[card_in_combo.card_id]
@@ -312,6 +324,7 @@ def restore_variant(
                         uses_updated.add(to_edit.card_id)
                     else:
                         update_state(to_edit, card_in_combo)
+            # Computing required templates initial state
             for template_in_combo in data.combo_to_templates[combo.id]:
                 if template_in_combo.template_id in requires:
                     to_edit = requires[template_in_combo.template_id]
@@ -320,20 +333,24 @@ def restore_variant(
                         requires_updated.add(to_edit.template_id)
                     else:
                         update_state(to_edit, template_in_combo)
+            # Applying zone locations overrides
             for feature_in_combo in data.combo_to_needed_features[combo.id]:
                 if feature_in_combo.zone_locations_override:
-                    for replacement in variant_def.feature_replacements[feature_in_combo.feature_id]:
-                        for card in replacement.card_ids:
-                            for location in feature_in_combo.zone_locations_override:
-                                card_zone_locations_overrides[card][location] += 1
-                        for template in replacement.template_ids:
-                            for location in feature_in_combo.zone_locations_override:
-                                template_zone_locations_overrides[template][location] += 1
+                    for feature_attributes, feature_replacements in variant_def.feature_replacements.items():
+                        if feature_attributes.feature.id == feature_in_combo.feature_id \
+                            and data.feature_needed_in_combo_to_attributes_matcher[feature_in_combo.id].matches(feature_attributes.attributes):
+                            for feature_replacement in feature_replacements:
+                                for card in feature_replacement.card_ids:
+                                    for location in feature_in_combo.zone_locations_override:
+                                        card_zone_locations_overrides[card][location] += 1
+                                for template in feature_replacement.template_ids:
+                                    for location in feature_in_combo.zone_locations_override:
+                                        template_zone_locations_overrides[template][location] += 1
         for used_card in used_cards:
-            used_card.battlefield_card_state = apply_replacements(used_card.battlefield_card_state, replacements)
-            used_card.exile_card_state = apply_replacements(used_card.exile_card_state, replacements)
-            used_card.graveyard_card_state = apply_replacements(used_card.graveyard_card_state, replacements)
-            used_card.library_card_state = apply_replacements(used_card.library_card_state, replacements)
+            used_card.battlefield_card_state = apply_replacements(data, used_card.battlefield_card_state, replacements, variant_def.needed_combos)
+            used_card.exile_card_state = apply_replacements(data, used_card.exile_card_state, replacements, variant_def.needed_combos)
+            used_card.graveyard_card_state = apply_replacements(data, used_card.graveyard_card_state, replacements, variant_def.needed_combos)
+            used_card.library_card_state = apply_replacements(data, used_card.library_card_state, replacements, variant_def.needed_combos)
             override_score = max(card_zone_locations_overrides[used_card.card_id].values(), default=0)
             if override_score > 0:
                 used_card.zone_locations = ''.join(
@@ -342,10 +359,10 @@ def restore_variant(
                     if count == override_score
                 )
         for required_template in required_templates:
-            required_template.battlefield_card_state = apply_replacements(required_template.battlefield_card_state, replacements)
-            required_template.exile_card_state = apply_replacements(required_template.exile_card_state, replacements)
-            required_template.graveyard_card_state = apply_replacements(required_template.graveyard_card_state, replacements)
-            required_template.library_card_state = apply_replacements(required_template.library_card_state, replacements)
+            required_template.battlefield_card_state = apply_replacements(data, required_template.battlefield_card_state, replacements, variant_def.needed_combos)
+            required_template.exile_card_state = apply_replacements(data, required_template.exile_card_state, replacements, variant_def.needed_combos)
+            required_template.graveyard_card_state = apply_replacements(data, required_template.graveyard_card_state, replacements, variant_def.needed_combos)
+            required_template.library_card_state = apply_replacements(data, required_template.library_card_state, replacements, variant_def.needed_combos)
             override_score = max(template_zone_locations_overrides[required_template.template_id].values(), default=0)
             if override_score > 0:
                 required_template.zone_locations = ''.join(

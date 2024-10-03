@@ -17,12 +17,12 @@
                     </td>
                 </tr>
             {% endfor %}
-            {% with variants_count=original.variants.count %}
-            {% if variants_count > 0 %}
+            {% with variant_count=original.variants.count %}
+            {% if variant_count > 0 %}
                 <tr class="form-row">
                     <td class="field-variant">
                         <p>
-                            <a href="{% url 'admin:spellbook_variant_changelist' %}?generated_by__id={{ original.id }}">View all {{ variants_count }} variants created by this job...</a>
+                            <a href="{% url 'admin:spellbook_variant_changelist' %}?generated_by__id={{ original.id }}">View all {{ variant_count }} variants created by this job...</a>
                         </p>
                     </td>
                 </tr>

@@ -48,8 +48,8 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get('Content-Type'), 'application/json')
         result = json.loads(response.content, object_hook=json_to_python_lambda)
-        suggestions_count = VariantSuggestion.objects.count()
-        self.assertEqual(len(result.results), suggestions_count)
+        suggestion_count = VariantSuggestion.objects.count()
+        self.assertEqual(len(result.results), suggestion_count)
         for suggestion_result in result.results:
             self.suggestion_assertions(suggestion_result)
 

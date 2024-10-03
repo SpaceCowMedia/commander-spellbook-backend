@@ -364,9 +364,9 @@ class Graph:
             if f.state == NodeState.VISITING:
                 return self._new_variant_set()
             variant_set = self._feature_with_attribute_matchers_nodes_down(f)
-            variants_count_estimate = len(variant_set) * q
-            if variants_count_estimate > self.variant_limit:
-                msg = f'{q} x Feature "{f.item}" has too many variants, approx. {variants_count_estimate}'
+            variant_count_estimate = len(variant_set) * q
+            if variant_count_estimate > self.variant_limit:
+                msg = f'{q} x Feature "{f.item}" has too many variants, approx. {variant_count_estimate}'
                 self.logger(msg)
                 raise Graph.GraphError(msg)
             variant_set = variant_set ** q
@@ -378,9 +378,9 @@ class Graph:
                 return combo.variant_set
             needed_features_variant_sets.append(variant_set)
         variant_sets: list[VariantSet] = card_variant_sets + template_variant_sets + needed_features_variant_sets
-        variants_count_estimate = prod(len(vs) for vs in variant_sets)
-        if variants_count_estimate > self.variant_limit:
-            msg = f'Combo {combo.item} has too many variants, approx. {variants_count_estimate}'
+        variant_count_estimate = prod(len(vs) for vs in variant_sets)
+        if variant_count_estimate > self.variant_limit:
+            msg = f'Combo {combo.item} has too many variants, approx. {variant_count_estimate}'
             self.logger(msg)
             raise Graph.GraphError(msg)
         combo.variant_set = VariantSet.and_sets(variant_sets, limit=self.card_limit, allow_multiple_copies=self.allow_multiple_copies)
@@ -417,9 +417,9 @@ class Graph:
             if variant_set:
                 produced_combos_variant_sets.append(variant_set)
         variant_sets = card_variant_sets + produced_combos_variant_sets
-        variants_count_estimate = sum(len(vs) for vs in variant_sets)
-        if variants_count_estimate > self.variant_limit:
-            msg = f'Feature "{feature.item}" has too many variants, approx. {variants_count_estimate}'
+        variant_count_estimate = sum(len(vs) for vs in variant_sets)
+        if variant_count_estimate > self.variant_limit:
+            msg = f'Feature "{feature.item}" has too many variants, approx. {variant_count_estimate}'
             self.logger(msg)
             raise Graph.GraphError(msg)
         feature.variant_set = VariantSet.or_sets(variant_sets, limit=self.card_limit, allow_multiple_copies=self.allow_multiple_copies)

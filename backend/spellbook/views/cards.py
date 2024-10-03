@@ -1,10 +1,11 @@
 from rest_framework import viewsets
 from spellbook.models import Card
 from spellbook.serializers import CardDetailSerializer
-from .filters import NameAutocompleteQueryFilter
+from .filters import NameAutocompleteQueryFilter, OrderingFilterWithNullsLast
 
 
 class CardViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = CardDetailSerializer.prefetch_related(Card.objects)
     serializer_class = CardDetailSerializer
-    filter_backends = [NameAutocompleteQueryFilter]
+    ordering = ['variant_count']
+    filter_backends = [NameAutocompleteQueryFilter, OrderingFilterWithNullsLast]

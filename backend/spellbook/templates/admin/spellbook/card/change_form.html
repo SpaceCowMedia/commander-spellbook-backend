@@ -172,12 +172,12 @@
                     </td>
                 </tr>
             {% endfor %}
-            {% with combos_count=original.used_in_combos.count %}
-            {% if combos_count > 0 %}
+            {% with combo_count=original.used_in_combos.count %}
+            {% if combo_count > 0 %}
                 <tr class="form-row">
                     <td class="field-combo">
                         <p>
-                            <a href="{% url 'admin:spellbook_combo_changelist' %}?uses__id={{ original.id }}">View all {{ combos_count }} combos where {{ original.name }} is used...</a>
+                            <a href="{% url 'admin:spellbook_combo_changelist' %}?uses__id={{ original.id }}">View all {{ combo_count }} combos where {{ original.name }} is used...</a>
                         </p>
                     </td>
                 </tr>

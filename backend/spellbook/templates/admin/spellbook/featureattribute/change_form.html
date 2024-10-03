@@ -18,12 +18,12 @@
                     </td>
                 </tr>
             {% endfor %}
-            {% with combos_count=original.used_in_combos.count %}
-            {% if combos_count > 0 %}
+            {% with combo_count=original.used_in_combos.count %}
+            {% if combo_count > 0 %}
                 <tr class="form-row">
                     <td class="field-combo">
                         <p>
-                            In total there are {{ combos_count }} combos where {{ original.name }} is used.
+                            In total there are {{ combo_count }} combos where {{ original.name }} is used.
                         </p>
                     </td>
                 </tr>

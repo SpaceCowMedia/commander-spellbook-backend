@@ -113,12 +113,12 @@
                     </td>
                 </tr>
             {% endfor %}
-            {% with combos_count=original.needed_by_combos.count %}
-            {% if combos_count > 0 %}
+            {% with combo_count=original.needed_by_combos.count %}
+            {% if combo_count > 0 %}
                 <tr class="form-row">
                     <td class="field-combo">
                         <p>
-                            <a href="{% url 'admin:spellbook_combo_changelist' %}?needs__id={{ original.id }}">View all {{ combos_count }} combos where {{ original.name }} is needed...</a>
+                            <a href="{% url 'admin:spellbook_combo_changelist' %}?needs__id={{ original.id }}">View all {{ combo_count }} combos where {{ original.name }} is needed...</a>
                         </p>
                     </td>
                 </tr>
@@ -142,12 +142,12 @@
                     </td>
                 </tr>
             {% endfor %}
-            {% with combos_count=original.produced_by_combos.count %}
-            {% if combos_count > 0 %}
+            {% with combo_count=original.produced_by_combos.count %}
+            {% if combo_count > 0 %}
                 <tr class="form-row">
                     <td class="field-combo">
                         <p>
-                            <a href="{% url 'admin:spellbook_combo_changelist' %}?produces__id={{ original.id }}">View all {{ combos_count }} combos where {{ original.name }} is produced...</a>
+                            <a href="{% url 'admin:spellbook_combo_changelist' %}?produces__id={{ original.id }}">View all {{ combo_count }} combos where {{ original.name }} is produced...</a>
                         </p>
                     </td>
                 </tr>

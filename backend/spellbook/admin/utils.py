@@ -216,8 +216,8 @@ class IdentityFilter(CustomFilter):
 
 
 class CardsCountListFilter(CustomFilter):
-    title = 'cards count'
-    parameter_name = 'cards_count'
+    title = 'card count'
+    parameter_name = 'card_count'
     one_more_than_max = DEFAULT_CARD_LIMIT + 1
     one_more_than_max_display = f'{one_more_than_max}+'
 
@@ -227,6 +227,6 @@ class CardsCountListFilter(CustomFilter):
     def filter(self, value: str) -> Q:
         match value:
             case CardsCountListFilter.one_more_than_max_display:
-                return Q(cards_count__gte=CardsCountListFilter.one_more_than_max)
+                return Q(card_count__gte=CardsCountListFilter.one_more_than_max)
             case _:
-                return Q(cards_count=int(value))
+                return Q(card_count=int(value))

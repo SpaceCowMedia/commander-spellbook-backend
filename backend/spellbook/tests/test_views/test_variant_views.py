@@ -119,9 +119,9 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get('Content-Type'), 'application/json')
         result = json.loads(response.content, object_hook=json_to_python_lambda)
-        variants_count = self.public_variants.count()
-        self.assertEqual(len(result.results), variants_count)
-        for i in range(variants_count):
+        variant_count = self.public_variants.count()
+        self.assertEqual(len(result.results), variant_count)
+        for i in range(variant_count):
             self.variant_assertions(result.results[i])
 
     def test_variants_detail_view(self):
@@ -175,7 +175,7 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
                         self.variant_assertions(v)
 
     def test_variants_list_view_query_by_card_count(self):
-        min_cards, max_cards = self.public_variants.aggregate(min_cards=models.Min('cards_count'), max_cards=models.Max('cards_count')).values()
+        min_cards, max_cards = self.public_variants.aggregate(min_cards=models.Min('card_count'), max_cards=models.Max('card_count')).values()
         self.assertGreaterEqual(max_cards, min_cards)
         for card_count in (min_cards, max_cards, (min_cards + max_cards) // 2):
             operators = {
@@ -188,7 +188,7 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
             }
             for o, o_django in operators.items():
                 q = f'cards{o}{card_count}'
-                q_django = {f'cards_count__{o_django}': card_count}
+                q_django = {f'card_count__{o_django}': card_count}
                 with self.subTest(f'query by card count: {card_count} with query {q}'):
                     response = self.client.get('/variants', data={'q': q}, follow=True)
                     self.assertEqual(response.status_code, 200)
@@ -489,9 +489,9 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
                     self.variant_assertions(v)
 
     def test_variants_list_view_query_by_results(self):
-        min_results, max_results = self.public_variants.aggregate(min_results=models.Min('results_count'), max_results=models.Max('results_count')).values()
+        min_results, max_results = self.public_variants.aggregate(min_results=models.Min('result_count'), max_results=models.Max('result_count')).values()
         self.assertGreaterEqual(max_results, min_results)
-        for results_count in (min_results, max_results, (min_results + max_results) // 2):
+        for result_count in (min_results, max_results, (min_results + max_results) // 2):
             operators = {
                 '>': 'gt',
                 '<': 'lt',
@@ -502,12 +502,12 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
             }
             for o, o_django in operators.items():
                 queries = [
-                    f'results{o}{results_count}',
-                    f'result{o}{results_count}',
+                    f'results{o}{result_count}',
+                    f'result{o}{result_count}',
                 ]
                 for q in queries:
-                    q_django = {f'results_count__{o_django}': results_count}
-                    with self.subTest(f'query by results count: {results_count} with query {q}'):
+                    q_django = {f'result_count__{o_django}': result_count}
+                    with self.subTest(f'query by results count: {result_count} with query {q}'):
                         response = self.client.get('/variants', data={'q': q}, follow=True)
                         self.assertEqual(response.status_code, 200)
                         self.assertEqual(response.get('Content-Type'), 'application/json')
@@ -618,9 +618,9 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
                     self.assertEqual(response.status_code, 200)
                     self.assertEqual(response.get('Content-Type'), 'application/json')
                     result = json.loads(response.content, object_hook=json_to_python_lambda)
-                    variants_count = 1
-                    self.assertEqual(len(result.results), variants_count)
-                    for i in range(variants_count):
+                    variant_count = 1
+                    self.assertEqual(len(result.results), variant_count)
+                    for i in range(variant_count):
                         self.variant_assertions(result.results[i])
             for q in negative_queries:
                 with self.subTest(f'query by variant id: {variant.id} with query {q}'):

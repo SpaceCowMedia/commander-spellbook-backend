@@ -13,7 +13,7 @@ class FindMyCombosViewTests(TestCaseMixinWithSeeding, TestCase):
         super().setUp()
         super().generate_and_publish_variants()
         Variant.objects.filter(id__in=random.sample(list(Variant.objects.values_list('id', flat=True)), 3)).update(status=Variant.Status.EXAMPLE)
-        CardInVariant.objects.filter(card_id=self.c1_id, variant__cards_count=2).update(quantity=2)
+        CardInVariant.objects.filter(card_id=self.c1_id, variant__card_count=2).update(quantity=2)
         super().bulk_serialize_variants()
         self.variants = Variant.objects.filter(status__in=Variant.public_statuses()).prefetch_related('cardinvariant_set', 'cardinvariant_set__card')
         self.variants_dict = {v.id: v for v in self.variants}

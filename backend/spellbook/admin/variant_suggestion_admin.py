@@ -87,7 +87,7 @@ class VariantSuggestionAdmin(SpellbookModelAdmin):
     ]
 
     def get_queryset(self, request):
-        return VariantSuggestion.objects.annotate(cards_count=Count('uses', distinct=True) + Count('requires', distinct=True))
+        return VariantSuggestion.objects.annotate(card_count=Count('uses', distinct=True) + Count('requires', distinct=True))
 
     def save_form(self, request: Any, form: Any, change: bool) -> Any:
         new_object = super().save_form(request, form, change)

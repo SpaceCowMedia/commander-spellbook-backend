@@ -51,6 +51,7 @@ class CardDetailSerializer(serializers.ModelSerializer):
             'name',
             'oracle_id',
             'identity',
+            'variant_count',
             *Card.scryfall_fields(),
             'spoiler',
             'features',

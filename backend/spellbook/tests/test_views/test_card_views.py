@@ -18,6 +18,7 @@ class CardViewsTests(TestCaseMixinWithSeeding, TestCase):
         self.assertEqual(card_result.keywords, c.keywords)
         self.assertEqual(card_result.mana_value, c.mana_value)
         self.assertEqual(card_result.reserved, c.reserved)
+        self.assertEqual(card_result.variant_count, c.variant_count)
         self.assertEqual(card_result.legalities.commander, c.legal_commander)
         self.assertEqual(card_result.legalities.pauper_commander_main, c.legal_pauper_commander_main)
         self.assertEqual(card_result.legalities.pauper_commander, c.legal_pauper_commander)
@@ -50,9 +51,9 @@ class CardViewsTests(TestCaseMixinWithSeeding, TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get('Content-Type'), 'application/json')
         result = json.loads(response.content, object_hook=json_to_python_lambda)
-        cards_count = Card.objects.count()
-        self.assertEqual(len(result.results), cards_count)
-        for i in range(cards_count):
+        card_count = Card.objects.count()
+        self.assertEqual(len(result.results), card_count)
+        for i in range(card_count):
             self.card_assertions(result.results[i])
 
     def test_cards_detail_view(self):
@@ -62,3 +63,16 @@ class CardViewsTests(TestCaseMixinWithSeeding, TestCase):
         result = json.loads(response.content, object_hook=json_to_python_lambda)
         self.assertEqual(result.id, self.c1_id)
         self.card_assertions(result)
+
+    def test_cards_list_view_ordering(self):
+        self.generate_and_publish_variants()
+        response = self.client.get('/cards?ordering=-variant_count', follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get('Content-Type'), 'application/json')
+        result = json.loads(response.content, object_hook=json_to_python_lambda)
+        card_count = Card.objects.count()
+        self.assertEqual(len(result.results), card_count)
+        previous_variant_count = 0
+        for i in range(card_count):
+            self.card_assertions(result.results[i])
+            self.assertGreaterEqual(result.results[i].variant_count, previous_variant_count)

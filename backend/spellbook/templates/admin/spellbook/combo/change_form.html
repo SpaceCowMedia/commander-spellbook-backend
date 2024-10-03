@@ -68,12 +68,12 @@
                     </td>
                 </tr>
             {% endfor %}
-            {% with variants_count=adminform.form.variants_of_this.count %}
-            {% if variants_count > 0 %}
+            {% with variant_count=adminform.form.variants_of_this.count %}
+            {% if variant_count > 0 %}
                 <tr class="form-row">
                     <td class="field-variant">
                         <p>
-                            <a href="{% url 'admin:spellbook_variant_changelist' %}?of__id={{ original.id }}">View all {{ variants_count }} variants of this combo...</a>
+                            <a href="{% url 'admin:spellbook_variant_changelist' %}?of__id={{ original.id }}">View all {{ variant_count }} variants of this combo...</a>
                         </p>
                     </td>
                 </tr>
@@ -97,12 +97,12 @@
                     </td>
                 </tr>
             {% endfor %}
-            {% with variants_count=adminform.form.variants_that_include_this.count %}
-            {% if variants_count > 0 %}
+            {% with variant_count=adminform.form.variants_that_include_this.count %}
+            {% if variant_count > 0 %}
                 <tr class="form-row">
                     <td class="field-variant">
                         <p>
-                            <a href="{% url 'admin:spellbook_variant_changelist' %}?includes__id={{ original.id }}">View all {{ variants_count }} variants that include this combo...</a>
+                            <a href="{% url 'admin:spellbook_variant_changelist' %}?includes__id={{ original.id }}">View all {{ variant_count }} variants that include this combo...</a>
                         </p>
                     </td>
                 </tr>

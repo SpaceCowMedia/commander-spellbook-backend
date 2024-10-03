@@ -18,9 +18,9 @@ class TemplateViewsTests(TestCaseMixinWithSeeding, TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get('Content-Type'), 'application/json')
         result = json.loads(response.content, object_hook=json_to_python_lambda)
-        templates_count = Template.objects.count()
-        self.assertEqual(len(result.results), templates_count)
-        for i in range(templates_count):
+        template_count = Template.objects.count()
+        self.assertEqual(len(result.results), template_count)
+        for i in range(template_count):
             self.template_assertions(result.results[i])
 
     def test_templates_detail_view(self):

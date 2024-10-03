@@ -439,7 +439,7 @@ def restore_variant(
             )
         },
     )
-    variant.results_count = len(produces_ids)
+    variant.result_count = len(produces_ids)
 
     # Return the final object
     return VariantBulkSaveItem(
@@ -463,7 +463,7 @@ def update_variant(
     variant = data.id_to_variant[id]
     ok = status in Variant.public_statuses() or \
         status != Variant.Status.NOT_WORKING and not includes_any(v=variant_def.card_ids, others=(c for c, _ in data.not_working_variants))
-    old_results_count = variant.results_count
+    old_results_count = variant.result_count
     old_name = variant.name
     save_item = restore_variant(
         data=data,
@@ -475,7 +475,7 @@ def update_variant(
         variant.status = Variant.Status.NOT_WORKING
     if restore:
         variant.generated_by = job
-    save_item.should_update = restore or status != variant.status or old_results_count != variant.results_count or variant.name != old_name
+    save_item.should_update = restore or status != variant.status or old_results_count != variant.result_count or variant.name != old_name
     return save_item
 
 
@@ -487,7 +487,7 @@ def create_variant(
     variant = Variant(
         id=id,
         generated_by=job,
-        cards_count=len(variant_def.card_ids) + len(variant_def.template_ids),
+        card_count=len(variant_def.card_ids) + len(variant_def.template_ids),
     )
     save_item = restore_variant(
         data=data,
@@ -504,7 +504,7 @@ def create_variant(
 
 def perform_bulk_saves(data: Data, to_create: list[VariantBulkSaveItem], to_update: list[VariantBulkSaveItem]):
     Variant.objects.bulk_create([v.variant for v in to_create])
-    update_fields = ['name', 'status', 'mana_needed', 'other_prerequisites', 'description', 'public_notes', 'notes', 'results_count', 'generated_by'] + Playable.playable_fields()
+    update_fields = ['name', 'status', 'mana_needed', 'other_prerequisites', 'description', 'public_notes', 'notes', 'result_count', 'generated_by'] + Playable.playable_fields()
     Variant.objects.bulk_update([v.variant for v in to_update if v.should_update], fields=update_fields)
     CardInVariant.objects.bulk_create([c for v in to_create for c in v.uses])
     update_fields = ['zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'must_be_commander', 'order', 'quantity']

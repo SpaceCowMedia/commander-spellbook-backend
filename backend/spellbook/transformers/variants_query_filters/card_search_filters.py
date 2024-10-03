@@ -26,7 +26,7 @@ def card_search_filter(card_value: QueryValue) -> VariantFilterCollection:
             return VariantFilterCollection(
                 variants_filters=(
                     VariantFilter(
-                        q=Q(cards_count__lt=card_value.value),
+                        q=Q(card_count__lt=card_value.value),
                         negated=card_value.is_negated(),
                     ),
                 ),
@@ -35,7 +35,7 @@ def card_search_filter(card_value: QueryValue) -> VariantFilterCollection:
             return VariantFilterCollection(
                 variants_filters=(
                     VariantFilter(
-                        q=Q(cards_count__gt=card_value.value),
+                        q=Q(card_count__gt=card_value.value),
                         negated=card_value.is_negated(),
                     ),
                 ),
@@ -44,7 +44,7 @@ def card_search_filter(card_value: QueryValue) -> VariantFilterCollection:
             return VariantFilterCollection(
                 variants_filters=(
                     VariantFilter(
-                        q=Q(cards_count__lte=card_value.value),
+                        q=Q(card_count__lte=card_value.value),
                         negated=card_value.is_negated(),
                     ),
                 ),
@@ -53,7 +53,7 @@ def card_search_filter(card_value: QueryValue) -> VariantFilterCollection:
             return VariantFilterCollection(
                 variants_filters=(
                     VariantFilter(
-                        q=Q(cards_count__gte=card_value.value),
+                        q=Q(card_count__gte=card_value.value),
                         negated=card_value.is_negated(),
                     ),
                 ),
@@ -62,7 +62,7 @@ def card_search_filter(card_value: QueryValue) -> VariantFilterCollection:
             return VariantFilterCollection(
                 variants_filters=(
                     VariantFilter(
-                        q=Q(cards_count=card_value.value),
+                        q=Q(card_count=card_value.value),
                         negated=card_value.is_negated(),
                     ),
                 ),

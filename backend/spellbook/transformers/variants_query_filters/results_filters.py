@@ -26,7 +26,7 @@ def results_filter(results_value: QueryValue) -> VariantFilterCollection:
             return VariantFilterCollection(
                 variants_filters=(
                     VariantFilter(
-                        q=Q(results_count__lt=results_value.value),
+                        q=Q(result_count__lt=results_value.value),
                         negated=results_value.is_negated(),
                     ),
                 ),
@@ -35,7 +35,7 @@ def results_filter(results_value: QueryValue) -> VariantFilterCollection:
             return VariantFilterCollection(
                 variants_filters=(
                     VariantFilter(
-                        q=Q(results_count__lte=results_value.value),
+                        q=Q(result_count__lte=results_value.value),
                         negated=results_value.is_negated(),
                     ),
                 ),
@@ -44,7 +44,7 @@ def results_filter(results_value: QueryValue) -> VariantFilterCollection:
             return VariantFilterCollection(
                 variants_filters=(
                     VariantFilter(
-                        q=Q(results_count__gt=results_value.value),
+                        q=Q(result_count__gt=results_value.value),
                         negated=results_value.is_negated(),
                     ),
                 ),
@@ -53,7 +53,7 @@ def results_filter(results_value: QueryValue) -> VariantFilterCollection:
             return VariantFilterCollection(
                 variants_filters=(
                     VariantFilter(
-                        q=Q(results_count__gte=results_value.value),
+                        q=Q(result_count__gte=results_value.value),
                         negated=results_value.is_negated(),
                     ),
                 ),
@@ -62,7 +62,7 @@ def results_filter(results_value: QueryValue) -> VariantFilterCollection:
             return VariantFilterCollection(
                 variants_filters=(
                     VariantFilter(
-                        q=Q(results_count=results_value.value),
+                        q=Q(result_count=results_value.value),
                         negated=results_value.is_negated(),
                     ),
                 ),

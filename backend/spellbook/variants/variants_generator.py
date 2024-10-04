@@ -104,6 +104,9 @@ def get_variants_from_graph(data: Data, single_combo: int | None, job: Job | Non
                         needed_features=needed_feature_ids,
                         needed_combos=needed_combo_ids,
                     )
+                    if single_combo is not None:
+                        # avoid removing all previous generator combos when generating for a single combo
+                        result[id].of_ids.update(of.combo_id for of in data.variant_to_of_sets.get(id, []))
             if len(variant_set) > 50 or index % log_count == 0 or index == total - 1:
                 log_into_job(job, f'{index + 1}/{total} combos processed (just processed combo {combo.id})')
             index += 1

@@ -6,6 +6,7 @@ from spellbook.models import Card, Template, Feature, Variant, CardInVariant, Te
 from spellbook.models.utils import SORTED_COLORS
 from spellbook.views import VariantViewSet
 from spellbook.serializers import VariantSerializer
+from spellbook.views.variants import VariantGroupedByComboFilter
 from website.models import WebsiteProperty, FEATURED_SET_CODES
 from ..testing import TestCaseMixinWithSeeding
 from common.inspection import json_to_python_lambda
@@ -736,11 +737,15 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
                 for v in result.results:
                     self.variant_assertions(v)
 
-    def test_variants_list_view_ordering_by_popularity_with_nulls(self):
-        variants = Variant.objects.all()
+    def seed_popularity(self) -> list[Variant]:
+        variants = list(Variant.objects.all())
         for popularity, variant in enumerate(variants):
             variant.popularity = popularity if popularity > 0 else None
         self.bulk_serialize_variants(q=variants, extra_fields=['popularity'])
+        return variants
+
+    def test_variants_list_view_ordering_by_popularity_with_nulls(self):
+        self.seed_popularity()
         for order in ('popularity', '-popularity'):
             with self.subTest(f'order by {order}'):
                 response = self.client.get('/variants', data={'ordering': order}, follow=True)
@@ -749,3 +754,38 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
                 result = json.loads(response.content, object_hook=json_to_python_lambda)
                 self.assertGreater(len(result.results), 1)
                 self.assertIsNotNone(result.results[0].popularity)
+
+    def test_variants_list_view_grouping_by_combo(self):
+        parameter = VariantGroupedByComboFilter.query_param
+        variants = self.seed_popularity()
+        variant_count = len(variants)
+        best_variants_ids = set[str]()
+        for combo in Combo.objects.filter(status=Combo.Status.GENERATOR):
+            best_variant = combo.variants.order_by('-popularity').first()  # type: ignore
+            if best_variant:
+                best_variants_ids.add(best_variant.id)
+        self.assertLess(len(best_variants_ids), variant_count)
+        with self.subTest('without parameter'):
+            response = self.client.get('/variants', query_params={'ordering': '-popularity'}, follow=True)  # type: ignore
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.get('Content-Type'), 'application/json')
+            result = json.loads(response.content, object_hook=json_to_python_lambda)
+            self.assertEqual(result.count, variant_count)
+            result_id_set = {v.id for v in result.results}
+            self.assertTrue(result_id_set.issuperset(best_variants_ids) and result_id_set != best_variants_ids)
+        with self.subTest('with false value'):
+            response = self.client.get('/variants', query_params={parameter: 'false', 'ordering': '-popularity'}, follow=True)  # type: ignore
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.get('Content-Type'), 'application/json')
+            result = json.loads(response.content, object_hook=json_to_python_lambda)
+            self.assertEqual(result.count, variant_count)
+            result_id_set = {v.id for v in result.results}
+            self.assertTrue(result_id_set.issuperset(best_variants_ids) and result_id_set != best_variants_ids)
+        with self.subTest('with true value'):
+            response = self.client.get('/variants', query_params={parameter: 'true', 'ordering': '-popularity'}, follow=True)  # type: ignore
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.get('Content-Type'), 'application/json')
+            result = json.loads(response.content, object_hook=json_to_python_lambda)
+            self.assertEqual(result.count, len(best_variants_ids))
+            result_id_set = {v.id for v in result.results}
+            self.assertSetEqual(result_id_set, best_variants_ids)

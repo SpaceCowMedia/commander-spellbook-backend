@@ -320,9 +320,14 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
         variants_a.sort(key=lambda v: sorted(v.cards))
         variants_b.sort(key=lambda v: sorted(v.cards))
         self.assertEqual(variants_a, variants_b)
+        self.assertEqual(len(variants_a), 2)
         self.assertMultisetEqual(variants_a[0].features, {1: 1, 2: 1, 3: 1})
         self.assertSetEqual(variants_a[0].combos, {1, 3, 4})
-        # TODO: test replacements
+        self.assertReplacementsEqual(variants_a[0].replacements, {
+            1: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset())],
+            2: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset())],
+            3: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset())],
+        })
 
     def test_feature_replacement_multiples_cards(self):
         self.save_combo_model({

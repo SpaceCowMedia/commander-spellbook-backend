@@ -66,13 +66,24 @@ class CardViewsTests(TestCaseMixinWithSeeding, TestCase):
 
     def test_cards_list_view_ordering(self):
         self.generate_and_publish_variants()
-        response = self.client.get('/cards?ordering=-variant_count', follow=True)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.get('Content-Type'), 'application/json')
-        result = json.loads(response.content, object_hook=json_to_python_lambda)
-        card_count = Card.objects.count()
-        self.assertEqual(len(result.results), card_count)
-        previous_variant_count = 0
-        for i in range(card_count):
-            self.card_assertions(result.results[i])
-            self.assertGreaterEqual(result.results[i].variant_count, previous_variant_count)
+        for ordering, assertion in [
+            ('variant_count', lambda a, b: self.assertGreaterEqual(a.variant_count, b.variant_count)),
+            ('-variant_count', lambda a, b: self.assertLessEqual(a.variant_count, b.variant_count)),
+            ('name', lambda a, b: self.assertGreaterEqual(a.name, b.name)),
+            ('-name', lambda a, b: self.assertLessEqual(a.name, b.name)),
+        ]:
+            response = self.client.get(f'/cards?ordering={ordering}', follow=True)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.get('Content-Type'), 'application/json')
+            result = json.loads(response.content, object_hook=json_to_python_lambda)
+            card_count = Card.objects.count()
+            self.assertEqual(len(result.results), card_count)
+            previous_variant = None
+            variant_count_values = set[int()]()
+            for i in range(card_count):
+                self.card_assertions(result.results[i])
+                if i > 0:
+                    assertion(result.results[i], previous_variant)
+                previous_variant = result.results[i]
+                variant_count_values.add(result.results[i].variant_count)  # type: ignore
+            self.assertGreater(len(variant_count_values), 1)

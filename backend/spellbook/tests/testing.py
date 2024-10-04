@@ -2,6 +2,9 @@ import random
 import uuid
 from functools import reduce
 from collections import defaultdict
+
+from django.db.models import Count, OuterRef, Subquery
+from django.db.models.functions import Coalesce
 from common.testing import TestCaseMixin as BaseTestCaseMixin
 from django.conf import settings
 from spellbook.models import Card, Feature, Combo, CardInCombo, Template, TemplateInCombo
@@ -25,10 +28,26 @@ class TestCaseMixin(BaseTestCaseMixin):
             q = Variant.objects.all()
         Variant.objects.bulk_serialize(q, serializer=VariantSerializer, fields=extra_fields)  # type: ignore
 
+    def update_variants_count(self):
+        Card.objects.update(
+            variant_count=Coalesce(
+                Subquery(
+                    Variant
+                    .objects
+                    .filter(uses=OuterRef('pk'), status__in=('OK', 'E'))
+                    .values('uses')
+                    .annotate(total=Count('pk'))
+                    .values('total'),
+                ),
+                0,
+            ),
+        )
+
     def generate_and_publish_variants(self):
         self.generate_variants()
         self.bulk_serialize_variants()
         Variant.objects.update(status=Variant.Status.OK)
+        self.update_variants_count()
 
     def save_combo_model(self, model: dict[tuple[str, ...] | str, tuple[str, ...]]):
         card_ids_by_name: dict[str, int] = {}

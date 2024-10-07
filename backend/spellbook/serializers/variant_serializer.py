@@ -1,4 +1,4 @@
-from django.db.models import QuerySet, Prefetch
+from django.db.models import QuerySet
 from rest_framework import serializers
 from drf_spectacular.utils import extend_schema_field
 from spellbook.models import Variant, CardInVariant, TemplateInVariant, FeatureProducedByVariant
@@ -174,12 +174,8 @@ class VariantSerializer(serializers.ModelSerializer):
         return queryset.prefetch_related(
             'cardinvariant_set',
             'templateinvariant_set',
-            Prefetch(
-                'featureproducedbyvariant_set',
-                queryset=FeatureProducedByVariant.objects
-                .select_related('feature')
-                .filter(feature__utility=False),
-            ),
+            'featureproducedbyvariant_set',
+            'featureproducedbyvariant_set__feature',
             'cardinvariant_set__card',
             'templateinvariant_set__template',
             'of',

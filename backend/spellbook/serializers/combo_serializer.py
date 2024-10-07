@@ -5,4 +5,6 @@ from spellbook.models import Combo
 class ComboSerializer(serializers.ModelSerializer):
     class Meta:
         model = Combo
-        fields = ['id']
+        fields = [
+            'id',
+        ]

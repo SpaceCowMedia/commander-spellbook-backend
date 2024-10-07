@@ -3,7 +3,6 @@
 import django.core.validators
 import django.db.models.deletion
 from django.db import migrations, models
-from spellbook.models import Ingredient
 
 
 def migrate_card_features_through(apps, schema_editor):
@@ -16,7 +15,7 @@ def migrate_card_features_through(apps, schema_editor):
                 FeatureOfCard(
                     card=card,
                     feature=feature,
-                    zone_locations=Ingredient.ZoneLocation.BATTLEFIELD
+                    zone_locations='B'
                 )
             )
     FeatureOfCard.objects.bulk_create(to_create)

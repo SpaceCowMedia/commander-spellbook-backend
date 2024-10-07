@@ -12,7 +12,7 @@ from spellbook.models import Variant, CardInVariant, TemplateInVariant
 from spellbook.utils import launch_job_command
 from spellbook.transformers.variants_query_transformer import variants_query_parser
 from spellbook.serializers import VariantSerializer
-from .utils import IdentityFilter, SpellbookModelAdmin, SpellbookAdminForm, CardsCountListFilter
+from .utils import IdentityFilter, SpellbookModelAdmin, SpellbookAdminForm, CardCountListFilter
 from .ingredient_admin import IngredientAdmin
 
 
@@ -163,7 +163,7 @@ class VariantAdmin(SpellbookModelAdmin):
             'description': 'Prices are updated during generation.'
         }),
     ]
-    list_filter = ['status', CardsCountListFilter, IdentityFilter, 'legal_commander', 'spoiler']
+    list_filter = ['status', CardCountListFilter, IdentityFilter, 'legal_commander', 'spoiler']
     list_display = ['name', 'id', 'status', 'identity', 'updated']
     actions = [set_restore, set_draft, set_new, set_needs_review, set_not_working, set_example, set_ok]
     search_fields = ['id']

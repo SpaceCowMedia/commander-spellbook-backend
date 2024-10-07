@@ -190,7 +190,7 @@ class FeatureRemovedInCombo(models.Model):
 @receiver(m2m_changed, sender=Combo.removes.through, dispatch_uid='combo_removes_changed2')
 def recipe_changed(sender, instance: Recipe, action: str, reverse: bool, model: models.Model, pk_set: set[int], **kwargs) -> None:
     if action.startswith('post_'):
-        instance.name = instance._str()
+        instance.update_from_data()
         instance.save()
 
 
@@ -202,5 +202,5 @@ def recipe_changed(sender, instance: Recipe, action: str, reverse: bool, model: 
 def recipe_changed_2(sender, instance: CardInCombo | TemplateInCombo | FeatureNeededInCombo | FeatureProducedInCombo | FeatureRemovedInCombo, raw=False, **kwargs) -> None:
     if raw:
         return
-    instance.combo.name = instance.combo._str()
+    instance.combo.update_from_data()
     instance.combo.save()

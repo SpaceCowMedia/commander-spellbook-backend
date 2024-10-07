@@ -3,12 +3,11 @@
 
 import spellbook.parsers.lark_validator
 from django.db import migrations, models
-from spellbook.models import Variant as VariantModel
 
 
 def initial_published(apps, schema_editor):
     Variant = apps.get_model('spellbook', 'Variant')
-    Variant.objects.update(published=models.Q(status__in=VariantModel.public_statuses()))
+    Variant.objects.update(published=models.Q(status__in=('OK', 'E')))
 
 
 class Migration(migrations.Migration):

@@ -215,18 +215,40 @@ class IdentityFilter(CustomFilter):
         return Q(identity=value)
 
 
-class CardsCountListFilter(CustomFilter):
-    title = 'card count'
-    parameter_name = 'card_count'
-    one_more_than_max = DEFAULT_CARD_LIMIT + 1
-    one_more_than_max_display = f'{one_more_than_max}+'
+class AbstractCountFilter(CustomFilter):
+    field_name: str
+    title: str
+    parameter_name: str
+    soft_max_count: int
+    min_count: int = 0
+
+    def __init__(self, request, params: dict[str, str], model, model_admin) -> None:
+        self.one_more_than_max = self.soft_max_count + 1
+        self.one_more_than_max_display = f'{self.one_more_than_max}+'
+        if not self.parameter_name:
+            self.parameter_name = self.field_name
+        if not self.title:
+            self.title = self.field_name.replace('_', ' ')
+        super().__init__(request, params, model, model_admin)
 
     def lookups(self, request, model_admin):
-        return [(i, str(i)) for i in range(2, CardsCountListFilter.one_more_than_max)] + [(CardsCountListFilter.one_more_than_max_display, CardsCountListFilter.one_more_than_max_display)]
+        return [(i, str(i)) for i in range(self.min_count, self.one_more_than_max)] + [(self.one_more_than_max_display, self.one_more_than_max_display)]
 
     def filter(self, value: str) -> Q:
         match value:
-            case CardsCountListFilter.one_more_than_max_display:
-                return Q(card_count__gte=CardsCountListFilter.one_more_than_max)
+            case self.one_more_than_max_display:
+                return Q(**{f'{self.field_name}__gte': self.one_more_than_max})
             case _:
-                return Q(card_count=int(value))
+                return Q(**{f'{self.field_name}': int(value)})
+
+
+class CardCountListFilter(AbstractCountFilter):
+    field_name = 'card_count'
+    soft_max_count = DEFAULT_CARD_LIMIT
+    min_count = 1
+
+
+class IngredientCountListFilter(AbstractCountFilter):
+    field_name = 'ingredient_count'
+    soft_max_count = 9
+    min_count = 1

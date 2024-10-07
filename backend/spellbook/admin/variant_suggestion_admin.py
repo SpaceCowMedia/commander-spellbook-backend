@@ -1,10 +1,9 @@
 from typing import Any
-from django.db.models import Count
 from django.contrib import admin
 from django.utils import timezone
 from spellbook.models import VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, FeatureProducedInVariantSuggestion
 from .ingredient_admin import IngredientInCombinationAdmin
-from .utils import SpellbookModelAdmin, CardsCountListFilter
+from .utils import SpellbookModelAdmin, CardCountListFilter
 from spellbook.utils import launch_job_command
 
 
@@ -71,7 +70,7 @@ class VariantSuggestionAdmin(SpellbookModelAdmin):
         ]}),
     ]
     inlines = [CardUsedInVariantSuggestionAdminInline, TemplateRequiredInVariantAdminInline, FeatureProducedInVariantAdminInline]
-    list_filter = ['status', CardsCountListFilter, 'spoiler']
+    list_filter = ['status', CardCountListFilter, 'spoiler']
     list_display = ['name', 'id', 'status', 'spoiler', 'updated', 'created']
     actions = [set_rejected]
     search_fields = [
@@ -85,9 +84,6 @@ class VariantSuggestionAdmin(SpellbookModelAdmin):
         'notes',
         'comment',
     ]
-
-    def get_queryset(self, request):
-        return VariantSuggestion.objects.annotate(card_count=Count('uses', distinct=True) + Count('requires', distinct=True))
 
     def save_form(self, request: Any, form: Any, change: bool) -> Any:
         new_object = super().save_form(request, form, change)

@@ -104,8 +104,6 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
     popularity = models.PositiveIntegerField(db_default=None, null=True, editable=False, help_text='Popularity of this variant, provided by EDHREC')
     description_line_count = models.PositiveIntegerField(editable=False, help_text='Number of lines in the description')
     other_prerequisites_line_count = models.PositiveIntegerField(editable=False, help_text='Number of lines in the other prerequisites')
-    card_count = models.PositiveIntegerField(editable=False)
-    result_count = models.PositiveIntegerField(editable=False)
     published = models.BooleanField(editable=False, default=False, help_text='Whether the variant has been published')
 
     class Meta:
@@ -275,5 +273,5 @@ def update_variant_on_ingredient(sender, instance: CardInVariant | TemplateInVar
     requires_commander = any(civ.must_be_commander for civ in variant.cardinvariant_set.all()) \
         or any(tiv.must_be_commander for tiv in variant.templateinvariant_set.all())
     variant.update(variant.uses.all(), requires_commander)
-    variant.name = variant._str()
+    variant.update_from_data()
     variant.save()

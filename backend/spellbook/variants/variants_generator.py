@@ -428,7 +428,7 @@ def restore_variant(
             yield tiv
 
     # Recomputing some variant fields
-    variant.name = Variant.compute_name(
+    variant.update_from_memory(
         cards={data.id_to_card[civ.card_id].name: civ.quantity for civ in uses_list()},
         templates={data.id_to_template[tiv.template_id].name: tiv.quantity for tiv in requires_list()},
         features_needed={},
@@ -442,7 +442,6 @@ def restore_variant(
             )
         },
     )
-    variant.result_count = len(produces_ids)
 
     # Return the final object
     return VariantBulkSaveItem(
@@ -490,7 +489,6 @@ def create_variant(
     variant = Variant(
         id=id,
         generated_by=job,
-        card_count=len(variant_def.card_ids) + len(variant_def.template_ids),
     )
     save_item = restore_variant(
         data=data,

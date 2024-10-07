@@ -11,7 +11,7 @@ from django.shortcuts import redirect
 from django.utils import timezone
 from spellbook.utils import launch_job_command
 from spellbook.models import Card, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion
-from .utils import SpellbookModelAdmin, SpellbookAdminForm, CustomFilter
+from .utils import SpellbookModelAdmin, SpellbookAdminForm, CustomFilter, IngredientCountListFilter
 from .ingredient_admin import IngredientInCombinationAdmin
 
 
@@ -177,7 +177,7 @@ class ComboAdmin(SpellbookModelAdmin):
         FeatureProducedInComboAdminInline,
         FeatureRemovedInComboAdminInline,
     ]
-    list_filter = ['status', 'allow_many_cards', 'allow_multiple_copies', PayoffFilter, VariantRelatedFilter]
+    list_filter = ['status', 'allow_many_cards', 'allow_multiple_copies', IngredientCountListFilter, PayoffFilter, VariantRelatedFilter]
     search_fields = [
         'uses__name',
         'uses__name_unaccented',

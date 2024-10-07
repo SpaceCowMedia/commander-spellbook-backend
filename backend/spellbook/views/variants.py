@@ -8,7 +8,6 @@ from spellbook.serializers import VariantSerializer
 from .filters import SpellbookQueryFilter, OrderingFilterWithNullsLast
 
 
-# TODO: add tests for this filter
 class VariantGroupedByComboFilter(filters.BaseFilterBackend):
     query_param = 'group_by_combo'
     template = 'spellbook/filters/group_by_combo.html'

@@ -14,6 +14,7 @@ from drf_spectacular.extensions import OpenApiSerializerExtension
 from common.serializers import DeckSerializer as RawDeckSerializer, CardInDeck as RawCardInDeck
 from common.abstractions import Deck as RawDeck
 from spellbook.models import Card, merge_identities, CardInVariant, Variant
+from spellbook.models.mixins import PreSerializedSerializer
 from spellbook.serializers import VariantSerializer
 from spellbook.views.variants import VariantViewSet
 from website.views import PlainTextDeckListParser
@@ -55,7 +56,7 @@ class JsonDeckListParser(parsers.JSONParser):
 
 
 class FindMyCombosResponseSerializer(serializers.ListSerializer):
-    child = VariantSerializer()
+    child = PreSerializedSerializer()
 
     def to_internal_value(self, data):
         return {

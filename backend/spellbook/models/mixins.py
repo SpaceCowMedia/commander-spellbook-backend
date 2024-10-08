@@ -88,7 +88,5 @@ class PreSaveSerializedModelMixin(PreSaveModelMixin):
 
 
 class PreSerializedSerializer(BaseSerializer):
-    fields = {}
-
     def to_representation(self, instance: PreSaveSerializedModelMixin):
         return instance.serialized

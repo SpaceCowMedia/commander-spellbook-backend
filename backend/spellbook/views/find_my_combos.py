@@ -55,8 +55,12 @@ class JsonDeckListParser(parsers.JSONParser):
         return json
 
 
-class FindMyCombosResponseSerializer(serializers.ListSerializer):
+class FindMyCombosResponseSerializer(serializers.BaseSerializer):
     child = PreSerializedSerializer()
+
+    def __new__(cls, *args, **kwargs):
+        kwargs['many'] = False
+        return super().__new__(cls, *args, **kwargs)
 
     def to_internal_value(self, data):
         return {
@@ -107,10 +111,6 @@ class FindMyCombosResponseSerializer(serializers.ListSerializer):
             'almost_included_by_changing_commanders': almost_included_variants_by_changing_commanders,
             'almost_included_by_adding_colors_and_changing_commanders': almost_included_variants_by_adding_colors_and_changing_commanders,
         }
-
-    @property
-    def data(self):
-        return serializers.BaseSerializer.data.fget(self)  # type: ignore
 
 
 class FindMyCombosResponseSerializerExtension(OpenApiSerializerExtension):

@@ -57,6 +57,7 @@ class JsonDeckListParser(parsers.JSONParser):
 
 class FindMyCombosResponseSerializer(serializers.BaseSerializer):
     child = PreSerializedSerializer()
+    variant_list_serializer = serializers.ListSerializer(child=child)
 
     def __new__(cls, *args, **kwargs):
         kwargs['many'] = False
@@ -64,7 +65,7 @@ class FindMyCombosResponseSerializer(serializers.BaseSerializer):
 
     def to_internal_value(self, data):
         return {
-            'variants': super().to_internal_value(data.get('variants', [])),
+            'variants': self.variant_list_serializer.to_internal_value(data.get('variants', [])),
             'identity': data['identity'],
             'deck': data['deck'],
         }
@@ -80,7 +81,7 @@ class FindMyCombosResponseSerializer(serializers.BaseSerializer):
         almost_included_variants_by_adding_colors = []
         almost_included_variants_by_changing_commanders = []
         almost_included_variants_by_adding_colors_and_changing_commanders = []
-        variants = super().to_representation(data['variants'])
+        variants = self.variant_list_serializer.to_representation(data['variants'])
         for variant in variants:
             variant_data: dict = variant
             variant_cards = FrozenMultiset[int]({civ['card']['id']: civ['quantity'] for civ in variant_data['uses']})

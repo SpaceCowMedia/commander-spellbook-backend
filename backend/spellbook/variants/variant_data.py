@@ -35,7 +35,7 @@ class Data:
         # Templates
         templates = list(Template.objects.all())
         # Combos
-        combos = list(Combo.objects.filter(status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY)))
+        combos = list(Combo.objects.all())  # Draft combos are only used to update the variant count
         cardincombos = list(CardInCombo.objects.filter(combo__status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY)))
         templateincombos = list(TemplateInCombo.objects.filter(combo__status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY)))
         featureproducedincombos = list(FeatureProducedInCombo.objects.filter(combo__status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY)))

@@ -38,6 +38,10 @@ class ComboGraphTest(TestCaseMixinWithSeeding, TestCase):
             self.assertEqual(variants, list(combo_graph.results(combo_graph.variants(self.b2_id))))
             self.assertEqual(len(variants), 3)
 
+    def test_combo_nodes(self):
+        combo_graph = Graph(Data())
+        self.assertTrue(all(c.item.status in (Combo.Status.GENERATOR, Combo.Status.UTILITY) for c in combo_graph.bnodes.values()))
+
     def test_variant_limit(self):
         combo_graph = Graph(Data(), log=lambda _: None, variant_limit=0)
         with self.assertNumQueries(0):

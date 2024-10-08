@@ -8,6 +8,7 @@ def init_combo_counts(apps, schema_editor):
     TemplateInCombo = apps.get_model('spellbook', 'TemplateInCombo')
     FeatureNeededInCombo = apps.get_model('spellbook', 'FeatureNeededInCombo')
     FeatureProducedInCombo = apps.get_model('spellbook', 'FeatureProducedInCombo')
+    VariantOfCombo = apps.get_model('spellbook', 'VariantOfCombo')
     Combo = apps.get_model('spellbook', 'Combo')
     Combo.objects.update(
         card_count=models.functions.Coalesce(
@@ -27,6 +28,17 @@ def init_combo_counts(apps, schema_editor):
                 .filter(combo=models.OuterRef('pk'))
                 .values('combo')
                 .annotate(total=models.Sum('quantity'))
+                .values('total'),
+            ),
+            0,
+        ),
+        variant_count=models.functions.Coalesce(
+            models.Subquery(
+                VariantOfCombo
+                .objects
+                .filter(combo=models.OuterRef('pk'))
+                .values('combo')
+                .annotate(total=models.Count('pk'))
                 .values('total'),
             ),
             0,
@@ -175,6 +187,16 @@ class Migration(migrations.Migration):
             model_name='variantsuggestion',
             name='name',
             field=models.CharField(default='', editable=False, max_length=3925),
+        ),
+        migrations.AddField(
+            model_name='combo',
+            name='variant_count',
+            field=models.PositiveIntegerField(default=0, editable=False),
+        ),
+        migrations.AlterField(
+            model_name='card',
+            name='variant_count',
+            field=models.PositiveIntegerField(default=0, editable=False),
         ),
         migrations.RunPython(init_combo_counts, reverse_code=migrations.RunPython.noop),
         migrations.RunPython(init_variant_counts, reverse_code=migrations.RunPython.noop),

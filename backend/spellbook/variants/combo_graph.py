@@ -243,6 +243,8 @@ class Graph:
         # Construct combo nodes
         self.bnodes = dict[int, ComboNode]()
         for combo_id, combo in data.id_to_combo.items():
+            if combo.status not in (Combo.Status.GENERATOR, Combo.Status.UTILITY):
+                continue
             if all(i.card_id in self.cnodes for i in data.combo_to_cards[combo_id]) \
                     and all(i.template_id in self.tnodes for i in data.combo_to_templates[combo_id]):
                 b = ComboNode(self, combo)

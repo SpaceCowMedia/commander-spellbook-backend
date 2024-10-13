@@ -36,45 +36,41 @@ if connection.vendor == 'postgresql':
             name='spellbook_v_descrip_26b373_gin',
         ),
         TrigramExtension(),
-        migrations.AddIndex(
-            model_name='card',
-            index=django.contrib.postgres.indexes.GinIndex(django.contrib.postgres.indexes.OpClass(django.db.models.functions.text.Upper('name'), name='gin_trgm_ops'), name='card_name_trgm_idx'),
+        migrations.RunSQL(
+            sql='CREATE INDEX "card_name_trgm_idx" ON "spellbook_card" USING gin (UPPER("name") gin_trgm_ops)',
+            reverse_sql='DROP INDEX "card_name_trgm_idx"'
         ),
-        migrations.AddIndex(
-            model_name='card',
-            index=django.contrib.postgres.indexes.GinIndex(django.contrib.postgres.indexes.OpClass(django.db.models.functions.text.Upper('name_unaccented'), name='gin_trgm_ops'), name='card_name_unacc_trgm_idx'),
+        migrations.RunSQL(
+            sql='CREATE INDEX "card_name_unacc_trgm_idx" ON "spellbook_card" USING gin (UPPER("name_unaccented_simplified") gin_trgm_ops)',
+            reverse_sql='DROP INDEX "card_name_unacc_trgm_idx"'
         ),
-        migrations.AddIndex(
-            model_name='card',
-            index=django.contrib.postgres.indexes.GinIndex(django.contrib.postgres.indexes.OpClass(django.db.models.functions.text.Upper('name_unaccented_simplified'), name='gin_trgm_ops'), name='card_name_unac_sim_trgm_idx'),
+        migrations.RunSQL(
+            sql='CREATE INDEX "card_name_unac_sim_sp_trgm_idx" ON "spellbook_card" USING gin (UPPER("name_unaccented_simplified_with_spaces") gin_trgm_ops)',
+            reverse_sql='DROP INDEX "card_name_unac_sim_sp_trgm_idx"'
         ),
-        migrations.AddIndex(
-            model_name='card',
-            index=django.contrib.postgres.indexes.GinIndex(django.contrib.postgres.indexes.OpClass(django.db.models.functions.text.Upper('name_unaccented_simplified_with_spaces'), name='gin_trgm_ops'), name='card_name_unac_sim_sp_trgm_idx'),
+        migrations.RunSQL(
+            sql='CREATE INDEX "card_type_line_trgm_idx" ON "spellbook_card" USING gin (UPPER("type_line") gin_trgm_ops)',
+            reverse_sql='DROP INDEX "card_type_line_trgm_idx"'
         ),
-        migrations.AddIndex(
-            model_name='card',
-            index=django.contrib.postgres.indexes.GinIndex(django.contrib.postgres.indexes.OpClass(django.db.models.functions.text.Upper('type_line'), name='gin_trgm_ops'), name='card_type_line_trgm_idx'),
-        ),
-        migrations.AddIndex(
-            model_name='card',
-            index=django.contrib.postgres.indexes.GinIndex(django.contrib.postgres.indexes.OpClass(django.db.models.functions.text.Upper('oracle_text'), name='gin_trgm_ops'), name='card_oracle_text_trgm_idx'),
+        migrations.RunSQL(
+            sql='CREATE INDEX "card_oracle_text_trgm_idx" ON "spellbook_card" USING gin (UPPER("oracle_text") gin_trgm_ops)',
+            reverse_sql='DROP INDEX "card_oracle_text_trgm_idx"'
         ),
         migrations.AddIndex(
             model_name='card',
             index=django.contrib.postgres.indexes.GinIndex(fields=['keywords'], name='card_keywords_trgm_idx'),
         ),
-        migrations.AddIndex(
-            model_name='feature',
-            index=django.contrib.postgres.indexes.GinIndex(django.contrib.postgres.indexes.OpClass(django.db.models.functions.text.Upper('name'), name='gin_trgm_ops'), name='feature_name_trgm_idx'),
+        migrations.RunSQL(
+            sql='CREATE INDEX "feature_name_trgm_idx" ON "spellbook_feature" USING gin (UPPER("name") gin_trgm_ops)',
+            reverse_sql='DROP INDEX "feature_name_trgm_idx"'
         ),
-        migrations.AddIndex(
-            model_name='variant',
-            index=django.contrib.postgres.indexes.GinIndex(django.contrib.postgres.indexes.OpClass(django.db.models.functions.text.Upper('other_prerequisites'), name='gin_trgm_ops'), name='variant_other_prereq_trgm_idx'),
+        migrations.RunSQL(
+            sql='CREATE INDEX "variant_other_prereq_trgm_idx" ON "spellbook_variant" USING gin (UPPER("other_prerequisites") gin_trgm_ops)',
+            reverse_sql='DROP INDEX "variant_other_prereq_trgm_idx"'
         ),
-        migrations.AddIndex(
-            model_name='variant',
-            index=django.contrib.postgres.indexes.GinIndex(django.contrib.postgres.indexes.OpClass(django.db.models.functions.text.Upper('description'), name='gin_trgm_ops'), name='variant_description_trgm_idx'),
+        migrations.RunSQL(
+            sql='CREATE INDEX "variant_description_trgm_idx" ON "spellbook_variant" USING gin (UPPER("description") gin_trgm_ops)',
+            reverse_sql='DROP INDEX "variant_description_trgm_idx"'
         ),
     ]
 else:

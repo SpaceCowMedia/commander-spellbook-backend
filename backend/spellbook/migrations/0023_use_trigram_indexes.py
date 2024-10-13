@@ -42,7 +42,7 @@ if connection.vendor == 'postgresql':
         ),
         migrations.RunSQL(
             sql='CREATE INDEX "card_name_unacc_trgm_idx" ON "spellbook_card" USING gin (UPPER("name_unaccented") gin_trgm_ops)',
-            reverse_sql='DROP INDEX "card_name_unac_sim_trgm_idx"'
+            reverse_sql='DROP INDEX "card_name_unacc_trgm_idx"'
         ),
         migrations.RunSQL(
             sql='CREATE INDEX "card_name_unac_sim_trgm_idx" ON "spellbook_card" USING gin (UPPER("name_unaccented_simplified") gin_trgm_ops)',

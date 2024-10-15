@@ -789,3 +789,25 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
             self.assertEqual(result.count, len(best_variants_ids))
             result_id_set = {v.id for v in result.results}
             self.assertSetEqual(result_id_set, best_variants_ids)
+
+    def test_variants_list_view_of_filter(self):
+        for combo_id in Combo.objects.values_list('pk', flat=True):
+            with self.subTest(f'combo {combo_id}'):
+                response = self.client.get('/variants', query_params={'of': combo_id}, follow=True)  # type: ignore
+                self.assertEqual(response.status_code, 200, response.content.decode())
+                self.assertEqual(response.get('Content-Type'), 'application/json')
+                result = json.loads(response.content, object_hook=json_to_python_lambda)
+                result_id_set = {v.id for v in result.results}
+                correct_id_set = {v.id for v in Variant.objects.filter(of=combo_id)}
+                self.assertSetEqual(result_id_set, correct_id_set)
+
+    def test_variants_list_view_includes_filter(self):
+        for combo_id in Combo.objects.values_list('pk', flat=True):
+            with self.subTest(f'combo {combo_id}'):
+                response = self.client.get('/variants', query_params={'includes': combo_id}, follow=True)  # type: ignore
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.get('Content-Type'), 'application/json')
+                result = json.loads(response.content, object_hook=json_to_python_lambda)
+                result_id_set = {v.id for v in result.results}
+                correct_id_set = {v.id for v in Variant.objects.filter(includes=combo_id)}
+                self.assertSetEqual(result_id_set, correct_id_set)

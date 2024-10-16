@@ -12,6 +12,7 @@ from .filters import SpellbookQueryFilter, OrderingFilterWithNullsLast
 
 
 class VariantGroupedByComboFilter(filters.BaseFilterBackend):
+    DEFAULT_GROUPING_ORDERING = (F('popularity').desc(), F('identity_count').asc(), F('card_count').asc(), F('id').asc())
     query_param = 'group_by_combo'
     template = 'spellbook/filters/group_by_combo.html'
 
@@ -29,7 +30,7 @@ class VariantGroupedByComboFilter(filters.BaseFilterBackend):
             rank=Window(
                 expression=Rank(),
                 partition_by=F('variantofcombo__combo_id'),
-                order_by=queryset.query.order_by,
+                order_by=queryset.query.order_by or self.DEFAULT_GROUPING_ORDERING,
             )
         ).filter(rank=1).values('id').distinct()
         return queryset.filter(id__in=top_variants_for_each_combo)

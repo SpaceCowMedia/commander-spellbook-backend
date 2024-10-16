@@ -16,8 +16,8 @@ from common.abstractions import Deck as RawDeck
 from spellbook.models import Card, merge_identities, CardInVariant, Variant
 from spellbook.models.mixins import PreSerializedSerializer
 from spellbook.serializers import VariantSerializer
-from spellbook.views.variants import VariantViewSet
 from website.views import PlainTextDeckListParser
+from .variants import VariantViewSet
 
 
 @dataclass
@@ -171,6 +171,7 @@ class FindMyCombosView(APIView):
             .filter(missing_count__lte=1)
 
         viewset = VariantViewSet()
+        viewset.setup(self.request)
         variants_query = viewset.get_queryset().filter(id__in=variant_id_list)
 
         paginator = self.pagination_class()

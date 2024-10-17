@@ -658,17 +658,4 @@ def generate_variants(combo: int | None = None, job: Job | None = None, log_coun
         log_into_job(job, f'Added {added_aliases} new aliases, deleted {deleted_aliases} aliases.')
         log_into_job(job, 'Done.')
         debug_queries(True)
-        # Update combos variant counts
-        combos_to_save = set[Combo]()
-        for created_variant in to_bulk_create:
-            for combo_id in created_variant.of:
-                c = data.id_to_combo[combo_id]
-                c.variant_count += 1
-                combos_to_save.add(c)
-        for deleted_variant_id in to_delete:
-            for combo_of in data.variant_to_of_sets[deleted_variant_id]:
-                c = data.id_to_combo[combo_of.combo_id]
-                c.variant_count -= 1
-                combos_to_save.add(c)
-        Combo.objects.bulk_update(combos_to_save, ['variant_count'])
         return len(added), len(restored), deleted_count

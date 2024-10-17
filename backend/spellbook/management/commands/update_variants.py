@@ -1,4 +1,7 @@
 from spellbook.models import Variant
+from spellbook.models.combo import Combo
+from django.db.models import Subquery, OuterRef, Count
+from django.db.models.functions import Coalesce
 from ..abstract_command import AbstractCommand
 from ..edhrec import edhrec, update_variants
 
@@ -27,3 +30,20 @@ class Command(AbstractCommand):
             self.log(f'Successfully updated {updated_variant_count} variants', self.style.SUCCESS)
         else:
             self.log('No variants to update', self.style.SUCCESS)
+        # Combos
+        self.log('Updating combos...')
+        Combo.objects.update(
+            variant_count=Coalesce(
+                Subquery(
+                    Variant
+                    .objects
+                    .filter(status__in=Variant.public_statuses())
+                    .filter(of=OuterRef('pk'))
+                    .values('of')
+                    .annotate(total=Count('pk'))
+                    .values('total'),
+                ),
+                0,
+            ),
+        )
+        self.log('Updating combos...done', self.style.SUCCESS)

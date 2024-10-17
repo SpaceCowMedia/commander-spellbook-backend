@@ -217,15 +217,12 @@ class VariantsGeneratorTests(TestCaseMixinWithSeeding, TestCase):
     def test_generate_variants(self):
         for _ in range(20):
             Variant.objects.all().delete()
-            Combo.objects.update(variant_count=0)
             with self.subTest():
                 added, restored, deleted = generate_variants()
                 self.assertEqual(Variant.objects.count(), self.expected_variant_count)
                 self.assertEqual(added, self.expected_variant_count)
                 self.assertEqual(restored, 0)
                 self.assertEqual(deleted, 0)
-                for combo in Combo.objects.all():
-                    self.assertEqual(combo.variant_count, Variant.objects.filter(of=combo).distinct().count())
                 variant: Variant
                 for variant in Variant.objects.all():
                     self.assertEqual(variant.status, Variant.Status.NEW)
@@ -261,24 +258,18 @@ class VariantsGeneratorTests(TestCaseMixinWithSeeding, TestCase):
                 self.assertEqual(restored, 0)
                 self.assertEqual(deleted, 0)
                 self.assertTrue(all(variant.status == Variant.Status.OK for variant in Variant.objects.all()))
-                for combo in Combo.objects.all():
-                    self.assertEqual(combo.variant_count, Variant.objects.filter(of=combo).distinct().count())
                 Variant.objects.update(status=Variant.Status.RESTORE)
                 added, restored, deleted = generate_variants()
                 self.assertEqual(added, 0)
                 self.assertEqual(restored, self.expected_variant_count)
                 self.assertEqual(deleted, 0)
                 self.assertTrue(all(variant.status == Variant.Status.NEW for variant in Variant.objects.all()))
-                for combo in Combo.objects.all():
-                    self.assertEqual(combo.variant_count, Variant.objects.filter(of=combo).distinct().count())
         Combo.objects.filter(status=Combo.Status.GENERATOR).update(status=Combo.Status.DRAFT)
         added, restored, deleted = generate_variants()
         self.assertEqual(added, 0)
         self.assertEqual(restored, 0)
         self.assertEqual(deleted, self.expected_variant_count)
         self.assertEqual(Variant.objects.count(), 0)
-        for combo in Combo.objects.all():
-            self.assertEqual(combo.variant_count, Variant.objects.filter(of=combo).distinct().count())
 
     def test_generate_variants_deletion(self):
         for status in Variant.Status.values:
@@ -289,8 +280,6 @@ class VariantsGeneratorTests(TestCaseMixinWithSeeding, TestCase):
             Combo.objects.filter(status=Combo.Status.GENERATOR).update(status=Combo.Status.DRAFT)
             generate_variants()
             self.assertEqual(Variant.objects.count(), 0)
-            for combo in Combo.objects.all():
-                self.assertEqual(combo.variant_count, Variant.objects.filter(of=combo).distinct().count())
 
     def test_restore_zombie_variants(self):
         Combo.objects.filter(status=Combo.Status.DRAFT).update(status=Combo.Status.GENERATOR)

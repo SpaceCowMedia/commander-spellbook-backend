@@ -28,6 +28,7 @@ def prepare_variant_alias(variant_alias: VariantAlias):
 class Command(AbstractCommand):
     name = 'export_variants'
     help = 'Exports variants to a JSON file'
+    batch_size = 5000
 
     def add_arguments(self, parser):
         super().add_arguments(parser)
@@ -45,11 +46,14 @@ class Command(AbstractCommand):
 
     def run(self, *args, **options):
         self.log('Fetching variants from db...')
+        variants_source = list[Variant]()
         with transaction.atomic(durable=True):
-            variants_source = list[Variant](VariantSerializer.prefetch_related(Variant.objects.filter(status__in=Variant.public_statuses() + Variant.preview_statuses())))
+            variants_query = VariantSerializer.prefetch_related(Variant.objects.filter(status__in=Variant.public_statuses() + Variant.preview_statuses()))
+            for i in range(0, variants_query.count(), self.batch_size):
+                variants_source.extend(variants_query[i:i + self.batch_size])
         self.log('Fetching variants from db...done', self.style.SUCCESS)
         self.log('Updating variants preserialized representation...')
-        Variant.objects.bulk_serialize(objs=variants_source, serializer=VariantSerializer, batch_size=5000)  # type: ignore
+        Variant.objects.bulk_serialize(objs=variants_source, serializer=VariantSerializer, batch_size=self.batch_size)  # type: ignore
         self.log('Updating variants preserialized representation...done', self.style.SUCCESS)
         self.log('Fetching variant aliases from db...')
         with transaction.atomic(durable=True):

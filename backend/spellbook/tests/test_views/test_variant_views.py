@@ -18,10 +18,11 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
         super().generate_variants()
         Variant.objects.update(status=Variant.Status.OK)
         Variant.objects.filter(id__in=random.sample(list(Variant.objects.values_list('id', flat=True)), 3)).update(status=Variant.Status.EXAMPLE)
-        self.bulk_serialize_variants()
         self.v1_id: int = Variant.objects.first().id  # type: ignore
         self.public_variants = VariantViewSet.queryset
         self.ok_variants = self.public_variants.filter(status=Variant.Status.OK)
+        self.update_variants_count()
+        self.bulk_serialize_variants()
 
     def variant_assertions(self, variant_result):
         v: Variant = Variant.objects.get(id=variant_result.id)
@@ -114,6 +115,7 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
         includes_list = [i.id for i in v.includes.all()]
         for i in variant_result.includes:
             self.assertIn(i.id, includes_list)
+        self.assertEqual(variant_result.variant_count, self.public_variants.filter(of__variants=v.id).values('id').distinct().count())
 
     def test_variants_list_view(self):
         response = self.client.get('/variants', follow=True)
@@ -790,24 +792,13 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
             result_id_set = {v.id for v in result.results}
             self.assertSetEqual(result_id_set, best_variants_ids)
 
-    def test_variants_list_view_of_filter(self):
-        for combo_id in Combo.objects.values_list('pk', flat=True):
-            with self.subTest(f'combo {combo_id}'):
-                response = self.client.get('/variants', query_params={'of': combo_id}, follow=True)  # type: ignore
+    def test_variants_list_view_variant_filter(self):
+        for variant_id in Variant.objects.values_list('pk', flat=True):
+            with self.subTest(f'combo {variant_id}'):
+                response = self.client.get('/variants', query_params={'variant': variant_id}, follow=True)  # type: ignore
                 self.assertEqual(response.status_code, 200, response.content.decode())
                 self.assertEqual(response.get('Content-Type'), 'application/json')
                 result = json.loads(response.content, object_hook=json_to_python_lambda)
                 result_id_set = {v.id for v in result.results}
-                correct_id_set = {v.id for v in Variant.objects.filter(of=combo_id)}
-                self.assertSetEqual(result_id_set, correct_id_set)
-
-    def test_variants_list_view_includes_filter(self):
-        for combo_id in Combo.objects.values_list('pk', flat=True):
-            with self.subTest(f'combo {combo_id}'):
-                response = self.client.get('/variants', query_params={'includes': combo_id}, follow=True)  # type: ignore
-                self.assertEqual(response.status_code, 200)
-                self.assertEqual(response.get('Content-Type'), 'application/json')
-                result = json.loads(response.content, object_hook=json_to_python_lambda)
-                result_id_set = {v.id for v in result.results}
-                correct_id_set = {v.id for v in Variant.objects.filter(includes=combo_id)}
+                correct_id_set = {v.id for v in Variant.objects.filter(of__variants=variant_id)}
                 self.assertSetEqual(result_id_set, correct_id_set)

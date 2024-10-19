@@ -39,7 +39,7 @@ def edhrec():
     return variants_db
 
 
-def update_variants(variants: list[Variant], edhrec: dict[str, dict], log=lambda t: print(t), log_warning=lambda t: print(t), log_error=lambda t: print(t)):
+def update_variants(variants: list[Variant], counts: dict[str, int], edhrec: dict[str, dict], log=lambda t: print(t), log_warning=lambda t: print(t), log_error=lambda t: print(t)):
     variants_to_save: list[Variant] = []
     for variant in variants:
         updated = False
@@ -57,6 +57,12 @@ def update_variants(variants: list[Variant], edhrec: dict[str, dict], log=lambda
             or any(tiv.must_be_commander for tiv in variant.templateinvariant_set.all())
         if variant.update(variant.uses.all(), requires_commander):
             updated = True
+        # Update with Spellbook data
+        variant_count = counts.get(variant.id, 0)
+        if variant.variant_count != variant_count:
+            variant.variant_count = variant_count
+            updated = True
+        # Save if updated
         if updated:
             variants_to_save.append(variant)
     return variants_to_save

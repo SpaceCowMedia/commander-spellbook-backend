@@ -65,7 +65,7 @@ def fuzzy_restore_card(scryfall: dict, name: str):
             raise Exception(f'Card {name} not found in scryfall dataset, even after fuzzy search')
 
 
-def update_cards(cards: list[Card], scryfall: dict[str, dict], log=lambda t: print(t), log_warning=lambda t: print(t), log_error=lambda t: print(t)):
+def update_cards(cards: list[Card], scryfall: dict[str, dict], counts: dict[int, int], log=lambda t: print(t), log_warning=lambda t: print(t), log_error=lambda t: print(t)):
     oracle_db = {card_object['oracle_id']: card_object for card_object in scryfall.values()}
     existing_names = {card.name: card for card in cards}
     existing_oracle_ids = {card.oracle_id: card for card in cards if card.oracle_id is not None}
@@ -165,6 +165,10 @@ def update_cards(cards: list[Card], scryfall: dict[str, dict], log=lambda t: pri
         else:
             log_warning(f'Card {card.name} with oracle id {oracle_id} not found in scryfall dataset. Oracle id has been removed.')
             card.oracle_id = None
+            updated = True
+        variant_count = counts.get(card.id, 0)
+        if card.variant_count != variant_count:
+            card.variant_count = variant_count
             updated = True
         if updated:
             cards_to_save.append(card)

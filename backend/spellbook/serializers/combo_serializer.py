@@ -7,5 +7,4 @@ class ComboSerializer(serializers.ModelSerializer):
         model = Combo
         fields = [
             'id',
-            'variant_count',
         ]

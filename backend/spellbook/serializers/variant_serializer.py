@@ -167,6 +167,7 @@ class VariantSerializer(serializers.ModelSerializer):
             'spoiler',
             'legalities',
             'prices',
+            'variant_count',
         ]
 
     @classmethod

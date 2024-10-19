@@ -3,7 +3,7 @@ import uuid
 from functools import reduce
 from collections import defaultdict
 
-from django.db.models import Count, OuterRef, Subquery
+from django.db.models import Q, Count, OuterRef, Subquery
 from django.db.models.functions import Coalesce
 from common.testing import TestCaseMixin as BaseTestCaseMixin
 from django.conf import settings
@@ -34,14 +34,34 @@ class TestCaseMixin(BaseTestCaseMixin):
                 Subquery(
                     Variant
                     .objects
-                    .filter(uses=OuterRef('pk'), status__in=('OK', 'E'))
+                    .filter(uses=OuterRef('pk'), status__in=Variant.public_statuses())
                     .values('uses')
-                    .annotate(total=Count('pk'))
+                    .annotate(total=Count('pk', distinct=True))
                     .values('total'),
                 ),
                 0,
             ),
         )
+        Combo.objects.update(
+            variant_count=Coalesce(
+                Subquery(
+                    Variant
+                    .objects
+                    .filter(of=OuterRef('pk'), status__in=Variant.public_statuses())
+                    .values('of')
+                    .annotate(total=Count('pk', distinct=True))
+                    .values('total'),
+                ),
+                0,
+            ),
+        )
+        variants = list(Variant.objects.only('id').annotate(
+            variant_count_updated=Count('of__variants', distinct=True, filter=Q(of__variants__status__in=Variant.public_statuses()))
+        ))
+        for variant in variants:
+            variant.variant_count = variant.variant_count_updated
+            variant.pre_save = lambda: None
+        Variant.objects.bulk_update(variants, ['variant_count'])
 
     def generate_and_publish_variants(self):
         self.generate_variants()

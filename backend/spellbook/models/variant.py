@@ -1,7 +1,7 @@
 from typing import Iterable
 from django.db import models, connection
 from django.dispatch import receiver
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, pre_delete
 from django.utils.html import format_html
 from django.db.models.functions import Upper
 from django.contrib.postgres.indexes import GinIndex, OpClass
@@ -276,3 +276,15 @@ def update_variant_on_ingredient(sender, instance: CardInVariant | TemplateInVar
     variant.update(variant.uses.all(), requires_commander)
     variant.update_from_data()
     variant.save()
+
+
+@receiver(pre_delete, sender=Combo, dispatch_uid='combo_deleted')
+def combo_delete(sender, instance: Combo, **kwargs) -> None:
+    Variant.objects.alias(
+        of_count=models.Count('of', distinct=True),
+    ).filter(
+        of_count=1,
+        of=instance,
+    ).update(
+        status=Variant.Status.RESTORE,
+    )

@@ -14,10 +14,10 @@
                 django.jQuery.each(this, function(i, element) {
                     const elementSelect = django.jQuery(element);
                     const featureSelect = elementSelect.closest('.form-row').find('.field-feature select');
-                    featureSelect.on('change', function() {
+                    featureSelect.on('select2:select', function() {
                         elementSelect.val(null).trigger('change');
                     });
-                    elementSelect.empty().select2({
+                    elementSelect.select2({
                         ajax: {
                             data: (params) => {
                                 return {

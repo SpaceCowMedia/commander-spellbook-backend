@@ -48,7 +48,7 @@ django.jQuery(function() {
             });
             toggleZoneLocation(graveyard, graveyardState);
         }
-        django.jQuery('.add-row a[href="#"]').on('click', setupEventListeners);
+        parent.find('.add-row a[href="#"]').on('click', setupEventListeners);
         setupEventListeners();
     });
 });

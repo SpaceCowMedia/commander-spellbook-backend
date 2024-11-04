@@ -12,6 +12,9 @@ class FeatureAttribute(models.Model):
     def __str__(self):
         return self.name
 
+    class Meta:
+        ordering = ['name']
+
 
 class WithFeatureAttributes(models.Model):
     attributes = models.ManyToManyField(to=FeatureAttribute, blank=True, related_name='used_as_attribute_in_%(class)s')

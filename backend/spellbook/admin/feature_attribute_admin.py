@@ -1,5 +1,6 @@
 from django.contrib import admin
-from django.db.models import Q
+from django.db.models import Q, QuerySet
+from django.http import HttpRequest
 from spellbook.models import FeatureAttribute, Combo
 from .utils import SpellbookModelAdmin, SpellbookAdminForm
 
@@ -20,3 +21,14 @@ class FeatureAttributeAdmin(SpellbookModelAdmin):
     fields = ['id', 'name']
     search_fields = ['name']
     list_display = ['name', 'id']
+
+    def get_search_results(self, request: HttpRequest, queryset: QuerySet[FeatureAttribute], search_term: str):
+        feature_id = request.GET.get('feature_id')
+        if feature_id is not None:
+            try:
+                queryset = queryset.filter(
+                    Q(used_as_attribute_in_featureofcard__feature_id=feature_id) | Q(used_as_attribute_in_featureproducedincombo__feature_id=feature_id),
+                )
+            except ValueError:
+                pass
+        return super().get_search_results(request, queryset, search_term)

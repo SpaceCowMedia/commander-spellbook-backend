@@ -139,8 +139,6 @@ class TemplateInCombo(IngredientInCombination):
 
 class FeatureNeededInCombo(WithFeatureAttributesMatcher):
     id: int
-    feature = models.ForeignKey(to=Feature, on_delete=models.CASCADE)
-    feature_id: int
     combo = models.ForeignKey(to=Combo, on_delete=models.CASCADE)
     combo_id: int
     quantity = models.PositiveSmallIntegerField(default=1, blank=False, help_text='Quantity of the feature needed in the combo.', verbose_name='quantity', validators=[MinValueValidator(1)])

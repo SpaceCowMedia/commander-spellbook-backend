@@ -17,14 +17,17 @@ class FeatureAttribute(models.Model):
 
 
 class WithFeatureAttributes(models.Model):
-    attributes = models.ManyToManyField(to=FeatureAttribute, blank=True, related_name='used_as_attribute_in_%(class)s')
     feature = models.ForeignKey(to=Feature, on_delete=models.CASCADE)
+    feature_id: int
+    attributes = models.ManyToManyField(to=FeatureAttribute, blank=True, related_name='used_as_attribute_in_%(class)s')
 
     class Meta:
         abstract = True
 
 
 class WithFeatureAttributesMatcher(models.Model):
+    feature = models.ForeignKey(to=Feature, on_delete=models.CASCADE)
+    feature_id: int
     any_of_attributes = models.ManyToManyField(to=FeatureAttribute, blank=True, related_name='needed_as_any_of_in_%(class)s')
     all_of_attributes = models.ManyToManyField(to=FeatureAttribute, blank=True, related_name='needed_as_all_of_in_%(class)s')
     none_of_attributes = models.ManyToManyField(to=FeatureAttribute, blank=True, related_name='needed_as_none_of_in_%(class)s')

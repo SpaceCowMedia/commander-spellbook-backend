@@ -2,6 +2,7 @@ from lark import Lark, Transformer, LarkError, UnexpectedToken, UnexpectedCharac
 from django.db.models import Q, QuerySet
 from django.core.exceptions import ValidationError
 from spellbook.models import Variant, FeatureProducedByVariant, CardInVariant
+from spellbook.transformers.variants_query_filters.varant_variants_filters import variants_filter
 from ..parsers.variants_query_grammar import VARIANTS_QUERY_GRAMMAR
 from .variants_query_filters.base import QueryValue, VariantFilterCollection
 from .variants_query_filters.card_search_filters import card_search_filter
@@ -86,6 +87,10 @@ class VariantsQueryTransformer(Transformer):
     def popularity_search(self, values):
         q = QueryValue.from_string(values[0])
         return popularity_filter(q)
+
+    def variants_search(self, values):
+        q = QueryValue.from_string(values[0])
+        return variants_filter(q)
     # endregion
 
     # region composition

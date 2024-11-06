@@ -11,6 +11,7 @@ class LegalitiesSerializer(serializers.ModelSerializer):
     brawl = serializers.BooleanField(source='legal_brawl')
     vintage = serializers.BooleanField(source='legal_vintage')
     legacy = serializers.BooleanField(source='legal_legacy')
+    premodern = serializers.BooleanField(source='legal_premodern')
     modern = serializers.BooleanField(source='legal_modern')
     pioneer = serializers.BooleanField(source='legal_pioneer')
     standard = serializers.BooleanField(source='legal_standard')
@@ -28,6 +29,7 @@ class LegalitiesSerializer(serializers.ModelSerializer):
             'brawl',
             'vintage',
             'legacy',
+            'premodern',
             'modern',
             'pioneer',
             'standard',

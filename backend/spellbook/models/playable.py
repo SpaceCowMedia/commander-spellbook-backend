@@ -29,6 +29,7 @@ class Playable(models.Model):
     legal_brawl = models.BooleanField(default=True, help_text='Is this legal in Brawl?', verbose_name='is legal in Brawl')
     legal_vintage = models.BooleanField(default=True, help_text='Is this legal in Vintage?', verbose_name='is legal in Vintage')
     legal_legacy = models.BooleanField(default=True, help_text='Is this legal in Legacy?', verbose_name='is legal in Legacy')
+    legal_premodern = models.BooleanField(default=True, help_text='Is this legal in PreModern?', verbose_name='is legal in PreModern')
     legal_modern = models.BooleanField(default=True, help_text='Is this legal in Modern?', verbose_name='is legal in Modern')
     legal_pioneer = models.BooleanField(default=True, help_text='Is this legal in Pioneer?', verbose_name='is legal in Pioneer')
     legal_standard = models.BooleanField(default=True, help_text='Is this legal in Standard?', verbose_name='is legal in Standard')

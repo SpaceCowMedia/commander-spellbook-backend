@@ -165,6 +165,7 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
         self.legal_brawl = all(playable.legal_brawl for playable in cards)
         self.legal_vintage = not requires_commander and all(playable.legal_vintage for playable in cards)
         self.legal_legacy = not requires_commander and all(playable.legal_legacy for playable in cards)
+        self.legal_premodern = not requires_commander and all(playable.legal_premodern for playable in cards)
         self.legal_modern = not requires_commander and all(playable.legal_modern for playable in cards)
         self.legal_pioneer = not requires_commander and all(playable.legal_pioneer for playable in cards)
         self.legal_standard = not requires_commander and all(playable.legal_standard for playable in cards)

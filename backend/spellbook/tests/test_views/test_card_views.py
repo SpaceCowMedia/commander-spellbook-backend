@@ -27,6 +27,7 @@ class CardViewsTests(TestCaseMixinWithSeeding, TestCase):
         self.assertEqual(card_result.legalities.brawl, c.legal_brawl)
         self.assertEqual(card_result.legalities.vintage, c.legal_vintage)
         self.assertEqual(card_result.legalities.legacy, c.legal_legacy)
+        self.assertEqual(card_result.legalities.premodern, c.legal_premodern)
         self.assertEqual(card_result.legalities.modern, c.legal_modern)
         self.assertEqual(card_result.legalities.pioneer, c.legal_pioneer)
         self.assertEqual(card_result.legalities.standard, c.legal_standard)

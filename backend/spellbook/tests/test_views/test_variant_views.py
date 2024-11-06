@@ -48,6 +48,7 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
         self.assertEqual(variant_result.legalities.brawl, v.legal_brawl)
         self.assertEqual(variant_result.legalities.vintage, v.legal_vintage)
         self.assertEqual(variant_result.legalities.legacy, v.legal_legacy)
+        self.assertEqual(variant_result.legalities.premodern, v.legal_premodern)
         self.assertEqual(variant_result.legalities.modern, v.legal_modern)
         self.assertEqual(variant_result.legalities.pioneer, v.legal_pioneer)
         self.assertEqual(variant_result.legalities.standard, v.legal_standard)

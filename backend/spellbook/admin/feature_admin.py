@@ -89,7 +89,7 @@ class FeatureAdmin(SpellbookModelAdmin):
 
     @admin.display(description='Scryfall link')
     def scryfall_link(self, obj: Feature):
-        card_names: list[str] = obj.cards.values_list('name', flat=True)  # type: ignore
+        card_names: list[str] = obj.cards.distinct().values_list('name', flat=True)  # type: ignore
         if card_names:
             query_string = scryfall_query_string_for_card_names(card_names)
             if len(query_string) <= SCRYFALL_MAX_QUERY_LENGTH:

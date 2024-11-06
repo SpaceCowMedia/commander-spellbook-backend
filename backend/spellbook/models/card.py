@@ -125,14 +125,9 @@ def update_combo_fields(sender, instance, created, raw, **kwargs):
 
 class FeatureOfCard(Ingredient, WithFeatureAttributes):
     id: int
-    feature = models.ForeignKey(to=Feature, on_delete=models.CASCADE)
-    feature_id: int
     card = models.ForeignKey(to=Card, on_delete=models.CASCADE)
     card_id: int
     other_prerequisites = models.TextField(blank=True, help_text='Other prerequisites that enable the feature for this card.', validators=TEXT_VALIDATORS)
 
     def __str__(self):
         return f'{self.feature} for card {self.card.pk}'
-
-    class Meta(Ingredient.Meta):
-        unique_together = [('feature', 'card')]

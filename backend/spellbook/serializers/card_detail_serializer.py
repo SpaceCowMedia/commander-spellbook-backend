@@ -28,6 +28,7 @@ class FeatureOfCardSerializer(serializers.ModelSerializer):
     class Meta:
         model = FeatureOfCard
         fields = [
+            'id',
             'feature',
             'quantity',
             'zone_locations',

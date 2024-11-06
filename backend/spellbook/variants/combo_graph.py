@@ -148,14 +148,14 @@ class FeatureWithAttributesMatcherNode(Node[FeatureWithAttributesMatcher]):
 
 class ComboNode(Node[Combo]):
     def __init__(
-            self,
-            graph: 'Graph',
-            combo: Combo,
-            cards: Mapping[CardNode, int] = {},
-            templates: Mapping[TemplateNode, int] = {},
-            countable_features_needed: Mapping[FeatureWithAttributesMatcherNode, int] = {},
-            uncountable_features_needed: Iterable[FeatureWithAttributesMatcherNode] = [],
-            features_produced: Iterable[FeatureWithAttributesNode] = [],
+        self,
+        graph: 'Graph',
+        combo: Combo,
+        cards: Mapping[CardNode, int] = {},
+        templates: Mapping[TemplateNode, int] = {},
+        countable_features_needed: Mapping[FeatureWithAttributesMatcherNode, int] = {},
+        uncountable_features_needed: Iterable[FeatureWithAttributesMatcherNode] = [],
+        features_produced: Iterable[FeatureWithAttributesNode] = [],
     ):
         super().__init__(graph, combo)
         self.cards = dict(cards)
@@ -214,7 +214,7 @@ class Graph:
         # Construct card nodes
         self.cnodes = {card_id: CardNode(self, card) for card_id, card in data.id_to_card.items()}
         # Construct feature with attributes nodes
-        self.fanodes = dict[int, dict[frozenset[int], FeatureWithAttributesNode]]()
+        self.fanodes = dict[featureid, dict[frozenset[int], FeatureWithAttributesNode]]()
         # Iterate over cards
         for card_id, c in self.cnodes.items():
             c.variant_set = self._new_variant_set()
@@ -241,7 +241,7 @@ class Graph:
         # Construct feature with attribute matchers nodes
         self.famnodes = dict[featureid, dict[AttributesMatcher, FeatureWithAttributesMatcherNode]]()
         # Construct combo nodes
-        self.bnodes = dict[int, ComboNode]()
+        self.bnodes = dict[comboid, ComboNode]()
         for combo_id, combo in data.id_to_combo.items():
             if combo.status not in (Combo.Status.GENERATOR, Combo.Status.UTILITY):
                 continue
@@ -287,8 +287,8 @@ class Graph:
                         fam.needed_by_combos[b] = 1
                         b.uncountable_features_needed.append(fam)
                     else:
-                        fam.needed_by_combos[b] = feature_needed_by_combo.quantity
-                        b.countable_features_needed[fam] = feature_needed_by_combo.quantity
+                        fam.needed_by_combos[b] = fam.needed_by_combos.get(b, 0) + feature_needed_by_combo.quantity
+                        b.countable_features_needed[fam] = b.countable_features_needed.get(fam, 0) + feature_needed_by_combo.quantity
         # Find matching feature with attributes nodes
         for feature_id, d in self.famnodes.items():
             candidates = self.fanodes.get(feature_id, {})

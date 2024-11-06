@@ -100,7 +100,10 @@ class Combo(Recipe, ScryfallLinkMixin):
         return {f.feature.name: 1 for f in self.featureproducedincombo_set.all()}
 
     def features_needed(self) -> dict[str, int]:
-        return {f.feature.name: f.quantity for f in self.featureneededincombo_set.all()}
+        result = dict[str, int]()
+        for f in self.featureneededincombo_set.all():
+            result[f.feature.name] = result.get(f.feature.name, 0) + f.quantity
+        return result
 
     class Meta:
         verbose_name = 'combo'
@@ -147,9 +150,6 @@ class FeatureNeededInCombo(WithFeatureAttributesMatcher):
     def __str__(self):
         return f'{self.feature} needed in combo {self.combo_id}'
 
-    class Meta:
-        unique_together = [('feature', 'combo')]
-
     def clean(self):
         super().clean()
         if self.quantity > 1 and self.feature.uncountable:
@@ -165,9 +165,6 @@ class FeatureProducedInCombo(WithFeatureAttributes):
 
     def __str__(self):
         return f'{self.feature} produced in combo {self.combo_id}'
-
-    class Meta:
-        unique_together = [('feature', 'combo')]
 
 
 class FeatureRemovedInCombo(models.Model):

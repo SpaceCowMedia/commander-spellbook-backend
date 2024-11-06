@@ -1,5 +1,4 @@
 from multiset import FrozenMultiset
-from unittest import skip
 from django.test import TestCase
 from spellbook.models import Card, Combo, FeatureAttribute
 from spellbook.models.feature import Feature
@@ -978,7 +977,6 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
             variants = list(combo_graph.results(combo_graph.variants(2)))
             self.assertEqual(len(variants), 0)
 
-    @skip('This feature is not yet implemented')
     def test_feature_attributes_with_multiple_copies(self):
         self.save_combo_model({
             'A': ('x',),
@@ -1006,6 +1004,23 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
         variants = list(combo_graph.results(combo_graph.variants(2)))
         self.assertEqual(len(variants), 1)
         self.assertMultisetEqual(variants[0].cards, {1: 1, 2: 2})
+
+    def test_features_with_multiple_copies(self):
+        self.save_combo_model({
+            'A': ('x', 'x'),
+            ('x', 'x'): ('y',),
+        })
+        combo_graph = Graph(Data(), allow_multiple_copies=True)
+        variants = list(combo_graph.results(combo_graph.variants(1)))
+        self.assertEqual(len(variants), 1)
+        self.assertMultisetEqual(variants[0].cards, {1: 2})
+        self.assertMultisetEqual(variants[0].templates, {})
+        self.assertMultisetEqual(variants[0].features, {1: 2, 2: 1})
+        self.assertSetEqual(variants[0].combos, {1})
+        self.assertReplacementsEqual(variants[0].replacements, {
+            1: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset())],
+            2: [VariantIngredients(FrozenMultiset({1: 2}), FrozenMultiset())],
+        })
 
     def test_replacement_with_incompatible_attributes_using_cards(self):
         self.save_combo_model({

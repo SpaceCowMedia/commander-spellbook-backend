@@ -66,6 +66,7 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
             self.assertEqual(card.name, c.name)
             self.assertEqual(card.oracle_id, str(c.oracle_id))
             self.assertEqual(card.spoiler, c.spoiler)
+            self.assertEqual(card.type_line, c.type_line)
             vic = CardInVariant.objects.get(variant=v.id, card=c)
             self.assertEqual(set(u.zone_locations), set(vic.zone_locations))
             self.assertEqual(u.must_be_commander, vic.must_be_commander)

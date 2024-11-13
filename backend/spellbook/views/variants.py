@@ -97,7 +97,7 @@ class VariantViewSet(viewsets.ReadOnlyModelViewSet):
         '?'
     ]
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[Variant]:
         queryset = super().get_queryset()
         if hasattr(self, 'request') and hasattr(self.request, 'user') and self.request.user.is_authenticated:
             user = self.request.user

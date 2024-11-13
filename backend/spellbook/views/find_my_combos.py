@@ -147,6 +147,7 @@ class FindMyCombosView(APIView):
         'text/plain': str,
     }
     response = FindMyCombosResponseSerializer
+    filter_backends = VariantViewSet.filter_backends
 
     @extend_schema(request=request, responses=response)
     def get(self, request: Request) -> Response:
@@ -172,7 +173,7 @@ class FindMyCombosView(APIView):
 
         viewset = VariantViewSet()
         viewset.setup(self.request)
-        variants_query = viewset.get_queryset().filter(id__in=variant_id_list)
+        variants_query = viewset.filter_queryset(viewset.get_queryset().filter(id__in=variant_id_list))
 
         paginator = self.pagination_class()
         paginator.max_limit = 1000  # type: ignore

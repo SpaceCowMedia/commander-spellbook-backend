@@ -188,3 +188,7 @@ class FindMyCombosView(APIView):
     @extend_schema(request=request, responses=response)
     def post(self, request: Request) -> Response:
         return self.get(request)
+
+    def get_queryset(self):
+        # Used by OpenAPI schema generation
+        return Variant.objects.none()

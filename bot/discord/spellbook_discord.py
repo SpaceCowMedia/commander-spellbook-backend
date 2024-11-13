@@ -35,6 +35,7 @@ administration_guilds = [int(guild) for guild in (os.getenv(f'KUBE_ADMIN_GUILD__
 administration_users = [int(user) for user in (os.getenv(f'KUBE_ADMIN_USER__{i}', os.getenv(f'ADMIN_USER__{i}')) for i in range(10)) if user is not None]
 
 MAX_SEARCH_RESULTS = 7
+ORDERING = '-popularity,identity_count,card_count,-created'
 
 
 @bot.command(hidden=True)
@@ -111,7 +112,7 @@ async def handle_queries(
                 result = await api.variants_list(
                     q=query_info.patched_query,
                     limit=MAX_SEARCH_RESULTS,
-                    ordering='-popularity',
+                    ordering=ORDERING,
                 )
             result_count: int = result.count
             results: list[Variant] = result.results
@@ -235,9 +236,9 @@ async def handle_find_my_combos(interaction: discord.Interaction, deck: DeckRequ
         async with API() as api_client:
             api = FindMyCombosApi(api_client)
             if isinstance(deck, str):
-                result = await find_my_combos_create_plain(api, deck)
+                result = await find_my_combos_create_plain(api, deck, ordering=ORDERING)
             else:
-                result = await api.find_my_combos_create(deck_request=deck)
+                result = await api.find_my_combos_create(deck_request=deck, ordering=ORDERING)
         results_identity: str = result.results.identity  # type: ignore
         reply = f'## Find My Combos results for your deck\n### Deck identity: {convert_mana_identity_to_emoji(results_identity)}\n'
         results_included: list[Variant] = result.results.included

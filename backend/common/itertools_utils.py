@@ -6,9 +6,13 @@ T = TypeVar('T')
 
 
 def roundrobin(*iterables: Iterable[T]) -> Iterable[T]:
-    "Visit input iterables in a cycle until each is exhausted."
-    # roundrobin('ABC', 'D', 'EF') --> A D E B F C
-    # Recipe credited to George Sakkis
+    """Visit input iterables in a cycle until each is exhausted.
+
+    .. code-block:: python
+        roundrobin('ABC', 'D', 'EF') #--> A D E B F C
+
+    Recipe credited to George Sakkis
+    """
     num_active = len(iterables)
     nexts = cycle(iter(it).__next__ for it in iterables)
     while num_active:

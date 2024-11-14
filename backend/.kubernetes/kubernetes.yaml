@@ -153,7 +153,10 @@ metadata:
   annotations:
     kubernetes.io/ingress.class: alb
     alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/ip-address-type: dualstack
     alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/tags: project=commanderspellbook,environment=prod
+    alb.ingress.kubernetes.io/target-group-attributes: deregistration_delay.timeout_seconds=60
     ## SSL Settings
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}, {"HTTP":80}]'
     alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-2:083767677168:certificate/e6f5834f-bd9a-4333-962a-8fe0857e84ea

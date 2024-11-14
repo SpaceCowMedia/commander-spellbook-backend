@@ -11,8 +11,9 @@ async def find_my_combos_create_plain(
     limit: Optional[StrictInt] = None,
     offset: Optional[StrictInt] = None,
     group_by_combo: Optional[bool] = None,
-    q: Optional[StrictStr] = None,
     ordering: Optional[StrictStr] = None,
+    q: Optional[StrictStr] = None,
+    variant: Optional[StrictStr] = None,
     _request_timeout: Union[
         None,
         Annotated[StrictFloat, Field(gt=0)],
@@ -28,11 +29,12 @@ async def find_my_combos_create_plain(
 ) -> PaginatedFindMyCombosResponseList:
     _param = self._find_my_combos_create_serialize(
         deck_request=decklist,
+        group_by_combo=group_by_combo,
         limit=limit,
         offset=offset,
-        group_by_combo=group_by_combo,
-        q=q,
         ordering=ordering,
+        q=q,
+        variant=variant,
         _request_auth=_request_auth,
         _content_type=_content_type or 'text/plain',
         _headers=_headers,

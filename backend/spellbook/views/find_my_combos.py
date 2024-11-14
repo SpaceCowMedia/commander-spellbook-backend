@@ -148,6 +148,7 @@ class FindMyCombosView(APIView):
     }
     response = FindMyCombosResponseSerializer
     filter_backends = VariantViewSet.filter_backends
+    filterset_class = VariantViewSet.filterset_class
 
     @extend_schema(request=request, responses=response)
     def get(self, request: Request) -> Response:

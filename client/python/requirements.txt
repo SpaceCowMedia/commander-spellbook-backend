@@ -6,7 +6,7 @@
 #
 aiohappyeyeballs==2.4.0
     # via aiohttp
-aiohttp==3.10.10
+aiohttp==3.11.2
     # via
     #   -r requirements.in
     #   aiohttp-retry
@@ -28,6 +28,10 @@ multidict==6.0.5
     # via
     #   aiohttp
     #   yarl
+propcache==0.2.0
+    # via
+    #   aiohttp
+    #   yarl
 pydantic==2.9.2
     # via -r requirements.in
 pydantic-core==2.23.4
@@ -42,5 +46,5 @@ typing-extensions==4.12.2
     #   pydantic-core
 urllib3==2.2.3
     # via -r requirements.in
-yarl==1.13.1
+yarl==1.17.2
     # via aiohttp

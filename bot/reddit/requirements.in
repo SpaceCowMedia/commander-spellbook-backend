@@ -2,6 +2,6 @@ asyncpraw==7.8.0
 # client
 urllib3==2.2.3
 python-dateutil==2.9.0.post0
-aiohttp==3.11.2
+aiohttp==3.11.7
 aiohttp-retry==2.9.1
 pydantic==2.9.2

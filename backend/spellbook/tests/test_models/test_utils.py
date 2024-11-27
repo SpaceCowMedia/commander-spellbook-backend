@@ -92,6 +92,18 @@ class TestSanitizeMana(TestCase):
         self.assertEqual(sanitize_mana('{WP}'), '{W/P}')
         self.assertEqual(sanitize_mana('{wp}'), '{W/P}')
 
+    def test_fix_hybrid(self):
+        self.assertEqual(sanitize_mana('2/W'), '{2/W}')
+        self.assertEqual(sanitize_mana('2/W/PU12BR/PG'), '{2/W/P}{U}{12}{B}{R/P}{G}')
+        self.assertEqual(sanitize_mana('{W/G}'), '{G/W}')
+        self.assertEqual(sanitize_mana('{W/G}{U}'), '{G/W}{U}')
+        self.assertEqual(sanitize_mana('{R/B}'), '{B/R}')
+        self.assertEqual(sanitize_mana('W/G'), '{G/W}')
+        self.assertEqual(sanitize_mana('W/GU'), '{G/W}{U}')
+        self.assertEqual(sanitize_mana('{W/2}'), '{2/W}')
+        self.assertEqual(sanitize_mana('W/2'), '{2/W}')
+        self.assertEqual(sanitize_mana('P/R'), '{R/P}')
+
 
 class TestSanitizeScryfallQuery(TestCase):
     def test_empty_string(self):

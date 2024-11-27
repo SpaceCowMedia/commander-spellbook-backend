@@ -2,7 +2,7 @@ import re
 import unicodedata
 from typing import Iterable
 
-from ..regexs import MANA_SYMBOL, ORACLE_SYMBOL
+from ..regexs import MANA_SYMBOL, ORACLE_SYMBOL, ORACLE_SYMBOL_EXTENDED
 from ..parsers.scryfall_query_grammar import COMPARISON_OPERATORS, MANA_COMPARABLE_VARIABLES
 from django.utils.text import normalize_newlines
 from django.db.models import Expression, F, Value, TextChoices
@@ -116,14 +116,28 @@ def upper_oracle_symbols(text: str):
     return re.sub(r'\{' + ORACLE_SYMBOL + r'\}', lambda m: m.group(0).upper(), text, flags=re.IGNORECASE)
 
 
+def auto_fix_reverse_hybrid_mana(text: str):
+    def replace_reversed(text: str, color_combo: str):
+        return re.sub(r'\{' + '/'.join(reversed(color_combo)) + r'\}', r'{' + '/'.join(color_combo) + r'}', text, flags=re.IGNORECASE)
+    for color_combo in SORTED_COLORS.values():
+        match len(color_combo):
+            case 1:
+                text = replace_reversed(text, f'2{color_combo}')
+                text = replace_reversed(text, f'{color_combo}P')
+            case 2:
+                text = replace_reversed(text, color_combo)
+    return text
+
+
 def auto_fix_missing_braces_to_oracle_symbols(text: str):
-    if re.compile(r'^' + ORACLE_SYMBOL + r'+$', flags=re.IGNORECASE).match(text):
-        return re.sub(r'\{?(' + ORACLE_SYMBOL + r')\}?', r'{\1}', text, flags=re.IGNORECASE)
+    if re.compile(r'^' + ORACLE_SYMBOL_EXTENDED + r'+$', flags=re.IGNORECASE).match(text):
+        return re.sub(r'\{?(' + ORACLE_SYMBOL_EXTENDED + r')\}?', r'{\1}', text, flags=re.IGNORECASE)
     return text
 
 
 def sanitize_mana(mana: str) -> str:
     mana = auto_fix_missing_braces_to_oracle_symbols(mana)
+    mana = auto_fix_reverse_hybrid_mana(mana)
     mana = re.sub(r'\{([WUBRG])P\}', r'{\1/P}', mana, flags=re.IGNORECASE)
     mana = upper_oracle_symbols(mana)
     return mana

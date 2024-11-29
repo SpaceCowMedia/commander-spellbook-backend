@@ -149,6 +149,10 @@ AUTH_PASSWORD_VALIDATORS = [
 DISCORD_WEBHOOK_URL = os.getenv('DISCORD_WEBHOOK_URL', None)
 
 
+# Moxfield settings
+MOXFIELD_USER_AGENT = os.getenv('MOXFIELD_USER_AGENT', None)
+
+
 # Python Social Auth
 # https://python-social-auth.readthedocs.io/en/latest/backends/index.html
 SOCIAL_AUTH_DISCORD_KEY = os.getenv('DISCORD_CLIENTID', None)

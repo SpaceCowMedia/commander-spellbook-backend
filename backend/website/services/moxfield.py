@@ -2,6 +2,7 @@ import re
 from urllib.parse import urlparse
 from .json_api import get
 from common.abstractions import Deck, CardInDeck
+from django.conf import settings
 
 
 MOXFIELD_HOSTNAME = 'moxfield.com'
@@ -16,7 +17,7 @@ def moxfield(url: str) -> Deck | None:
         return None
     id = id_match.group('id')
     api_url = moxfield_id_to_api(id)
-    result = get(api_url)
+    result = get(api_url, settings.MOXFIELD_USER_AGENT)
     if result is None:
         return None
     try:

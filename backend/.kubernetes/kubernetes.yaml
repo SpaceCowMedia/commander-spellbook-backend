@@ -109,6 +109,11 @@ spec:
                 secretKeyRef:
                   name: api-secrets
                   key: discord-webhook-url
+            - name: MOXFIELD_USER_AGENT
+              valueFrom:
+                secretKeyRef:
+                  name: api-secrets
+                  key: moxfield-user-agent
 ---
 # Autoscaling of the api pods
 apiVersion: autoscaling/v1

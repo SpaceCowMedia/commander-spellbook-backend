@@ -2,6 +2,7 @@ import re
 from urllib.parse import urlparse
 from .json_api import get
 from common.abstractions import Deck, CardInDeck
+from django.conf import settings
 
 ARCHIDEKT_HOSTNAME = 'archidekt.com'
 
@@ -15,7 +16,7 @@ def archidekt(url: str) -> Deck | None:
         return None
     id = id_match.group('id')
     api_url = archidekt_id_to_api(id)
-    result = get(api_url)
+    result = get(api_url, settings.ARCHIDEKT_USER_AGENT)
     if result is None:
         return None
     try:

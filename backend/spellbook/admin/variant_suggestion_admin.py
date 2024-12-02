@@ -49,7 +49,7 @@ def set_rejected(modeladmin, request, queryset):
 @admin.register(VariantSuggestion)
 class VariantSuggestionAdmin(SpellbookModelAdmin):
     save_as = True
-    readonly_fields = ['id', 'suggested_by', 'comment', 'updated', 'created']
+    readonly_fields = ['id', 'suggested_by', 'updated', 'created']
     fieldsets = [
         ('General', {'fields': [
             'id',
@@ -84,6 +84,11 @@ class VariantSuggestionAdmin(SpellbookModelAdmin):
         'notes',
         'comment',
     ]
+
+    def get_readonly_fields(self, request: Any, obj: Any | None = ...) -> list[str] | tuple[Any, ...]:
+        return list(super().get_readonly_fields(request, obj)) + (
+            ['comment'] if obj and not obj.suggested_by == request.user else []
+        )
 
     def save_form(self, request: Any, form: Any, change: bool) -> Any:
         new_object = super().save_form(request, form, change)

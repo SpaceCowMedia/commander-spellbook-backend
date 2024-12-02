@@ -376,14 +376,20 @@ class ComboAdmin(SpellbookModelAdmin):
         features = defaultdict[int, int](int)
         for feature_id, q in instance.featureneededincombo_set.values_list('feature_id', 'quantity'):
             features[feature_id] += q
+        cards_query = Combo.objects.all()
         for card_id, q in cards.items():
-            duplicate_combos_query = duplicate_combos_query.filter(pk__in=Combo.objects.alias(cards=Sum('cardincombo__quantity', filter=Q(cardincombo__card_id=card_id))).filter(cards=q))
+            cards_query = cards_query.alias(cards=Sum('cardincombo__quantity', filter=Q(cardincombo__card_id=card_id))).filter(cards=q)
+        duplicate_combos_query = duplicate_combos_query.filter(pk__in=cards_query)
+        templates_query = Combo.objects.all()
         for template_id, q in templates.items():
-            duplicate_combos_query = duplicate_combos_query.filter(pk__in=Combo.objects.alias(templates=Sum('templateincombo__quantity', filter=Q(templateincombo__template_id=template_id))).filter(templates=q))
+            templates_query = templates_query.alias(templates=Sum('templateincombo__quantity', filter=Q(templateincombo__template_id=template_id))).filter(templates=q)
+        duplicate_combos_query = duplicate_combos_query.filter(pk__in=templates_query)
+        features_query = Combo.objects.all()
         for feature_id, q in features.items():
-            duplicate_combos_query = duplicate_combos_query.filter(pk__in=Combo.objects.alias(features=Sum('featureneededincombo__quantity', filter=Q(featureneededincombo__feature_id=feature_id))).filter(features=q))
+            features_query = features_query.alias(features=Sum('featureneededincombo__quantity', filter=Q(featureneededincombo__feature_id=feature_id))).filter(features=q)
+        duplicate_combos_query = duplicate_combos_query.filter(pk__in=features_query)
         for total, eq in (('cardincombo__quantity', sum(cards.values())), ('templateincombo__quantity', sum(templates.values())), ('featureneededincombo__quantity', sum(features.values()))):
-            duplicate_combos_query = duplicate_combos_query.filter(pk__in=Combo.objects.alias(total=Coalesce(Sum(total), 0)).filter(total=eq))
+            duplicate_combos_query = duplicate_combos_query.filter(pk__in=duplicate_combos_query.alias(total=Coalesce(Sum(total), 0)).filter(total=eq))
         duplicate_combos = list(duplicate_combos_query.exclude(pk=instance.pk).values_list('id', flat=True))
         if duplicate_combos:
             message = f'This combo is a duplicate of {len(duplicate_combos)} other combos, with ids: '

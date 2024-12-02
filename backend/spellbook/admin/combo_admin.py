@@ -1,8 +1,10 @@
+from collections import defaultdict
 from typing import Any
 from urllib.parse import urlencode
 from django.contrib.admin.options import InlineModelAdmin
-from django.db.models import Case, When, Count, Q
+from django.db.models import Case, Sum, When, Count, Q
 from django.contrib import admin, messages
+from django.db.models.functions import Coalesce
 from django.http.request import HttpRequest
 from django.forms import Textarea
 from django.utils.safestring import mark_safe
@@ -365,24 +367,23 @@ class ComboAdmin(SpellbookModelAdmin):
     def after_save_related(self, request, form, formsets, change):
         instance: Combo = form.instance
         duplicate_combos_query = Combo.objects.all()
-        card_ids = list(instance.uses.values_list('id', flat=True))
-        template_ids = list(instance.requires.values_list('id', flat=True))
-        feature_ids = list(instance.needs.values_list('id', flat=True))
-        for card_id in card_ids:
-            duplicate_combos_query = duplicate_combos_query.filter(uses=card_id)
-        for template_id in template_ids:
-            duplicate_combos_query = duplicate_combos_query.filter(requires=template_id)
-        for feature_id in feature_ids:
-            duplicate_combos_query = duplicate_combos_query.filter(needs=feature_id)
-        duplicate_combos_query = Combo.objects.filter(id__in=duplicate_combos_query).annotate(
-            uses_count=Count('uses', distinct=True),
-            requires_count=Count('requires', distinct=True),
-            needs_count=Count('needs', distinct=True),
-        ).filter(
-            uses_count=len(card_ids),
-            requires_count=len(template_ids),
-            needs_count=len(feature_ids),
-        )
+        cards = defaultdict[int, int](int)
+        for card_id, q in instance.cardincombo_set.values_list('card_id', 'quantity'):
+            cards[card_id] += q
+        templates = defaultdict[int, int](int)
+        for template_id, q in instance.templateincombo_set.values_list('template_id', 'quantity'):
+            templates[template_id] += q
+        features = defaultdict[int, int](int)
+        for feature_id, q in instance.featureneededincombo_set.values_list('feature_id', 'quantity'):
+            features[feature_id] += q
+        for card_id, q in cards.items():
+            duplicate_combos_query = duplicate_combos_query.filter(pk__in=Combo.objects.alias(cards=Sum('cardincombo__quantity', filter=Q(cardincombo__card_id=card_id))).filter(cards=q))
+        for template_id, q in templates.items():
+            duplicate_combos_query = duplicate_combos_query.filter(pk__in=Combo.objects.alias(templates=Sum('templateincombo__quantity', filter=Q(templateincombo__template_id=template_id))).filter(templates=q))
+        for feature_id, q in features.items():
+            duplicate_combos_query = duplicate_combos_query.filter(pk__in=Combo.objects.alias(features=Sum('featureneededincombo__quantity', filter=Q(featureneededincombo__feature_id=feature_id))).filter(features=q))
+        for total, eq in (('cardincombo__quantity', sum(cards.values())), ('templateincombo__quantity', sum(templates.values())), ('featureneededincombo__quantity', sum(features.values()))):
+            duplicate_combos_query = duplicate_combos_query.filter(pk__in=Combo.objects.alias(total=Coalesce(Sum(total), 0)).filter(total=eq))
         duplicate_combos = list(duplicate_combos_query.exclude(pk=instance.pk).values_list('id', flat=True))
         if duplicate_combos:
             message = f'This combo is a duplicate of {len(duplicate_combos)} other combos, with ids: '

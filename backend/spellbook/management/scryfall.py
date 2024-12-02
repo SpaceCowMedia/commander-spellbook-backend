@@ -12,27 +12,38 @@ def standardize_name(name: str) -> str:
     return name.lower().strip(' \t\n\r')
 
 
-def scryfall():
+def scryfall(bulk_collection: str | None = None) -> dict[str, dict]:
+    if bulk_collection is None:
+        bulk_collection = 'oracle-cards'
+    if bulk_collection not in {'oracle-cards', 'default-cards'}:
+        raise ValueError('Invalid bulk collection type')
     # Scryfall card database fetching
     req = Request(
-        'https://api.scryfall.com/bulk-data/oracle-cards?format=json'
+        f'https://api.scryfall.com/bulk-data/{bulk_collection}?format=json'
     )
     card_db = dict[str, dict]()
     with urlopen(req) as response:
         data = json.loads(response.read().decode())
         req = Request(
-            data['download_uri'],
+            data['download_uri'],  # type: ignore
             headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; rv:91.0) Gecko/20100101 Firefox/91.0'}
         )
         with urlopen(req) as response:
-            data = json.loads(response.read().decode())
+            data: list[dict] = json.loads(response.read().decode())
             for card in data:
-                name = standardize_name(card['name'])
-                if name not in card_db and (any(game in card['games'] for game in ['paper', 'arena', 'mtgo']) or not card['games']) and card['layout'] not in {'art_series', 'vanguard', 'scheme', 'token'}:
-                    card_db[name] = card
-                    if 'card_faces' in card and len(card['card_faces']) > 1:
-                        for face in card['card_faces']:
-                            card_db[standardize_name(face['name'])] = card
+                if (any(game in card['games'] for game in ['paper', 'arena', 'mtgo']) or not card['games']) and card['layout'] not in {'art_series', 'vanguard', 'scheme', 'token'}:
+                    card_and_faces = [card]
+                    faces = card.get('card_faces', [])
+                    if len(faces) > 1:
+                        card_and_faces += faces
+                    released_at = card['released_at']
+                    for face in card_and_faces:
+                        # Fix for double faced cards
+                        face['released_at'] = released_at
+                        name = standardize_name(face['name'])
+                        other_reprint = card_db.get(name, None)
+                        if other_reprint is None or released_at < other_reprint['released_at']:
+                            card_db[name] = card
 
     # EDHREC card database fetching
     req = Request(

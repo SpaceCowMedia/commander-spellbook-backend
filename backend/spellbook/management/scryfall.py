@@ -29,7 +29,7 @@ def scryfall(bulk_collection: str | None = None) -> dict[str, dict]:
             headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; rv:91.0) Gecko/20100101 Firefox/91.0'}
         )
         with urlopen(req) as response:
-            data: list[dict] = json.loads(response.read().decode())
+            data = json.loads(response.read().decode())
             for card in data:
                 if (any(game in card['games'] for game in ['paper', 'arena', 'mtgo']) or not card['games']) and card['layout'] not in {'art_series', 'vanguard', 'scheme', 'token'}:
                     card_and_faces = [card]
@@ -89,7 +89,7 @@ def update_cards(cards: list[Card], scryfall: dict[str, dict], counts: dict[int,
             if card_name in scryfall:
                 card.oracle_id = uuid.UUID(hex=scryfall[card_name]['oracle_id'])
                 if card.oracle_id in existing_oracle_ids:
-                    log_error(f'Card {card.name} would have the same oracle id as {existing_oracle_ids[card.oracle_id].name}, skipping')
+                    log_error(f'Card {card.name} would have the same oracle id as {existing_oracle_ids[card.oracle_id].name}, skipping')  # type: ignore
                     continue
                 updated = True
                 log(f'Card {card.name} found in scryfall dataset, oracle_id set to {card.oracle_id}')

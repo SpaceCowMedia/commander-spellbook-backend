@@ -4,4 +4,4 @@ urllib3==2.2.3
 python-dateutil==2.9.0.post0
 aiohttp==3.11.9
 aiohttp-retry==2.9.1
-pydantic==2.10.2
+pydantic==2.10.3

@@ -8,9 +8,10 @@ from .utils import SORTED_COLORS
 class Playable(models.Model):
     @classmethod
     def playable_fields(cls):
-        return ['identity', 'spoiler'] + cls.legalities_fields() + cls.prices_fields()
+        return ['identity', 'spoiler', 'mana_value'] + cls.legalities_fields() + cls.prices_fields()
     identity = models.CharField(max_length=5, blank=False, null=False, default='C', verbose_name='color identity', choices=[(c, c) for c in SORTED_COLORS.values()])
     spoiler = models.BooleanField(default=False, help_text='Is this from an upcoming set?', verbose_name='is spoiler')
+    mana_value = models.PositiveSmallIntegerField(default=0)
     identity_count = GeneratedField(
         db_persist=True,
         expression=models.Case(models.When(identity='C', then=models.Value(0)), default=Length('identity')),

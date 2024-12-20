@@ -25,6 +25,7 @@ class VariantTests(TestCaseMixinWithSeeding, TestCase):
         self.assertSetEqual(set(v.produces.values_list('id', flat=True)), {self.f4_id, self.f2_id})
         self.assertSetEqual(set(v.includes.values_list('id', flat=True)), {self.b4_id, self.b2_id})
         self.assertSetEqual(set(v.of.values_list('id', flat=True)), {self.b2_id})
+        self.assertEqual(v.mana_value, 8)
         self.assertEqual(v.status, Variant.Status.NEW)
         self.assertIn('{U}{U}', v.mana_needed)
         self.assertIn('{R}{R}', v.mana_needed)

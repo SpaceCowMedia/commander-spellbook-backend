@@ -226,6 +226,7 @@ class VariantsGeneratorTests(TestCaseMixinWithSeeding, TestCase):
                 variant: Variant
                 for variant in Variant.objects.all():
                     self.assertEqual(variant.status, Variant.Status.NEW)
+                    self.assertEqual(variant.mana_value, sum(variant.uses.values_list('mana_value', flat=True)))
                     self.assertGreater(len(variant.name), 0)
                     self.assertGreater(len(variant.description), 0)
                     self.assertGreater(len(variant.notes), 0)

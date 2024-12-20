@@ -161,6 +161,7 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
         '''Returns True if any field was changed, False otherwise.'''
         cards = list(cards)
         old_values = {field: getattr(self, field) for field in self.playable_fields()}
+        self.mana_value = sum(card.mana_value for card in cards)
         self.identity = merge_identities(playable.identity for playable in cards)
         self.spoiler = any(playable.spoiler for playable in cards)
         self.legal_commander = all(playable.legal_commander for playable in cards)

@@ -44,7 +44,6 @@ class Card(Playable, PreSaveModelMixin, ScryfallLinkMixin):
     type_line = models.CharField(max_length=MAX_CARD_NAME_LENGTH, blank=True, verbose_name='type line of card')
     oracle_text = models.TextField(blank=True, verbose_name='oracle text of card')
     keywords = KeywordsField(verbose_name='oracle keywords of card')
-    mana_value = models.PositiveSmallIntegerField(default=0, verbose_name='mana value of card')
     reserved = models.BooleanField(default=False, help_text='Whether this card is part of the Reserved List', verbose_name='reserved list card')
     latest_printing_set = models.CharField(max_length=10, blank=True, help_text='Set code of latest printing of card', verbose_name='latest printing set of card')
     reprinted = models.BooleanField(default=False, help_text='Whether this card has been reprinted', verbose_name='reprinted card')

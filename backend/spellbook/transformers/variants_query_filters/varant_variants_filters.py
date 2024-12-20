@@ -1,4 +1,4 @@
-from .base import QueryValue, VariantFilter, VariantFilterCollection, Q, ValidationError
+from .base import QueryValue, QueryFilter, VariantFilterCollection, Q, ValidationError
 
 
 def variants_filter(variants_value: QueryValue) -> VariantFilterCollection:
@@ -19,6 +19,6 @@ def variants_filter(variants_value: QueryValue) -> VariantFilterCollection:
             raise ValidationError(f'Operator {variants_value.operator} is not supported for variants search.')
     return VariantFilterCollection(
         variants_filters=(
-            VariantFilter(q=q, negated=variants_value.is_negated()),
+            QueryFilter(q=q, negated=variants_value.is_negated()),
         ),
     )

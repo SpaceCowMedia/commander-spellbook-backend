@@ -1,4 +1,4 @@
-from .base import QueryValue, VariantFilter, VariantFilterCollection, Q, ValidationError
+from .base import QueryValue, QueryFilter, VariantFilterCollection, Q, ValidationError
 
 
 def card_search_filter(card_value: QueryValue) -> VariantFilterCollection:
@@ -7,7 +7,7 @@ def card_search_filter(card_value: QueryValue) -> VariantFilterCollection:
         case ':' if not value_is_digit:
             return VariantFilterCollection(
                 cards_filters=(
-                    VariantFilter(
+                    QueryFilter(
                         q=Q(card__name__icontains=card_value.value) | Q(card__name_unaccented__icontains=card_value.value) | Q(card__name_unaccented_simplified__icontains=card_value.value) | Q(card__name_unaccented_simplified_with_spaces__icontains=card_value.value),
                         negated=card_value.is_negated(),
                     ),
@@ -16,7 +16,7 @@ def card_search_filter(card_value: QueryValue) -> VariantFilterCollection:
         case '=' if not value_is_digit:
             return VariantFilterCollection(
                 cards_filters=(
-                    VariantFilter(
+                    QueryFilter(
                         q=Q(card__name__iexact=card_value.value) | Q(card__name_unaccented__iexact=card_value.value) | Q(card__name_unaccented_simplified__iexact=card_value.value) | Q(card__name_unaccented_simplified_with_spaces__iexact=card_value.value),
                         negated=card_value.is_negated(),
                     ),
@@ -25,7 +25,7 @@ def card_search_filter(card_value: QueryValue) -> VariantFilterCollection:
         case '<' if value_is_digit:
             return VariantFilterCollection(
                 variants_filters=(
-                    VariantFilter(
+                    QueryFilter(
                         q=Q(card_count__lt=card_value.value),
                         negated=card_value.is_negated(),
                     ),
@@ -34,7 +34,7 @@ def card_search_filter(card_value: QueryValue) -> VariantFilterCollection:
         case '>' if value_is_digit:
             return VariantFilterCollection(
                 variants_filters=(
-                    VariantFilter(
+                    QueryFilter(
                         q=Q(card_count__gt=card_value.value),
                         negated=card_value.is_negated(),
                     ),
@@ -43,7 +43,7 @@ def card_search_filter(card_value: QueryValue) -> VariantFilterCollection:
         case '<=' if value_is_digit:
             return VariantFilterCollection(
                 variants_filters=(
-                    VariantFilter(
+                    QueryFilter(
                         q=Q(card_count__lte=card_value.value),
                         negated=card_value.is_negated(),
                     ),
@@ -52,7 +52,7 @@ def card_search_filter(card_value: QueryValue) -> VariantFilterCollection:
         case '>=' if value_is_digit:
             return VariantFilterCollection(
                 variants_filters=(
-                    VariantFilter(
+                    QueryFilter(
                         q=Q(card_count__gte=card_value.value),
                         negated=card_value.is_negated(),
                     ),
@@ -61,7 +61,7 @@ def card_search_filter(card_value: QueryValue) -> VariantFilterCollection:
         case ':' | '=' if value_is_digit:
             return VariantFilterCollection(
                 variants_filters=(
-                    VariantFilter(
+                    QueryFilter(
                         q=Q(card_count=card_value.value),
                         negated=card_value.is_negated(),
                     ),

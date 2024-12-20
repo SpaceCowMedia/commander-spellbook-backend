@@ -1,4 +1,4 @@
-from .base import QueryValue, VariantFilter, VariantFilterCollection, Q, ValidationError
+from .base import QueryValue, QueryFilter, VariantFilterCollection, Q, ValidationError
 
 
 def id_filter(spellbook_id_value: QueryValue) -> VariantFilterCollection:
@@ -6,7 +6,7 @@ def id_filter(spellbook_id_value: QueryValue) -> VariantFilterCollection:
         case ':' | '=':
             return VariantFilterCollection(
                 variants_filters=(
-                    VariantFilter(
+                    QueryFilter(
                         q=Q(id__iexact=spellbook_id_value.value) | Q(aliases__id__iexact=spellbook_id_value.value),
                         negated=spellbook_id_value.is_negated(),
                     ),

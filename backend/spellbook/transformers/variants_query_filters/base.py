@@ -38,16 +38,16 @@ class QueryValue:
 
 
 @dataclass(frozen=True)
-class VariantFilter:
+class QueryFilter:
     q: Q
     negated: bool = False
 
 
 @dataclass(frozen=True)
 class VariantFilterCollection:
-    cards_filters: tuple[VariantFilter, ...] = ()
-    results_filters: tuple[VariantFilter, ...] = ()
-    variants_filters: tuple[VariantFilter, ...] = ()
+    cards_filters: tuple[QueryFilter, ...] = ()
+    results_filters: tuple[QueryFilter, ...] = ()
+    variants_filters: tuple[QueryFilter, ...] = ()
 
     def __and__(self, other: 'VariantFilterCollection') -> 'VariantFilterCollection':
         return VariantFilterCollection(

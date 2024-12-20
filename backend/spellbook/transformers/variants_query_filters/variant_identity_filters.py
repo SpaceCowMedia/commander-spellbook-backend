@@ -1,4 +1,4 @@
-from .base import QueryValue, VariantFilter, VariantFilterCollection, Q, ValidationError
+from .base import QueryValue, QueryFilter, VariantFilterCollection, Q, ValidationError
 from spellbook.parsers.color_parser import parse_identity
 
 
@@ -48,7 +48,7 @@ def identity_filter(identity_value: QueryValue) -> VariantFilterCollection:
             raise ValidationError(f'Operator {identity_value.operator} is not supported for identity search with {"numbers" if value_is_digit else "strings"}.')
     return VariantFilterCollection(
         variants_filters=(
-            VariantFilter(
+            QueryFilter(
                 q=q,
                 negated=identity_value.is_negated(),
             ),

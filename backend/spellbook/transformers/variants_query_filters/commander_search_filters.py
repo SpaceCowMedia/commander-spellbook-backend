@@ -1,4 +1,4 @@
-from .base import QueryValue, VariantFilter, VariantFilterCollection, Q, ValidationError
+from .base import QueryValue, QueryFilter, VariantFilterCollection, Q, ValidationError
 
 
 def commander_filter(commander_name_value: QueryValue) -> VariantFilterCollection:
@@ -19,7 +19,7 @@ def commander_filter(commander_name_value: QueryValue) -> VariantFilterCollectio
             raise ValidationError(f'Operator {commander_name_value.operator} is not supported for commander name search.')
     return VariantFilterCollection(
         cards_filters=(
-            VariantFilter(
+            QueryFilter(
                 q,
                 negated=commander_name_value.is_negated(),
             ),

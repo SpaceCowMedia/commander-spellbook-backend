@@ -1,4 +1,4 @@
-from .base import QueryValue, VariantFilter, VariantFilterCollection, Q, ValidationError
+from .base import QueryValue, QueryFilter, VariantFilterCollection, Q, ValidationError
 from spellbook.models import Variant
 
 
@@ -15,7 +15,7 @@ def legality_filter(legality_value: QueryValue) -> VariantFilterCollection:
             legal = False
     return VariantFilterCollection(
         variants_filters=(
-            VariantFilter(
+            QueryFilter(
                 Q(**{f'legal_{format}': legal}),
                 negated=legality_value.is_negated(),
             ),

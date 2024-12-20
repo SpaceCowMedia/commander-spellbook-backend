@@ -1,4 +1,4 @@
-from .base import QueryValue, VariantFilter, VariantFilterCollection, Q, ValidationError
+from .base import QueryValue, QueryFilter, VariantFilterCollection, Q, ValidationError
 
 
 def popularity_filter(popularity_value: QueryValue) -> VariantFilterCollection:
@@ -19,6 +19,6 @@ def popularity_filter(popularity_value: QueryValue) -> VariantFilterCollection:
             raise ValidationError(f'Operator {popularity_value.operator} is not supported for popularity search.')
     return VariantFilterCollection(
         variants_filters=(
-            VariantFilter(q=q, negated=popularity_value.is_negated()),
+            QueryFilter(q=q, negated=popularity_value.is_negated()),
         ),
     )

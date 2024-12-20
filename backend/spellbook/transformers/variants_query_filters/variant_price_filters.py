@@ -1,4 +1,4 @@
-from .base import QueryValue, VariantFilter, VariantFilterCollection, Q, ValidationError
+from .base import QueryValue, QueryFilter, VariantFilterCollection, Q, ValidationError
 from spellbook.models import Variant
 
 
@@ -30,6 +30,6 @@ def price_filter(price_value: QueryValue) -> VariantFilterCollection:
             raise ValidationError(f'Operator {price_value.operator} is not supported for price search.')
     return VariantFilterCollection(
         variants_filters=(
-            VariantFilter(q=q, negated=price_value.is_negated()),
+            QueryFilter(q=q, negated=price_value.is_negated()),
         ),
     )

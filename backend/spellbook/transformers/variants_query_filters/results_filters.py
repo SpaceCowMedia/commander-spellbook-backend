@@ -1,4 +1,4 @@
-from .base import QueryValue, VariantFilter, Q, ValidationError, VariantFilterCollection
+from .base import QueryValue, QueryFilter, Q, ValidationError, VariantFilterCollection
 
 
 def results_filter(results_value: QueryValue) -> VariantFilterCollection:
@@ -7,7 +7,7 @@ def results_filter(results_value: QueryValue) -> VariantFilterCollection:
         case ':' if not value_is_digit:
             return VariantFilterCollection(
                 results_filters=(
-                    VariantFilter(
+                    QueryFilter(
                         q=Q(feature__name__icontains=results_value.value),
                         negated=results_value.is_negated(),
                     ),
@@ -16,7 +16,7 @@ def results_filter(results_value: QueryValue) -> VariantFilterCollection:
         case '=' if not value_is_digit:
             return VariantFilterCollection(
                 results_filters=(
-                    VariantFilter(
+                    QueryFilter(
                         q=Q(feature__name__iexact=results_value.value),
                         negated=results_value.is_negated(),
                     ),
@@ -25,7 +25,7 @@ def results_filter(results_value: QueryValue) -> VariantFilterCollection:
         case '<' if value_is_digit:
             return VariantFilterCollection(
                 variants_filters=(
-                    VariantFilter(
+                    QueryFilter(
                         q=Q(result_count__lt=results_value.value),
                         negated=results_value.is_negated(),
                     ),
@@ -34,7 +34,7 @@ def results_filter(results_value: QueryValue) -> VariantFilterCollection:
         case '<=' if value_is_digit:
             return VariantFilterCollection(
                 variants_filters=(
-                    VariantFilter(
+                    QueryFilter(
                         q=Q(result_count__lte=results_value.value),
                         negated=results_value.is_negated(),
                     ),
@@ -43,7 +43,7 @@ def results_filter(results_value: QueryValue) -> VariantFilterCollection:
         case '>' if value_is_digit:
             return VariantFilterCollection(
                 variants_filters=(
-                    VariantFilter(
+                    QueryFilter(
                         q=Q(result_count__gt=results_value.value),
                         negated=results_value.is_negated(),
                     ),
@@ -52,7 +52,7 @@ def results_filter(results_value: QueryValue) -> VariantFilterCollection:
         case '>=' if value_is_digit:
             return VariantFilterCollection(
                 variants_filters=(
-                    VariantFilter(
+                    QueryFilter(
                         q=Q(result_count__gte=results_value.value),
                         negated=results_value.is_negated(),
                     ),
@@ -61,7 +61,7 @@ def results_filter(results_value: QueryValue) -> VariantFilterCollection:
         case ':' | '=' if value_is_digit:
             return VariantFilterCollection(
                 variants_filters=(
-                    VariantFilter(
+                    QueryFilter(
                         q=Q(result_count=results_value.value),
                         negated=results_value.is_negated(),
                     ),

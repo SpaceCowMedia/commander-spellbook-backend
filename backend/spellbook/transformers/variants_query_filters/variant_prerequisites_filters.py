@@ -1,4 +1,4 @@
-from .base import QueryValue, VariantFilter, VariantFilterCollection, Q, ValidationError
+from .base import QueryValue, QueryFilter, VariantFilterCollection, Q, ValidationError
 from spellbook.models import Variant
 
 
@@ -23,7 +23,7 @@ def prerequisites_filter(prerequisites_value: QueryValue) -> VariantFilterCollec
             raise ValidationError(f'Operator {prerequisites_value.operator} is not supported for prerequisites search.')
     return VariantFilterCollection(
         variants_filters=(
-            VariantFilter(q=q, negated=prerequisites_value.is_negated()),
-            VariantFilter(q=~Q(status=Variant.Status.EXAMPLE)),
+            QueryFilter(q=q, negated=prerequisites_value.is_negated()),
+            QueryFilter(q=~Q(status=Variant.Status.EXAMPLE)),
         ),
     )

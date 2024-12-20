@@ -1,4 +1,4 @@
-from .base import QueryValue, VariantFilter, Q, ValidationError, VariantFilterCollection
+from .base import QueryValue, QueryFilter, Q, ValidationError, VariantFilterCollection
 from website.models import WebsiteProperty, FEATURED_SET_CODES
 from spellbook.models import Variant
 
@@ -10,7 +10,7 @@ def tag_filter(tag_value: QueryValue) -> VariantFilterCollection:
         case 'preview' | 'previewed' | 'spoiler' | 'spoiled':
             return VariantFilterCollection(
                 variants_filters=(
-                    VariantFilter(
+                    QueryFilter(
                         q=Q(spoiler=True),
                         negated=tag_value.is_negated(),
                     ),
@@ -19,7 +19,7 @@ def tag_filter(tag_value: QueryValue) -> VariantFilterCollection:
         case 'commander':
             return VariantFilterCollection(
                 cards_filters=(
-                    VariantFilter(
+                    QueryFilter(
                         q=Q(must_be_commander=True),
                         negated=tag_value.is_negated(),
                     ),
@@ -28,7 +28,7 @@ def tag_filter(tag_value: QueryValue) -> VariantFilterCollection:
         case 'reserved':
             return VariantFilterCollection(
                 cards_filters=(
-                    VariantFilter(
+                    QueryFilter(
                         q=Q(card__reserved=True),
                         negated=tag_value.is_negated(),
                     ),
@@ -37,7 +37,7 @@ def tag_filter(tag_value: QueryValue) -> VariantFilterCollection:
         case 'mandatory':
             return VariantFilterCollection(
                 results_filters=(
-                    VariantFilter(
+                    QueryFilter(
                         q=Q(feature__name='Mandatory Loop'),
                         negated=tag_value.is_negated(),
                     ),
@@ -46,7 +46,7 @@ def tag_filter(tag_value: QueryValue) -> VariantFilterCollection:
         case 'lock':
             return VariantFilterCollection(
                 results_filters=(
-                    VariantFilter(
+                    QueryFilter(
                         q=Q(feature__name='Lock'),
                         negated=tag_value.is_negated(),
                     ),
@@ -55,7 +55,7 @@ def tag_filter(tag_value: QueryValue) -> VariantFilterCollection:
         case 'infinite':
             return VariantFilterCollection(
                 results_filters=(
-                    VariantFilter(
+                    QueryFilter(
                         q=Q(feature__name='Infinite'),
                         negated=tag_value.is_negated(),
                     ),
@@ -64,7 +64,7 @@ def tag_filter(tag_value: QueryValue) -> VariantFilterCollection:
         case 'risky' | 'allin':
             return VariantFilterCollection(
                 results_filters=(
-                    VariantFilter(
+                    QueryFilter(
                         q=Q(feature__name='Risky'),
                         negated=tag_value.is_negated(),
                     ),
@@ -73,7 +73,7 @@ def tag_filter(tag_value: QueryValue) -> VariantFilterCollection:
         case 'winning' | 'gamewinning' | 'win':
             return VariantFilterCollection(
                 results_filters=(
-                    VariantFilter(
+                    QueryFilter(
                         q=Q(feature__name__in=[
                             'Win the game',
                             'Win the game at the beginning of your next upkeep',
@@ -87,7 +87,7 @@ def tag_filter(tag_value: QueryValue) -> VariantFilterCollection:
             featured_sets = {s.strip().lower() for s in WebsiteProperty.objects.get(key=FEATURED_SET_CODES).value.split(',')}
             return VariantFilterCollection(
                 cards_filters=(
-                    VariantFilter(
+                    QueryFilter(
                         q=Q(card__latest_printing_set__in=featured_sets, card__reprinted=False),
                         negated=tag_value.is_negated(),
                     ),
@@ -96,7 +96,7 @@ def tag_filter(tag_value: QueryValue) -> VariantFilterCollection:
         case 'example':
             return VariantFilterCollection(
                 variants_filters=(
-                    VariantFilter(
+                    QueryFilter(
                         q=Q(status=Variant.Status.EXAMPLE),
                         negated=tag_value.is_negated(),
                     ),

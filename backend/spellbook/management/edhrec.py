@@ -53,9 +53,7 @@ def update_variants(variants: list[Variant], counts: dict[str, int], edhrec: dic
             variant.popularity = None
             updated = True
         # Update with card data
-        requires_commander = any(civ.must_be_commander for civ in variant.cardinvariant_set.all()) \
-            or any(tiv.must_be_commander for tiv in variant.templateinvariant_set.all())
-        if variant.update(variant.uses.all(), requires_commander):
+        if variant.update_variant():
             updated = True
         # Update with Spellbook data
         variant_count = counts.get(variant.id, 0)

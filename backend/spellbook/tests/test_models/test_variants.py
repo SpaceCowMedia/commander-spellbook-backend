@@ -60,13 +60,13 @@ class VariantTests(TestCaseMixinWithSeeding, TestCase):
         self.assertTrue(v.query_string().startswith('q='))
 
     def test_method_count(self):
-        self.assertEqual(count_methods(Variant), 8)
+        self.assertEqual(count_methods(Variant), 10)
 
-    def test_update(self):
+    def test_update_variant_from_cards(self):
         v: Variant = Variant.objects.get(id=self.v1_id)
         cards = list(v.uses.all())
-        self.assertFalse(v.update(cards, requires_commander=False))
-        self.assertTrue(v.update(cards, requires_commander=True))
+        self.assertFalse(v.update_variant_from_cards(cards, requires_commander=False))
+        self.assertTrue(v.update_variant_from_cards(cards, requires_commander=True))
         non_commander_formats = (
             'vintage',
             'legacy',
@@ -78,28 +78,47 @@ class VariantTests(TestCaseMixinWithSeeding, TestCase):
         for f in non_commander_formats:
             self.assertFalse(getattr(v, f'legal_{f}'))
         self.assertTrue(v.legal_commander)
-        self.assertTrue(v.update(cards, requires_commander=False))
+        self.assertTrue(v.update_variant_from_cards(cards, requires_commander=False))
         self.assertLess(len(v.identity), 5)
         c = Card(name='Extra card 1', oracle_id='00000000-0000-0000-0000-0000000000ff', identity='C')
         c.save()
         cards.append(c)
-        self.assertFalse(v.update(cards, requires_commander=False))
+        self.assertFalse(v.update_variant_from_cards(cards, requires_commander=False))
         c.identity = 'WUBRG'
         c.save()
-        self.assertTrue(v.update(cards, requires_commander=False))
-        self.assertFalse(v.update(cards, requires_commander=False))
+        self.assertTrue(v.update_variant_from_cards(cards, requires_commander=False))
+        self.assertFalse(v.update_variant_from_cards(cards, requires_commander=False))
         c.spoiler = True
         c.save()
-        self.assertTrue(v.update(cards, requires_commander=False))
-        self.assertFalse(v.update(cards, requires_commander=False))
+        self.assertTrue(v.update_variant_from_cards(cards, requires_commander=False))
+        self.assertFalse(v.update_variant_from_cards(cards, requires_commander=False))
         c.legal_predh = False
         c.save()
-        self.assertTrue(v.update(cards, requires_commander=False))
-        self.assertFalse(v.update(cards, requires_commander=False))
+        self.assertTrue(v.update_variant_from_cards(cards, requires_commander=False))
+        self.assertFalse(v.update_variant_from_cards(cards, requires_commander=False))
         c.price_cardmarket = Decimal(100)
         c.save()
-        self.assertTrue(v.update(cards, requires_commander=False))
-        self.assertFalse(v.update(cards, requires_commander=False))
+        self.assertTrue(v.update_variant_from_cards(cards, requires_commander=False))
+        self.assertFalse(v.update_variant_from_cards(cards, requires_commander=False))
+
+    def test_update_variant_from_ingredients(self):
+        v: Variant = Variant.objects.get(id=self.v1_id)
+        civs = list((civ, civ.card) for civ in v.cardinvariant_set.all())
+        tivs = list((tiv, tiv.template) for tiv in v.templateinvariant_set.all())
+        self.assertFalse(v.update_variant_from_ingredients(civs, tivs))
+        civs[0][1].identity = 'WUBRG'
+        self.assertTrue(v.update_variant_from_ingredients(civs, tivs))
+        self.assertFalse(v.update_variant_from_ingredients(civs, tivs))
+
+    def test_update_variant(self):
+        v: Variant = Variant.objects.get(id=self.v1_id)
+        self.assertFalse(v.update_variant())
+        c: Card = v.uses.first()  # type: ignore
+        c.legal_commander = False
+        c.save()
+        self.assertTrue(v.update_variant())
+        self.assertFalse(v.legal_commander)
+        self.assertFalse(v.update_variant())
 
     def test_serialization(self):
         v = Variant.objects.get(id=self.v1_id)

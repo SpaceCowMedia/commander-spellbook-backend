@@ -161,5 +161,5 @@ def update_variant_suggestion_name(sender, instance: CardUsedInVariantSuggestion
     if raw:
         return
     variant_suggestion = instance.variant
-    variant_suggestion.update_from_data()
+    variant_suggestion.update_recipe_from_data()
     variant_suggestion.save()

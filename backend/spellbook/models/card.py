@@ -97,9 +97,8 @@ def update_variant_fields(sender, instance, created, raw, **kwargs):
     variants = Variant.recipes_prefetched.prefetch_related('uses').filter(uses=instance)
     variants_to_save = []
     for variant in variants:
-        requires_commander = any(civ.must_be_commander for civ in variant.cardinvariant_set.all()) \
-            or any(tiv.must_be_commander for tiv in variant.templateinvariant_set.all())
-        if variant.update(variant.uses.all(), requires_commander):
+        variant: Variant
+        if variant.update_variant():
             variants_to_save.append(variant)
         new_variant_name = variant._str()
         if new_variant_name != variant.name:

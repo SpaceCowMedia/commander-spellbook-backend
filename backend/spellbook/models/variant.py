@@ -146,7 +146,18 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
         self.description_line_count = self.description.count('\n') + 1 if self.description else 0
         self.other_prerequisites_line_count = self.other_prerequisites.count('\n') + 1 if self.other_prerequisites else 0
 
-    def update(self, cards: Iterable['Card'], requires_commander: bool) -> bool:
+    def update_variant(self):
+        cards: dict[int, Card] = {c.id: c for c in self.uses.all()}
+        civs = [(civ, cards[civ.card_id]) for civ in self.cardinvariant_set.all()]
+        templates: dict[int, Template] = {t.id: t for t in self.requires.all()}
+        tivs = [(tiv, templates[tiv.template_id]) for tiv in self.templateinvariant_set.all()]
+        return self.update_variant_from_ingredients(civs, tivs)
+
+    def update_variant_from_ingredients(self, cards: Iterable[tuple['CardInVariant', Card]], templates: Iterable[tuple['TemplateInVariant', Template]]) -> bool:
+        requires_commander = any(civ.must_be_commander for civ, _ in cards) or any(tiv.must_be_commander for tiv, _ in templates)
+        return self.update_variant_from_cards([card for _, card in cards], requires_commander=requires_commander)
+
+    def update_variant_from_cards(self, cards: Iterable['Card'], requires_commander: bool) -> bool:
         '''Returns True if any field was changed, False otherwise.'''
         cards = list(cards)
         old_values = {field: getattr(self, field) for field in self.playable_fields()}
@@ -272,10 +283,8 @@ def update_variant_on_ingredient(sender, instance: CardInVariant | TemplateInVar
     if raw:
         return
     variant = instance.variant
-    requires_commander = any(civ.must_be_commander for civ in variant.cardinvariant_set.all()) \
-        or any(tiv.must_be_commander for tiv in variant.templateinvariant_set.all())
-    variant.update(variant.uses.all(), requires_commander)
-    variant.update_from_data()
+    variant.update_variant()
+    variant.update_recipe_from_data()
     variant.save()
 
 

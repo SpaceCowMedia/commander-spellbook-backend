@@ -62,14 +62,14 @@ class Recipe(models.Model):
     def compute_result_count(cls, features_produced: dict[str, int]) -> int:
         return sum(features_produced.values())
 
-    def update_from_memory(self, cards: dict[str, int], templates: dict[str, int], features_needed: dict[str, int], features_produced: dict[str, int]) -> None:
+    def update_recipe_from_memory(self, cards: dict[str, int], templates: dict[str, int], features_needed: dict[str, int], features_produced: dict[str, int]) -> None:
         self.name = self.compute_name(cards, templates, features_needed, features_produced)
         self.ingredient_count = self.compute_ingredient_count(cards, templates, features_needed)
         self.card_count = self.compute_card_count(cards, templates, features_needed)
         self.result_count = self.compute_result_count(features_produced)
 
-    def update_from_data(self) -> None:
-        self.update_from_memory(self.cards(), self.templates(), self.features_needed(), self.features_produced())
+    def update_recipe_from_data(self) -> None:
+        self.update_recipe_from_memory(self.cards(), self.templates(), self.features_needed(), self.features_produced())
 
     class Meta:
         abstract = True

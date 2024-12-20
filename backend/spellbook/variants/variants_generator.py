@@ -290,8 +290,7 @@ def restore_variant(
     ]
     produced_features.sort(key=lambda f: f.feature_id)
     # Update variant computed information
-    requires_commander = any(c.must_be_commander for c in used_cards) or any(t.must_be_commander for t in required_templates)
-    variant.update([data.id_to_card[c.card_id] for c in used_cards], requires_commander)
+    variant.update_variant_from_ingredients([(c, data.id_to_card[c.card_id]) for c in used_cards], [(t, data.id_to_template[t.template_id]) for t in required_templates])
     uses = dict[int, CardInVariant]()
     for card_in_variant in used_cards:
         card_in_variant.order = 0
@@ -428,7 +427,7 @@ def restore_variant(
             yield tiv
 
     # Recomputing some variant fields
-    variant.update_from_memory(
+    variant.update_recipe_from_memory(
         cards={data.id_to_card[civ.card_id].name: civ.quantity for civ in uses_list()},
         templates={data.id_to_template[tiv.template_id].name: tiv.quantity for tiv in requires_list()},
         features_needed={},

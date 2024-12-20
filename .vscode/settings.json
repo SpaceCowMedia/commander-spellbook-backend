@@ -7,25 +7,26 @@
         "statusBarItem.remoteForeground": "#e7e7e7"
     },
     "peacock.color": "#ab47bd",
-    "python.analysis.typeCheckingMode": "basic",
     "python.testing.pytestArgs": [
         "backend",
     ],
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true,
-    "flake8.cwd": "${workspaceFolder}/backend",
-    "mypy-type-checker.cwd": "${workspaceFolder}/backend",
+    "python.analysis.languageServerMode": "full",
+    "python.analysis.typeCheckingMode": "basic",
     "python.analysis.diagnosticMode": "workspace",
     "python.analysis.exclude": [
         "backend/*/migrations",
         "client/python"
     ],
-    "todo-tree.tree.scanMode": "workspace only",
-    "debug.inlineValues": "off",
     "python.analysis.extraPaths": [
         "common",
         "backend",
         "client/python"
     ],
     "python.analysis.autoImportCompletions": true,
+    "flake8.cwd": "${workspaceFolder}/backend",
+    "mypy-type-checker.cwd": "${workspaceFolder}/backend",
+    "todo-tree.tree.scanMode": "workspace only",
+    "debug.inlineValues": "off",
 }

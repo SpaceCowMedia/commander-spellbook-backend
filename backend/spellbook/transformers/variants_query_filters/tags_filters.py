@@ -1,6 +1,6 @@
 from .base import QueryValue, QueryFilter, Q, ValidationError, VariantFilterCollection
 from website.models import WebsiteProperty, FEATURED_SET_CODES
-from spellbook.models import Variant
+from spellbook.models import CardType, Variant, ZoneLocation
 
 
 def tag_filter(tag_value: QueryValue) -> VariantFilterCollection:
@@ -98,6 +98,15 @@ def tag_filter(tag_value: QueryValue) -> VariantFilterCollection:
                 variants_filters=(
                     QueryFilter(
                         q=Q(status=Variant.Status.EXAMPLE),
+                        negated=tag_value.is_negated(),
+                    ),
+                ),
+            )
+        case 'hulkline' | 'meatandeggs' | 'meatandegg' | 'hulktutorable':
+            return VariantFilterCollection(
+                variants_filters=(
+                    QueryFilter(
+                        q=Q(hulkline=True),
                         negated=tag_value.is_negated(),
                     ),
                 ),

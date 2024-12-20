@@ -33,4 +33,9 @@ class Migration(migrations.Migration):
             code=init_mana_values,
             reverse_code=migrations.RunPython.noop,
         ),
+        migrations.AddField(
+            model_name='variant',
+            name='hulkline',
+            field=models.BooleanField(default=False, editable=False, help_text='Whether the variant is a Protean Hulk line'),
+        ),
     ]

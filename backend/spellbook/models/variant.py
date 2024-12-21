@@ -160,7 +160,13 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
             False,
             self.hulkline,
         ]
-        self.hulkline = not requires_commander and all(CardType.CREATURE in card.type_line and ZoneLocation.BATTLEFIELD in civ.zone_locations for civ, card in cards) and self.mana_value <= 6
+        self.hulkline = \
+            not requires_commander \
+            and all(
+                CardType.CREATURE in card.type_line and ZoneLocation.BATTLEFIELD in civ.zone_locations and not civ.battlefield_card_state
+                for civ, card in cards
+            ) \
+            and self.mana_value <= 6
         new_values = [
             self.update_variant_from_cards([card for _, card in cards], requires_commander=requires_commander),
             self.hulkline,

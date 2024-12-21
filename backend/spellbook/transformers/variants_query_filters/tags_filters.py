@@ -1,6 +1,6 @@
 from .base import QueryValue, QueryFilter, Q, ValidationError, VariantFilterCollection
 from website.models import WebsiteProperty, FEATURED_SET_CODES
-from spellbook.models import CardType, Variant, ZoneLocation
+from spellbook.models import Variant
 
 
 def tag_filter(tag_value: QueryValue) -> VariantFilterCollection:

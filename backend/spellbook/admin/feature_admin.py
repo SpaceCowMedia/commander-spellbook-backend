@@ -103,7 +103,7 @@ class FeatureAdmin(SpellbookModelAdmin):
     def get_queryset(self, request: HttpRequest) -> QuerySet[Any]:
         return super().get_queryset(request).annotate(
             produced_by_count=Count('produced_by_variants', distinct=True) + Count('cards', distinct=True),
-        )
+        ).order_by(*Feature._meta.ordering)
 
     @admin.display(description='Produced by variants or cards', ordering='produced_by_count')
     def produced_by_count(self, obj: Feature):

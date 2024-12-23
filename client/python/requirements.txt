@@ -32,9 +32,9 @@ propcache==0.2.0
     # via
     #   aiohttp
     #   yarl
-pydantic==2.10.3
+pydantic==2.10.4
     # via -r requirements.in
-pydantic-core==2.27.1
+pydantic-core==2.27.2
     # via pydantic
 python-dateutil==2.9.0.post0
     # via -r requirements.in

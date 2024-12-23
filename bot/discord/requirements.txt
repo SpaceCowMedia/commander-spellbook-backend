@@ -47,7 +47,7 @@ typing-extensions==4.12.2
     # via
     #   pydantic
     #   pydantic-core
-urllib3==2.2.3
+urllib3==2.3.0
     # via -r requirements.in
 yarl==1.17.2
     # via aiohttp

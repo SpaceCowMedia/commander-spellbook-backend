@@ -65,7 +65,7 @@ typing-extensions==4.12.2
     #   pydantic-core
 update-checker==0.18.0
     # via asyncpraw
-urllib3==2.2.3
+urllib3==2.3.0
     # via
     #   -r requirements.in
     #   requests

@@ -22,7 +22,7 @@ aiosqlite==0.17.0
     # via asyncpraw
 annotated-types==0.7.0
     # via pydantic
-asyncpraw==7.8.0
+asyncpraw==7.8.1
     # via -r requirements.in
 asyncprawcore==2.4.0
     # via asyncpraw

@@ -6,7 +6,7 @@
 #
 aiohappyeyeballs==2.3.5
     # via aiohttp
-aiohttp==3.11.10
+aiohttp==3.11.11
     # via
     #   -r requirements.in
     #   aiohttp-retry

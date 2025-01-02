@@ -102,7 +102,7 @@ def tag_filter(tag_value: QueryValue) -> VariantFilterCollection:
                     ),
                 ),
             )
-        case 'hulkline' | 'meatandeggs' | 'meatandegg' | 'hulktutorable':
+        case 'hulkline' | 'meatandeggs' | 'hulktutorable':
             return VariantFilterCollection(
                 variants_filters=(
                     QueryFilter(

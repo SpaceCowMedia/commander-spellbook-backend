@@ -2,6 +2,7 @@ import re
 from urllib.parse import urlparse
 from .json_api import get
 from common.abstractions import Deck, CardInDeck
+from django.core.exceptions import ValidationError
 
 
 DECKSTATS_HOSTNAME = 'deckstats.net'
@@ -42,7 +43,7 @@ def deckstats(url: str) -> Deck | None:
                             main.append(CardInDeck(card=name, quantity=quantity))
         return Deck(main=main, commanders=commanders)
     except KeyError:
-        return None
+        raise ValidationError('Invalid decklist')
 
 
 def deckstats_to_api(owner: str, deck: str) -> str:

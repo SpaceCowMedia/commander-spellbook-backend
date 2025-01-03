@@ -3,6 +3,7 @@ from urllib.parse import urlparse
 from .json_api import get
 from common.abstractions import Deck, CardInDeck
 from django.conf import settings
+from django.core.exceptions import ValidationError
 
 ARCHIDEKT_HOSTNAME = 'archidekt.com'
 
@@ -36,7 +37,7 @@ def archidekt(url: str) -> Deck | None:
         ]
         return Deck(main=main, commanders=commanders)
     except KeyError:
-        return None
+        raise ValidationError('Invalid decklist')
 
 
 def archidekt_id_to_api(id: str) -> str:

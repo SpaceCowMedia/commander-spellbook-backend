@@ -2,6 +2,7 @@ import re
 from urllib.parse import urlparse
 from .csv_api import get
 from common.abstractions import Deck, CardInDeck
+from django.core.exceptions import ValidationError
 
 
 TAPPEDOUT_HOSTNAME = 'tappedout.net'
@@ -32,7 +33,7 @@ def tappedout(url: str) -> Deck | None:
                     main.append(CardInDeck(card=name, quantity=quantity))
         return Deck(main=main, commanders=commanders)
     except (KeyError, ValueError):
-        return None
+        raise ValidationError('Invalid decklist')
 
 
 def tappedout_id_to_api(id: str) -> str:

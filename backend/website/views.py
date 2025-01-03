@@ -43,6 +43,18 @@ class UnsupportedWebsite(APIException):
     default_code = 'unsupported_website'
 
 
+class DecklistNotAvailable(APIException):
+    status_code = 400
+    default_detail = 'Decklist not available'
+    default_code = 'decklist_not_available'
+
+
+class SomethingWentWrong(APIException):
+    status_code = 400
+    default_detail = 'Something went wrong'
+    default_code = 'something_went_wrong'
+
+
 @extend_schema(
     parameters=[OpenApiParameter(name='url', type=str)],
     responses={
@@ -67,9 +79,12 @@ def card_list_from_url(request: Request) -> Response:
     hostname = (parsed_url.hostname or '').lower().removeprefix('www.')
     if hostname not in SUPPORTED_DECKBUILDING_WEBSITES:
         raise UnsupportedWebsite()
-    deck = SUPPORTED_DECKBUILDING_WEBSITES[hostname](url)
-    if deck is None:
-        raise UnsupportedWebsite()
+    try:
+        deck = SUPPORTED_DECKBUILDING_WEBSITES[hostname](url)
+        if deck is None:
+            raise DecklistNotAvailable()
+    except ValidationError as e:
+        raise SomethingWentWrong(detail=str(e))
     return Response(DeckSerializer(deck).data)
 
 

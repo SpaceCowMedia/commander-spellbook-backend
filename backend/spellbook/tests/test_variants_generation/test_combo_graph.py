@@ -42,40 +42,34 @@ class ComboGraphTest(TestCaseMixinWithSeeding, TestCase):
         self.assertTrue(all(c.item.status in (Combo.Status.GENERATOR, Combo.Status.UTILITY) for c in combo_graph.bnodes.values()))
 
     def test_variant_limit(self):
-        combo_graph = Graph(Data(), log=lambda _: None, variant_limit=0)
+        combo_graph = Graph(Data(), variant_limit=0)
         with self.assertNumQueries(0):
             self.assertRaises(Graph.GraphError, lambda: combo_graph.variants(self.b2_id))
-        combo_graph = Graph(Data(), log=lambda _: None, variant_limit=1)
+        combo_graph = Graph(Data(), variant_limit=1)
         with self.assertNumQueries(0):
             self.assertRaises(Graph.GraphError, lambda: combo_graph.variants(self.b2_id))
-        combo_graph = Graph(Data(), log=lambda _: None, variant_limit=20)
+        combo_graph = Graph(Data(), variant_limit=20)
         with self.assertNumQueries(0):
             self.assertEqual(len(list(combo_graph.results(combo_graph.variants(self.b2_id)))), 3)
 
-    def test_default_log(self):
-        def test():
-            combo_graph = Graph(Data(), variant_limit=0)
-            list(combo_graph.results(combo_graph.variants(self.b2_id)))
-        self.assertRaises(Exception, test)
-
     def test_card_limit(self):
         self.maxDiff = None
-        combo_graph = Graph(Data(), log=lambda _: None, card_limit=0)
+        combo_graph = Graph(Data(), card_limit=0)
         with self.assertNumQueries(0):
             self.assertCountEqual(combo_graph.results(combo_graph.variants(self.b2_id)), [])
-        combo_graph = Graph(Data(), log=lambda _: None, card_limit=1)
+        combo_graph = Graph(Data(), card_limit=1)
         with self.assertNumQueries(0):
             self.assertCountEqual(combo_graph.results(combo_graph.variants(self.b2_id)), [])
-        combo_graph = Graph(Data(), log=lambda _: None, card_limit=2)
+        combo_graph = Graph(Data(), card_limit=2)
         with self.assertNumQueries(0):
             self.assertCountEqual(combo_graph.results(combo_graph.variants(self.b2_id)), [])
-        combo_graph = Graph(Data(), log=lambda _: None, card_limit=3)
+        combo_graph = Graph(Data(), card_limit=3)
         with self.assertNumQueries(0):
             self.assertEqual(len(list(combo_graph.results(combo_graph.variants(self.b2_id)))), 1)
-        combo_graph = Graph(Data(), log=lambda _: None, card_limit=4)
+        combo_graph = Graph(Data(), card_limit=4)
         with self.assertNumQueries(0):
             self.assertEqual(len(list(combo_graph.results(combo_graph.variants(self.b2_id)))), 2)
-        combo_graph = Graph(Data(), log=lambda _: None, card_limit=5)
+        combo_graph = Graph(Data(), card_limit=5)
         with self.assertNumQueries(0):
             self.assertEqual(len(list(combo_graph.results(combo_graph.variants(self.b2_id)))), 3)
 
@@ -86,10 +80,10 @@ class ComboGraphTest(TestCaseMixinWithSeeding, TestCase):
         assert card_needed is not None
         card_needed.quantity = 2
         card_needed.save()
-        combo_graph = Graph(Data(), log=lambda _: None, allow_multiple_copies=False)
+        combo_graph = Graph(Data(), allow_multiple_copies=False)
         with self.assertNumQueries(0):
             self.assertEqual(len(list(combo_graph.results(combo_graph.variants(self.b2_id)))), 2)
-        combo_graph = Graph(Data(), log=lambda _: None, allow_multiple_copies=True)
+        combo_graph = Graph(Data(), allow_multiple_copies=True)
         with self.assertNumQueries(0):
             self.assertEqual(len(list(combo_graph.results(combo_graph.variants(self.b2_id)))), 3)
 

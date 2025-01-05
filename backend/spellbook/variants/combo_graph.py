@@ -1,4 +1,4 @@
-from typing import Mapping, Iterable, Callable, Generic, TypeVar
+from typing import Mapping, Iterable, Generic, TypeVar
 from math import prod
 from collections import deque, defaultdict
 from multiset import FrozenMultiset
@@ -201,11 +201,9 @@ class Graph:
 
     def __init__(self,
             data: Data,
-            log=None,
             card_limit=5,
             variant_limit=10000,
             allow_multiple_copies=False):
-        self.logger: Callable[[str], None] = log if log is not None else lambda msg: self._error(msg)
         self.card_limit = card_limit
         self.variant_limit = variant_limit
         self.allow_multiple_copies = allow_multiple_copies
@@ -368,9 +366,7 @@ class Graph:
             variant_set = self._feature_with_attribute_matchers_nodes_down(f)
             variant_count_estimate = len(variant_set) * q
             if variant_count_estimate > self.variant_limit:
-                msg = f'{q} x Feature "{f.item}" has too many variants, approx. {variant_count_estimate}'
-                self.logger(msg)
-                raise Graph.GraphError(msg)
+                raise Graph.GraphError(f'{q} x Feature "{f.item}" has too many variants, approx. {variant_count_estimate}')
             variant_set = variant_set ** q
             if self.filter is not None:
                 variant_set = variant_set.filter(self.filter.cards, self.filter.templates)
@@ -382,9 +378,7 @@ class Graph:
         variant_sets: list[VariantSet] = card_variant_sets + template_variant_sets + needed_features_variant_sets
         variant_count_estimate = prod(len(vs) for vs in variant_sets)
         if variant_count_estimate > self.variant_limit:
-            msg = f'Combo {combo.item} has too many variants, approx. {variant_count_estimate}'
-            self.logger(msg)
-            raise Graph.GraphError(msg)
+            raise Graph.GraphError(f'Combo {combo.item} has too many variants, approx. {variant_count_estimate}')
         combo.variant_set = VariantSet.and_sets(variant_sets, limit=self.card_limit, allow_multiple_copies=self.allow_multiple_copies)
         combo.state = NodeState.VISITED
         return combo.variant_set
@@ -421,9 +415,7 @@ class Graph:
         variant_sets = card_variant_sets + produced_combos_variant_sets
         variant_count_estimate = sum(len(vs) for vs in variant_sets)
         if variant_count_estimate > self.variant_limit:
-            msg = f'Feature "{feature.item}" has too many variants, approx. {variant_count_estimate}'
-            self.logger(msg)
-            raise Graph.GraphError(msg)
+            raise Graph.GraphError(f'Feature "{feature.item}" has too many variants, approx. {variant_count_estimate}')
         feature.variant_set = VariantSet.or_sets(variant_sets, limit=self.card_limit, allow_multiple_copies=self.allow_multiple_copies)
         feature.state = NodeState.VISITED
         return feature.variant_set

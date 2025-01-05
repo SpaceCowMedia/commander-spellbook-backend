@@ -49,7 +49,6 @@ def get_variants_from_graph(data: Data, single_combo: int | None, job: Job | Non
             variant_limit = LOWER_VARIANT_LIMIT
         graph = Graph(
             data,
-            log=lambda msg: log_into_job(job, msg),
             card_limit=card_limit,
             variant_limit=variant_limit,
             allow_multiple_copies=allows_multiple_copies,
@@ -61,9 +60,9 @@ def get_variants_from_graph(data: Data, single_combo: int | None, job: Job | Non
         for combo in combos:
             try:
                 variant_set = graph.variants(combo.id)
-            except Graph.GraphError as e:
-                log_into_job(job, f'Error while processing combo {combo.id}:')
-                raise e
+            except Graph.GraphError:
+                log_into_job(job, f'Error while computing all variants for generator combo {combo} with ID {combo.id}')
+                raise
             variant_sets.append((combo, variant_set))
             if len(variant_set) > 50 or index % log_count == 0 or index == total - 1:
                 log_into_job(job, f'{index + 1}/{total} combos processed (just processed combo {combo.id})')
@@ -73,7 +72,12 @@ def get_variants_from_graph(data: Data, single_combo: int | None, job: Job | Non
         for combo, variant_set in variant_sets:
             if len(variant_set) > 50:
                 log_into_job(job, f'About to process results for combo {combo.id} ({index + 1}/{total}) with {len(variant_set)} variants...')
-            for variant in graph.results(variant_set):
+            try:
+                variants = graph.results(variant_set)
+            except Graph.GraphError:
+                log_into_job(job, f'Error while computing all results for generator combo {combo} with ID {combo.id}')
+                raise
+            for variant in variants:
                 cards_ids = variant.cards
                 templates_ids = variant.templates
                 id = id_from_cards_and_templates_ids(cards_ids.distinct_elements(), templates_ids.distinct_elements())

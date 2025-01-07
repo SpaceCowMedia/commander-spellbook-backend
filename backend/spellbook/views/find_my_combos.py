@@ -90,14 +90,14 @@ class FindMyCombosResponseSerializer(serializers.BaseSerializer):
             if variant_commanders.issubset(deck.commanders):
                 if variant_cards.issubset(cards):
                     included_variants.append(variant_data)
-                elif variant_cards.intersection(cards):
+                else:
                     if set(variant_identity).issubset(identity_set):
                         almost_included_variants.append(variant_data)
                     else:
                         almost_included_variants_by_adding_colors.append(variant_data)
             elif variant_cards.issubset(cards):
                 included_variants_by_changing_commanders.append(variant_data)
-            elif variant_cards.intersection(cards):
+            else:
                 if set(variant_identity).issubset(identity_set):
                     almost_included_variants_by_changing_commanders.append(variant_data)
                 else:
@@ -169,8 +169,14 @@ class FindMyCombosView(APIView):
 
         variant_id_list = CardInVariant.objects \
             .values('variant_id') \
-            .alias(missing_count=Sum(Greatest(F('quantity') - quantity_in_deck, Value(0)))) \
-            .filter(missing_count__lte=1)
+            .alias(
+                missing_count=Sum(Greatest(F('quantity') - quantity_in_deck, Value(0))),
+                total_count=Sum('quantity'),
+            ) \
+            .filter(
+                missing_count__lte=1,
+                total_count__gte=2,
+            )
 
         viewset = VariantViewSet()
         viewset.setup(self.request)

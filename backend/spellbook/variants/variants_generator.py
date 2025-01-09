@@ -1,7 +1,7 @@
 import logging
 import re
 from collections import defaultdict
-from multiset import FrozenMultiset, Multiset, BaseMultiset
+from multiset import FrozenMultiset, BaseMultiset
 from dataclasses import dataclass
 from django.db import transaction
 from django.utils.functional import cached_property
@@ -23,7 +23,7 @@ class VariantRecipeDefinition:
 @dataclass
 class VariantDefinition(VariantRecipeDefinition):
     of_ids: set[int]
-    feature_ids: Multiset[featureid]
+    feature_ids: FrozenMultiset[featureid]
     included_ids: set[int]
     feature_replacements: dict[FeatureWithAttributes, list[VariantRecipeDefinition]]
     needed_features: set[int]
@@ -105,7 +105,7 @@ def get_variants_from_graph(data: Data, single_combo: int | None, job: Job | Non
                     result[id] = VariantDefinition(
                         card_ids=cards_ids,
                         template_ids=templates_ids,
-                        feature_ids=Multiset(feature_ids),
+                        feature_ids=feature_ids,
                         included_ids=combo_ids,
                         of_ids={combo.id},
                         feature_replacements=feature_replacements,

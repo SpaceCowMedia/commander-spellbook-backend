@@ -1,0 +1,49 @@
+# After you apply this file, also create the IAM mapping for the roles. Example:
+#
+# eksctl create iamidentitymapping --cluster scm-main --region=us-east-2 \
+#     --arn arn:aws:iam::083767677168:role/spellbook-deploy-role \
+#     --username spellbook-deploy-role \
+#     --group spellbook-admins-prod \
+#     --no-duplicate-arns
+#
+# AND for the client role:
+#
+# eksctl create iamidentitymapping --cluster scm-main --region=us-east-2 \
+#     --arn arn:aws:iam::083767677168:role/spellbook-client-deploy-role \
+#     --username spellbook-client-deploy-role \
+#     --group spellbook-admins-prod \
+#     --no-duplicate-arns
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: spellbook-ns-full-access
+  namespace: spellbook-prod
+rules:
+  - apiGroups: [""]
+    resources: ["*"]
+    verbs: ["*"]
+  - apiGroups: ["extensions"]
+    resources: ["*"]
+    verbs: ["*"]
+  - apiGroups: ["apps"]
+    resources: ["*"]
+    verbs: ["*"]
+  - apiGroups: ["batch"]
+    resources: ["*"]
+    verbs: ["*"]
+
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: spellbook-rolebinding
+  namespace: spellbook-prod
+subjects:
+  - kind: Group
+    name: spellbook-admins-prod
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: spellbook-ns-full-access
+  apiGroup: rbac.authorization.k8s.io

@@ -2,7 +2,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: spellbook-migration
-  namespace: spellbook
+  namespace: spellbook-prod
 spec:
   template:
     spec:

@@ -234,7 +234,7 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
                 },
                 {
                     "template": "Another template with some apostrophes: `'ʼ and quotes: \"“ˮ ok",
-                    "scryfall_query": "pow=2",
+                    "scryfall_query": None,
                     "zoneLocations": list("GL"),
                     "battlefieldCardState": "",
                     "exileCardState": "",

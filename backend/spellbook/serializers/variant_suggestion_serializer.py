@@ -140,40 +140,40 @@ class VariantSuggestionSerializer(serializers.ModelSerializer):
 
     def to_internal_value(self, data: dict):
         for card in data.get('uses', []):
-            if 'card' in card:
+            if card.get('card'):
                 card['card'] = sanitize_newlines_apostrophes_and_quotes(card['card'])
-            if 'battlefield_card_state' in card:
+            if card.get('battlefield_card_state'):
                 card['battlefield_card_state'] = sanitize_newlines_apostrophes_and_quotes(card['battlefield_card_state'])
-            if 'exile_card_state' in card:
+            if card.get('exile_card_state'):
                 card['exile_card_state'] = sanitize_newlines_apostrophes_and_quotes(card['exile_card_state'])
-            if 'library_card_state' in card:
+            if card.get('library_card_state'):
                 card['library_card_state'] = sanitize_newlines_apostrophes_and_quotes(card['library_card_state'])
-            if 'graveyard_card_state' in card:
+            if card.get('graveyard_card_state'):
                 card['graveyard_card_state'] = sanitize_newlines_apostrophes_and_quotes(card['graveyard_card_state'])
         for template in data.get('requires', []):
-            if 'template' in template:
+            if template.get('template'):
                 template['template'] = sanitize_newlines_apostrophes_and_quotes(template['template'])
-            if 'scryfall_query' in template:
+            if template.get('scryfall_query'):
                 template['scryfall_query'] = sanitize_scryfall_query(template['scryfall_query'])
-            if 'battlefield_card_state' in template:
+            if template.get('battlefield_card_state'):
                 template['battlefield_card_state'] = sanitize_newlines_apostrophes_and_quotes(template['battlefield_card_state'])
-            if 'exile_card_state' in template:
+            if template.get('exile_card_state'):
                 template['exile_card_state'] = sanitize_newlines_apostrophes_and_quotes(template['exile_card_state'])
-            if 'library_card_state' in template:
+            if template.get('library_card_state'):
                 template['library_card_state'] = sanitize_newlines_apostrophes_and_quotes(template['library_card_state'])
-            if 'graveyard_card_state' in template:
+            if template.get('graveyard_card_state'):
                 template['graveyard_card_state'] = sanitize_newlines_apostrophes_and_quotes(template['graveyard_card_state'])
         for feature in data.get('produces', []):
-            if 'feature' in feature:
+            if feature.get('feature'):
                 feature['feature'] = sanitize_newlines_apostrophes_and_quotes(feature['feature'])
-        if 'description' in data:
+        if data.get('description'):
             data['description'] = sanitize_newlines_apostrophes_and_quotes(data['description'])
-        if 'notes' in data:
+        if data.get('notes'):
             data['notes'] = sanitize_newlines_apostrophes_and_quotes(data['notes'])
-        if 'other_prerequisites' in data:
+        if data.get('other_prerequisites'):
             data['other_prerequisites'] = sanitize_newlines_apostrophes_and_quotes(data['other_prerequisites'])
-        if 'comment' in data:
+        if data.get('comment'):
             data['comment'] = sanitize_newlines_apostrophes_and_quotes(data['comment'])
-        if 'mana_needed' in data:
+        if data.get('mana_needed'):
             data['mana_needed'] = sanitize_mana(sanitize_newlines_apostrophes_and_quotes(data['mana_needed']))
         return super().to_internal_value(data)

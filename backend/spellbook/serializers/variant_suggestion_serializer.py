@@ -85,6 +85,7 @@ class VariantSuggestionSerializer(serializers.ModelSerializer):
             [uses['card'] for uses in attrs['uses']],
             [requires['template'] for requires in attrs['requires']],
             [produce['feature'] for produce in attrs['produces']],
+            ignore=self.instance.pk if self.instance else None,  # type: ignore
         )
         return super().validate(attrs)
 

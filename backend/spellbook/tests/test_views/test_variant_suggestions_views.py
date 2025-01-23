@@ -8,6 +8,68 @@ from common.inspection import json_to_python_lambda
 from django.contrib.auth.models import User, Permission
 
 
+POST_DATA = {
+    "uses": [
+        {
+            "card": "A card àèéìòù",
+            "quantity": 2,
+            "zoneLocations": list("HBGEL"),
+            "battlefieldCardState": "bstate",
+            "exileCardState": "estate",
+            "libraryCardState": "lstate",
+            "graveyardCardState": "gstate",
+            "mustBeCommander": False
+        },
+        {
+            "card": "Another card",
+            "quantity": 1,
+            "zoneLocations": list("HC"),
+            "battlefieldCardState": "",
+            "exileCardState": "",
+            "libraryCardState": "",
+            "graveyardCardState": "",
+            "mustBeCommander": True
+        },
+    ],
+    "requires": [
+        {
+            "template": "A template i.e. a card type",
+            "quantity": 1,
+            "zoneLocations": list("H"),
+            "battlefieldCardState": "",
+            "exileCardState": "",
+            "libraryCardState": "",
+            "graveyardCardState": "",
+            "mustBeCommander": False
+        },
+        {
+            "template": "Another template",
+            "quantity": 4,
+            "scryfall_query": "pow=2",
+            "zoneLocations": list("GL"),
+            "battlefieldCardState": "",
+            "exileCardState": "",
+            "libraryCardState": "in library",
+            "graveyardCardState": "",
+            "mustBeCommander": False
+        }
+    ],
+    "produces": [
+        {
+            "feature": "First produced feature"
+        },
+        {
+            "feature": "Second produced feature"
+        }
+    ],
+    "manaNeeded": "{1}{W}{U}{B}{R}{G}",
+    "otherPrerequisites": "other prereqs",
+    "description": "a description",
+    "spoiler": False,
+    "comment": "a comment",
+}
+
+
 class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
     def suggestion_assertions(self, suggestion_result):
         vs = VariantSuggestion.objects.get(id=suggestion_result.id)
@@ -62,69 +124,9 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
         self.suggestion_assertions(result)
 
     def test_new_suggestion(self):
-        post_data = {
-            "uses": [
-                {
-                    "card": "A card àèéìòù",
-                    "quantity": 2,
-                    "zoneLocations": list("HBGEL"),
-                    "battlefieldCardState": "bstate",
-                    "exileCardState": "estate",
-                    "libraryCardState": "lstate",
-                    "graveyardCardState": "gstate",
-                    "mustBeCommander": False
-                },
-                {
-                    "card": "Another card",
-                    "quantity": 1,
-                    "zoneLocations": list("HC"),
-                    "battlefieldCardState": "",
-                    "exileCardState": "",
-                    "libraryCardState": "",
-                    "graveyardCardState": "",
-                    "mustBeCommander": True
-                },
-            ],
-            "requires": [
-                {
-                    "template": "A template i.e. a card type",
-                    "quantity": 1,
-                    "zoneLocations": list("H"),
-                    "battlefieldCardState": "",
-                    "exileCardState": "",
-                    "libraryCardState": "",
-                    "graveyardCardState": "",
-                    "mustBeCommander": False
-                },
-                {
-                    "template": "Another template",
-                    "quantity": 4,
-                    "scryfall_query": "pow=2",
-                    "zoneLocations": list("GL"),
-                    "battlefieldCardState": "",
-                    "exileCardState": "",
-                    "libraryCardState": "in library",
-                    "graveyardCardState": "",
-                    "mustBeCommander": False
-                }
-            ],
-            "produces": [
-                {
-                    "feature": "First produced feature"
-                },
-                {
-                    "feature": "Second produced feature"
-                }
-            ],
-            "manaNeeded": "{1}{W}{U}{B}{R}{G}",
-            "otherPrerequisites": "other prereqs",
-            "description": "a description",
-            "spoiler": False,
-            "comment": "a comment",
-        }
         response = self.client.post(
             '/variant-suggestions/',
-            post_data,
+            POST_DATA,
             content_type='application/json',
             follow=True)
         self.assertEqual(response.status_code, 401)
@@ -133,7 +135,7 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
         self.assertTrue(login)
         response = self.client.post(
             '/variant-suggestions/',
-            post_data,
+            POST_DATA,
             content_type='application/json',
             follow=True)
         self.assertEqual(response.status_code, 403)
@@ -141,7 +143,7 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
         self.user.user_permissions.add(*permissions)
         response = self.client.post(
             '/variant-suggestions/',
-            post_data,
+            POST_DATA,
             content_type='application/json',
             follow=True)
         self.assertEqual(response.status_code, 201)
@@ -151,6 +153,82 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
         self.assertEqual(result.status, 'N')
         self.assertTrue(VariantSuggestion.objects.filter(id=result.id).exists())
         self.suggestion_assertions(result)
+
+    def test_duplicate_suggestion(self):
+        self.user = User.objects.create_user(username='testuser', password='12345')
+        login = self.client.login(username='testuser', password='12345')
+        self.assertTrue(login)
+        permissions = Permission.objects.filter(codename__in=['view_variantsuggestion', 'add_variantsuggestion', 'change_variantsuggestion'])
+        self.user.user_permissions.add(*permissions)
+        response = self.client.post(
+            '/variant-suggestions/',
+            POST_DATA,
+            content_type='application/json',
+            follow=True)
+        self.assertEqual(response.status_code, 201)
+        response = self.client.post(
+            '/variant-suggestions/',
+            POST_DATA,
+            content_type='application/json',
+            follow=True)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.get('Content-Type'), 'application/json')
+
+    def test_duplicate_suggestion_on_update(self):
+        self.user = User.objects.create_user(username='testuser', password='12345')
+        login = self.client.login(username='testuser', password='12345')
+        self.assertTrue(login)
+        permissions = Permission.objects.filter(codename__in=['view_variantsuggestion', 'add_variantsuggestion', 'change_variantsuggestion'])
+        self.user.user_permissions.add(*permissions)
+        response = self.client.post(
+            '/variant-suggestions/',
+            POST_DATA,
+            content_type='application/json',
+            follow=True)
+        self.assertEqual(response.status_code, 201)
+        post_data_2 = POST_DATA.copy()
+        post_data_2['uses'][0]['card'] = 'A different card'
+        response_2 = self.client.post(
+            '/variant-suggestions/',
+            post_data_2,
+            content_type='application/json',
+            follow=True)
+        self.assertEqual(response_2.status_code, 201)
+        result = json.loads(response.content, object_hook=json_to_python_lambda)
+        response = self.client.put(
+            f'/variant-suggestions/{result.id}/',
+            post_data_2,
+            content_type='application/json',
+            follow=True)
+        self.assertEqual(response.status_code, 400)
+
+    def test_update_suggestion(self):
+        self.user = User.objects.create_user(username='testuser', password='12345')
+        login = self.client.login(username='testuser', password='12345')
+        self.assertTrue(login)
+        permissions = Permission.objects.filter(codename__in=['view_variantsuggestion', 'add_variantsuggestion', 'change_variantsuggestion'])
+        self.user.user_permissions.add(*permissions)
+        response = self.client.post(
+            '/variant-suggestions/',
+            POST_DATA,
+            content_type='application/json',
+            follow=True)
+        self.assertEqual(response.status_code, 201)
+        result = json.loads(response.content, object_hook=json_to_python_lambda)
+        self.assertGreater(result.id, 0)
+        put_data = POST_DATA.copy()
+        put_data['comment'] = 'new comment'
+        put_data['requires'][0]['scryfall_query'] = None
+        response = self.client.put(
+            f'/variant-suggestions/{result.id}/',
+            put_data,
+            content_type='application/json',
+            follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get('Content-Type'), 'application/json')
+        result = json.loads(response.content, object_hook=json_to_python_lambda)
+        self.assertEqual(result.comment, 'new comment')
+        self.assertIsNone(result.requires[0].scryfall_query)
 
     def test_new_suggestion_with_wrong_fields(self):
         post_data = {

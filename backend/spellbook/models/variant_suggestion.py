@@ -64,7 +64,7 @@ class VariantSuggestion(Recipe):
         return {f.feature: 1 for f in self.produces.all()}
 
     @classmethod
-    def validate(cls, cards: list[str], templates: list[str], produces: list[str]):
+    def validate(cls, cards: list[str], templates: list[str], produces: list[str], ignore=None):
         if len(cards) == 0:
             raise ValidationError('You must specify at least one card.')
         if len(produces) == 0:
@@ -97,6 +97,8 @@ class VariantSuggestion(Recipe):
             .filter(
                 uses_count=len(cards),
                 requires_count=len(templates))
+        if ignore is not None:
+            q = q.exclude(pk=ignore)
         for card in cards:
             q = q.filter(uses__card=card)
         for template in templates:

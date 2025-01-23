@@ -18,8 +18,30 @@ patches:
 
   - patch: |-
       - op: replace
+        path: "/spec/template/spec/containers/0/resources/requests/memory"
+        value: "256M"
+    target:
+      kind: Deployment
+      name: spellbook-api
+
+  - patch: |-
+      - op: replace
         path: "/metadata/annotations/alb.ingress.kubernetes.io~1tags"
         value: "project=spellbook,environment=dev"
+    target:
+      kind: Ingress
+      name: spellbook-ingress
+  - patch: |-
+      - op: replace
+        path: "/spec/rules/0/host"
+        value: dev-backend.commanderspellbook.com
+    target:
+      kind: Ingress
+      name: spellbook-ingress
+  - patch: |-
+      - op: replace
+        path: "/spec/rules/1/host"
+        value: dev.commanderspellbook.com
     target:
       kind: Ingress
       name: spellbook-ingress

@@ -14,6 +14,13 @@
 #     --group spellbook-admins-prod \
 #     --no-duplicate-arns
 ---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: spellbook-prod
+  labels:
+    elbv2.k8s.aws/pod-readiness-gate-inject: enabled
+---
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:

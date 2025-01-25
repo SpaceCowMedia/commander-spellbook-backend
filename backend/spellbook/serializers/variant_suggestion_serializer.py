@@ -75,6 +75,7 @@ class VariantSuggestionSerializer(serializers.ModelSerializer):
             'spoiler',
             'comment',
             'suggested_by',
+            'created',
         ]
         extra_kwargs = {
             'status': {'read_only': True},

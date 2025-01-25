@@ -131,6 +131,11 @@ jobs:
         run: pip install --no-cache-dir --no-deps tblib $(grep -ivE "#|cryptography|cffi" requirements.txt)
         working-directory: backend
 
+      - name: Install missing windows dependencies 🟦
+        if: contains(matrix.os, 'windows')
+        run: |
+          pip install pytz tzdata --upgrade
+
       - name: Print Django version 🐍
         run: python manage.py version
         working-directory: backend

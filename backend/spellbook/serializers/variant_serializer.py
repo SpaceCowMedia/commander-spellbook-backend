@@ -180,4 +180,5 @@ class VariantSerializer(serializers.ModelSerializer):
             'cardinvariant_set__card',
             'templateinvariant_set__template',
             'of',
-            'includes')
+            'includes',
+        )

@@ -1,5 +1,6 @@
+from itertools import zip_longest
 from django.db import transaction
-from django.db.models import QuerySet
+from django.db.models import QuerySet, Manager, Model
 from rest_framework import serializers
 from spellbook.models import CardUsedInVariantSuggestion, FeatureProducedInVariantSuggestion, TemplateRequiredInVariantSuggestion, VariantSuggestion, IngredientInCombination, ZoneLocation
 from spellbook.models.utils import sanitize_newlines_apostrophes_and_quotes, sanitize_mana, sanitize_scryfall_query
@@ -111,24 +112,59 @@ class VariantSuggestionSerializer(serializers.ModelSerializer):
             FeatureProducedInVariantSuggestion.objects.create(variant=instance, **produce)
         return instance
 
+    def _update_related_model(
+        self,
+        instance,
+        manager: Manager,
+        data: list[dict],
+        serializer: serializers.ModelSerializer,
+    ):
+        to_create: list[Model] = []
+        to_update: list[Model] = []
+        to_delete: list[Model] = []
+        for i, (d, model) in enumerate(zip_longest(data, manager.all())):
+            if model is None:
+                to_create.append(manager.model(variant=instance, order=i, **d))
+            elif d is None:
+                to_delete.append(model)
+            else:
+                for key, value in d.items():
+                    setattr(model, key, value)
+                to_update.append(model)
+        manager.bulk_create(to_create)
+        manager.bulk_update(to_update, serializer.fields.keys())  # type: ignore
+        manager.filter(pk__in=(model.pk for model in to_delete)).delete()
+
     @transaction.atomic(durable=True)
-    def update(self, instance, validated_data):
-        uses_set = validated_data.pop('uses')
-        requires_set = validated_data.pop('requires')
-        produces_set = validated_data.pop('produces')
-        extended_kwargs = {
-            **validated_data,
-        }
-        instance = super().update(instance, extended_kwargs)
-        instance.uses.all().delete()
-        for i, use in enumerate(uses_set):
-            CardUsedInVariantSuggestion.objects.create(variant=instance, order=i, **use)
-        instance.requires.all().delete()
-        for i, require in enumerate(requires_set):
-            TemplateRequiredInVariantSuggestion.objects.create(variant=instance, order=i, **require)
-        instance.produces.all().delete()
-        for produce in produces_set:
-            FeatureProducedInVariantSuggestion.objects.create(variant=instance, **produce)
+    def update(self, instance: VariantSuggestion, validated_data: dict):  # type: ignore
+        uses_validated_data = validated_data.pop('uses', [])
+        requires_validated_data = validated_data.pop('requires', [])
+        produces_validated_data = validated_data.pop('produces', [])
+        instance.update_recipe_from_memory(
+            cards={use['card']: use.get('quantity', 1) for use in uses_validated_data if use.get('card')},
+            templates={require['template']: require.get('quantity', 1) for require in requires_validated_data if require.get('template')},
+            features_needed={},
+            features_produced={feature['feature']: 1 for feature in produces_validated_data if feature.get('feature')},
+        )
+        instance = super().update(instance, validated_data.copy())
+        self._update_related_model(
+            instance,
+            instance.uses,
+            uses_validated_data,
+            self.fields['uses'].child,
+        )
+        self._update_related_model(
+            instance,
+            instance.requires,
+            requires_validated_data,
+            self.fields['requires'].child,
+        )
+        self._update_related_model(
+            instance,
+            instance.produces,
+            produces_validated_data,
+            self.fields['produces'].child,
+        )
         return instance
 
     @classmethod

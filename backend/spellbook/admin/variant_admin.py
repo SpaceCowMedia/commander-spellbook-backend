@@ -222,12 +222,16 @@ class VariantAdmin(SpellbookModelAdmin):
 
     def get_urls(self):
         return [
-            path('generate/',
+            path(
+                'generate/',
                 self.admin_site.admin_view(view=self.generate, cacheable=False),
-                name='spellbook_variant_generate'),
-            path('export/',
+                name='spellbook_variant_generate',
+            ),
+            path(
+                'export/',
                 self.admin_site.admin_view(view=self.export, cacheable=False),
-                name='spellbook_variant_export')
+                name='spellbook_variant_export',
+            ),
         ] + super().get_urls()
 
     def has_add_permission(self, request):

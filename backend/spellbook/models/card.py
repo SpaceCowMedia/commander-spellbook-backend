@@ -50,11 +50,12 @@ class Card(Playable, PreSaveModelMixin, ScryfallLinkMixin):
 
     features = models.ManyToManyField(
         to=Feature,
+        through='FeatureOfCard',
         related_name='cards',
         help_text='Features provided by this single card effects or characteristics',
         blank=True,
         verbose_name='features of card',
-        through='FeatureOfCard')
+    )
     featureofcard_set: models.Manager['FeatureOfCard']
     variant_count = models.PositiveIntegerField(default=0, editable=False)
     added = models.DateTimeField(auto_now_add=True, editable=False)

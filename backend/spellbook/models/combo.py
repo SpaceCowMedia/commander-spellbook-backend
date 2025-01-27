@@ -41,42 +41,47 @@ class Combo(Recipe, ScryfallLinkMixin):
     id: int
     uses = models.ManyToManyField(
         to=Card,
+        through='CardInCombo',
         related_name='used_in_combos',
         help_text='Cards that this combo uses',
         blank=True,
         verbose_name='used cards',
-        through='CardInCombo')
+    )
     cardincombo_set: models.Manager['CardInCombo']
     needs = models.ManyToManyField(
         to=Feature,
+        through='FeatureNeededInCombo',
         related_name='needed_by_combos',
         help_text='Features that this combo needs',
         blank=True,
         verbose_name='needed features',
-        through='FeatureNeededInCombo')
+    )
     featureneededincombo_set: models.Manager['FeatureNeededInCombo']
     requires = models.ManyToManyField(
         to=Template,
+        through='TemplateInCombo',
         related_name='required_by_combos',
         help_text='Templates that this combo requires',
         blank=True,
         verbose_name='required templates',
-        through='TemplateInCombo')
+    )
     templateincombo_set: models.Manager['TemplateInCombo']
     produces = models.ManyToManyField(
         to=Feature,
+        through='FeatureProducedInCombo',
         related_name='produced_by_combos',
         help_text='Features that this combo produces',
         verbose_name='produced features',
-        through='FeatureProducedInCombo')
+    )
     featureproducedincombo_set: models.Manager['FeatureProducedInCombo']
     removes = models.ManyToManyField(
         to=Feature,
+        through='FeatureRemovedInCombo',
         related_name='removed_by_combos',
         help_text='Features that this combo removes',
         blank=True,
         verbose_name='removed features',
-        through='FeatureRemovedInCombo')
+    )
     featureremovedincombo_set: models.Manager['FeatureRemovedInCombo']
     mana_needed = models.CharField(blank=True, max_length=MAX_MANA_NEEDED_LENGTH, help_text='Mana needed for this combo. Use the {1}{W}{U}{B}{R}{G}{B/P}... format.', validators=[MANA_VALIDATOR])
     other_prerequisites = models.TextField(blank=True, help_text='Other prerequisites for this combo.', validators=TEXT_VALIDATORS)

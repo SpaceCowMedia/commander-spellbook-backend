@@ -57,39 +57,44 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
     id = models.CharField(max_length=128, primary_key=True, help_text='Unique ID for this variant', verbose_name='ID')
     uses = models.ManyToManyField(
         to=Card,
+        through='CardInVariant',
         related_name='used_in_variants',
         help_text='Cards that this variant uses',
         editable=False,
-        through='CardInVariant')
+    )
     cardinvariant_set: models.Manager['CardInVariant']
     requires = models.ManyToManyField(
         to=Template,
+        through='TemplateInVariant',
         related_name='required_by_variants',
         help_text='Templates that this variant requires',
         blank=True,
         verbose_name='required templates',
-        through='TemplateInVariant')
+    )
     templateinvariant_set: models.Manager['TemplateInVariant']
     produces = models.ManyToManyField(
         to=Feature,
+        through='FeatureProducedByVariant',
         related_name='produced_by_variants',
         help_text='Features that this variant produces',
         editable=False,
-        through='FeatureProducedByVariant')
+    )
     featureproducedbyvariant_set: models.Manager['FeatureProducedByVariant']
     includes = models.ManyToManyField(
         to=Combo,
+        through='VariantIncludesCombo',
         related_name='included_in_variants',
         help_text='Combo that this variant includes',
         editable=False,
-        through='VariantIncludesCombo')
+    )
     variantincludescombo_set: models.Manager['VariantIncludesCombo']
     of = models.ManyToManyField(
         to=Combo,
+        through='VariantOfCombo',
         related_name='variants',
         help_text='Combo that this variant is an instance of',
         editable=False,
-        through='VariantOfCombo')
+    )
     variantofcombo_set: models.Manager['VariantOfCombo']
     status = models.CharField(choices=Status.choices, db_default=Status.NEW, help_text='Variant status for editors', max_length=2)
     mana_needed = models.CharField(blank=True, max_length=MAX_MANA_NEEDED_LENGTH, help_text='Mana needed for this combo. Use the {1}{W}{U}{B}{R}{G}{B/P}... format.', validators=[MANA_VALIDATOR])

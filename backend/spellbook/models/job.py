@@ -24,7 +24,8 @@ class Job(models.Model):
         blank=True,
         null=True,
         on_delete=models.SET_NULL,
-        help_text='User that started this job')
+        help_text='User that started this job',
+    )
 
     @classmethod
     def start(cls, name: str, args: list[str] | None = None, group: str | None = None, duration: timezone.timedelta | None = None, user: User | None = None, allow_multiples: bool = False):

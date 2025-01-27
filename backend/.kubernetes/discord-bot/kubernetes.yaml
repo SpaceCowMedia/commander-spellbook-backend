@@ -1,7 +1,15 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: spellbook-discord-bot-prod
+  labels:
+    elbv2.k8s.aws/pod-readiness-gate-inject: enabled
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  namespace: spellbook-discord-bot
+  namespace: spellbook-discord-bot-prod
   name: spellbook-discord-bot
   labels:
     app: spellbook-discord-bot
@@ -49,3 +57,11 @@ spec:
               value: https://backend.commanderspellbook.com
             - name: SPELLBOOK_WEBSITE_URL
               value: https://commanderspellbook.com
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: app-service-account
+  namespace: spellbook-discord-bot-prod
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::083767677168:role/spellbook-application-role

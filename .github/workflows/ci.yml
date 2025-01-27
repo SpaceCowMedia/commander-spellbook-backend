@@ -58,7 +58,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: spellbook-backend-migrations
-          path: backend/.kubernetes/migration
+          path: backend/.kubernetes/migration/prod
 
 
   lint:
@@ -370,11 +370,11 @@ jobs:
         working-directory: ${{ steps.migration-artifacts.outputs.download-path }}
         run: |
           export KUBECONFIG=spellbookkubeconfig.yaml
-          kubectl delete job spellbook-migration -n spellbook || true
+          kubectl delete job spellbook-migration -n spellbook-prod || true
           kubectl apply -k .
-          kubectl wait --timeout=${KUBECTL_TIMEOUT}s --for=condition=complete job/spellbook-migration -n spellbook &
+          kubectl wait --timeout=${KUBECTL_TIMEOUT}s --for=condition=complete job/spellbook-migration -n spellbook-prod &
           completion_pid=$!
-          kubectl wait --timeout=${KUBECTL_TIMEOUT}s --for=condition=failed job/spellbook-migration -n spellbook && exit 1 &
+          kubectl wait --timeout=${KUBECTL_TIMEOUT}s --for=condition=failed job/spellbook-migration -n spellbook-prod && exit 1 &
           failure_pid=$!
           exit_code=0
           if wait -n $completion_pid $failure_pid; then
@@ -384,9 +384,9 @@ jobs:
             exit_code=1
           fi
           echo "Job logs:"
-          kubectl logs job/spellbook-migration -n spellbook
+          kubectl logs job/spellbook-migration -n spellbook-prod
           echo "Deleting job..."
-          kubectl delete job/spellbook-migration -n spellbook
+          kubectl delete job/spellbook-migration -n spellbook-prod
           exit $exit_code
 
       - name: Push image to Amazon ECR 📦
@@ -413,8 +413,12 @@ jobs:
           export KUBECONFIG=spellbookkubeconfig.yaml
           declare -a deployments=("spellbook-api" "spellbook-discord-bot")
           for deployment in "${deployments[@]}"; do
-            kubectl rollout restart deployment/$deployment -n spellbook
-            timeout ${KUBECTL_TIMEOUT} kubectl rollout status deployment/$deployment -n spellbook
+            export NAMESPACE=spellbook-prod
+            if [ "$deployment" == "spellbook-discord-bot" ]; then
+              export NAMESPACE=spellbook-discord-bot-prod
+            fi
+            kubectl rollout restart deployment/$deployment -n $NAMESPACE
+            timeout ${KUBECTL_TIMEOUT} kubectl rollout status deployment/$deployment -n $NAMESPACE
           done
 
 

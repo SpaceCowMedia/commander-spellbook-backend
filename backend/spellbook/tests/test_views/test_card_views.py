@@ -1,6 +1,6 @@
 import json
 from django.test import TestCase
-from spellbook.models import Card
+from spellbook.models import Card, Template
 from ..testing import TestCaseMixinWithSeeding
 from common.inspection import json_to_python_lambda
 
@@ -89,3 +89,13 @@ class CardViewsTests(TestCaseMixinWithSeeding, TestCase):
                 previous_variant = result.results[i]
                 variant_count_values.add(result.results[i].variant_count)  # type: ignore
             self.assertGreater(len(variant_count_values), 1)
+
+    def test_cards_list_view_replacement_filter(self):
+        for template_id in [self.t1_id, self.t2_id]:
+            response = self.client.get(f'/cards?replaces={template_id}', follow=True)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.get('Content-Type'), 'application/json')
+            result = json.loads(response.content, object_hook=json_to_python_lambda)
+            card_ids = {c.id for c in result.results}
+            replacements = set(Template.objects.get(id=template_id).replacements.values_list('id', flat=True))
+            self.assertSetEqual(card_ids, replacements)

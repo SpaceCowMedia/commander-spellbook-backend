@@ -1,7 +1,7 @@
 from django.test import TestCase
 from spellbook.tests.testing import TestCaseMixinWithSeeding
 from common.inspection import count_methods
-from spellbook.models import Template
+from spellbook.models import Card, Template
 from spellbook.models.scryfall import SCRYFALL_API_ROOT, SCRYFALL_WEBSITE_CARD_SEARCH
 
 
@@ -24,18 +24,25 @@ class TemplateTests(TestCaseMixinWithSeeding, TestCase):
 
     def test_scryfall_link(self):
         t = Template.objects.get(id=self.t1_id)
-        self.assertIn(SCRYFALL_WEBSITE_CARD_SEARCH, t.scryfall_link())
-        self.assertIn(t.query_string(), t.scryfall_link())
-        self.assertIn('<a', t.scryfall_link())
-        self.assertIn('target="_blank"', t.scryfall_link())
-        self.assertTrue(t.scryfall_link(raw=True).startswith('http'))
-        self.assertIn(t.scryfall_link(raw=True), t.scryfall_link(raw=False))
+        self.assertIn(SCRYFALL_WEBSITE_CARD_SEARCH, t.scryfall_link() or '')
+        self.assertIn(t.query_string(), t.scryfall_link() or '')
+        self.assertIn('<a', t.scryfall_link() or '')
+        self.assertIn('target="_blank"', t.scryfall_link() or '')
+        self.assertTrue((t.scryfall_link(raw=True) or '').startswith('http'))
+        self.assertIn(t.scryfall_link(raw=True), t.scryfall_link(raw=False) or '')
 
         t.scryfall_query = ''
-        self.assertNotIn(SCRYFALL_WEBSITE_CARD_SEARCH, t.scryfall_link())
-        self.assertNotIn(t.query_string(), t.scryfall_link())
-        self.assertNotIn('<a', t.scryfall_link())
-        self.assertNotIn('target="_blank"', t.scryfall_link())
+        self.assertNotIn(SCRYFALL_WEBSITE_CARD_SEARCH, t.scryfall_link() or '')
+        self.assertNotIn(t.query_string(), t.scryfall_link() or '')
+        self.assertNotIn('<a', t.scryfall_link() or '')
+        self.assertNotIn('target="_blank"', t.scryfall_link() or '')
+
+    def test_card_replacements(self):
+        t = Template.objects.get(id=self.t2_id)
+        self.assertEqual(t.replacements.count(), 1)
+        self.assertEqual(t.scryfall_link(), None)
+        t.replacements.add(Card.objects.get(id=self.c4_id))
+        self.assertEqual(t.replacements.count(), 2)
 
     def test_method_count(self):
         self.assertEqual(count_methods(Template), 4)

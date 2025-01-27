@@ -1,6 +1,7 @@
 from urllib.parse import urlencode
 from django.db import models
 from django.utils.html import format_html
+from spellbook.models import Card
 from .validators import SCRYFALL_QUERY_HELP, SCRYFALL_QUERY_VALIDATOR, NAME_VALIDATORS
 from .scryfall import SCRYFALL_API_CARD_SEARCH, SCRYFALL_WEBSITE_CARD_SEARCH, SCRYFALL_LEGAL_IN_COMMANDER, SCRYFALL_MAX_QUERY_LENGTH
 
@@ -8,11 +9,19 @@ from .scryfall import SCRYFALL_API_CARD_SEARCH, SCRYFALL_WEBSITE_CARD_SEARCH, SC
 class Template(models.Model):
     MAX_TEMPLATE_NAME_LENGTH = 255
     id: int
-    name = models.CharField(max_length=MAX_TEMPLATE_NAME_LENGTH, unique=True, blank=False, verbose_name='template name', help_text='short description of the template in natural language', validators=NAME_VALIDATORS)
-    scryfall_query = models.CharField(max_length=SCRYFALL_MAX_QUERY_LENGTH, blank=False, verbose_name='Scryfall query', help_text=SCRYFALL_QUERY_HELP, validators=[SCRYFALL_QUERY_VALIDATOR])
+    name = models.CharField(blank=False, max_length=MAX_TEMPLATE_NAME_LENGTH, unique=True, verbose_name='template name', help_text='short description of the template in natural language', validators=NAME_VALIDATORS)
+    scryfall_query = models.CharField(blank=True, null=True, max_length=SCRYFALL_MAX_QUERY_LENGTH, verbose_name='Scryfall query', help_text=SCRYFALL_QUERY_HELP, validators=[SCRYFALL_QUERY_VALIDATOR])
     description = models.TextField(blank=True, help_text='Long description of the template', verbose_name='description of the template')
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, editable=False)
+    replacements = models.ManyToManyField(
+        to=Card,
+        through='TemplateReplacement',
+        related_name='replaces',
+        help_text='Cards that are valid replacements of this template',
+        blank=True,
+        verbose_name='replacements for template',
+    )
 
     class Meta:
         verbose_name = 'card template'
@@ -33,9 +42,25 @@ class Template(models.Model):
         return f'{SCRYFALL_API_CARD_SEARCH}?{self.query_string()}'
 
     def scryfall_link(self, raw=False):
+        if self.scryfall_query is None:
+            return None
         if self.scryfall_query == '':
             return 'Empty query'
         link = f'{SCRYFALL_WEBSITE_CARD_SEARCH}?{self.query_string()}'
         if raw:
             return link
         return format_html('<a href="{}" target="_blank">{}</a>', link, link)
+
+
+class TemplateReplacement(models.Model):
+    id: int
+    card = models.ForeignKey(to=Card, on_delete=models.CASCADE)
+    card_id: int
+    template = models.ForeignKey(to=Template, on_delete=models.CASCADE)
+    template_id: int
+
+    def __str__(self):
+        return f'{self.card} as replacement for template {self.template_id}'
+
+    class Meta:
+        unique_together = [('card', 'template')]

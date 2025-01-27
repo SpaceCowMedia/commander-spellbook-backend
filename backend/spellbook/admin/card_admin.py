@@ -79,6 +79,13 @@ class CardAdmin(SpellbookModelAdmin):
     list_display = ['name', 'id', 'identity', 'variant_count']
     inlines = [FeatureOfCardAdminInline]
 
+    def lookup_allowed(self, lookup: str, value: str) -> bool:
+        if lookup in (
+            'replaces__id',
+        ):
+            return False
+        return super().lookup_allowed(lookup, value)
+
     def get_readonly_fields(self, request, obj):
         readonly_fields = list(super().get_readonly_fields(request, obj))
         if obj is not None and obj.oracle_id is not None:

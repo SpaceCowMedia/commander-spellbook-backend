@@ -51,7 +51,7 @@ class VariantSuggestion(Recipe):
                 *(models.When(status=s, then=models.Value(i)) for i, s in enumerate(('N', 'PA', 'AD', 'A', 'R'))),
                 default=models.Value(10),
             ),
-            'created'
+            'created',
         ]
 
     def cards(self) -> dict[str, int]:
@@ -126,7 +126,7 @@ class CardUsedInVariantSuggestion(PreSaveModelMixin, IngredientInCombination):
         return self.card
 
     class Meta(IngredientInCombination.Meta):
-        unique_together = [('card', 'variant')]
+        pass
 
     def pre_save(self):
         self.card_unaccented = strip_accents(self.card)
@@ -141,7 +141,7 @@ class TemplateRequiredInVariantSuggestion(IngredientInCombination):
         return self.template
 
     class Meta(IngredientInCombination.Meta):
-        unique_together = [('template', 'variant')]
+        pass
 
 
 class FeatureProducedInVariantSuggestion(models.Model):
@@ -152,14 +152,18 @@ class FeatureProducedInVariantSuggestion(models.Model):
         return self.feature
 
     class Meta:
-        unique_together = [('feature', 'variant')]
         ordering = ['feature', 'id']
 
 
 @receiver([post_save, post_delete], sender=CardUsedInVariantSuggestion, dispatch_uid='card_used_in_variant_suggestion_saved')
 @receiver([post_save, post_delete], sender=TemplateRequiredInVariantSuggestion, dispatch_uid='template_required_in_variant_suggestion_saved')
 @receiver([post_save, post_delete], sender=FeatureProducedInVariantSuggestion, dispatch_uid='feature_produced_in_variant_suggestion_saved')
-def update_variant_suggestion_name(sender, instance: CardUsedInVariantSuggestion | TemplateRequiredInVariantSuggestion | FeatureProducedInVariantSuggestion, raw=False, **kwargs):
+def update_variant_suggestion_name(
+    sender,
+    instance: CardUsedInVariantSuggestion | TemplateRequiredInVariantSuggestion | FeatureProducedInVariantSuggestion,
+    raw=False,
+    **kwargs,
+):
     if raw:
         return
     variant_suggestion = instance.variant

@@ -36,10 +36,15 @@ class Template(models.Model):
         return self.name
 
     def query_string(self):
+        if self.scryfall_query is None:
+            return None
         return urlencode({'q': ' '.join(term for term in [self.scryfall_query, SCRYFALL_LEGAL_IN_COMMANDER] if term != '')})
 
     def scryfall_api(self):
-        return f'{SCRYFALL_API_CARD_SEARCH}?{self.query_string()}'
+        query = self.query_string()
+        if query is None:
+            return None
+        return f'{SCRYFALL_API_CARD_SEARCH}?{query}'
 
     def scryfall_link(self, raw=False):
         if self.scryfall_query is None:

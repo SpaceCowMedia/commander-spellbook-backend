@@ -14,13 +14,13 @@ class TemplateTests(TestCaseMixinWithSeeding, TestCase):
 
     def test_query_string(self):
         t = Template.objects.get(id=self.t1_id)
-        self.assertIn('q=tou%3E5', t.query_string())
-        self.assertTrue(t.query_string().startswith('q='))
+        self.assertIn('q=tou%3E5', t.query_string() or '')
+        self.assertTrue((t.query_string() or '').startswith('q='))
 
     def test_scryfall_api_url(self):
         t = Template.objects.get(id=self.t1_id)
-        self.assertIn(SCRYFALL_API_ROOT, t.scryfall_api())
-        self.assertIn(t.query_string(), t.scryfall_api())
+        self.assertIn(SCRYFALL_API_ROOT, t.scryfall_api() or '')
+        self.assertIn(t.query_string(), t.scryfall_api() or '')
 
     def test_scryfall_link(self):
         t = Template.objects.get(id=self.t1_id)

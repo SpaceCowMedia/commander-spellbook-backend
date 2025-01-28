@@ -1,11 +1,8 @@
 {
-    "name": "@spacecowmedia/spellbook-client",
+    "name": "@space-cow-media/spellbook-client",
     "repository": {
         "type": "git",
         "url": "git+https://github.com/SpaceCowMedia/commander-spellbook-backend.git"
-    },
-    "publishConfig": {
-        "registry": "https://npm.pkg.github.com"
     },
     "description": "An Open Api generated client for the Commander Spellbook backend REST API.",
     "keywords": [
@@ -35,5 +32,5 @@
         "build": "tsc",
         "watch": "tsc -w"
     },
-    "version": ""
+    "version": "3.14.15"
 }

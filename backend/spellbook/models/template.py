@@ -65,7 +65,7 @@ class TemplateReplacement(models.Model):
     template_id: int
 
     def __str__(self):
-        return f'{self.card} as replacement for template {self.template_id}'
+        return f'Card {self.card_id} as replacement for template {self.template_id}'
 
     class Meta:
         unique_together = [('card', 'template')]

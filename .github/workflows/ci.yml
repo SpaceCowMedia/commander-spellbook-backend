@@ -209,6 +209,7 @@ jobs:
       - bot-telegram
     if: needs.build.outputs.should-release == 'true'
     concurrency: release
+    environment: scm-production
     permissions:
       contents: write
       packages: write
@@ -248,17 +249,17 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20.x
-          registry-url: https://npm.pkg.github.com
+          registry-url: 'https://registry.npmjs.org'
 
       - name: Publish typescript client 📤
         working-directory: publish/client/typescript
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           npm version ${{ needs.build.outputs.version }}
           npm ci
           npm run build
-          npm publish --access public
+          npm publish --access=public
 
       - name: Release 📧
         uses: EasyDesk/action-semver-release@v1

@@ -14,6 +14,7 @@ Commander Spellbook consists of three main components:
 - A [PostgreSQL](https://www.postgresql.org/) database containing all the combo data
 - A [Django](https://www.djangoproject.com/) [backend](/backend/) that exposes the data via a REST API
 - A [React](https://reactjs.org/) [frontend](https://github.com/SpaceCowMedia/commander-spellbook-site) that consumes the API and displays the content in a user-friendly way
+  - A TS/JS generated client can be found on [npm](https://www.npmjs.com/package/@space-cow-media/spellbook-client)
 
 ## Contributing
 

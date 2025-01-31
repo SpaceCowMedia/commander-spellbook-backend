@@ -219,6 +219,9 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
         put_data = POST_DATA.copy()
         put_data['comment'] = 'new comment'
         put_data['requires'][0]['scryfall_query'] = None
+        put_data['produces'].append({
+            "feature": "Third produced feature",
+        })
         response = self.client.put(
             f'/variant-suggestions/{result.id}/',
             put_data,

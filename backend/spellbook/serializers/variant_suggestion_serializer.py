@@ -118,13 +118,16 @@ class VariantSuggestionSerializer(serializers.ModelSerializer):
         manager: Manager,
         data: list[dict],
         serializer: serializers.ModelSerializer,
+        with_order: bool = True,
     ):
         to_create: list[Model] = []
         to_update: list[Model] = []
         to_delete: list[Model] = []
         for i, (d, model) in enumerate(zip_longest(data, manager.all())):
+            if d is not None and with_order:
+                d['order'] = i
             if model is None:
-                to_create.append(manager.model(variant=instance, order=i, **d))
+                to_create.append(manager.model(variant=instance, **d))
             elif d is None:
                 to_delete.append(model)
             else:
@@ -164,6 +167,7 @@ class VariantSuggestionSerializer(serializers.ModelSerializer):
             instance.produces,
             produces_validated_data,
             self.fields['produces'].child,
+            with_order=False,
         )
         return instance
 

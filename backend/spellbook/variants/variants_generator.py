@@ -301,11 +301,11 @@ def restore_variant(
     variant.update_variant_from_ingredients([(c, data.id_to_card[c.card_id]) for c in used_cards], [(t, data.id_to_template[t.template_id]) for t in required_templates])
     uses = dict[int, CardInVariant]()
     for card_in_variant in used_cards:
-        card_in_variant.order = 0
+        card_in_variant.order = 0  # will be updated later
         uses[card_in_variant.card_id] = card_in_variant
     requires = dict[int, TemplateInVariant]()
     for template_in_variant in required_templates:
-        template_in_variant.order = 0
+        template_in_variant.order = 0  # will be updated later
         requires[template_in_variant.template_id] = template_in_variant
     if restore_fields:
         # prepare data for the update
@@ -423,13 +423,13 @@ def restore_variant(
                     templates_ordering[template_in_combo.template_id] = (t[0] + 1, t[1] + i, t[2], t[3]) if is_generator else (t[0], t[1], t[2] + 1, t[3] + i)
 
     def uses_list():
-        for i, v in enumerate(sorted(cards_ordering, key=lambda k: cards_ordering[k], reverse=True)):
+        for i, v in enumerate(sorted(cards_ordering, key=lambda k: cards_ordering[k], reverse=True), start=1):
             civ = uses[v]
             civ.order = i
             yield civ
 
     def requires_list():
-        for i, v in enumerate(sorted(templates_ordering, key=lambda k: templates_ordering[k], reverse=True)):
+        for i, v in enumerate(sorted(templates_ordering, key=lambda k: templates_ordering[k], reverse=True), start=1):
             tiv = requires[v]
             tiv.order = i
             yield tiv

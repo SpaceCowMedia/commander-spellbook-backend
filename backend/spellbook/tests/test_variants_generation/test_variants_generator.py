@@ -322,8 +322,8 @@ class VariantsGeneratorTests(TestCaseMixinWithSeeding, TestCase):
         self.assertEqual(Variant.objects.count(), self.expected_variant_count)
         v: Variant = Variant.objects.first()  # type: ignore
         useless_combo = Combo.objects.create(mana_needed='{W}', status=Combo.Status.UTILITY, description='<<<Unwanted text>>>')
-        for i, card in enumerate(v.uses.all()):
-            useless_combo.cardincombo_set.create(card=card, order=i + 1, zone_locations=ZoneLocation.BATTLEFIELD)
+        for i, card in enumerate(v.uses.all(), start=1):
+            useless_combo.cardincombo_set.create(card=card, order=i, zone_locations=ZoneLocation.BATTLEFIELD)
         useless_feature = Feature.objects.create(name='Useless', utility=True)
         useless_combo.produces.add(useless_feature)
         v.status = Variant.Status.RESTORE

@@ -104,9 +104,9 @@ class VariantSuggestionSerializer(serializers.ModelSerializer):
             **validated_data,
         }
         instance = super().create(extended_kwargs)
-        for i, use in enumerate(uses_set):
+        for i, use in enumerate(uses_set, start=1):
             CardUsedInVariantSuggestion.objects.create(variant=instance, order=i, **use)
-        for i, require in enumerate(requires_set):
+        for i, require in enumerate(requires_set, start=1):
             TemplateRequiredInVariantSuggestion.objects.create(variant=instance, order=i, **require)
         for produce in produces_set:
             FeatureProducedInVariantSuggestion.objects.create(variant=instance, **produce)
@@ -123,7 +123,7 @@ class VariantSuggestionSerializer(serializers.ModelSerializer):
         to_create: list[Model] = []
         to_update: list[Model] = []
         to_delete: list[Model] = []
-        for i, (d, model) in enumerate(zip_longest(data, manager.all())):
+        for i, (d, model) in enumerate(zip_longest(data, manager.all()), start=1):
             if d is not None and with_order:
                 d['order'] = i
             if model is None:

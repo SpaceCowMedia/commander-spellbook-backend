@@ -1,7 +1,6 @@
 from decimal import Decimal
 from django.db import models
 from django.db.models.functions import Length
-from django.db.models.fields.generated import GeneratedField  # type: ignore
 from .utils import SORTED_COLORS
 
 
@@ -12,7 +11,7 @@ class Playable(models.Model):
     identity = models.CharField(max_length=5, blank=False, null=False, default='C', verbose_name='color identity', choices=[(c, c) for c in SORTED_COLORS.values()])
     spoiler = models.BooleanField(default=False, help_text='Is this from an upcoming set?', verbose_name='is spoiler')
     mana_value = models.PositiveSmallIntegerField(default=0)
-    identity_count = GeneratedField(
+    identity_count = models.GeneratedField(
         db_persist=True,
         expression=models.Case(models.When(identity='C', then=models.Value(0)), default=Length('identity')),
         output_field=models.PositiveSmallIntegerField(default=0, verbose_name='identity color count'),

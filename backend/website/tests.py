@@ -1,27 +1,13 @@
 import json
-import logging
-import random
 from django.test import TestCase
-from django.core.management import call_command
 from common.abstractions import Deck
-from common.stream import StreamToLogger
 from common.inspection import json_to_python_lambda
 from common.serializers import MAX_DECKLIST_LINES
+from common.testing import TestCaseMixin
 from .models import PROPERTY_KEYS
 
 
-class WebsitePropertiesViewTests(TestCase):
-    def setUp(self):
-        logging.disable(logging.INFO)
-        random.seed(42)
-        command = 'seed_website_properties'
-        logger = logging.getLogger(command)
-        call_command(
-            command,
-            stdout=StreamToLogger(logger, logging.INFO),
-            stderr=StreamToLogger(logger, logging.ERROR)
-        )
-
+class WebsitePropertiesViewTests(TestCaseMixin, TestCase):
     def test_website_properties_view(self):
         response = self.client.get('/properties', follow=True)
         self.assertEqual(response.status_code, 200)

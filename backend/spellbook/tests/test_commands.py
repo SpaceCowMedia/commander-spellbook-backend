@@ -9,6 +9,7 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from spellbook.models import Job, Variant
 from spellbook.utils import launch_job_command
+from website.models import COMBO_OF_THE_DAY, WebsiteProperty
 from .testing import TestCaseMixinWithSeeding
 from spellbook.models import id_from_cards_and_templates_ids
 
@@ -90,3 +91,9 @@ class CleanJobsTest(TestCaseMixinWithSeeding, TestCase):
         # The only meaningful test is to check that discord utils are available
         import text_utils
         text_utils.discord_chunk('test')
+
+    def test_combo_of_the_day(self):
+        super().generate_and_publish_variants()
+        launch_job_command('combo_of_the_day', None)
+        result = WebsiteProperty.objects.get(key=COMBO_OF_THE_DAY).value
+        self.assertTrue(Variant.objects.filter(pk=result).exists())

@@ -1,9 +1,6 @@
 from ..abstract_command import AbstractCommand
-from django.conf import settings
-from discord_webhook import DiscordWebhook
 from spellbook.models import VariantSuggestion, Variant
 from social_django.models import UserSocialAuth
-from text_utils import discord_chunk
 from common.markdown_utils import escape_markdown
 
 
@@ -33,20 +30,6 @@ class Command(AbstractCommand):
             help='Identifier of the object',
             nargs='+',
         )
-
-    def discord_webhook(self, content: str):
-        if settings.DISCORD_WEBHOOK_URL:
-            messages = discord_chunk(content)
-            for message in messages:
-                webhook = DiscordWebhook(url=settings.DISCORD_WEBHOOK_URL, content=message)
-                response = webhook.execute()
-                if response.ok:
-                    self.log('Webhook sent', self.style.SUCCESS)
-                else:
-                    self.log(f'Webhook failed with status code {response.status_code}:\n{response.content.decode()}', self.style.ERROR)
-                    raise Exception('Webhook failed')
-        else:
-            self.log('No Discord Webhook set in settings', self.style.ERROR)
 
     def variant_suggestion_event(self, accepted: bool, identifiers: list[str]):
         webhook_text = ''

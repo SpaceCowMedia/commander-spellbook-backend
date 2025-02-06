@@ -252,6 +252,27 @@
             },
         },
         {
+            "name": "Combo of the Day",
+            "type": "debugpy",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/backend",
+            "program": "manage.py",
+            "args": [
+                "combo_of_the_day"
+            ],
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}${/}common",
+            },
+            "preLaunchTask": "Prelaunch",
+            "django": true,
+            "justMyCode": true,
+            "presentation": {
+                "hidden": false,
+                "group": "Spellbook",
+                "order": 9
+            },
+        },
+        {
             "name": "Wipe combos, features and variants",
             "type": "debugpy",
             "request": "launch",

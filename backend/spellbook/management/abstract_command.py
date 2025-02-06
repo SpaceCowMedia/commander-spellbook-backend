@@ -5,6 +5,8 @@ from django.utils import timezone
 from django.core.management.base import BaseCommand, CommandParser, CommandError
 from django.db import OperationalError
 from django.conf import settings
+from discord_webhook import DiscordWebhook
+from text_utils import discord_chunk
 from spellbook.models import Job
 from spellbook.utils import log_into_job
 
@@ -65,3 +67,17 @@ class AbstractCommand(BaseCommand):
 
     def run(self, *args, **options):
         raise NotImplementedError('AbstractCommand.run() must be implemented in subclasses')
+
+    def discord_webhook(self, content: str):
+        if settings.DISCORD_WEBHOOK_URL:
+            messages = discord_chunk(content)
+            for message in messages:
+                webhook = DiscordWebhook(url=settings.DISCORD_WEBHOOK_URL, content=message)
+                response = webhook.execute()
+                if response.ok:
+                    self.log('Webhook sent', self.style.SUCCESS)
+                else:
+                    self.log(f'Webhook failed with status code {response.status_code}:\n{response.content.decode()}', self.style.ERROR)
+                    raise Exception('Webhook failed')
+        else:
+            self.log('No Discord Webhook set in settings', self.style.ERROR)

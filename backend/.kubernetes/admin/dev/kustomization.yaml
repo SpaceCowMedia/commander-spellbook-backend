@@ -10,4 +10,4 @@ patches:
         value: "spellbook-admins-dev"
     target:
       kind: RoleBinding
-      name: spellbook-full-access-rolebinding
+      name: spellbook-rolebinding

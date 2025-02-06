@@ -1,17 +1,20 @@
 # After you apply this file, also create the IAM mapping for the roles. Example:
+# (to add additional groups, delete the existing mapping and recreate it with the new groups)
 #
-# eksctl create iamidentitymapping --cluster scm-main --region=us-east-2 \
+# eksctl create iamidentitymapping --cluster spellbook-prod-cluster --region=us-east-2 \
 #     --arn arn:aws:iam::083767677168:role/spellbook-deploy-role \
 #     --username spellbook-deploy-role \
 #     --group spellbook-admins-prod \
+#     --group spellbook-admins-dev \
 #     --no-duplicate-arns
 #
 # AND for the client role:
 #
-# eksctl create iamidentitymapping --cluster scm-main --region=us-east-2 \
+# eksctl create iamidentitymapping --cluster spellbook-prod-cluster --region=us-east-2 \
 #     --arn arn:aws:iam::083767677168:role/spellbook-client-deploy-role \
 #     --username spellbook-client-deploy-role \
 #     --group spellbook-admins-prod \
+#     --group spellbook-admins-dev \
 #     --no-duplicate-arns
 ---
 apiVersion: v1
@@ -39,6 +42,9 @@ rules:
   - apiGroups: ["batch"]
     resources: ["*"]
     verbs: ["*"]
+  - apiGroups: ["autoscaling"]              
+    resources: ["horizontalpodautoscalers"] 
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
 
 ---
 kind: RoleBinding

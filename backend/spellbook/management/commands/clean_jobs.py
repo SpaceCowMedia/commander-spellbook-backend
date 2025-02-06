@@ -1,5 +1,7 @@
 from django.core.management.base import CommandParser
 from django.utils import timezone
+from django.db.models import F, Value
+from django.db.models.functions import Concat
 from spellbook.models import Job
 from ..abstract_command import AbstractCommand
 
@@ -29,7 +31,7 @@ class Command(AbstractCommand):
             query = query.filter(expected_termination__lt=timezone.now())
         count = query.count()
         if count > 0:
-            query.update(status=Job.Status.FAILURE, message='Job was cancelled.', termination=timezone.now())
+            query.update(status=Job.Status.FAILURE, message=Concat(F('message'), Value('\nJob was cancelled.')), termination=timezone.now())
             self.log(f'{count} pending jobs were cancelled.', self.style.SUCCESS)
         else:
             self.log('No pending jobs found.')

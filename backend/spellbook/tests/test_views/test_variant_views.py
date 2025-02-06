@@ -583,7 +583,7 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
             self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
             for v in result.results:
                 self.variant_assertions(v)
-        WebsiteProperty.objects.create(key=FEATURED_SET_CODES, value='STX,DND')
+        WebsiteProperty.objects.filter(key=FEATURED_SET_CODES).update(value='STX,DND')
         c1: Card = Card.objects.all()[0]  # type: ignore
         c1.reprinted = False
         c1.latest_printing_set = 'stx'

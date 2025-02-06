@@ -70,6 +70,7 @@ class CardAdmin(SpellbookModelAdmin):
     ]
     list_filter = [IdentityFilter, CardTypeFilter, 'legal_commander', ManagedByScryfallFilter]
     search_fields = [
+        '=pk',
         'name',
         'name_unaccented',
         'name_unaccented_simplified',

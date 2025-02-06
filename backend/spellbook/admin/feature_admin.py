@@ -76,7 +76,11 @@ class FeatureAdmin(SpellbookModelAdmin):
     readonly_fields = ['id', 'scryfall_link', 'updated', 'created']
     fields = ['name', 'id', 'updated', 'created', 'utility', 'uncountable', 'description', 'scryfall_link']
     inlines = [CardInFeatureAdminInline]
-    search_fields = ['name', 'cards__name']
+    search_fields = [
+        '=pk',
+        'name',
+        'cards__name',
+    ]
     list_display = ['name', 'id', 'utility', 'produced_by_count', 'updated']
     list_filter = ['utility']
 

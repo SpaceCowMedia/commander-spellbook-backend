@@ -74,6 +74,7 @@ class VariantSuggestionAdmin(SpellbookModelAdmin):
     list_display = ['name', 'id', 'status', 'spoiler', 'updated', 'created']
     actions = [set_rejected]
     search_fields = [
+        '=pk',
         '=suggested_by__username',
         'uses__card',
         'uses__card_unaccented',

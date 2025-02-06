@@ -19,7 +19,10 @@ class FeatureAttributeAdmin(SpellbookModelAdmin):
     form = FeatureAttributeForm
     readonly_fields = ['id']
     fields = ['id', 'name']
-    search_fields = ['name']
+    search_fields = [
+        '=pk',
+        'name',
+    ]
     list_display = ['name', 'id']
 
     def get_search_results(self, request: HttpRequest, queryset: QuerySet[FeatureAttribute], search_term: str):

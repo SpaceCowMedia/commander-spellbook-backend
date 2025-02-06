@@ -8,8 +8,12 @@ from spellbook.models import VariantAlias
 class VariantAliasAdmin(admin.ModelAdmin):
     readonly_fields = ['updated', 'created']
     fields = ['id', 'updated', 'created', 'variant', 'description']
-    list_display = ['__str__', 'variant', 'description', 'updated']
-    search_fields = ['id', 'variant__id', 'description']
+    list_display = ['__str__', 'variant', 'updated']
+    search_fields = [
+        '=pk',
+        'variant__id',
+        'description',
+    ]
     raw_id_fields = ['variant']
     list_filter = [
         ('variant', admin.EmptyFieldListFilter)  # type: ignore for deprecated typing

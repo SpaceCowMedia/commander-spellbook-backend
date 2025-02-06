@@ -181,6 +181,7 @@ class ComboAdmin(SpellbookModelAdmin):
     ]
     list_filter = ['status', 'allow_many_cards', 'allow_multiple_copies', IngredientCountListFilter, PayoffFilter, VariantRelatedFilter]
     search_fields = [
+        '=pk',
         'uses__name',
         'uses__name_unaccented',
         'uses__name_unaccented_simplified',

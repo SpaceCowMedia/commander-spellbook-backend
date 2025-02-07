@@ -501,7 +501,7 @@ jobs:
         working-directory: backend
 
       - name: Run python tests 🧪
-        run: python backend/manage.py test client/python/tests/ --no-input --parallel auto
+        run: python backend/manage.py test client/python/tests/ --no-input --parallel auto --pythonpath common
         working-directory: .
 
       - name: Upload client artifact 📦

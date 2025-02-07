@@ -31,7 +31,7 @@ def is_member_of_guild(backend, details, response, uid, user, *args, **kwargs):
 
 def set_default_permissions(user, is_new, *args, **kwargs):
     if user is not None and is_new:
-        permissions = Permission.objects.filter(codename__in=['view_variantsuggestion', 'add_variantsuggestion', 'change_variantsuggestion'])
+        permissions = Permission.objects.filter(codename__in=['view_variantsuggestion', 'add_variantsuggestion', 'change_variantsuggestion', 'delete_variantsuggestion'])
         user.user_permissions.add(*permissions)
 
 

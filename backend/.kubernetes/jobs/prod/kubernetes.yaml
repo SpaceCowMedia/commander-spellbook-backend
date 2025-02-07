@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: spellbook-update
+  name: spellbook-hourly-update
   namespace: spellbook-prod
 spec:
   schedule: '0 * * * *'
@@ -72,4 +72,101 @@ spec:
                     secretKeyRef:
                       name: api-secrets
                       key: discord-client-secret
+                - name: DISCORD_WEBHOOK_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: api-secrets
+                      key: discord-webhook-url
+                - name: MOXFIELD_USER_AGENT
+                  valueFrom:
+                    secretKeyRef:
+                      name: api-secrets
+                      key: moxfield-user-agent
+          restartPolicy: OnFailure
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: spellbook-daily-update
+  namespace: spellbook-prod
+spec:
+  timeZone: America/Los_Angeles
+  schedule: '0 8 * * *'
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: app-service-account
+          containers:
+            - name: updater-image
+              image: 083767677168.dkr.ecr.us-east-2.amazonaws.com/spellbook-prod-ecr
+              command:
+                - /bin/sh
+                - -c
+                - python manage.py combo_of_the_day;
+              env:
+                - name: SECRET_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: api-secrets
+                      key: django-secret
+                - name: KUBE_SQL_ENGINE
+                  valueFrom:
+                    secretKeyRef:
+                      name: api-secrets
+                      key: db-engine
+                - name: KUBE_SQL_DATABASE
+                  valueFrom:
+                    secretKeyRef:
+                      name: api-secrets
+                      key: db-name
+                - name: KUBE_SQL_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: api-secrets
+                      key: db-user
+                - name: KUBE_SQL_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: api-secrets
+                      key: db-password
+                - name: KUBE_SQL_HOST
+                  valueFrom:
+                    secretKeyRef:
+                      name: api-secrets
+                      key: db-host
+                - name: KUBE_SQL_PORT
+                  valueFrom:
+                    secretKeyRef:
+                      name: api-secrets
+                      key: db-port
+                - name: AWS_S3_BUCKET
+                  valueFrom:
+                    secretKeyRef:
+                      name: api-secrets
+                      key: aws-s3-bucket
+                - name: THIS_POD_IP
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: status.podIP
+                - name: DISCORD_CLIENTID
+                  valueFrom:
+                    secretKeyRef:
+                      name: api-secrets
+                      key: discord-client-id
+                - name: DISCORD_CLIENTSECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: api-secrets
+                      key: discord-client-secret
+                - name: DISCORD_WEBHOOK_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: api-secrets
+                      key: discord-webhook-url
+                - name: MOXFIELD_USER_AGENT
+                  valueFrom:
+                    secretKeyRef:
+                      name: api-secrets
+                      key: moxfield-user-agent
           restartPolicy: OnFailure

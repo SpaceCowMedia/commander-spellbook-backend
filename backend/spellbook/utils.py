@@ -21,7 +21,7 @@ def launch_command_async(command: str, args: list[str] = []):
             args=args,
             creationflags=subprocess.CREATE_NEW_PROCESS_GROUP)
     else:
-        subprocess.Popen(args=args)
+        subprocess.Popen(args=['timeout', str(Job.TIMEOUT.total_seconds())] + args)
 
 
 def launch_job_command(command: str, user: User | None = None, args: list[str] = [], allow_multiples: bool = False, group: str | None = None) -> bool:

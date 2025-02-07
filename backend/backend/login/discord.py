@@ -1,8 +1,11 @@
 import requests
 from django.contrib.auth.models import Permission
+from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import PermissionDenied
 from social_core.exceptions import AuthUnreachableProvider
 from social_core.backends.discord import DiscordOAuth2 as BaseDiscordOAuth2
+
+from spellbook.models import VariantSuggestion
 
 
 ALLOWED_GUILDS = [
@@ -31,7 +34,7 @@ def is_member_of_guild(backend, details, response, uid, user, *args, **kwargs):
 
 def set_default_permissions(user, is_new, *args, **kwargs):
     if user is not None and is_new:
-        permissions = Permission.objects.filter(codename__in=['view_variantsuggestion', 'add_variantsuggestion', 'change_variantsuggestion', 'delete_variantsuggestion'])
+        permissions = Permission.objects.filter(content_type=ContentType.objects.get_for_model(VariantSuggestion))
         user.user_permissions.add(*permissions)
 
 

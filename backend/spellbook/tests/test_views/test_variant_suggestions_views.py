@@ -6,6 +6,7 @@ from spellbook.models.utils import strip_accents
 from ..testing import TestCaseMixinWithSeeding
 from common.inspection import json_to_python_lambda
 from django.contrib.auth.models import User, Permission
+from django.contrib.contenttypes.models import ContentType
 
 
 POST_DATA = {
@@ -68,13 +69,6 @@ POST_DATA = {
     "spoiler": False,
     "comment": "a comment",
 }
-
-PERMISSIONS = [
-    'view_variantsuggestion',
-    'add_variantsuggestion',
-    'change_variantsuggestion',
-    'delete_variantsuggestion',
-]
 
 
 class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
@@ -146,7 +140,7 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
             content_type='application/json',
             follow=True)
         self.assertEqual(response.status_code, 403)
-        permissions = Permission.objects.filter(codename__in=PERMISSIONS)
+        permissions = Permission.objects.filter(content_type=ContentType.objects.get_for_model(VariantSuggestion))
         self.user.user_permissions.add(*permissions)
         response = self.client.post(
             '/variant-suggestions/',
@@ -165,7 +159,7 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
         self.user = User.objects.create_user(username='testuser', password='12345')
         login = self.client.login(username='testuser', password='12345')
         self.assertTrue(login)
-        permissions = Permission.objects.filter(codename__in=PERMISSIONS)
+        permissions = Permission.objects.filter(content_type=ContentType.objects.get_for_model(VariantSuggestion))
         self.user.user_permissions.add(*permissions)
         response = self.client.post(
             '/variant-suggestions/',
@@ -185,7 +179,7 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
         self.user = User.objects.create_user(username='testuser', password='12345')
         login = self.client.login(username='testuser', password='12345')
         self.assertTrue(login)
-        permissions = Permission.objects.filter(codename__in=PERMISSIONS)
+        permissions = Permission.objects.filter(content_type=ContentType.objects.get_for_model(VariantSuggestion))
         self.user.user_permissions.add(*permissions)
         response = self.client.post(
             '/variant-suggestions/',
@@ -213,7 +207,7 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
         self.user = User.objects.create_user(username='testuser', password='12345')
         login = self.client.login(username='testuser', password='12345')
         self.assertTrue(login)
-        permissions = Permission.objects.filter(codename__in=PERMISSIONS)
+        permissions = Permission.objects.filter(content_type=ContentType.objects.get_for_model(VariantSuggestion))
         self.user.user_permissions.add(*permissions)
         response = self.client.post(
             '/variant-suggestions/',
@@ -244,7 +238,7 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
         self.user = User.objects.create_user(username='testuser', password='12345')
         login = self.client.login(username='testuser', password='12345')
         self.assertTrue(login)
-        permissions = Permission.objects.filter(codename__in=PERMISSIONS)
+        permissions = Permission.objects.filter(content_type=ContentType.objects.get_for_model(VariantSuggestion))
         self.user.user_permissions.add(*permissions)
         response = self.client.post(
             '/variant-suggestions/',
@@ -295,7 +289,7 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
         self.user = User.objects.create_user(username='testuser', password='12345')
         login = self.client.login(username='testuser', password='12345')
         self.assertTrue(login)
-        permissions = Permission.objects.filter(codename__in=PERMISSIONS)
+        permissions = Permission.objects.filter(content_type=ContentType.objects.get_for_model(VariantSuggestion))
         self.user.user_permissions.add(*permissions)
         response = self.client.post(
             '/variant-suggestions/',
@@ -367,7 +361,7 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
         self.user = User.objects.create_user(username='testuser', password='12345')
         login = self.client.login(username='testuser', password='12345')
         self.assertTrue(login)
-        permissions = Permission.objects.filter(codename__in=PERMISSIONS)
+        permissions = Permission.objects.filter(content_type=ContentType.objects.get_for_model(VariantSuggestion))
         self.user.user_permissions.add(*permissions)
         response = self.client.post(
             '/variant-suggestions/',

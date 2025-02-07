@@ -94,6 +94,6 @@ class CleanJobsTest(TestCaseMixinWithSeeding, TestCase):
 
     def test_combo_of_the_day(self):
         super().generate_and_publish_variants()
-        launch_job_command('combo_of_the_day', None)
+        launch_job_command('combo_of_the_day')
         result = WebsiteProperty.objects.get(key=COMBO_OF_THE_DAY).value
         self.assertTrue(Variant.objects.filter(pk=result).exists())

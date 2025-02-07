@@ -25,7 +25,7 @@ class TestCaseMixin(BaseTestCaseMixin):
         self.modified_settings.disable()
 
     def generate_variants(self):
-        launch_job_command('generate_variants', None)
+        launch_job_command('generate_variants')
 
     def bulk_serialize_variants(self, q=None, extra_fields=[]):
         if q is None:

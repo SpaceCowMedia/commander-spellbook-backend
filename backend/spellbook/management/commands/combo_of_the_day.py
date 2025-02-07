@@ -24,7 +24,7 @@ class Command(AbstractCommand):
         announcement = None
         if new_combo:
             website_property.value = str(new_combo.pk)
-            self.log(f'Combo of the day has been {'replaced with' if current_combo else 'set to'} {new_combo.pk}: {new_combo.name}')
+            self.log(f'Combo of the day has been {"replaced with" if current_combo else "set to"} {new_combo.pk}: {new_combo.name}')
             announcement = f'# ♾️ 🎉 New Combo of the Day! 🎉 ♾️\n\n' \
                            f'[{new_combo.name}]({new_combo.spellbook_link(raw=True)})'
         website_property.save()

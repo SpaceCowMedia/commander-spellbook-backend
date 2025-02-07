@@ -27,6 +27,8 @@ class Job(models.Model):
         help_text='User that started this job',
     )
 
+    TIMEOUT = timezone.timedelta(minutes=30)
+
     @classmethod
     def start(cls, name: str, args: list[str] | None = None, group: str | None = None, duration: timezone.timedelta | None = None, user: User | None = None, allow_multiples: bool = False):
         if args is None:
@@ -35,7 +37,7 @@ class Job(models.Model):
             with transaction.atomic():
                 if not allow_multiples and Job.objects.filter(
                         name=name,
-                        expected_termination__gte=timezone.now(),
+                        expected_termination__gte=timezone.now() - cls.TIMEOUT,
                         status=Job.Status.PENDING).exists():
                     return None
                 if duration is None:

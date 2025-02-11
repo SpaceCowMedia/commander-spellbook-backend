@@ -1,7 +1,7 @@
 from lark import Lark, Transformer, LarkError, UnexpectedToken, UnexpectedCharacters
 from django.db.models import Q, QuerySet
 from django.core.exceptions import ValidationError
-from spellbook.models import Variant, FeatureProducedByVariant, CardInVariant
+from spellbook.models import TemplateInVariant, Variant, FeatureProducedByVariant, CardInVariant
 from spellbook.transformers.variants_query_filters.varant_variants_filters import variants_filter
 from ..parsers.variants_query_grammar import VARIANTS_QUERY_GRAMMAR
 from .variants_query_filters.base import QueryValue, VariantFilterCollection
@@ -121,18 +121,23 @@ def variants_query_parser(base: QuerySet[Variant], query_string: str) -> QuerySe
         raise ValidationError('Search query is too long.')
     try:
         filters: VariantFilterCollection = PARSER.parse(query_string)  # type: ignore
-        if len(filters.cards_filters) + len(filters.variants_filters) + len(filters.results_filters) > MAX_QUERY_PARAMETERS:
+        if len(filters.ingredients_filters) + len(filters.variants_filters) + len(filters.results_filters) > MAX_QUERY_PARAMETERS:
             raise ValidationError('Too many search parameters.')
         filtered_variants = base
         for filter in filters.variants_filters:
             filtered_variants = filtered_variants.exclude(filter.q) if filter.negated else filtered_variants.filter(filter.q)
-        for filter in filters.cards_filters:
-            filtered_cards = CardInVariant.objects.filter(filter.q)
-            q = Q(pk__in=filtered_cards.values('variant_id').distinct())
+        for filter in filters.ingredients_filters:
+            q = Q(pk__in=[])
+            if filter.cards_q:
+                filtered_cards = CardInVariant.objects.filter(filter.cards_q)
+                q |= Q(pk__in=filtered_cards.values('variant_id'))
+            if filter.templates_q:
+                filtered_templates = TemplateInVariant.objects.filter(filter.templates_q)
+                q |= Q(pk__in=filtered_templates.values('variant_id'))
             filtered_variants = filtered_variants.exclude(q) if filter.negated else filtered_variants.filter(q)
         for filter in filters.results_filters:
             filtered_produces = FeatureProducedByVariant.objects.filter(filter.q)
-            q = Q(pk__in=filtered_produces.values('variant_id').distinct())
+            q = Q(pk__in=filtered_produces.values('variant_id'))
             filtered_variants = filtered_variants.exclude(q) if filter.negated else filtered_variants.filter(q)
         return filtered_variants
     except UnexpectedToken as e:

@@ -138,33 +138,53 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
         self.variant_assertions(result)
 
     def test_variants_list_view_query_by_card_name(self):
-        a_card = Card.objects.first()
-        assert a_card is not None
+        a_card = Card.objects.get(pk=self.c1_id)
         for card, search in ((c, name) for c in Card.objects.all() for name in (c.name, c.name_unaccented, c.name_unaccented.replace('-', ''), c.name_unaccented.replace('-', ' '))):
             prefix_without_spaces = search.partition(' ')[0]
             search_without_underscores = search.replace('_', '').strip()
             search_with_simplified_underscores = search.replace('_____', '_')
             queries = [
-                prefix_without_spaces,
-                f'"{prefix_without_spaces}"',
-                f'"{search}"',
-                f'"{search_without_underscores}"',
-                f'"{search_with_simplified_underscores}"',
-                f'card:{prefix_without_spaces}',
-                f'card:"{prefix_without_spaces}"',
-                f'card:"{search}"',
+                (prefix_without_spaces, prefix_without_spaces),
+                (f'"{prefix_without_spaces}"', prefix_without_spaces),
+                (f'"{search}"', search),
+                (f'"{search_without_underscores}"', search_without_underscores),
+                (f'"{search_with_simplified_underscores}"', search_with_simplified_underscores),
+                (f'card:{prefix_without_spaces}', prefix_without_spaces),
+                (f'card:"{prefix_without_spaces}"', prefix_without_spaces),
+                (f'card:"{search}"', search),
+                (f'card="{search}"', search),
             ]
             queries = list(dict.fromkeys(queries))
             # case insensitive queries: isascii() is used to filter out case insensitive accented queries, incompatible with sqlite:
             # https://docs.djangoproject.com/en/5.0/ref/databases/#substring-matching-and-case-sensitivity
-            queries += [q.upper() for q in queries if not q.isupper() and q.isascii()] + [q.lower() for q in queries if not q.islower() and q.isascii()]
-            for q in queries:
+            queries += [
+                (q.upper(), term) for q, term in queries if not q.isupper() and q.isascii()
+            ] + [
+                (q.lower(), term) for q, term in queries if not q.islower() and q.isascii()
+            ]
+            for q, term in queries:
+                if '=' in q:
+                    matching_cards = Card.objects.filter(
+                        models.Q(name__iexact=term) | models.Q(name_unaccented__iexact=term) | models.Q(name_unaccented_simplified__iexact=term) | models.Q(name_unaccented_simplified_with_spaces__iexact=term)
+                    )
+                    matching_templates = Template.objects.filter(
+                        models.Q(name__iexact=term)
+                    )
+                else:
+                    matching_cards = Card.objects.filter(
+                        models.Q(name__icontains=term) | models.Q(name_unaccented__icontains=term) | models.Q(name_unaccented_simplified__icontains=term) | models.Q(name_unaccented_simplified_with_spaces__icontains=term)
+                    )
+                    matching_templates = Template.objects.filter(
+                        models.Q(name__icontains=term)
+                    )
                 with self.subTest(f'query by card name: {search} with query {q}'):
                     response = self.client.get('/variants', data={'q': q}, follow=True)
                     self.assertEqual(response.status_code, 200)
                     self.assertEqual(response.get('Content-Type'), 'application/json')
                     result = json.loads(response.content, object_hook=json_to_python_lambda)
-                    variants = self.public_variants.filter(uses__id=card.id).distinct()
+                    variants = (
+                        self.public_variants.filter(uses__in=matching_cards) | self.public_variants.filter(requires__in=matching_templates)
+                    ).distinct()
                     self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
                     for v in result.results:
                         self.variant_assertions(v)
@@ -174,7 +194,10 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
                     self.assertEqual(response.status_code, 200)
                     self.assertEqual(response.get('Content-Type'), 'application/json')
                     result = json.loads(response.content, object_hook=json_to_python_lambda)
-                    variants = self.public_variants.filter(uses__id=card.id).filter(uses__id=a_card.id).distinct()
+                    variants = variants.filter(uses__id=a_card.id).distinct()
+                    variants = (
+                        variants.filter(uses__in=matching_cards) | variants.filter(requires__in=matching_templates)
+                    ).distinct()
                     self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
                     for v in result.results:
                         self.variant_assertions(v)
@@ -728,7 +751,7 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
 
     def test_variants_list_view_query_by_a_combination_of_terms(self):
         queries = [
-            ('result=FD A result:B', self.public_variants.filter(uses__name__icontains='A').filter(produces__name__iexact='FD').filter(produces__name__icontains='B').distinct()),
+            ('result=FD A result:B', self.public_variants.filter(models.Q(uses__name__icontains='A') | models.Q(requires__name__icontains='A')).filter(produces__name__iexact='FD').filter(produces__name__icontains='B').distinct()),
         ]
         for q, variants in queries:
             with self.subTest(f'query by a combination of terms: {q}'):

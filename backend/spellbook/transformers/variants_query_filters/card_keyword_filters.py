@@ -1,4 +1,4 @@
-from .base import QueryValue, VariantFilterCollection, QueryFilter, Q, ValidationError
+from .base import QueryValue, VariantFilterCollection, IngredientQueryFilter, Q, ValidationError
 
 
 def card_keyword_filter(card_keyword_value: QueryValue) -> VariantFilterCollection:
@@ -8,9 +8,9 @@ def card_keyword_filter(card_keyword_value: QueryValue) -> VariantFilterCollecti
         case _:
             raise ValidationError(f'Operator {card_keyword_value.operator} is not supported for card keyword search.')
     return VariantFilterCollection(
-        cards_filters=(
-            QueryFilter(
-                q,
+        ingredients_filters=(
+            IngredientQueryFilter(
+                cards_q=q,
                 negated=card_keyword_value.is_negated(),
             ),
         ),

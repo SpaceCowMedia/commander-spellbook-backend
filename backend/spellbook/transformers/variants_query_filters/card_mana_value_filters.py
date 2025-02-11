@@ -1,4 +1,4 @@
-from .base import QueryValue, QueryFilter, VariantFilterCollection, Q, ValidationError
+from .base import QueryValue, IngredientQueryFilter, VariantFilterCollection, Q, ValidationError
 
 
 def card_mana_value_filter(card_mana_value_value: QueryValue) -> VariantFilterCollection:
@@ -17,9 +17,9 @@ def card_mana_value_filter(card_mana_value_value: QueryValue) -> VariantFilterCo
         case _:
             raise ValidationError(f'Operator {card_mana_value_value.operator} is not supported for card mana value search with {"numbers" if value_is_digit else "strings"}.')
     return VariantFilterCollection(
-        cards_filters=(
-            QueryFilter(
-                q,
+        ingredients_filters=(
+            IngredientQueryFilter(
+                cards_q=q,
                 negated=card_mana_value_value.is_negated(),
             ),
         ),

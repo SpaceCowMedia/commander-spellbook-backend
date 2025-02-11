@@ -1,4 +1,4 @@
-from .base import QueryValue, QueryFilter, VariantFilterCollection, Q, ValidationError
+from .base import IngredientQueryFilter, QueryValue, QueryFilter, VariantFilterCollection, Q, ValidationError
 
 
 def card_search_filter(card_value: QueryValue) -> VariantFilterCollection:
@@ -6,18 +6,20 @@ def card_search_filter(card_value: QueryValue) -> VariantFilterCollection:
     match card_value.operator:
         case ':' if not value_is_digit:
             return VariantFilterCollection(
-                cards_filters=(
-                    QueryFilter(
-                        q=Q(card__name__icontains=card_value.value) | Q(card__name_unaccented__icontains=card_value.value) | Q(card__name_unaccented_simplified__icontains=card_value.value) | Q(card__name_unaccented_simplified_with_spaces__icontains=card_value.value),
+                ingredients_filters=(
+                    IngredientQueryFilter(
+                        cards_q=Q(card__name__icontains=card_value.value) | Q(card__name_unaccented__icontains=card_value.value) | Q(card__name_unaccented_simplified__icontains=card_value.value) | Q(card__name_unaccented_simplified_with_spaces__icontains=card_value.value),
+                        templates_q=Q(template__name__icontains=card_value.value),
                         negated=card_value.is_negated(),
                     ),
                 ),
             )
         case '=' if not value_is_digit:
             return VariantFilterCollection(
-                cards_filters=(
-                    QueryFilter(
-                        q=Q(card__name__iexact=card_value.value) | Q(card__name_unaccented__iexact=card_value.value) | Q(card__name_unaccented_simplified__iexact=card_value.value) | Q(card__name_unaccented_simplified_with_spaces__iexact=card_value.value),
+                ingredients_filters=(
+                    IngredientQueryFilter(
+                        cards_q=Q(card__name__iexact=card_value.value) | Q(card__name_unaccented__iexact=card_value.value) | Q(card__name_unaccented_simplified__iexact=card_value.value) | Q(card__name_unaccented_simplified_with_spaces__iexact=card_value.value),
+                        templates_q=Q(template__name__iexact=card_value.value),
                         negated=card_value.is_negated(),
                     ),
                 ),

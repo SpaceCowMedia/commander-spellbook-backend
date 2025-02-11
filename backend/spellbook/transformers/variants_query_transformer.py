@@ -127,7 +127,7 @@ def variants_query_parser(base: QuerySet[Variant], query_string: str) -> QuerySe
         for filter in filters.variants_filters:
             filtered_variants = filtered_variants.exclude(filter.q) if filter.negated else filtered_variants.filter(filter.q)
         for filter in filters.ingredients_filters:
-            q = Q(pk__in=[])
+            q = Q()
             if filter.cards_q:
                 filtered_cards = CardInVariant.objects.filter(filter.cards_q)
                 q |= Q(pk__in=filtered_cards.values('variant_id'))

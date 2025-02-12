@@ -1,5 +1,6 @@
+import os
 from .settings import *  # noqa: F403, F401
-from .settings import INSTALLED_APPS, TEMPLATES, MIDDLEWARE
+from .settings import INSTALLED_APPS, TEMPLATES, MIDDLEWARE, DATABASES
 
 ASYNC_GENERATION = False
 
@@ -9,3 +10,18 @@ assert any(t.get('BACKEND') == 'django.template.backends.django.DjangoTemplates'
 INSTALLED_APPS.append('debug_toolbar')
 MIDDLEWARE.append('debug_toolbar.middleware.DebugToolbarMiddleware')
 INTERNAL_IPS = ['127.0.0.1', 'localhost']
+
+if os.getenv('SQL_ENGINE', DATABASES['default']['ENGINE']) != DATABASES['default']['ENGINE']:
+    DATABASES = {
+        'default': {
+            'OPTIONS': {
+                'options': '-c statement_timeout=60000'  # 60 seconds in milliseconds
+            },
+            'ENGINE': os.getenv('SQL_ENGINE'),
+            'NAME': os.environ.get("SQL_DATABASE", DATABASES['default']['NAME']),
+            "USER": os.environ.get("SQL_USER", "user"),
+            "PASSWORD": os.environ.get("SQL_PASSWORD", "password"),
+            "HOST": os.environ.get("SQL_HOST", "localhost"),
+            "PORT": os.environ.get("SQL_PORT", "5432"),
+        }
+    }

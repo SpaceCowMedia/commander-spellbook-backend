@@ -67,7 +67,7 @@
             }
         },
         {
-            "name": "Profile/Debug Server",
+            "name": "Start Profiling Server",
             "type": "debugpy",
             "request": "launch",
             "cwd": "${workspaceFolder}/backend",

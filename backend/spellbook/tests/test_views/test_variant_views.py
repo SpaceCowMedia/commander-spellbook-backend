@@ -21,7 +21,7 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
         self.v1_id: int = Variant.objects.first().id  # type: ignore
         self.public_variants = VariantViewSet.queryset
         self.ok_variants = self.public_variants.filter(status=Variant.Status.OK)
-        self.update_variants_count()
+        self.update_variants()
         self.bulk_serialize_variants()
 
     def variant_assertions(self, variant_result):
@@ -748,6 +748,32 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
                     self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
                     for v in result.results:
                         self.variant_assertions(v)
+
+    def test_variants_list_view_query_by_bracket(self):
+        for bracket in range(6):
+            operators = {
+                '>': 'gt',
+                '<': 'lt',
+                '>=': 'gte',
+                '<=': 'lte',
+                '=': 'exact',
+                ':': 'exact',
+            }
+            for operator, operator_django in operators.items():
+                queries = [
+                    f'bracket{operator}{bracket}',
+                ]
+                for q in queries:
+                    q_django = {f'bracket__{operator_django}': bracket}
+                    with self.subTest(f'query by bracket: {bracket} with query {q}'):
+                        response = self.client.get('/variants', data={'q': q}, follow=True)
+                        self.assertEqual(response.status_code, 200)
+                        self.assertEqual(response.get('Content-Type'), 'application/json')
+                        result = json.loads(response.content, object_hook=json_to_python_lambda)
+                        variants = self.public_variants.filter(**q_django).distinct()
+                        self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
+                        for v in result.results:
+                            self.variant_assertions(v)
 
     def test_variants_list_view_query_by_a_combination_of_terms(self):
         queries = [

@@ -122,12 +122,12 @@ class VariantTests(TestCaseMixinWithSeeding, TestCase):
         self.assertTrue(v.update_variant())
         self.assertFalse(v.legal_commander)
         self.assertFalse(v.update_variant())
-        f: Feature = v.produces.first()  # type: ignore
-        f.relevant = True
-        f.save()
-        self.assertFalse(v.complete)
-        self.assertTrue(v.update_variant())
         self.assertTrue(v.complete)
+        for f in v.produces.all():
+            f.relevant = False
+            f.save()
+        self.assertTrue(v.update_variant())
+        self.assertFalse(v.complete)
         self.assertFalse(v.update_variant())
 
     def test_serialization(self):

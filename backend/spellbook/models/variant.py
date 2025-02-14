@@ -1,4 +1,4 @@
-from typing import Iterable
+from typing import Iterable, Sequence
 from django.db import models, connection
 from django.dispatch import receiver
 from django.db.models.signals import post_save, pre_delete
@@ -177,15 +177,16 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
 
     def update_variant_from_ingredients(
             self,
-            cards: Iterable[tuple['CardInVariant', Card]],
-            templates: Iterable[tuple['TemplateInVariant', Template]],
-            features: Iterable[tuple['FeatureProducedByVariant', Feature]],
+            cards: Sequence[tuple['CardInVariant', Card]],
+            templates: Sequence[tuple['TemplateInVariant', Template]],
+            features: Sequence[tuple['FeatureProducedByVariant', Feature]],
     ) -> bool:
         requires_commander = any(civ.must_be_commander for civ, _ in cards) or any(tiv.must_be_commander for tiv, _ in templates)
         old_values = [
-            False,
+            self.update_variant_from_cards([card for _, card in cards], requires_commander=requires_commander),
             self.hulkline,
             self.complete,
+            self.bracket,
         ]
         self.hulkline = \
             not requires_commander \
@@ -195,10 +196,24 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
             ) \
             and self.mana_value <= 6
         self.complete = any(f.relevant for _, f in features)
+        # Bracket estimation
+        game_changer_count = sum(c.game_changer for _, c in cards)
+        casual = self.mana_value >= 8 or len(cards) + len(templates) - self.complete >= 5
+        two_card_combo = self.complete and len(cards) + len(templates) <= 2
+        early_played = self.mana_value <= 4
+        land_denial_or_extra_turn = any(c.extra_turn or c.mass_land_destruction for _, c in cards)
+        tutor_count = sum(c.tutor for _, c in cards)
+        self.bracket = \
+            1 if casual and not land_denial_or_extra_turn and not two_card_combo and game_changer_count == 0 and tutor_count <= 1 else \
+            2 if not land_denial_or_extra_turn and not two_card_combo and game_changer_count == 0 and tutor_count <= 2 else \
+            3 if not land_denial_or_extra_turn and not (two_card_combo and early_played) and game_changer_count <= 3 else \
+            4 if not early_played else \
+            5
         new_values = [
-            self.update_variant_from_cards([card for _, card in cards], requires_commander=requires_commander),
+            False,
             self.hulkline,
             self.complete,
+            self.bracket,
         ]
         return old_values != new_values
 

@@ -32,7 +32,7 @@ class TestCaseMixin(BaseTestCaseMixin):
             q = Variant.objects.all()
         Variant.objects.bulk_serialize(q, serializer=VariantSerializer, fields=extra_fields)  # type: ignore
 
-    def update_variants_count(self):
+    def update_variants(self):
         Card.objects.update(
             variant_count=Coalesce(
                 Subquery(
@@ -64,14 +64,15 @@ class TestCaseMixin(BaseTestCaseMixin):
         ))
         for variant in variants:
             variant.variant_count = variant.variant_count_updated
+            variant.update_variant()
             variant.pre_save = lambda: None
-        Variant.objects.bulk_update(variants, ['variant_count'])
+        Variant.objects.bulk_update(variants, ['variant_count', 'hulkline', 'complete', 'bracket'])
 
     def generate_and_publish_variants(self):
         self.generate_variants()
         self.bulk_serialize_variants()
         Variant.objects.update(status=Variant.Status.OK)
-        self.update_variants_count()
+        self.update_variants()
 
     def save_combo_model(self, model: dict[tuple[str, ...] | str, tuple[str, ...]]):
         card_ids_by_name: dict[str, int] = {}
@@ -189,8 +190,8 @@ class TestCaseMixinWithSeeding(TestCaseMixin):
         '''
         fa1 = FeatureAttribute.objects.create(name='FA1')
         fa2 = FeatureAttribute.objects.create(name='FA2')
-        c1 = Card.objects.create(name='A A', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000001'), identity='W', legal_commander=True, spoiler=False, type_line='Instant', oracle_text='x1', keywords=['keyword1', 'keyword2'])
-        c2 = Card.objects.create(name='B B', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000002'), identity='U', legal_commander=True, spoiler=False, type_line='Sorcery', oracle_text='x2 x3', mana_value=3)
+        c1 = Card.objects.create(name='A A', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000001'), identity='W', legal_commander=True, spoiler=False, type_line='Instant', oracle_text='x1', keywords=['keyword1', 'keyword2'], game_changer=True, extra_turn=True)
+        c2 = Card.objects.create(name='B B', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000002'), identity='U', legal_commander=True, spoiler=False, type_line='Sorcery', oracle_text='x2 x3', mana_value=3, game_changer=True)
         c3 = Card.objects.create(name='C C', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000003'), identity='B', legal_commander=False, spoiler=False, type_line='Creature', oracle_text='xx4', price_tcgplayer=2.71, price_cardkingdom=3.14, price_cardmarket=1.59)
         c4 = Card.objects.create(name='D\' D', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000004'), identity='R', legal_commander=True, spoiler=True, type_line='Battle', oracle_text='x5x', keywords=['keyword3'], price_tcgplayer=3.14, price_cardkingdom=1.59, price_cardmarket=2.65)
         c5 = Card.objects.create(name='E É', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000005'), identity='G', legal_commander=False, spoiler=True, type_line='Planeswalker', oracle_text='', price_tcgplayer=1.23, price_cardkingdom=4.56, price_cardmarket=7.89)
@@ -200,8 +201,8 @@ class TestCaseMixinWithSeeding(TestCaseMixin):
         f1 = Feature.objects.create(name='FA', description='Feature A', utility=True)
         f2 = Feature.objects.create(name='FB', description='Feature B', utility=False)
         f3 = Feature.objects.create(name='FC', description='Feature C', utility=False)
-        f4 = Feature.objects.create(name='FD', description='Feature D', utility=False)
-        f5 = Feature.objects.create(name='FE', description='Feature E', utility=False, uncountable=True)
+        f4 = Feature.objects.create(name='FD', description='Feature D', utility=False, relevant=True)
+        f5 = Feature.objects.create(name='FE', description='Feature E', utility=False, uncountable=True, relevant=True)
         b1 = Combo.objects.create(mana_needed='{W}{W}', other_prerequisites='Some requisites.', description='a1', status=Combo.Status.GENERATOR, public_notes='aa1', notes='***1')
         b2 = Combo.objects.create(mana_needed='{U}{U}', other_prerequisites='Some requisites.', description='b2', status=Combo.Status.GENERATOR, public_notes='bb2', notes='***2')
         b3 = Combo.objects.create(mana_needed='{B}{B}', other_prerequisites='Some requisites.', description='c3', status=Combo.Status.UTILITY, public_notes='cc3', notes='***3')

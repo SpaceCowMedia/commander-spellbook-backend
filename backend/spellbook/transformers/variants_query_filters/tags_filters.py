@@ -112,5 +112,14 @@ def tag_filter(tag_value: QueryValue) -> VariantFilterCollection:
                     ),
                 ),
             )
+        case 'complete':
+            return VariantFilterCollection(
+                variants_filters=(
+                    QueryFilter(
+                        q=Q(complete=True),
+                        negated=tag_value.is_negated(),
+                    ),
+                ),
+            )
         case _:
             raise ValidationError(f'Value "{tag_value.value}" is not supported for tag search.')

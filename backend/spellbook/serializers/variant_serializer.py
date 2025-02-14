@@ -165,9 +165,11 @@ class VariantSerializer(serializers.ModelSerializer):
             'notes',
             'popularity',
             'spoiler',
+            'complete',
             'legalities',
             'prices',
             'variant_count',
+            'bracket',
         ]
 
     @classmethod

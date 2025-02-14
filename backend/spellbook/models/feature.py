@@ -29,7 +29,7 @@ class Feature(models.Model):
                 violation_error_message='Feature name should be unique, ignoring case.',
             ),
             models.CheckConstraint(
-                check=~models.Q(relevant=True, utility=True),
+                condition=~models.Q(relevant=True, utility=True),
                 name='relevant_feature_not_utility',
                 violation_error_message='Relevant features cannot be utility features.',
             ),

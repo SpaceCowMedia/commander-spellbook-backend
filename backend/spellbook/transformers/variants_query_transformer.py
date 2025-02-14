@@ -20,6 +20,7 @@ from .variants_query_filters.commander_search_filters import commander_filter
 from .variants_query_filters.variant_legality_filters import legality_filter
 from .variants_query_filters.variant_price_filters import price_filter
 from .variants_query_filters.variant_popularity_filters import popularity_filter
+from .variants_query_filters.bracket_filters import bracket_filter
 
 
 class VariantsQueryTransformer(Transformer):
@@ -91,6 +92,10 @@ class VariantsQueryTransformer(Transformer):
     def variants_search(self, values):
         q = QueryValue.from_string(values[0])
         return variants_filter(q)
+
+    def bracket_search(self, values):
+        q = QueryValue.from_string(values[0])
+        return bracket_filter(q)
     # endregion
 
     # region composition

@@ -54,6 +54,8 @@ services:
       - postgres_data:/var/lib/postgresql/data/
     expose:
       - 5432
+    ports:
+      - 5432:5432
     environment:
       PGPORT: 5432
       POSTGRES_USER: test_user

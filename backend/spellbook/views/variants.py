@@ -1,5 +1,5 @@
 from django.db.models import QuerySet, F, Window
-from django.db.models.functions import Rank
+from django.db.models.functions import RowNumber
 from django.http import HttpRequest
 from django.template import loader
 from rest_framework import viewsets, serializers, filters
@@ -7,12 +7,12 @@ from django_filters.rest_framework import DjangoFilterBackend, FilterSet
 from django_filters.filters import CharFilter
 from drf_spectacular.utils import extend_schema, inline_serializer
 from spellbook.models import Variant, PreSerializedSerializer
+from spellbook.models.variant import DEFAULT_VIEW_ORDERING
 from spellbook.serializers import VariantSerializer
 from .filters import SpellbookQueryFilter, OrderingFilterWithNullsLast
 
 
 class VariantGroupedByComboFilter(filters.BaseFilterBackend):
-    DEFAULT_GROUPING_ORDERING = (F('popularity').desc(), F('identity_count').asc(), F('card_count').asc(), F('created').desc(), F('pk'))
     query_param = 'group_by_combo'
     template = 'spellbook/filters/group_by_combo.html'
 
@@ -28,12 +28,12 @@ class VariantGroupedByComboFilter(filters.BaseFilterBackend):
     def _filter_queryset(self, queryset: QuerySet[Variant]) -> QuerySet[Variant]:
         top_variants_for_each_combo = queryset.annotate(
             rank=Window(
-                expression=Rank(),
+                expression=RowNumber(),
                 partition_by=F('variantofcombo__combo_id'),
-                order_by=queryset.query.order_by + self.DEFAULT_GROUPING_ORDERING,
+                order_by=queryset.query.order_by + DEFAULT_VIEW_ORDERING + (F('pk'),),  # type: ignore
             )
-        ).filter(rank=1).values('id').distinct()
-        return queryset.filter(id__in=top_variants_for_each_combo)
+        ).filter(rank=1)
+        return queryset.filter(pk__in=top_variants_for_each_combo)
 
     def get_schema_operation_parameters(self, view):
         return [
@@ -82,15 +82,13 @@ class VariantViewSet(viewsets.ReadOnlyModelViewSet):
     ]
     serializer_class = PreSerializedSerializer
     filterset_class = VariantFilterSet
+    ordering = DEFAULT_VIEW_ORDERING
     ordering_fields = [
         'popularity',
         *Variant.prices_fields(),
         'identity_count',
         'result_count',
         'card_count',
-        'mana_value_needed',
-        'description_line_count',
-        'other_prerequisites_line_count',
         'variant_count',
         'created',
         'updated',

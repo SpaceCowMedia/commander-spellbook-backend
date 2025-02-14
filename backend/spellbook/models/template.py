@@ -1,5 +1,7 @@
 from urllib.parse import urlencode
-from django.db import models
+from django.contrib.postgres.indexes import GinIndex, OpClass
+from django.db import models, connection
+from django.db.models.functions import Upper
 from django.utils.html import format_html
 from spellbook.models import Card
 from .validators import SCRYFALL_QUERY_HELP, SCRYFALL_QUERY_VALIDATOR, NAME_VALIDATORS
@@ -30,7 +32,9 @@ class Template(models.Model):
         ordering = ['name']
         indexes = [
             models.Index(fields=['name'], name='card_template_name_index')
-        ]
+        ] + [
+            GinIndex(OpClass(Upper('name'), name='gin_trgm_ops'), name='template_name_trgm_idx'),
+        ] if connection.vendor == 'postgresql' else []
 
     def __str__(self):
         return self.name

@@ -33,6 +33,9 @@ class RecipePrefetchedManager(PreSaveSerializedManager):
         )
 
 
+DEFAULT_VIEW_ORDERING = (models.F('popularity').desc(nulls_last=True), models.F('identity_count').asc(), models.F('card_count').asc(), models.F('created').desc())
+
+
 class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
     objects: PreSaveSerializedManager
     recipes_prefetched = RecipePrefetchedManager()
@@ -130,10 +133,18 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
             '-created'
         ]
         indexes = [
-            models.Index(fields=['-popularity']),
-            models.Index(fields=['-created']),
-            models.Index(fields=['-updated']),
+            models.Index(fields=['status']),
+            models.Index(fields=('-created',)),
+            models.Index(fields=('-updated',)),
+            models.Index(fields=['other_prerequisites_line_count']),
+            models.Index(fields=['description_line_count']),
+            *(models.Index(fields=[field]) for field in Playable.playable_fields()),
+            *(models.Index(fields=[f'identity_{color}']) for color in 'wubrg'),
         ] + ([
+            models.Index(*DEFAULT_VIEW_ORDERING, name='variant_view_ordering_idx'),
+            models.Index(*('identity_count',) + DEFAULT_VIEW_ORDERING, name='variant_ic_view_ordering_idx'),
+            models.Index(*('variant_count',) + DEFAULT_VIEW_ORDERING, name='variant_vc_view_ordering_idx'),
+            models.Index(*('card_count',) + DEFAULT_VIEW_ORDERING, name='variant_cc_view_ordering_idx'),
             GinIndex(OpClass(Upper('other_prerequisites'), name='gin_trgm_ops'), name='variant_other_prereq_trgm_idx'),
             GinIndex(OpClass(Upper('description'), name='gin_trgm_ops'), name='variant_description_trgm_idx'),
         ] if connection.vendor == 'postgresql' else [])

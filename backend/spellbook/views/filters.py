@@ -1,5 +1,5 @@
 from django.db.models import QuerySet, Case, Value, When, Q, F
-from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.exceptions import FieldDoesNotExist, ValidationError as DjangoValidationError
 from django.template import loader
 from rest_framework import filters
 from rest_framework.exceptions import ValidationError
@@ -94,18 +94,30 @@ class NameAndScryfallAutocompleteQueryFilter(AutocompleteQueryFilter):
 
 
 class OrderingFilterWithNullsLast(filters.OrderingFilter):
-    def filter_queryset(self, request, queryset, view):
+    def filter_queryset(self, request, queryset: QuerySet, view):
         ordering = self.get_ordering(request, queryset, view)
 
         if ordering:
             ordering_with_nulls = []
             for field in ordering:
-                if field in ('?', '-?'):
-                    ordering_with_nulls.append('?')
-                elif field.startswith('-'):
-                    ordering_with_nulls.append(F(field[1:]).desc(nulls_last=True))
+                if isinstance(field, str):
+                    field_name = field.lstrip('-')
+                    if field_name == '?':
+                        ordering_with_nulls.append('?')
+                        continue
+                    nulls_last = True
+                    try:
+                        if not queryset.model._meta.get_field(field_name).null:
+                            nulls_last = None
+                    except FieldDoesNotExist:
+                        pass
+                    f = F(field_name)
+                    if field.startswith('-'):
+                        f = f.desc(nulls_last=nulls_last)
+                    else:
+                        f = f.asc(nulls_last=nulls_last)
+                    ordering_with_nulls.append(f)
                 else:
-                    ordering_with_nulls.append(F(field).asc(nulls_last=True))
+                    ordering_with_nulls.append(field)
             return queryset.order_by(*ordering_with_nulls)
-
         return queryset

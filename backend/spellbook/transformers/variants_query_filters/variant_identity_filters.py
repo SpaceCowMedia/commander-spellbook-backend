@@ -21,19 +21,19 @@ def identity_filter(identity_value: QueryValue) -> VariantFilterCollection:
         case '<' if not value_is_digit:
             q = Q(identity_count__lt=len(identity))
             for color in not_in_identity:
-                q &= ~Q(identity__contains=color)
+                q &= Q(**{f'identity_{color.lower()}': False})
         case ':' | '<=' if not value_is_digit:
             q = Q(identity_count__lte=len(identity))
             for color in not_in_identity:
-                q &= ~Q(identity__contains=color)
+                q &= Q(**{f'identity_{color.lower()}': False})
         case '>' if not value_is_digit:
             q = Q(identity_count__gt=len(identity))
             for color in identity:
-                q &= Q(identity__contains=color)
+                q &= Q(**{f'identity_{color.lower()}': True})
         case '>=' if not value_is_digit:
             q = Q(identity_count__gte=len(identity))
             for color in identity:
-                q &= Q(identity__contains=color)
+                q &= Q(**{f'identity_{color.lower()}': True})
         case '=' | ':' if value_is_digit:
             q = Q(identity_count=identity_value.value)
         case '<' if value_is_digit:

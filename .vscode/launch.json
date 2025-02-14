@@ -76,7 +76,7 @@
                 "runserver",
                 "--settings=backend.debug_settings",
             ],
-            "envFile": "${workspaceFolder}/backend/.env",
+            "envFile": "${workspaceFolder}/backend/secrets.env",
             "env": {
                 "PYTHONPATH": "${workspaceFolder}${/}common",
             },

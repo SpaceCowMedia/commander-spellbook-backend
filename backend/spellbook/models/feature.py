@@ -15,6 +15,7 @@ class Feature(models.Model):
     updated = models.DateTimeField(auto_now=True, editable=False)
     utility = models.BooleanField(default=False, help_text='Is this a utility feature? Utility features are hidden to the end users', verbose_name='is utility')
     uncountable = models.BooleanField(default=False, help_text='Is this an uncountable feature? Uncountable features can only appear in one copy and speed up variant generation.', verbose_name='is uncountable')
+    relevant = models.BooleanField(default=False, help_text='Is this a relevant feature? Relevant features are enough to make the combo complete.', verbose_name='is relevant')
 
     class Meta:
         verbose_name = 'feature'
@@ -26,6 +27,11 @@ class Feature(models.Model):
                 Lower('name'),
                 name='name_unique_ci',
                 violation_error_message='Feature name should be unique, ignoring case.',
+            ),
+            models.CheckConstraint(
+                check=~models.Q(relevant=True, utility=True),
+                name='relevant_feature_not_utility',
+                violation_error_message='Relevant features cannot be utility features.',
             ),
         ]
         indexes = [

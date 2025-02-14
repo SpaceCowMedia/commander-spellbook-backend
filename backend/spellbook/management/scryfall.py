@@ -1,9 +1,10 @@
+from dataclasses import dataclass
 import json
 import uuid
 import datetime
 from decimal import Decimal
 from urllib.request import Request, urlopen
-from urllib.parse import urlencode
+from urllib.parse import quote_plus, urlencode
 from django.utils import timezone
 from spellbook.models import Card, merge_identities
 
@@ -12,7 +13,15 @@ def standardize_name(name: str) -> str:
     return name.lower().strip(' \t\n\r')
 
 
-def scryfall(bulk_collection: str | None = None) -> dict[str, dict]:
+@dataclass(frozen=True)
+class Scryfall:
+    cards: dict[str, dict]
+    tutor: frozenset[str]
+    mass_land_destruction: frozenset[str]
+    extra_turn: frozenset[str]
+
+
+def scryfall(bulk_collection: str | None = None) -> Scryfall:
     if bulk_collection is None:
         bulk_collection = 'oracle-cards'
     if bulk_collection not in {'oracle-cards', 'default-cards'}:
@@ -58,7 +67,38 @@ def scryfall(bulk_collection: str | None = None) -> dict[str, dict]:
             name = standardize_name(name)
             if name in card_db:
                 card_db[name]['prices'] = prices
-    return {name: obj for name, obj in card_db.items() if 'oracle_id' in obj}
+    tutor = get_tagged_cards_from_scryfall('function:tutor -function:tutor-land -function:tutor-seek mv<=3')
+    mass_land_destruction = get_tagged_cards_from_scryfall('function:sweeper-land-destroy')
+    extra_turn = get_tagged_cards_from_scryfall('function:extra-turn')
+    return Scryfall(
+        cards={name: obj for name, obj in card_db.items() if 'oracle_id' in obj},
+        tutor=tutor,
+        mass_land_destruction=mass_land_destruction,
+        extra_turn=extra_turn,
+    )
+
+
+def get_tagged_cards_from_scryfall(q: str) -> frozenset[str]:
+    req = Request(f'https://api.scryfall.com/cards/search?format=json&q={quote_plus(q)}')
+    has_next = True
+    result = set[str]()
+    max_pages = 10
+    while has_next and max_pages > 0:
+        with urlopen(req) as response:
+            data = json.loads(response.read().decode())
+            has_next = data['has_more']
+            if has_next:
+                req = Request(data['next_page'])
+            for card in data['data']:
+                card_and_faces = [card]
+                faces = card.get('card_faces', [])
+                if len(faces) > 1:
+                    card_and_faces += faces
+                for face in card_and_faces:
+                    if 'oracle_id' in face:
+                        result.add(face['oracle_id'])
+        max_pages -= 1
+    return frozenset(result)
 
 
 def fuzzy_restore_card(scryfall: dict, name: str):
@@ -76,8 +116,8 @@ def fuzzy_restore_card(scryfall: dict, name: str):
             raise Exception(f'Card {name} not found in scryfall dataset, even after fuzzy search')
 
 
-def update_cards(cards: list[Card], scryfall: dict[str, dict], counts: dict[int, int], log=lambda t: print(t), log_warning=lambda t: print(t), log_error=lambda t: print(t)):
-    oracle_db = {card_object['oracle_id']: card_object for card_object in scryfall.values()}
+def update_cards(cards: list[Card], scryfall: Scryfall, counts: dict[int, int], log=lambda t: print(t), log_warning=lambda t: print(t), log_error=lambda t: print(t)):
+    oracle_db = {card_object['oracle_id']: card_object for card_object in scryfall.cards.values()}
     existing_names = {card.name: card for card in cards}
     existing_oracle_ids = {card.oracle_id: card for card in cards if card.oracle_id is not None}
     cards_to_save: list[Card] = []
@@ -86,8 +126,8 @@ def update_cards(cards: list[Card], scryfall: dict[str, dict], counts: dict[int,
         if card.oracle_id is None:
             log(f'Card {card.name} lacks an oracle_id: attempting to find it by name...')
             card_name = standardize_name(card.name)
-            if card_name in scryfall:
-                card.oracle_id = uuid.UUID(hex=scryfall[card_name]['oracle_id'])
+            if card_name in scryfall.cards:
+                card.oracle_id = uuid.UUID(hex=scryfall.cards[card_name]['oracle_id'])
                 if card.oracle_id in existing_oracle_ids:
                     log_error(f'Card {card.name} would have the same oracle id as {existing_oracle_ids[card.oracle_id].name}, skipping')  # type: ignore
                     continue
@@ -122,6 +162,10 @@ def update_cards(cards: list[Card], scryfall: dict[str, dict], counts: dict[int,
             card.keywords = card_in_db['keywords']
             card.mana_value = int(card_in_db['cmc'])
             card.reserved = card_in_db['reserved']
+            card.tutor = oracle_id in scryfall.tutor
+            card.mass_land_destruction = oracle_id in scryfall.mass_land_destruction
+            card.extra_turn = oracle_id in scryfall.extra_turn
+            card.game_changer = card_in_db['game_changer']
             card_legalities = card_in_db['legalities']
             card.legal_commander = card_legalities['commander'] == 'legal'
             card.legal_pauper_commander_main = card_legalities['paupercommander'] == 'legal'

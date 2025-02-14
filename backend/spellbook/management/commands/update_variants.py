@@ -15,7 +15,7 @@ class Command(AbstractCommand):
         self.log('Fetching EDHREC dataset...')
         edhrec_variant_db = edhrec()
         self.log('Updating variants...')
-        variants_query = Variant.objects.prefetch_related('uses', 'requires', 'cardinvariant_set', 'templateinvariant_set')
+        variants_query = Variant.recipes_prefetched.prefetch_related('uses', 'requires')
         variants = list[Variant]()
         for i in range(0, variants_query.count(), self.batch_size):
             variants.extend(variants_query[i:i + self.batch_size])

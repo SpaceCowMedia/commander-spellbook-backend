@@ -40,6 +40,10 @@ class Card(Playable, PreSaveModelMixin, ScryfallLinkMixin):
             'reserved',
             'latest_printing_set',
             'reprinted',
+            'tutor',
+            'mass_land_destruction',
+            'extra_turn',
+            'game_changer',
         ]
     type_line = models.CharField(max_length=MAX_CARD_NAME_LENGTH, blank=True, verbose_name='type line of card')
     oracle_text = models.TextField(blank=True, verbose_name='oracle text of card')
@@ -47,6 +51,10 @@ class Card(Playable, PreSaveModelMixin, ScryfallLinkMixin):
     reserved = models.BooleanField(default=False, help_text='Whether this card is part of the Reserved List', verbose_name='reserved list card')
     latest_printing_set = models.CharField(max_length=10, blank=True, help_text='Set code of latest printing of card', verbose_name='latest printing set of card')
     reprinted = models.BooleanField(default=False, help_text='Whether this card has been reprinted', verbose_name='reprinted card')
+    tutor = models.BooleanField(default=False, help_text='Whether this card can tutor for other cards', verbose_name='tutor card')
+    mass_land_destruction = models.BooleanField(default=False, help_text='Whether this card can destroy multiple lands', verbose_name='mass land destruction card')
+    extra_turn = models.BooleanField(default=False, help_text='Whether this card grants an extra turn', verbose_name='extra turn card')
+    game_changer = models.BooleanField(default=False, help_text='Whether this card is in the official Game Changer card list', verbose_name='game changer card')
 
     features = models.ManyToManyField(
         to=Feature,

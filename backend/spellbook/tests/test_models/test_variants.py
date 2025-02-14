@@ -1,4 +1,5 @@
 from django.test import TestCase
+from spellbook.models.feature import Feature
 from spellbook.tests.testing import TestCaseMixinWithSeeding
 from common.inspection import count_methods
 from spellbook.models import Card, Job, PreSerializedSerializer, Template, Variant, id_from_cards_and_templates_ids
@@ -106,10 +107,11 @@ class VariantTests(TestCaseMixinWithSeeding, TestCase):
         v: Variant = Variant.objects.get(id=self.v1_id)
         civs = list((civ, civ.card) for civ in v.cardinvariant_set.all())
         tivs = list((tiv, tiv.template) for tiv in v.templateinvariant_set.all())
-        self.assertFalse(v.update_variant_from_ingredients(civs, tivs))
+        fpvs = list((fpv, fpv.feature) for fpv in v.featureproducedbyvariant_set.all())
+        self.assertFalse(v.update_variant_from_ingredients(civs, tivs, fpvs))
         civs[0][1].identity = 'WUBRG'
-        self.assertTrue(v.update_variant_from_ingredients(civs, tivs))
-        self.assertFalse(v.update_variant_from_ingredients(civs, tivs))
+        self.assertTrue(v.update_variant_from_ingredients(civs, tivs, fpvs))
+        self.assertFalse(v.update_variant_from_ingredients(civs, tivs, fpvs))
 
     def test_update_variant(self):
         v: Variant = Variant.objects.get(id=self.v1_id)
@@ -119,6 +121,13 @@ class VariantTests(TestCaseMixinWithSeeding, TestCase):
         c.save()
         self.assertTrue(v.update_variant())
         self.assertFalse(v.legal_commander)
+        self.assertFalse(v.update_variant())
+        f: Feature = v.produces.first()  # type: ignore
+        f.relevant = True
+        f.save()
+        self.assertFalse(v.complete)
+        self.assertTrue(v.update_variant())
+        self.assertTrue(v.complete)
         self.assertFalse(v.update_variant())
 
     def test_serialization(self):

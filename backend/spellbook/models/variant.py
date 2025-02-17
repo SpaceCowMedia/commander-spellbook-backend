@@ -196,7 +196,7 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
     ) -> bool:
         requires_commander = any(civ.must_be_commander for civ, _ in cards) or any(tiv.must_be_commander for tiv, _ in templates)
         old_values = {field: getattr(self, field) for field in self.computed_fields()}
-        self.update_variant_from_cards([card for _, card in cards], requires_commander=requires_commander)
+        self.update_playable_fields([card for _, card in cards], requires_commander=requires_commander)
         self.hulkline = \
             not requires_commander \
             and all(
@@ -205,61 +205,14 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
             ) \
             and self.mana_value <= 6
         self.complete = any(f.relevant for _, f in features)
-        # Bracket estimation
-        game_changer_count = sum(c.game_changer for _, c in cards)
-        expensive = self.mana_value >= 8
-        has_many_cards = len(cards) + len(templates) + (not self.complete) >= 5
-        two_card_combo = len(cards) + len(templates) + (not self.complete) <= 2
-        cheap = self.mana_value <= 4
-        mass_land_removal = any(c.mass_land_destruction for _, c in cards)
-        extra_turn = any(c.extra_turn for _, c in cards)
-        mass_land_removal_or_extra_turn = mass_land_removal or extra_turn
-        tutor_count = sum(c.tutor for _, c in cards)
-        reasons = []
-        if not mass_land_removal_or_extra_turn and not two_card_combo and game_changer_count == 0 and tutor_count <= 1:
-            if expensive or has_many_cards:
-                self.bracket = 1
-                reasons.extend(('it has no game changers', 'no mass land denial', 'no extra turns', 'requires more than two cards', 'has at most 1 tutor'))
-                if expensive:
-                    reasons.append(f'is expensive, costing {self.mana_value} mana upfront')
-                if has_many_cards:
-                    reasons.append('requires at least 5 cards to work')
-            else:
-                self.bracket = 2
-                reasons.extend([
-                    'it has no game changers',
-                    'no mass land denial',
-                    'no chained extra turns',
-                    'requires more than two cards',
-                    'at most 1 tutor',
-                    'it\'s not much expensive in mana',
-                    'it needs less than 5 cards',
-                ])
-        elif not mass_land_removal_or_extra_turn and not (cheap and two_card_combo) and game_changer_count <= 3:
-            self.bracket = 3
-            reasons.extend([
-                'it has no mass land denial',
-                'no extra turns',
-                'not an early game two-card combo',
-                'at most 3 game changers',
-            ])
-        elif not cheap:
-            self.bracket = 4
-            reasons.extend([
-                'it doesn\'t comply with bracket 3 guidelines',
-                'it\'s not an early game combo',
-            ])
-        else:
-            self.bracket = 5
-            reasons.extend([
-                'it doesn\'t comply with bracket 3 guidelines',
-                f'it\'s an early game combo, costing only {self.mana_value} mana upfront',
-            ])
-        self.bracket_explanation = f'This combo is better suited for bracket {self.bracket} decks because {chain_strings(reasons)}'
+        self.bracket, self.bracket_explanation = estimate_bracket(
+            [card for _, card in cards],
+            included_variants=[self],
+        )
         new_values = {field: getattr(self, field) for field in self.computed_fields()}
         return old_values != new_values
 
-    def update_variant_from_cards(self, cards: Iterable['Card'], requires_commander: bool) -> bool:
+    def update_playable_fields(self, cards: Iterable['Card'], requires_commander: bool) -> bool:
         '''Returns True if any field was changed, False otherwise.'''
         cards = list(cards)
         old_values = {field: getattr(self, field) for field in self.playable_fields()}
@@ -401,3 +354,73 @@ def combo_delete(sender, instance: Combo, **kwargs) -> None:
     ).update(
         status=Variant.Status.RESTORE,
     )
+
+
+def estimate_bracket(cards: Sequence[Card], included_variants: Sequence[Variant]) -> tuple[int, str]:
+    single = len(included_variants) == 1 and included_variants[0].cards().keys() == {c.id for c in cards}
+    game_changer_count = sum(c.game_changer for c in cards)
+    two_card_combos = [v for v in included_variants if v.card_count + (not v.complete) <= 2]
+    early_game_two_card_combos = [v for v in two_card_combos if v.mana_value <= 4]
+    mass_land_removal = any(c.mass_land_destruction for c in cards)
+    extra_turn = any(c.extra_turn for c in cards)
+    mass_land_removal_or_extra_turn = mass_land_removal or extra_turn
+    tutor_count = sum(c.tutor for c in cards)
+    reasons = []
+    bracket = 1
+    if not mass_land_removal_or_extra_turn and not two_card_combos and game_changer_count == 0 and tutor_count <= 1:
+        bracket = 2
+        reasons.extend([
+            'it has no game changers',
+            'no mass land denial',
+            'no chained extra turns',
+            'at most 1 tutor',
+        ])
+        if single:
+            reasons.append('it requires more than two cards')
+        elif included_variants:
+            reasons.append('no two-card combos')
+        else:
+            reasons.append('no combos')
+    elif not mass_land_removal_or_extra_turn and not early_game_two_card_combos and game_changer_count <= 3:
+        bracket = 3
+        reasons.extend([
+            'it has no mass land denial',
+            'no extra turns',
+        ])
+        if tutor_count > 1:
+            reasons.append('more than 1 tutor')
+        if game_changer_count:
+            reasons.append(f'only {game_changer_count} game changer{"s" if game_changer_count > 1 else ""}')
+        if single:
+            reasons.append('it is not an early game two-card combo')
+        elif included_variants:
+            reasons.append('no early game two-card combos (costing at most 4 mana upfront is considered early game)')
+        else:
+            reasons.append('no combos')
+    else:
+        if mass_land_removal:
+            reasons.append('it contains mass land denial')
+        if extra_turn:
+            reasons.append('it contains chained extra turns')
+        if game_changer_count > 3:
+            reasons.append(f'it contains {game_changer_count} game changers')
+        if not early_game_two_card_combos:
+            bracket = 4
+            if single:
+                reasons.append('it is not an early game two-card combo')
+            elif included_variants:
+                reasons.append('no early game two-card combos (costing at most 4 mana upfront is considered early game)')
+        else:
+            bracket = 5
+            reasons.extend([
+                'it doesn\'t comply with bracket 3 guidelines',
+            ])
+            if single:
+                reasons.append(f'it is is an early game two-card combo, only requiring {early_game_two_card_combos[0].mana_value} mana upfront')
+            elif included_variants:
+                reasons.append(f'it has {len(early_game_two_card_combos)} early game two-card combos (costing at most {max(v.mana_value for v in early_game_two_card_combos)} mana upfront)')
+    if single:
+        bracket_explanation = f'This combo could be included in bracket {bracket} decks because {chain_strings(reasons)}'
+    else:
+        bracket_explanation = f'This decklist could be probably considered a bracket {bracket} deck because {chain_strings(reasons)}'
+    return bracket, bracket_explanation

@@ -62,6 +62,15 @@ class VariantGroupedByComboFilter(filters.BaseFilterBackend):
         return template.render(context)
 
 
+class EditorOrOnlyPublicVariantsFilters(filters.BaseFilterBackend):
+    def filter_queryset(self, request: HttpRequest, queryset: QuerySet[Variant], view):
+        if hasattr(request, 'user') and request.user.is_authenticated:
+            user = request.user
+            if user.has_perm('spellbook.change_variant'):  # type: ignore
+                return queryset.filter(status__in=Variant.public_statuses() + Variant.preview_statuses())
+        return queryset.filter(status__in=Variant.public_statuses())
+
+
 class VariantFilterSet(FilterSet):
     variant = CharFilter(field_name='of__variants', label='Filters for variants of the same combos that generated the given variant id.', distinct=True)
 
@@ -79,6 +88,7 @@ class VariantViewSet(viewsets.ReadOnlyModelViewSet):
         OrderingFilterWithNullsLast,
         VariantGroupedByComboFilter,
         DjangoFilterBackend,
+        EditorOrOnlyPublicVariantsFilters,
     ]
     serializer_class = PreSerializedSerializer
     filterset_class = VariantFilterSet
@@ -94,11 +104,3 @@ class VariantViewSet(viewsets.ReadOnlyModelViewSet):
         'updated',
         '?'
     ]
-
-    def get_queryset(self) -> QuerySet[Variant]:
-        queryset = super().get_queryset()
-        if hasattr(self, 'request') and hasattr(self.request, 'user') and self.request.user.is_authenticated:
-            user = self.request.user
-            if user.has_perm('spellbook.change_variant'):
-                return queryset.filter(status__in=Variant.public_statuses() + Variant.preview_statuses())
-        return queryset.filter(status__in=Variant.public_statuses())

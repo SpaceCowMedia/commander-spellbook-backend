@@ -5,7 +5,7 @@ from .template import Template
 from .ingredient import IngredientInCombination, Ingredient, ZoneLocation
 from .feature_attribute import FeatureAttribute, WithFeatureAttributes, WithFeatureAttributesMatcher
 from .combo import Combo, CardInCombo, TemplateInCombo, FeatureNeededInCombo, FeatureProducedInCombo, FeatureRemovedInCombo
-from .variant import Variant, CardInVariant, TemplateInVariant, FeatureProducedByVariant, VariantIncludesCombo, VariantOfCombo
+from .variant import Variant, CardInVariant, TemplateInVariant, FeatureProducedByVariant, VariantIncludesCombo, VariantOfCombo, estimate_bracket
 from .job import Job
 from .variant_suggestion import VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, FeatureProducedInVariantSuggestion
 from .variant_alias import VariantAlias

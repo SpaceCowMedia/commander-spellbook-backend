@@ -1,57 +1,19 @@
-from dataclasses import dataclass
 from drf_spectacular.openapi import AutoSchema
-from multiset import FrozenMultiset, Multiset
+from multiset import FrozenMultiset
 from django.db.models import F, Sum, Case, When, Value
 from django.db.models.functions import Greatest
 from rest_framework import parsers, serializers
 from rest_framework.response import Response
 from rest_framework.request import Request
-from rest_framework.views import APIView
 from rest_framework.pagination import LimitOffsetPagination
 from drf_spectacular.utils import extend_schema, Direction
 from drf_spectacular.extensions import OpenApiSerializerExtension
-from common.serializers import DeckSerializer as RawDeckSerializer, CardInDeck as RawCardInDeck
-from common.abstractions import Deck as RawDeck
-from spellbook.models import Card, merge_identities, CardInVariant, Variant
+from spellbook.models import CardInVariant, Variant
 from spellbook.models.mixins import PreSerializedSerializer
 from spellbook.serializers import VariantSerializer
 from website.views import PlainTextDeckListParser
 from .variants import VariantViewSet
-
-
-@dataclass
-class Deck:
-    main: FrozenMultiset[int]
-    commanders: FrozenMultiset[int]
-
-
-def deck_from_raw(raw_deck: RawDeck, cards_dict: dict[str, int]) -> Deck:
-    valid_card_ids: set[int] = set(cards_dict.values())
-    main = Multiset[int]()
-    commanders = Multiset[int]()
-
-    def next_card(raw_card: RawCardInDeck, card_set: Multiset[int]):
-        card = raw_card.card.strip().lower()
-        quantity = raw_card.quantity
-        if not card or quantity < 1:
-            return
-        if card in cards_dict:
-            card_set.add(cards_dict[card], quantity)
-        elif card.isdigit():
-            card_id = int(card)
-            if card_id in valid_card_ids:
-                card_set.add(card_id, quantity)
-    for card in raw_deck.main:
-        next_card(card, main)
-    for commander in raw_deck.commanders:
-        next_card(commander, commanders)
-    return Deck(main=FrozenMultiset(main), commanders=FrozenMultiset(commanders))
-
-
-class JsonDeckListParser(parsers.JSONParser):
-    def parse(self, stream, media_type=None, parser_context=None) -> dict:
-        json: dict[str, list[str]] = super().parse(stream, media_type, parser_context)
-        return json
+from .utils import Deck, DecklistAPIView
 
 
 class FindMyCombosResponseSerializer(serializers.BaseSerializer):
@@ -136,33 +98,21 @@ class FindMyCombosResponseSerializerExtension(OpenApiSerializerExtension):
         }
 
 
-class FindMyCombosView(APIView):
+class FindMyCombosView(DecklistAPIView):
     action = 'list'
     permission_classes = []
-    parser_classes = [PlainTextDeckListParser, JsonDeckListParser]
+    parser_classes = [PlainTextDeckListParser, parsers.JSONParser]
     pagination_class = LimitOffsetPagination
-    request = {
-        'application/json': RawDeckSerializer,
-        'text/plain': str,
-    }
     response = FindMyCombosResponseSerializer
     filter_backends = VariantViewSet.filter_backends
     filterset_class = VariantViewSet.filterset_class
 
-    @extend_schema(request=request, responses=response)
+    @extend_schema(request=DecklistAPIView.request, responses=response)
     def get(self, request: Request) -> Response:
-        data: str | dict = request.data  # type: ignore
-        serializer = RawDeckSerializer(data=data)
-        serializer.is_valid(raise_exception=True)
-        raw_deck: RawDeck = serializer.save()  # type: ignore
-        cards_data = list(Card.objects.values_list('name', 'id', 'identity'))
-        cards_data_dict: dict[str, int] = {name.lower(): id for name, id, _ in cards_data}
-        deck = deck_from_raw(raw_deck, cards_data_dict)
-        cards = deck.main.union(deck.commanders)
-        identity = merge_identities(identity for _, id, identity in cards_data if id in cards)
+        deck = self.parse(request)
 
         quantity_in_deck = Case(
-            *(When(card_id=card_id, then=quantity) for card_id, quantity in cards.items()),
+            *(When(card_id=card_id, then=quantity) for card_id, quantity in deck.cards.items()),
             default=Value(0),
         )
 
@@ -187,11 +137,11 @@ class FindMyCombosView(APIView):
         variants_page: list[Variant] = paginator.paginate_queryset(variants_query, request)  # type: ignore
         return paginator.get_paginated_response(FindMyCombosResponseSerializer({
             'variants': variants_page,
-            'identity': identity,
+            'identity': deck.identity,
             'deck': deck,
         }).data)
 
-    @extend_schema(request=request, responses=response)
+    @extend_schema(request=DecklistAPIView.request, responses=response)
     def post(self, request: Request) -> Response:
         return self.get(request)
 

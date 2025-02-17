@@ -192,9 +192,20 @@ class ComboAdmin(SpellbookModelAdmin):
     ]
     list_display = ['name', 'id', 'status', 'allow_many_cards', 'allow_multiple_copies', 'updated', 'variant_count']
 
+    def get_inline_formsets(self, request, formsets, inline_instances, obj=None, **kwargs):
+        inline_admin_formsets = super().get_inline_formsets(request, formsets, inline_instances, obj=obj, **kwargs)
+        for inline_admin_formset in inline_admin_formsets:
+            classes: list[str] = inline_admin_formset.classes.split()
+            if 'collapse' in classes:
+                if isinstance(inline_admin_formset.opts, FeatureRemovedInComboAdminInline):
+                    if obj and obj.removes.exists():
+                        classes.remove('collapse')
+            inline_admin_formset.classes = ' '.join(classes)
+        return inline_admin_formsets
+
     def get_fieldsets(self, request, obj):
         fieldsets = super().get_fieldsets(request, obj)
-        if not obj or obj.uses.count() == 0:
+        if not obj or not obj.uses.exists():
             fieldsets = fieldsets[1:]
         return fieldsets
 

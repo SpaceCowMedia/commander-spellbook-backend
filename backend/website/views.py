@@ -3,7 +3,6 @@ from django.core.validators import URLValidator
 from django.core.exceptions import ValidationError
 from rest_framework import viewsets, serializers, parsers
 from rest_framework.decorators import api_view, permission_classes, parser_classes
-from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.request import Request
 from rest_framework.exceptions import APIException
@@ -68,7 +67,7 @@ class SomethingWentWrong(APIException):
     },
 )
 @api_view(['GET'])
-@permission_classes([AllowAny])
+@permission_classes([])
 def card_list_from_url(request: Request) -> Response:
     url = request.query_params.get('url', '')
     try:
@@ -103,7 +102,7 @@ class PlainTextDeckListParser(parsers.BaseParser):
     responses=DeckSerializer,
 )
 @api_view(['GET', 'POST'])
-@permission_classes([AllowAny])
+@permission_classes([])
 @parser_classes([PlainTextDeckListParser])
 def card_list_from_text(request: Request) -> Response:
     data = request.data

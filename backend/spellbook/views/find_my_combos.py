@@ -6,7 +6,6 @@ from django.db.models.functions import Greatest
 from rest_framework import parsers, serializers
 from rest_framework.response import Response
 from rest_framework.request import Request
-from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 from rest_framework.pagination import LimitOffsetPagination
 from drf_spectacular.utils import extend_schema, Direction
@@ -139,7 +138,7 @@ class FindMyCombosResponseSerializerExtension(OpenApiSerializerExtension):
 
 class FindMyCombosView(APIView):
     action = 'list'
-    permission_classes = [AllowAny]
+    permission_classes = []
     parser_classes = [PlainTextDeckListParser, JsonDeckListParser]
     pagination_class = LimitOffsetPagination
     request = {

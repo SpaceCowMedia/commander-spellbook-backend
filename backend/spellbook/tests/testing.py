@@ -66,7 +66,7 @@ class TestCaseMixin(BaseTestCaseMixin):
             variant.variant_count = variant.variant_count_updated
             variant.update_variant()
             variant.pre_save = lambda: None
-        Variant.objects.bulk_update(variants, ['variant_count', 'hulkline', 'complete', 'bracket'])
+        Variant.objects.bulk_update(variants, Variant.computed_fields() + ['variant_count'])
 
     def generate_and_publish_variants(self):
         self.generate_variants()

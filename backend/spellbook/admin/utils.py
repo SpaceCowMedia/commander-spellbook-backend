@@ -189,6 +189,8 @@ class CustomFilter(admin.SimpleListFilter):
         allowed_values = {str(lookup) for lookup, _ in self.lookup_choices}
         if value is None or value not in allowed_values:
             return queryset
+        if self.data_type is bool and value in ('True', 'False'):
+            value = value == 'True'
         return queryset.filter(self.filter(self.data_type(value))).distinct()
 
     def filter(self, value: data_type) -> Q:

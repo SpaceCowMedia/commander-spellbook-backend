@@ -14,8 +14,9 @@ class Command(AbstractCommand):
     def run(self, *args, **options):
         self.log('Fetching EDHREC dataset...')
         edhrec_variant_db = edhrec()
+        self.log('Fetching Commander Spellbook dataset...')
+        variants_query = Variant.recipes_prefetched.prefetch_related('uses', 'requires', 'produces')
         self.log('Updating variants...')
-        variants_query = Variant.recipes_prefetched.prefetch_related('uses', 'requires')
         variants = list[Variant]()
         for i in range(0, variants_query.count(), self.batch_size):
             variants.extend(variants_query[i:i + self.batch_size])
@@ -36,7 +37,7 @@ class Command(AbstractCommand):
             log_error=lambda x: self.log(x, self.style.ERROR),
         )
         updated_variant_count = len(variants_to_save)
-        Variant.objects.bulk_update(variants_to_save, fields=Variant.playable_fields() + ['popularity', 'variant_count', 'hulkline', 'complete', 'bracket'], batch_size=self.batch_size)
+        Variant.objects.bulk_update(variants_to_save, fields=Variant.computed_fields() + ['popularity', 'variant_count'], batch_size=self.batch_size)
         self.log('Updating variants...done', self.style.SUCCESS)
         if updated_variant_count > 0:
             self.log(f'Successfully updated {updated_variant_count} variants', self.style.SUCCESS)

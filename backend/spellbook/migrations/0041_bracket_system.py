@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('spellbook', '0040_remove_variant_spellbook_v_popular_50a711_idx_and_more'),
+        ('spellbook', '0040_optimizations'),
     ]
 
     operations = [
@@ -52,5 +52,10 @@ class Migration(migrations.Migration):
         migrations.AddConstraint(
             model_name='feature',
             constraint=models.CheckConstraint(condition=models.Q(('relevant', True), ('utility', True), _negated=True), name='relevant_feature_not_utility', violation_error_message='Relevant features cannot be utility features.'),
+        ),
+        migrations.AddField(
+            model_name='variant',
+            name='bracket_explanation',
+            field=models.TextField(blank=True, editable=False, help_text='Explanation for the bracket estimation'),
         ),
     ]

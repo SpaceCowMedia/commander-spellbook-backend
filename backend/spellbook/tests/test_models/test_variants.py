@@ -61,7 +61,7 @@ class VariantTests(TestCaseMixinWithSeeding, TestCase):
         self.assertTrue(v.query_string().startswith('q='))
 
     def test_method_count(self):
-        self.assertEqual(count_methods(Variant), 10)
+        self.assertEqual(count_methods(Variant), 11)
 
     def test_update_variant_from_cards(self):
         v: Variant = Variant.objects.get(id=self.v1_id)

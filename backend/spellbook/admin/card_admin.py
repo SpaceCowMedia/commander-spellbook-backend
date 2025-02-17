@@ -68,7 +68,16 @@ class CardAdmin(SpellbookModelAdmin):
             'description': 'Prices are updated periodically from EDHREC.'
         }),
     ]
-    list_filter = [IdentityFilter, CardTypeFilter, 'legal_commander', ManagedByScryfallFilter]
+    list_filter = [
+        IdentityFilter,
+        CardTypeFilter,
+        'legal_commander',
+        ManagedByScryfallFilter,
+        'game_changer',
+        'tutor',
+        'mass_land_destruction',
+        'extra_turn',
+    ]
     search_fields = [
         '=pk',
         'name',

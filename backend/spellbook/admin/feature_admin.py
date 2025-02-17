@@ -73,16 +73,38 @@ class FeatureForm(SpellbookAdminForm):
 @admin.register(Feature)
 class FeatureAdmin(SpellbookModelAdmin):
     form = FeatureForm
-    readonly_fields = ['id', 'scryfall_link', 'updated', 'created']
-    fields = ['name', 'id', 'updated', 'created', 'utility', 'uncountable', 'description', 'scryfall_link']
+    readonly_fields = [
+        'id',
+        'scryfall_link',
+        'updated',
+        'created',
+    ]
+    fields = [
+        'name',
+        'id',
+        'updated',
+        'created',
+        'utility',
+        'uncountable',
+        'relevant',
+        'description',
+        'scryfall_link',
+    ]
     inlines = [CardInFeatureAdminInline]
     search_fields = [
         '=pk',
         'name',
         'cards__name',
     ]
-    list_display = ['name', 'id', 'utility', 'produced_by_count', 'updated']
-    list_filter = ['utility']
+    list_display = [
+        'name',
+        'id',
+        'utility',
+        'relevant',
+        'produced_by_count',
+        'updated',
+    ]
+    list_filter = ['utility', 'relevant']
 
     def lookup_allowed(self, lookup: str, value: str, request) -> bool:
         if lookup in (

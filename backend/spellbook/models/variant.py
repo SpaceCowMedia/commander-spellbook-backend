@@ -17,7 +17,7 @@ from .ingredient import IngredientInCombination, ZoneLocation
 from .combo import Combo
 from .job import Job
 from .validators import TEXT_VALIDATORS, MANA_VALIDATOR
-from .utils import CardType, mana_value, merge_identities
+from .utils import CardType, chain_strings, mana_value, merge_identities
 from .constants import MAX_MANA_NEEDED_LENGTH
 
 
@@ -117,6 +117,19 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
     hulkline = models.BooleanField(editable=False, default=False, help_text='Whether the variant is a Protean Hulk line')
     complete = models.BooleanField(editable=False, default=False, help_text='Whether the variant is complete')
     bracket = models.PositiveSmallIntegerField(editable=False, default=4, help_text='Suggested bracket for this variant')
+    bracket_explanation = models.TextField(editable=False, blank=True, help_text='Explanation for the bracket estimation')
+
+    @classmethod
+    def computed_fields(cls):
+        '''
+        Returns the fields that are computed from related models.
+        '''
+        return Playable.playable_fields() + [
+            'hulkline',
+            'complete',
+            'bracket',
+            'bracket_explanation',
+        ]
 
     class Meta:
         verbose_name = 'variant'
@@ -182,12 +195,8 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
             features: Sequence[tuple['FeatureProducedByVariant', Feature]],
     ) -> bool:
         requires_commander = any(civ.must_be_commander for civ, _ in cards) or any(tiv.must_be_commander for tiv, _ in templates)
-        old_values = [
-            self.update_variant_from_cards([card for _, card in cards], requires_commander=requires_commander),
-            self.hulkline,
-            self.complete,
-            self.bracket,
-        ]
+        old_values = {field: getattr(self, field) for field in self.computed_fields()}
+        self.update_variant_from_cards([card for _, card in cards], requires_commander=requires_commander)
         self.hulkline = \
             not requires_commander \
             and all(
@@ -198,23 +207,56 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
         self.complete = any(f.relevant for _, f in features)
         # Bracket estimation
         game_changer_count = sum(c.game_changer for _, c in cards)
-        casual = self.mana_value >= 8 or len(cards) + len(templates) - self.complete >= 5
-        two_card_combo = self.complete and len(cards) + len(templates) <= 2
-        early_played = self.mana_value <= 4
-        land_denial_or_extra_turn = any(c.extra_turn or c.mass_land_destruction for _, c in cards)
+        expensive = self.mana_value >= 8
+        has_many_cards = len(cards) + len(templates) + (not self.complete) >= 5
+        two_card_combo = len(cards) + len(templates) + (not self.complete) <= 2
+        cheap = self.mana_value <= 4
+        mass_land_removal = any(c.mass_land_destruction for _, c in cards)
+        extra_turn = any(c.extra_turn for _, c in cards)
+        mass_land_removal_or_extra_turn = mass_land_removal or extra_turn
         tutor_count = sum(c.tutor for _, c in cards)
-        self.bracket = \
-            1 if casual and not land_denial_or_extra_turn and not two_card_combo and game_changer_count == 0 and tutor_count <= 1 else \
-            2 if not land_denial_or_extra_turn and not two_card_combo and game_changer_count == 0 and tutor_count <= 2 else \
-            3 if not land_denial_or_extra_turn and not (two_card_combo and early_played) and game_changer_count <= 3 else \
-            4 if not early_played else \
-            5
-        new_values = [
-            False,
-            self.hulkline,
-            self.complete,
-            self.bracket,
-        ]
+        reasons = []
+        if not mass_land_removal_or_extra_turn and not two_card_combo and game_changer_count == 0 and tutor_count <= 1:
+            if expensive or has_many_cards:
+                self.bracket = 1
+                reasons.extend(('it has no game changers', 'no mass land denial', 'no extra turns', 'requires more than two cards', 'has at most 1 tutor'))
+                if expensive:
+                    reasons.append(f'is expensive, costing {self.mana_value} mana upfront')
+                if has_many_cards:
+                    reasons.append('requires at least 5 cards to work')
+            else:
+                self.bracket = 2
+                reasons.extend([
+                    'it has no game changers',
+                    'no mass land denial',
+                    'no chained extra turns',
+                    'requires more than two cards',
+                    'at most 1 tutor',
+                    'it\'s not much expensive in mana',
+                    'it needs less than 5 cards',
+                ])
+        elif not mass_land_removal_or_extra_turn and not (cheap and two_card_combo) and game_changer_count <= 3:
+            self.bracket = 3
+            reasons.extend([
+                'it has no mass land denial',
+                'no extra turns',
+                'not an early game two-card combo',
+                'at most 3 game changers',
+            ])
+        elif not cheap:
+            self.bracket = 4
+            reasons.extend([
+                'it doesn\'t comply with bracket 3 guidelines',
+                'it\'s not an early game combo',
+            ])
+        else:
+            self.bracket = 5
+            reasons.extend([
+                'it doesn\'t comply with bracket 3 guidelines',
+                f'it\'s an early game combo, costing only {self.mana_value} mana upfront',
+            ])
+        self.bracket_explanation = f'This combo is better suited for bracket {self.bracket} decks because {chain_strings(reasons)}'
+        new_values = {field: getattr(self, field) for field in self.computed_fields()}
         return old_values != new_values
 
     def update_variant_from_cards(self, cards: Iterable['Card'], requires_commander: bool) -> bool:

@@ -140,8 +140,10 @@ class VariantAdmin(SpellbookModelAdmin):
         'scryfall_link',
         'spellbook_link',
         'popularity',
+        'hulkline',
+        'complete',
     ]
-    readonly_fields = generated_readonly_fields + Variant.legalities_fields() + Variant.prices_fields()
+    readonly_fields = generated_readonly_fields + Variant.computed_fields()
     fieldsets = [
         ('Generated', {'fields': generated_readonly_fields}),
         ('Editable', {'fields': [
@@ -152,15 +154,20 @@ class VariantAdmin(SpellbookModelAdmin):
             'public_notes',
             'notes',
         ]}),
+        ('Bracket', {
+            'fields': ['bracket', 'bracket_explanation'],
+            'classes': ['collapse'],
+            'description': 'Estimated and suggested bracket for this variant.',
+        }),
         ('Legalities', {
             'fields': Variant.legalities_fields(),
             'classes': ['collapse'],
-            'description': 'Legalities are updated during generation.'
+            'description': 'Legalities are updated during generation.',
         }),
         ('Prices', {
             'fields': Variant.prices_fields(),
             'classes': ['collapse'],
-            'description': 'Prices are updated during generation.'
+            'description': 'Prices are updated during generation.',
         }),
     ]
     list_filter = ['status', CardCountListFilter, IdentityFilter, 'legal_commander', 'spoiler']

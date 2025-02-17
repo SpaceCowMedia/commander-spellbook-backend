@@ -1,6 +1,6 @@
 import re
 import unicodedata
-from typing import Iterable
+from typing import Iterable, Sequence
 
 from ..regexs import MANA_SYMBOL, ORACLE_SYMBOL, ORACLE_SYMBOL_EXTENDED
 from ..parsers.scryfall_query_grammar import COMPARISON_OPERATORS, MANA_COMPARABLE_VARIABLES
@@ -185,3 +185,11 @@ def simplify_card_name_with_spaces_on_database(field: str) -> Expression:
             Value('_')
         )
     )
+
+
+def chain_strings(strings: Sequence[str]) -> str:
+    if not strings:
+        return ''
+    if len(strings) <= 2:
+        return ' and '.join(strings)
+    return ', '.join(strings[:-1]) + ', and ' + strings[-1]

@@ -169,8 +169,6 @@ class VariantSerializer(serializers.ModelSerializer):
             'legalities',
             'prices',
             'variant_count',
-            'bracket',
-            'bracket_explanation',
         ]
 
     @classmethod

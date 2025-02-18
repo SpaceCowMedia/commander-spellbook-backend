@@ -11,20 +11,22 @@ from common.inspection import json_to_python_lambda
 class FindMyCombosViewTests(TestCaseMixinWithSeeding, TestCase):
     def setUp(self) -> None:
         super().setUp()
-        super().generate_and_publish_variants()
+        self.generate_and_publish_variants()
         Variant.objects.filter(id__in=random.sample(list(Variant.objects.values_list('id', flat=True)), 3)).update(status=Variant.Status.EXAMPLE)
         CardInVariant.objects.filter(card_id=self.c1_id, variant__card_count=2).update(quantity=2)
-        super().bulk_serialize_variants()
+        self.bulk_serialize_variants()
         self.variants = Variant.objects.filter(status__in=Variant.public_statuses()).prefetch_related('cardinvariant_set', 'cardinvariant_set__card')
         self.variants_dict = {v.id: v for v in self.variants}
         self.variants_cards = {v.id: FrozenMultiset({c.card.name: c.quantity for c in v.cardinvariant_set.all()}) for v in self.variants}
         self.variants_commanders = {v.id: FrozenMultiset({c.card.name: c.quantity for c in v.cardinvariant_set.filter(must_be_commander=True)}) for v in self.variants}
 
-    def _check_result(self,
+    def _check_result(
+            self,
             result,
             identity: str,
             cards: FrozenMultiset[str],
-            commanders: FrozenMultiset[str]):
+            commanders: FrozenMultiset[str],
+    ):
         self.assertEqual(result.results.identity, identity)
         identity_set = set(identity) | {'C'}
         for v in result.results.included:

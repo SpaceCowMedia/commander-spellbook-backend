@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import Iterable, Sequence
 from django.db import models, connection
 from django.dispatch import receiver
@@ -117,7 +118,6 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
     hulkline = models.BooleanField(editable=False, default=False, help_text='Whether the variant is a Protean Hulk line')
     complete = models.BooleanField(editable=False, default=False, help_text='Whether the variant is complete')
     bracket = models.PositiveSmallIntegerField(editable=False, default=4, help_text='Suggested bracket for this variant')
-    bracket_explanation = models.TextField(editable=False, blank=True, help_text='Explanation for the bracket estimation')
 
     @classmethod
     def computed_fields(cls):
@@ -128,7 +128,6 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
             'hulkline',
             'complete',
             'bracket',
-            'bracket_explanation',
         ]
 
     class Meta:
@@ -205,10 +204,7 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
             ) \
             and self.mana_value <= 6
         self.complete = any(f.relevant for _, f in features)
-        self.bracket, self.bracket_explanation = estimate_bracket(
-            [card for _, card in cards],
-            included_variants=[self],
-        )
+        self.bracket = estimate_bracket([card for _, card in cards], included_variants=[self]).bracket
         new_values = {field: getattr(self, field) for field in self.computed_fields()}
         return old_values != new_values
 
@@ -356,18 +352,29 @@ def combo_delete(sender, instance: Combo, **kwargs) -> None:
     )
 
 
-def estimate_bracket(cards: Sequence[Card], included_variants: Sequence[Variant]) -> tuple[int, str]:
+@dataclass
+class BracketEstimate:
+    bracket: int
+    explanation: str
+    game_changers: list[Card]
+    mass_land_denial: list[Card]
+    extra_turn: list[Card]
+    tutor: list[Card]
+    two_card_combos: list[Variant]
+    early_game_two_card_combos: list[Variant]
+
+
+def estimate_bracket(cards: Sequence[Card], included_variants: Sequence[Variant]) -> BracketEstimate:
     single = len(included_variants) == 1 and included_variants[0].cards().keys() == {c.id for c in cards}
-    game_changer_count = sum(c.game_changer for c in cards)
+    game_changers = [c for c in cards if c.game_changer]
+    mass_land_denial = [c for c in cards if c.mass_land_destruction]
+    extra_turn = [c for c in cards if c.extra_turn]
+    tutor = [c for c in cards if c.tutor]
     two_card_combos = [v for v in included_variants if v.card_count + (not v.complete) <= 2]
     early_game_two_card_combos = [v for v in two_card_combos if v.mana_value <= 4]
-    mass_land_removal = any(c.mass_land_destruction for c in cards)
-    extra_turn = any(c.extra_turn for c in cards)
-    mass_land_removal_or_extra_turn = mass_land_removal or extra_turn
-    tutor_count = sum(c.tutor for c in cards)
     reasons = []
     bracket = 1
-    if not mass_land_removal_or_extra_turn and not two_card_combos and game_changer_count == 0 and tutor_count <= 1:
+    if not mass_land_denial and not extra_turn and not two_card_combos and not game_changers and len(tutor) <= 1:
         bracket = 2
         reasons.extend([
             'it has no game changers',
@@ -381,16 +388,16 @@ def estimate_bracket(cards: Sequence[Card], included_variants: Sequence[Variant]
             reasons.append('no two-card combos')
         else:
             reasons.append('no combos')
-    elif not mass_land_removal_or_extra_turn and not early_game_two_card_combos and game_changer_count <= 3:
+    elif not mass_land_denial and not extra_turn and not early_game_two_card_combos and len(game_changers) <= 3:
         bracket = 3
         reasons.extend([
             'it has no mass land denial',
             'no extra turns',
         ])
-        if tutor_count > 1:
+        if len(tutor) > 1:
             reasons.append('more than 1 tutor')
-        if game_changer_count:
-            reasons.append(f'only {game_changer_count} game changer{"s" if game_changer_count > 1 else ""}')
+        if game_changers:
+            reasons.append(f'only {len(game_changers)} game changer{"s" if len(game_changers) > 1 else ""}')
         if single:
             reasons.append('it is not an early game two-card combo')
         elif included_variants:
@@ -398,12 +405,12 @@ def estimate_bracket(cards: Sequence[Card], included_variants: Sequence[Variant]
         else:
             reasons.append('no combos')
     else:
-        if mass_land_removal:
+        if mass_land_denial:
             reasons.append('it contains mass land denial')
         if extra_turn:
             reasons.append('it contains chained extra turns')
-        if game_changer_count > 3:
-            reasons.append(f'it contains {game_changer_count} game changers')
+        if len(game_changers) > 3:
+            reasons.append(f'it contains {len(game_changers)} game changers')
         if not early_game_two_card_combos:
             bracket = 4
             if single:
@@ -420,7 +427,16 @@ def estimate_bracket(cards: Sequence[Card], included_variants: Sequence[Variant]
             elif included_variants:
                 reasons.append(f'it has {len(early_game_two_card_combos)} early game two-card combos (costing at most {max(v.mana_value for v in early_game_two_card_combos)} mana upfront)')
     if single:
-        bracket_explanation = f'This combo could be included in bracket {bracket} decks because {chain_strings(reasons)}'
+        explanation = f'This combo could be included in bracket {bracket} decks because {chain_strings(reasons)}'
     else:
-        bracket_explanation = f'This decklist could be probably considered a bracket {bracket} deck because {chain_strings(reasons)}'
-    return bracket, bracket_explanation
+        explanation = f'This decklist could be probably considered a bracket {bracket} deck because {chain_strings(reasons)}'
+    return BracketEstimate(
+        bracket=bracket,
+        explanation=explanation,
+        game_changers=game_changers,
+        mass_land_denial=mass_land_denial,
+        extra_turn=extra_turn,
+        tutor=tutor,
+        two_card_combos=two_card_combos,
+        early_game_two_card_combos=early_game_two_card_combos,
+    )

@@ -1,11 +1,10 @@
 import re
 import unicodedata
-from typing import Iterable, Sequence
-
+from typing import Generator, Iterable, Sequence
 from ..regexs import MANA_SYMBOL, ORACLE_SYMBOL, ORACLE_SYMBOL_EXTENDED
 from ..parsers.scryfall_query_grammar import COMPARISON_OPERATORS, MANA_COMPARABLE_VARIABLES
 from django.utils.text import normalize_newlines
-from django.db.models import Expression, F, Value, TextChoices
+from django.db.models import Expression, F, Value, TextChoices, OrderBy
 from django.db.models.functions import Replace, Trim
 
 
@@ -193,3 +192,20 @@ def chain_strings(strings: Sequence[str]) -> str:
     if len(strings) <= 2:
         return ' and '.join(strings)
     return ', '.join(strings[:-1]) + ', and ' + strings[-1]
+
+
+def remove_duplicates_in_order_by(order_by: Sequence[str | F | OrderBy]) -> Generator[F | OrderBy, None, None]:
+    seen = set()
+    for o in order_by:
+        if isinstance(o, str):
+            name = o.removeprefix('-')
+            o = F(name)
+        elif isinstance(o, F):
+            name = o.name.removeprefix('-')
+        elif isinstance(o, OrderBy) and isinstance(o.expression, F):
+            name = o.expression.name.removeprefix('-')
+        else:
+            raise ValueError(f'Unknown order by type: {o}')
+        if name not in seen:
+            seen.add(name)
+            yield o

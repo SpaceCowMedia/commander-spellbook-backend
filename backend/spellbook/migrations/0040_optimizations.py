@@ -11,23 +11,27 @@ if connection.vendor == 'postgresql':
         TrigramExtension(),
         migrations.AddIndex(
             model_name='template',
+            index=models.Index(fields=['name'], name='card_template_name_index'),
+        ),
+        migrations.AddIndex(
+            model_name='template',
             index=django.contrib.postgres.indexes.GinIndex(django.contrib.postgres.indexes.OpClass(django.db.models.functions.text.Upper('name'), name='gin_trgm_ops'), name='template_name_trgm_idx'),
         ),
         migrations.AddIndex(
             model_name='variant',
-            index=models.Index(models.OrderBy(models.F('popularity'), descending=True, nulls_last=True), models.OrderBy(models.F('identity_count')), models.OrderBy(models.F('card_count')), models.OrderBy(models.F('created'), descending=True), name='variant_view_ordering_idx'),
+            index=models.Index(models.OrderBy(models.F('popularity'), descending=True, nulls_last=True), models.OrderBy(models.F('identity_count')), models.OrderBy(models.F('card_count')), models.OrderBy(models.F('created'), descending=True), models.F('id'), name='variant_view_ordering_idx'),
         ),
         migrations.AddIndex(
             model_name='variant',
-            index=models.Index(models.F('identity_count'), models.OrderBy(models.F('popularity'), descending=True, nulls_last=True), models.OrderBy(models.F('identity_count')), models.OrderBy(models.F('card_count')), models.OrderBy(models.F('created'), descending=True), name='variant_ic_view_ordering_idx'),
+            index=models.Index(models.F('identity_count'), models.OrderBy(models.F('popularity'), descending=True, nulls_last=True), models.OrderBy(models.F('identity_count')), models.OrderBy(models.F('card_count')), models.OrderBy(models.F('created'), descending=True), models.F('id'), name='variant_ic_view_ordering_idx'),
         ),
         migrations.AddIndex(
             model_name='variant',
-            index=models.Index(models.F('variant_count'), models.OrderBy(models.F('popularity'), descending=True, nulls_last=True), models.OrderBy(models.F('identity_count')), models.OrderBy(models.F('card_count')), models.OrderBy(models.F('created'), descending=True), name='variant_vc_view_ordering_idx'),
+            index=models.Index(models.F('variant_count'), models.OrderBy(models.F('popularity'), descending=True, nulls_last=True), models.OrderBy(models.F('identity_count')), models.OrderBy(models.F('card_count')), models.OrderBy(models.F('created'), descending=True), models.F('id'), name='variant_vc_view_ordering_idx'),
         ),
         migrations.AddIndex(
             model_name='variant',
-            index=models.Index(models.F('card_count'), models.OrderBy(models.F('popularity'), descending=True, nulls_last=True), models.OrderBy(models.F('identity_count')), models.OrderBy(models.F('card_count')), models.OrderBy(models.F('created'), descending=True), name='variant_cc_view_ordering_idx'),
+            index=models.Index(models.F('card_count'), models.OrderBy(models.F('popularity'), descending=True, nulls_last=True), models.OrderBy(models.F('identity_count')), models.OrderBy(models.F('card_count')), models.OrderBy(models.F('created'), descending=True), models.F('id'), name='variant_cc_view_ordering_idx'),
         ),
     ]
 else:
@@ -207,4 +211,5 @@ class Migration(migrations.Migration):
             model_name='variant',
             index=models.Index(fields=['identity_g'], name='spellbook_v_identit_cc3c09_idx'),
         ),
+        *extra_operations,
     ]

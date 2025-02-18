@@ -7,6 +7,7 @@ from django_filters.rest_framework import DjangoFilterBackend, FilterSet
 from django_filters.filters import CharFilter
 from drf_spectacular.utils import extend_schema, inline_serializer
 from spellbook.models import Variant, PreSerializedSerializer
+from spellbook.models.utils import remove_duplicates_in_order_by
 from spellbook.models.variant import DEFAULT_VIEW_ORDERING
 from spellbook.serializers import VariantSerializer
 from .filters import SpellbookQueryFilter, OrderingFilterWithNullsLast
@@ -26,11 +27,13 @@ class VariantGroupedByComboFilter(filters.BaseFilterBackend):
         return queryset
 
     def _filter_queryset(self, queryset: QuerySet[Variant]) -> QuerySet[Variant]:
+        order_by = queryset.query.order_by + DEFAULT_VIEW_ORDERING
+        order_by = list(remove_duplicates_in_order_by(order_by))
         top_variants_for_each_combo = queryset.annotate(
             rank=Window(
                 expression=RowNumber(),
                 partition_by=F('variantofcombo__combo_id'),
-                order_by=queryset.query.order_by + DEFAULT_VIEW_ORDERING + (F('pk'),),  # type: ignore
+                order_by=order_by,
             )
         ).filter(rank=1)
         return queryset.filter(pk__in=top_variants_for_each_combo)
@@ -84,11 +87,11 @@ class VariantFilterSet(FilterSet):
 class VariantViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Variant.serialized_objects
     filter_backends = [
+        EditorOrOnlyPublicVariantsFilters,
         SpellbookQueryFilter,
         OrderingFilterWithNullsLast,
-        VariantGroupedByComboFilter,
         DjangoFilterBackend,
-        EditorOrOnlyPublicVariantsFilters,
+        VariantGroupedByComboFilter,
     ]
     serializer_class = PreSerializedSerializer
     filterset_class = VariantFilterSet

@@ -25,3 +25,6 @@ if os.getenv('SQL_ENGINE', DATABASES['default']['ENGINE']) != DATABASES['default
             "PORT": os.environ.get("SQL_PORT", "5432"),
         }
     }
+
+if DATABASES['default']['ENGINE'] == 'django.db.backends.postgresql':
+    INSTALLED_APPS.append('django.contrib.postgres')

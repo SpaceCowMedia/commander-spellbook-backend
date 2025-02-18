@@ -34,7 +34,7 @@ class RecipePrefetchedManager(PreSaveSerializedManager):
         )
 
 
-DEFAULT_VIEW_ORDERING = (models.F('popularity').desc(nulls_last=True), models.F('identity_count').asc(), models.F('card_count').asc(), models.F('created').desc())
+DEFAULT_VIEW_ORDERING = (models.F('popularity').desc(nulls_last=True), models.F('identity_count').asc(), models.F('card_count').asc(), models.F('created').desc(), models.F('id'))
 
 
 class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
@@ -352,7 +352,7 @@ def combo_delete(sender, instance: Combo, **kwargs) -> None:
     )
 
 
-@dataclass
+@dataclass(frozen=True)
 class BracketEstimate:
     bracket: int
     explanation: str

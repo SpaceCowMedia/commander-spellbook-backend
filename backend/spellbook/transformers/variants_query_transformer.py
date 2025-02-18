@@ -2,9 +2,8 @@ from lark import Lark, Transformer, LarkError, UnexpectedToken, UnexpectedCharac
 from django.db.models import Q, QuerySet
 from django.core.exceptions import ValidationError
 from spellbook.models import TemplateInVariant, Variant, FeatureProducedByVariant, CardInVariant
-from spellbook.transformers.variants_query_filters.varant_variants_filters import variants_filter
-from ..parsers.variants_query_grammar import VARIANTS_QUERY_GRAMMAR
-from .variants_query_filters.base import QueryValue, VariantFilterCollection
+from .variants_query_filters.template_search_filters import template_search_filter
+from .variants_query_filters.varant_variants_filters import variants_filter
 from .variants_query_filters.card_search_filters import card_search_filter
 from .variants_query_filters.card_type_filters import card_type_filter
 from .variants_query_filters.card_oracle_filters import card_oracle_filter
@@ -21,6 +20,8 @@ from .variants_query_filters.variant_legality_filters import legality_filter
 from .variants_query_filters.variant_price_filters import price_filter
 from .variants_query_filters.variant_popularity_filters import popularity_filter
 from .variants_query_filters.bracket_filters import bracket_filter
+from .variants_query_filters.base import QueryValue, VariantFilterCollection
+from ..parsers.variants_query_grammar import VARIANTS_QUERY_GRAMMAR
 
 
 class VariantsQueryTransformer(Transformer):
@@ -32,6 +33,10 @@ class VariantsQueryTransformer(Transformer):
     def card_search(self, values):
         q = QueryValue.from_string(values[0])
         return card_search_filter(q)
+
+    def template_search(self, values):
+        q = QueryValue.from_string(values[0])
+        return template_search_filter(q)
 
     def card_type_search(self, values):
         q = QueryValue.from_string(values[0])
@@ -126,19 +131,18 @@ def variants_query_parser(base: QuerySet[Variant], query_string: str) -> QuerySe
         raise ValidationError('Search query is too long.')
     try:
         filters: VariantFilterCollection = PARSER.parse(query_string)  # type: ignore
-        if len(filters.ingredients_filters) + len(filters.variants_filters) + len(filters.results_filters) > MAX_QUERY_PARAMETERS:
+        if len(filters) > MAX_QUERY_PARAMETERS:
             raise ValidationError('Too many search parameters.')
         filtered_variants = base
         for filter in filters.variants_filters:
             filtered_variants = filtered_variants.exclude(filter.q) if filter.negated else filtered_variants.filter(filter.q)
-        for filter in filters.ingredients_filters:
-            q = Q()
-            if filter.cards_q:
-                filtered_cards = CardInVariant.objects.filter(filter.cards_q)
-                q |= Q(pk__in=filtered_cards.values('variant_id'))
-            if filter.templates_q:
-                filtered_templates = TemplateInVariant.objects.filter(filter.templates_q)
-                q |= Q(pk__in=filtered_templates.values('variant_id'))
+        for filter in filters.cards_filters:
+            filtered_cards = CardInVariant.objects.filter(filter.q)
+            q = Q(pk__in=filtered_cards.values('variant_id'))
+            filtered_variants = filtered_variants.exclude(q) if filter.negated else filtered_variants.filter(q)
+        for filter in filters.templates_filters:
+            filtered_templates = TemplateInVariant.objects.filter(filter.q)
+            q = Q(pk__in=filtered_templates.values('variant_id'))
             filtered_variants = filtered_variants.exclude(q) if filter.negated else filtered_variants.filter(q)
         for filter in filters.results_filters:
             filtered_produces = FeatureProducedByVariant.objects.filter(filter.q)

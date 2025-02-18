@@ -167,15 +167,9 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
                     matching_cards = Card.objects.filter(
                         models.Q(name__iexact=term) | models.Q(name_unaccented__iexact=term) | models.Q(name_unaccented_simplified__iexact=term) | models.Q(name_unaccented_simplified_with_spaces__iexact=term)
                     )
-                    matching_templates = Template.objects.filter(
-                        models.Q(name__iexact=term)
-                    )
                 else:
                     matching_cards = Card.objects.filter(
                         models.Q(name__icontains=term) | models.Q(name_unaccented__icontains=term) | models.Q(name_unaccented_simplified__icontains=term) | models.Q(name_unaccented_simplified_with_spaces__icontains=term)
-                    )
-                    matching_templates = Template.objects.filter(
-                        models.Q(name__icontains=term)
                     )
                 with self.subTest(f'query by card name: {search} with query {q}'):
                     response = self.client.get('/variants', data={'q': q}, follow=True)
@@ -183,7 +177,7 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
                     self.assertEqual(response.get('Content-Type'), 'application/json')
                     result = json.loads(response.content, object_hook=json_to_python_lambda)
                     variants = (
-                        self.public_variants.filter(uses__in=matching_cards) | self.public_variants.filter(requires__in=matching_templates)
+                        self.public_variants.filter(uses__in=matching_cards)
                     ).distinct()
                     self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
                     for v in result.results:
@@ -196,8 +190,41 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
                     result = json.loads(response.content, object_hook=json_to_python_lambda)
                     variants = variants.filter(uses__id=a_card.id).distinct()
                     variants = (
-                        variants.filter(uses__in=matching_cards) | variants.filter(requires__in=matching_templates)
+                        variants.filter(uses__in=matching_cards)
                     ).distinct()
+                    self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
+                    for v in result.results:
+                        self.variant_assertions(v)
+
+    def test_variants_list_view_query_by_template_name(self):
+        for template, search in ((t, t.name) for t in Template.objects.all()):
+            prefix_without_spaces = search.partition(' ')[0]
+            queries = [
+                (f'template:{prefix_without_spaces}', prefix_without_spaces),
+                (f'template:"{search}"', search),
+                (f'template="{search}"', search),
+            ]
+            queries = list(dict.fromkeys(queries))
+            queries += [
+                (q.upper(), term) for q, term in queries if not q.isupper() and q.isascii()
+            ] + [
+                (q.lower(), term) for q, term in queries if not q.islower() and q.isascii()
+            ]
+            for q, term in queries:
+                if '=' in q:
+                    matching_templates = Template.objects.filter(
+                        models.Q(name__iexact=term)
+                    )
+                else:
+                    matching_templates = Template.objects.filter(
+                        models.Q(name__icontains=term)
+                    )
+                with self.subTest(f'query by template name: {search} with query {q}'):
+                    response = self.client.get('/variants', data={'q': q}, follow=True)
+                    self.assertEqual(response.status_code, 200)
+                    self.assertEqual(response.get('Content-Type'), 'application/json')
+                    result = json.loads(response.content, object_hook=json_to_python_lambda)
+                    variants = self.public_variants.filter(requires__in=matching_templates).distinct()
                     self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
                     for v in result.results:
                         self.variant_assertions(v)
@@ -777,7 +804,7 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
 
     def test_variants_list_view_query_by_a_combination_of_terms(self):
         queries = [
-            ('result=FD A result:B', self.public_variants.filter(models.Q(uses__name__icontains='A') | models.Q(requires__name__icontains='A')).filter(produces__name__iexact='FD').filter(produces__name__icontains='B').distinct()),
+            ('result=FD A result:B', self.public_variants.filter(uses__name__icontains='A').filter(produces__name__iexact='FD').filter(produces__name__icontains='B').distinct()),
         ]
         for q, variants in queries:
             with self.subTest(f'query by a combination of terms: {q}'):

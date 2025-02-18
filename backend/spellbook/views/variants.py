@@ -1,5 +1,5 @@
 from django.db.models import QuerySet, F, Window
-from django.db.models.functions import RowNumber
+from django.db.models.functions import FirstValue
 from django.http import HttpRequest
 from django.template import loader
 from rest_framework import viewsets, serializers, filters
@@ -29,14 +29,21 @@ class VariantGroupedByComboFilter(filters.BaseFilterBackend):
     def _filter_queryset(self, queryset: QuerySet[Variant]) -> QuerySet[Variant]:
         order_by = queryset.query.order_by + DEFAULT_VIEW_ORDERING
         order_by = list(remove_duplicates_in_order_by(order_by))
-        top_variants_for_each_combo = queryset.annotate(
-            rank=Window(
-                expression=RowNumber(),
+        return queryset.alias(
+            top_variant=Window(
+                expression=FirstValue('pk'),
                 partition_by=F('variantofcombo__combo_id'),
                 order_by=order_by,
             )
-        ).filter(rank=1)
-        return queryset.filter(pk__in=top_variants_for_each_combo)
+        ).filter(pk=F('top_variant'))
+        # top_variants_for_each_combo = queryset.annotate(
+        #     top_variant=Window(
+        #         expression=FirstValue('pk'),
+        #         partition_by=F('variantofcombo__combo_id'),
+        #         order_by=order_by,
+        #     )
+        # ).values('top_variant')
+        # return queryset.filter(pk__in=top_variants_for_each_combo)
 
     def get_schema_operation_parameters(self, view):
         return [

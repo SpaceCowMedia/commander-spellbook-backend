@@ -12,14 +12,14 @@ from .utils import DecklistAPIView
 
 
 class EstimateBracketResultSerializer(serializers.Serializer):
-    bracket = serializers.IntegerField(allow_null=True)
-    explanation = serializers.CharField(allow_null=True, allow_blank=True)
-    game_changers = serializers.ListField(child=CardSerializer(), allow_empty=True)
-    mass_land_denial = serializers.ListField(child=CardSerializer(), allow_empty=True)
-    extra_turn = serializers.ListField(child=CardSerializer(), allow_empty=True)
-    tutor = serializers.ListField(child=CardSerializer(), allow_empty=True)
-    two_card_combos = serializers.ListField(child=VariantSerializer(), allow_empty=True)
-    early_game_two_card_combos = serializers.ListField(child=VariantSerializer(), allow_empty=True)
+    bracket = serializers.IntegerField()
+    explanation = serializers.CharField(allow_blank=True)
+    game_changers = serializers.ListField(child=CardSerializer())
+    mass_land_denial = serializers.ListField(child=CardSerializer())
+    extra_turn = serializers.ListField(child=CardSerializer())
+    tutor = serializers.ListField(child=CardSerializer())
+    two_card_combos = serializers.ListField(child=VariantSerializer())
+    early_game_two_card_combos = serializers.ListField(child=VariantSerializer())
 
 
 class EstimateBracketView(DecklistAPIView):

@@ -381,8 +381,10 @@ def estimate_bracket(cards: Sequence[Card], included_variants: Sequence[Variant]
             'no chained extra turns',
             'at most 1 tutor',
         ])
-        if single:
+        if single and len(included_variants) == 1:
             reasons.append('it requires more than two cards' if included_variants[0].card_count > 2 else 'it would require at least another card to be complete and impactful')
+        elif single:
+            reasons.append('it is not a two-card combo')
         elif included_variants:
             reasons.append('no two-card combos')
         else:

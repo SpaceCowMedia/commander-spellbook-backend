@@ -382,7 +382,7 @@ def estimate_bracket(cards: Sequence[Card], included_variants: Sequence[Variant]
             'at most 1 tutor',
         ])
         if single:
-            reasons.append('it requires more than two cards')
+            reasons.append('it requires more than two cards' if included_variants[0].card_count > 2 else 'it would require at least another card to be complete and impactful')
         elif included_variants:
             reasons.append('no two-card combos')
         else:
@@ -426,9 +426,9 @@ def estimate_bracket(cards: Sequence[Card], included_variants: Sequence[Variant]
             elif included_variants:
                 reasons.append(f'it has {len(early_game_two_card_combos)} early game two-card combos (costing at most {max(v.mana_value for v in early_game_two_card_combos)} mana upfront)')
     if single:
-        explanation = f'This combo could be included in bracket {bracket} decks because {chain_strings(reasons)}'
+        explanation = f'This combo could be included in bracket {bracket} decks because {chain_strings(reasons)}.'
     else:
-        explanation = f'This decklist could be probably considered a bracket {bracket} deck because {chain_strings(reasons)}'
+        explanation = f'This decklist could be probably considered a bracket {bracket} deck because {chain_strings(reasons)}.'
     return BracketEstimate(
         bracket=bracket,
         explanation=explanation,

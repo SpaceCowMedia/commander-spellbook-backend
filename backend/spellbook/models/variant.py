@@ -204,7 +204,7 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
             ) \
             and self.mana_value <= 6
         self.complete = any(f.relevant for _, f in features)
-        self.bracket = estimate_bracket([card for _, card in cards], included_variants=[self]).bracket
+        self.bracket = estimate_bracket([card for _, card in cards], included_variants=[self], single=True).bracket
         new_values = {field: getattr(self, field) for field in self.computed_fields()}
         return old_values != new_values
 
@@ -364,8 +364,7 @@ class BracketEstimate:
     early_game_two_card_combos: list[Variant]
 
 
-def estimate_bracket(cards: Sequence[Card], included_variants: Sequence[Variant]) -> BracketEstimate:
-    single = len(included_variants) == 1 and included_variants[0].cards().keys() == {c.id for c in cards}
+def estimate_bracket(cards: Sequence[Card], included_variants: Sequence[Variant], single: bool) -> BracketEstimate:
     game_changers = [c for c in cards if c.game_changer]
     mass_land_denial = [c for c in cards if c.mass_land_destruction]
     extra_turn = [c for c in cards if c.extra_turn]

@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.request import Request
 from django.db.models import F, Sum, Case, When, Value, QuerySet, Q
 from django.db.models.functions import Greatest
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, OpenApiParameter
 from spellbook.models import Card, CardInVariant, Variant, estimate_bracket
 from spellbook.serializers import CardSerializer, VariantSerializer
 from spellbook.views import VariantViewSet
@@ -26,9 +26,13 @@ class EstimateBracketView(DecklistAPIView):
     permission_classes = []
     parser_classes = [PlainTextDeckListParser, parsers.JSONParser]
     response = EstimateBracketResultSerializer
+    parameters = [
+        OpenApiParameter(name='single', type=bool, location=OpenApiParameter.QUERY, description='Whether to consider the decklist a single combo'),
+    ]
 
-    @extend_schema(request=DecklistAPIView.request, responses=response)
+    @extend_schema(request=DecklistAPIView.request, responses=response, parameters=parameters)
     def get(self, request: Request) -> Response:
+        single = request.query_params.get('single', 'false').lower() == 'true'
         deck = self.parse(request)
         cards = list(Card.objects.filter(pk__in=deck.cards.distinct_elements()))
 
@@ -57,10 +61,10 @@ class EstimateBracketView(DecklistAPIView):
         variants_query: QuerySet[Variant] = viewset.filter_queryset(viewset.get_queryset()).filter(id__in=variant_id_list).defer(None)
         variants = list(variants_query)
 
-        result = estimate_bracket(cards, variants)
+        result = estimate_bracket(cards, variants, single)
         serializer = self.response(result)
         return Response(serializer.data)
 
-    @extend_schema(request=DecklistAPIView.request, responses=response)
+    @extend_schema(request=DecklistAPIView.request, responses=response, parameters=parameters)
     def post(self, request: Request) -> Response:
         return self.get(request)

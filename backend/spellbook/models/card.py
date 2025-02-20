@@ -40,10 +40,10 @@ class Card(Playable, PreSaveModelMixin, ScryfallLinkMixin):
             'reserved',
             'latest_printing_set',
             'reprinted',
+            'game_changer',
             'tutor',
             'mass_land_destruction',
             'extra_turn',
-            'game_changer',
         ]
     type_line = models.CharField(max_length=MAX_CARD_NAME_LENGTH, blank=True, verbose_name='type line of card')
     oracle_text = models.TextField(blank=True, verbose_name='oracle text of card')

@@ -85,6 +85,8 @@
 
                             django.jQuery('#id_reprinted').prop('checked', data.reprint);
 
+                            django.jQuery('#id_game_changer').prop('checked', data.game_changer);
+
                             const formats = {
                                 'commander': data.legalities.commander == 'legal',
                                 'pauper_commander_main': data.legalities.paupercommander == 'legal',

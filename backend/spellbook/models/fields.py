@@ -1,7 +1,7 @@
 from django.core.validators import EMPTY_VALUES
 from django.core.exceptions import ValidationError
 from django.db.models import JSONField
-from django.forms import JSONField as JSONFormField
+from django.forms import JSONField as JSONFormField, Widget
 
 
 KEYWORDS_EMPTY_VALUES = [value for value in EMPTY_VALUES if not isinstance(value, list)]
@@ -15,6 +15,11 @@ class KeywordsFormField(JSONFormField):
         if value is None:
             return []
         return value
+
+    def widget_attrs(self, widget: Widget) -> dict:
+        return super().widget_attrs(widget) | {
+            'rows': 1,
+        }
 
 
 def validate_keyword_json(value):

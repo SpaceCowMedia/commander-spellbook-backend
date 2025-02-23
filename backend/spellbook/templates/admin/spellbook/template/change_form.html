@@ -1,5 +1,25 @@
 {% extends "admin/change_form.html" %}
 
+{% block extrahead %}
+    {{ block.super }}
+    {% include 'admin/spellbook/includes/jqueryui_imports.html' %}
+    {% include 'admin/spellbook/includes/card_info_imports.html' %}
+    <script>
+        'use strict';
+        {
+            django.jQuery(function() {
+                // Initialize all autocomplete widgets except the one in the template
+                // form used when a new formset is added.
+                django.jQuery('.admin-autocomplete[data-field-name=card]').not('[name*=__prefix__]').select2CardsPreview();
+            });
+
+            document.addEventListener('formset:added', (event) => {
+                django.jQuery(event.target).find('.admin-autocomplete[data-field-name=card]').select2CardsPreview();
+            });
+        }
+    </script>
+{% endblock %}
+
 {% block after-content %}
     {{ block.super }}
     <table>

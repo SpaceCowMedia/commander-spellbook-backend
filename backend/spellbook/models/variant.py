@@ -204,7 +204,7 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
             ) \
             and self.mana_value <= 6
         self.complete = any(f.relevant for _, f in features)
-        self.bracket = estimate_bracket([card for _, card in cards], included_variants=[self], single=True).bracket
+        self.bracket = estimate_bracket([card for _, card in cards], [template for _, template in templates], included_variants=[self], single=True).bracket
         new_values = {field: getattr(self, field) for field in self.computed_fields()}
         return old_values != new_values
 
@@ -358,22 +358,31 @@ class BracketEstimate:
     explanation: str
     game_changers: list[Card]
     mass_land_denial: list[Card]
+    mass_land_denial_templates: list[Template]
     extra_turn: list[Card]
+    extra_turn_templates: list[Template]
     tutor: list[Card]
+    tutor_templates: list[Template]
     two_card_combos: list[Variant]
     early_game_two_card_combos: list[Variant]
 
 
-def estimate_bracket(cards: Sequence[Card], included_variants: Sequence[Variant], single: bool) -> BracketEstimate:
+def estimate_bracket(cards: Sequence[Card], templates: Sequence[Template], included_variants: Sequence[Variant], single: bool) -> BracketEstimate:
     game_changers = [c for c in cards if c.game_changer]
     mass_land_denial = [c for c in cards if c.mass_land_destruction]
+    mass_land_denial_templates = [t for t in templates if any(term in t.name.lower() for term in ('mass land destruction', 'mass land denial'))]
+    total_mass_land_denial_count = len(mass_land_denial) + len(mass_land_denial_templates)
     extra_turn = [c for c in cards if c.extra_turn]
+    extra_turn_templates = [t for t in templates if any(term in t.name.lower() for term in ('extra turn',))]
+    total_extra_turn_count = len(extra_turn) + len(extra_turn_templates)
     tutor = [c for c in cards if c.tutor]
+    tutor_templates = [t for t in templates if any(term in t.name.lower() for term in ('tutor',))]
+    total_tutor_count = len(tutor) + len(tutor_templates)
     two_card_combos = [v for v in included_variants if v.card_count + (not v.complete) <= 2]
     early_game_two_card_combos = [v for v in two_card_combos if v.mana_value <= 4]
     reasons = []
     bracket = 1
-    if not mass_land_denial and not extra_turn and not two_card_combos and not game_changers and len(tutor) <= 1:
+    if not total_mass_land_denial_count and not total_extra_turn_count and not two_card_combos and not game_changers and total_tutor_count <= 1:
         bracket = 2
         reasons.extend([
             'it has no game changers',
@@ -389,13 +398,13 @@ def estimate_bracket(cards: Sequence[Card], included_variants: Sequence[Variant]
             reasons.append('no two-card combos')
         else:
             reasons.append('no combos')
-    elif not mass_land_denial and not extra_turn and not early_game_two_card_combos and len(game_changers) <= 3:
+    elif not total_mass_land_denial_count and not total_extra_turn_count and not early_game_two_card_combos and len(game_changers) <= 3:
         bracket = 3
         reasons.extend([
             'it has no mass land denial',
             'no extra turns',
         ])
-        if len(tutor) > 1:
+        if total_tutor_count > 1:
             reasons.append('more than 1 tutor')
         if game_changers:
             reasons.append(f'only {len(game_changers)} game changer{"s" if len(game_changers) > 1 else ""}')
@@ -406,9 +415,9 @@ def estimate_bracket(cards: Sequence[Card], included_variants: Sequence[Variant]
         else:
             reasons.append('no combos')
     else:
-        if mass_land_denial:
+        if total_mass_land_denial_count:
             reasons.append('it contains mass land denial')
-        if extra_turn:
+        if total_extra_turn_count:
             reasons.append('it contains chained extra turns')
         if len(game_changers) > 3:
             reasons.append(f'it contains {len(game_changers)} game changers')
@@ -436,8 +445,11 @@ def estimate_bracket(cards: Sequence[Card], included_variants: Sequence[Variant]
         explanation=explanation,
         game_changers=game_changers,
         mass_land_denial=mass_land_denial,
+        mass_land_denial_templates=mass_land_denial_templates,
         extra_turn=extra_turn,
+        extra_turn_templates=extra_turn_templates,
         tutor=tutor,
+        tutor_templates=tutor_templates,
         two_card_combos=two_card_combos,
         early_game_two_card_combos=early_game_two_card_combos,
     )

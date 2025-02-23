@@ -61,7 +61,7 @@ class EstimateBracketView(DecklistAPIView):
         variants_query: QuerySet[Variant] = viewset.filter_queryset(viewset.get_queryset()).filter(id__in=variant_id_list).defer(None)
         variants = list(variants_query)
 
-        result = estimate_bracket(cards, variants, single)
+        result = estimate_bracket(cards, [], variants, single)
         serializer = self.response(result)
         return Response(serializer.data)
 

@@ -42,8 +42,8 @@ class VariantGroupedByComboFilter(filters.BaseFilterBackend):
         #         partition_by=F('variantofcombo__combo_id'),
         #         order_by=order_by,
         #     )
-        # ).values('top_variant')
-        # return queryset.filter(pk__in=top_variants_for_each_combo)
+        # ).exclude(top_variant=F('pk'))
+        # return queryset.exclude(pk__in=top_variants_for_each_combo)
 
     def get_schema_operation_parameters(self, view):
         return [

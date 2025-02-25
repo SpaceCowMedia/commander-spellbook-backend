@@ -155,7 +155,7 @@ class VariantAdmin(SpellbookModelAdmin):
             'notes',
         ]}),
         ('Bracket', {
-            'fields': ['bracket'],
+            'fields': ['bracket_tag', 'bracket_tag_override', 'bracket'],
             'classes': ['collapse'],
             'description': 'Estimated and suggested bracket for this variant.',
         }),

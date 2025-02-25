@@ -17,7 +17,7 @@ def standardize_name(name: str) -> str:
 class Scryfall:
     cards: dict[str, dict]
     tutor: frozenset[str]
-    mass_land_destruction: frozenset[str]
+    mass_land_denial: frozenset[str]
     extra_turn: frozenset[str]
 
 
@@ -68,12 +68,12 @@ def scryfall(bulk_collection: str | None = None) -> Scryfall:
             if name in card_db:
                 card_db[name]['prices'] = prices
     tutor = get_tagged_cards_from_scryfall('function:tutor -function:tutor-land -function:tutor-seek mv<=3')
-    mass_land_destruction = get_tagged_cards_from_scryfall('function:sweeper-land-destroy')
+    mass_land_denial = get_tagged_cards_from_scryfall('function:sweeper-land-destroy')
     extra_turn = get_tagged_cards_from_scryfall('function:extra-turn')
     return Scryfall(
         cards={name: obj for name, obj in card_db.items() if 'oracle_id' in obj},
         tutor=tutor,
-        mass_land_destruction=mass_land_destruction,
+        mass_land_denial=mass_land_denial,
         extra_turn=extra_turn,
     )
 
@@ -163,7 +163,7 @@ def update_cards(cards: list[Card], scryfall: Scryfall, counts: dict[int, int], 
             card.mana_value = int(card_in_db['cmc'])
             card.reserved = card_in_db['reserved']
             card.tutor = oracle_id in scryfall.tutor
-            card.mass_land_destruction = oracle_id in scryfall.mass_land_destruction
+            card.mass_land_denial = oracle_id in scryfall.mass_land_denial
             card.extra_turn = oracle_id in scryfall.extra_turn
             card.game_changer = card_in_db['game_changer']
             card_legalities = card_in_db['legalities']

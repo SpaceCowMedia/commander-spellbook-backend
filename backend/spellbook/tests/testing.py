@@ -6,7 +6,7 @@ from collections import defaultdict
 from django.db.models import Q, Count, OuterRef, Subquery
 from django.db.models.functions import Coalesce
 from common.testing import TestCaseMixin as BaseTestCaseMixin
-from spellbook.models import Card, Feature, Combo, CardInCombo, Template, TemplateInCombo
+from spellbook.models import Card, Feature, Combo, CardInCombo, Job, Template, TemplateInCombo
 from spellbook.models import CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, FeatureProducedInVariantSuggestion
 from spellbook.models import VariantSuggestion, VariantAlias, Variant, ZoneLocation
 from spellbook.models import FeatureOfCard, FeatureNeededInCombo, FeatureProducedInCombo, FeatureRemovedInCombo, FeatureAttribute
@@ -25,7 +25,12 @@ class TestCaseMixin(BaseTestCaseMixin):
         self.modified_settings.disable()
 
     def generate_variants(self):
-        launch_job_command('generate_variants')
+        result = launch_job_command('generate_variants')
+        assert result
+        job = Job.objects.filter(name='generate_variants').order_by('-id').first()
+        assert job is not None
+        if job.status == Job.Status.FAILURE:
+            raise Exception(job.message)
 
     def bulk_serialize_variants(self, q=None, extra_fields=[]):
         if q is None:

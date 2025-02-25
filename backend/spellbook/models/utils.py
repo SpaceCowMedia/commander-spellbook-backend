@@ -186,14 +186,6 @@ def simplify_card_name_with_spaces_on_database(field: str) -> Expression:
     )
 
 
-def chain_strings(strings: Sequence[str]) -> str:
-    if not strings:
-        return ''
-    if len(strings) <= 2:
-        return ' and '.join(strings)
-    return ', '.join(strings[:-1]) + ', and ' + strings[-1]
-
-
 def remove_duplicates_in_order_by(order_by: Sequence[str | F | OrderBy]) -> Generator[F | OrderBy, None, None]:
     seen = set()
     for o in order_by:

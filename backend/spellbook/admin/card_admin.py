@@ -75,7 +75,7 @@ class CardAdmin(SpellbookModelAdmin):
         ManagedByScryfallFilter,
         'game_changer',
         'tutor',
-        'mass_land_destruction',
+        'mass_land_denial',
         'extra_turn',
     ]
     search_fields = [

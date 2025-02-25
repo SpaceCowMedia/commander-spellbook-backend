@@ -3,8 +3,8 @@ from rest_framework.response import Response
 from rest_framework.request import Request
 from django.db.models import F, Sum, Case, When, Value, QuerySet, Q
 from django.db.models.functions import Greatest
-from drf_spectacular.utils import extend_schema, OpenApiParameter
-from spellbook.models import Card, CardInVariant, Variant, estimate_bracket
+from drf_spectacular.utils import extend_schema
+from spellbook.models import Card, CardInVariant, Template, Variant, estimate_bracket
 from spellbook.serializers import CardSerializer, VariantSerializer
 from spellbook.views import VariantViewSet
 from website.views import PlainTextDeckListParser
@@ -12,29 +12,33 @@ from .utils import DecklistAPIView
 
 
 class EstimateBracketResultSerializer(serializers.Serializer):
-    bracket = serializers.IntegerField()
-    explanation = serializers.CharField(allow_blank=True)
-    game_changers = serializers.ListField(child=CardSerializer())
-    mass_land_denial = serializers.ListField(child=CardSerializer())
-    extra_turn = serializers.ListField(child=CardSerializer())
-    tutor = serializers.ListField(child=CardSerializer())
-    two_card_combos = serializers.ListField(child=VariantSerializer())
-    early_game_two_card_combos = serializers.ListField(child=VariantSerializer())
+    bracket = serializers.ChoiceField(choices=Variant.BracketTag.choices)
+    game_changer_cards = serializers.ListField(child=CardSerializer(), source='data.game_changer_cards')
+    mass_land_denial_cards = serializers.ListField(child=CardSerializer(), source='data.mass_land_denial_cards')
+    mass_land_denial_templates = serializers.ListField(child=VariantSerializer(), source='data.mass_land_denial_templates')
+    mass_land_denial_combos = serializers.ListField(child=VariantSerializer(), source='data.mass_land_denial_combos')
+    extra_turn_cards = serializers.ListField(child=CardSerializer(), source='data.extra_turn_cards')
+    extra_turn_templates = serializers.ListField(child=VariantSerializer(), source='data.extra_turn_templates')
+    extra_turns_combos = serializers.ListField(child=VariantSerializer(), source='data.extra_turns_combos')
+    tutor_cards = serializers.ListField(child=CardSerializer(), source='data.tutor_cards')
+    tutor_templates = serializers.ListField(child=VariantSerializer(), source='data.tutor_templates')
+    two_card_combos = serializers.ListField(child=VariantSerializer(), source='data.two_card_combos')
+    definitely_early_game_two_card_combos = serializers.ListField(child=VariantSerializer(), source='data.definitely_early_game_two_card_combos')
+    arguably_early_game_two_card_combos = serializers.ListField(child=VariantSerializer(), source='data.arguably_early_game_two_card_combos')
+    definitely_two_card_combos = serializers.ListField(child=VariantSerializer(), source='data.definitely_two_card_combos')
+    two_card_combos = serializers.ListField(child=VariantSerializer(), source='data.two_card_combos')
 
 
 class EstimateBracketView(DecklistAPIView):
     permission_classes = []
     parser_classes = [PlainTextDeckListParser, parsers.JSONParser]
     response = EstimateBracketResultSerializer
-    parameters = [
-        OpenApiParameter(name='single', type=bool, location=OpenApiParameter.QUERY, description='Whether to consider the decklist a single combo'),
-    ]
 
-    @extend_schema(request=DecklistAPIView.request, responses=response, parameters=parameters)
+    @extend_schema(request=DecklistAPIView.request, responses=response)
     def get(self, request: Request) -> Response:
-        single = request.query_params.get('single', 'false').lower() == 'true'
         deck = self.parse(request)
         cards = list(Card.objects.filter(pk__in=deck.cards.distinct_elements()))
+        templates = list(Template.objects.filter(replacements__in=cards).distinct())
 
         quantity_in_deck = Case(
             *(When(card_id=card_id, then=quantity) for card_id, quantity in deck.cards.items()),
@@ -58,13 +62,13 @@ class EstimateBracketView(DecklistAPIView):
 
         viewset = VariantViewSet()
         viewset.setup(self.request)
-        variants_query: QuerySet[Variant] = viewset.filter_queryset(viewset.get_queryset()).filter(id__in=variant_id_list).defer(None)
+        variants_query: QuerySet[Variant] = viewset.filter_queryset(Variant.recipes_prefetched).filter(id__in=variant_id_list).defer(None)
         variants = list(variants_query)
 
-        result = estimate_bracket(cards, [], variants, single)
+        result = estimate_bracket(cards, templates, variants)
         serializer = self.response(result)
         return Response(serializer.data)
 
-    @extend_schema(request=DecklistAPIView.request, responses=response, parameters=parameters)
+    @extend_schema(request=DecklistAPIView.request, responses=response)
     def post(self, request: Request) -> Response:
         return self.get(request)

@@ -166,6 +166,7 @@ class VariantSerializer(serializers.ModelSerializer):
             'popularity',
             'spoiler',
             'complete',
+            'bracket_tag',
             'legalities',
             'prices',
             'variant_count',

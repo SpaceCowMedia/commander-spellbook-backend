@@ -28,7 +28,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='variant',
             name='bracket_tag_override',
-            field=models.CharField(blank=True, help_text='Override bracket tag for this variant', max_length=2, null=True),
+            field=models.CharField(blank=True, choices=[('R', 'Ruthless'), ('S', 'Spicy'), ('P', 'Powerful'), ('O', 'Oddball'), ('PA', 'Precon Appropriate'), ('C', 'Casual')], help_text='Override bracket tag for this variant', max_length=2, null=True),
         ),
         migrations.RemoveField(
             model_name='variant',
@@ -37,6 +37,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='variant',
             name='bracket',
-            field=models.GeneratedField(db_persist=True, expression=models.Case(models.When(bracket_tag_override='C', then=models.Value(5)), models.When(bracket_tag_override='R', then=models.Value(4)), models.When(bracket_tag_override='S', then=models.Value(3)), models.When(bracket_tag_override='P', then=models.Value(3)), models.When(bracket_tag_override='O', then=models.Value(2)), models.When(bracket_tag_override='PA', then=models.Value(2)), models.When(bracket_tag_override='G', then=models.Value(1)), models.When(bracket_tag='C', then=models.Value(5)), models.When(bracket_tag='R', then=models.Value(4)), models.When(bracket_tag='S', then=models.Value(3)), models.When(bracket_tag='P', then=models.Value(3)), models.When(bracket_tag='O', then=models.Value(2)), models.When(bracket_tag='PA', then=models.Value(2)), models.When(bracket_tag='G', then=models.Value(1)), default=models.Value(0)), output_field=models.PositiveSmallIntegerField(help_text='Bracket number based on the tag')),
+            field=models.GeneratedField(db_persist=True, expression=models.Case(models.When(bracket_tag_override='R', then=models.Value(4)), models.When(bracket_tag_override='S', then=models.Value(3)), models.When(bracket_tag_override='P', then=models.Value(3)), models.When(bracket_tag_override='O', then=models.Value(2)), models.When(bracket_tag_override='PA', then=models.Value(2)), models.When(bracket_tag_override='C', then=models.Value(1)), models.When(bracket_tag='R', then=models.Value(4)), models.When(bracket_tag='S', then=models.Value(3)), models.When(bracket_tag='P', then=models.Value(3)), models.When(bracket_tag='O', then=models.Value(2)), models.When(bracket_tag='PA', then=models.Value(2)), models.When(bracket_tag='C', then=models.Value(1)), default=models.Value(0)), output_field=models.PositiveSmallIntegerField(help_text='Bracket number based on the tag')),
         ),
     ]

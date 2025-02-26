@@ -22,11 +22,12 @@ class EstimateBracketResultSerializer(serializers.Serializer):
     extra_turns_combos = serializers.ListField(child=VariantSerializer(), source='data.extra_turns_combos')
     tutor_cards = serializers.ListField(child=CardSerializer(), source='data.tutor_cards')
     tutor_templates = serializers.ListField(child=VariantSerializer(), source='data.tutor_templates')
-    two_card_combos = serializers.ListField(child=VariantSerializer(), source='data.two_card_combos')
+    lock_combos = serializers.ListField(child=VariantSerializer(), source='data.lock_combos')
+    skip_turns_combos = serializers.ListField(child=VariantSerializer(), source='data.skip_turns_combos')
     definitely_early_game_two_card_combos = serializers.ListField(child=VariantSerializer(), source='data.definitely_early_game_two_card_combos')
     arguably_early_game_two_card_combos = serializers.ListField(child=VariantSerializer(), source='data.arguably_early_game_two_card_combos')
-    definitely_two_card_combos = serializers.ListField(child=VariantSerializer(), source='data.definitely_two_card_combos')
-    two_card_combos = serializers.ListField(child=VariantSerializer(), source='data.two_card_combos')
+    definitely_late_game_two_card_combos = serializers.ListField(child=VariantSerializer(), source='data.definitely_late_game_two_card_combos')
+    borderline_late_game_two_card_combos = serializers.ListField(child=VariantSerializer(), source='data.borderline_late_game_two_card_combos')
 
 
 class EstimateBracketView(DecklistAPIView):

@@ -4,6 +4,8 @@ from .base import QueryValue, QueryFilter, VariantFilterCollection, Q, Validatio
 def bracket_filter(bracket_value: QueryValue) -> VariantFilterCollection:
     if not bracket_value.value.isdigit():
         raise ValidationError(f'Value {bracket_value.value} is not supported for bracket search.')
+    if not (1 <= int(bracket_value.value) <= 5):
+        raise ValidationError(f'Value {bracket_value.value} is not supported for bracket search. Choose a value between 1 and 5.')
     match bracket_value.operator:
         case ':' | '=':
             q = Q(bracket=bracket_value.value)

@@ -23,7 +23,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='variant',
             name='bracket_tag',
-            field=models.CharField(default='R', editable=False, help_text='Suggested bracket tag for this variant', max_length=2),
+            field=models.CharField(choices=[('R', 'Ruthless'), ('S', 'Spicy'), ('P', 'Powerful'), ('O', 'Oddball'), ('PA', 'Precon Appropriate'), ('C', 'Casual')], default='R', editable=False, help_text='Bracket tag for this variant', max_length=2),
         ),
         migrations.AddField(
             model_name='variant',

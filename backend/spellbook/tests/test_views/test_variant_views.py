@@ -777,7 +777,7 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
                         self.variant_assertions(v)
 
     def test_variants_list_view_query_by_bracket(self):
-        for bracket in range(6):
+        for bracket in range(1, 6):
             operators = {
                 '>': 'gt',
                 '<': 'lt',

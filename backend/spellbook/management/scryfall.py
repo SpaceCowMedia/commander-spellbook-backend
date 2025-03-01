@@ -6,6 +6,7 @@ from decimal import Decimal
 from urllib.request import Request, urlopen
 from urllib.parse import quote_plus, urlencode
 from django.utils import timezone
+from django.db.models import Q
 from spellbook.models import Card, merge_identities
 
 
@@ -67,9 +68,43 @@ def scryfall(bulk_collection: str | None = None) -> Scryfall:
             name = standardize_name(name)
             if name in card_db:
                 card_db[name]['prices'] = prices
-    tutor = get_tagged_cards_from_scryfall('function:tutor -function:tutor-land -function:tutor-seek mv<=3')
-    mass_land_denial = get_tagged_cards_from_scryfall('function:sweeper-land-destroy')
-    extra_turn = get_tagged_cards_from_scryfall('function:extra-turn')
+    # Bracket-related attributes
+    tutor = get_cards_from_scryfall_query('function:tutor -function:tutor-land -function:tutor-seek mv<=3')
+    mass_land_denial = frozenset[str](
+        Card
+        .objects
+        .filter(
+            Q(replaces__name__icontains='mass land denial') | Q(replaces__name__icontains='mass land destruction')
+        )
+        .values_list('oracle_id', flat=True)
+    )
+    extra_turn = frozenset[str](
+        Card
+        .objects
+        .filter(replaces__name__icontains='extra turn')
+        .values_list('oracle_id', flat=True)
+    )
+    # Other missing data
+    req = Request(
+        'https://raw.githubusercontent.com/chevEldrid/pdh-json-updater/master/pauper_commander.json'
+    )
+    with urlopen(req) as response:
+        data = json.loads(response.read().decode())
+        for card in data:
+            name: str = card['name']
+            paupercommander_legality = 'legal' if card['legality'] == 'Legal' else 'not_legal'
+            paupercommander_commander_legality = 'legal' if card['isPauperCommander'] else 'not_legal'
+            card_and_faces = [name]
+            if ' // ' in name:
+                card_and_faces += name.split(' // ')
+            for face in card_and_faces:
+                name = standardize_name(face)
+                if name in card_db:
+                    card_db[name]['legalities']['paupercommander'] = paupercommander_legality
+                    card_db[name]['legalities']['paupercommander_c'] = paupercommander_commander_legality
+        for card in card_db.values():
+            if 'paupercommander_c' not in card['legalities']:
+                card['legalities']['paupercommander_c'] = 'not_legal'
     return Scryfall(
         cards={name: obj for name, obj in card_db.items() if 'oracle_id' in obj},
         tutor=tutor,
@@ -78,7 +113,7 @@ def scryfall(bulk_collection: str | None = None) -> Scryfall:
     )
 
 
-def get_tagged_cards_from_scryfall(q: str) -> frozenset[str]:
+def get_cards_from_scryfall_query(q: str) -> frozenset[str]:
     req = Request(f'https://api.scryfall.com/cards/search?format=json&q={quote_plus(q)}')
     has_next = True
     result = set[str]()
@@ -169,7 +204,7 @@ def update_cards(cards: list[Card], scryfall: Scryfall, counts: dict[int, int], 
             card_legalities = card_in_db['legalities']
             card.legal_commander = card_legalities['commander'] == 'legal'
             card.legal_pauper_commander_main = card_legalities['paupercommander'] == 'legal'
-            card.legal_pauper_commander = card_legalities['paupercommander'] in ('legal', 'restricted')
+            card.legal_pauper_commander = card_legalities['paupercommander_c'] == 'legal' or card.legal_pauper_commander_main
             card.legal_oathbreaker = card_legalities['oathbreaker'] == 'legal'
             card.legal_predh = card_legalities['predh'] == 'legal'
             card.legal_brawl = card_legalities['brawl'] == 'legal'

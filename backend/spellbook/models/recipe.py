@@ -21,13 +21,16 @@ class Recipe(models.Model):
     def features_produced(self) -> dict[str, int]:
         return {}
 
+    def features_removed(self) -> dict[str, int]:
+        return {}
+
     def _str(self) -> str:
         if self.pk is None:
             base = f'New {self._meta.model_name}'
             if hasattr(self, 'id') and self.id is not None:  # type: ignore
                 base += f' with unique id <{self.id}>'  # type: ignore
             return base
-        return self.compute_name(self.cards(), self.templates(), self.features_needed(), self.features_produced())
+        return self.compute_name(self.cards(), self.templates(), self.features_needed(), self.features_produced(), self.features_removed())
 
     def __str__(self) -> str:
         if self.name:
@@ -41,13 +44,15 @@ class Recipe(models.Model):
         templates: dict[str, int],
         features_needed: dict[str, int],
         features_produced: dict[str, int],
+        features_removed: dict[str, int],
     ) -> str:
 
         def element(name: str, quantity: int) -> str:
             return f'{quantity} {name}' if quantity > 1 else name
         return recipe(
             ingredients=[element(card, q) for card, q in cards.items()] + [element(feature, q) for feature, q in features_needed.items()] + [element(template, q) for template, q in templates.items()],
-            results=[element(feature, q) for feature, q in features_produced.items()]
+            results=[element(feature, q) for feature, q in features_produced.items()],
+            negative_results=[element(feature, q) for feature, q in features_removed.items()],
         )
 
     @classmethod
@@ -62,14 +67,14 @@ class Recipe(models.Model):
     def compute_result_count(cls, features_produced: dict[str, int]) -> int:
         return sum(features_produced.values())
 
-    def update_recipe_from_memory(self, cards: dict[str, int], templates: dict[str, int], features_needed: dict[str, int], features_produced: dict[str, int]) -> None:
-        self.name = self.compute_name(cards, templates, features_needed, features_produced)
+    def update_recipe_from_memory(self, cards: dict[str, int], templates: dict[str, int], features_needed: dict[str, int], features_produced: dict[str, int], features_removed: dict[str, int]) -> None:
+        self.name = self.compute_name(cards, templates, features_needed, features_produced, features_removed)
         self.ingredient_count = self.compute_ingredient_count(cards, templates, features_needed)
         self.card_count = self.compute_card_count(cards, templates, features_needed)
         self.result_count = self.compute_result_count(features_produced)
 
     def update_recipe_from_data(self) -> None:
-        self.update_recipe_from_memory(self.cards(), self.templates(), self.features_needed(), self.features_produced())
+        self.update_recipe_from_memory(self.cards(), self.templates(), self.features_needed(), self.features_produced(), self.features_removed())
 
     class Meta:
         abstract = True

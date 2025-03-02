@@ -458,6 +458,7 @@ def restore_variant(
                 ],
             )
         },
+        features_removed={},
     )
 
     # Return the final object

@@ -2,6 +2,7 @@
 
 import django.core.validators
 from django.db import migrations, models
+from ._utils import PopulateNameField
 
 
 def migrate_feature_status(apps, schema_editor):
@@ -156,4 +157,5 @@ class Migration(migrations.Migration):
             model_name='variant',
             index=models.Index(fields=['prerequisites_line_count'], name='spellbook_v_prerequ_bce3c0_idx'),
         ),
+        PopulateNameField(),
     ]

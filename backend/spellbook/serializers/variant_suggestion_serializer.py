@@ -149,6 +149,7 @@ class VariantSuggestionSerializer(serializers.ModelSerializer):
             templates={require['template']: require.get('quantity', 1) for require in requires_validated_data if require.get('template')},
             features_needed={},
             features_produced={feature['feature']: 1 for feature in produces_validated_data if feature.get('feature')},
+            features_removed={},
         )
         instance = super().update(instance, validated_data.copy())
         self._update_related_model(

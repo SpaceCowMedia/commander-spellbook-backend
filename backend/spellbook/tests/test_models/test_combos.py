@@ -56,6 +56,7 @@ class ComboTests(TestCaseMixinWithSeeding, TestCase):
                 features_needed[f.feature.name] = features_needed.get(f.feature.name, 0) + f.quantity
             self.assertDictEqual(c.features_needed(), features_needed)
             self.assertDictEqual(c.features_produced(), {f.feature.name: 1 for f in c.featureproducedincombo_set.all()})
+            self.assertDictEqual(c.features_removed(), {f.feature.name: 1 for f in c.featureremovedincombo_set.all()})
 
     def test_query_string(self):
         c = Combo.objects.get(id=self.b1_id)

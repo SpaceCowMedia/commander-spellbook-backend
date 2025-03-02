@@ -25,6 +25,8 @@ class RecipePrefetchedManager(models.Manager):
             'featureneededincombo_set__feature',
             'featureproducedincombo_set',
             'featureproducedincombo_set__feature',
+            'featureremovedincombo_set',
+            'featureremovedincombo_set__feature',
         )
 
 
@@ -104,6 +106,9 @@ class Combo(Recipe, ScryfallLinkMixin):
 
     def features_produced(self) -> dict[str, int]:
         return {f.feature.name: 1 for f in self.featureproducedincombo_set.all()}
+
+    def features_removed(self) -> dict[str, int]:
+        return {f.feature.name: 1 for f in self.featureremovedincombo_set.all()}
 
     def features_needed(self) -> dict[str, int]:
         result = dict[str, int]()

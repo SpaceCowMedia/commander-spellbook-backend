@@ -1,7 +1,7 @@
 from django.test import TestCase
 from spellbook.tests.testing import TestCaseMixinWithSeeding
 from common.inspection import count_methods
-from spellbook.models import Card, Feature, Job, PreSerializedSerializer, Template, Variant, id_from_cards_and_templates_ids
+from spellbook.models import Card, Job, PreSerializedSerializer, Template, Variant, id_from_cards_and_templates_ids
 from spellbook.serializers import VariantSerializer
 from decimal import Decimal
 from urllib.parse import quote_plus

@@ -345,7 +345,7 @@ def restore_variant(
         additional_notable_prerequisites: list[str] = []
         for to_edit in used_cards:
             for feature_of_card in data.card_to_features[to_edit.card_id]:
-                if not data.id_to_feature[feature_of_card.feature_id].status in (Feature.Status.STANDALONE, Feature.Status.CONTEXTUAL) or feature_of_card.feature_id in needed_features:
+                if not data.id_to_feature[feature_of_card.feature_id].status in (Feature.Status.UTILITY,) or feature_of_card.feature_id in needed_features:
                     if to_edit.card_id not in uses_updated:
                         update_state(to_edit, feature_of_card, overwrite=True)
                         uses_updated.add(to_edit.card_id)

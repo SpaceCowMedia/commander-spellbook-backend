@@ -45,7 +45,7 @@ class ComboTests(TestCaseMixinWithSeeding, TestCase):
         self.assertEqual(c.allow_many_cards, False)
         self.assertEqual(c.allow_multiple_copies, False)
 
-    def test_ingredients(self):
+    def test_recipe(self):
         for c in Combo.objects.all():
             cic = sorted(c.cardincombo_set.all(), key=lambda x: x.order)
             self.assertDictEqual(c.cards(), {ci.card.name: ci.quantity for ci in cic})
@@ -66,4 +66,4 @@ class ComboTests(TestCaseMixinWithSeeding, TestCase):
         self.assertTrue(c.query_string().startswith('q='))
 
     def test_method_count(self):
-        self.assertEqual(count_methods(Combo), 4)
+        self.assertEqual(count_methods(Combo), 5)

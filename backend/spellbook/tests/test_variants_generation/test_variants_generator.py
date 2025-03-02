@@ -378,16 +378,17 @@ class VariantsGeneratorTests(TestCaseMixinWithSeeding, TestCase):
         self.assertEqual(deleted, 0)
         v.refresh_from_db()
         self.assertNotIn(foc.battlefield_card_state, v.cardinvariant_set.filter(card=foc.card).first().battlefield_card_state)  # type: ignore
-        useless_feature.status = Feature.Status.CONTEXTUAL
-        useless_feature.save()
-        v.status = Variant.Status.RESTORE
-        v.save()
-        added, restored, deleted = generate_variants()
-        self.assertEqual(added, 0)
-        self.assertEqual(restored, 1)
-        self.assertEqual(deleted, 0)
-        v.refresh_from_db()
-        self.assertIn(foc.battlefield_card_state, v.cardinvariant_set.filter(card=foc.card).first().battlefield_card_state)  # type: ignore
+        for status in [Feature.Status.CONTEXTUAL, Feature.Status.STANDALONE, Feature.Status.HELPER]:
+            useless_feature.status = status
+            useless_feature.save()
+            v.status = Variant.Status.RESTORE
+            v.save()
+            added, restored, deleted = generate_variants()
+            self.assertEqual(added, 0)
+            self.assertEqual(restored, 1)
+            self.assertEqual(deleted, 0)
+            v.refresh_from_db()
+            self.assertIn(foc.battlefield_card_state, v.cardinvariant_set.filter(card=foc.card).first().battlefield_card_state)  # type: ignore
         useless_feature.status = Feature.Status.UTILITY
         useless_feature.save()
         enabler = Combo.objects.create(mana_needed='{W}', status=Combo.Status.UTILITY)

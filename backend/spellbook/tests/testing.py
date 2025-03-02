@@ -209,7 +209,7 @@ class TestCaseMixinWithSeeding(TestCaseMixin):
         f4 = Feature.objects.create(name='FD', description='Feature D', status=Feature.Status.STANDALONE)
         f5 = Feature.objects.create(name='FE', description='Feature E', status=Feature.Status.STANDALONE, uncountable=True)
         b1 = Combo.objects.create(mana_needed='{W}{W}', easy_prerequisites='Some easy requisites.', notable_prerequisites='Some notable requisites.', description='a1', status=Combo.Status.GENERATOR, public_notes='aa1', notes='***1')
-        b2 = Combo.objects.create(mana_needed='{U}{U}', notable_prerequisites='Some requisites.', description='b2', status=Combo.Status.GENERATOR, public_notes='bb2', notes='***2')
+        b2 = Combo.objects.create(mana_needed='{U}{U}', easy_prerequisites='Some easy requisites.', notable_prerequisites='Some notable requisites.', description='b2', status=Combo.Status.GENERATOR, public_notes='bb2', notes='***2')
         b3 = Combo.objects.create(mana_needed='{B}{B}', notable_prerequisites='Some requisites.', description='c3', status=Combo.Status.UTILITY, public_notes='cc3', notes='***3')
         b4 = Combo.objects.create(mana_needed='{R}{R}', notable_prerequisites='Some requisites.', description='d4', status=Combo.Status.GENERATOR, public_notes='dd4', notes='***4')
         b5 = Combo.objects.create(mana_needed='{G}{G}', notable_prerequisites='Some requisites.', description='e5', status=Combo.Status.UTILITY, public_notes='ee5', notes='***5')

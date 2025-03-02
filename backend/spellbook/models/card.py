@@ -52,7 +52,7 @@ class Card(Playable, PreSaveModelMixin, ScryfallLinkMixin):
     latest_printing_set = models.CharField(max_length=10, blank=True, help_text='Set code of latest printing of card', verbose_name='latest printing set of card')
     reprinted = models.BooleanField(default=False, help_text='Whether this card has been reprinted', verbose_name='reprinted card')
     tutor = models.BooleanField(default=False, help_text='Whether this card can tutor for other cards', verbose_name='tutor card')
-    mass_land_denial = models.BooleanField(default=False, help_text='Whether this card can destroy multiple lands', verbose_name='mass land denial card')
+    mass_land_denial = models.BooleanField(default=False, help_text='Whether this card can inhibit or destroy numerous lands', verbose_name='mass land denial card')
     extra_turn = models.BooleanField(default=False, help_text='Whether this card grants an extra turn', verbose_name='extra turn card')
     game_changer = models.BooleanField(default=False, help_text='Whether this card is in the official Game Changer card list', verbose_name='game changer card')
 

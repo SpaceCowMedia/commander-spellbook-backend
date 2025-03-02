@@ -46,7 +46,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='card',
             name='mass_land_denial',
-            field=models.BooleanField(default=False, help_text='Whether this card can destroy multiple lands', verbose_name='mass land denial card'),
+            field=models.BooleanField(default=False, help_text='Whether this card can inhibit or destroy numerous lands', verbose_name='mass land denial card'),
         ),
         migrations.AddField(
             model_name='variant',

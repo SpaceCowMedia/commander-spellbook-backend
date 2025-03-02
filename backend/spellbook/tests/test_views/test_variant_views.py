@@ -32,12 +32,13 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
         self.assertEqual(variant_result.popularity, v.popularity)
         if v.status == Variant.Status.EXAMPLE:
             self.assertEqual(variant_result.mana_needed, None)
-            self.assertEqual(variant_result.other_prerequisites, None)
+            self.assertEqual(variant_result.easy_prerequisites, None)
+            self.assertEqual(variant_result.notable_prerequisites, None)
             self.assertEqual(variant_result.description, None)
             self.assertEqual(variant_result.notes, None)
         else:
             self.assertEqual(variant_result.mana_needed, v.mana_needed)
-            self.assertEqual(variant_result.other_prerequisites, v.other_prerequisites)
+            self.assertEqual(variant_result.notable_prerequisites, v.notable_prerequisites)
             self.assertEqual(variant_result.description, v.description)
             self.assertEqual(variant_result.notes, v.public_notes)
         self.assertEqual(variant_result.legalities.commander, v.legal_commander)
@@ -439,7 +440,7 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
                     f'pre{operator}{i}',
                 ]
                 for q in queries:
-                    q_django = {f'other_prerequisites_line_count__{operator_django}': i}
+                    q_django = {f'prerequisites_line_count__{operator_django}': i}
                     with self.subTest(f'query by prerequisites: {i} with query {q}'):
                         response = self.client.get('/variants', data={'q': q}, follow=True)
                         self.assertEqual(response.status_code, 200)
@@ -449,7 +450,8 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
                         self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
                         for v in result.results:
                             self.variant_assertions(v)
-        prereq = Combo.objects.first().other_prerequisites.split(maxsplit=2)[0]  # type: ignore
+        c = Combo.objects.first()
+        prereq = (c.notable_prerequisites + '\n' + c.easy_prerequisites).split(maxsplit=2)[0]  # type: ignore
         queries = [
             f'prerequisites:"{prereq}"',
             f'prerequisite:{prereq}',
@@ -462,11 +464,13 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
                 self.assertEqual(response.status_code, 200)
                 self.assertEqual(response.get('Content-Type'), 'application/json')
                 result = json.loads(response.content, object_hook=json_to_python_lambda)
-                variants = self.ok_variants.filter(other_prerequisites__icontains=prereq).distinct()
+                variants = self.ok_variants.filter(models.Q(easy_prerequisites__icontains=prereq) | models.Q(notable_prerequisites__icontains=prereq)).distinct()
                 self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
                 for v in result.results:
                     self.variant_assertions(v)
-        prereq = Combo.objects.first().other_prerequisites  # type: ignore
+        c = Combo.objects.first()
+        assert c is not None
+        prereq = c.easy_prerequisites or c.notable_prerequisites
         queries = [
             f'prerequisite="{prereq}"',
             f'prerequisites="{prereq}"',
@@ -477,7 +481,7 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
                 self.assertEqual(response.status_code, 200)
                 self.assertEqual(response.get('Content-Type'), 'application/json')
                 result = json.loads(response.content, object_hook=json_to_python_lambda)
-                variants = self.ok_variants.filter(other_prerequisites__iexact=prereq).distinct()
+                variants = self.ok_variants.filter(models.Q(easy_prerequisites__iexact=prereq) | models.Q(notable_prerequisites__iexact=prereq)).distinct()
                 self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
                 for v in result.results:
                     self.variant_assertions(v)
@@ -571,7 +575,7 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
                         self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
                         for v in result.results:
                             self.variant_assertions(v)
-        for feature in Feature.objects.filter(utility=False):
+        for feature in Feature.objects.exclude(status=Feature.Status.UTILITY):
             queries = [
                 f'results:"{feature.name}"',
                 f'results={feature.name}',

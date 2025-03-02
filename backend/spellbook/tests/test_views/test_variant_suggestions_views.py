@@ -64,7 +64,8 @@ POST_DATA = {
         }
     ],
     "manaNeeded": "{1}{W}{U}{B}{R}{G}",
-    "otherPrerequisites": "other prereqs",
+    "easyPrerequisites": "easy prereqs",
+    "notablePrerequisites": "notable prereqs",
     "description": "a description",
     "spoiler": False,
     "comment": "a comment",
@@ -99,7 +100,8 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
         for i, produces in enumerate(vs.produces.all()):
             self.assertEqual(produces.feature, suggestion_result.produces[i].feature)
         self.assertEqual(suggestion_result.mana_needed, vs.mana_needed)
-        self.assertEqual(suggestion_result.other_prerequisites, vs.other_prerequisites)
+        self.assertEqual(suggestion_result.easy_prerequisites, vs.easy_prerequisites)
+        self.assertEqual(suggestion_result.notable_prerequisites, vs.notable_prerequisites)
         self.assertEqual(suggestion_result.description, vs.description)
         self.assertEqual(suggestion_result.spoiler, vs.spoiler)
         if suggestion_result.suggested_by is not None:
@@ -283,7 +285,8 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
                 },
             ],
             "manaNeeded": "",
-            "otherPrerequisites": "",
+            "easyPrerequisites": "",
+            "notablePrerequisites": "",
             "description": "1"
         }
         self.user = User.objects.create_user(username='testuser', password='12345')
@@ -355,7 +358,8 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
             ],
             "comment": "A comment with some apostrophes: `'ʼ and quotes: \"“ˮ and newlines \r\n and \n and \r",
             "manaNeeded": "{1}{W}{U}{B}{R}{G} correct mana {U/P} wrong mana {BP} with some apostrophes: `'ʼ and quotes: \"“ˮ",
-            "otherPrerequisites": "Other prereqs with some apostrophes: `'ʼ and quotes: \"“ˮ",
+            "easyPrerequisites": "Easy prereqs with some apostrophes: `'ʼ and quotes: \"“ˮ",
+            "notablePrerequisites": "Notable prereqs with some apostrophes: `'ʼ and quotes: \"“ˮ",
             "description": "A description with some apostrophes: `'ʼ and quotes: \"“ˮ and CRLF \r\n and LF \n and CR \r"
         }
         self.user = User.objects.create_user(username='testuser', password='12345')
@@ -399,7 +403,8 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
             assertStringSanity(p.feature)
         assertStringSanity(result.comment)
         assertStringSanity(result.mana_needed)
-        assertStringSanity(result.other_prerequisites)
+        assertStringSanity(result.easy_prerequisites)
+        assertStringSanity(result.notable_prerequisites)
         assertStringSanity(result.description)
 
     def setUp(self) -> None:

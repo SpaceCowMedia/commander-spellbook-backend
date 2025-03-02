@@ -9,7 +9,7 @@ from django.utils.functional import cached_property
 from .utils import includes_any
 from .variant_data import Data, debug_queries
 from .combo_graph import FeatureWithAttributes, Graph, VariantSet, cardid, templateid, featureid
-from spellbook.models import Combo, Job, Variant, CardInVariant, TemplateInVariant, id_from_cards_and_templates_ids, Playable, Card, Template, VariantAlias, Ingredient, FeatureProducedByVariant, VariantOfCombo, VariantIncludesCombo, ZoneLocation, CardType
+from spellbook.models import Combo, Feature, Job, Variant, CardInVariant, TemplateInVariant, id_from_cards_and_templates_ids, Playable, Card, Template, VariantAlias, Ingredient, FeatureProducedByVariant, VariantOfCombo, VariantIncludesCombo, ZoneLocation, CardType
 from spellbook.utils import log_into_job
 from spellbook.models.constants import DEFAULT_CARD_LIMIT, DEFAULT_VARIANT_LIMIT, HIGHER_CARD_LIMIT, LOWER_VARIANT_LIMIT
 
@@ -329,7 +329,8 @@ def restore_variant(
             ]
             for feature_wth_attributes, recipes in variant_def.feature_replacements.items()
         }
-        variant.other_prerequisites = apply_replacements(data, '\n'.join(c.other_prerequisites for c in combos_included_for_a_reason if len(c.other_prerequisites) > 0), replacements, variant_def.needed_combos)
+        variant.easy_prerequisites = apply_replacements(data, '\n'.join(c.easy_prerequisites for c in combos_included_for_a_reason if len(c.easy_prerequisites) > 0), replacements, variant_def.needed_combos)
+        variant.notable_prerequisites = apply_replacements(data, '\n'.join(c.notable_prerequisites for c in combos_included_for_a_reason if len(c.notable_prerequisites) > 0), replacements, variant_def.needed_combos)
         variant.mana_needed = apply_replacements(data, ' '.join(c.mana_needed for c in combos_included_for_a_reason if len(c.mana_needed) > 0), replacements, variant_def.needed_combos)
         variant.description = apply_replacements(data, '\n'.join(c.description for c in combos_included_for_a_reason if len(c.description) > 0), replacements, variant_def.needed_combos)
         variant.notes = apply_replacements(data, '\n'.join(c.notes for c in combos_included_for_a_reason if len(c.notes) > 0), replacements, variant_def.needed_combos)
@@ -340,19 +341,24 @@ def restore_variant(
             update_state_with_default(data, template_in_variant)
         uses_updated = set[int]()
         requires_updated = set[int]()
-        additional_other_prerequisites: list[str] = []
+        additional_easy_prerequisites: list[str] = []
+        additional_notable_prerequisites: list[str] = []
         for to_edit in used_cards:
             for feature_of_card in data.card_to_features[to_edit.card_id]:
-                if not data.id_to_feature[feature_of_card.feature_id].utility or feature_of_card.feature_id in needed_features:
+                if not data.id_to_feature[feature_of_card.feature_id].status in (Feature.Status.STANDALONE, Feature.Status.CONTEXTUAL) or feature_of_card.feature_id in needed_features:
                     if to_edit.card_id not in uses_updated:
                         update_state(to_edit, feature_of_card, overwrite=True)
                         uses_updated.add(to_edit.card_id)
                     else:
                         update_state(to_edit, feature_of_card)
-                    if feature_of_card.other_prerequisites:
-                        additional_other_prerequisites.append(feature_of_card.other_prerequisites)
-        if additional_other_prerequisites:
-            variant.other_prerequisites = apply_replacements(data, '\n'.join(additional_other_prerequisites), replacements, variant_def.needed_combos) + '\n' + variant.other_prerequisites
+                    if feature_of_card.easy_prerequisites:
+                        additional_easy_prerequisites.append(feature_of_card.easy_prerequisites)
+                    if feature_of_card.notable_prerequisites:
+                        additional_notable_prerequisites.append(feature_of_card.notable_prerequisites)
+        if additional_easy_prerequisites:
+            variant.easy_prerequisites = apply_replacements(data, '\n'.join(additional_easy_prerequisites), replacements, variant_def.needed_combos) + '\n' + variant.easy_prerequisites
+        if additional_notable_prerequisites:
+            variant.notable_prerequisites = apply_replacements(data, '\n'.join(additional_notable_prerequisites), replacements, variant_def.needed_combos) + '\n' + variant.notable_prerequisites
         card_zone_locations_overrides = defaultdict[int, defaultdict[str, int]](lambda: defaultdict(int))
         template_zone_locations_overrides = defaultdict[int, defaultdict[str, int]](lambda: defaultdict(int))
         for combo in combos_included_for_a_reason:
@@ -516,7 +522,7 @@ def create_variant(
 
 def perform_bulk_saves(data: Data, to_create: list[VariantBulkSaveItem], to_update: list[VariantBulkSaveItem]):
     Variant.objects.bulk_create([v.variant for v in to_create])
-    update_fields = ['name', 'status', 'mana_needed', 'other_prerequisites', 'description', 'public_notes', 'notes', 'result_count', 'generated_by'] + Playable.playable_fields()
+    update_fields = ['name', 'status', 'mana_needed', 'easy_prerequisites', 'notable_prerequisites', 'description', 'public_notes', 'notes', 'result_count', 'generated_by'] + Playable.playable_fields()
     Variant.objects.bulk_update([v.variant for v in to_update if v.should_update], fields=update_fields)
     CardInVariant.objects.bulk_create([c for v in to_create for c in v.uses])
     update_fields = ['zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'must_be_commander', 'order', 'quantity']

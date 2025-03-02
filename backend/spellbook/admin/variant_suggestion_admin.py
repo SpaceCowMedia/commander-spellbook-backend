@@ -60,7 +60,8 @@ class VariantSuggestionAdmin(SpellbookModelAdmin):
         ]}),
         ('Editable', {'fields': [
             'mana_needed',
-            'other_prerequisites',
+            'easy_prerequisites',
+            'notable_prerequisites',
             'description',
             'spoiler',
         ]}),

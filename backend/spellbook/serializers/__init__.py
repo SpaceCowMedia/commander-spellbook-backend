@@ -1,6 +1,5 @@
 from .card_detail_serializer import CardDetailSerializer
 from .card_serializer import CardSerializer
-from .combo_detail_serializer import ComboDetailSerializer
 from .combo_serializer import ComboSerializer
 from .feature_serializer import FeatureSerializer
 from .legalities_serializer import LegalitiesSerializer

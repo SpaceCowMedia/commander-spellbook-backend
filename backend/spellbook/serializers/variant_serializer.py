@@ -110,7 +110,8 @@ class VariantSerializer(serializers.ModelSerializer):
     includes = ComboSerializer(many=True, read_only=True)
     mana_needed = serializers.SerializerMethodField()
     mana_value_needed = serializers.SerializerMethodField()
-    other_prerequisites = serializers.SerializerMethodField()
+    easy_prerequisites = serializers.SerializerMethodField()
+    notable_prerequisites = serializers.SerializerMethodField()
     description = serializers.SerializerMethodField()
     notes = serializers.SerializerMethodField()
     popularity = serializers.IntegerField(read_only=True, min_value=0, allow_null=True)
@@ -118,31 +119,37 @@ class VariantSerializer(serializers.ModelSerializer):
     prices = VariantPricesSerializer(source='*', read_only=True)
 
     @extend_schema_field(serializers.CharField(required=False))
-    def get_mana_needed(self, obj):
+    def get_mana_needed(self, obj: Variant):
         if obj.status == Variant.Status.EXAMPLE:
             return None
         return obj.mana_needed
 
     @extend_schema_field(serializers.IntegerField(required=False, min_value=0))
-    def get_mana_value_needed(self, obj):
+    def get_mana_value_needed(self, obj: Variant):
         if obj.status == Variant.Status.EXAMPLE:
             return None
         return obj.mana_value_needed
 
     @extend_schema_field(serializers.CharField(required=False))
-    def get_other_prerequisites(self, obj):
+    def get_notable_prerequisites(self, obj: Variant):
         if obj.status == Variant.Status.EXAMPLE:
             return None
-        return obj.other_prerequisites
+        return obj.notable_prerequisites
 
     @extend_schema_field(serializers.CharField(required=False))
-    def get_description(self, obj):
+    def get_easy_prerequisites(self, obj: Variant):
+        if obj.status == Variant.Status.EXAMPLE:
+            return None
+        return obj.easy_prerequisites
+
+    @extend_schema_field(serializers.CharField(required=False))
+    def get_description(self, obj: Variant):
         if obj.status == Variant.Status.EXAMPLE:
             return None
         return obj.description
 
     @extend_schema_field(serializers.CharField(required=False))
-    def get_notes(self, obj):
+    def get_notes(self, obj: Variant):
         if obj.status == Variant.Status.EXAMPLE:
             return None
         return obj.public_notes
@@ -160,12 +167,12 @@ class VariantSerializer(serializers.ModelSerializer):
             'identity',
             'mana_needed',
             'mana_value_needed',
-            'other_prerequisites',
+            'easy_prerequisites',
+            'notable_prerequisites',
             'description',
             'notes',
             'popularity',
             'spoiler',
-            'complete',
             'bracket_tag',
             'legalities',
             'prices',

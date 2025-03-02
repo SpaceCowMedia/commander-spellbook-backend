@@ -134,7 +134,8 @@ class FeatureOfCard(Ingredient, WithFeatureAttributes):
     id: int
     card = models.ForeignKey(to=Card, on_delete=models.CASCADE)
     card_id: int
-    other_prerequisites = models.TextField(blank=True, help_text='Other prerequisites that enable the feature for this card.', validators=TEXT_VALIDATORS)
+    easy_prerequisites = models.TextField(blank=True, help_text='Easily achievable prerequisites for this combo.', validators=TEXT_VALIDATORS)
+    notable_prerequisites = models.TextField(blank=True, help_text='Notable prerequisites for this combo.', validators=TEXT_VALIDATORS)
 
     def __str__(self):
         return f'{self.feature} for card {self.card.pk}'

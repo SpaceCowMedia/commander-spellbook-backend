@@ -41,7 +41,7 @@ class VariantDataTests(TestCaseMixinWithSeeding, TestCase):
 
     def test_utility_features_ids(self):
         data = Data()
-        self.assertSetEqual(data.utility_features_ids, set(Feature.objects.filter(utility=True).values_list('id', flat=True)))
+        self.assertSetEqual(data.utility_features_ids, set(Feature.objects.filter(status=Feature.Status.UTILITY).values_list('id', flat=True)))
 
     def test_variants(self):
         data = Data()

@@ -17,7 +17,7 @@ class FeatureViewsTests(TestCaseMixinWithSeeding, TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get('Content-Type'), 'application/json')
         result = json.loads(response.content, object_hook=json_to_python_lambda)
-        feature_count = Feature.objects.filter(utility=False).count()
+        feature_count = Feature.objects.exclude(status=Feature.Status.UTILITY).count()
         self.assertEqual(len(result.results), feature_count)
         for i in range(feature_count):
             self.feature_assertions(result.results[i])

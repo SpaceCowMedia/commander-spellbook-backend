@@ -169,7 +169,7 @@ class ComboAdmin(SpellbookModelAdmin):
     readonly_fields = ['id', 'scryfall_link', 'updated', 'created']
     fieldsets = [
         ('Generated', {'fields': ['id', 'scryfall_link', 'updated', 'created']}),
-        ('More Requirements', {'fields': ['mana_needed', 'other_prerequisites']}),
+        ('More Requirements', {'fields': ['mana_needed', 'easy_prerequisites', 'notable_prerequisites']}),
         ('Description', {'fields': ['status', 'allow_many_cards', 'allow_multiple_copies', 'description', 'public_notes', 'notes']}),
     ]
     inlines = [
@@ -220,7 +220,8 @@ class ComboAdmin(SpellbookModelAdmin):
                 request.from_suggestion = from_suggestion  # type: ignore
                 initial_data['description'] = from_suggestion.description
                 initial_data['mana_needed'] = from_suggestion.mana_needed
-                initial_data['other_prerequisites'] = from_suggestion.other_prerequisites
+                initial_data['easy_prerequisites'] = from_suggestion.easy_prerequisites
+                initial_data['notable_prerequisites'] = from_suggestion.notable_prerequisites
                 # Handle suggested produced features
                 suggested_produced_features = list[str](from_suggestion.produces.values_list('feature', flat=True))
                 found_produced_features = {f.name: f for f in Feature.objects.filter(name__in=suggested_produced_features)}

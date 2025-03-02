@@ -141,7 +141,6 @@ class VariantAdmin(SpellbookModelAdmin):
         'spellbook_link',
         'popularity',
         'hulkline',
-        'complete',
     ]
     readonly_fields = generated_readonly_fields + Variant.computed_fields()
     fieldsets = [
@@ -149,7 +148,8 @@ class VariantAdmin(SpellbookModelAdmin):
         ('Editable', {'fields': [
             'status',
             'mana_needed',
-            'other_prerequisites',
+            'easy_prerequisites',
+            'notable_prerequisites',
             'description',
             'public_notes',
             'notes',

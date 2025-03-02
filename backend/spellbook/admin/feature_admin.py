@@ -11,7 +11,7 @@ from .ingredient_admin import IngredientAdmin
 
 
 class CardInFeatureAdminInline(IngredientAdmin):
-    fields = ['card', *IngredientAdmin.fields, 'other_prerequisites', 'attributes']
+    fields = ['card', *IngredientAdmin.fields, 'easy_prerequisites', 'notable_prerequisites', 'attributes']
     model = FeatureOfCard
     extra = 0
     autocomplete_fields = ['card', 'attributes']
@@ -84,9 +84,8 @@ class FeatureAdmin(SpellbookModelAdmin):
         'id',
         'updated',
         'created',
-        'utility',
+        'status',
         'uncountable',
-        'relevant',
         'description',
         'scryfall_link',
     ]
@@ -99,12 +98,11 @@ class FeatureAdmin(SpellbookModelAdmin):
     list_display = [
         'name',
         'id',
-        'utility',
-        'relevant',
+        'status',
         'produced_by_count',
         'updated',
     ]
-    list_filter = ['utility', 'relevant']
+    list_filter = ['status']
 
     def lookup_allowed(self, lookup: str, value: str, request) -> bool:
         if lookup in (

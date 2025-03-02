@@ -1,6 +1,6 @@
 from .base import QueryValue, QueryFilter, Q, ValidationError, VariantFilterCollection
 from website.models import WebsiteProperty, FEATURED_SET_CODES
-from spellbook.models import Variant
+from spellbook.models import Feature, Variant
 
 
 def tag_filter(tag_value: QueryValue) -> VariantFilterCollection:
@@ -113,9 +113,9 @@ def tag_filter(tag_value: QueryValue) -> VariantFilterCollection:
             )
         case 'complete':
             return VariantFilterCollection(
-                variants_filters=(
+                results_filters=(
                     QueryFilter(
-                        q=Q(complete=True),
+                        q=Q(status=Feature.Status.STANDALONE),
                         negated=tag_value.is_negated(),
                     ),
                 ),

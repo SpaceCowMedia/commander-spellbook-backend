@@ -1,7 +1,7 @@
 from django.test import TestCase
 from spellbook.tests.testing import TestCaseMixinWithSeeding
 from common.inspection import count_methods
-from spellbook.models import Card, Job, PreSerializedSerializer, Template, Variant, id_from_cards_and_templates_ids
+from spellbook.models import Card, Feature, Job, PreSerializedSerializer, Template, Variant, id_from_cards_and_templates_ids
 from spellbook.serializers import VariantSerializer
 from decimal import Decimal
 from urllib.parse import quote_plus
@@ -29,7 +29,8 @@ class VariantTests(TestCaseMixinWithSeeding, TestCase):
         self.assertEqual(v.status, Variant.Status.NEW)
         self.assertIn('{U}{U}', v.mana_needed)
         self.assertIn('{R}{R}', v.mana_needed)
-        self.assertIn('Some requisites.', v.other_prerequisites)
+        self.assertIn('Some easy requisites.', v.easy_prerequisites)
+        self.assertIn('Some notable requisites.', v.notable_prerequisites)
         self.assertIn('2', v.description)
         self.assertIn('2', v.notes)
         self.assertIn('2', v.public_notes)
@@ -41,7 +42,7 @@ class VariantTests(TestCaseMixinWithSeeding, TestCase):
         self.assertEqual(v.legal_commander, True)
         self.assertEqual(v.spoiler, False)
         self.assertEqual(v.description_line_count, v.description.count('\n') + 1)
-        self.assertEqual(v.other_prerequisites_line_count, v.other_prerequisites.count('\n') + 1)
+        self.assertEqual(v.prerequisites_line_count, v.easy_prerequisites.count('\n') + 1 + v.notable_prerequisites.count('\n') + 1)
         self.assertEqual(v.mana_value_needed, 4)
         self.assertEqual(v.popularity, None)
         self.assertIsNone(v.spellbook_link())
@@ -120,13 +121,6 @@ class VariantTests(TestCaseMixinWithSeeding, TestCase):
         c.save()
         self.assertTrue(v.update_variant())
         self.assertFalse(v.legal_commander)
-        self.assertFalse(v.update_variant())
-        self.assertTrue(v.complete)
-        for f in v.produces.all():
-            f.relevant = False
-            f.save()
-        self.assertTrue(v.update_variant())
-        self.assertFalse(v.complete)
         self.assertFalse(v.update_variant())
 
     def test_serialization(self):

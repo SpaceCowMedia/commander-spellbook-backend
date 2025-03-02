@@ -174,7 +174,7 @@ class Data:
                     FrozenMultiset({t.template_id: t.quantity for t in self.variant_to_templates[v.id]}),
                 )
             return variant_set
-        self.utility_features_ids = frozenset(f.id for f in self.id_to_feature.values() if f.utility)
+        self.utility_features_ids = frozenset(f.id for f in self.id_to_feature.values() if f.status == Feature.Status.UTILITY)
         self.not_working_variants = fetch_not_working_variants(self.id_to_variant.values()).variants()
 
 

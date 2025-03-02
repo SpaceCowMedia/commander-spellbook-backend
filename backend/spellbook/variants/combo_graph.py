@@ -532,7 +532,7 @@ class Graph:
         interesting_features = set[FeatureWithAttributes](  # by default interesting features are not utility features
             f.item
             for f in chain(countable_feature_nodes.keys(), uncountable_feature_nodes)
-            if not f.item.feature.utility
+            if not f.item.feature.status == Feature.Status.UTILITY
         )
         needed_combo_nodes = set[ComboNode](  # by default needed combos produce interesting features
             c

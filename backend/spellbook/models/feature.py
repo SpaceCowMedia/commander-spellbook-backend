@@ -8,14 +8,19 @@ from .validators import NAME_VALIDATORS
 
 
 class Feature(models.Model):
+    class Status(models.TextChoices):
+        UTILITY = 'U'
+        HELPER = 'H'
+        CONTEXTUAL = 'C'
+        STANDALONE = 'S'
+
     id: int
     name = models.CharField(max_length=MAX_FEATURE_NAME_LENGTH, unique=True, blank=False, help_text='Short name for a produced effect', verbose_name='name of feature', validators=NAME_VALIDATORS)
     description = models.TextField(blank=True, help_text='Long description of a produced effect', verbose_name='description of the feature')
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, editable=False)
-    utility = models.BooleanField(default=False, help_text='Is this a utility feature? Utility features are hidden to the end users', verbose_name='is utility')
+    status = models.CharField(choices=Status.choices, default=Status.UTILITY, help_text='Is this feature an utility for variant generation, a helper to be exploited somehow, or a standalone, probably impactful effect?', verbose_name='status', max_length=2)
     uncountable = models.BooleanField(default=False, help_text='Is this an uncountable feature? Uncountable features can only appear in one copy and speed up variant generation.', verbose_name='is uncountable')
-    relevant = models.BooleanField(default=False, help_text='Is this a relevant feature? Relevant features are enough to make the combo complete.', verbose_name='is relevant')
 
     class Meta:
         verbose_name = 'feature'
@@ -28,13 +33,10 @@ class Feature(models.Model):
                 name='name_unique_ci',
                 violation_error_message='Feature name should be unique, ignoring case.',
             ),
-            models.CheckConstraint(
-                condition=~models.Q(relevant=True, utility=True),
-                name='relevant_feature_not_utility',
-                violation_error_message='Relevant features cannot be utility features.',
-            ),
         ]
         indexes = [
+            models.Index(fields=['status']),
+        ] + [
             GinIndex(OpClass(Upper('name'), name='gin_trgm_ops'), name='feature_name_trgm_idx'),
         ] if connection.vendor == 'postgresql' else []
 

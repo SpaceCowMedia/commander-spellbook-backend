@@ -105,7 +105,7 @@ class TestCaseMixin(BaseTestCaseMixin):
                 for feature in result:
                     assert not feature.startswith('-')
                     feature_id = feature_ids_by_name.setdefault(feature, reduce(lambda x, y: max(x, y), feature_ids_by_name.values(), 0) + 1)
-                    f, _ = Feature.objects.get_or_create(pk=feature_id, name=feature, description='Test Feature', utility=feature.startswith('u'))
+                    f, _ = Feature.objects.get_or_create(pk=feature_id, name=feature, description='Test Feature', status=Feature.Status.UTILITY if feature.startswith('u') else Feature.Status.STANDALONE)
                     FeatureOfCard.objects.create(card=c, feature=f, zone_locations=ZoneLocation.BATTLEFIELD, quantity=quantity)
             else:
                 for element in recipe:
@@ -125,7 +125,7 @@ class TestCaseMixin(BaseTestCaseMixin):
                         templates[element] += quantity
                     else:
                         cards[element] += quantity
-                combo = Combo.objects.create(pk=combo_id, mana_needed='', other_prerequisites='Test Prerequisites', description='Test Description', status=Combo.Status.GENERATOR)
+                combo = Combo.objects.create(pk=combo_id, mana_needed='', easy_prerequisites='Test Easy Prerequisites', notable_prerequisites='Test Notable Prerequisites', description='Test Description', status=Combo.Status.GENERATOR)
                 for i, (card, quantity) in enumerate(cards.items(), start=1):
                     card_id = card_ids_by_name.setdefault(card, reduce(lambda x, y: max(x, y), card_ids_by_name.values(), 0) + 1)
                     c, _ = Card.objects.get_or_create(pk=card_id, name=card, identity='W', legal_commander=True, spoiler=False, type_line='Test Card')
@@ -136,17 +136,17 @@ class TestCaseMixin(BaseTestCaseMixin):
                     TemplateInCombo.objects.create(template=t, combo=combo, order=i, zone_locations=ZoneLocation.BATTLEFIELD, quantity=quantity)
                 for feature, quantity in features:
                     feature_id = feature_ids_by_name.setdefault(feature, reduce(lambda x, y: max(x, y), feature_ids_by_name.values(), 0) + 1)
-                    f, _ = Feature.objects.get_or_create(pk=feature_id, name=feature, description='Test Feature', utility=feature.startswith('u'))
+                    f, _ = Feature.objects.get_or_create(pk=feature_id, name=feature, description='Test Feature', status=Feature.Status.UTILITY if feature.startswith('u') else Feature.Status.STANDALONE)
                     FeatureNeededInCombo.objects.create(feature=f, combo=combo, quantity=quantity)
                 for feature in result:
                     if feature.startswith('-'):
                         feature = feature[1:]
                         feature_id = feature_ids_by_name.setdefault(feature, reduce(lambda x, y: max(x, y), feature_ids_by_name.values(), 0) + 1)
-                        f, _ = Feature.objects.get_or_create(pk=feature_id, name=feature, description='Test Feature', utility=feature.startswith('u'))
+                        f, _ = Feature.objects.get_or_create(pk=feature_id, name=feature, description='Test Feature', status=Feature.Status.UTILITY if feature.startswith('u') else Feature.Status.STANDALONE)
                         FeatureRemovedInCombo.objects.create(feature=f, combo=combo)
                     else:
                         feature_id = feature_ids_by_name.setdefault(feature, reduce(lambda x, y: max(x, y), feature_ids_by_name.values(), 0) + 1)
-                        f, _ = Feature.objects.get_or_create(pk=feature_id, name=feature, description='Test Feature', utility=feature.startswith('u'))
+                        f, _ = Feature.objects.get_or_create(pk=feature_id, name=feature, description='Test Feature', status=Feature.Status.UTILITY if feature.startswith('u') else Feature.Status.STANDALONE)
                         FeatureProducedInCombo.objects.create(feature=f, combo=combo)
                 combo_id += 1
 
@@ -203,25 +203,25 @@ class TestCaseMixinWithSeeding(TestCaseMixin):
         c6 = Card.objects.create(name='F F', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000006'), identity='WU', legal_commander=True, spoiler=False, type_line='Enchantment', oracle_text='x6', mana_value=6, legal_brawl=False)
         c7 = Card.objects.create(name='G G _____', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000007'), identity='WB', legal_commander=True, spoiler=False, type_line='Artifact', oracle_text='x7x7')
         c8 = Card.objects.create(name='H-H', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000008'), identity='C', legal_commander=True, spoiler=False, type_line='Land', oracle_text='x8. x9.', mana_value=8)
-        f1 = Feature.objects.create(name='FA', description='Feature A', utility=True)
-        f2 = Feature.objects.create(name='FB', description='Feature B', utility=False)
-        f3 = Feature.objects.create(name='FC', description='Feature C', utility=False)
-        f4 = Feature.objects.create(name='FD', description='Feature D', utility=False, relevant=True)
-        f5 = Feature.objects.create(name='FE', description='Feature E', utility=False, uncountable=True, relevant=True)
-        b1 = Combo.objects.create(mana_needed='{W}{W}', other_prerequisites='Some requisites.', description='a1', status=Combo.Status.GENERATOR, public_notes='aa1', notes='***1')
-        b2 = Combo.objects.create(mana_needed='{U}{U}', other_prerequisites='Some requisites.', description='b2', status=Combo.Status.GENERATOR, public_notes='bb2', notes='***2')
-        b3 = Combo.objects.create(mana_needed='{B}{B}', other_prerequisites='Some requisites.', description='c3', status=Combo.Status.UTILITY, public_notes='cc3', notes='***3')
-        b4 = Combo.objects.create(mana_needed='{R}{R}', other_prerequisites='Some requisites.', description='d4', status=Combo.Status.GENERATOR, public_notes='dd4', notes='***4')
-        b5 = Combo.objects.create(mana_needed='{G}{G}', other_prerequisites='Some requisites.', description='e5', status=Combo.Status.UTILITY, public_notes='ee5', notes='***5')
-        b6 = Combo.objects.create(mana_needed='{W}{U}{B}{R}{G}', other_prerequisites='Some requisites.', description='f6', status=Combo.Status.GENERATOR, allow_many_cards=True, public_notes='ff6', notes='***6')
-        b7 = Combo.objects.create(mana_needed='{W}{U}{B}{R}{G}', other_prerequisites='Some requisites.', description='g7', status=Combo.Status.DRAFT, public_notes='gg7', notes='***7')
-        b8 = Combo.objects.create(mana_needed='{W}{U}{B}{R}{G}', other_prerequisites='Some requisites.', description='g7', status=Combo.Status.NEEDS_REVIEW, public_notes='gg7', notes='***8')
+        f1 = Feature.objects.create(name='FA', description='Feature A', status=Feature.Status.UTILITY)
+        f2 = Feature.objects.create(name='FB', description='Feature B', status=Feature.Status.CONTEXTUAL)
+        f3 = Feature.objects.create(name='FC', description='Feature C', status=Feature.Status.HELPER)
+        f4 = Feature.objects.create(name='FD', description='Feature D', status=Feature.Status.STANDALONE)
+        f5 = Feature.objects.create(name='FE', description='Feature E', status=Feature.Status.STANDALONE, uncountable=True)
+        b1 = Combo.objects.create(mana_needed='{W}{W}', easy_prerequisites='Some easy requisites.', notable_prerequisites='Some notable requisites.', description='a1', status=Combo.Status.GENERATOR, public_notes='aa1', notes='***1')
+        b2 = Combo.objects.create(mana_needed='{U}{U}', notable_prerequisites='Some requisites.', description='b2', status=Combo.Status.GENERATOR, public_notes='bb2', notes='***2')
+        b3 = Combo.objects.create(mana_needed='{B}{B}', notable_prerequisites='Some requisites.', description='c3', status=Combo.Status.UTILITY, public_notes='cc3', notes='***3')
+        b4 = Combo.objects.create(mana_needed='{R}{R}', notable_prerequisites='Some requisites.', description='d4', status=Combo.Status.GENERATOR, public_notes='dd4', notes='***4')
+        b5 = Combo.objects.create(mana_needed='{G}{G}', notable_prerequisites='Some requisites.', description='e5', status=Combo.Status.UTILITY, public_notes='ee5', notes='***5')
+        b6 = Combo.objects.create(mana_needed='{W}{U}{B}{R}{G}', notable_prerequisites='Some requisites.', description='f6', status=Combo.Status.GENERATOR, allow_many_cards=True, public_notes='ff6', notes='***6')
+        b7 = Combo.objects.create(mana_needed='{W}{U}{B}{R}{G}', notable_prerequisites='Some requisites.', description='g7', status=Combo.Status.DRAFT, public_notes='gg7', notes='***7')
+        b8 = Combo.objects.create(mana_needed='{W}{U}{B}{R}{G}', notable_prerequisites='Some requisites.', description='g7', status=Combo.Status.NEEDS_REVIEW, public_notes='gg7', notes='***8')
         t1 = Template.objects.create(name='TA', scryfall_query='tou>5', description='hello.')
         t2 = Template.objects.create(name='TB')
         t2.replacements.add(c1)
-        fc1 = FeatureOfCard.objects.create(card=c1, feature=f1, zone_locations=ZoneLocation.BATTLEFIELD, quantity=1, other_prerequisites='Some requisites for card.')
+        fc1 = FeatureOfCard.objects.create(card=c1, feature=f1, zone_locations=ZoneLocation.BATTLEFIELD, quantity=1, notable_prerequisites='Some requisites for card.')
         fc1.attributes.add(fa2)
-        FeatureOfCard.objects.create(card=c1, feature=f1, zone_locations=ZoneLocation.BATTLEFIELD, quantity=1, other_prerequisites='Some requisites for card two.')
+        FeatureOfCard.objects.create(card=c1, feature=f1, zone_locations=ZoneLocation.BATTLEFIELD, quantity=1, notable_prerequisites='Some requisites for card two.', easy_prerequisites='Some easy requisites for card two.')
         fn1 = FeatureNeededInCombo.objects.create(feature=f1, combo=b1, quantity=1)
         fn1.any_of_attributes.add(fa1, fa2)
         CardInCombo.objects.create(card=c2, combo=b1, order=1, zone_locations=ZoneLocation.HAND, quantity=1)
@@ -263,7 +263,7 @@ class TestCaseMixinWithSeeding(TestCaseMixin):
         FeatureProducedInCombo.objects.create(feature=f5, combo=b8)
         FeatureNeededInCombo.objects.create(feature=f4, combo=b8, quantity=1)
 
-        s1 = VariantSuggestion.objects.create(status=VariantSuggestion.Status.NEW, mana_needed='{W}{W}', other_prerequisites='Some requisites.', description='1', spoiler=True, suggested_by=None)
+        s1 = VariantSuggestion.objects.create(status=VariantSuggestion.Status.NEW, mana_needed='{W}{W}', easy_prerequisites='Some easy requisites.', notable_prerequisites='Some notable requisites.', description='1', spoiler=True, suggested_by=None)
         CardUsedInVariantSuggestion.objects.create(card=c1.name, variant=s1, order=1, zone_locations=ZoneLocation.HAND)
         CardUsedInVariantSuggestion.objects.create(card=c2.name, variant=s1, order=2, zone_locations=ZoneLocation.BATTLEFIELD, battlefield_card_state='tapped')
         TemplateRequiredInVariantSuggestion.objects.create(template=t1.name, variant=s1, order=1, zone_locations=ZoneLocation.GRAVEYARD, graveyard_card_state='on top')

@@ -11,10 +11,10 @@ class FeatureTests(TestCaseMixinWithSeeding, TestCase):
         self.assertEqual(f.description, 'Feature A')
         self.assertEqual(f.cards.count(), 2)  # type: ignore
         self.assertEqual(f.cards.distinct().count(), 1)  # type: ignore
-        self.assertTrue(f.utility)
+        self.assertEqual(f.status, Feature.Status.UTILITY)
         self.assertFalse(f.uncountable)
         f = Feature.objects.get(id=self.f2_id)
-        self.assertFalse(f.utility)
+        self.assertEqual(f.status, Feature.Status.CONTEXTUAL)
         f = Feature.objects.get(id=self.f5_id)
         self.assertTrue(f.uncountable)
 

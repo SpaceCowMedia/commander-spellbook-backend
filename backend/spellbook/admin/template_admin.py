@@ -15,8 +15,14 @@ class TemplateReplacementAdminInline(admin.StackedInline):
 class TemplateAdminForm(SpellbookAdminForm):
     def clean(self) -> dict[str, Any]:
         cleaned_data = super().clean()
-        if cleaned_data.get('scryfall_query') and cleaned_data.get('template_replacements-TOTAL_FORMS') != '0':
-            self.add_error('scryfall_query', 'Cannot have both a Scryfall query and replacements')
+        replacement_forms: str = self.data.get('templatereplacement_set-TOTAL_FORMS', '0')
+        if cleaned_data.get('scryfall_query'):
+            if replacement_forms.isdigit():
+                replacement_form_count = int(replacement_forms)
+                if replacement_form_count > 0 and not all(self.data.get(f'templatereplacement_set-{i}-DELETE', 'off') == 'on' for i in range(replacement_form_count)):
+                    self.add_error('scryfall_query', 'Cannot have both a Scryfall query and replacements')
+        elif replacement_forms == '0':
+            self.add_error('scryfall_query', 'Must have either a Scryfall query or replacements')
         return cleaned_data
 
 

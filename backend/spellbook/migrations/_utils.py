@@ -23,7 +23,7 @@ def populate_name_field(apps, schema_editor):
             features_removed={},
         )
         obj.pre_save = lambda: None
-    Variant.objects.bulk_update(objs, ['name'])
+    Variant.objects.bulk_update(objs, ['name'], batch_size=5000)
     objs = list(Combo.objects.all().only('id', 'name').prefetch_related(
         'cardincombo_set',
         'templateincombo_set',
@@ -45,7 +45,7 @@ def populate_name_field(apps, schema_editor):
             features_removed={f.feature.name: 1 for f in obj.featureremovedincombo_set.all()},
         )
         obj.pre_save = lambda: None
-    Combo.objects.bulk_update(objs, ['name'])
+    Combo.objects.bulk_update(objs, ['name'], batch_size=5000)
     objs = list(VariantSuggestion.objects.all().only('id', 'name').prefetch_related(
         'uses',
         'requires',
@@ -60,7 +60,7 @@ def populate_name_field(apps, schema_editor):
             features_removed={},
         )
         obj.pre_save = lambda: None
-    VariantSuggestion.objects.bulk_update(objs, ['name'])
+    VariantSuggestion.objects.bulk_update(objs, ['name'], batch_size=5000)
 
 
 class PopulateNameField(migrations.RunPython):

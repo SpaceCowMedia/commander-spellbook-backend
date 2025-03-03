@@ -31,6 +31,7 @@ class TestCaseMixin(BaseTestCaseMixin):
         assert job is not None
         if job.status == Job.Status.FAILURE:
             raise Exception(job.message)
+        assert job.status == Job.Status.SUCCESS
 
     def bulk_serialize_variants(self, q=None, extra_fields=[]):
         if q is None:

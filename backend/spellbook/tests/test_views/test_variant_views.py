@@ -838,8 +838,8 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
 
     def test_variants_list_view_query_by_a_combination_of_terms(self):
         queries = [
-            ('result=FD A result:B', self.public_variants.filter(uses__name__icontains='A').filter(produces__name__iexact='FD').filter(produces__name__icontains='B').distinct()),
-            ('-card:a card:b -desc:easy', self.public_variants.exclude(uses__name__icontains='a').filter(uses__name__icontains='b').exclude(description__icontains='easy').distinct()),
+            ('result=FD A result:B', self.public_variants.filter(uses__name__icontains='A').filter(produces__name__iexact='FD').filter(produces__name__icontains='B').values('id').distinct().order_by()),
+            ('-card:a card:b -desc:easy', self.public_variants.exclude(uses__name__icontains='a').filter(uses__name__icontains='b').exclude(description__icontains='easy').values('id').distinct().order_by()),
         ]
         for q, variants in queries:
             with self.subTest(f'query by a combination of terms: {q}'):
@@ -848,7 +848,7 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
                 self.assertEqual(response.get('Content-Type'), 'application/json')
                 result = json.loads(response.content, object_hook=json_to_python_lambda)
                 self.assertGreater(len(result.results), 0)
-                self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
+                self.assertSetEqual({v.id for v in result.results}, set(variants))
                 for v in result.results:
                     self.variant_assertions(v)
 

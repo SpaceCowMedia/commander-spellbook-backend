@@ -336,10 +336,6 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
                 self.assertEqual(response.status_code, 200)
                 self.assertEqual(response.get('Content-Type'), 'application/json')
                 result = json.loads(response.content, object_hook=json_to_python_lambda)
-                if '=' in q:
-                    variants = self.public_variants.filter(uses__oracle_text__iexact=f'x{i}').distinct()
-                else:
-                    variants = self.public_variants.filter(uses__oracle_text__icontains=f'x{i}').distinct()
                 self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
                 for v in result.results:
                     self.variant_assertions(v)

@@ -424,8 +424,8 @@ def estimate_bracket(cards: Sequence[Card], templates: Sequence[Template], inclu
                 tiv.quantity
                 for tiv in variant.templateinvariant_set.all()
             ) <= 2
-            no_card_prerequisites = not variant.notable_prerequisites
-            definitely_two_card = arguably_two_card and no_card_prerequisites
+            no_extra_card_prerequisites = not variant.notable_prerequisites
+            definitely_two_card = arguably_two_card and no_extra_card_prerequisites
             relevant = any(f.feature.status in (Feature.Status.STANDALONE,) for f in variant.featureproducedbyvariant_set.all())
             borderline_relevant = any(f.feature.status in (Feature.Status.STANDALONE, Feature.Status.CONTEXTUAL) for f in variant.featureproducedbyvariant_set.all())
             definitely_early_game = variant.mana_value <= 4

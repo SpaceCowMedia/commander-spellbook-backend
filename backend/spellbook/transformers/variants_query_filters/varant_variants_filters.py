@@ -1,24 +1,20 @@
-from .base import QueryValue, QueryFilter, VariantFilterCollection, Q, ValidationError
+from .base import QueryValue, VariantFilterCollection, Q, ValidationError
 
 
-def variants_filter(variants_value: QueryValue) -> VariantFilterCollection:
-    if not variants_value.value.isdigit():
-        raise ValidationError(f'Value {variants_value.value} is not supported for variants search.')
-    match variants_value.operator:
+def variants_filter(qv: QueryValue) -> VariantFilterCollection:
+    if not qv.value.isdigit():
+        raise ValidationError(f'Value {qv.value} is not supported for variants search.')
+    match qv.operator:
         case ':' | '=':
-            q = Q(variant_count=variants_value.value)
+            q = Q(variant_count=qv.value)
         case '<':
-            q = Q(variant_count__lt=variants_value.value)
+            q = Q(variant_count__lt=qv.value)
         case '<=':
-            q = Q(variant_count__lte=variants_value.value)
+            q = Q(variant_count__lte=qv.value)
         case '>':
-            q = Q(variant_count__gt=variants_value.value)
+            q = Q(variant_count__gt=qv.value)
         case '>=':
-            q = Q(variant_count__gte=variants_value.value)
+            q = Q(variant_count__gte=qv.value)
         case _:
-            raise ValidationError(f'Operator {variants_value.operator} is not supported for variants search.')
-    return VariantFilterCollection(
-        variants_filters=(
-            QueryFilter(q=q, negated=variants_value.is_negated()),
-        ),
-    )
+            raise ValidationError(f'Operator {qv.operator} is not supported for variants search.')
+    return VariantFilterCollection(templates_filters=(qv.to_query_filter(q),))

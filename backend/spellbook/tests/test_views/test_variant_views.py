@@ -13,6 +13,15 @@ from common.inspection import json_to_python_lambda
 
 
 class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
+    operators = {
+        '>': 'gt',
+        '<': 'lt',
+        '>=': 'gte',
+        '<=': 'lte',
+        '=': 'exact',
+        ':': 'exact',
+    }
+
     def setUp(self) -> None:
         super().setUp()
         super().generate_variants()
@@ -140,11 +149,12 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
 
     def test_variants_list_view_query_by_card_name(self):
         a_card = Card.objects.get(pk=self.c1_id)
-        for card, search in ((c, name) for c in Card.objects.all() for name in (c.name, c.name_unaccented, c.name_unaccented.replace('-', ''), c.name_unaccented.replace('-', ' '))):
+        queries: list[tuple[str, str]] = []
+        for search in (name for c in Card.objects.all() for name in (c.name, c.name_unaccented, c.name_unaccented.replace('-', ''), c.name_unaccented.replace('-', ' '))):
             prefix_without_spaces = search.partition(' ')[0]
             search_without_underscores = search.replace('_', '').strip()
             search_with_simplified_underscores = search.replace('_____', '_')
-            queries = [
+            queries += [
                 (prefix_without_spaces, prefix_without_spaces),
                 (f'"{prefix_without_spaces}"', prefix_without_spaces),
                 (f'"{search}"', search),
@@ -154,95 +164,99 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
                 (f'card:"{prefix_without_spaces}"', prefix_without_spaces),
                 (f'card:"{search}"', search),
                 (f'card="{search}"', search),
+                (f'@card:{prefix_without_spaces}', prefix_without_spaces),
+                (f'@card:"{prefix_without_spaces}"', prefix_without_spaces),
             ]
-            queries = list(dict.fromkeys(queries))
-            # case insensitive queries: isascii() is used to filter out case insensitive accented queries, incompatible with sqlite:
-            # https://docs.djangoproject.com/en/5.0/ref/databases/#substring-matching-and-case-sensitivity
-            queries += [
-                (q.upper(), term) for q, term in queries if not q.isupper() and q.isascii()
-            ] + [
-                (q.lower(), term) for q, term in queries if not q.islower() and q.isascii()
-            ]
-            for q, term in queries:
-                if '=' in q:
-                    matching_cards = Card.objects.filter(
-                        models.Q(name__iexact=term) | models.Q(name_unaccented__iexact=term) | models.Q(name_unaccented_simplified__iexact=term) | models.Q(name_unaccented_simplified_with_spaces__iexact=term)
-                    )
-                else:
-                    matching_cards = Card.objects.filter(
-                        models.Q(name__icontains=term) | models.Q(name_unaccented__icontains=term) | models.Q(name_unaccented_simplified__icontains=term) | models.Q(name_unaccented_simplified_with_spaces__icontains=term)
-                    )
-                with self.subTest(f'query by card name: {search} with query {q}'):
-                    response = self.client.get('/variants', data={'q': q}, follow=True)
-                    self.assertEqual(response.status_code, 200)
-                    self.assertEqual(response.get('Content-Type'), 'application/json')
-                    result = json.loads(response.content, object_hook=json_to_python_lambda)
-                    variants = (
-                        self.public_variants.filter(uses__in=matching_cards)
-                    ).distinct()
-                    self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
-                    for v in result.results:
-                        self.variant_assertions(v)
-                qq = f'{q} card:"{a_card.name}"'
-                with self.subTest(f'query by card name: {search} with additional card {a_card} and query {q}'):
-                    response = self.client.get('/variants', data={'q': qq}, follow=True)
-                    self.assertEqual(response.status_code, 200)
-                    self.assertEqual(response.get('Content-Type'), 'application/json')
-                    result = json.loads(response.content, object_hook=json_to_python_lambda)
-                    variants = variants.filter(uses__id=a_card.id).distinct()
-                    variants = (
-                        variants.filter(uses__in=matching_cards)
-                    ).distinct()
-                    self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
-                    for v in result.results:
-                        self.variant_assertions(v)
+        queries = list(dict.fromkeys(queries))
+        # case insensitive queries: isascii() is used to filter out case insensitive accented queries, incompatible with sqlite:
+        # https://docs.djangoproject.com/en/5.0/ref/databases/#substring-matching-and-case-sensitivity
+        queries += [
+            (q.upper(), term) for q, term in queries if not q.isupper() and q.isascii()
+        ] + [
+            (q.lower(), term) for q, term in queries if not q.islower() and q.isascii()
+        ]
+        queries += [
+            ('@card:" "', ' '),
+        ]
+        queries = list(dict.fromkeys(queries))
+        for q, term in queries:
+            if '=' in q:
+                matching_cards = Card.objects.filter(
+                    models.Q(name__iexact=term) | models.Q(name_unaccented__iexact=term) | models.Q(name_unaccented_simplified__iexact=term) | models.Q(name_unaccented_simplified_with_spaces__iexact=term)
+                )
+            else:
+                matching_cards = Card.objects.filter(
+                    models.Q(name__icontains=term) | models.Q(name_unaccented__icontains=term) | models.Q(name_unaccented_simplified__icontains=term) | models.Q(name_unaccented_simplified_with_spaces__icontains=term)
+                )
+            if '@' in q:
+                variants = self.public_variants.exclude(uses__in=Card.objects.exclude(pk__in=matching_cards)).distinct()
+            else:
+                variants = self.public_variants.filter(uses__in=matching_cards).distinct()
+            with self.subTest(f'query by card name: {search} with query {q}'):
+                response = self.client.get('/variants', data={'q': q}, follow=True)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.get('Content-Type'), 'application/json')
+                result = json.loads(response.content, object_hook=json_to_python_lambda)
+                self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
+                for v in result.results:
+                    self.variant_assertions(v)
+            qq = f'{q} card:"{a_card.name}"'
+            with self.subTest(f'query by card name: {search} with additional card {a_card} and query {q}'):
+                response = self.client.get('/variants', data={'q': qq}, follow=True)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.get('Content-Type'), 'application/json')
+                result = json.loads(response.content, object_hook=json_to_python_lambda)
+                variants = variants.filter(uses__id=a_card.id).distinct()
+                self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
+                for v in result.results:
+                    self.variant_assertions(v)
 
     def test_variants_list_view_query_by_template_name(self):
+        queries: list[tuple[str, str]] = []
         for template, search in ((t, t.name) for t in Template.objects.all()):
             prefix_without_spaces = search.partition(' ')[0]
-            queries = [
+            queries += [
                 (f'template:{prefix_without_spaces}', prefix_without_spaces),
                 (f'template:"{search}"', search),
                 (f'template="{search}"', search),
             ]
-            queries = list(dict.fromkeys(queries))
-            queries += [
-                (q.upper(), term) for q, term in queries if not q.isupper() and q.isascii()
-            ] + [
-                (q.lower(), term) for q, term in queries if not q.islower() and q.isascii()
-            ]
-            for q, term in queries:
-                if '=' in q:
-                    matching_templates = Template.objects.filter(
-                        models.Q(name__iexact=term)
-                    )
-                else:
-                    matching_templates = Template.objects.filter(
-                        models.Q(name__icontains=term)
-                    )
-                with self.subTest(f'query by template name: {search} with query {q}'):
-                    response = self.client.get('/variants', data={'q': q}, follow=True)
-                    self.assertEqual(response.status_code, 200)
-                    self.assertEqual(response.get('Content-Type'), 'application/json')
-                    result = json.loads(response.content, object_hook=json_to_python_lambda)
-                    variants = self.public_variants.filter(requires__in=matching_templates).distinct()
-                    self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
-                    for v in result.results:
-                        self.variant_assertions(v)
+        queries = list(dict.fromkeys(queries))
+        queries += [
+            (q.upper(), term) for q, term in queries if not q.isupper() and q.isascii()
+        ] + [
+            (q.lower(), term) for q, term in queries if not q.islower() and q.isascii()
+        ]
+        queries += [
+            ('@template:" "', ' '),
+        ]
+        queries = list(dict.fromkeys(queries))
+        for q, term in queries:
+            if '=' in q:
+                matching_templates = Template.objects.filter(
+                    models.Q(name__iexact=term)
+                )
+            else:
+                matching_templates = Template.objects.filter(
+                    models.Q(name__icontains=term)
+                )
+            if '@' in q:
+                variants = self.public_variants.exclude(requires__in=Template.objects.exclude(pk__in=matching_templates)).distinct()
+            else:
+                variants = self.public_variants.filter(requires__in=matching_templates).distinct()
+            with self.subTest(f'query by template name: {search} with query {q}'):
+                response = self.client.get('/variants', data={'q': q}, follow=True)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.get('Content-Type'), 'application/json')
+                result = json.loads(response.content, object_hook=json_to_python_lambda)
+                self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
+                for v in result.results:
+                    self.variant_assertions(v)
 
     def test_variants_list_view_query_by_card_count(self):
         min_cards, max_cards = self.public_variants.aggregate(min_cards=models.Min('card_count'), max_cards=models.Max('card_count')).values()
         self.assertGreaterEqual(max_cards, min_cards)
         for card_count in (min_cards, max_cards, (min_cards + max_cards) // 2):
-            operators = {
-                '>': 'gt',
-                '<': 'lt',
-                '>=': 'gte',
-                '<=': 'lte',
-                '=': 'exact',
-                ':': 'exact',
-            }
-            for o, o_django in operators.items():
+            for o, o_django in self.operators.items():
                 q = f'cards{o}{card_count}'
                 q_django = {f'card_count__{o_django}': card_count}
                 with self.subTest(f'query by card count: {card_count} with query {q}'):
@@ -256,111 +270,139 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
                         self.variant_assertions(v)
 
     def test_variants_list_view_query_by_card_type(self):
+        queries: list[tuple[str, str]] = []
         for card_type in ('instant', 'creature'):
-            queries = [
-                f'cardtype:{card_type}',
-                f'type:{card_type[:-3]}',
-                f'type:"{card_type[:-3]}"',
-                f'type:{card_type}',
-                f'type="{card_type}"',
+            queries += [
+                (f'cardtype:{card_type}', card_type),
+                (f'type:{card_type[:-3]}', card_type),
+                (f'type:"{card_type[:-3]}"', card_type),
+                (f'type:{card_type}', card_type),
+                (f'type="{card_type}"', card_type),
             ]
-            for q in queries:
-                with self.subTest(f'query by card type: {card_type} with query {q}'):
-                    response = self.client.get('/variants', data={'q': q}, follow=True)
-                    self.assertEqual(response.status_code, 200)
-                    self.assertEqual(response.get('Content-Type'), 'application/json')
-                    result = json.loads(response.content, object_hook=json_to_python_lambda)
-                    if '=' in q:
-                        variants = self.public_variants.filter(uses__type_line__iexact=card_type).distinct()
-                    else:
-                        variants = self.public_variants.filter(uses__type_line__icontains=card_type).distinct()
-                    self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
-                    for v in result.results:
-                        self.variant_assertions(v)
+        queries += [
+            ('@type:"a"', 'a'),
+        ]
+        for (q, term) in queries:
+            if '=' in q:
+                matching_cards = Card.objects.filter(
+                    models.Q(type_line__iexact=term)
+                )
+            else:
+                matching_cards = Card.objects.filter(
+                    models.Q(type_line__icontains=term)
+                )
+            if '@' in q:
+                variants = self.public_variants.exclude(uses__in=Card.objects.exclude(pk__in=matching_cards)).distinct()
+            else:
+                variants = self.public_variants.filter(uses__in=matching_cards).distinct()
+            with self.subTest(f'query by card type: {term} with query {q}'):
+                response = self.client.get('/variants', data={'q': q}, follow=True)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.get('Content-Type'), 'application/json')
+                result = json.loads(response.content, object_hook=json_to_python_lambda)
+                self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
+                for v in result.results:
+                    self.variant_assertions(v)
 
     def test_variants_list_view_query_by_card_oracle_text(self):
+        queries: list[tuple[str, str]] = []
         for i in range(10):
-            queries = [
-                f'cardoracle:"x{i}"',
-                f'oracle:"x{i}"',
-                f'o:x{i}',
-                f'text:x{i}',
-                f'oracle="x{i}"',
-                f'o=x{i}',
+            queries += [
+                (f'cardoracle:"x{i}"', f'x{i}'),
+                (f'oracle:"x{i}"', f'x{i}'),
+                (f'o:x{i}', f'x{i}'),
+                (f'text:x{i}', f'x{i}'),
+                (f'oracle="x{i}"', f'x{i}'),
+                (f'o=x{i}', f'x{i}'),
             ]
-            for q in queries:
-                with self.subTest(f'query by card oracle text: x{i} with query {q}'):
-                    response = self.client.get('/variants', data={'q': q}, follow=True)
-                    self.assertEqual(response.status_code, 200)
-                    self.assertEqual(response.get('Content-Type'), 'application/json')
-                    result = json.loads(response.content, object_hook=json_to_python_lambda)
-                    if '=' in q:
-                        variants = self.public_variants.filter(uses__oracle_text__iexact=f'x{i}').distinct()
-                    else:
-                        variants = self.public_variants.filter(uses__oracle_text__icontains=f'x{i}').distinct()
-                    self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
-                    for v in result.results:
-                        self.variant_assertions(v)
+        queries += [
+            ('@oracle:"x"', 'x'),
+        ]
+        for (q, term) in queries:
+            if '=' in q:
+                matching_cards = Card.objects.filter(
+                    models.Q(oracle_text__iexact=term)
+                )
+            else:
+                matching_cards = Card.objects.filter(
+                    models.Q(oracle_text__icontains=term)
+                )
+            if '@' in q:
+                variants = self.public_variants.exclude(uses__in=Card.objects.exclude(pk__in=matching_cards)).distinct()
+            else:
+                variants = self.public_variants.filter(uses__in=matching_cards).distinct()
+            with self.subTest(f'query by card oracle text: {term} with query {q}'):
+                response = self.client.get('/variants', data={'q': q}, follow=True)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.get('Content-Type'), 'application/json')
+                result = json.loads(response.content, object_hook=json_to_python_lambda)
+                if '=' in q:
+                    variants = self.public_variants.filter(uses__oracle_text__iexact=f'x{i}').distinct()
+                else:
+                    variants = self.public_variants.filter(uses__oracle_text__icontains=f'x{i}').distinct()
+                self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
+                for v in result.results:
+                    self.variant_assertions(v)
 
     def test_variants_list_view_query_by_card_keywords(self):
+        queries: list[tuple[str, str]] = []
         for keyword in {k for v in Variant.objects.values_list('uses__keywords', flat=True) for k in v}:
-            queries = [
-                f'cardkeywords:{keyword}',
-                f'cardkeyword:{keyword}',
-                f'keyword:{keyword}',
-                f'keywords:"{keyword}"',
-                f'keyword:{keyword}',
+            queries += [
+                (f'cardkeywords:{keyword}', keyword),
+                (f'cardkeyword:{keyword}', keyword),
+                (f'keyword:{keyword}', keyword),
+                (f'keywords:"{keyword}"', keyword),
+                (f'keyword:{keyword}', keyword),
             ]
-            for q in queries:
-                with self.subTest(f'query by card keyword: {keyword} with query {q}'):
-                    response = self.client.get('/variants', data={'q': q}, follow=True)
-                    self.assertEqual(response.status_code, 200)
-                    self.assertEqual(response.get('Content-Type'), 'application/json')
-                    result = json.loads(response.content, object_hook=json_to_python_lambda)
-                    variants = self.public_variants.filter(uses__keywords__icontains=keyword).distinct()
-                    self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
-                    for v in result.results:
-                        self.variant_assertions(v)
+        queries += [
+            ('@keyword:"k"', 'k'),
+        ]
+        for (q, term) in queries:
+            matching_cards = Card.objects.filter(
+                models.Q(keywords__icontains=term)
+            )
+            if '@' in q:
+                variants = self.public_variants.exclude(uses__in=Card.objects.exclude(pk__in=matching_cards)).distinct()
+            else:
+                variants = self.public_variants.filter(uses__in=matching_cards).distinct()
+            with self.subTest(f'query by card keyword: {term} with query {q}'):
+                response = self.client.get('/variants', data={'q': q}, follow=True)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.get('Content-Type'), 'application/json')
+                result = json.loads(response.content, object_hook=json_to_python_lambda)
+                self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
+                for v in result.results:
+                    self.variant_assertions(v)
 
     def test_variants_list_view_query_by_card_mana_value(self):
-        operators = {
-            '>': 'gt',
-            '<': 'lt',
-            '>=': 'gte',
-            '<=': 'lte',
-            '=': 'exact',
-            ':': 'exact',
-        }
-        for operator, operator_django in operators.items():
+        queries: list[tuple[str, str, int]] = []
+        for operator, operator_django in self.operators.items():
             for mv in range(10):
-                queries = [
-                    f'cardmanavalue{operator}{mv}',
-                    f'manavalue{operator}{mv}',
-                    f'mv{operator}{mv}',
-                    f'cmc{operator}{mv}',
+                queries += [
+                    (f'cardmanavalue{operator}{mv}', operator_django, mv),
+                    (f'manavalue{operator}{mv}', operator_django, mv),
+                    (f'mv{operator}{mv}', operator_django, mv),
+                    (f'cmc{operator}{mv}', operator_django, mv),
+                    (f'@mv{operator}{mv}', operator_django, mv),
                 ]
-                for q in queries:
-                    q_django = {f'uses__mana_value__{operator_django}': mv}
-                    with self.subTest(f'query by card mana value: {mv} with query {q}'):
-                        response = self.client.get('/variants', data={'q': q}, follow=True)
-                        self.assertEqual(response.status_code, 200)
-                        self.assertEqual(response.get('Content-Type'), 'application/json')
-                        result = json.loads(response.content, object_hook=json_to_python_lambda)
-                        variants = self.public_variants.filter(**q_django).distinct()
-                        self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
-                        for v in result.results:
-                            self.variant_assertions(v)
+        for (q, operator_django, mv) in queries:
+            q_django = {f'mana_value__{operator_django}': mv}
+            matching_cards = Card.objects.filter(**q_django)
+            if '@' in q:
+                variants = self.public_variants.exclude(uses__in=Card.objects.exclude(pk__in=matching_cards)).distinct()
+            else:
+                variants = self.public_variants.filter(uses__in=matching_cards).distinct()
+            with self.subTest(f'query by card mana value: {mv} with query {q}'):
+                response = self.client.get('/variants', data={'q': q}, follow=True)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.get('Content-Type'), 'application/json')
+                result = json.loads(response.content, object_hook=json_to_python_lambda)
+                self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
+                for v in result.results:
+                    self.variant_assertions(v)
 
     def test_variants_list_view_query_by_identity(self):
-        operators = {
-            '>': 'gt',
-            '<': 'lt',
-            '>=': 'gte',
-            '<=': 'lte',
-            '=': 'exact',
-            ':': 'exact',
-        }
-        for operator, operator_django in operators.items():
+        for operator, operator_django in self.operators.items():
             queries = []
             for identity in SORTED_COLORS:
                 identity = list(identity)
@@ -423,15 +465,7 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
                         self.variant_assertions(v)
 
     def test_variants_list_view_query_by_prerequisites(self):
-        operators = {
-            '>': 'gt',
-            '<': 'lt',
-            '>=': 'gte',
-            '<=': 'lte',
-            '=': 'exact',
-            ':': 'exact',
-        }
-        for operator, operator_django in operators.items():
+        for operator, operator_django in self.operators.items():
             for i in range(3):
                 queries = [
                     f'prerequisites{operator}{i}',
@@ -487,15 +521,7 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
                     self.variant_assertions(v)
 
     def test_variants_list_view_query_by_steps(self):
-        operators = {
-            '>': 'gt',
-            '<': 'lt',
-            '>=': 'gte',
-            '<=': 'lte',
-            '=': 'exact',
-            ':': 'exact',
-        }
-        for operator, operator_django in operators.items():
+        for operator, operator_django in self.operators.items():
             for i in range(3):
                 queries = [
                     f'steps{operator}{i}',
@@ -551,15 +577,7 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
         min_results, max_results = self.public_variants.aggregate(min_results=models.Min('result_count'), max_results=models.Max('result_count')).values()
         self.assertGreaterEqual(max_results, min_results)
         for result_count in (min_results, max_results, (min_results + max_results) // 2):
-            operators = {
-                '>': 'gt',
-                '<': 'lt',
-                '>=': 'gte',
-                '<=': 'lte',
-                '=': 'exact',
-                ':': 'exact',
-            }
-            for o, o_django in operators.items():
+            for o, o_django in self.operators.items():
                 queries = [
                     f'results{o}{result_count}',
                     f'result{o}{result_count}',
@@ -575,24 +593,38 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
                         self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
                         for v in result.results:
                             self.variant_assertions(v)
+        text_queries: list[tuple[str, str]] = []
         for feature in Feature.objects.exclude(status=Feature.Status.UTILITY):
-            queries = [
-                f'results:"{feature.name}"',
-                f'results={feature.name}',
+            name_without_spaces = feature.name.split()[0]
+            text_queries += [
+                (f'results:"{feature.name}"', feature.name),
+                (f'results="{feature.name}"', feature.name),
+                (f'results:{name_without_spaces}', name_without_spaces),
             ]
-            for q in queries:
-                with self.subTest(f'query by results: {feature} with query {q}'):
-                    response = self.client.get('/variants', data={'q': q}, follow=True)
-                    self.assertEqual(response.status_code, 200)
-                    self.assertEqual(response.get('Content-Type'), 'application/json')
-                    result = json.loads(response.content, object_hook=json_to_python_lambda)
-                    if '=' in q:
-                        variants = self.public_variants.filter(produces__name=feature.name).distinct()
-                    else:
-                        variants = self.public_variants.filter(produces__name__icontains=feature.name).distinct()
-                    self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
-                    for v in result.results:
-                        self.variant_assertions(v)
+        text_queries += [
+            ('@results:"a"', ' '),
+        ]
+        for (q, term) in text_queries:
+            if '=' in q:
+                matching_features = Feature.objects.filter(
+                    models.Q(name__iexact=term)
+                )
+            else:
+                matching_features = Feature.objects.filter(
+                    models.Q(name__icontains=term)
+                )
+            if '@' in q:
+                variants = self.public_variants.exclude(produces__in=Feature.objects.exclude(pk__in=matching_features)).distinct()
+            else:
+                variants = self.public_variants.filter(produces__in=matching_features).distinct()
+            with self.subTest(f'query by results: {term} with query {q}'):
+                response = self.client.get('/variants', data={'q': q}, follow=True)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.get('Content-Type'), 'application/json')
+                result = json.loads(response.content, object_hook=json_to_python_lambda)
+                self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
+                for v in result.results:
+                    self.variant_assertions(v)
 
     def test_variants_list_view_query_by_tag(self):
         for preview_tag in (
@@ -657,6 +689,16 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
             self.assertEqual(response.get('Content-Type'), 'application/json')
             result = json.loads(response.content, object_hook=json_to_python_lambda)
             variants = self.public_variants.filter(uses__latest_printing_set__in=['stx', 'dnd'], uses__reprinted=False).distinct()
+            self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
+            for v in result.results:
+                self.variant_assertions(v)
+        query = 'is:complete'
+        with self.subTest(f'query by tag: complete with query {query}'):
+            response = self.client.get('/variants', data={'q': query}, follow=True)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.get('Content-Type'), 'application/json')
+            result = json.loads(response.content, object_hook=json_to_python_lambda)
+            variants = self.public_variants.filter(produces__status=Feature.Status.STANDALONE).distinct()
             self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
             for v in result.results:
                 self.variant_assertions(v)
@@ -782,15 +824,7 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
 
     def test_variants_list_view_query_by_bracket(self):
         for bracket in range(1, 6):
-            operators = {
-                '>': 'gt',
-                '<': 'lt',
-                '>=': 'gte',
-                '<=': 'lte',
-                '=': 'exact',
-                ':': 'exact',
-            }
-            for operator, operator_django in operators.items():
+            for operator, operator_django in self.operators.items():
                 queries = [
                     f'bracket{operator}{bracket}',
                 ]
@@ -809,6 +843,7 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
     def test_variants_list_view_query_by_a_combination_of_terms(self):
         queries = [
             ('result=FD A result:B', self.public_variants.filter(uses__name__icontains='A').filter(produces__name__iexact='FD').filter(produces__name__icontains='B').distinct()),
+            ('-card:a card:b -desc:easy', self.public_variants.exclude(uses__name__icontains='a').filter(uses__name__icontains='b').exclude(description__icontains='easy').distinct()),
         ]
         for q, variants in queries:
             with self.subTest(f'query by a combination of terms: {q}'):

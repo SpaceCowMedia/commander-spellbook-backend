@@ -1,24 +1,20 @@
-from .base import QueryValue, QueryFilter, VariantFilterCollection, Q, ValidationError
+from .base import QueryValue, VariantFilterCollection, Q, ValidationError
 
 
-def popularity_filter(popularity_value: QueryValue) -> VariantFilterCollection:
-    if not popularity_value.value.isdigit():
-        raise ValidationError(f'Value {popularity_value.value} is not supported for popularity search.')
-    match popularity_value.operator:
+def popularity_filter(qv: QueryValue) -> VariantFilterCollection:
+    if not qv.value.isdigit():
+        raise ValidationError(f'Value {qv.value} is not supported for popularity search.')
+    match qv.operator:
         case ':' | '=':
-            q = Q(popularity=popularity_value.value)
+            q = Q(popularity=qv.value)
         case '<':
-            q = Q(popularity__lt=popularity_value.value)
+            q = Q(popularity__lt=qv.value)
         case '<=':
-            q = Q(popularity__lte=popularity_value.value)
+            q = Q(popularity__lte=qv.value)
         case '>':
-            q = Q(popularity__gt=popularity_value.value)
+            q = Q(popularity__gt=qv.value)
         case '>=':
-            q = Q(popularity__gte=popularity_value.value)
+            q = Q(popularity__gte=qv.value)
         case _:
-            raise ValidationError(f'Operator {popularity_value.operator} is not supported for popularity search.')
-    return VariantFilterCollection(
-        variants_filters=(
-            QueryFilter(q=q, negated=popularity_value.is_negated()),
-        ),
-    )
+            raise ValidationError(f'Operator {qv.operator} is not supported for popularity search.')
+    return VariantFilterCollection(variants_filters=(qv.to_query_filter(q),))

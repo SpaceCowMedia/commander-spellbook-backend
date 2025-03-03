@@ -104,13 +104,20 @@ class VariantsQueryTransformer(Transformer):
     # endregion
 
     # region composition
+    def matcher(self, values):
+        match values[0]:
+            case '-':
+                return ~values[1]
+            case _:
+                return values[0]
+
     def factor(self, values):
         return values[1]
 
     def term(self, values):
         return values[0] & values[-1]
 
-    def query(self, values):
+    def expression(self, values):
         raise NotImplementedError('OR composition is not implemented.')
 
     def start(self, values):

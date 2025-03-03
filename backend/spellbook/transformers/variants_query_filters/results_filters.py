@@ -1,71 +1,38 @@
-from .base import QueryValue, QueryFilter, Q, ValidationError, VariantFilterCollection
+from .base import QueryValue, Q, ValidationError, VariantFilterCollection
 
 
-def results_filter(results_value: QueryValue) -> VariantFilterCollection:
-    value_is_digit = results_value.value.isdigit()
-    match results_value.operator:
+def results_filter(qv: QueryValue) -> VariantFilterCollection:
+    value_is_digit = qv.value.isdigit()
+    if value_is_digit and qv.is_for_all_related():
+        raise ValidationError(f'Prefix {qv.prefix} is not supported for result search with numbers.')
+    match qv.operator:
         case ':' if not value_is_digit:
-            return VariantFilterCollection(
-                results_filters=(
-                    QueryFilter(
-                        q=Q(feature__name__icontains=results_value.value),
-                        negated=results_value.is_negated(),
-                    ),
-                ),
-            )
+            return VariantFilterCollection(results_filters=(qv.to_query_filter(
+                Q(feature__name__icontains=qv.value),
+            ),))
         case '=' if not value_is_digit:
-            return VariantFilterCollection(
-                results_filters=(
-                    QueryFilter(
-                        q=Q(feature__name__iexact=results_value.value),
-                        negated=results_value.is_negated(),
-                    ),
-                ),
-            )
+            return VariantFilterCollection(results_filters=(qv.to_query_filter(
+                Q(feature__name__iexact=qv.value),
+            ),))
         case '<' if value_is_digit:
-            return VariantFilterCollection(
-                variants_filters=(
-                    QueryFilter(
-                        q=Q(result_count__lt=results_value.value),
-                        negated=results_value.is_negated(),
-                    ),
-                ),
-            )
+            return VariantFilterCollection(variants_filters=(qv.to_query_filter(
+                Q(result_count__lt=qv.value),
+            ),))
         case '<=' if value_is_digit:
-            return VariantFilterCollection(
-                variants_filters=(
-                    QueryFilter(
-                        q=Q(result_count__lte=results_value.value),
-                        negated=results_value.is_negated(),
-                    ),
-                ),
-            )
+            return VariantFilterCollection(variants_filters=(qv.to_query_filter(
+                Q(result_count__lte=qv.value),
+            ),))
         case '>' if value_is_digit:
-            return VariantFilterCollection(
-                variants_filters=(
-                    QueryFilter(
-                        q=Q(result_count__gt=results_value.value),
-                        negated=results_value.is_negated(),
-                    ),
-                ),
-            )
+            return VariantFilterCollection(variants_filters=(qv.to_query_filter(
+                Q(result_count__gt=qv.value),
+            ),))
         case '>=' if value_is_digit:
-            return VariantFilterCollection(
-                variants_filters=(
-                    QueryFilter(
-                        q=Q(result_count__gte=results_value.value),
-                        negated=results_value.is_negated(),
-                    ),
-                ),
-            )
+            return VariantFilterCollection(variants_filters=(qv.to_query_filter(
+                Q(result_count__gte=qv.value),
+            ),))
         case ':' | '=' if value_is_digit:
-            return VariantFilterCollection(
-                variants_filters=(
-                    QueryFilter(
-                        q=Q(result_count=results_value.value),
-                        negated=results_value.is_negated(),
-                    ),
-                ),
-            )
+            return VariantFilterCollection(variants_filters=(qv.to_query_filter(
+                Q(result_count=qv.value),
+            ),))
         case _:
-            raise ValidationError(f'Operator {results_value.operator} is not supported for results search with {"numbers" if value_is_digit else "strings"}.')
+            raise ValidationError(f'Operator {qv.operator} is not supported for results search with {"numbers" if value_is_digit else "strings"}.')

@@ -1,29 +1,30 @@
-from .base import QueryValue, VariantFilterCollection, QueryFilter, Q, ValidationError
+from .base import QueryFilter, QueryValue, VariantFilterCollection, Q, ValidationError
 from spellbook.models import Variant
 
 
-def description_filter(description_value: QueryValue) -> VariantFilterCollection:
-    value_is_digit = description_value.value.isdigit()
-    match description_value.operator:
+def description_filter(qv: QueryValue) -> VariantFilterCollection:
+    value_is_digit = qv.value.isdigit()
+    match qv.operator:
         case ':' if not value_is_digit:
-            q = Q(description__icontains=description_value.value)
+            q = Q(description__icontains=qv.value)
         case '=' if not value_is_digit:
-            q = Q(description__iexact=description_value.value)
+            q = Q(description__iexact=qv.value)
         case '<' if value_is_digit:
-            q = Q(description_line_count__lt=description_value.value)
+            q = Q(description_line_count__lt=qv.value)
         case '<=' if value_is_digit:
-            q = Q(description_line_count__lte=description_value.value)
+            q = Q(description_line_count__lte=qv.value)
         case '>' if value_is_digit:
-            q = Q(description_line_count__gt=description_value.value)
+            q = Q(description_line_count__gt=qv.value)
         case '>=' if value_is_digit:
-            q = Q(description_line_count__gte=description_value.value)
+            q = Q(description_line_count__gte=qv.value)
         case ':' | '=' if value_is_digit:
-            q = Q(description_line_count=description_value.value)
+            q = Q(description_line_count=qv.value)
         case _:
-            raise ValidationError(f'Operator {description_value.operator} is not supported for prerequisites search.')
-    return VariantFilterCollection(
-        variants_filters=(
-            QueryFilter(q=q, negated=description_value.is_negated()),
-            QueryFilter(q=~Q(status=Variant.Status.EXAMPLE)),
-        ),
-    )
+            raise ValidationError(f'Operator {qv.operator} is not supported for prerequisites search.')
+    return VariantFilterCollection(variants_filters=(
+        qv.to_query_filter(q),
+        QueryFilter(
+            q=~Q(status=Variant.Status.EXAMPLE),
+            negatable=False,
+        )
+    ))

@@ -187,8 +187,8 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
             models.Index(*('identity_count',) + DEFAULT_VIEW_ORDERING, name='variant_ic_view_ordering_idx'),
             models.Index(*('variant_count',) + DEFAULT_VIEW_ORDERING, name='variant_vc_view_ordering_idx'),
             models.Index(*('card_count',) + DEFAULT_VIEW_ORDERING, name='variant_cc_view_ordering_idx'),
-            GinIndex(OpClass(Upper('easy_prerequisites'), name='gin_trgm_ops'), name='variant_other_prereq_trgm_idx'),
-            GinIndex(OpClass(Upper('notable_prerequisites'), name='gin_trgm_ops'), name='variant_other_prereq_trgm_idx'),
+            GinIndex(OpClass(Upper('easy_prerequisites'), name='gin_trgm_ops'), name='variant_easy_prereq_trgm_idx'),
+            GinIndex(OpClass(Upper('notable_prerequisites'), name='gin_trgm_ops'), name='variant_notabl_prereq_trgm_idx'),
             GinIndex(OpClass(Upper('description'), name='gin_trgm_ops'), name='variant_description_trgm_idx'),
         ] if connection.vendor == 'postgresql' else [])
 

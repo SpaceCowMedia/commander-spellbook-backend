@@ -36,9 +36,9 @@ class Feature(models.Model):
         ]
         indexes = [
             models.Index(fields=['status']),
-        ] + [
+        ] + ([
             GinIndex(OpClass(Upper('name'), name='gin_trgm_ops'), name='feature_name_trgm_idx'),
-        ] if connection.vendor == 'postgresql' else []
+        ] if connection.vendor == 'postgresql' else [])
 
     def __str__(self):
         return self.name

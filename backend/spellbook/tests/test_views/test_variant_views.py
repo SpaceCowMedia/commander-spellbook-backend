@@ -838,8 +838,8 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
 
     def test_variants_list_view_query_by_a_combination_of_terms(self):
         queries = [
-            ('result=FD A result:B', self.public_variants.filter(uses__name__icontains='A').filter(produces__name__iexact='FD').filter(produces__name__icontains='B').values('id').distinct().order_by()),
-            ('-card:a card:b -desc:easy', self.public_variants.exclude(uses__name__icontains='a').filter(uses__name__icontains='b').exclude(description__icontains='easy').values('id').distinct().order_by()),
+            ('result=FD A result:B', self.public_variants.filter(uses__name__icontains='A').filter(produces__name__iexact='FD').filter(produces__name__icontains='B').values_list('id', flat=True).distinct().order_by()),
+            ('-card:a card:b -desc:easy', self.public_variants.exclude(uses__name__icontains='a').filter(uses__name__icontains='b').exclude(description__icontains='easy').exclude(status=Variant.Status.EXAMPLE).values_list('id', flat=True).distinct().order_by()),
         ]
         for q, variants in queries:
             with self.subTest(f'query by a combination of terms: {q}'):

@@ -147,7 +147,7 @@ jobs:
 
   integration-test:
     runs-on: ubuntu-latest
-    needs: [build]
+    needs: [build, bot-discord, bot-reddit, bot-telegram]
     steps:
 
       - name: Checkout 🛎️

@@ -78,12 +78,7 @@ def scryfall(bulk_collection: str | None = None) -> Scryfall:
         )
         .values_list('oracle_id', flat=True)
     )
-    extra_turn = frozenset[str](
-        Card
-        .objects
-        .filter(replaces__name__icontains='extra turn')
-        .values_list('oracle_id', flat=True)
-    )
+    extra_turn = get_cards_from_scryfall_query('otag:extra-turn')
     # Other missing data
     req = Request(
         'https://raw.githubusercontent.com/chevEldrid/pdh-json-updater/master/pauper_commander.json'
@@ -114,7 +109,7 @@ def scryfall(bulk_collection: str | None = None) -> Scryfall:
 
 
 def get_cards_from_scryfall_query(q: str) -> frozenset[str]:
-    req = Request(f'https://api.scryfall.com/cards/search?format=json&q={quote_plus(q)}')
+    req = Request(f'https://api.scryfall.com/cards/search?format=json&q={quote_plus(q + " unique:cards")}')
     has_next = True
     result = set[str]()
     max_pages = 10

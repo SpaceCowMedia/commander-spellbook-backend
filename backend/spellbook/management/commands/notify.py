@@ -54,6 +54,8 @@ class Command(AbstractCommand):
                 else:
                     webhook_text += '.'
                 webhook_text += '\n'
+                if accepted:
+                    webhook_text += 'Your submission will be added to the site soon.\n'
                 if discord_account:
                     webhook_text += f'Thanks for your submission{"" if accepted else " though"}!\n'
         if webhook_text:

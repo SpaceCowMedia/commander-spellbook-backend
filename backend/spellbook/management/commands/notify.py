@@ -55,7 +55,7 @@ class Command(AbstractCommand):
                     webhook_text += '.'
                 webhook_text += '\n'
                 if accepted:
-                    webhook_text += 'Your submission will be added to the site soon.\n'
+                    webhook_text += 'When an editor implements it, links to the combo\'s variants will be posted to this changelog.\n'
                 if discord_account:
                     webhook_text += f'Thanks for your submission{"" if accepted else " though"}!\n'
         if webhook_text:

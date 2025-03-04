@@ -29,21 +29,16 @@ class VariantGroupedByComboFilter(filters.BaseFilterBackend):
     def _filter_queryset(self, queryset: QuerySet[Variant]) -> QuerySet[Variant]:
         order_by = queryset.query.order_by + DEFAULT_VIEW_ORDERING
         order_by = list(remove_duplicates_in_order_by(order_by))
-        return queryset.alias(
+        top_variants_for_each_combo = queryset.alias(
             top_variant=Window(
                 expression=FirstValue('pk'),
                 partition_by=F('variantofcombo__combo_id'),
                 order_by=order_by,
             )
-        ).filter(pk=F('top_variant'))
-        # top_variants_for_each_combo = queryset.annotate(
-        #     top_variant=Window(
-        #         expression=FirstValue('pk'),
-        #         partition_by=F('variantofcombo__combo_id'),
-        #         order_by=order_by,
-        #     )
-        # ).exclude(top_variant=F('pk'))
-        # return queryset.exclude(pk__in=top_variants_for_each_combo)
+        ).filter(
+            pk=F('top_variant'),
+        )
+        return queryset.filter(pk__in=top_variants_for_each_combo)
 
     def get_schema_operation_parameters(self, view):
         return [

@@ -22,10 +22,10 @@ class FindMyCombosViewTests(TestCaseMixinWithSeeding, TestCase):
             cards: FrozenMultiset[str],
             commanders: FrozenMultiset[str],
     ):
-        self.assertIn(result.bracket, Variant.BracketTag.values)
+        self.assertIn(result.bracket_tag, Variant.BracketTag.values)
         cards_in_db = [Card.objects.get(name=name) for name in cards | commanders]
         if any(c.game_changer or c.extra_turn or c.mass_land_denial for c in cards_in_db):
-            self.assertNotIn(result.bracket, [Variant.BracketTag.CASUAL, Variant.BracketTag.PRECON_APPROPRIATE])
+            self.assertNotIn(result.bracket_tag, [Variant.BracketTag.CASUAL, Variant.BracketTag.PRECON_APPROPRIATE])
 
     def test_estimate_bracket_views(self):
         for content_type in ['text/plain', 'application/json']:
@@ -35,7 +35,7 @@ class FindMyCombosViewTests(TestCaseMixinWithSeeding, TestCase):
                 self.assertEqual(response.get('Content-Type'), 'application/json')
                 result = json.loads(response.content, object_hook=json_to_python_lambda)
                 self._check_result(result, FrozenMultiset(), FrozenMultiset())
-                self.assertEqual(result.bracket, Variant.BracketTag.CASUAL)
+                self.assertEqual(result.bracket_tag, Variant.BracketTag.CASUAL)
             with self.subTest('one card'):
                 card = Card.objects.get(id=self.c1_id)
                 if 'json' in content_type:
@@ -57,5 +57,5 @@ class FindMyCombosViewTests(TestCaseMixinWithSeeding, TestCase):
                 self.assertEqual(response.status_code, 200)
                 self.assertEqual(response.get('Content-Type'), 'application/json')
                 result = json.loads(response.content, object_hook=json_to_python_lambda)
-                self.assertGreater(result.bracket, Variant.BracketTag.CASUAL)
+                self.assertGreater(result.bracket_tag, Variant.BracketTag.CASUAL)
                 self._check_result(result, cards, FrozenMultiset())

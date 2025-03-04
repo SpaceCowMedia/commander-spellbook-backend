@@ -102,6 +102,19 @@ class VariantPricesSerializer(PricesSerializer):
         model = Variant
 
 
+class BracketTagSerializer(serializers.ChoiceField):
+    def __init__(self, **kwargs):
+        super().__init__(Variant.BracketTag.choices, read_only=True, source='bracket_tag_override', **kwargs)
+
+    def get_attribute(self, instance):
+        value = super().get_attribute(instance)
+        if value is None:
+            self.source = None
+            self.bind('bracket_tag', self.parent)
+            return super().get_attribute(instance)
+        return value
+
+
 class VariantSerializer(serializers.ModelSerializer):
     uses = CardInVariantSerializer(source='cardinvariant_set', many=True, read_only=True)
     requires = TemplateInVariantSerializer(source='templateinvariant_set', many=True, read_only=True)
@@ -117,6 +130,7 @@ class VariantSerializer(serializers.ModelSerializer):
     popularity = serializers.IntegerField(read_only=True, min_value=0, allow_null=True)
     legalities = VariantLegalitiesSerializer(source='*', read_only=True)
     prices = VariantPricesSerializer(source='*', read_only=True)
+    bracket_tag = BracketTagSerializer()
 
     @extend_schema_field(serializers.CharField(required=False))
     def get_mana_needed(self, obj: Variant):

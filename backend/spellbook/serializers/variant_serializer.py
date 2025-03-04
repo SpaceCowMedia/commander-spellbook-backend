@@ -109,8 +109,8 @@ class BracketTagSerializer(serializers.ChoiceField):
     def get_attribute(self, instance):
         value = super().get_attribute(instance)
         if value is None:
-            self.source = None
-            self.bind('bracket_tag', self.parent)
+            self.source = 'bracket_tag'
+            self.source_attrs = ['bracket_tag']
             return super().get_attribute(instance)
         return value
 

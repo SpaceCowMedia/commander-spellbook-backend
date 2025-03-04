@@ -1,4 +1,4 @@
-from rest_framework import serializers
+from rest_framework import serializers, fields
 
 
 class StringMultipleChoiceField(serializers.MultipleChoiceField):
@@ -12,3 +12,18 @@ class StringMultipleChoiceField(serializers.MultipleChoiceField):
 
     def to_representation(self, value):
         return list(sorted(super().to_representation(value), key=lambda x: self.keys[x]))
+
+
+class WithOverrideMixin(serializers.Field):
+    def get_attribute(self, instance):
+        override_source = f'{self.source}_override'
+        override_source_attrs = override_source.split('.')
+        try:
+            override_value = fields.get_attribute(instance, override_source_attrs)
+        except (KeyError, AttributeError):
+            override_value = None
+        if override_value is not None:
+            self.source = override_source
+            self.source_attrs = override_source_attrs
+            return super().get_attribute(instance)
+        return super().get_attribute(instance)

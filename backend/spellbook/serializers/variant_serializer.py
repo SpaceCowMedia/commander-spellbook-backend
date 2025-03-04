@@ -2,6 +2,7 @@ from django.db.models import QuerySet
 from rest_framework import serializers
 from drf_spectacular.utils import extend_schema_field
 from spellbook.models import Variant, CardInVariant, TemplateInVariant, FeatureProducedByVariant
+from .bracket_tag_serializer import BracketTagSerializer
 from .combo_serializer import ComboSerializer
 from .feature_serializer import FeatureSerializer
 from .card_serializer import CardSerializer
@@ -100,19 +101,6 @@ class VariantLegalitiesSerializer(LegalitiesSerializer):
 class VariantPricesSerializer(PricesSerializer):
     class Meta(PricesSerializer.Meta):
         model = Variant
-
-
-class BracketTagSerializer(serializers.ChoiceField):
-    def __init__(self, **kwargs):
-        super().__init__(Variant.BracketTag.choices, read_only=True, source='bracket_tag_override', **kwargs)
-
-    def get_attribute(self, instance):
-        value = super().get_attribute(instance)
-        if value is None:
-            self.source = 'bracket_tag'
-            self.source_attrs = ['bracket_tag']
-            return super().get_attribute(instance)
-        return value
 
 
 class VariantSerializer(serializers.ModelSerializer):

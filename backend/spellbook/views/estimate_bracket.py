@@ -5,14 +5,14 @@ from django.db.models import F, Sum, Case, When, Value, QuerySet, Q
 from django.db.models.functions import Greatest
 from drf_spectacular.utils import extend_schema
 from spellbook.models import Card, CardInVariant, Template, Variant, estimate_bracket
-from spellbook.serializers import CardSerializer, VariantSerializer
+from spellbook.serializers import CardSerializer, VariantSerializer, BracketTagSerializer
 from spellbook.views import VariantViewSet
 from website.views import PlainTextDeckListParser
 from .utils import DecklistAPIView
 
 
 class EstimateBracketResultSerializer(serializers.Serializer):
-    bracket = serializers.ChoiceField(choices=Variant.BracketTag.choices)
+    bracket_tag = BracketTagSerializer()
     game_changer_cards = serializers.ListField(child=CardSerializer(), source='data.game_changer_cards')
     mass_land_denial_cards = serializers.ListField(child=CardSerializer(), source='data.mass_land_denial_cards')
     mass_land_denial_templates = serializers.ListField(child=VariantSerializer(), source='data.mass_land_denial_templates')

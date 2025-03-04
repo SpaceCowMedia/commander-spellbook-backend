@@ -235,7 +235,7 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
                 for civ, card in cards
             ) \
             and self.mana_value <= 6
-        self.bracket_tag = estimate_bracket([card for _, card in cards], [template for _, template in templates], included_variants=[self]).bracket
+        self.bracket_tag = estimate_bracket([card for _, card in cards], [template for _, template in templates], included_variants=[self]).bracket_tag
         new_values = {field: getattr(self, field) for field in self.computed_fields()}
         return old_values != new_values
 
@@ -404,7 +404,7 @@ class BracketEstimateData:
 
 @dataclass(frozen=True)
 class BracketEstimate:
-    bracket: Variant.BracketTag
+    bracket_tag: Variant.BracketTag
     data: BracketEstimateData
 
 
@@ -527,6 +527,6 @@ def estimate_bracket(cards: Sequence[Card], templates: Sequence[Template], inclu
         bracket = Variant.BracketTag.CASUAL
 
     return BracketEstimate(
-        bracket=bracket,
+        bracket_tag=bracket,
         data=data,
     )

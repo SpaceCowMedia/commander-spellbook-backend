@@ -71,6 +71,8 @@ def scryfall(bulk_collection: str | None = None) -> Scryfall:
     # Bracket-related attributes
     tutor = get_cards_from_scryfall_query('function:tutor -function:tutor-land -function:tutor-seek mv<=3')
     mass_land_denial = frozenset[str](
+        str(oracle_id)
+        for oracle_id in
         Card
         .objects
         .filter(

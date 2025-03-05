@@ -230,13 +230,21 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
         old_values = {field: getattr(self, field) for field in self.computed_fields()}
         self.mana_value_needed = mana_value(self.mana_needed)
         self.update_playable_fields([card for _, card in cards], requires_commander=requires_commander)
+        battlefield_mana_value = sum(card.mana_value for civ, card in cards if ZoneLocation.BATTLEFIELD in civ.zone_locations)
         self.hulkline = \
-            not requires_commander \
+            battlefield_mana_value <= 6 \
+            and not requires_commander \
             and all(
-                CardType.CREATURE in card.type_line and ZoneLocation.BATTLEFIELD in civ.zone_locations and not civ.battlefield_card_state
+                CardType.CREATURE in card.type_line and (ZoneLocation.BATTLEFIELD in civ.zone_locations and not civ.battlefield_card_state or ZoneLocation.LIBRARY in civ.zone_locations and not civ.library_card_state)
                 for civ, card in cards
             ) \
-            and self.mana_value <= 6
+            and all(
+                'creature' in template.name.lower() and 'non-creature' not in template.name.lower() and (ZoneLocation.BATTLEFIELD in tiv.zone_locations and not tiv.battlefield_card_state or ZoneLocation.LIBRARY in tiv.zone_locations and not tiv.library_card_state)
+                for tiv, template in templates
+            ) \
+            and (
+                battlefield_mana_value <= 4 or all(name.split(',', 1)[0] not in self.notable_prerequisites for _, card in cards for name in card.name.split(' // '))
+            )
         self.bracket_tag = estimate_bracket([card for _, card in cards], [template for _, template in templates], included_variants=[self]).bracket_tag
         new_values = {field: getattr(self, field) for field in self.computed_fields()}
         return old_values != new_values

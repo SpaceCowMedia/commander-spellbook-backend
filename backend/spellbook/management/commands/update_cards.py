@@ -8,6 +8,7 @@ from ..scryfall import scryfall, update_cards
 class Command(AbstractCommand):
     name = 'update_cards'
     help = 'Updates cards using Scryfall/EDHREC bulk data'
+    batch_size = 5000
 
     def run(self, *args, **options):
         self.log('Fetching Scryfall and EDHREC datasets...')
@@ -30,7 +31,7 @@ class Command(AbstractCommand):
             log_error=lambda x: self.log(x, self.style.ERROR),
         )
         updated_card_count = len(cards_to_save)
-        Card.objects.bulk_update(cards_to_save, fields=['name', 'name_unaccented', 'oracle_id', 'variant_count'] + Card.scryfall_fields() + Card.playable_fields())
+        Card.objects.bulk_update(cards_to_save, fields=['name', 'name_unaccented', 'oracle_id', 'variant_count'] + Card.scryfall_fields() + Card.playable_fields(), batch_size=self.batch_size)
         self.log('Updating cards...done', self.style.SUCCESS)
         if updated_card_count > 0:
             self.log(f'Successfully updated {updated_card_count} cards', self.style.SUCCESS)

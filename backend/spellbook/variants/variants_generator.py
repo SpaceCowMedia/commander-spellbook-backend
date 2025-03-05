@@ -521,16 +521,19 @@ def create_variant(
     return save_item
 
 
+BATCH_SIZE = 5000
+
+
 def perform_bulk_saves(data: Data, to_create: list[VariantBulkSaveItem], to_update: list[VariantBulkSaveItem]):
-    Variant.objects.bulk_create([v.variant for v in to_create])
+    Variant.objects.bulk_create([v.variant for v in to_create], batch_size=BATCH_SIZE)
     update_fields = ['name', 'status', 'mana_needed', 'easy_prerequisites', 'notable_prerequisites', 'description', 'public_notes', 'notes', 'result_count', 'generated_by'] + Playable.playable_fields()
-    Variant.objects.bulk_update([v.variant for v in to_update if v.should_update], fields=update_fields)
-    CardInVariant.objects.bulk_create([c for v in to_create for c in v.uses])
+    Variant.objects.bulk_update([v.variant for v in to_update if v.should_update], fields=update_fields, batch_size=BATCH_SIZE)
+    CardInVariant.objects.bulk_create([c for v in to_create for c in v.uses], batch_size=BATCH_SIZE)
     update_fields = ['zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'must_be_commander', 'order', 'quantity']
-    CardInVariant.objects.bulk_update([c for v in to_update if v.should_update for c in v.uses], fields=update_fields)
-    TemplateInVariant.objects.bulk_create([t for v in to_create for t in v.requires])
+    CardInVariant.objects.bulk_update([c for v in to_update if v.should_update for c in v.uses], fields=update_fields, batch_size=BATCH_SIZE)
+    TemplateInVariant.objects.bulk_create([t for v in to_create for t in v.requires], batch_size=BATCH_SIZE)
     update_fields = ['zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'must_be_commander', 'order', 'quantity']
-    TemplateInVariant.objects.bulk_update([t for v in to_update if v.should_update for t in v.requires], fields=update_fields)
+    TemplateInVariant.objects.bulk_update([t for v in to_update if v.should_update for t in v.requires], fields=update_fields, batch_size=BATCH_SIZE)
     to_delete_of = [
         of.id
         for v in to_update
@@ -550,7 +553,7 @@ def perform_bulk_saves(data: Data, to_create: list[VariantBulkSaveItem], to_upda
         for combo_id in v.of
         if (combo_id, v.variant.id) not in data.variant_of_combo_dict
     ]
-    VariantOfCombo.objects.bulk_create(to_create_of)
+    VariantOfCombo.objects.bulk_create(to_create_of, batch_size=BATCH_SIZE)
     del to_create_of
     to_delete_includes = [
         includes.id
@@ -571,7 +574,7 @@ def perform_bulk_saves(data: Data, to_create: list[VariantBulkSaveItem], to_upda
         for combo_id in v.includes
         if (combo_id, v.variant.id) not in data.variant_includes_combo_dict
     ]
-    VariantIncludesCombo.objects.bulk_create(to_create_includes)
+    VariantIncludesCombo.objects.bulk_create(to_create_includes, batch_size=BATCH_SIZE)
     del to_create_includes
     to_delete_produces = [
         produces.id
@@ -592,7 +595,7 @@ def perform_bulk_saves(data: Data, to_create: list[VariantBulkSaveItem], to_upda
         for i in v.produces
         if (i.feature_id, v.variant.id) not in data.variant_produces_feature_dict
     ]
-    FeatureProducedByVariant.objects.bulk_create(to_create_produces)
+    FeatureProducedByVariant.objects.bulk_create(to_create_produces, batch_size=BATCH_SIZE)
     del to_create_produces
     to_update_produces: list[FeatureProducedByVariant] = []
     for v in to_update:
@@ -603,7 +606,7 @@ def perform_bulk_saves(data: Data, to_create: list[VariantBulkSaveItem], to_upda
                 old_instance.quantity = i.quantity
                 to_update_produces.append(old_instance)
     update_fields = ['quantity']
-    FeatureProducedByVariant.objects.bulk_update(to_update_produces, fields=update_fields)
+    FeatureProducedByVariant.objects.bulk_update(to_update_produces, fields=update_fields, batch_size=BATCH_SIZE)
 
 
 def sync_variant_aliases(data: Data, added_variants_ids: set[str], deleted_variants_ids: set[str]) -> tuple[int, int]:
@@ -617,7 +620,7 @@ def sync_variant_aliases(data: Data, added_variants_ids: set[str], deleted_varia
         for v in deleted_variants
         if v.status in Variant.public_statuses()
     ]
-    added_count = len(VariantAlias.objects.bulk_create(variant_aliases, ignore_conflicts=True))
+    added_count = len(VariantAlias.objects.bulk_create(variant_aliases, ignore_conflicts=True, batch_size=BATCH_SIZE))
     return added_count, deleted_count
 
 

@@ -89,16 +89,70 @@
             }
         },
         {
-            "label": "Profile Prelaunch",
+            "label": "Apply migrations with production settings",
+            "type": "shell",
+            "command": "set -a; . \"$ENV_FILE\"; python manage.py migrate --settings=backend.production_settings",
+            "group": "none",
+            "options": {
+                "cwd": "${workspaceFolder}/backend",
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}${/}common",
+                    "ENV_FILE": "${workspaceFolder}/backend/secrets.env",
+                },
+            },
+        },
+        {
+            "label": "Seed Website Properties with production settings",
+            "type": "shell",
+            "command": "set -a; . \"$ENV_FILE\"; python manage.py seed_website_properties --settings=backend.production_settings",
+            "group": "none",
+            "options": {
+                "cwd": "${workspaceFolder}/backend",
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}${/}common",
+                    "ENV_FILE": "${workspaceFolder}/backend/secrets.env",
+                },
+            }
+        },
+        {
+            "label": "Clean pending jobs with production settings",
+            "type": "shell",
+            "command": "set -a; . \"$ENV_FILE\"; python backend/manage.py clean_jobs --force --settings=backend.production_settings",
             "group": "none",
             "dependsOn": [
-                "Prelaunch",
+                "Apply migrations"
             ],
             "options": {
                 "env": {
                     "PYTHONPATH": "${workspaceFolder}${/}common",
+                    "ENV_FILE": "${workspaceFolder}/backend/secrets.env",
                 },
             }
+        },
+        {
+            "label": "Upkeep with production settings",
+            "type": "shell",
+            "command": "set -a; . \"$ENV_FILE\"; python backend/manage.py upkeep --settings=backend.production_settings",
+            "group": "none",
+            "dependsOn": [
+                "Apply migrations"
+            ],
+            "options": {
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}${/}common",
+                    "ENV_FILE": "${workspaceFolder}/backend/secrets.env",
+                },
+            }
+        },
+        {
+            "label": "Prelaunch with production settings",
+            "group": "none",
+            "dependsOn": [
+                "Apply migrations with production settings",
+                "Clean pending jobs with production settings",
+                "Upkeep with production settings",
+                "Seed Website Properties with production settings",
+            ],
         }
     ]
 }

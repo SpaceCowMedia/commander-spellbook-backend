@@ -47,11 +47,11 @@
                 "8000",
                 "--settings=backend.production_settings"
             ],
-            "envFile": "${workspaceFolder}/backend/.env",
+            "envFile": "${workspaceFolder}/backend/secrets.env",
             "env": {
                 "PYTHONPATH": "${workspaceFolder}${/}common",
             },
-            "preLaunchTask": "Prelaunch",
+            "preLaunchTask": "Prelaunch with production settings",
             "django": true,
             "justMyCode": false,
             "presentation": {
@@ -80,7 +80,7 @@
             "env": {
                 "PYTHONPATH": "${workspaceFolder}${/}common",
             },
-            "preLaunchTask": "Profile Prelaunch",
+            "preLaunchTask": "Prelaunch",
             "django": true,
             "justMyCode": true,
             "presentation": {
@@ -179,7 +179,7 @@
             "env": {
                 "PYTHONPATH": "${workspaceFolder}${/}common",
             },
-            "preLaunchTask": "Profile Prelaunch",
+            "preLaunchTask": "Prelaunch",
             "django": true,
             "justMyCode": true,
             "presentation": {

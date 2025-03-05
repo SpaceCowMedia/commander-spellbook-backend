@@ -53,7 +53,7 @@ class Command(AbstractCommand):
                 variants_source.extend(variants_query[i:i + self.batch_size])
         self.log('Fetching variants from db...done', self.style.SUCCESS)
         self.log('Updating variants preserialized representation...')
-        Variant.objects.bulk_serialize(objs=variants_source, serializer=VariantSerializer, batch_size=self.batch_size)  # type: ignore
+        Variant.objects.bulk_serialize(objs=variants_source, serializer=VariantSerializer, batch_size=self.batch_size)
         self.log('Updating variants preserialized representation...done', self.style.SUCCESS)
         self.log('Fetching variant aliases from db...')
         with transaction.atomic(durable=True):

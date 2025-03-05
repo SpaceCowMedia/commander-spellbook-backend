@@ -156,6 +156,7 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
         return Playable.playable_fields() + [
             'hulkline',
             'bracket_tag',
+            'mana_value_needed',
         ]
 
     class Meta:
@@ -227,6 +228,7 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
     ) -> bool:
         requires_commander = any(civ.must_be_commander for civ, _ in cards) or any(tiv.must_be_commander for tiv, _ in templates)
         old_values = {field: getattr(self, field) for field in self.computed_fields()}
+        self.mana_value_needed = mana_value(self.mana_needed)
         self.update_playable_fields([card for _, card in cards], requires_commander=requires_commander)
         self.hulkline = \
             not requires_commander \

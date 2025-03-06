@@ -637,7 +637,7 @@ def generate_variants(combo: int | None = None, job: Job | None = None, log_coun
     log_into_job(job, 'Computing combos graph representation...')
     debug_queries()
     variants = get_variants_from_graph(data, combo, job, log_count)
-    log_into_job(job, f'Saving {len(variants)} variants...')
+    log_into_job(job, f'Postprocessing {len(variants)} variants...')
     debug_queries()
     to_bulk_update = list[VariantBulkSaveItem]()
     to_bulk_create = list[VariantBulkSaveItem]()
@@ -660,6 +660,7 @@ def generate_variants(combo: int | None = None, job: Job | None = None, log_coun
                 job=job)
             to_bulk_create.append(variant_to_save)
         debug_queries()
+    log_into_job(job, f'Saving {len(variants)} variants...')
     with transaction.atomic():
         perform_bulk_saves(data, to_bulk_create, to_bulk_update)
         new_id_set = set(variants.keys())

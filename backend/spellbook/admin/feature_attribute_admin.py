@@ -30,7 +30,7 @@ class FeatureAttributeAdmin(SpellbookModelAdmin):
         if feature_id is not None:
             try:
                 queryset = queryset.filter(
-                    Q(used_as_attribute_in_featureofcard__feature_id=feature_id) | Q(used_as_attribute_in_featureproducedincombo__feature_id=feature_id),
+                    Q(name__iexact=search_term) | Q(used_as_attribute_in_featureofcard__feature_id=feature_id) | Q(used_as_attribute_in_featureproducedincombo__feature_id=feature_id),
                 )
             except ValueError:
                 pass

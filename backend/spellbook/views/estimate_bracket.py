@@ -66,7 +66,7 @@ class EstimateBracketView(DecklistAPIView):
         variants_query: QuerySet[Variant] = viewset.filter_queryset(Variant.recipes_prefetched).filter(id__in=variant_id_list).defer(None)
         variants = list(variants_query)
 
-        result = estimate_bracket(cards, templates, variants)
+        result = estimate_bracket(cards, templates, [(v, v.get_recipe()) for v in variants])
         serializer = self.response(result)
         return Response(serializer.data)
 

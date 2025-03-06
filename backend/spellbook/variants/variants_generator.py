@@ -298,11 +298,11 @@ def restore_variant(
     ]
     produced_features.sort(key=lambda f: f.feature_id)
     # Update variant computed information
-    variant.update_variant_from_ingredients(
+    variant.update_variant_from_recipe(Variant.Recipe(
         [(c, data.id_to_card[c.card_id]) for c in used_cards],
         [(t, data.id_to_template[t.template_id]) for t in required_templates],
         [(f, data.id_to_feature[f.feature_id]) for f in produced_features],
-    )
+    ))
     uses = dict[int, CardInVariant]()
     for card_in_variant in used_cards:
         card_in_variant.order = 0  # will be updated later

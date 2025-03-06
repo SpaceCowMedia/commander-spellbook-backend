@@ -62,7 +62,7 @@ class VariantTests(TestCaseMixinWithSeeding, TestCase):
         self.assertTrue(v.query_string().startswith('q='))
 
     def test_method_count(self):
-        self.assertEqual(count_methods(Variant), 11)
+        self.assertEqual(count_methods(Variant), 12)
 
     def test_update_variant_from_cards(self):
         v: Variant = Variant.objects.get(id=self.v1_id)
@@ -103,15 +103,13 @@ class VariantTests(TestCaseMixinWithSeeding, TestCase):
         self.assertTrue(v.update_playable_fields(cards, requires_commander=False))
         self.assertFalse(v.update_playable_fields(cards, requires_commander=False))
 
-    def test_update_variant_from_ingredients(self):
+    def test_update_variant_from_recipe(self):
         v: Variant = Variant.objects.get(id=self.v1_id)
-        civs = list((civ, civ.card) for civ in v.cardinvariant_set.all())
-        tivs = list((tiv, tiv.template) for tiv in v.templateinvariant_set.all())
-        fpvs = list((fpv, fpv.feature) for fpv in v.featureproducedbyvariant_set.all())
-        self.assertFalse(v.update_variant_from_ingredients(civs, tivs, fpvs))
-        civs[0][1].identity = 'WUBRG'
-        self.assertTrue(v.update_variant_from_ingredients(civs, tivs, fpvs))
-        self.assertFalse(v.update_variant_from_ingredients(civs, tivs, fpvs))
+        recipe = v.get_recipe()
+        self.assertFalse(v.update_variant_from_recipe(recipe))
+        recipe.cards[0][1].identity = 'WUBRG'
+        self.assertTrue(v.update_variant_from_recipe(recipe))
+        self.assertFalse(v.update_variant_from_recipe(recipe))
 
     def test_update_variant(self):
         v: Variant = Variant.objects.get(id=self.v1_id)

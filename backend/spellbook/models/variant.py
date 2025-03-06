@@ -211,41 +211,48 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
             self.notable_prerequisites.count('\n') + 1 if self.notable_prerequisites else 0
         )
 
+    @dataclass(frozen=True)
+    class Recipe:
+        cards: list[tuple['CardInVariant', Card]]
+        templates: list[tuple['TemplateInVariant', Template]]
+        features: list[tuple['FeatureProducedByVariant', Feature]]
+
     def update_variant(self):
+        return self.update_variant_from_recipe(self.get_recipe())
+
+    def get_recipe(self) -> Recipe:
         cards: dict[int, Card] = {c.id: c for c in self.uses.all()}
         civs = [(civ, cards[civ.card_id]) for civ in self.cardinvariant_set.all()]
         templates: dict[int, Template] = {t.id: t for t in self.requires.all()}
         tivs = [(tiv, templates[tiv.template_id]) for tiv in self.templateinvariant_set.all()]
         features: dict[int, Feature] = {f.id: f for f in self.produces.all()}
         fpbvs = [(fp, features[fp.feature_id]) for fp in self.featureproducedbyvariant_set.all()]
-        return self.update_variant_from_ingredients(civs, tivs, fpbvs)
+        return Variant.Recipe(civs, tivs, fpbvs)
 
-    def update_variant_from_ingredients(
+    def update_variant_from_recipe(
             self,
-            cards: Sequence[tuple['CardInVariant', Card]],
-            templates: Sequence[tuple['TemplateInVariant', Template]],
-            features: Sequence[tuple['FeatureProducedByVariant', Feature]],
+            recipe: Recipe,
     ) -> bool:
-        requires_commander = any(civ.must_be_commander for civ, _ in cards) or any(tiv.must_be_commander for tiv, _ in templates)
+        requires_commander = any(civ.must_be_commander for civ, _ in recipe.cards) or any(tiv.must_be_commander for tiv, _ in recipe.templates)
         old_values = {field: getattr(self, field) for field in self.computed_fields()}
         self.mana_value_needed = mana_value(self.mana_needed)
-        self.update_playable_fields([card for _, card in cards], requires_commander=requires_commander)
-        battlefield_mana_value = sum(card.mana_value for civ, card in cards if ZoneLocation.BATTLEFIELD in civ.zone_locations)
+        self.update_playable_fields([card for _, card in recipe.cards], requires_commander=requires_commander)
+        battlefield_mana_value = sum(card.mana_value for civ, card in recipe.cards if ZoneLocation.BATTLEFIELD in civ.zone_locations)
         self.hulkline = \
             battlefield_mana_value <= 6 \
             and not requires_commander \
             and all(
                 CardType.CREATURE in card.type_line and (ZoneLocation.BATTLEFIELD in civ.zone_locations and not civ.battlefield_card_state or ZoneLocation.LIBRARY in civ.zone_locations and not civ.library_card_state)
-                for civ, card in cards
+                for civ, card in recipe.cards
             ) \
             and all(
                 'creature' in template.name.lower() and 'non-creature' not in template.name.lower() and (ZoneLocation.BATTLEFIELD in tiv.zone_locations and not tiv.battlefield_card_state or ZoneLocation.LIBRARY in tiv.zone_locations and not tiv.library_card_state)
-                for tiv, template in templates
+                for tiv, template in recipe.templates
             ) \
             and (
-                battlefield_mana_value <= 4 or all(name.split(',', 1)[0] not in self.notable_prerequisites for _, card in cards for name in card.name.split(' // '))
+                battlefield_mana_value <= 4 or all(name.split(',', 1)[0] not in self.notable_prerequisites for _, card in recipe.cards for name in card.name.split(' // '))
             )
-        self.bracket_tag = estimate_bracket([card for _, card in cards], [template for _, template in templates], included_variants=[self]).bracket_tag
+        self.bracket_tag = estimate_bracket([card for _, card in recipe.cards], [template for _, template in recipe.templates], included_variants=[(self, recipe)]).bracket_tag
         new_values = {field: getattr(self, field) for field in self.computed_fields()}
         return old_values != new_values
 
@@ -418,26 +425,27 @@ class BracketEstimate:
     data: BracketEstimateData
 
 
-def estimate_bracket(cards: Sequence[Card], templates: Sequence[Template], included_variants: Sequence[Variant]) -> BracketEstimate:
+def estimate_bracket(cards: Sequence[Card], templates: Sequence[Template], included_variants: Sequence[tuple[Variant, Variant.Recipe]]) -> BracketEstimate:
     def _data() -> BracketEstimateData:
         definitely_early_game_two_card_combos: list[Variant] = []
         arguably_early_game_two_card_combos: list[Variant] = []
         definitely_late_game_two_card_combos: list[Variant] = []
         borderline_late_game_two_card_combos: list[Variant] = []
 
-        for variant in included_variants:
+        for variant, recipe in included_variants:
             arguably_two_card = sum(
                 civ.quantity
-                for civ in variant.cardinvariant_set.all()
+                for civ, _ in recipe.cards
                 if ZoneLocation.LIBRARY not in civ.zone_locations and ZoneLocation.COMMAND_ZONE not in civ.zone_locations
             ) + sum(
                 tiv.quantity
-                for tiv in variant.templateinvariant_set.all()
+                for tiv, _ in recipe.templates
+                if ZoneLocation.LIBRARY not in tiv.zone_locations and ZoneLocation.COMMAND_ZONE not in tiv.zone_locations
             ) <= 2
             no_extra_card_prerequisites = not variant.notable_prerequisites
             definitely_two_card = arguably_two_card and no_extra_card_prerequisites
-            relevant = any(f.feature.status in (Feature.Status.STANDALONE,) for f in variant.featureproducedbyvariant_set.all())
-            borderline_relevant = any(f.feature.status in (Feature.Status.STANDALONE, Feature.Status.CONTEXTUAL) for f in variant.featureproducedbyvariant_set.all())
+            relevant = any(feature.status in (Feature.Status.STANDALONE,) for _, feature in recipe.features)
+            borderline_relevant = any(feature.status in (Feature.Status.STANDALONE, Feature.Status.CONTEXTUAL) for _, feature in recipe.features)
             definitely_early_game = variant.mana_value_needed <= 4
             arguably_early_game = variant.mana_value_needed <= 5
             if relevant and definitely_two_card and definitely_early_game:
@@ -451,34 +459,34 @@ def estimate_bracket(cards: Sequence[Card], templates: Sequence[Template], inclu
 
         extra_turns_combos = [
             v
-            for v in included_variants
+            for v, recipe in included_variants
             if any(
-                re.search(r'(?:near-)?infinite (?:extra )?turns?', fiv.feature.name, re.IGNORECASE)
-                for fiv in v.featureproducedbyvariant_set.all()
+                re.search(r'(?:near-)?infinite (?:extra )?turns?', feature.name, re.IGNORECASE)
+                for _, feature in recipe.features
             )
         ]
         mass_land_denial_combos = [
             v
-            for v in included_variants
+            for v, recipe in included_variants
             if any(
-                re.search(r'mass land (?:destruction|denial)', fiv.feature.name, re.IGNORECASE)
-                for fiv in v.featureproducedbyvariant_set.all()
+                re.search(r'mass land (?:destruction|denial)', feature.name, re.IGNORECASE)
+                for _, feature in recipe.features
             )
         ]
         lock_combos = [
             v
-            for v in included_variants
+            for v, recipe in included_variants
             if any(
-                fiv.feature.name.lower() == 'lock'
-                for fiv in v.featureproducedbyvariant_set.all()
+                feature.name.lower() == 'lock'
+                for _, feature in recipe.features
             )
         ]
         skip_turns_combos = [
             v
-            for v in included_variants
+            for v, recipe in included_variants
             if any(
-                re.search(r'(?:infinite(?:ly)? )?skip (?:(?:all )?(?:your )|infinite )?(?:future )?turns?', fiv.feature.name, re.IGNORECASE)
-                for fiv in v.featureproducedbyvariant_set.all()
+                re.search(r'(?:infinite(?:ly)? )?skip (?:(?:all )?(?:your )|infinite )?(?:future )?turns?', feature.name, re.IGNORECASE)
+                for _, feature in recipe.features
             )
         ]
         return BracketEstimateData(

@@ -168,6 +168,28 @@
             },
         },
         {
+            "name": "Generate Variants using PyPy",
+            "type": "debugpy",
+            "python": "pypy",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/backend",
+            "program": "manage.py",
+            "args": [
+                "generate_variants"
+            ],
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}${/}common",
+            },
+            "preLaunchTask": "Prelaunch",
+            "django": true,
+            "justMyCode": true,
+            "presentation": {
+                "hidden": false,
+                "group": "Spellbook",
+                "order": 4
+            },
+        },
+        {
             "name": "Profile Generate Variants",
             "type": "debugpy",
             "request": "launch",

@@ -17,4 +17,4 @@ def variants_filter(qv: QueryValue) -> VariantFilterCollection:
             q = Q(variant_count__gte=qv.value)
         case _:
             raise ValidationError(f'Operator {qv.operator} is not supported for variants search.')
-    return VariantFilterCollection(templates_filters=(qv.to_query_filter(q),))
+    return VariantFilterCollection(variants_filters=(qv.to_query_filter(q),))

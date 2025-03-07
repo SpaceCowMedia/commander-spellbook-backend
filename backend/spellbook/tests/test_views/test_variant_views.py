@@ -836,6 +836,27 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
                         for v in result.results:
                             self.variant_assertions(v)
 
+    def test_variants_list_view_query_by_variants(self):
+        for bracket in range(
+            Variant.objects.values('variant_count').aggregate(models.Min('variant_count'))['variant_count__min'],
+            Variant.objects.values('variant_count').aggregate(models.Max('variant_count'))['variant_count__max'],
+        ):
+            for operator, operator_django in self.operators.items():
+                queries = [
+                    f'variants{operator}{bracket}',
+                ]
+                for q in queries:
+                    q_django = {f'variant_count__{operator_django}': bracket}
+                    with self.subTest(f'query by bracket: {bracket} with query {q}'):
+                        response = self.client.get('/variants', data={'q': q}, follow=True)
+                        self.assertEqual(response.status_code, 200)
+                        self.assertEqual(response.get('Content-Type'), 'application/json')
+                        result = json.loads(response.content, object_hook=json_to_python_lambda)
+                        variants = self.public_variants.filter(**q_django).distinct()
+                        self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
+                        for v in result.results:
+                            self.variant_assertions(v)
+
     def test_variants_list_view_query_by_a_combination_of_terms(self):
         queries = [
             ('result=FD A result:B', self.public_variants.filter(uses__name__icontains='A').filter(produces__name__iexact='FD').filter(produces__name__icontains='B').values_list('id', flat=True).distinct().order_by()),

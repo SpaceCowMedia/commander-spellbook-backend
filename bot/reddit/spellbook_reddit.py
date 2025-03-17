@@ -1,6 +1,5 @@
 import os
 import re
-import time
 import random
 import logging
 import asyncpraw
@@ -39,7 +38,8 @@ SUBREDDITS = [
     # 'DegenerateEDH',
     # 'freemagic',
     # 'custommagic',
-    'MTGComboFetcher',
+    # 'jankEDH',
+    'CommanderSpellbook',
 ]
 
 
@@ -103,12 +103,10 @@ async def process_input(text: str) -> str | None:
     return f'{reply}\n\n{help_text}'
 
 
-async def process_submissions(reddit: asyncpraw.Reddit, start_time: float):
+async def process_submissions(reddit: asyncpraw.Reddit):
     subreddit: asyncpraw.models.Subreddit = await reddit.subreddit('+'.join(SUBREDDITS))
-    async for submission in subreddit.stream.submissions():
+    async for submission in subreddit.stream.submissions(skip_existing=True):
         submission: asyncpraw.models.reddit.submission.Submission
-        if submission.created_utc < start_time:
-            continue
         author: asyncpraw.models.reddit.redditor.Redditor = submission.author
         if author.name == REDDIT_USERNAME:
             continue
@@ -125,30 +123,43 @@ async def process_submissions(reddit: asyncpraw.Reddit, start_time: float):
                 LOGGER.exception('Failed to post reply to submission %s', submission.id, exc_info=e)
 
 
-async def process_comments(reddit: asyncpraw.Reddit, start_time: float):
+async def answer_greeting(comment: asyncpraw.models.reddit.comment.Comment):
+    if random.random() > 0.1:
+        # Consider only replying to a fraction of comments to reduce spam
+        return
+    formatted_input = comment.body.strip()
+    parent = await comment.parent()
+    await parent.load()
+    if parent.author.name == REDDIT_USERNAME and re.match(r'^(?:(?:good|amazing|great) (?:bot|job)|gj)', formatted_input, re.IGNORECASE):
+        if getattr(parent, 'body', None) in GOOD_BOT_RESPONSES + THANKS_RESPONSES:
+            answer = '👍'
+        else:
+            answer = random.choice(GOOD_BOT_RESPONSES)
+    elif parent.author.name == REDDIT_USERNAME and re.match(r'^(?:thanks|thank you).{0,20}$', formatted_input, re.IGNORECASE):
+        if getattr(parent, 'body', None) in GOOD_BOT_RESPONSES + THANKS_RESPONSES:
+            answer = '👍'
+        else:
+            answer = random.choice(THANKS_RESPONSES)
+    if answer:
+        try:
+            result = await comment.reply(answer)
+            if result is None:
+                LOGGER.error('Failed to post reply to comment %s', comment.id)
+        except asyncprawcore.exceptions.Forbidden:
+            LOGGER.warning('Failed to post reply to comment %s', comment.id)
+        except asyncprawcore.AsyncPrawcoreException as e:
+            LOGGER.exception('Failed to post reply to comment %s', comment.id, exc_info=e)
+
+
+async def process_comments(reddit: asyncpraw.Reddit):
     subreddit: asyncpraw.models.Subreddit = await reddit.subreddit('+'.join(SUBREDDITS))
-    async for comment in subreddit.stream.comments():
+    async for comment in subreddit.stream.comments(skip_existing=True):
         comment: asyncpraw.models.reddit.comment.Comment
-        if comment.created_utc < start_time:
-            continue
         author: asyncpraw.models.reddit.redditor.Redditor = comment.author
         if author.name == REDDIT_USERNAME:
             continue
-        formatted_input = f'{comment.body.strip()}'
-        parent = await comment.parent()
-        await parent.load()
-        if parent.author.name == REDDIT_USERNAME and re.match(r'^(?:(?:good|amazing|great) (?:bot|job)|gj)', formatted_input, re.IGNORECASE):
-            if getattr(parent, 'body', None) in GOOD_BOT_RESPONSES + THANKS_RESPONSES:
-                answer = '👍'
-            else:
-                answer = random.choice(GOOD_BOT_RESPONSES)
-        elif parent.author.name == REDDIT_USERNAME and re.match(r'^(?:thanks|thank you).{0,20}$', formatted_input, re.IGNORECASE):
-            if getattr(parent, 'body', None) in GOOD_BOT_RESPONSES + THANKS_RESPONSES:
-                answer = '👍'
-            else:
-                answer = random.choice(THANKS_RESPONSES)
-        else:
-            answer = await process_input(formatted_input)
+        formatted_input = comment.body.strip()
+        answer = await process_input(formatted_input)
         if answer:
             try:
                 result = await comment.reply(answer)
@@ -158,6 +169,8 @@ async def process_comments(reddit: asyncpraw.Reddit, start_time: float):
                 LOGGER.warning('Failed to post reply to comment %s', comment.id)
             except asyncprawcore.AsyncPrawcoreException as e:
                 LOGGER.exception('Failed to post reply to comment %s', comment.id, exc_info=e)
+        else:
+            await answer_greeting(comment)
 
 
 async def main():
@@ -168,11 +181,10 @@ async def main():
         password=os.getenv('REDDIT_PASSWORD'),
         user_agent=f'Commander Spellbook bot for u/{os.getenv('REDDIT_USERNAME')}',
     )
-    start_time = time.time()
     LOGGER.info('Starting Reddit bot as u/%s', REDDIT_USERNAME)
     await asyncio.gather(
-        process_submissions(reddit, start_time),
-        process_comments(reddit, start_time),
+        process_submissions(reddit),
+        process_comments(reddit),
     )
 
 if __name__ == "__main__":

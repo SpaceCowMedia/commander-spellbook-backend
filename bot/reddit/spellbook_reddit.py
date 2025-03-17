@@ -11,6 +11,7 @@ import asyncpraw.models.reddit.comment
 import asyncpraw.models.reddit.redditor
 import asyncpraw.models.reddit.submission
 import asyncpraw.models.reddit.subreddit
+import asyncpraw.exceptions
 from spellbook_client import VariantsApi, ApiException
 from bot_utils import parse_queries, SpellbookQuery, API, compute_variant_recipe, url_from_variant
 
@@ -119,7 +120,7 @@ async def process_submissions(reddit: asyncpraw.Reddit):
                     LOGGER.error('Failed to post reply to submission %s', submission.id)
             except asyncprawcore.exceptions.Forbidden:
                 LOGGER.warning('Failed to post reply to submission %s', submission.id)
-            except asyncprawcore.AsyncPrawcoreException as e:
+            except (asyncprawcore.AsyncPrawcoreException, asyncpraw.exceptions.AsyncPRAWException) as e:
                 LOGGER.exception('Failed to post reply to submission %s', submission.id, exc_info=e)
 
 
@@ -147,7 +148,7 @@ async def answer_greeting(comment: asyncpraw.models.reddit.comment.Comment):
                 LOGGER.error('Failed to post reply to comment %s', comment.id)
         except asyncprawcore.exceptions.Forbidden:
             LOGGER.warning('Failed to post reply to comment %s', comment.id)
-        except asyncprawcore.AsyncPrawcoreException as e:
+        except (asyncprawcore.AsyncPrawcoreException, asyncpraw.exceptions.AsyncPRAWException) as e:
             LOGGER.exception('Failed to post reply to comment %s', comment.id, exc_info=e)
 
 
@@ -167,7 +168,7 @@ async def process_comments(reddit: asyncpraw.Reddit):
                     LOGGER.error('Failed to post reply to comment %s', comment.id)
             except asyncprawcore.exceptions.Forbidden:
                 LOGGER.warning('Failed to post reply to comment %s', comment.id)
-            except asyncprawcore.AsyncPrawcoreException as e:
+            except (asyncprawcore.AsyncPrawcoreException, asyncpraw.exceptions.AsyncPRAWException) as e:
                 LOGGER.exception('Failed to post reply to comment %s', comment.id, exc_info=e)
         else:
             await answer_greeting(comment)

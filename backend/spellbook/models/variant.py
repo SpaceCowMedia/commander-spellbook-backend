@@ -266,9 +266,12 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
         self.legal_commander = all(playable.legal_commander for playable in cards)
         self.legal_pauper_commander_main = all(playable.legal_pauper_commander_main for playable in cards)
         pauper_commanders = [playable for playable in cards if not playable.legal_pauper_commander_main]
+        pauper_commanders_identity = merge_identities(playable.identity for playable in pauper_commanders)
         self.legal_pauper_commander = all(playable.legal_pauper_commander for playable in cards) and (
-            len(pauper_commanders) == 1 or (
-                len(pauper_commanders) == 2 and all('Partner' in playable.keywords for playable in pauper_commanders)
+            len(pauper_commanders) == 0 or self.identity == pauper_commanders_identity and (
+                len(pauper_commanders) == 1 or (
+                    len(pauper_commanders) == 2 and all('Partner' in playable.keywords for playable in pauper_commanders)
+                )
             )
         )
         self.legal_oathbreaker = all(playable.legal_oathbreaker for playable in cards)

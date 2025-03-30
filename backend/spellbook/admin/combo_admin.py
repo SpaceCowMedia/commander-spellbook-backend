@@ -229,6 +229,7 @@ class ComboAdmin(SpellbookModelAdmin):
                     if f not in found_produced_features:
                         add_feature_link = reverse('admin:spellbook_feature_add') + '?' + urlencode({
                             'name': f,
+                            'status': Feature.Status.HELPER,
                         })
                         messages.warning(request, mark_safe(
                             f'Could not find produced feature "{f}" in database. {create_missing_object_message(add_feature_link)}'

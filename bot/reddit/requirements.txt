@@ -48,9 +48,9 @@ propcache==0.2.0
     # via
     #   aiohttp
     #   yarl
-pydantic==2.10.6
+pydantic==2.11.1
     # via -r requirements.in
-pydantic-core==2.27.2
+pydantic-core==2.33.0
     # via pydantic
 python-dateutil==2.9.0.post0
     # via -r requirements.in
@@ -63,6 +63,9 @@ typing-extensions==4.12.2
     #   aiosqlite
     #   pydantic
     #   pydantic-core
+    #   typing-inspection
+typing-inspection==0.4.0
+    # via pydantic
 update-checker==0.18.0
     # via asyncpraw
 urllib3==2.3.0

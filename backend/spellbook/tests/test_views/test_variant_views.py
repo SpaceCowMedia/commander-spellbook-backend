@@ -268,6 +268,29 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
                     self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
                     for v in result.results:
                         self.variant_assertions(v)
+        with self.subTest('Test all- prefix in combination with card_count'):
+            response = self.client.get('/variants', data={'q': f'all-cards:{2}'}, follow=True)
+            self.assertEqual(response.status_code, 400)
+
+    def test_variants_list_view_query_by_template_count(self):
+        min_templates, max_templates = self.public_variants.aggregate(min_templates=models.Min('template_count'), max_templates=models.Max('template_count')).values()
+        self.assertGreaterEqual(max_templates, min_templates)
+        for template_count in (min_templates, max_templates, (min_templates + max_templates) // 2):
+            for o, o_django in self.operators.items():
+                q = f'templates{o}{template_count}'
+                q_django = {f'template_count__{o_django}': template_count}
+                with self.subTest(f'query by template count: {template_count} with query {q}'):
+                    response = self.client.get('/variants', data={'q': q}, follow=True)
+                    self.assertEqual(response.status_code, 200)
+                    self.assertEqual(response.get('Content-Type'), 'application/json')
+                    result = json.loads(response.content, object_hook=json_to_python_lambda)
+                    variants = self.public_variants.filter(**q_django).distinct()
+                    self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
+                    for v in result.results:
+                        self.variant_assertions(v)
+        with self.subTest('Test all- prefix in combination with template_count'):
+            response = self.client.get('/variants', data={'q': f'all-templates:{2}'}, follow=True)
+            self.assertEqual(response.status_code, 400)
 
     def test_variants_list_view_query_by_card_type(self):
         queries: list[tuple[str, str]] = []

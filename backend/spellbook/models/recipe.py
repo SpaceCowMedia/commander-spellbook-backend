@@ -7,6 +7,7 @@ class Recipe(models.Model):
     name = models.CharField(default='', max_length=MAX_CARD_NAME_LENGTH * 10 + MAX_FEATURE_NAME_LENGTH * 5 + 100, editable=False)
     ingredient_count = models.PositiveSmallIntegerField(default=0, editable=False)
     card_count = models.PositiveIntegerField(default=0, editable=False)
+    template_count = models.PositiveIntegerField(default=0, editable=False)
     result_count = models.PositiveIntegerField(default=0, editable=False)
 
     def cards(self) -> dict[str, int]:
@@ -67,10 +68,15 @@ class Recipe(models.Model):
     def compute_result_count(cls, features_produced: dict[str, int]) -> int:
         return sum(features_produced.values())
 
+    @classmethod
+    def compute_template_count(cls, templates: dict[str, int]) -> int:
+        return sum(templates.values())
+
     def update_recipe_from_memory(self, cards: dict[str, int], templates: dict[str, int], features_needed: dict[str, int], features_produced: dict[str, int], features_removed: dict[str, int]) -> None:
         self.name = self.compute_name(cards, templates, features_needed, features_produced, features_removed)
         self.ingredient_count = self.compute_ingredient_count(cards, templates, features_needed)
         self.card_count = self.compute_card_count(cards, templates, features_needed)
+        self.template_count = self.compute_template_count(templates)
         self.result_count = self.compute_result_count(features_produced)
 
     def update_recipe_from_data(self) -> None:

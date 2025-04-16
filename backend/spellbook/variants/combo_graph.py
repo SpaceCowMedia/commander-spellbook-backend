@@ -423,8 +423,6 @@ class Graph:
     def _card_nodes_up(self, ingredients: VariantIngredients) -> VariantRecipe:
         cards = {self.cnodes[c]: q for c, q in ingredients.cards.items()}
         templates = {self.tnodes[t]: q for t, q in ingredients.templates.items()}
-        for ingredient_node in chain(templates, cards):
-            ingredient_node.state = NodeState.VISITED
         countable_feature_nodes = dict[FeatureWithAttributesNode, int]()
         uncountable_feature_nodes = set[FeatureWithAttributesNode]()
         combo_nodes_to_visit: deque[ComboNode] = deque()
@@ -432,8 +430,9 @@ class Graph:
         combo_nodes_to_visit_with_new_uncountable_features: deque[ComboNode] = deque()
         combo_nodes: set[ComboNode] = set()
         replacements = defaultdict[FeatureWithAttributes, list[VariantIngredients]](list)
-        for card, quantity in cards.items():
-            for combo in card.combos:
+        for ingredient, quantity in chain(cards.items(), templates.items()):
+            ingredient.state = NodeState.VISITED
+            for combo in ingredient.combos:
                 if combo.state == NodeState.NOT_VISITED:
                     if all(cards.get(c, 0) >= q for c, q in combo.cards.items()) \
                             and all(templates.get(t, 0) >= q for t, q in combo.templates.items()):
@@ -441,6 +440,7 @@ class Graph:
                         combo_nodes_to_visit.append(combo)
                     else:
                         combo.state = NodeState.VISITED
+        for card, quantity in cards.items():
             for feature, cards_needed in card.features.items():
                 if feature.item.feature.uncountable:
                     uncountable_feature_nodes.add(feature)

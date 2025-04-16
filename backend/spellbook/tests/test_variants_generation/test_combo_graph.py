@@ -164,6 +164,25 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
         self.assertSetEqual(variants[0].needed_combos, {1})
         self.assertSetEqual(variants[0].needed_features, {1, 2})
 
+    def test_one_template_combo_with_replacement(self):
+        self.save_combo_model({
+            ('TA',): ('x',),
+            ('x',): ('y',),
+        })
+        combo_graph = Graph(Data())
+        variants = combo_graph.results(combo_graph.variants(1))
+        self.assertEqual(len(list(variants)), 1)
+        self.assertMultisetEqual(variants[0].cards, {})
+        self.assertMultisetEqual(variants[0].templates, {1: 1})
+        self.assertSetEqual(variants[0].combos, {1, 2})
+        self.assertMultisetEqual(variants[0].features, {1: 1, 2: 1})
+        self.assertReplacementsEqual(variants[0].replacements, {
+            1: [VariantIngredients(FrozenMultiset(), FrozenMultiset({1: 1}))],
+            2: [VariantIngredients(FrozenMultiset(), FrozenMultiset({1: 1}))],
+        })
+        self.assertSetEqual(variants[0].needed_combos, {1, 2})
+        self.assertSetEqual(variants[0].needed_features, {1, 2})
+
     def test_two_one_card_combo(self):
         self.save_combo_model({
             ('A',): ('x',),

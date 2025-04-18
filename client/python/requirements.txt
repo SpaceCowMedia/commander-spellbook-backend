@@ -49,7 +49,7 @@ typing-extensions==4.12.2
     #   typing-inspection
 typing-inspection==0.4.0
     # via pydantic
-urllib3==2.3.0
+urllib3==2.4.0
     # via -r requirements.in
 yarl==1.17.2
     # via aiohttp

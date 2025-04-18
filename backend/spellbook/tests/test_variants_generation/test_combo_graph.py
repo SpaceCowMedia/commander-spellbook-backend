@@ -131,7 +131,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
             self.assertSetEqual(set(replacements[replacement]), set(expected[replacement]))
 
     def test_one_card_combo(self):
-        self.save_combo_model({
+        self.setup_combo_graph({
             ('A',): ('x',),
         })
         combo_graph = Graph(Data())
@@ -146,7 +146,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
         self.assertSetEqual(variants[0].needed_features, {1})
 
     def test_one_card_combo_with_replacement(self):
-        self.save_combo_model({
+        self.setup_combo_graph({
             'A': ('x',),
             ('x',): ('y',),
         })
@@ -165,7 +165,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
         self.assertSetEqual(variants[0].needed_features, {1, 2})
 
     def test_one_template_combo_with_replacement(self):
-        self.save_combo_model({
+        self.setup_combo_graph({
             ('TA',): ('x',),
             ('x',): ('y',),
         })
@@ -184,7 +184,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
         self.assertSetEqual(variants[0].needed_features, {1, 2})
 
     def test_two_one_card_combo(self):
-        self.save_combo_model({
+        self.setup_combo_graph({
             ('A',): ('x',),
             ('B',): ('x',),
         })
@@ -209,7 +209,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
         self.assertSetEqual(variants[0].needed_features, {1})
 
     def test_card_plus_template(self):
-        self.save_combo_model({
+        self.setup_combo_graph({
             ('A', 'T1'): ('x', 'y'),
         })
         combo_graph = Graph(Data())
@@ -227,7 +227,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
         self.assertSetEqual(variants[0].needed_features, {1, 2})
 
     def test_feature_replacement(self):
-        self.save_combo_model({
+        self.setup_combo_graph({
             ('A',): ('x',),
             ('B',): ('x',),
             ('x',): ('y',),
@@ -258,7 +258,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
         self.assertSetEqual(variants[1].needed_features, {1, 2})
 
     def test_replacement_with_multiple_copies(self):
-        self.save_combo_model({
+        self.setup_combo_graph({
             'A': ('x',),
             ('2 * x',): ('y',),
         })
@@ -280,7 +280,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
         self.assertEqual(len(list(variants)), 0)
 
     def test_replacement_with_functional_reprints(self):
-        self.save_combo_model({
+        self.setup_combo_graph({
             'A': ('x',),
             '3 * B': ('x',),
             ('2 * x',): ('y',),
@@ -324,7 +324,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
         self.assertEqual(len(list(variants)), 0)
 
     def test_feature_replacement_chain(self):
-        self.save_combo_model({
+        self.setup_combo_graph({
             ('A',): ('x',),
             ('B',): ('x',),
             ('x',): ('y',),
@@ -346,7 +346,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
         })
 
     def test_feature_replacement_multiples_cards(self):
-        self.save_combo_model({
+        self.setup_combo_graph({
             ('2 * A',): ('x',),
             ('B',): ('x',),
             ('x',): ('y',),
@@ -390,7 +390,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
         self.assertSetEqual(variants[0].needed_features, {1, 2})
 
     def test_feature_replacement_multiplication(self):
-        self.save_combo_model({
+        self.setup_combo_graph({
             ('2 * A',): ('x',),
             ('3 * B',): ('x',),
             ('2 * x',): ('y',),
@@ -442,7 +442,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
         self.assertEqual(len(variants), 0)
 
     def test_removal_of_redundant_variants(self):
-        self.save_combo_model({
+        self.setup_combo_graph({
             ('A', 'B'): ('x',),
             ('C', 'D'): ('y',),
             ('x', 'y'): ('z',),
@@ -465,7 +465,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
             self.assertSetEqual(variants[0].needed_features, {1, 2, 3})
 
     def test_removal_of_redundant_variants_with_multiples(self):
-        self.save_combo_model({
+        self.setup_combo_graph({
             ('3 * A',): ('x',),
             ('3 * B',): ('y',),
             ('x', 'y'): ('z',),
@@ -490,7 +490,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
         self.assertEqual(len(variants), 0)
 
     def test_result_ring(self):
-        self.save_combo_model({
+        self.setup_combo_graph({
             ('A',): ('x',),
             ('x',): ('z',),
             ('B',): ('w',),
@@ -514,7 +514,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
         self.assertSetEqual(variants[0].needed_features, {1, 2, 3, 4})
 
     def test_cross_merge(self):
-        self.save_combo_model({
+        self.setup_combo_graph({
             ('A', 'B'): ('x',),
             ('B', 'C'): ('x',),
             ('2 * x',): ('y',),
@@ -568,7 +568,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
         self.assertSetEqual(variants[0].needed_features, {1, 2})
 
     def test_opportunistic_choice(self):
-        self.save_combo_model({
+        self.setup_combo_graph({
             ('A', 'B'): ('x',),
             ('A',): ('x',),
             ('C',): ('x',),
@@ -600,7 +600,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
         self.assertSetEqual(variants[1].needed_features, {1, 2})
 
     def test_combinations_of_requisites(self):
-        self.save_combo_model({
+        self.setup_combo_graph({
             ('A',): ('x',),
             ('B',): ('x',),
             ('C',): ('x',),
@@ -706,7 +706,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
         self.assertSetEqual(variants[2].needed_features, {1, 2})
 
     def test_chained_multiplication(self):
-        self.save_combo_model({
+        self.setup_combo_graph({
             ('5 * A',): ('ux',),
             ('2 * ux',): ('y',),
             ('3 * y',): ('z',),
@@ -730,7 +730,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
         self.assertEqual(len(variants), 0)
 
     def test_unsolvable_trivial_loop(self):
-        self.save_combo_model({
+        self.setup_combo_graph({
             ('x',): ('y',),
             ('y',): ('x',),
         })
@@ -739,7 +739,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
         self.assertEqual(len(variants), 0)
 
     def test_solvable_trivial_loop(self):
-        self.save_combo_model({
+        self.setup_combo_graph({
             ('x',): ('y',),
             ('y',): ('x',),
             ('A',): ('x',),
@@ -759,7 +759,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
         self.assertSetEqual(variants[0].needed_features, {1, 2})
 
     def test_unsolvable_loop(self):
-        self.save_combo_model({
+        self.setup_combo_graph({
             ('x',): ('y',),
             ('y',): ('z',),
             ('z',): ('x',),
@@ -769,7 +769,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
         self.assertEqual(len(variants), 0)
 
     def test_solvable_loop(self):
-        self.save_combo_model({
+        self.setup_combo_graph({
             ('x',): ('y',),
             ('y',): ('z',),
             ('z',): ('x',),
@@ -791,7 +791,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
         self.assertSetEqual(variants[0].needed_features, {1, 2, 3})
 
     def test_additional_results(self):
-        self.save_combo_model({
+        self.setup_combo_graph({
             ('A', 'f'): ('z',),
             ('B', 'g'): ('f',),
             ('C',): ('g',),
@@ -840,7 +840,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
         self.assertSetEqual(variants[1].needed_features, {1, 2, 3, 4, 7, 8, 9})
 
     def test_variant_removal(self):
-        self.save_combo_model({
+        self.setup_combo_graph({
             ('A', 'f'): ('z',),
             ('B', 'g'): ('f',),
             ('C',): ('g',),
@@ -876,7 +876,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
 
     def test_additional_results_avoiding_too_many_variants(self):
         threshold = 100
-        self.save_combo_model({
+        self.setup_combo_graph({
             ('A',): ('x',),
             ('x',): ('y',),
             **{(f'B{i}',): ('x',) for i in range(threshold + 1)},
@@ -897,7 +897,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
         self.assertSetEqual(variants[0].needed_features, {1, 2})
 
     def test_always_sum_templates_when_multiple_copies_of_cards_are_not_enabled(self):
-        self.save_combo_model({
+        self.setup_combo_graph({
             ('A', '3 * T1'): ('x',),
             ('B', 'T1', 'T2'): ('x',),
             ('2 * x',): ('y',),
@@ -916,110 +916,120 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
         self.assertSetEqual(variants[0].needed_combos, {1, 2, 3})
         self.assertSetEqual(variants[0].needed_features, {1, 2})
 
-    def test_feature_attributes(self):
-        self.save_combo_model({
+    def test_without_feature_attributes(self):
+        self.setup_combo_graph({
             'A': ('x',),
             ('B', ): ('x',),
             ('x',): ('y',),
         })
-        fa1 = FeatureAttribute.objects.create(name='FA1')
-        fa2 = FeatureAttribute.objects.create(name='FA2')
-        fa3 = FeatureAttribute.objects.create(name='FA3')
-        with self.subTest('without attributes'):
-            combo_graph = Graph(Data())
-            variants = list(combo_graph.results(combo_graph.variants(2)))
-            self.assertEqual(len(variants), 2)
-            variants.sort(key=lambda v: sorted(v.cards))
-            self.assertMultisetEqual(variants[0].cards, {1: 1})
-            self.assertMultisetEqual(variants[1].cards, {2: 1})
-        with self.subTest('using any of against single card'):
-            c = Card.objects.get(name='A')
-            cf = c.featureofcard_set.first()
-            assert cf is not None
-            cf.attributes.add(fa1)
-            b2 = Combo.objects.get(id=2)
-            b2f = b2.featureneededincombo_set.first()
-            assert b2f is not None
-            b2f.any_of_attributes.add(fa1, fa2)
-            combo_graph = Graph(Data())
-            variants = list(combo_graph.results(combo_graph.variants(2)))
-            self.assertEqual(len(variants), 1)
-            self.assertMultisetEqual(variants[0].cards, {1: 1})
-        with self.subTest('using any of against combo'):
-            cf.attributes.clear()
-            b = Combo.objects.get(id=1)
-            b1f = b.featureproducedincombo_set.first()
-            assert b1f is not None
-            b1f.attributes.add(fa2)
-            combo_graph = Graph(Data())
-            variants = list(combo_graph.results(combo_graph.variants(2)))
-            self.assertEqual(len(variants), 1)
-            self.assertMultisetEqual(variants[0].cards, {2: 1})
-        with self.subTest('using all of against single card'):
-            b2f.any_of_attributes.clear()
-            b2f.all_of_attributes.add(fa1, fa2)
-            cf.attributes.add(fa1, fa2)
-            combo_graph = Graph(Data())
-            variants = list(combo_graph.results(combo_graph.variants(2)))
-            self.assertEqual(len(variants), 1)
-            self.assertMultisetEqual(variants[0].cards, {1: 1})
-        with self.subTest('using all of against combo'):
-            b2f.all_of_attributes.add(fa3)
-            b1f.attributes.set([fa1, fa2, fa3])
-            combo_graph = Graph(Data())
-            variants = list(combo_graph.results(combo_graph.variants(2)))
-            self.assertEqual(len(variants), 1)
-            self.assertMultisetEqual(variants[0].cards, {2: 1})
-        with self.subTest('using all with any'):
-            b2f.any_of_attributes.add(fa1)
-            b2f.all_of_attributes.remove(fa1)
-            combo_graph = Graph(Data())
-            variants = list(combo_graph.results(combo_graph.variants(2)))
-            self.assertEqual(len(variants), 1)
-            self.assertMultisetEqual(variants[0].cards, {2: 1})
-        with self.subTest('using any with all and none'):
-            b2f.all_of_attributes.remove(fa3)
-            b2f.none_of_attributes.add(fa3)
-            combo_graph = Graph(Data())
-            variants = list(combo_graph.results(combo_graph.variants(2)))
-            self.assertEqual(len(variants), 1)
-            self.assertMultisetEqual(variants[0].cards, {1: 1})
-        with self.subTest('using none'):
-            cf.attributes.add(fa3)
-            combo_graph = Graph(Data())
-            variants = list(combo_graph.results(combo_graph.variants(2)))
-            self.assertEqual(len(variants), 0)
+        combo_graph = Graph(Data())
+        variants = list(combo_graph.results(combo_graph.variants(2)))
+        self.assertEqual(len(variants), 2)
+        variants.sort(key=lambda v: sorted(v.cards))
+        self.assertMultisetEqual(variants[0].cards, {1: 1})
+        self.assertMultisetEqual(variants[1].cards, {2: 1})
+
+    def test_feature_attributes_using_any_against_single_card(self):
+        self.setup_combo_graph({
+            'A': ('x/FA1',),
+            ('B', ): ('x',),
+            ('x?FA1,FA2',): ('y',),
+        })
+        combo_graph = Graph(Data())
+        variants = list(combo_graph.results(combo_graph.variants(2)))
+        self.assertEqual(len(variants), 1)
+        self.assertMultisetEqual(variants[0].cards, {1: 1})
+
+    def test_feature_attributes_using_any_against_combo(self):
+        self.setup_combo_graph({
+            'A': ('x',),
+            ('B', ): ('x/FA2',),
+            ('x?FA1,FA2',): ('y',),
+        })
+        combo_graph = Graph(Data())
+        variants = list(combo_graph.results(combo_graph.variants(2)))
+        self.assertEqual(len(variants), 1)
+        self.assertMultisetEqual(variants[0].cards, {2: 1})
+
+    def test_feature_attributes_using_all_against_single_card(self):
+        self.setup_combo_graph({
+            'A': ('x/FA1,FA2',),
+            ('B', ): ('x/FA1',),
+            ('x!FA1,FA2',): ('y',),
+        })
+        combo_graph = Graph(Data())
+        variants = list(combo_graph.results(combo_graph.variants(2)))
+        self.assertEqual(len(variants), 1)
+        self.assertMultisetEqual(variants[0].cards, {1: 1})
+
+    def test_feature_attributes_using_all_against_combo(self):
+        self.setup_combo_graph({
+            'A': ('x/FA2',),
+            ('B', ): ('x/FA1,FA2',),
+            ('x!FA1,FA2',): ('y',),
+        })
+        combo_graph = Graph(Data())
+        variants = list(combo_graph.results(combo_graph.variants(2)))
+        self.assertEqual(len(variants), 1)
+        self.assertMultisetEqual(variants[0].cards, {2: 1})
+
+    def test_feature_attributes_using_any_and_all(self):
+        self.setup_combo_graph({
+            'A': ('x/FA1',),
+            ('B', ): ('x/FA1,FA2',),
+            ('x?FA1!FA2',): ('y',),
+        })
+        combo_graph = Graph(Data())
+        variants = list(combo_graph.results(combo_graph.variants(2)))
+        self.assertEqual(len(variants), 1)
+        self.assertMultisetEqual(variants[0].cards, {2: 1})
+
+    def test_feature_attributes_using_any_all_and_none(self):
+        self.setup_combo_graph({
+            'A': ('x/FA1,FA2',),
+            ('B', ): ('x/FA1,FA2,FA3',),
+            ('x?FA1!FA2-FA3',): ('y',),
+        })
+        combo_graph = Graph(Data())
+        variants = list(combo_graph.results(combo_graph.variants(2)))
+        self.assertEqual(len(variants), 1)
+        self.assertMultisetEqual(variants[0].cards, {1: 1})
+
+    def test_feature_attributes_using_none_without_attributes_on_card(self):
+        self.setup_combo_graph({
+            'A': ('x',),
+            ('B', ): ('x/FA2',),
+            ('x-FA1,FA2,FA3',): ('y',),
+        })
+        combo_graph = Graph(Data())
+        variants = list(combo_graph.results(combo_graph.variants(2)))
+        self.assertEqual(len(variants), 1)
+        self.assertMultisetEqual(variants[0].cards, {1: 1})
+
+    def test_feature_attributes_using_none_without_attributes_on_combo(self):
+        self.setup_combo_graph({
+            'A': ('x/FA',),
+            ('B', ): ('x',),
+            ('x-FA',): ('y',),
+        })
+        combo_graph = Graph(Data())
+        variants = list(combo_graph.results(combo_graph.variants(2)))
+        self.assertEqual(len(variants), 1)
+        self.assertMultisetEqual(variants[0].cards, {2: 1})
 
     def test_feature_attributes_with_multiple_copies(self):
-        self.save_combo_model({
-            'A': ('x',),
-            ('B', ): ('x',),
-            ('x', '2 * x'): ('y',),
+        self.setup_combo_graph({
+            'A': ('x/FA1',),
+            ('B', ): ('x/FA2',),
+            ('x?FA1', '2 * x!FA2'): ('y',),
         })
-        fa1 = FeatureAttribute.objects.create(name='FA1')
-        fa2 = FeatureAttribute.objects.create(name='FA2')
-        c = Card.objects.get(name='A')
-        cf = c.featureofcard_set.first()
-        assert cf is not None
-        cf.attributes.add(fa1)
-        b1 = Combo.objects.get(id=1)
-        b1f = b1.featureproducedincombo_set.first()
-        assert b1f is not None
-        b1f.attributes.add(fa2)
-        b2 = Combo.objects.get(id=2)
-        b2f1 = b2.featureneededincombo_set.all()[0]
-        assert b2f1 is not None
-        b2f1.any_of_attributes.add(fa1)
-        b2f2 = b2.featureneededincombo_set.all()[1]
-        assert b2f2 is not None
-        b2f2.all_of_attributes.add(fa2)
         combo_graph = Graph(Data(), allow_multiple_copies=True)
         variants = list(combo_graph.results(combo_graph.variants(2)))
         self.assertEqual(len(variants), 1)
         self.assertMultisetEqual(variants[0].cards, {1: 1, 2: 2})
 
     def test_features_with_multiple_copies(self):
-        self.save_combo_model({
+        self.setup_combo_graph({
             'A': ('x', 'x'),
             ('x', 'x'): ('y',),
         })
@@ -1035,8 +1045,27 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
             2: [VariantIngredients(FrozenMultiset({1: 2}), FrozenMultiset())],
         })
 
+    def test_multiple_of_the_same_features_with_different_attributes_matchers(self):
+        self.setup_combo_graph({
+            ('A',): ('x',),
+            ('B',): ('x',),
+            ('x-FA1', 'x-FA2'): ('y',),
+            ('x-FA1', 'x-FA2', 'x-FA3'): ('z',),
+        })
+        combo_graph = Graph(Data())
+        variants = list(combo_graph.results(combo_graph.variants(3)))
+        self.assertEqual(len(variants), 1)
+        self.assertMultisetEqual(variants[0].cards, {1: 1, 2: 1})
+        self.assertMultisetEqual(variants[0].templates, {})
+        self.assertMultisetEqual(variants[0].features, {1: 2, 2: 1})
+        self.assertSetEqual(variants[0].combos, {1, 2, 3})
+        self.assertReplacementsEqual(variants[0].replacements, {
+            1: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset()), VariantIngredients(FrozenMultiset({2: 1}), FrozenMultiset())],
+            2: [VariantIngredients(FrozenMultiset({1: 1, 2: 1}), FrozenMultiset())],
+        })
+
     def test_replacement_with_incompatible_attributes_using_cards(self):
-        self.save_combo_model({
+        self.setup_combo_graph({
             'A': ('x', 'y'),
             'B': ('y',),
             ('A', 'y'): ('z',),

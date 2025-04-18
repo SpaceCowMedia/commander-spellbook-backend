@@ -1,8 +1,8 @@
 import random
 import uuid
+import re
 from functools import reduce
 from collections import defaultdict
-
 from django.db.models import Q, Count, OuterRef, Subquery
 from django.db.models.functions import Coalesce
 from common.testing import TestCaseMixin as BaseTestCaseMixin
@@ -80,10 +80,11 @@ class TestCaseMixin(BaseTestCaseMixin):
         Variant.objects.update(status=Variant.Status.OK)
         self.update_variants()
 
-    def save_combo_model(self, model: dict[tuple[str, ...] | str, tuple[str, ...]]):
+    def setup_combo_graph(self, model: dict[tuple[str, ...] | str, tuple[str, ...]]):
         card_ids_by_name: dict[str, int] = {}
         feature_ids_by_name: dict[str, int] = {}
         template_ids_by_name: dict[str, int] = {}
+        attribute_ids_by_name: dict[str, int] = {}
         combo_id = 1
         for recipe, result in model.items():
             cards = defaultdict[str, int](int)
@@ -103,11 +104,18 @@ class TestCaseMixin(BaseTestCaseMixin):
                 assert len(recipe) > 0 and not recipe[0].islower() and recipe[0] != 'T'
                 card_id = card_ids_by_name.setdefault(recipe, reduce(lambda x, y: max(x, y), card_ids_by_name.values(), 0) + 1)
                 c, _ = Card.objects.get_or_create(pk=card_id, name=recipe, identity='W', legal_commander=True, spoiler=False, type_line='Test Card')
-                for feature in result:
+                for r in result:
+                    feature, attributes = r.split('/') if '/' in r else (r, '')
+                    feature = feature.strip()
                     assert not feature.startswith('-')
+                    attributes = [a.strip() for a in attributes.split(',') if a.strip()]
                     feature_id = feature_ids_by_name.setdefault(feature, reduce(lambda x, y: max(x, y), feature_ids_by_name.values(), 0) + 1)
                     f, _ = Feature.objects.get_or_create(pk=feature_id, name=feature, description='Test Feature', status=Feature.Status.UTILITY if feature.startswith('u') else Feature.Status.STANDALONE)
-                    FeatureOfCard.objects.create(card=c, feature=f, zone_locations=ZoneLocation.BATTLEFIELD, quantity=quantity)
+                    foc = FeatureOfCard.objects.create(card=c, feature=f, zone_locations=ZoneLocation.BATTLEFIELD, quantity=quantity)
+                    for attribute in attributes:
+                        attribute_id = attribute_ids_by_name.setdefault(attribute, reduce(lambda x, y: max(x, y), attribute_ids_by_name.values(), 0) + 1)
+                        a, _ = FeatureAttribute.objects.get_or_create(pk=attribute_id, name=attribute)
+                        foc.attributes.add(a)
             else:
                 for element in recipe:
                     if '*' in element:
@@ -135,12 +143,37 @@ class TestCaseMixin(BaseTestCaseMixin):
                     template_id = template_ids_by_name.setdefault(template, reduce(lambda x, y: max(x, y), template_ids_by_name.values(), 0) + 1)
                     t, _ = Template.objects.get_or_create(pk=template_id, name=template, scryfall_query='o:test', description='Test Template')
                     TemplateInCombo.objects.create(template=t, combo=combo, order=i, zone_locations=ZoneLocation.BATTLEFIELD, quantity=quantity)
-                for feature, quantity in features:
+                for r, quantity in features:
+                    r = re.match(r'([^?!-]+)(\?[^?!-]+)?(![^?!-]+)?(-[^?!-]+)?', r)
+                    assert r is not None
+                    feature, any_of_attributes, all_of_attributes, none_of_attributes = r.groups()
                     feature_id = feature_ids_by_name.setdefault(feature, reduce(lambda x, y: max(x, y), feature_ids_by_name.values(), 0) + 1)
                     f, _ = Feature.objects.get_or_create(pk=feature_id, name=feature, description='Test Feature', status=Feature.Status.UTILITY if feature.startswith('u') else Feature.Status.STANDALONE)
-                    FeatureNeededInCombo.objects.create(feature=f, combo=combo, quantity=quantity)
-                for feature in result:
+                    fnc = FeatureNeededInCombo.objects.create(feature=f, combo=combo, quantity=quantity)
+                    for attribute in (any_of_attributes or '').removeprefix('?').split(','):
+                        attribute = attribute.strip()
+                        if attribute:
+                            attribute_id = attribute_ids_by_name.setdefault(attribute, reduce(lambda x, y: max(x, y), attribute_ids_by_name.values(), 0) + 1)
+                            a, _ = FeatureAttribute.objects.get_or_create(pk=attribute_id, name=attribute)
+                            fnc.any_of_attributes.add(a)
+                    for attribute in (all_of_attributes or '').removeprefix('!').split(','):
+                        attribute = attribute.strip()
+                        if attribute:
+                            attribute_id = attribute_ids_by_name.setdefault(attribute, reduce(lambda x, y: max(x, y), attribute_ids_by_name.values(), 0) + 1)
+                            a, _ = FeatureAttribute.objects.get_or_create(pk=attribute_id, name=attribute)
+                            fnc.all_of_attributes.add(a)
+                    for attribute in (none_of_attributes or '').removeprefix('-').split(','):
+                        attribute = attribute.strip()
+                        if attribute:
+                            attribute_id = attribute_ids_by_name.setdefault(attribute, reduce(lambda x, y: max(x, y), attribute_ids_by_name.values(), 0) + 1)
+                            a, _ = FeatureAttribute.objects.get_or_create(pk=attribute_id, name=attribute)
+                            fnc.none_of_attributes.add(a)
+                for r in result:
+                    feature, attributes = r.split('/') if '/' in r else (r, '')
+                    feature = feature.strip()
+                    attributes = [a.strip() for a in attributes.split(',') if a.strip()]
                     if feature.startswith('-'):
+                        assert not attributes
                         feature = feature[1:]
                         feature_id = feature_ids_by_name.setdefault(feature, reduce(lambda x, y: max(x, y), feature_ids_by_name.values(), 0) + 1)
                         f, _ = Feature.objects.get_or_create(pk=feature_id, name=feature, description='Test Feature', status=Feature.Status.UTILITY if feature.startswith('u') else Feature.Status.STANDALONE)
@@ -148,7 +181,11 @@ class TestCaseMixin(BaseTestCaseMixin):
                     else:
                         feature_id = feature_ids_by_name.setdefault(feature, reduce(lambda x, y: max(x, y), feature_ids_by_name.values(), 0) + 1)
                         f, _ = Feature.objects.get_or_create(pk=feature_id, name=feature, description='Test Feature', status=Feature.Status.UTILITY if feature.startswith('u') else Feature.Status.STANDALONE)
-                        FeatureProducedInCombo.objects.create(feature=f, combo=combo)
+                        fpc = FeatureProducedInCombo.objects.create(feature=f, combo=combo)
+                        for attribute in attributes:
+                            attribute_id = attribute_ids_by_name.setdefault(attribute, reduce(lambda x, y: max(x, y), attribute_ids_by_name.values(), 0) + 1)
+                            a, _ = FeatureAttribute.objects.get_or_create(pk=attribute_id, name=attribute)
+                            fpc.attributes.add(a)
                 combo_id += 1
 
 

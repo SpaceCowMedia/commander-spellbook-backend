@@ -115,25 +115,6 @@ class VariantSet:
             result._add(key)
         return result
 
-    def __pow__(self, power: int):
-        if power < 0:
-            raise ValueError('Exponent must be a non-negative integer.')
-        if self.parameters.allow_multiple_copies:
-            return self.sum_sets([self] * power, limit=self.parameters.max_depth, allow_multiple_copies=self.parameters.allow_multiple_copies)
-        else:
-            result = VariantSet(_parameters=self.parameters)
-            keys = list(self._keys())
-            for key_combination in product(*[keys] * power):
-                cards_sets = [frozenset(c for c in key if c[0] == 'C') for key in key_combination]
-                cards_sets = [s for s in cards_sets if len(s) > 0]
-                if len(cards_sets) != len(set(cards_sets)):
-                    continue
-                key = sum(key_combination, FrozenMultiset[str]())
-                if len(key.distinct_elements()) > self.parameters.max_depth:
-                    continue
-                result._add(key)
-            return result
-
     def variants(self) -> list[tuple[FrozenMultiset[cardid], FrozenMultiset[templateid]]]:
         return [self.key_to_ingredients(key) for key in self._keys()]
 
@@ -157,3 +138,19 @@ class VariantSet:
         match len(sets):
             case 0: return VariantSet(limit=limit, allow_multiple_copies=allow_multiple_copies)
             case _: return reduce(strategy, sets)
+
+    @classmethod
+    def product_sets(cls, sets: list['VariantSet'], limit: int | float | None = None, allow_multiple_copies: bool = False) -> 'VariantSet':
+        if allow_multiple_copies:
+            return VariantSet.sum_sets(sets, limit=limit, allow_multiple_copies=allow_multiple_copies)
+        result = VariantSet(limit=limit, allow_multiple_copies=allow_multiple_copies)
+        for key_combination in product(*[s._keys() for s in sets]):
+            cards_sets = [frozenset(c for c in key if c[0] == 'C') for key in key_combination]
+            cards_sets = [s for s in cards_sets if len(s) > 0]
+            if len(cards_sets) != len(set(cards_sets)):
+                continue
+            key = sum(key_combination, FrozenMultiset[str]())
+            if len(key.distinct_elements()) > result.parameters.max_depth:
+                continue
+            result._add(key)
+        return result

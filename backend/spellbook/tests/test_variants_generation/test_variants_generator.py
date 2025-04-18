@@ -134,6 +134,9 @@ class VariantsGeneratorTests(TestCaseMixinWithSeeding, TestCase):
             self.assertEqual(sut2.zone_locations, ZoneLocation.BATTLEFIELD)
             sut2.zone_locations = ZoneLocation.HAND
             update_state(dst=sut2, src=sut1, overwrite=False)
+            self.assertEqual(sut2.zone_locations, ZoneLocation.HAND)
+            sut2.zone_locations = ''
+            update_state(dst=sut2, src=sut1, overwrite=False)
             self.assertEqual(sut2.zone_locations, sut1.zone_locations)
 
     def test_apply_replacements(self):

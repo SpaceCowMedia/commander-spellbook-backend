@@ -1,3 +1,4 @@
+from itertools import chain
 import logging
 import re
 from collections import defaultdict
@@ -174,7 +175,7 @@ def update_state(dst: Ingredient, src: Ingredient, overwrite=False):
             location
             for location in dst.zone_locations
             if location in src.zone_locations
-        ) or src.zone_locations
+        ) or dst.zone_locations or src.zone_locations
         if len(dst.battlefield_card_state) > 0:
             dst.battlefield_card_state += ' '
         dst.battlefield_card_state += src.battlefield_card_state
@@ -287,7 +288,7 @@ def restore_variant(
             tiv = TemplateInVariant(template=data.id_to_template[t_id], variant=variant, quantity=quantity)
         required_templates.append(tiv)
     generator_combos = [data.id_to_combo[c_id] for c_id in variant_def.of_ids]
-    included_combos = [data.id_to_combo[c_id] for c_id in variant_def.included_ids]
+    included_combos = [data.id_to_combo[c_id] for c_id in chain(variant_def.of_ids, variant_def.included_ids - variant_def.of_ids)]
     produces_ids = subtract_features(data, variant_def.included_ids, variant_def.feature_ids)
     produced_features = [
         FeatureProducedByVariant(

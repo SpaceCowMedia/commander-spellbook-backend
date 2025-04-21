@@ -135,7 +135,7 @@ class PayoffFilter(CustomFilter):
     def filter(self, value: data_type) -> Q:
         return Q(
             pk__in=Combo.objects.alias(
-                needs_utility_count=Count('needs', distinct=True, filter=Q(needs__utility=True)),
+                needs_utility_count=Count('needs', distinct=True, filter=Q(needs__status=Feature.Status.UTILITY)),
                 needs_count=Count('needs', distinct=True),
                 is_payoff=Q(needs_count__gt=0, needs_utility_count=0),
             ).filter(is_payoff=value),

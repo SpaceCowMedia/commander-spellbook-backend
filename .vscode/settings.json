@@ -17,7 +17,11 @@
     "python.analysis.diagnosticMode": "workspace",
     "python.analysis.exclude": [
         "backend/*/migrations",
-        "client/python"
+        "client/python",
+        "**/venv",
+        "**/node_modules",
+        "**/__pycache__",
+        ".git"
     ],
     "python.analysis.extraPaths": [
         "common",

@@ -2,6 +2,6 @@ discord.py==2.5.2
 # client
 urllib3==2.4.0
 python-dateutil==2.9.0.post0
-aiohttp==3.11.16
+aiohttp==3.11.17
 aiohttp-retry==2.9.1
 pydantic==2.11.3

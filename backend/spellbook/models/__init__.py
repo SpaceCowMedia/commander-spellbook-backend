@@ -1,7 +1,7 @@
 from .playable import Playable
 from .feature import Feature
 from .card import Card, FeatureOfCard
-from .template import Template
+from .template import Template, TemplateReplacement
 from .ingredient import IngredientInCombination, Ingredient, ZoneLocation
 from .feature_attribute import FeatureAttribute, WithFeatureAttributes, WithFeatureAttributesMatcher
 from .combo import Combo, CardInCombo, TemplateInCombo, FeatureNeededInCombo, FeatureProducedInCombo, FeatureRemovedInCombo

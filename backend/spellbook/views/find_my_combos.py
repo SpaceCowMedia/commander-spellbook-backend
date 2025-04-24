@@ -1,14 +1,14 @@
 from drf_spectacular.openapi import AutoSchema
 from multiset import FrozenMultiset
 from django.db.models import F, Sum, Case, When, Value
-from django.db.models.functions import Greatest
+from django.db.models.functions import Greatest, Coalesce
 from rest_framework import parsers, serializers
 from rest_framework.response import Response
 from rest_framework.request import Request
 from rest_framework.pagination import LimitOffsetPagination
 from drf_spectacular.utils import extend_schema, Direction
 from drf_spectacular.extensions import OpenApiSerializerExtension
-from spellbook.models import CardInVariant, Variant
+from spellbook.models import Variant, TemplateReplacement
 from spellbook.models.mixins import PreSerializedSerializer
 from spellbook.serializers import VariantSerializer
 from website.views import PlainTextDeckListParser
@@ -111,19 +111,50 @@ class FindMyCombosView(DecklistAPIView):
     def get(self, request: Request) -> Response:
         deck = self.parse(request)
 
-        quantity_in_deck = Case(
-            *(When(card_id=card_id, then=quantity) for card_id, quantity in deck.cards.items()),
+        card_quantity_in_deck = Case(
+            *(When(cardinvariant__card_id=card_id, then=quantity) for card_id, quantity in deck.cards.items()),
             default=Value(0),
         )
 
-        variant_id_list = CardInVariant.objects \
-            .values('variant_id') \
-            .alias(
-                total_count=Sum('quantity'),
-                missing_count=Sum(Greatest(F('quantity') - quantity_in_deck, Value(0))),
+        template_id_list = TemplateReplacement.objects \
+            .annotate(
+                quantity_in_deck=Sum(Case(
+                    *(When(card_id=card_id, then=quantity) for card_id, quantity in deck.cards.items()),
+                    default=Value(0),
+                )),
             ) \
             .filter(
-                total_count__gte=2,
+                quantity_in_deck__gte=1,
+            ) \
+            .values_list('template_id', 'quantity_in_deck')
+
+        template_quantity_in_deck = Case(
+            *(When(templateinvariant__template_id=template_id, then=quantity) for template_id, quantity in template_id_list),
+            default=Value(0),
+        )
+
+        variant_id_list = Variant.objects \
+            .values('id') \
+            .alias(
+                missing_count=Coalesce(
+                    Sum(
+                        Greatest(
+                            F('cardinvariant__quantity') - card_quantity_in_deck,
+                            Value(0),
+                        ),
+                    ),
+                    Value(0),
+                ) + Coalesce(
+                    Sum(
+                        Greatest(
+                            F('templateinvariant__quantity') - template_quantity_in_deck,
+                            Value(0),
+                        ),
+                    ),
+                    Value(0),
+                ),
+            ) \
+            .filter(
                 missing_count__lte=1,
             )
 

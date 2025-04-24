@@ -2,7 +2,7 @@ URL_REGEX = r'[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{2,6}\b([-a-zA-Z0-9()@
 FIRST_CAPITAL_LETTER_REGEX = r'^[A-Z]'
 NO_TRAILING_PUNCTUATION_REGEX = r'[A-Za-z0-9()\{\}\"]$'
 MANA_SYMBOL = r'(?:C\/[WUBRG]|[WUBRG](?:\/P)?|[0-9CPXYZS∞]|[1-9][0-9]{1,2}|(?:2\/[WUBRG]|W\/U|W\/B|U\/B|U\/R|B\/R|B\/G|R\/G|R\/W|G\/W|G\/U)(?:\/P)?)'
-MANA_REGEX = r'^(?:(?:\{' + MANA_SYMBOL + r'\})[^\{\}\[\]]*)*$'
+MANA_REGEX = r'^(?:(?:\{' + MANA_SYMBOL + r'\})[^\{\}]*)*$'
 DOUBLE_SQUARE_BRACKET_TEXT_REGEX = r'^(?:[^\[]*(?:\[(?!\[)|\[{2}[^\[]+\]{2}|\[{3,}))*[^\[]*$'
 ORACLE_SYMBOL = r'(?:(?:2\/[WUBRG]|W\/U|W\/B|B\/R|B\/G|U\/B|U\/R|R\/G|R\/W|G\/W|G\/U)(?:\/P)?|CHAOS|PW|TK|[WUBRG](?:\/P)?|[1-9][0-9]{1,2}|H[WUBRG]|[0-9CPXYZSTQEA½∞])'
 ORACLE_SYMBOL_EXTENDED = r'(?:(?:(?:2|P)\/[WUBRG]|W\/U|W\/B|B\/R|B\/G|U\/B|U\/R|R\/G|R\/W|G\/W|G\/U|U\/W|B\/W|R\/B|G\/B|B\/U|R\/U|G\/R|W\/R|W\/G|U\/G)(?:\/(?:2|P))?|CHAOS|PW|TK|[WUBRG](?:\/(?:2|P))?|[1-9][0-9]{1,2}|H[WUBRG]|[0-9CPXYZSTQEA½∞])'

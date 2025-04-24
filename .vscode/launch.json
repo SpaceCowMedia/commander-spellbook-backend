@@ -23,7 +23,7 @@
             },
             "preLaunchTask": "Prelaunch",
             "django": true,
-            "justMyCode": false,
+            "justMyCode": true,
             "presentation": {
                 "hidden": false,
                 "group": "Django",

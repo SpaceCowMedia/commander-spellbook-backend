@@ -3,12 +3,14 @@ from functools import cached_property
 from multiset import FrozenMultiset, Multiset
 from common.serializers import CardInDeck as RawCardInDeck
 from common.abstractions import Deck as RawDeck
-from rest_framework.views import APIView
+from django.db.models import Sum, Case, When
+from django.db.models.functions import Coalesce
 from rest_framework import parsers
-from common.serializers import DeckSerializer as RawDeckSerializer
-from spellbook.models import Card, merge_identities
-from website.views import PlainTextDeckListParser
+from rest_framework.views import APIView
 from rest_framework.request import Request
+from common.serializers import DeckSerializer as RawDeckSerializer
+from spellbook.models import Card, Template, merge_identities
+from website.views import PlainTextDeckListParser
 
 
 @dataclass
@@ -20,6 +22,34 @@ class Deck:
     @cached_property
     def cards(self) -> FrozenMultiset[int]:
         return self.main.union(self.commanders)
+
+    @cached_property
+    def templates(self) -> FrozenMultiset[int]:
+        template_id_list = Template.objects \
+            .values('id') \
+            .annotate(
+                quantity_in_deck=Case(
+                    When(scryfall_query__isnull=False, then=1),
+                    default=Coalesce(
+                        Sum(
+                            Case(
+                                *(
+                                    When(templatereplacement__card_id=card_id, then=quantity)
+                                    for card_id, quantity
+                                    in self.cards.items()
+                                ),
+                                default=0,
+                            ),
+                        ),
+                        1,
+                    ),
+                ),
+            ) \
+            .filter(
+                quantity_in_deck__gte=1,
+            ) \
+            .values_list('id', 'quantity_in_deck')
+        return FrozenMultiset[int]({template_id: quantity for template_id, quantity in template_id_list})
 
 
 def deck_from_raw(raw_deck: RawDeck, cards_id_dict: dict[str, int], identity_dict: dict[int, str]) -> Deck:

@@ -1,6 +1,6 @@
 from drf_spectacular.openapi import AutoSchema
 from multiset import FrozenMultiset
-from django.db.models import F, Sum, Case, When, Value
+from django.db.models import F, Sum, Case, When
 from django.db.models.functions import Greatest, Coalesce
 from rest_framework import parsers, serializers
 from rest_framework.response import Response
@@ -8,7 +8,7 @@ from rest_framework.request import Request
 from rest_framework.pagination import LimitOffsetPagination
 from drf_spectacular.utils import extend_schema, Direction
 from drf_spectacular.extensions import OpenApiSerializerExtension
-from spellbook.models import Variant, TemplateReplacement
+from spellbook.models import Variant
 from spellbook.models.mixins import PreSerializedSerializer
 from spellbook.serializers import VariantSerializer
 from website.views import PlainTextDeckListParser
@@ -47,16 +47,17 @@ class FindMyCombosResponseSerializer(serializers.BaseSerializer):
             variant_data: dict = variant
             variant_cards = FrozenMultiset[int]({civ['card']['id']: civ['quantity'] for civ in variant_data['uses']})
             variant_commanders = FrozenMultiset[int]({civ['card']['id']: civ['quantity'] for civ in variant_data['uses'] if civ['must_be_commander']})
+            variants_templates = FrozenMultiset[int]({tiv['template']['id']: tiv['quantity'] for tiv in variant_data['requires']})
             variant_identity = set(variant_data['identity']) - {'C'}
             if variant_commanders.issubset(deck.commanders):
-                if variant_cards.issubset(cards):
+                if variant_cards.issubset(cards) and variants_templates.issubset(deck.templates):
                     included_variants.append(variant_data)
                 else:
                     if set(variant_identity).issubset(identity_set):
                         almost_included_variants.append(variant_data)
                     else:
                         almost_included_variants_by_adding_colors.append(variant_data)
-            elif variant_cards.issubset(cards):
+            elif variant_cards.issubset(cards) and variants_templates.issubset(deck.templates):
                 included_variants_by_changing_commanders.append(variant_data)
             else:
                 if set(variant_identity).issubset(identity_set):
@@ -113,24 +114,12 @@ class FindMyCombosView(DecklistAPIView):
 
         card_quantity_in_deck = Case(
             *(When(cardinvariant__card_id=card_id, then=quantity) for card_id, quantity in deck.cards.items()),
-            default=Value(0),
+            default=0,
         )
 
-        template_id_list = TemplateReplacement.objects \
-            .annotate(
-                quantity_in_deck=Sum(Case(
-                    *(When(card_id=card_id, then=quantity) for card_id, quantity in deck.cards.items()),
-                    default=Value(0),
-                )),
-            ) \
-            .filter(
-                quantity_in_deck__gte=1,
-            ) \
-            .values_list('template_id', 'quantity_in_deck')
-
         template_quantity_in_deck = Case(
-            *(When(templateinvariant__template_id=template_id, then=quantity) for template_id, quantity in template_id_list),
-            default=Value(0),
+            *(When(templateinvariant__template_id=template_id, then=quantity) for template_id, quantity in deck.templates.items()),
+            default=0,
         )
 
         variant_id_list = Variant.objects \
@@ -140,18 +129,18 @@ class FindMyCombosView(DecklistAPIView):
                     Sum(
                         Greatest(
                             F('cardinvariant__quantity') - card_quantity_in_deck,
-                            Value(0),
+                            0,
                         ),
                     ),
-                    Value(0),
+                    0,
                 ) + Coalesce(
                     Sum(
                         Greatest(
                             F('templateinvariant__quantity') - template_quantity_in_deck,
-                            Value(0),
+                            0,
                         ),
                     ),
-                    Value(0),
+                    0,
                 ),
             ) \
             .filter(

@@ -3,7 +3,7 @@ import itertools
 import random
 from multiset import FrozenMultiset
 from django.test import TestCase
-from spellbook.models import Card, Variant, merge_identities, CardInVariant
+from spellbook.models import Card, Template, Variant, merge_identities, CardInVariant
 from ..testing import TestCaseMixinWithSeeding
 from common.inspection import json_to_python_lambda
 
@@ -18,6 +18,7 @@ class FindMyCombosViewTests(TestCaseMixinWithSeeding, TestCase):
         self.variants = Variant.objects.filter(status__in=Variant.public_statuses()).prefetch_related('cardinvariant_set', 'cardinvariant_set__card')
         self.variants_dict = {v.id: v for v in self.variants}
         self.variants_cards = {v.id: FrozenMultiset({c.card.name: c.quantity for c in v.cardinvariant_set.all()}) for v in self.variants}
+        self.variants_templates = {v.id: FrozenMultiset({t.template.name: t.quantity for t in v.templateinvariant_set.all()}) for v in self.variants}
         self.variants_commanders = {v.id: FrozenMultiset({c.card.name: c.quantity for c in v.cardinvariant_set.filter(must_be_commander=True)}) for v in self.variants}
 
     def _check_result(
@@ -88,9 +89,9 @@ class FindMyCombosViewTests(TestCaseMixinWithSeeding, TestCase):
                     card = Card.objects.get(id=self.c1_id)
                     card_str = str(card.id) if using_ids else card.name
                     if 'json' in content_type:
-                        deck_list = json.dumps({'main': [{'card': card_str}]})
+                        deck_list = json.dumps({'main': [{'card': card_str, 'quantity': 2}]})
                     else:
-                        deck_list = card_str
+                        deck_list = f'2 {card_str}'
                     identity = card.identity
                     response = self.client.generic('GET', '/find-my-combos', data=deck_list, follow=True, headers={'Content-Type': content_type})  # type: ignore
                     self.assertEqual(response.status_code, 200)  # type: ignore
@@ -98,7 +99,7 @@ class FindMyCombosViewTests(TestCaseMixinWithSeeding, TestCase):
                     result = json.loads(response.content, object_hook=json_to_python_lambda)  # type: ignore
                     self.assertEqual(result.results.identity, identity)
                     self.assertEqual(len(result.results.included), 0)
-                    self.assertEqual(len(result.results.almost_included), 1)
+                    self.assertEqual(len(result.results.almost_included), 2)
                     self.assertEqual(len(result.results.almost_included_by_adding_colors), 0)
                     self.assertEqual(len(result.results.almost_included_by_changing_commanders), 0)
                     self.assertEqual(len(result.results.almost_included_by_adding_colors_and_changing_commanders), 0)
@@ -109,6 +110,7 @@ class FindMyCombosViewTests(TestCaseMixinWithSeeding, TestCase):
                     with self.subTest(f'{card_count} cards with {commander_count} commanders'):
                         for card_set in itertools.combinations(card_names, card_count):
                             card_set = FrozenMultiset[str]({c: q for q, c in enumerate(card_set, start=1)})
+                            template_set = FrozenMultiset[str]({t.name: sum(card_set.get(c.name, 0) for c in t.replacements.all()) if not t.scryfall_query else 1 for t in Template.objects.all()})
                             for commander_set in itertools.combinations(card_set.items(), commander_count):
                                 commander_set = FrozenMultiset[str](dict(commander_set))
                                 commander_list = list(commander_set.items())
@@ -126,10 +128,10 @@ class FindMyCombosViewTests(TestCaseMixinWithSeeding, TestCase):
                                 self.assertEqual(response.get('Content-Type'), 'application/json')  # type: ignore
                                 result = json.loads(response.content, object_hook=json_to_python_lambda)  # type: ignore
                                 self.assertEqual(result.results.identity, identity)
-                                related = [v for v in self.variants if len(self.variants_cards[v.id].difference(card_set)) <= 1]
-                                included_within_commander = [v for v in related if self.variants_cards[v.id].issubset(card_set) and self.variants_commanders[v.id].issubset(commander_set)]
-                                included_outside_commander = [v for v in related if self.variants_cards[v.id].issubset(card_set) and not self.variants_commanders[v.id].issubset(commander_set)]
-                                related_but_not_included = [v for v in related if not self.variants_cards[v.id].issubset(card_set)]
+                                related = [v for v in self.variants if len(self.variants_cards[v.id].difference(card_set)) + len(self.variants_templates[v.id].difference(template_set)) <= 1]
+                                included_within_commander = [v for v in related if self.variants_cards[v.id].issubset(card_set) and self.variants_templates[v.id].issubset(template_set) and self.variants_commanders[v.id].issubset(commander_set)]
+                                included_outside_commander = [v for v in related if self.variants_cards[v.id].issubset(card_set) and self.variants_templates[v.id].issubset(template_set) and not self.variants_commanders[v.id].issubset(commander_set)]
+                                related_but_not_included = [v for v in related if not (self.variants_cards[v.id].issubset(card_set) and self.variants_templates[v.id].issubset(template_set))]
                                 almost_included_within_identity_within_commanders = [v for v in related_but_not_included if set(v.identity).issubset(identity_set) and self.variants_commanders[v.id].issubset(commander_set)]
                                 almost_included_within_commanders_but_not_identity = [v for v in related_but_not_included if not set(v.identity).issubset(identity_set) and self.variants_commanders[v.id].issubset(commander_set)]
                                 almost_included_within_identity_but_not_commanders = [v for v in related_but_not_included if set(v.identity).issubset(identity_set) and not self.variants_commanders[v.id].issubset(commander_set)]

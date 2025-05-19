@@ -1,10 +1,11 @@
 import json
 import random
 from django.test import TestCase
+from rest_framework import status
 from multiset import FrozenMultiset
+from common.inspection import json_to_python_lambda
 from spellbook.models import Card, Variant, CardInVariant
 from ..testing import TestCaseMixinWithSeeding
-from common.inspection import json_to_python_lambda
 
 
 class FindMyCombosViewTests(TestCaseMixinWithSeeding, TestCase):
@@ -31,7 +32,7 @@ class FindMyCombosViewTests(TestCaseMixinWithSeeding, TestCase):
         for content_type in ['text/plain', 'application/json']:
             with self.subTest('empty input'):
                 response = self.client.post('/api/estimate-bracket/', follow=True, content_type=content_type)  # type: ignore
-                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
                 self.assertEqual(response.get('Content-Type'), 'application/json')
                 result = json.loads(response.content, object_hook=json_to_python_lambda)
                 self._check_result(result, FrozenMultiset(), FrozenMultiset())
@@ -43,7 +44,7 @@ class FindMyCombosViewTests(TestCaseMixinWithSeeding, TestCase):
                 else:
                     data = card.name
                 response = self.client.post('/api/estimate-bracket/', data, follow=True, content_type=content_type)  # type: ignore
-                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
                 self.assertEqual(response.get('Content-Type'), 'application/json')
                 result = json.loads(response.content, object_hook=json_to_python_lambda)
                 self._check_result(result, FrozenMultiset([card.name]), FrozenMultiset())
@@ -54,7 +55,7 @@ class FindMyCombosViewTests(TestCaseMixinWithSeeding, TestCase):
                 else:
                     data = '\n'.join(f'2 {card}' for card in cards)
                 response = self.client.post('/api/estimate-bracket/', data, follow=True, content_type=content_type)  # type: ignore
-                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
                 self.assertEqual(response.get('Content-Type'), 'application/json')
                 result = json.loads(response.content, object_hook=json_to_python_lambda)
                 self.assertGreater(result.bracket_tag, Variant.BracketTag.CASUAL)

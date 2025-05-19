@@ -1,8 +1,9 @@
 import json
 from django.test import TestCase
+from rest_framework import status
+from common.inspection import json_to_python_lambda
 from spellbook.models import Card, Template
 from ..testing import TestCaseMixinWithSeeding
-from common.inspection import json_to_python_lambda
 
 
 class CardViewsTests(TestCaseMixinWithSeeding, TestCase):
@@ -50,7 +51,7 @@ class CardViewsTests(TestCaseMixinWithSeeding, TestCase):
 
     def test_cards_list_view(self):
         response = self.client.get('/cards', follow=True)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.get('Content-Type'), 'application/json')
         result = json.loads(response.content, object_hook=json_to_python_lambda)
         card_count = Card.objects.count()
@@ -60,7 +61,7 @@ class CardViewsTests(TestCaseMixinWithSeeding, TestCase):
 
     def test_cards_detail_view(self):
         response = self.client.get('/cards/{}'.format(self.c1_id), follow=True)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.get('Content-Type'), 'application/json')
         result = json.loads(response.content, object_hook=json_to_python_lambda)
         self.assertEqual(result.id, self.c1_id)
@@ -75,7 +76,7 @@ class CardViewsTests(TestCaseMixinWithSeeding, TestCase):
             ('-name', lambda a, b: self.assertLessEqual(a.name, b.name)),
         ]:
             response = self.client.get(f'/cards?ordering={ordering}', follow=True)
-            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
             self.assertEqual(response.get('Content-Type'), 'application/json')
             result = json.loads(response.content, object_hook=json_to_python_lambda)
             card_count = Card.objects.count()
@@ -93,7 +94,7 @@ class CardViewsTests(TestCaseMixinWithSeeding, TestCase):
     def test_cards_list_view_replacement_filter(self):
         for template_id in [self.t1_id, self.t2_id]:
             response = self.client.get(f'/cards?replaces={template_id}', follow=True)
-            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
             self.assertEqual(response.get('Content-Type'), 'application/json')
             result = json.loads(response.content, object_hook=json_to_python_lambda)
             card_ids = {c.id for c in result.results}

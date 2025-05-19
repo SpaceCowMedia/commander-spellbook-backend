@@ -1,11 +1,12 @@
 import json
 import itertools
 import random
-from multiset import FrozenMultiset
 from django.test import TestCase
+from rest_framework import status
+from common.inspection import json_to_python_lambda
+from multiset import FrozenMultiset
 from spellbook.models import Card, Template, Variant, merge_identities, CardInVariant
 from ..testing import TestCaseMixinWithSeeding
-from common.inspection import json_to_python_lambda
 
 
 class FindMyCombosViewTests(TestCaseMixinWithSeeding, TestCase):
@@ -76,7 +77,7 @@ class FindMyCombosViewTests(TestCaseMixinWithSeeding, TestCase):
             for using_ids in [False, True]:
                 with self.subTest('empty input'):
                     response = self.client.get('/find-my-combos', follow=True, headers={'Content-Type': content_type})  # type: ignore
-                    self.assertEqual(response.status_code, 200)
+                    self.assertEqual(response.status_code, status.HTTP_200_OK)
                     self.assertEqual(response.get('Content-Type'), 'application/json')
                     result = json.loads(response.content, object_hook=json_to_python_lambda)
                     self.assertEqual(result.results.identity, 'C')
@@ -94,7 +95,7 @@ class FindMyCombosViewTests(TestCaseMixinWithSeeding, TestCase):
                         deck_list = f'2 {card_str}'
                     identity = card.identity
                     response = self.client.generic('GET', '/find-my-combos', data=deck_list, follow=True, headers={'Content-Type': content_type})  # type: ignore
-                    self.assertEqual(response.status_code, 200)  # type: ignore
+                    self.assertEqual(response.status_code, status.HTTP_200_OK)  # type: ignore
                     self.assertEqual(response.get('Content-Type'), 'application/json')  # type: ignore
                     result = json.loads(response.content, object_hook=json_to_python_lambda)  # type: ignore
                     self.assertEqual(result.results.identity, identity)
@@ -124,7 +125,7 @@ class FindMyCombosViewTests(TestCaseMixinWithSeeding, TestCase):
                                 identity = merge_identities(c.identity for c in Card.objects.filter(name__in=[c for c, _ in deck_list + commander_list]))
                                 identity_set = set(identity) | {'C'}
                                 response = self.client.generic('GET', '/find-my-combos', data=deck_list_str, follow=True, headers={'Content-Type': content_type})  # type: ignore
-                                self.assertEqual(response.status_code, 200)  # type: ignore
+                                self.assertEqual(response.status_code, status.HTTP_200_OK)  # type: ignore
                                 self.assertEqual(response.get('Content-Type'), 'application/json')  # type: ignore
                                 result = json.loads(response.content, object_hook=json_to_python_lambda)  # type: ignore
                                 self.assertEqual(result.results.identity, identity)

@@ -1,8 +1,9 @@
 import json
 from django.test import TestCase
+from rest_framework import status
+from common.inspection import json_to_python_lambda
 from spellbook.models import Template
 from ..testing import TestCaseMixinWithSeeding
-from common.inspection import json_to_python_lambda
 
 
 class TemplateViewsTests(TestCaseMixinWithSeeding, TestCase):
@@ -15,7 +16,7 @@ class TemplateViewsTests(TestCaseMixinWithSeeding, TestCase):
 
     def test_templates_list_view(self):
         response = self.client.get('/templates', follow=True)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.get('Content-Type'), 'application/json')
         result = json.loads(response.content, object_hook=json_to_python_lambda)
         template_count = Template.objects.count()
@@ -25,7 +26,7 @@ class TemplateViewsTests(TestCaseMixinWithSeeding, TestCase):
 
     def test_templates_detail_view(self):
         response = self.client.get('/templates/{}'.format(self.t1_id), follow=True)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.get('Content-Type'), 'application/json')
         result = json.loads(response.content, object_hook=json_to_python_lambda)
         self.assertEqual(result.id, self.t1_id)

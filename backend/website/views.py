@@ -1,7 +1,7 @@
 from urllib.parse import urlparse
 from django.core.validators import URLValidator
 from django.core.exceptions import ValidationError
-from rest_framework import viewsets, serializers, parsers
+from rest_framework import viewsets, serializers, parsers, status
 from rest_framework.decorators import api_view, permission_classes, parser_classes
 from rest_framework.response import Response
 from rest_framework.request import Request
@@ -31,25 +31,25 @@ SUPPORTED_DECKBUILDING_WEBSITES = {
 
 
 class InvalidUrl(APIException):
-    status_code = 400
+    status_code = status.HTTP_400_BAD_REQUEST
     default_detail = 'Invalid URL'
     default_code = 'invalid_url'
 
 
 class UnsupportedWebsite(APIException):
-    status_code = 400
+    status_code = status.HTTP_400_BAD_REQUEST
     default_detail = 'Unsupported website'
     default_code = 'unsupported_website'
 
 
 class DecklistNotAvailable(APIException):
-    status_code = 400
+    status_code = status.HTTP_400_BAD_REQUEST
     default_detail = 'Decklist not available'
     default_code = 'decklist_not_available'
 
 
 class SomethingWentWrong(APIException):
-    status_code = 400
+    status_code = status.HTTP_400_BAD_REQUEST
     default_detail = 'Something went wrong'
     default_code = 'something_went_wrong'
 
@@ -57,8 +57,8 @@ class SomethingWentWrong(APIException):
 @extend_schema(
     parameters=[OpenApiParameter(name='url', type=str)],
     responses={
-        200: DeckSerializer,
-        400: inline_serializer(
+        status.HTTP_200_OK: DeckSerializer,
+        status.HTTP_400_BAD_REQUEST: inline_serializer(
             'InvalidUrlResponse',
             fields={
                 'detail': serializers.CharField(),

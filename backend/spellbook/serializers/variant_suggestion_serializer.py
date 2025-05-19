@@ -83,7 +83,7 @@ class VariantSuggestionSerializer(serializers.ModelSerializer):
             'status': {'read_only': True},
         }
 
-    def validate(self, attrs):
+    def validate(self, attrs: dict):
         VariantSuggestion.validate(
             [uses['card'] for uses in attrs['uses']],
             [requires['template'] for requires in attrs['requires']],

@@ -29,7 +29,6 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
             comment='A comment',
             issue='An issue',
             solution='A solution',
-            notes='Some notes',
             suggested_by=self.user,
         )
         self.us1.variants.create(
@@ -40,7 +39,6 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
             'comment': 'A comment',
             'issue': 'An issue',
             'solution': 'A solution',
-            'notes': 'Some notes',
             'variants': [
                 {
                     'variant': self.v1_id,
@@ -69,7 +67,6 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
             self.assertEqual(variant.issue, suggestion_result.variants[i].issue)
         self.assertEqual(suggestion_result.issue, vs.issue)
         self.assertEqual(suggestion_result.solution, vs.solution)
-        self.assertEqual(suggestion_result.notes, vs.notes)
         if suggestion_result.suggested_by is not None:
             self.assertEqual(suggestion_result.suggested_by.id, vs.suggested_by.id)  # type: ignore
             self.assertEqual(suggestion_result.suggested_by.username, vs.suggested_by.username)  # type: ignore
@@ -236,7 +233,6 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
             "comment": "A comment with some apostrophes: `'ʼ and quotes: \"“ˮ and newlines \r\n and \n and \r",
             "issue": "An issue with some apostrophes: `'ʼ and quotes: \"“ˮ and newlines \r\n and \n and \r",
             "solution": "A solution with some apostrophes: `'ʼ and quotes: \"“ˮ and newlines \r\n and \n and \r",
-            "notes": "Some notes with some apostrophes: `'ʼ and quotes: \"“ˮ and newlines \r\n and \n and \r",
         }
         login = self.client.login(username='testuser', password='12345')
         self.assertTrue(login)
@@ -267,4 +263,3 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
         assertStringSanity(result.comment)
         assertStringSanity(result.issue)
         assertStringSanity(result.solution)
-        assertStringSanity(result.notes)

@@ -1,11 +1,11 @@
 from django.db import models
 from django.core.exceptions import ValidationError
-from django.contrib.auth.models import User
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from .constants import MAX_CARD_NAME_LENGTH, MAX_FEATURE_NAME_LENGTH, MAX_MANA_NEEDED_LENGTH
 from .mixins import PreSaveModelMixin
 from .recipe import Recipe
+from .suggestion import Suggestion
 from .card import Card
 from .template import Template
 from .variant import Variant
@@ -15,45 +15,24 @@ from .scryfall import SCRYFALL_MAX_QUERY_LENGTH
 from .utils import id_from_cards_and_templates_ids, simplify_card_name_on_database, simplify_card_name_with_spaces_on_database, strip_accents
 
 
-class VariantSuggestion(Recipe):
+class VariantSuggestion(Recipe, Suggestion):
     max_cards = 10
     max_templates = 5
     max_features = 100
 
-    class Status(models.TextChoices):
-        NEW = 'N'
-        AWAITING_DISCUSSION = 'AD'
-        PENDING_APPROVAL = 'PA'
-        ACCEPTED = 'A'
-        REJECTED = 'R'
-
-    id: int
-    status = models.CharField(choices=Status.choices, default=Status.NEW, help_text='Suggestion status for editors', max_length=2)
     notes = models.TextField(blank=True, help_text='Notes written by editors', validators=TEXT_VALIDATORS)
     mana_needed = models.CharField(blank=True, max_length=MAX_MANA_NEEDED_LENGTH, help_text='Mana needed for this combo. Use the {1}{W}{U}{B}{R}{G}{B/P}... format.', validators=[MANA_VALIDATOR, *TEXT_VALIDATORS])
     easy_prerequisites = models.TextField(blank=True, help_text='Easily achievable prerequisites for this combo.', validators=TEXT_VALIDATORS)
     notable_prerequisites = models.TextField(blank=True, help_text='Notable prerequisites for this combo.', validators=TEXT_VALIDATORS)
     description = models.TextField(blank=False, help_text='Long description, in steps', validators=TEXT_VALIDATORS)
     spoiler = models.BooleanField(default=False, help_text='Is this combo a spoiler?', verbose_name='is spoiler')
-    comment = models.TextField(blank=True, max_length=2**10, help_text='Comment written by the user that suggested this combo', validators=TEXT_VALIDATORS)
-    created = models.DateTimeField(auto_now_add=True, editable=False)
-    updated = models.DateTimeField(auto_now=True, editable=False)
-    suggested_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, editable=False, help_text='User that suggested this combo', related_name='variant_suggestions')
     uses: models.Manager['CardUsedInVariantSuggestion']
     requires: models.Manager['TemplateRequiredInVariantSuggestion']
     produces: models.Manager['FeatureProducedInVariantSuggestion']
 
-    class Meta:
+    class Meta(Suggestion.Meta):
         verbose_name = 'variant suggestion'
         verbose_name_plural = 'variant suggestions'
-        default_manager_name = 'objects'
-        ordering = [
-            models.Case(
-                *(models.When(status=s, then=models.Value(i)) for i, s in enumerate(('N', 'PA', 'AD', 'A', 'R'))),
-                default=models.Value(10),
-            ),
-            'created',
-        ]
 
     def cards(self) -> dict[str, int]:
         return {c.card: c.quantity for c in self.uses.all()}
@@ -94,10 +73,11 @@ class VariantSuggestion(Recipe):
         q = VariantSuggestion.objects \
             .annotate(
                 uses_count=models.Count('uses', distinct=True),
-                requires_count=models.Count('requires', distinct=True)) \
-            .filter(
+                requires_count=models.Count('requires', distinct=True),
+            ).filter(
                 uses_count=len(cards),
-                requires_count=len(templates))
+                requires_count=len(templates),
+            )
         if ignore is not None:
             q = q.exclude(pk=ignore)
         for card in cards:

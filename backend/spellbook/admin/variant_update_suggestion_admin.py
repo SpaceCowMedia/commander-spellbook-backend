@@ -40,7 +40,6 @@ class VariantUpdateSuggestionAdmin(SpellbookModelAdmin):
         ]}),
         ('Review', {'fields': [
             'status',
-            'notes',
         ]}),
     ]
     inlines = [VariantInVariantUpdateSuggestionAdmin]
@@ -51,7 +50,6 @@ class VariantUpdateSuggestionAdmin(SpellbookModelAdmin):
         '=suggested_by__username',
         'issue',
         'solution',
-        'notes',
         'comment',
     ]
 

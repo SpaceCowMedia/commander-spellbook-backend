@@ -27,7 +27,6 @@ class VariantUpdateSuggestionSerializer(serializers.ModelSerializer):
         fields = [
             'id',
             'status',
-            'notes',
             'variants',
             'issue',
             'solution',
@@ -38,6 +37,12 @@ class VariantUpdateSuggestionSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'status': {'read_only': True},
         }
+
+    def validate(self, attrs: dict):
+        VariantUpdateSuggestion.validate(
+            [variant['variant'] for variant in attrs['variants']],
+        )
+        return super().validate(attrs)
 
     @transaction.atomic(durable=True)
     def create(self, validated_data: dict):
@@ -90,6 +95,4 @@ class VariantUpdateSuggestionSerializer(serializers.ModelSerializer):
             data['solution'] = sanitize_newlines_apostrophes_and_quotes(data['solution'])
         if data.get('comment'):
             data['comment'] = sanitize_newlines_apostrophes_and_quotes(data['comment'])
-        if data.get('notes'):
-            data['notes'] = sanitize_newlines_apostrophes_and_quotes(data['notes'])
         return super().to_internal_value(data)

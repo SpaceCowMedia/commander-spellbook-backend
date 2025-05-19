@@ -254,6 +254,9 @@ SPECTACULAR_SETTINGS = {
         'drf_spectacular.contrib.djangorestframework_camel_case.camelize_serializer_fields',
         'backend.spectacular.mark_all_outputs_required',
     ],
+    'ENUM_NAME_OVERRIDES': {
+        'SuggestionStatusEnum': 'spellbook.models.suggestion.Suggestion.Status',
+    },
 }
 
 # Logging

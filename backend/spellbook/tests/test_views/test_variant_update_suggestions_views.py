@@ -37,6 +37,7 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
             issue='An issue',
         )
         self.post_data = {
+            'kind': 'NW',
             'comment': 'A comment',
             'issue': 'An issue',
             'solution': 'A solution',
@@ -66,6 +67,7 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
         for i, variant in enumerate(vs.variants.all()):
             self.assertEqual(variant.variant_id, suggestion_result.variants[i].variant)
             self.assertEqual(variant.issue, suggestion_result.variants[i].issue)
+        self.assertEqual(suggestion_result.kind, vs.kind)
         self.assertEqual(suggestion_result.issue, vs.issue)
         self.assertEqual(suggestion_result.solution, vs.solution)
         if suggestion_result.suggested_by is not None:
@@ -235,6 +237,7 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
                     'issue': 'Another issue',
                 },
             ],
+            'kind': 'AAA',
         }
         login = self.client.login(username='testuser', password='12345')
         self.assertTrue(login)
@@ -272,6 +275,7 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
                     "issue": "An issue with some apostrophes: `'ʼ and quotes: \"“ˮ and newlines \r\n and \n and \r",
                 },
             ],
+            "kind": "SE",
             "comment": "A comment with some apostrophes: `'ʼ and quotes: \"“ˮ and newlines \r\n and \n and \r",
             "issue": "An issue with some apostrophes: `'ʼ and quotes: \"“ˮ and newlines \r\n and \n and \r",
             "solution": "A solution with some apostrophes: `'ʼ and quotes: \"“ˮ and newlines \r\n and \n and \r",

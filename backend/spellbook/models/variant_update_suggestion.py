@@ -6,6 +6,13 @@ from .validators import TEXT_VALIDATORS
 
 
 class VariantUpdateSuggestion(Suggestion):
+    class Kind(models.TextChoices):
+        NOT_WORKING = 'NW'
+        SPELLING_ERROR = 'SE'
+        INCORRECT_INFO = 'II'
+        WRONG_CARD = 'WC'
+        OTHER = 'O'
+    kind = models.CharField(choices=Kind.choices, help_text='Type of suggestion', max_length=2)
     issue = models.TextField(blank=False, help_text='Description of the problem', validators=TEXT_VALIDATORS)
     solution = models.TextField(blank=True, help_text='Description of the solution', validators=TEXT_VALIDATORS)
     variants: models.Manager['VariantInVariantUpdateSuggestion']

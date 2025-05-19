@@ -35,6 +35,7 @@ class VariantUpdateSuggestionAdmin(SpellbookModelAdmin):
             'created',
         ]}),
         ('Editable', {'fields': [
+            'kind',
             'issue',
             'solution',
         ]}),
@@ -43,8 +44,8 @@ class VariantUpdateSuggestionAdmin(SpellbookModelAdmin):
         ]}),
     ]
     inlines = [VariantInVariantUpdateSuggestionAdmin]
-    list_filter = ['status']
-    list_display = ['__str__', 'id', 'status', 'updated', 'suggested_by']
+    list_filter = ['status', 'kind']
+    list_display = ['__str__', 'kind', 'status', 'updated', 'suggested_by']
     search_fields = [
         '=pk',
         '=suggested_by__username',

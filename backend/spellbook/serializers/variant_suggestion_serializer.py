@@ -93,7 +93,7 @@ class VariantSuggestionSerializer(serializers.ModelSerializer):
         return super().validate(attrs)
 
     @transaction.atomic(durable=True)
-    def create(self, validated_data):
+    def create(self, validated_data: dict):
         uses_key = 'uses'
         requires_key = 'requires'
         produces_key = 'produces'
@@ -101,8 +101,8 @@ class VariantSuggestionSerializer(serializers.ModelSerializer):
         requires_set = validated_data.pop(requires_key)
         produces_set = validated_data.pop(produces_key)
         extended_kwargs = {
-            'suggested_by': self.context['request'].user,
             **validated_data,
+            'suggested_by': self.context['request'].user,
         }
         instance = super().create(extended_kwargs)
         for i, use in enumerate(uses_set, start=1):
@@ -128,7 +128,7 @@ class VariantSuggestionSerializer(serializers.ModelSerializer):
             if d is not None and with_order:
                 d['order'] = i
             if model is None:
-                to_create.append(manager.model(variant=instance, **d))
+                to_create.append(manager.model(**d, variant=instance))
             elif d is None:
                 to_delete.append(model)
             else:

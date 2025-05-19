@@ -73,6 +73,19 @@ POST_DATA = {
 
 
 class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
+    def setUp(self) -> None:
+        """Reduce the log level to avoid errors like 'not found'"""
+        super().setUp()
+        logger = logging.getLogger("django.request")
+        self.previous_level = logger.getEffectiveLevel()
+        logger.setLevel(logging.ERROR)
+
+    def tearDown(self) -> None:
+        """Reset the log level back to normal"""
+        super().tearDown()
+        logger = logging.getLogger("django.request")
+        logger.setLevel(self.previous_level)
+
     def suggestion_assertions(self, suggestion_result):
         vs = VariantSuggestion.objects.get(id=suggestion_result.id)
         self.assertEqual(suggestion_result.id, vs.id)
@@ -104,6 +117,7 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
         self.assertEqual(suggestion_result.notable_prerequisites, vs.notable_prerequisites)
         self.assertEqual(suggestion_result.description, vs.description)
         self.assertEqual(suggestion_result.spoiler, vs.spoiler)
+        self.assertEqual(suggestion_result.notes, vs.notes)
         if suggestion_result.suggested_by is not None:
             self.assertEqual(suggestion_result.suggested_by.id, vs.suggested_by.id)  # type: ignore
             self.assertEqual(suggestion_result.suggested_by.username, vs.suggested_by.username)  # type: ignore
@@ -406,16 +420,3 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
         assertStringSanity(result.easy_prerequisites)
         assertStringSanity(result.notable_prerequisites)
         assertStringSanity(result.description)
-
-    def setUp(self) -> None:
-        """Reduce the log level to avoid errors like 'not found'"""
-        super().setUp()
-        logger = logging.getLogger("django.request")
-        self.previous_level = logger.getEffectiveLevel()
-        logger.setLevel(logging.ERROR)
-
-    def tearDown(self) -> None:
-        """Reset the log level back to normal"""
-        super().tearDown()
-        logger = logging.getLogger("django.request")
-        logger.setLevel(self.previous_level)

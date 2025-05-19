@@ -11,7 +11,7 @@
         <tbody>
             {% for item in adminform.form.used_in_cards|slice:suggested_slice %}
                 <tr class="form-row">
-                    <td class="field-combo">
+                    <td class="field-card">
                         <p>
                             <a href="{% url 'admin:spellbook_card_change' item.id %}">{{ item }}</a>
                         </p>
@@ -21,7 +21,7 @@
             {% with card_count=adminform.form.used_in_cards.count %}
             {% if card_count > 0 %}
                 <tr class="form-row">
-                    <td class="field-combo">
+                    <td class="field-card">
                         <p>
                             In total there are {{ card_count }} cards where {{ original.name }} is used.
                         </p>

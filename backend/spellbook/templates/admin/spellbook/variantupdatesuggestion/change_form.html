@@ -1,0 +1,34 @@
+{% extends "admin/change_form.html" %}
+{% load static %}
+
+{% block after-content %}
+    <table>
+        <thead>
+            <tr>
+                <th class="column-card">Related Combos</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in adminform.form.related_combos|slice:suggested_slice %}
+                <tr class="form-row">
+                    <td class="field-combo">
+                        <p>
+                            <a href="{% url 'admin:spellbook_combo_change' item.id %}">{{ item }}</a>
+                        </p>
+                    </td>
+                </tr>
+            {% endfor %}
+            {% with combo_count=adminform.form.related_combos.count %}
+            {% if combo_count > 0 %}
+                <tr class="form-row">
+                    <td class="field-combo">
+                        <p>
+                            In total there are {{ combo_count }} combos to update according to {{ original }}.
+                        </p>
+                    </td>
+                </tr>
+            {% endif %}
+            {% endwith %}
+        </tbody>
+    </table>
+{% endblock %}

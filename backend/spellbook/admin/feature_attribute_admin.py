@@ -11,14 +11,14 @@ class FeatureAttributeForm(SpellbookAdminForm):
             return Combo.objects.none()
         return Combo.objects.filter(
             Q(featureneededincombo__any_of_attributes=self.instance) | Q(featureneededincombo__all_of_attributes=self.instance) | Q(featureneededincombo__none_of_attributes=self.instance) | Q(featureproducedincombo__attributes=self.instance)
-        ).order_by('-created')
+        ).distinct().order_by('-created')
 
     def used_in_cards(self):
         if self.instance.pk is None:
             return Card.objects.none()
         return Card.objects.filter(
             featureofcard__attributes=self.instance
-        ).order_by('-added')
+        ).distinct().order_by('-added')
 
 
 @admin.register(FeatureAttribute)

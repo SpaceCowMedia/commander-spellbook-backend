@@ -1,3 +1,4 @@
+from spellbook.serializers import variant_update_suggestion_serializer
 from .card_detail_serializer import CardDetailSerializer
 from .card_serializer import CardSerializer
 from .combo_serializer import ComboSerializer
@@ -8,5 +9,6 @@ from .template_serializer import TemplateSerializer
 from .user_serializer import UserSerializer
 from .variant_serializer import VariantSerializer
 from .variant_suggestion_serializer import VariantSuggestionSerializer
+from .variant_update_suggestion_serializer import VariantUpdateSuggestionSerializer
 from .variant_alias_serializer import VariantAliasSerializer
 from .bracket_tag_serializer import BracketTagSerializer

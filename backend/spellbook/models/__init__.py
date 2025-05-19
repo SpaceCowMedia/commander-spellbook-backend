@@ -8,6 +8,7 @@ from .combo import Combo, CardInCombo, TemplateInCombo, FeatureNeededInCombo, Fe
 from .variant import Variant, CardInVariant, TemplateInVariant, FeatureProducedByVariant, VariantIncludesCombo, VariantOfCombo, estimate_bracket
 from .job import Job
 from .variant_suggestion import VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, FeatureProducedInVariantSuggestion
+from .variant_update_suggestion import VariantUpdateSuggestion, VariantInVariantUpdateSuggestion
 from .variant_alias import VariantAlias
 from .utils import id_from_cards_and_templates_ids, merge_identities, recipe, CardType
 from .mixins import PreSerializedSerializer

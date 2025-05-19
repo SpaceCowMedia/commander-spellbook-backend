@@ -64,15 +64,19 @@ class Ingredient(models.Model):
 
     @classmethod
     def clean_data(cls, data: dict) -> None:
-        if data['zone_locations'] == ZoneLocation.COMMAND_ZONE and not data['must_be_commander']:
+        zone_locations = data.get('zone_locations')
+        if zone_locations is None:
+            return
+        must_be_commander = data.get('must_be_commander', False)
+        if zone_locations == ZoneLocation.COMMAND_ZONE and not must_be_commander:
             raise ValidationError('Any card that can only start in command zone must be a commander. Please check the "must be commander" checkbox.')
-        if ZoneLocation.BATTLEFIELD not in data['zone_locations'] and data['battlefield_card_state']:
+        if ZoneLocation.BATTLEFIELD not in zone_locations and data.get('battlefield_card_state'):
             raise ValidationError('Battlefield card state is only valid if the card starts on the battlefield.')
-        if ZoneLocation.EXILE not in data['zone_locations'] and data['exile_card_state']:
+        if ZoneLocation.EXILE not in zone_locations and data.get('exile_card_state'):
             raise ValidationError('Exile card state is only valid if the card starts in exile.')
-        if ZoneLocation.GRAVEYARD not in data['zone_locations'] and data['graveyard_card_state']:
+        if ZoneLocation.GRAVEYARD not in zone_locations and data.get('graveyard_card_state'):
             raise ValidationError('Graveyard card state is only valid if the card starts in the graveyard.')
-        if ZoneLocation.LIBRARY not in data['zone_locations'] and data['library_card_state']:
+        if ZoneLocation.LIBRARY not in zone_locations and data.get('library_card_state'):
             raise ValidationError('Library card state is only valid if the card starts in the library.')
 
     class Meta:

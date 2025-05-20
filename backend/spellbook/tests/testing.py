@@ -5,6 +5,7 @@ from functools import reduce
 from collections import defaultdict
 from django.db.models import Q, Count, OuterRef, Subquery
 from django.db.models.functions import Coalesce
+from django.contrib.auth.models import User
 from common.testing import TestCaseMixin as BaseTestCaseMixin
 from spellbook.models import Card, Feature, Combo, CardInCombo, Job, Template, TemplateInCombo
 from spellbook.models import CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, FeatureProducedInVariantSuggestion
@@ -213,6 +214,8 @@ class TestCaseMixinWithSeeding(TestCaseMixin):
     b7_id = 0
     s1_id = 0
     expected_variant_count = 7
+    admin: User
+    user: User
 
     def setUp(self) -> None:
         super().setUp()
@@ -335,3 +338,6 @@ class TestCaseMixinWithSeeding(TestCaseMixin):
         self.b8_id = b8.id
         self.s1_id = s1.id
         self.a1_id = a1.id
+
+        self.user = User.objects.create(username='user', password='user')
+        self.admin = User.objects.create(username='admin', password='admin', is_staff=True, is_superuser=True)

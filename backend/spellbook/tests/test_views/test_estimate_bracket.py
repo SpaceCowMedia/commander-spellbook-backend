@@ -1,6 +1,7 @@
 import json
 import random
 from django.test import TestCase
+from django.urls import reverse
 from rest_framework import status
 from multiset import FrozenMultiset
 from common.inspection import json_to_python_lambda
@@ -31,7 +32,7 @@ class FindMyCombosViewTests(TestCaseMixinWithSeeding, TestCase):
     def test_estimate_bracket_views(self):
         for content_type in ['text/plain', 'application/json']:
             with self.subTest('empty input'):
-                response = self.client.post('/api/estimate-bracket/', follow=True, content_type=content_type)  # type: ignore
+                response = self.client.post(reverse('estimate-bracket'), follow=True, content_type=content_type)  # type: ignore
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
                 self.assertEqual(response.get('Content-Type'), 'application/json')
                 result = json.loads(response.content, object_hook=json_to_python_lambda)
@@ -43,7 +44,7 @@ class FindMyCombosViewTests(TestCaseMixinWithSeeding, TestCase):
                     data = json.dumps({'main': [{'card': card.name}]})
                 else:
                     data = card.name
-                response = self.client.post('/api/estimate-bracket/', data, follow=True, content_type=content_type)  # type: ignore
+                response = self.client.post(reverse('estimate-bracket'), data, follow=True, content_type=content_type)  # type: ignore
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
                 self.assertEqual(response.get('Content-Type'), 'application/json')
                 result = json.loads(response.content, object_hook=json_to_python_lambda)
@@ -54,7 +55,7 @@ class FindMyCombosViewTests(TestCaseMixinWithSeeding, TestCase):
                     data = json.dumps({'main': [{'card': card, 'quantity': 2} for card in cards]})
                 else:
                     data = '\n'.join(f'2 {card}' for card in cards)
-                response = self.client.post('/api/estimate-bracket/', data, follow=True, content_type=content_type)  # type: ignore
+                response = self.client.post(reverse('estimate-bracket'), data, follow=True, content_type=content_type)  # type: ignore
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
                 self.assertEqual(response.get('Content-Type'), 'application/json')
                 result = json.loads(response.content, object_hook=json_to_python_lambda)

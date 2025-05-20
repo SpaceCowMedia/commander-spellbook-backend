@@ -1,13 +1,14 @@
 import json
 import logging
 from django.test import TestCase
-from django.contrib.auth.models import User, Permission
+from django.contrib.auth.models import Permission
 from django.contrib.contenttypes.models import ContentType
 from rest_framework import status
 from common.inspection import json_to_python_lambda
 from spellbook.models import VariantSuggestion
 from spellbook.models.utils import strip_accents
 from ..testing import TestCaseMixinWithSeeding
+from django.urls import reverse
 
 
 POST_DATA = {
@@ -80,7 +81,6 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
         logger = logging.getLogger("django.request")
         self.previous_level = logger.getEffectiveLevel()
         logger.setLevel(logging.ERROR)
-        self.user = User.objects.create_user(username='testuser', password='12345')
 
     def tearDown(self) -> None:
         """Reset the log level back to normal"""
@@ -125,7 +125,7 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
             self.assertEqual(suggestion_result.suggested_by.username, vs.suggested_by.username)  # type: ignore
 
     def test_suggestions_list_view(self):
-        response = self.client.get('/variant-suggestions/', follow=True)
+        response = self.client.get(reverse('variant-suggestions-list'), follow=True)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.get('Content-Type'), 'application/json')
         result = json.loads(response.content, object_hook=json_to_python_lambda)
@@ -135,7 +135,7 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
             self.suggestion_assertions(suggestion_result)
 
     def test_suggestion_detail_view(self):
-        response = self.client.get(f'/variant-suggestions/{self.s1_id}', follow=True)
+        response = self.client.get(reverse('variant-suggestions-detail', args=[self.s1_id]), follow=True)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.get('Content-Type'), 'application/json')
         result = json.loads(response.content, object_hook=json_to_python_lambda)
@@ -143,27 +143,14 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
         self.suggestion_assertions(result)
 
     def test_new_suggestion(self):
-        response = self.client.post(
-            '/variant-suggestions/',
-            POST_DATA,
-            content_type='application/json',
-            follow=True)
+        response = self.client.post(reverse('variant-suggestions-list'), POST_DATA, content_type='application/json', follow=True)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-        login = self.client.login(username='testuser', password='12345')
-        self.assertTrue(login)
-        response = self.client.post(
-            '/variant-suggestions/',
-            POST_DATA,
-            content_type='application/json',
-            follow=True)
+        self.client.force_login(self.user)
+        response = self.client.post(reverse('variant-suggestions-list'), POST_DATA, content_type='application/json', follow=True)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
         permissions = Permission.objects.filter(content_type=ContentType.objects.get_for_model(VariantSuggestion))
         self.user.user_permissions.add(*permissions)
-        response = self.client.post(
-            '/variant-suggestions/',
-            POST_DATA,
-            content_type='application/json',
-            follow=True)
+        response = self.client.post(reverse('variant-suggestions-list'), POST_DATA, content_type='application/json', follow=True)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.get('Content-Type'), 'application/json')
         result = json.loads(response.content, object_hook=json_to_python_lambda)
@@ -173,61 +160,34 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
         self.suggestion_assertions(result)
 
     def test_duplicate_suggestion(self):
-        login = self.client.login(username='testuser', password='12345')
-        self.assertTrue(login)
+        self.client.force_login(self.user)
         permissions = Permission.objects.filter(content_type=ContentType.objects.get_for_model(VariantSuggestion))
         self.user.user_permissions.add(*permissions)
-        response = self.client.post(
-            '/variant-suggestions/',
-            POST_DATA,
-            content_type='application/json',
-            follow=True)
+        response = self.client.post(reverse('variant-suggestions-list'), POST_DATA, content_type='application/json', follow=True)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        response = self.client.post(
-            '/variant-suggestions/',
-            POST_DATA,
-            content_type='application/json',
-            follow=True)
+        response = self.client.post(reverse('variant-suggestions-list'), POST_DATA, content_type='application/json', follow=True)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.get('Content-Type'), 'application/json')
 
     def test_duplicate_suggestion_on_update(self):
-        login = self.client.login(username='testuser', password='12345')
-        self.assertTrue(login)
+        self.client.force_login(self.user)
         permissions = Permission.objects.filter(content_type=ContentType.objects.get_for_model(VariantSuggestion))
         self.user.user_permissions.add(*permissions)
-        response = self.client.post(
-            '/variant-suggestions/',
-            POST_DATA,
-            content_type='application/json',
-            follow=True)
+        response = self.client.post(reverse('variant-suggestions-list'), POST_DATA, content_type='application/json', follow=True)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         post_data_2 = POST_DATA.copy()
         post_data_2['uses'][0]['card'] = 'A different card'
-        response_2 = self.client.post(
-            '/variant-suggestions/',
-            post_data_2,
-            content_type='application/json',
-            follow=True)
+        response_2 = self.client.post(reverse('variant-suggestions-list'), post_data_2, content_type='application/json', follow=True)
         self.assertEqual(response_2.status_code, status.HTTP_201_CREATED)
         result = json.loads(response.content, object_hook=json_to_python_lambda)
-        response = self.client.put(
-            f'/variant-suggestions/{result.id}/',
-            post_data_2,
-            content_type='application/json',
-            follow=True)
+        response = self.client.put(reverse('variant-suggestions-detail', args=[result.id]), post_data_2, content_type='application/json', follow=True)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_update_suggestion(self):
-        login = self.client.login(username='testuser', password='12345')
-        self.assertTrue(login)
+        self.client.force_login(self.user)
         permissions = Permission.objects.filter(content_type=ContentType.objects.get_for_model(VariantSuggestion))
         self.user.user_permissions.add(*permissions)
-        response = self.client.post(
-            '/variant-suggestions/',
-            POST_DATA,
-            content_type='application/json',
-            follow=True)
+        response = self.client.post(reverse('variant-suggestions-list'), POST_DATA, content_type='application/json', follow=True)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         result = json.loads(response.content, object_hook=json_to_python_lambda)
         self.assertGreater(result.id, 0)
@@ -237,11 +197,7 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
         put_data['produces'].append({
             "feature": "Third produced feature",
         })
-        response = self.client.put(
-            f'/variant-suggestions/{result.id}/',
-            put_data,
-            content_type='application/json',
-            follow=True)
+        response = self.client.put(reverse('variant-suggestions-detail', args=[result.id]), put_data, content_type='application/json', follow=True)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.get('Content-Type'), 'application/json')
         result = json.loads(response.content, object_hook=json_to_python_lambda)
@@ -249,21 +205,14 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
         self.assertIsNone(result.requires[0].scryfall_query)
 
     def test_delete_suggestion(self):
-        login = self.client.login(username='testuser', password='12345')
-        self.assertTrue(login)
+        self.client.force_login(self.user)
         permissions = Permission.objects.filter(content_type=ContentType.objects.get_for_model(VariantSuggestion))
         self.user.user_permissions.add(*permissions)
-        response = self.client.post(
-            '/variant-suggestions/',
-            POST_DATA,
-            content_type='application/json',
-            follow=True)
+        response = self.client.post(reverse('variant-suggestions-list'), POST_DATA, content_type='application/json', follow=True)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         result = json.loads(response.content, object_hook=json_to_python_lambda)
         self.assertGreater(result.id, 0)
-        response = self.client.delete(
-            f'/variant-suggestions/{result.id}/',
-            follow=True)
+        response = self.client.delete(reverse('variant-suggestions-detail', args=[result.id]), follow=True)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertFalse(VariantSuggestion.objects.filter(id=result.id).exists())
 
@@ -300,15 +249,10 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
             "notablePrerequisites": "",
             "description": "1"
         }
-        login = self.client.login(username='testuser', password='12345')
-        self.assertTrue(login)
+        self.client.force_login(self.user)
         permissions = Permission.objects.filter(content_type=ContentType.objects.get_for_model(VariantSuggestion))
         self.user.user_permissions.add(*permissions)
-        response = self.client.post(
-            '/variant-suggestions/',
-            post_data,
-            content_type='application/json',
-            follow=True)
+        response = self.client.post(reverse('variant-suggestions-list'), post_data, content_type='application/json', follow=True)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.get('Content-Type'), 'application/json')
         result = json.loads(response.content, object_hook=json_to_python_lambda)
@@ -348,26 +292,17 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
             "notablePrerequisites": "",
             "description": ""
         }
-        login = self.client.login(username='testuser', password='12345')
-        self.assertTrue(login)
+        self.client.force_login(self.user)
         permissions = Permission.objects.filter(content_type=ContentType.objects.get_for_model(VariantSuggestion))
         self.user.user_permissions.add(*permissions)
-        response = self.client.post(
-            '/variant-suggestions/validate/',
-            post_data,
-            content_type='application/json',
-            follow=True)
+        response = self.client.post(reverse('variant-suggestions-validate'), post_data, content_type='application/json', follow=True)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.get('Content-Type'), 'application/json')
         result = json.loads(response.content, object_hook=json_to_python_lambda)
         self.assertTrue(hasattr(result, 'uses'))
         self.assertGreaterEqual(len(result.uses), 2)
         suggestion_count_before = VariantSuggestion.objects.count()
-        response = self.client.post(
-            '/variant-suggestions/validate/',
-            POST_DATA,
-            content_type='application/json',
-            follow=True)
+        response = self.client.post(reverse('variant-suggestions-validate'), POST_DATA, content_type='application/json', follow=True)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.get('Content-Type'), 'application/json')
         result = json.loads(response.content, object_hook=json_to_python_lambda)
@@ -433,8 +368,7 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
             "notablePrerequisites": "Notable prereqs with some apostrophes: `'ʼ and quotes: \"“ˮ",
             "description": "A description with some apostrophes: `'ʼ and quotes: \"“ˮ and CRLF \r\n and LF \n and CR \r"
         }
-        login = self.client.login(username='testuser', password='12345')
-        self.assertTrue(login)
+        self.client.force_login(self.user)
         permissions = Permission.objects.filter(content_type=ContentType.objects.get_for_model(VariantSuggestion))
         self.user.user_permissions.add(*permissions)
         response = self.client.post(

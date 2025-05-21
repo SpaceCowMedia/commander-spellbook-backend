@@ -1,3 +1,4 @@
+from copy import deepcopy
 import json
 import logging
 from django.test import TestCase
@@ -175,7 +176,7 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
         self.user.user_permissions.add(*permissions)
         response = self.client.post(reverse('variant-suggestions-list'), POST_DATA, content_type='application/json', follow=True)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        post_data_2 = POST_DATA.copy()
+        post_data_2 = deepcopy(POST_DATA)
         post_data_2['uses'][0]['card'] = 'A different card'
         response_2 = self.client.post(reverse('variant-suggestions-list'), post_data_2, content_type='application/json', follow=True)
         self.assertEqual(response_2.status_code, status.HTTP_201_CREATED)
@@ -191,7 +192,7 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         result = json.loads(response.content, object_hook=json_to_python_lambda)
         self.assertGreater(result.id, 0)
-        put_data = POST_DATA.copy()
+        put_data = deepcopy(POST_DATA)
         put_data['comment'] = 'new comment'
         put_data['requires'][0]['scryfall_query'] = None
         put_data['produces'].append({
@@ -319,7 +320,7 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         result = json.loads(response.content, object_hook=json_to_python_lambda)
         self.assertGreater(result.id, 0)
-        put_data = POST_DATA.copy()
+        put_data = deepcopy(POST_DATA)
         put_data['comment'] = 'new comment'
         put_data['requires'][0]['scryfall_query'] = None
         put_data['produces'].append({

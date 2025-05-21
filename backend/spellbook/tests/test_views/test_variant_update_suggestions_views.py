@@ -171,7 +171,7 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
         self.assertTrue(hasattr(result, 'variants'))
         self.assertGreaterEqual(len(result.variants), 2)
 
-    def test_validate_view(self):
+    def test_validate_create_view(self):
         post_data = {
             'variants': [
                 {'variant': '', 'issue': 'An issue'},
@@ -182,14 +182,14 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
         self.client.force_login(self.user)
         permissions = Permission.objects.filter(content_type=ContentType.objects.get_for_model(VariantUpdateSuggestion))
         self.user.user_permissions.add(*permissions)
-        response = self.client.post(reverse('variant-update-suggestions-validate'), post_data, content_type='application/json', follow=True)
+        response = self.client.post(reverse('variant-update-suggestions-validate-create'), post_data, content_type='application/json', follow=True)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.get('Content-Type'), 'application/json')
         result = json.loads(response.content, object_hook=json_to_python_lambda)
         self.assertTrue(hasattr(result, 'variants'))
         self.assertGreaterEqual(len(result.variants), 2)
         suggestion_count_before = VariantUpdateSuggestion.objects.count()
-        response = self.client.post(reverse('variant-update-suggestions-validate'), self.post_data, content_type='application/json', follow=True)
+        response = self.client.post(reverse('variant-update-suggestions-validate-create'), self.post_data, content_type='application/json', follow=True)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.get('Content-Type'), 'application/json')
         result = json.loads(response.content, object_hook=json_to_python_lambda)
@@ -197,6 +197,31 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
         self.assertGreaterEqual(len(result.variants), 2)
         suggestion_count_after = VariantUpdateSuggestion.objects.count()
         self.assertEqual(suggestion_count_before, suggestion_count_after)
+
+    def test_validate_update_view(self):
+        self.client.force_login(self.user)
+        permissions = Permission.objects.filter(content_type=ContentType.objects.get_for_model(VariantUpdateSuggestion))
+        self.user.user_permissions.add(*permissions)
+        response = self.client.post(reverse('variant-update-suggestions-list'), self.post_data, content_type='application/json', follow=True)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        result = json.loads(response.content, object_hook=json_to_python_lambda)
+        self.assertGreater(result.id, 0)
+        put_data = self.post_data.copy()
+        put_data['comment'] = 'new comment'
+        put_data['variants'][0]['issue'] = ''
+        put_data['variants'].append({'variant': self.v3_id, 'issue': ''})
+        response = self.client.put(reverse('variant-update-suggestions-validate-update', args=[result.id]), put_data, content_type='application/json', follow=True)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.get('Content-Type'), 'application/json')
+        validation_result = json.loads(response.content, object_hook=json_to_python_lambda)
+        self.assertGreater(validation_result.id, 0)
+        self.assertEqual(validation_result.comment, put_data['comment'])
+        self.assertEqual(validation_result.variants[0].issue, put_data['variants'][0]['issue'])
+        response = self.client.get(reverse('variant-update-suggestions-detail', args=[result.id]), follow=True)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.get('Content-Type'), 'application/json')
+        after_result = json.loads(response.content, object_hook=json_to_python_lambda)
+        self.assertEqual(after_result, result)
 
     def test_new_suggestion_sanitization(self):
         post_data = {

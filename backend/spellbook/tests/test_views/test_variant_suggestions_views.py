@@ -259,7 +259,7 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
         self.assertTrue(hasattr(result, 'uses'))
         self.assertGreaterEqual(len(result.uses), 2)
 
-    def test_validate_view(self):
+    def test_validate_create_view(self):
         post_data = {
             "uses": [
                 {
@@ -295,21 +295,47 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
         self.client.force_login(self.user)
         permissions = Permission.objects.filter(content_type=ContentType.objects.get_for_model(VariantSuggestion))
         self.user.user_permissions.add(*permissions)
-        response = self.client.post(reverse('variant-suggestions-validate'), post_data, content_type='application/json', follow=True)
+        response = self.client.post(reverse('variant-suggestions-validate-create'), post_data, content_type='application/json', follow=True)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.get('Content-Type'), 'application/json')
         result = json.loads(response.content, object_hook=json_to_python_lambda)
         self.assertTrue(hasattr(result, 'uses'))
         self.assertGreaterEqual(len(result.uses), 2)
         suggestion_count_before = VariantSuggestion.objects.count()
-        response = self.client.post(reverse('variant-suggestions-validate'), POST_DATA, content_type='application/json', follow=True)
+        response = self.client.post(reverse('variant-suggestions-validate-create'), POST_DATA, content_type='application/json', follow=True)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.get('Content-Type'), 'application/json')
-        result = json.loads(response.content, object_hook=json_to_python_lambda)
-        self.assertTrue(hasattr(result, 'uses'))
-        self.assertGreaterEqual(len(result.uses), 2)
+        validation_result = json.loads(response.content, object_hook=json_to_python_lambda)
+        self.assertTrue(hasattr(validation_result, 'uses'))
+        self.assertGreaterEqual(len(validation_result.uses), 2)
         suggestion_count_after = VariantSuggestion.objects.count()
         self.assertEqual(suggestion_count_before, suggestion_count_after)
+
+    def test_validate_update_view(self):
+        self.client.force_login(self.user)
+        permissions = Permission.objects.filter(content_type=ContentType.objects.get_for_model(VariantSuggestion))
+        self.user.user_permissions.add(*permissions)
+        response = self.client.post(reverse('variant-suggestions-list'), POST_DATA, content_type='application/json', follow=True)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        result = json.loads(response.content, object_hook=json_to_python_lambda)
+        self.assertGreater(result.id, 0)
+        put_data = POST_DATA.copy()
+        put_data['comment'] = 'new comment'
+        put_data['requires'][0]['scryfall_query'] = None
+        put_data['produces'].append({
+            "feature": "Third produced feature",
+        })
+        response = self.client.put(reverse('variant-suggestions-validate-update', args=[result.id]), put_data, content_type='application/json', follow=True)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.get('Content-Type'), 'application/json')
+        validation_result = json.loads(response.content, object_hook=json_to_python_lambda)
+        self.assertEqual(validation_result.comment, put_data['comment'])
+        self.assertEqual(validation_result.requires[0].scryfall_query, put_data['requires'][0]['scryfall_query'])
+        response = self.client.get(reverse('variant-suggestions-detail', args=[result.id]), follow=True)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.get('Content-Type'), 'application/json')
+        after_result = json.loads(response.content, object_hook=json_to_python_lambda)
+        self.assertEqual(after_result, result)
 
     def test_new_suggestion_sanitization(self):
         post_data = {

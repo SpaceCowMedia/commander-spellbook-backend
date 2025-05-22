@@ -18,7 +18,7 @@ class VariantUpdateSuggestionAdminForm(SpellbookAdminForm):
         if self.instance.pk is None:
             return Combo.objects.none()
         return Combo.objects.filter(
-            variants__variant_update_suggestions__suggestion=self.instance
+            included_in_variants__variant_update_suggestions__suggestion=self.instance
         ).distinct().order_by('-created')
 
 

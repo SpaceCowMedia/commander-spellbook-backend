@@ -55,7 +55,7 @@ class VariantForm(SpellbookAdminForm):
     class Meta:
         widgets = {
             'notes': Textarea(attrs={'rows': 2}),
-            'public_notes': Textarea(attrs={'rows': 2}),
+            'comment': Textarea(attrs={'rows': 2}),
         }
 
 
@@ -151,8 +151,8 @@ class VariantAdmin(SpellbookModelAdmin):
             'easy_prerequisites',
             'notable_prerequisites',
             'description',
-            'public_notes',
             'notes',
+            'comment',
         ]}),
         ('Bracket', {
             'fields': ['bracket_tag', 'bracket_tag_override'],

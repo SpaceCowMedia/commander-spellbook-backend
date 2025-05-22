@@ -66,7 +66,6 @@ class VariantSuggestionSerializer(serializers.ModelSerializer):
         fields = [
             'id',
             'status',
-            'notes',
             'uses',
             'requires',
             'produces',
@@ -212,8 +211,6 @@ class VariantSuggestionSerializer(serializers.ModelSerializer):
                 feature['feature'] = sanitize_newlines_apostrophes_and_quotes(feature['feature'])
         if data.get('description'):
             data['description'] = sanitize_newlines_apostrophes_and_quotes(data['description'])
-        if data.get('notes'):
-            data['notes'] = sanitize_newlines_apostrophes_and_quotes(data['notes'])
         if data.get('easy_prerequisites'):
             data['easy_prerequisites'] = sanitize_newlines_apostrophes_and_quotes(data['easy_prerequisites'])
         if data.get('notable_prerequisites'):

@@ -232,8 +232,8 @@ class VariantsGeneratorTests(TestCaseMixinWithSeeding, TestCase):
                     self.assertEqual(variant.mana_value, sum(variant.uses.values_list('mana_value', flat=True)))
                     self.assertGreater(len(variant.name), 0)
                     self.assertGreater(len(variant.description), 0)
+                    self.assertGreater(len(variant.comment), 0)
                     self.assertGreater(len(variant.notes), 0)
-                    self.assertGreater(len(variant.public_notes), 0)
                     if variant.cards():
                         self.assertTrue(any(
                             len(text_field) > 0
@@ -317,8 +317,8 @@ class VariantsGeneratorTests(TestCaseMixinWithSeeding, TestCase):
             v: Variant = Variant.objects.get(pk=v_id)  # type: ignore
             self.assertEqual(v.status, Variant.Status.NEW)
             self.assertIn(c.description, v.description)
+            self.assertIn(c.comment, v.comment)
             self.assertIn(c.notes, v.notes)
-            self.assertIn(c.public_notes, v.public_notes)
 
     def test_unwanted_text_with_combo(self):
         generate_variants()

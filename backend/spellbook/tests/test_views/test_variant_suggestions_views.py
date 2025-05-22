@@ -120,7 +120,6 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
         self.assertEqual(suggestion_result.notable_prerequisites, vs.notable_prerequisites)
         self.assertEqual(suggestion_result.description, vs.description)
         self.assertEqual(suggestion_result.spoiler, vs.spoiler)
-        self.assertEqual(suggestion_result.notes, vs.notes)
         if suggestion_result.suggested_by is not None:
             self.assertEqual(suggestion_result.suggested_by.id, vs.suggested_by.id)  # type: ignore
             self.assertEqual(suggestion_result.suggested_by.username, vs.suggested_by.username)  # type: ignore

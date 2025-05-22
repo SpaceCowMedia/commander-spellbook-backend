@@ -20,7 +20,6 @@ class VariantSuggestion(Recipe, Suggestion):
     max_templates = 5
     max_features = 100
 
-    notes = models.TextField(blank=True, help_text='Notes written by editors', validators=TEXT_VALIDATORS)
     mana_needed = models.CharField(blank=True, max_length=MAX_MANA_NEEDED_LENGTH, help_text='Mana needed for this combo. Use the {1}{W}{U}{B}{R}{G}{B/P}... format.', validators=[MANA_VALIDATOR, *TEXT_VALIDATORS])
     easy_prerequisites = models.TextField(blank=True, help_text='Easily achievable prerequisites for this combo.', validators=TEXT_VALIDATORS)
     notable_prerequisites = models.TextField(blank=True, help_text='Notable prerequisites for this combo.', validators=TEXT_VALIDATORS)

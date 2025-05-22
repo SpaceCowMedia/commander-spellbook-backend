@@ -45,7 +45,7 @@ class ComboForm(SpellbookAdminForm):
     class Meta:
         widgets = {
             'notes': Textarea(attrs={'rows': 2}),
-            'public_notes': Textarea(attrs={'rows': 2}),
+            'comment': Textarea(attrs={'rows': 2}),
         }
 
 
@@ -170,7 +170,7 @@ class ComboAdmin(SpellbookModelAdmin):
     fieldsets = [
         ('Generated', {'fields': ['id', 'scryfall_link', 'updated', 'created']}),
         ('More Requirements', {'fields': ['mana_needed', 'easy_prerequisites', 'notable_prerequisites']}),
-        ('Description', {'fields': ['status', 'allow_many_cards', 'allow_multiple_copies', 'description', 'public_notes', 'notes']}),
+        ('Description', {'fields': ['status', 'allow_many_cards', 'allow_multiple_copies', 'description', 'notes', 'comment']}),
     ]
     inlines = [
         CardInComboAdminInline,

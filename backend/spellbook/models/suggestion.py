@@ -17,6 +17,7 @@ class Suggestion(models.Model):
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, editable=False)
     suggested_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, editable=False, help_text='User that suggested this', related_name='%(class)s')
+    notes = models.TextField(blank=True, help_text='Notes written by editors', validators=TEXT_VALIDATORS)
 
     class Meta:
         abstract = True

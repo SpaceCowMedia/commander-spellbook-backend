@@ -32,11 +32,11 @@ class VariantTests(TestCaseMixinWithSeeding, TestCase):
         self.assertIn('Some easy requisites.', v.easy_prerequisites)
         self.assertIn('Some notable requisites.', v.notable_prerequisites)
         self.assertIn('2', v.description)
+        self.assertIn('2', v.comment)
         self.assertIn('2', v.notes)
-        self.assertIn('2', v.public_notes)
         self.assertIn('4', v.description)
+        self.assertIn('4', v.comment)
         self.assertIn('4', v.notes)
-        self.assertIn('4', v.public_notes)
         self.assertEqual(v.identity, 'W')
         self.assertEqual(v.generated_by.id, Job.objects.get(name='generate_variants').id)  # type: ignore
         self.assertEqual(v.legal_commander, True)

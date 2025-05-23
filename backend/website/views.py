@@ -15,6 +15,7 @@ from .services.moxfield import moxfield, MOXFIELD_HOSTNAME
 from .services.archidekt import archidekt, ARCHIDEKT_HOSTNAME
 from .services.deckstats import deckstats, DECKSTATS_HOSTNAME
 from .services.tappedout import tappedout, TAPPEDOUT_HOSTNAME
+from .services.scryfall import scryfall, SCRYFALL_HOSTNAME
 
 
 class WebsitePropertyViewSet(viewsets.ReadOnlyModelViewSet):
@@ -27,6 +28,7 @@ SUPPORTED_DECKBUILDING_WEBSITES = {
     ARCHIDEKT_HOSTNAME: archidekt,
     DECKSTATS_HOSTNAME: deckstats,
     TAPPEDOUT_HOSTNAME: tappedout,
+    SCRYFALL_HOSTNAME: scryfall,
 }
 
 

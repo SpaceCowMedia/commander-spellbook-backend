@@ -6,73 +6,10 @@ from django.contrib.auth.models import Permission
 from django.contrib.contenttypes.models import ContentType
 from rest_framework import status
 from common.inspection import json_to_python_lambda
-from spellbook.models import VariantSuggestion
+from spellbook.models import VariantSuggestion, Variant
 from spellbook.models.utils import strip_accents
 from ..testing import TestCaseMixinWithSeeding
 from django.urls import reverse
-
-
-POST_DATA = {
-    "uses": [
-        {
-            "card": "A card àèéìòù",
-            "quantity": 2,
-            "zoneLocations": list("HBGEL"),
-            "battlefieldCardState": "bstate",
-            "exileCardState": "estate",
-            "libraryCardState": "lstate",
-            "graveyardCardState": "gstate",
-            "mustBeCommander": False
-        },
-        {
-            "card": "Another card",
-            "quantity": 1,
-            "zoneLocations": list("HC"),
-            "battlefieldCardState": "",
-            "exileCardState": "",
-            "libraryCardState": "",
-            "graveyardCardState": "",
-            "mustBeCommander": True
-        },
-    ],
-    "requires": [
-        {
-            "template": "A template i.e. a card type",
-            "quantity": 1,
-            "zoneLocations": list("H"),
-            "battlefieldCardState": "",
-            "exileCardState": "",
-            "libraryCardState": "",
-            "graveyardCardState": "",
-            "mustBeCommander": False
-        },
-        {
-            "template": "Another template",
-            "quantity": 4,
-            "scryfall_query": "pow=2",
-            "zoneLocations": list("GL"),
-            "battlefieldCardState": "",
-            "exileCardState": "",
-            "libraryCardState": "in library",
-            "graveyardCardState": "",
-            "mustBeCommander": False
-        }
-    ],
-    "produces": [
-        {
-            "feature": "First produced feature"
-        },
-        {
-            "feature": "Second produced feature"
-        }
-    ],
-    "manaNeeded": "{1}{W}{U}{B}{R}{G}",
-    "easyPrerequisites": "easy prereqs",
-    "notablePrerequisites": "notable prereqs",
-    "description": "a description",
-    "spoiler": False,
-    "comment": "a comment",
-}
 
 
 class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
@@ -82,6 +19,69 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
         logger = logging.getLogger("django.request")
         self.previous_level = logger.getEffectiveLevel()
         logger.setLevel(logging.ERROR)
+        super().generate_and_publish_variants()
+        self.post_data = {
+            "uses": [
+                {
+                    "card": "A card àèéìòù",
+                    "quantity": 2,
+                    "zoneLocations": list("HBGEL"),
+                    "battlefieldCardState": "bstate",
+                    "exileCardState": "estate",
+                    "libraryCardState": "lstate",
+                    "graveyardCardState": "gstate",
+                    "mustBeCommander": False
+                },
+                {
+                    "card": "Another card",
+                    "quantity": 1,
+                    "zoneLocations": list("HC"),
+                    "battlefieldCardState": "",
+                    "exileCardState": "",
+                    "libraryCardState": "",
+                    "graveyardCardState": "",
+                    "mustBeCommander": True
+                },
+            ],
+            "requires": [
+                {
+                    "template": "A template i.e. a card type",
+                    "quantity": 1,
+                    "zoneLocations": list("H"),
+                    "battlefieldCardState": "",
+                    "exileCardState": "",
+                    "libraryCardState": "",
+                    "graveyardCardState": "",
+                    "mustBeCommander": False
+                },
+                {
+                    "template": "Another template",
+                    "quantity": 4,
+                    "scryfall_query": "pow=2",
+                    "zoneLocations": list("GL"),
+                    "battlefieldCardState": "",
+                    "exileCardState": "",
+                    "libraryCardState": "in library",
+                    "graveyardCardState": "",
+                    "mustBeCommander": False
+                }
+            ],
+            "produces": [
+                {
+                    "feature": "First produced feature"
+                },
+                {
+                    "feature": "Second produced feature"
+                }
+            ],
+            "manaNeeded": "{1}{W}{U}{B}{R}{G}",
+            "easyPrerequisites": "easy prereqs",
+            "notablePrerequisites": "notable prereqs",
+            "description": "a description",
+            "spoiler": False,
+            "comment": "a comment",
+            "variantOf": Variant.objects.all()[0].id,
+        }
 
     def tearDown(self) -> None:
         """Reset the log level back to normal"""
@@ -120,6 +120,7 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
         self.assertEqual(suggestion_result.notable_prerequisites, vs.notable_prerequisites)
         self.assertEqual(suggestion_result.description, vs.description)
         self.assertEqual(suggestion_result.spoiler, vs.spoiler)
+        self.assertEqual(suggestion_result.variant_of, vs.variant_of.id if vs.variant_of else None)
         if suggestion_result.suggested_by is not None:
             self.assertEqual(suggestion_result.suggested_by.id, vs.suggested_by.id)  # type: ignore
             self.assertEqual(suggestion_result.suggested_by.username, vs.suggested_by.username)  # type: ignore
@@ -143,14 +144,14 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
         self.suggestion_assertions(result)
 
     def test_new_suggestion(self):
-        response = self.client.post(reverse('variant-suggestions-list'), POST_DATA, content_type='application/json', follow=True)
+        response = self.client.post(reverse('variant-suggestions-list'), self.post_data, content_type='application/json', follow=True)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
         self.client.force_login(self.user)
-        response = self.client.post(reverse('variant-suggestions-list'), POST_DATA, content_type='application/json', follow=True)
+        response = self.client.post(reverse('variant-suggestions-list'), self.post_data, content_type='application/json', follow=True)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
         permissions = Permission.objects.filter(content_type=ContentType.objects.get_for_model(VariantSuggestion))
         self.user.user_permissions.add(*permissions)
-        response = self.client.post(reverse('variant-suggestions-list'), POST_DATA, content_type='application/json', follow=True)
+        response = self.client.post(reverse('variant-suggestions-list'), self.post_data, content_type='application/json', follow=True)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.get('Content-Type'), 'application/json')
         result = json.loads(response.content, object_hook=json_to_python_lambda)
@@ -163,9 +164,9 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
         self.client.force_login(self.user)
         permissions = Permission.objects.filter(content_type=ContentType.objects.get_for_model(VariantSuggestion))
         self.user.user_permissions.add(*permissions)
-        response = self.client.post(reverse('variant-suggestions-list'), POST_DATA, content_type='application/json', follow=True)
+        response = self.client.post(reverse('variant-suggestions-list'), self.post_data, content_type='application/json', follow=True)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        response = self.client.post(reverse('variant-suggestions-list'), POST_DATA, content_type='application/json', follow=True)
+        response = self.client.post(reverse('variant-suggestions-list'), self.post_data, content_type='application/json', follow=True)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.get('Content-Type'), 'application/json')
 
@@ -173,9 +174,9 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
         self.client.force_login(self.user)
         permissions = Permission.objects.filter(content_type=ContentType.objects.get_for_model(VariantSuggestion))
         self.user.user_permissions.add(*permissions)
-        response = self.client.post(reverse('variant-suggestions-list'), POST_DATA, content_type='application/json', follow=True)
+        response = self.client.post(reverse('variant-suggestions-list'), self.post_data, content_type='application/json', follow=True)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        post_data_2 = deepcopy(POST_DATA)
+        post_data_2 = deepcopy(self.post_data)
         post_data_2['uses'][0]['card'] = 'A different card'
         response_2 = self.client.post(reverse('variant-suggestions-list'), post_data_2, content_type='application/json', follow=True)
         self.assertEqual(response_2.status_code, status.HTTP_201_CREATED)
@@ -187,11 +188,11 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
         self.client.force_login(self.user)
         permissions = Permission.objects.filter(content_type=ContentType.objects.get_for_model(VariantSuggestion))
         self.user.user_permissions.add(*permissions)
-        response = self.client.post(reverse('variant-suggestions-list'), POST_DATA, content_type='application/json', follow=True)
+        response = self.client.post(reverse('variant-suggestions-list'), self.post_data, content_type='application/json', follow=True)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         result = json.loads(response.content, object_hook=json_to_python_lambda)
         self.assertGreater(result.id, 0)
-        put_data = deepcopy(POST_DATA)
+        put_data = deepcopy(self.post_data)
         put_data['comment'] = 'new comment'
         put_data['requires'][0]['scryfall_query'] = None
         put_data['produces'].append({
@@ -208,7 +209,7 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
         self.client.force_login(self.user)
         permissions = Permission.objects.filter(content_type=ContentType.objects.get_for_model(VariantSuggestion))
         self.user.user_permissions.add(*permissions)
-        response = self.client.post(reverse('variant-suggestions-list'), POST_DATA, content_type='application/json', follow=True)
+        response = self.client.post(reverse('variant-suggestions-list'), self.post_data, content_type='application/json', follow=True)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         result = json.loads(response.content, object_hook=json_to_python_lambda)
         self.assertGreater(result.id, 0)
@@ -290,7 +291,8 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
             "manaNeeded": "",
             "easyPrerequisites": "",
             "notablePrerequisites": "",
-            "description": ""
+            "description": "",
+            "variantOf": "asd",
         }
         self.client.force_login(self.user)
         permissions = Permission.objects.filter(content_type=ContentType.objects.get_for_model(VariantSuggestion))
@@ -302,11 +304,12 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
         self.assertTrue(hasattr(result, 'uses'))
         self.assertGreaterEqual(len(result.uses), 2)
         suggestion_count_before = VariantSuggestion.objects.count()
-        response = self.client.post(reverse('variant-suggestions-validate-create'), POST_DATA, content_type='application/json', follow=True)
+        response = self.client.post(reverse('variant-suggestions-validate-create'), self.post_data, content_type='application/json', follow=True)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.get('Content-Type'), 'application/json')
         validation_result = json.loads(response.content, object_hook=json_to_python_lambda)
         self.assertTrue(hasattr(validation_result, 'uses'))
+        self.assertTrue(hasattr(validation_result, 'variant_of'))
         self.assertGreaterEqual(len(validation_result.uses), 2)
         suggestion_count_after = VariantSuggestion.objects.count()
         self.assertEqual(suggestion_count_before, suggestion_count_after)
@@ -315,11 +318,11 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
         self.client.force_login(self.user)
         permissions = Permission.objects.filter(content_type=ContentType.objects.get_for_model(VariantSuggestion))
         self.user.user_permissions.add(*permissions)
-        response = self.client.post(reverse('variant-suggestions-list'), POST_DATA, content_type='application/json', follow=True)
+        response = self.client.post(reverse('variant-suggestions-list'), self.post_data, content_type='application/json', follow=True)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         result = json.loads(response.content, object_hook=json_to_python_lambda)
         self.assertGreater(result.id, 0)
-        put_data = deepcopy(POST_DATA)
+        put_data = deepcopy(self.post_data)
         put_data['comment'] = 'new comment'
         put_data['requires'][0]['scryfall_query'] = None
         put_data['produces'].append({

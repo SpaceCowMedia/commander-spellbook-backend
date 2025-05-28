@@ -207,6 +207,12 @@ class ComboAdmin(SpellbookModelAdmin):
         fieldsets = super().get_fieldsets(request, obj)
         if not obj or not obj.uses.exists():
             fieldsets = fieldsets[1:]
+        if obj and request.GET.get('from_variant_suggestion', None):
+            suggestion_id = request.GET['from_variant_suggestion']
+            suggestion_url = reverse('admin:spellbook_variantsuggestion_change', args=[suggestion_id])
+            messages.warning(request, mark_safe(
+                f'You should edit the combo below so that it will also generate <a href="{suggestion_url}" target="_blank">the suggested variant #{suggestion_id}</a>'
+            ))
         return fieldsets
 
     def get_changeform_initial_data(self, request: HttpRequest) -> dict[str, str]:

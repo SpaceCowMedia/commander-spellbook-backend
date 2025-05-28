@@ -59,6 +59,7 @@ class VariantSuggestionAdmin(SpellbookModelAdmin):
             'created',
         ]}),
         ('Editable', {'fields': [
+            'variant_of',
             'mana_needed',
             'easy_prerequisites',
             'notable_prerequisites',
@@ -86,6 +87,7 @@ class VariantSuggestionAdmin(SpellbookModelAdmin):
         'notes',
         'comment',
     ]
+    raw_id_fields = ['variant_of']
 
     def get_readonly_fields(self, request: Any, obj: Any | None = ...) -> list[str] | tuple[Any, ...]:
         return list(super().get_readonly_fields(request, obj)) + (

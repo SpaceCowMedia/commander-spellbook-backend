@@ -69,6 +69,7 @@ class VariantSuggestionSerializer(serializers.ModelSerializer):
             'uses',
             'requires',
             'produces',
+            'variant_of',
             'mana_needed',
             'easy_prerequisites',
             'notable_prerequisites',

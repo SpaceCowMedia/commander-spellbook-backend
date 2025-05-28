@@ -25,6 +25,14 @@ class VariantSuggestion(Recipe, Suggestion):
     notable_prerequisites = models.TextField(blank=True, help_text='Notable prerequisites for this combo.', validators=TEXT_VALIDATORS)
     description = models.TextField(blank=False, help_text='Long description, in steps', validators=TEXT_VALIDATORS)
     spoiler = models.BooleanField(default=False, help_text='Is this combo a spoiler?', verbose_name='is spoiler')
+    variant_of = models.ForeignKey(
+        to=Variant,
+        on_delete=models.SET_NULL,
+        related_name='suggested_variants',
+        blank=True,
+        null=True,
+        help_text='If this suggestion is a variant of an existing one, link it here.',
+    )
     uses: models.Manager['CardUsedInVariantSuggestion']
     requires: models.Manager['TemplateRequiredInVariantSuggestion']
     produces: models.Manager['FeatureProducedInVariantSuggestion']

@@ -24,6 +24,13 @@
 {% endblock %}
 
 {% block object-tools-items %}
+    {% if original.variant_of %}
+        {% for combo in original.variant_of.of.all %}
+            <li>
+                <a href="{% url 'admin:spellbook_combo_change' combo.id %}?from_variant_suggestion={{ original.id }}" target="_blank" title="{{ combo }}">Accept as update to combo #{{ combo.id }}</a>
+            </li>
+        {% endfor %}
+    {% endif %}
     <li>
         <a href="{% url 'admin:spellbook_combo_add' %}?from_variant_suggestion={{ original.id }}" target="_blank">Accept as new combo</a>
     </li>

@@ -497,7 +497,7 @@ jobs:
         working-directory: client/python
 
       - name: Install test dependencies 🧶
-        run: pip install --no-cache-dir --no-deps -r requirements.txt
+        run: pip install --no-cache-dir --no-deps tblib $(grep -ivE "#|cryptography|cffi" requirements.txt)
         working-directory: backend
 
       - name: Run python tests 🧪

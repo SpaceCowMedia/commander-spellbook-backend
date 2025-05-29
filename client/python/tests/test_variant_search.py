@@ -4,7 +4,7 @@ from .testing import SpellbookClientTest
 class TestVariantSearch(SpellbookClientTest):
     async def test_without_parameters(self):
         variants = await self.get_variants()
-        self.assertEqual(7, len(variants.results))
+        self.assertEqual(self.expected_variant_count, len(variants.results))
 
     async def test_by_card_name(self):
         variants = await self.get_variants(q='"A A"')

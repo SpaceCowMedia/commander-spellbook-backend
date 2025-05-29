@@ -1,6 +1,6 @@
 from drf_spectacular.openapi import AutoSchema
 from multiset import FrozenMultiset
-from django.db.models import F, Sum, Case, When
+from django.db.models import F, Sum, Case, When, Count
 from django.db.models.functions import Greatest, Coalesce
 from rest_framework import parsers, serializers
 from rest_framework.response import Response
@@ -133,7 +133,7 @@ class FindMyCombosView(DecklistAPIView):
                         ),
                     ),
                     0,
-                ) + Coalesce(
+                ) / Greatest(Count('templateinvariant', distinct=True), 1) + Coalesce(
                     Sum(
                         Greatest(
                             F('templateinvariant__quantity') - template_quantity_in_deck,
@@ -141,7 +141,7 @@ class FindMyCombosView(DecklistAPIView):
                         ),
                     ),
                     0,
-                ),
+                ) / Greatest(Count('cardinvariant', distinct=True), 1),
             ) \
             .filter(
                 missing_count__lte=1,

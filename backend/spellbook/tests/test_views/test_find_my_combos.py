@@ -102,7 +102,7 @@ class FindMyCombosViewTests(TestCaseMixinWithSeeding, TestCase):
                     self.assertEqual(result.results.identity, identity)
                     self.assertEqual(len(result.results.included), 0)
                     self.assertEqual(len(result.results.almost_included), 2)
-                    self.assertEqual(len(result.results.almost_included_by_adding_colors), 0)
+                    self.assertEqual(len(result.results.almost_included_by_adding_colors), 1)
                     self.assertEqual(len(result.results.almost_included_by_changing_commanders), 0)
                     self.assertEqual(len(result.results.almost_included_by_adding_colors_and_changing_commanders), 0)
                     self._check_result(result, identity, FrozenMultiset({card.name}), FrozenMultiset())

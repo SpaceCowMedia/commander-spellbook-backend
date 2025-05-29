@@ -212,8 +212,10 @@ class TestCaseMixinWithSeeding(TestCaseMixin):
     b5_id = 0
     b6_id = 0
     b7_id = 0
+    b8_id = 0
+    b9_id = 0
     s1_id = 0
-    expected_variant_count = 7
+    expected_variant_count = 8
     admin: User
     user: User
 
@@ -233,6 +235,7 @@ class TestCaseMixinWithSeeding(TestCaseMixin):
         - <Variant: H-H + A A + TA ➜ FB + FD> with id '1-8--1'
         - <Variant: B B + C C + A A ➜ FB + FC> with id '1-2-3'
         - <Variant: B B + C C + E É + F F ➜ FB + FC> with id '2-3-5-6'
+        - <Variant: A A + B B + TA + TB ➜ FD> with id '1-2--1-2'
         '''
         fa1 = FeatureAttribute.objects.create(name='FA1')
         fa2 = FeatureAttribute.objects.create(name='FA2')
@@ -256,7 +259,8 @@ class TestCaseMixinWithSeeding(TestCaseMixin):
         b5 = Combo.objects.create(mana_needed='{G}{G}', notable_prerequisites='Some requisites.', description='e5', status=Combo.Status.UTILITY, notes='ee5', comment='***5')
         b6 = Combo.objects.create(mana_needed='{W}{U}{B}{R}{G}', notable_prerequisites='Some requisites.', description='f6', status=Combo.Status.GENERATOR, allow_many_cards=True, notes='ff6', comment='***6')
         b7 = Combo.objects.create(mana_needed='{W}{U}{B}{R}{G}', notable_prerequisites='Some requisites.', description='g7', status=Combo.Status.DRAFT, notes='gg7', comment='***7')
-        b8 = Combo.objects.create(mana_needed='{W}{U}{B}{R}{G}', notable_prerequisites='Some requisites.', description='g7', status=Combo.Status.NEEDS_REVIEW, notes='gg7', comment='***8')
+        b8 = Combo.objects.create(mana_needed='{W}{U}{B}{R}{G}', notable_prerequisites='Some requisites.', description='h8', status=Combo.Status.NEEDS_REVIEW, notes='hh8', comment='***8')
+        b9 = Combo.objects.create(mana_needed='', easy_prerequisites='Some easy requisites.', notable_prerequisites='Some notable requisites.', description='i9', status=Combo.Status.GENERATOR, notes='ii9', comment='***9')
         t1 = Template.objects.create(name='TA', scryfall_query='tou>5', description='hello.')
         t2 = Template.objects.create(name='TB')
         t2.replacements.add(c1)
@@ -303,6 +307,11 @@ class TestCaseMixinWithSeeding(TestCaseMixin):
         fn3.none_of_attributes.add(fa1)
         FeatureProducedInCombo.objects.create(feature=f5, combo=b8)
         FeatureNeededInCombo.objects.create(feature=f4, combo=b8, quantity=1)
+        CardInCombo.objects.create(card=c1, combo=b9, order=1, zone_locations=ZoneLocation.BATTLEFIELD, battlefield_card_state='tapped')
+        CardInCombo.objects.create(card=c2, combo=b9, order=2, zone_locations=ZoneLocation.BATTLEFIELD, battlefield_card_state='tapped')
+        TemplateInCombo.objects.create(template=t1, combo=b9, order=1, zone_locations=ZoneLocation.BATTLEFIELD, battlefield_card_state='tapped')
+        TemplateInCombo.objects.create(template=t2, combo=b9, order=2, zone_locations=ZoneLocation.BATTLEFIELD, battlefield_card_state='tapped')
+        FeatureProducedInCombo.objects.create(feature=f4, combo=b9)
 
         s1 = VariantSuggestion.objects.create(status=VariantSuggestion.Status.NEW, mana_needed='{W}{W}', easy_prerequisites='Some easy requisites.', notable_prerequisites='Some notable requisites.', description='1', spoiler=True, suggested_by=None)
         CardUsedInVariantSuggestion.objects.create(card=c1.name, variant=s1, order=1, zone_locations=ZoneLocation.HAND)
@@ -336,6 +345,7 @@ class TestCaseMixinWithSeeding(TestCaseMixin):
         self.b6_id = b6.id
         self.b7_id = b7.id
         self.b8_id = b8.id
+        self.b9_id = b9.id
         self.s1_id = s1.id
         self.a1_id = a1.id
 

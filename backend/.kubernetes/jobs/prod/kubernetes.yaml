@@ -4,6 +4,7 @@ metadata:
   name: spellbook-hourly-update
   namespace: spellbook-prod
 spec:
+  timeZone: America/Los_Angeles
   schedule: '0 * * * *'
   jobTemplate:
     spec:
@@ -82,7 +83,8 @@ spec:
                     secretKeyRef:
                       name: api-secrets
                       key: moxfield-user-agent
-          restartPolicy: OnFailure
+          restartPolicy: Never
+  concurrencyPolicy: Forbid
 ---
 apiVersion: batch/v1
 kind: CronJob
@@ -169,4 +171,5 @@ spec:
                     secretKeyRef:
                       name: api-secrets
                       key: moxfield-user-agent
-          restartPolicy: OnFailure
+          restartPolicy: Never
+  concurrencyPolicy: Forbid

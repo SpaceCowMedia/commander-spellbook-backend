@@ -33,4 +33,7 @@
     "mypy-type-checker.cwd": "${workspaceFolder}/backend",
     "todo-tree.tree.scanMode": "workspace only",
     "debug.inlineValues": "off",
+    "yaml.schemas": {
+        "Kubernetes": "*kube*.yaml",
+    },
 }

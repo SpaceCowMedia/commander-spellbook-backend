@@ -12,9 +12,9 @@ from django.urls import reverse, path
 from django.shortcuts import redirect
 from django.utils import timezone
 from spellbook.utils import launch_job_command
-from spellbook.models import Card, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion
+from spellbook.models import Card, FeatureNeededInCombo, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion
 from .utils import SpellbookModelAdmin, SpellbookAdminForm, CustomFilter, IngredientCountListFilter
-from .ingredient_admin import IngredientInCombinationAdmin
+from .ingredient_admin import IngredientAdmin, IngredientInCombinationAdmin
 
 
 def create_missing_object_message(url: str) -> str:
@@ -77,10 +77,9 @@ class TemplateInComboAdminInline(IngredientInCombinationAdmin):
         return result
 
 
-class FeatureNeededInComboAdminInline(admin.TabularInline):
-    model = Combo.needs.through
-    fields = ['feature', 'quantity', 'zone_locations_override', 'any_of_attributes', 'all_of_attributes', 'none_of_attributes']
-    extra = 0
+class FeatureNeededInComboAdminInline(IngredientAdmin):
+    fields = ['feature', *IngredientAdmin.fields, 'any_of_attributes', 'all_of_attributes', 'none_of_attributes']
+    model = FeatureNeededInCombo
     verbose_name = 'Feature'
     verbose_name_plural = 'Required Features'
     autocomplete_fields = ['feature', 'any_of_attributes', 'all_of_attributes', 'none_of_attributes']

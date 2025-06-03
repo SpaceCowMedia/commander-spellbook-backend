@@ -1,14 +1,13 @@
 from django.db import models
 from django.db.models.signals import m2m_changed, post_save, post_delete
 from django.dispatch import receiver
-from django.core.validators import MinValueValidator
 from django.core.exceptions import ValidationError
 from .mixins import ScryfallLinkMixin
 from .recipe import Recipe
 from .card import Card
 from .feature import Feature
 from .template import Template
-from .ingredient import IngredientInCombination, ZoneLocationsField
+from .ingredient import Ingredient, IngredientInCombination, ZoneLocationsField
 from .validators import MANA_VALIDATOR, TEXT_VALIDATORS
 from .constants import HIGHER_CARD_LIMIT, DEFAULT_CARD_LIMIT, LOWER_VARIANT_LIMIT, DEFAULT_VARIANT_LIMIT, MAX_MANA_NEEDED_LENGTH
 from .feature_attribute import WithFeatureAttributes, WithFeatureAttributesMatcher
@@ -151,12 +150,11 @@ class TemplateInCombo(IngredientInCombination):
         unique_together = [('template', 'combo')]
 
 
-class FeatureNeededInCombo(WithFeatureAttributesMatcher):
+class FeatureNeededInCombo(Ingredient, WithFeatureAttributesMatcher):
     id: int
     combo = models.ForeignKey(to=Combo, on_delete=models.CASCADE)
     combo_id: int
-    quantity = models.PositiveSmallIntegerField(default=1, blank=False, help_text='Quantity of the feature needed in the combo.', verbose_name='quantity', validators=[MinValueValidator(1)])
-    zone_locations_override = ZoneLocationsField(blank=True, default='', verbose_name='zone locations override', help_text='Option to override the zone locations for the card(s) this feature replaces.')
+    zone_locations = ZoneLocationsField(blank=True, verbose_name='starting locations override', help_text='Override the starting locations for this feature replacements in this combo.')
 
     def __str__(self):
         return f'{self.feature} needed in combo {self.combo_id}'

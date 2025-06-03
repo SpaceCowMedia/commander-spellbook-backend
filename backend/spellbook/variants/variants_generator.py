@@ -10,7 +10,7 @@ from django.utils.functional import cached_property
 from .utils import includes_any
 from .variant_data import Data, debug_queries
 from .combo_graph import FeatureWithAttributes, Graph, VariantSet, cardid, templateid, featureid
-from spellbook.models import Combo, Feature, Job, Variant, CardInVariant, TemplateInVariant, id_from_cards_and_templates_ids, Playable, Card, Template, VariantAlias, Ingredient, FeatureProducedByVariant, VariantOfCombo, VariantIncludesCombo, ZoneLocation, CardType
+from spellbook.models import Combo, Feature, FeatureNeededInCombo, Job, Variant, CardInVariant, TemplateInVariant, id_from_cards_and_templates_ids, Playable, Card, Template, VariantAlias, Ingredient, FeatureProducedByVariant, VariantOfCombo, VariantIncludesCombo, ZoneLocation, CardType
 from spellbook.utils import log_into_job
 from spellbook.models.constants import DEFAULT_CARD_LIMIT, DEFAULT_VARIANT_LIMIT, HIGHER_CARD_LIMIT, LOWER_VARIANT_LIMIT
 
@@ -362,6 +362,8 @@ def restore_variant(
             variant.notable_prerequisites = apply_replacements(data, '\n'.join(additional_notable_prerequisites), replacements, variant_def.needed_combos) + '\n' + variant.notable_prerequisites
         card_zone_locations_overrides = defaultdict[int, defaultdict[str, int]](lambda: defaultdict(int))
         template_zone_locations_overrides = defaultdict[int, defaultdict[str, int]](lambda: defaultdict(int))
+        card_features_for_override = defaultdict[int, set[FeatureNeededInCombo]](set)
+        template_features_for_override = defaultdict[int, set[FeatureNeededInCombo]](set)
         for combo in combos_included_for_a_reason:
             # Computing used cards initial state
             for card_in_combo in data.combo_to_cards[combo.id]:
@@ -383,22 +385,21 @@ def restore_variant(
                         update_state(to_edit, template_in_combo)
             # Applying zone locations overrides
             for feature_in_combo in data.combo_to_needed_features[combo.id]:
-                if feature_in_combo.zone_locations_override:
+                if feature_in_combo.zone_locations:
                     for feature_attributes, feature_replacements in variant_def.feature_replacements.items():
                         if feature_attributes.feature.id == feature_in_combo.feature_id \
                                 and data.feature_needed_in_combo_to_attributes_matcher[feature_in_combo.id].matches(feature_attributes.attributes):
                             for feature_replacement in feature_replacements:
+                                # Apply the override to all cards replacing the feature
                                 for card in feature_replacement.card_ids:
-                                    for location in feature_in_combo.zone_locations_override:
+                                    card_features_for_override[card.card_id].add(feature_in_combo)
+                                    for location in feature_in_combo.zone_locations:
                                         card_zone_locations_overrides[card][location] += 1
                                 for template in feature_replacement.template_ids:
-                                    for location in feature_in_combo.zone_locations_override:
+                                    template_features_for_override[template.template_id].add(feature_in_combo)
+                                    for location in feature_in_combo.zone_locations:
                                         template_zone_locations_overrides[template][location] += 1
         for used_card in used_cards:
-            used_card.battlefield_card_state = apply_replacements(data, used_card.battlefield_card_state, replacements, variant_def.needed_combos)
-            used_card.exile_card_state = apply_replacements(data, used_card.exile_card_state, replacements, variant_def.needed_combos)
-            used_card.graveyard_card_state = apply_replacements(data, used_card.graveyard_card_state, replacements, variant_def.needed_combos)
-            used_card.library_card_state = apply_replacements(data, used_card.library_card_state, replacements, variant_def.needed_combos)
             override_score = max(card_zone_locations_overrides[used_card.card_id].values(), default=0)
             if override_score > 0:
                 used_card.zone_locations = ''.join(
@@ -406,11 +407,47 @@ def restore_variant(
                     for location, count in card_zone_locations_overrides[used_card.card_id].items()
                     if count == override_score
                 )
+            used_card.battlefield_card_state = apply_replacements(
+                data,
+                '\n'.join(
+                    f.battlefield_card_state
+                    for f in card_features_for_override[used_card.card_id]
+                    if ZoneLocation.BATTLEFIELD in f.zone_locations and f.battlefield_card_state
+                ) or used_card.battlefield_card_state if ZoneLocation.BATTLEFIELD in used_card.zone_locations else '',
+                replacements,
+                variant_def.needed_combos,
+            )
+            used_card.exile_card_state = apply_replacements(
+                data,
+                '\n'.join(
+                    f.exile_card_state
+                    for f in card_features_for_override[used_card.card_id]
+                    if ZoneLocation.EXILE in f.zone_locations and f.exile_card_state
+                ) or used_card.exile_card_state if ZoneLocation.EXILE in used_card.zone_locations else '',
+                replacements,
+                variant_def.needed_combos,
+            )
+            used_card.graveyard_card_state = apply_replacements(
+                data,
+                '\n'.join(
+                    f.graveyard_card_state
+                    for f in card_features_for_override[used_card.card_id]
+                    if ZoneLocation.GRAVEYARD in f.zone_locations and f.graveyard_card_state
+                ) or used_card.graveyard_card_state if ZoneLocation.GRAVEYARD in used_card.zone_locations else '',
+                replacements,
+                variant_def.needed_combos,
+            )
+            used_card.library_card_state = apply_replacements(
+                data,
+                '\n'.join(
+                    f.library_card_state
+                    for f in card_features_for_override[used_card.card_id]
+                    if ZoneLocation.LIBRARY in f.zone_locations and f.library_card_state
+                ) or used_card.library_card_state if ZoneLocation.LIBRARY in used_card.zone_locations else '',
+                replacements,
+                variant_def.needed_combos,
+            )
         for required_template in required_templates:
-            required_template.battlefield_card_state = apply_replacements(data, required_template.battlefield_card_state, replacements, variant_def.needed_combos)
-            required_template.exile_card_state = apply_replacements(data, required_template.exile_card_state, replacements, variant_def.needed_combos)
-            required_template.graveyard_card_state = apply_replacements(data, required_template.graveyard_card_state, replacements, variant_def.needed_combos)
-            required_template.library_card_state = apply_replacements(data, required_template.library_card_state, replacements, variant_def.needed_combos)
             override_score = max(template_zone_locations_overrides[required_template.template_id].values(), default=0)
             if override_score > 0:
                 required_template.zone_locations = ''.join(
@@ -418,6 +455,46 @@ def restore_variant(
                     for location, count in template_zone_locations_overrides[required_template.template_id].items()
                     if count == override_score
                 )
+            required_template.battlefield_card_state = apply_replacements(
+                data,
+                '\n'.join(
+                    f.battlefield_card_state
+                    for f in template_features_for_override[required_template.template_id]
+                    if ZoneLocation.BATTLEFIELD in f.zone_locations and f.battlefield_card_state
+                ) or required_template.battlefield_card_state if ZoneLocation.BATTLEFIELD in required_template.zone_locations else '',
+                replacements,
+                variant_def.needed_combos,
+            )
+            required_template.exile_card_state = apply_replacements(
+                data,
+                '\n'.join(
+                    f.exile_card_state
+                    for f in template_features_for_override[required_template.template_id]
+                    if ZoneLocation.EXILE in f.zone_locations and f.exile_card_state
+                ) or required_template.exile_card_state if ZoneLocation.EXILE in required_template.zone_locations else '',
+                replacements,
+                variant_def.needed_combos,
+            )
+            required_template.graveyard_card_state = apply_replacements(
+                data,
+                '\n'.join(
+                    f.graveyard_card_state
+                    for f in template_features_for_override[required_template.template_id]
+                    if ZoneLocation.GRAVEYARD in f.zone_locations and f.graveyard_card_state
+                ) or required_template.graveyard_card_state if ZoneLocation.GRAVEYARD in required_template.zone_locations else '',
+                replacements,
+                variant_def.needed_combos,
+            )
+            required_template.library_card_state = apply_replacements(
+                data,
+                '\n'.join(
+                    f.library_card_state
+                    for f in template_features_for_override[required_template.template_id]
+                    if ZoneLocation.LIBRARY in f.zone_locations and f.library_card_state
+                ) or required_template.library_card_state if ZoneLocation.LIBRARY in required_template.zone_locations else '',
+                replacements,
+                variant_def.needed_combos,
+            )
 
     # Ordering ingredients by ascending replaceability and ascending order in combos
     cards_ordering: dict[int, tuple[int, int, int, int]] = {c: (0, 0, 0, 0) for c in uses}

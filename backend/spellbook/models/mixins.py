@@ -59,14 +59,15 @@ class PreSaveSerializedManager(PreSaveManager):
         return super().get_queryset().defer('serialized')
 
     def bulk_serialize(self, objs: Iterable['PreSaveSerializedModelMixin'], serializer: type[ModelSerializer], *args, **kwargs) -> int:
-        objs = list(objs)
-        for obj in objs:
-            obj.pre_save()
-            obj.update_serialized(serializer)
         fields: list = kwargs.pop('fields', [])
         if 'serialized' not in fields:
             fields.append('serialized')
-        return super(Manager, self).bulk_update(objs, *args, fields=fields, **kwargs)
+
+        def process(obj: 'PreSaveSerializedModelMixin'):
+            obj.pre_save()
+            obj.update_serialized(serializer)
+            return obj
+        return super(Manager, self).bulk_update(map(process, objs), *args, fields=fields, **kwargs)
 
 
 class SerializedObjectsManager(Manager):
@@ -80,7 +81,7 @@ class PreSaveSerializedModelMixin(PreSaveModelMixin):
     serialized = JSONField(null=True, blank=True, editable=False)
 
     def update_serialized(self, serializer: type[ModelSerializer]) -> None:
-        self.serialized = serializer(self).data
+        self.serialized = dict(serializer(self).data)
 
     class Meta:
         abstract = True

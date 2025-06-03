@@ -4,9 +4,9 @@
 #
 #    pip-compile
 #
-aiohappyeyeballs==2.4.0
+aiohappyeyeballs==2.6.1
     # via aiohttp
-aiohttp==3.11.18
+aiohttp==3.12.6
     # via
     #   -r requirements.in
     #   aiohttp-retry

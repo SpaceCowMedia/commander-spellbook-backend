@@ -6,9 +6,9 @@
 #
 aiofiles==0.8.0
     # via asyncpraw
-aiohappyeyeballs==2.3.6
+aiohappyeyeballs==2.6.1
     # via aiohttp
-aiohttp==3.11.18
+aiohttp==3.12.6
     # via
     #   -r requirements.in
     #   aiohttp-retry

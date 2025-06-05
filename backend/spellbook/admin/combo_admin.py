@@ -206,7 +206,7 @@ class ComboAdmin(SpellbookModelAdmin):
         fieldsets = super().get_fieldsets(request, obj)
         if not obj or not obj.uses.exists():
             fieldsets = fieldsets[1:]
-        if obj and request.GET.get('from_variant_suggestion', None):
+        if request.method == 'GET' and obj and request.GET.get('from_variant_suggestion', None):
             suggestion_id = request.GET['from_variant_suggestion']
             suggestion_url = reverse('admin:spellbook_variantsuggestion_change', args=[suggestion_id])
             messages.warning(request, mark_safe(
@@ -441,3 +441,10 @@ class ComboAdmin(SpellbookModelAdmin):
                 name='spellbook_combo_generate_variants'
             )
         ] + super().get_urls()
+
+    def _get_preserved_qsl(self, request, preserved_filters):
+        return [t for t in super()._get_preserved_qsl(request, preserved_filters) if t[0] not in (  # type: ignore
+            'from_variant_suggestion',
+            'parent_feature',
+            'child_feature',
+        )]

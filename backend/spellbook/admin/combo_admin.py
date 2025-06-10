@@ -206,12 +206,6 @@ class ComboAdmin(SpellbookModelAdmin):
         fieldsets = super().get_fieldsets(request, obj)
         if not obj or not obj.uses.exists():
             fieldsets = fieldsets[1:]
-        if request.method == 'GET' and obj and request.GET.get('from_variant_suggestion', None):
-            suggestion_id = request.GET['from_variant_suggestion']
-            suggestion_url = reverse('admin:spellbook_variantsuggestion_change', args=[suggestion_id])
-            messages.warning(request, mark_safe(
-                f'You should edit the combo below so that it will also generate <a href="{suggestion_url}" target="_blank">the suggested variant #{suggestion_id}</a>'
-            ))
         return fieldsets
 
     def get_changeform_initial_data(self, request: HttpRequest) -> dict[str, str]:
@@ -438,13 +432,6 @@ class ComboAdmin(SpellbookModelAdmin):
             path(
                 'generate-variants/<int:id>',
                 self.admin_site.admin_view(view=self.generate_variants, cacheable=False),
-                name='spellbook_combo_generate_variants'
-            )
+                name='spellbook_combo_generate_variants',
+            ),
         ] + super().get_urls()
-
-    def _get_preserved_qsl(self, request, preserved_filters):
-        return [t for t in super()._get_preserved_qsl(request, preserved_filters) if t[0] not in (  # type: ignore
-            'from_variant_suggestion',
-            'parent_feature',
-            'child_feature',
-        )]

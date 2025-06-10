@@ -1,6 +1,10 @@
 from typing import Any
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.utils import timezone
+from django.utils.safestring import mark_safe
+from django.urls import reverse, path
+from django.http.request import HttpRequest
+from django.shortcuts import redirect
 from spellbook.models import VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, FeatureProducedInVariantSuggestion
 from .ingredient_admin import IngredientInCombinationAdmin
 from .utils import SpellbookModelAdmin, CardCountListFilter
@@ -119,3 +123,19 @@ class VariantSuggestionAdmin(SpellbookModelAdmin):
         if not change:
             form.instance.suggested_by = request.user
         super().save_model(request, obj, form, change)
+
+    def accept_as_update(self, request: HttpRequest, id: int, combo_id: int):
+        suggestion_url = reverse('admin:spellbook_variantsuggestion_change', args=[id])
+        messages.warning(request, mark_safe(
+            f'You should edit the combo below so that it will also generate <a href="{suggestion_url}" target="_blank">the suggested variant #{id}</a>'
+        ))
+        return redirect('admin:spellbook_combo_change', combo_id)
+
+    def get_urls(self):
+        return [
+            path(
+                'accept-as-update/<int:id>/<int:combo_id>',
+                self.admin_site.admin_view(view=self.accept_as_update, cacheable=False),
+                name='spellbook_variantsuggestion_accept_as_update',
+            ),
+        ] + super().get_urls()

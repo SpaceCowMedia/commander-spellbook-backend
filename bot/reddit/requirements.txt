@@ -48,7 +48,7 @@ propcache==0.2.0
     # via
     #   aiohttp
     #   yarl
-pydantic==2.11.5
+pydantic==2.11.7
     # via -r requirements.in
 pydantic-core==2.33.2
     # via pydantic

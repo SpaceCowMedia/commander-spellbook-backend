@@ -1,6 +1,6 @@
 multiset==3.2.0
 boto3==1.38.36
-Django==5.2.2
+Django==5.2.3
 django-filter==25.1
 django-cors-headers==4.7.0
 django-admin-sortable2==2.2.8

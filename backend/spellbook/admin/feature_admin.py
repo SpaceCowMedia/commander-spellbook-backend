@@ -144,15 +144,15 @@ class FeatureAdmin(SpellbookModelAdmin):
             new_name = instance.name
             if old_name and old_name != new_name:
                 ingredient_fields = ['battlefield_card_state', 'exile_card_state', 'graveyard_card_state', 'library_card_state']
-                cards_in_combos = list(CardInCombo.objects.filter(combo__needs=instance))
-                templates_in_combos = list(TemplateInCombo.objects.filter(combo__needs=instance))
+                cards_in_combos = list(CardInCombo.objects.filter(combo__needs=instance).only(*ingredient_fields).distinct())
+                templates_in_combos = list(TemplateInCombo.objects.filter(combo__needs=instance).only(*ingredient_fields).distinct())
                 for ingredient in chain(cards_in_combos, templates_in_combos):
                     ingredient.battlefield_card_state = replace_feature_reference(old_name, new_name, ingredient.battlefield_card_state)
                     ingredient.exile_card_state = replace_feature_reference(old_name, new_name, ingredient.exile_card_state)
                     ingredient.graveyard_card_state = replace_feature_reference(old_name, new_name, ingredient.graveyard_card_state)
                     ingredient.library_card_state = replace_feature_reference(old_name, new_name, ingredient.library_card_state)
                 combo_fields = ['easy_prerequisites', 'notable_prerequisites', 'description', 'notes', 'comment']
-                combos = list(Combo.objects.filter(needs=instance))
+                combos = list(Combo.objects.filter(needs=instance).only(*combo_fields).distinct())
                 for combo in combos:
                     combo.easy_prerequisites = replace_feature_reference(old_name, new_name, combo.easy_prerequisites)
                     combo.notable_prerequisites = replace_feature_reference(old_name, new_name, combo.notable_prerequisites)

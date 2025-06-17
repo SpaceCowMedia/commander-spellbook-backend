@@ -32,7 +32,7 @@ defusedxml==0.7.1
     #   social-auth-core
 discord-webhook==1.4.1
     # via -r requirements.in
-django==5.2.2
+django==5.2.3
     # via
     #   -r requirements.in
     #   django-admin-sortable2

@@ -1,10 +1,12 @@
+import re
 from typing import Any
+from itertools import chain
 from django.contrib import admin
 from django.db.models import QuerySet, TextField, Count
 from django.forms.widgets import Textarea
 from django.http import HttpRequest
 from django.utils.html import format_html
-from spellbook.models import Feature, FeatureOfCard, Combo
+from spellbook.models import CardInCombo, Feature, FeatureOfCard, Combo, TemplateInCombo
 from spellbook.models.scryfall import scryfall_link_for_query, scryfall_query_string_for_card_names, SCRYFALL_MAX_QUERY_LENGTH
 from .utils import SpellbookModelAdmin, SpellbookAdminForm
 from .ingredient_admin import IngredientAdmin
@@ -134,3 +136,53 @@ class FeatureAdmin(SpellbookModelAdmin):
         if obj.pk is None:
             return 0
         return obj.produced_by_count  # type: ignore
+
+    def after_save_related(self, request, form: FeatureForm, formsets, change):
+        if change:
+            old_name: str | None = form.initial.get('name')
+            instance: Feature = form.instance
+            new_name = instance.name
+            if old_name and old_name != new_name:
+                ingredient_fields = ['battlefield_card_state', 'exile_card_state', 'graveyard_card_state', 'library_card_state']
+                cards_in_combos = list(CardInCombo.objects.filter(combo__needs=instance))
+                templates_in_combos = list(TemplateInCombo.objects.filter(combo__needs=instance))
+                for ingredient in chain(cards_in_combos, templates_in_combos):
+                    ingredient.battlefield_card_state = replace_feature_reference(old_name, new_name, ingredient.battlefield_card_state)
+                    ingredient.exile_card_state = replace_feature_reference(old_name, new_name, ingredient.exile_card_state)
+                    ingredient.graveyard_card_state = replace_feature_reference(old_name, new_name, ingredient.graveyard_card_state)
+                    ingredient.library_card_state = replace_feature_reference(old_name, new_name, ingredient.library_card_state)
+                combo_fields = ['easy_prerequisites', 'notable_prerequisites', 'description', 'notes', 'comment']
+                combos = list(Combo.objects.filter(needs=instance))
+                for combo in combos:
+                    combo.easy_prerequisites = replace_feature_reference(old_name, new_name, combo.easy_prerequisites)
+                    combo.notable_prerequisites = replace_feature_reference(old_name, new_name, combo.notable_prerequisites)
+                    combo.description = replace_feature_reference(old_name, new_name, combo.description)
+                    combo.notes = replace_feature_reference(old_name, new_name, combo.notes)
+                    combo.comment = replace_feature_reference(old_name, new_name, combo.comment)
+                Combo.objects.bulk_update(combos, combo_fields)
+                CardInCombo.objects.bulk_update(cards_in_combos, ingredient_fields)
+                TemplateInCombo.objects.bulk_update(templates_in_combos, ingredient_fields)
+
+
+def replace_feature_reference(old_name: str, new_name: str, text: str) -> str:
+    def replacement_with_fallback(key: str) -> str:
+        alias = None
+        try:
+            to_replace, alias = key.rsplit('|', 1)
+        except ValueError:
+            to_replace = key
+        replaced = re.sub(
+            re.escape(old_name),
+            new_name,
+            to_replace,
+            count=1,
+            flags=re.IGNORECASE,
+        )
+        if alias:
+            replaced += f'{replaced}|{alias}'
+        return f'[[{replaced}]]'
+    return re.sub(
+        r'\[\[(?P<key>.+?)\]\]',
+        lambda m: replacement_with_fallback(m.group('key')),
+        text,
+    )

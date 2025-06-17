@@ -4,6 +4,7 @@ from datetime import datetime
 from django.db.models import TextField, DateTimeField, Count, Q, When, Case, Max
 from django.contrib import admin
 from django.db.models.query import QuerySet
+from django.http import HttpRequest
 from django.forms import ModelForm
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
@@ -170,11 +171,11 @@ class SpellbookModelAdmin(SortableAdminBase, ModelAdmin):
             )
         ).order_by('-_match_points')
 
-    def save_related(self, request, form, formsets, change):
+    def save_related(self, request: HttpRequest, form, formsets, change: bool):
         super().save_related(request, form, formsets, change)
         self.after_save_related(request, form, formsets, change)
 
-    def after_save_related(self, request, form, formsets, change):
+    def after_save_related(self, request: HttpRequest, form, formsets, change: bool):
         pass
 
     def get_changelist(self, request, **kwargs: Any) -> type[ChangeList]:

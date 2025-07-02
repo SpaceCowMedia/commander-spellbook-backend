@@ -8,6 +8,6 @@ djangorestframework==3.16.0
 djangorestframework-camel-case==1.4.2
 djangorestframework-simplejwt==5.5.0
 drf-spectacular[sidecar]==0.28.0
-social-auth-app-django==5.4.3
+social-auth-app-django==5.5.1
 discord-webhook==1.4.1
 lark==1.2.2

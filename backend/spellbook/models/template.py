@@ -5,7 +5,7 @@ from django.db.models.functions import Upper
 from django.utils.html import format_html
 from spellbook.models import Card
 from .validators import SCRYFALL_QUERY_HELP, SCRYFALL_QUERY_VALIDATOR, NAME_VALIDATORS
-from .scryfall import SCRYFALL_API_CARD_SEARCH, SCRYFALL_WEBSITE_CARD_SEARCH, SCRYFALL_LEGAL_IN_COMMANDER, SCRYFALL_MAX_QUERY_LENGTH
+from .scryfall import scryfall_query_legal_in_commander, SCRYFALL_API_CARD_SEARCH, SCRYFALL_WEBSITE_CARD_SEARCH, SCRYFALL_MAX_QUERY_LENGTH
 
 
 class Template(models.Model):
@@ -42,7 +42,7 @@ class Template(models.Model):
     def query_string(self):
         if self.scryfall_query is None:
             return None
-        return urlencode({'q': ' '.join(term for term in [self.scryfall_query, SCRYFALL_LEGAL_IN_COMMANDER] if term != '')})
+        return urlencode({'q': scryfall_query_legal_in_commander(self.scryfall_query)})
 
     def scryfall_api(self):
         query = self.query_string()

@@ -14,7 +14,8 @@ class TemplateTests(TestCaseMixinWithSeeding, TestCase):
 
     def test_query_string(self):
         t = Template.objects.get(id=self.t1_id)
-        self.assertIn('q=tou%3E5', t.query_string() or '')
+        self.assertIn('tou%3E5', t.query_string() or '')
+        self.assertIn('legal%3Acommander', t.query_string() or '')
         self.assertTrue((t.query_string() or '').startswith('q='))
 
     def test_scryfall_api_url(self):

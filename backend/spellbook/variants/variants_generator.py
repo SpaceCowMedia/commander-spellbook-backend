@@ -207,7 +207,7 @@ def apply_replacements(
         for cards, templates in replacement_list:
             names = [
                 c.name.split(',', 2)[0]
-                if ',' in c.name and '//' not in c.name and c.is_of_type(CardType.LEGENDARY) and c.is_of_type(CardType.CREATURE)
+                if ',' in c.name and ' // ' not in c.name and c.is_of_type(CardType.LEGENDARY) and c.is_of_type(CardType.CREATURE)
                 else c.name
                 for c in cards
             ] + [

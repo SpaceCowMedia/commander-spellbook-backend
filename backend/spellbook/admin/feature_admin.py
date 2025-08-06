@@ -8,6 +8,7 @@ from django.http import HttpRequest
 from django.utils.html import format_html
 from spellbook.models import CardInCombo, Feature, FeatureOfCard, Combo, TemplateInCombo
 from spellbook.models.scryfall import scryfall_link_for_query, scryfall_query_string_for_card_names, SCRYFALL_MAX_QUERY_LENGTH
+from spellbook.variants.variants_generator import FEATURE_REPLACEMENT_REGEX
 from .utils import SpellbookModelAdmin, SpellbookAdminForm
 from .ingredient_admin import IngredientAdmin
 
@@ -165,24 +166,20 @@ class FeatureAdmin(SpellbookModelAdmin):
 
 
 def replace_feature_reference(old_name: str, new_name: str, text: str) -> str:
-    def replacement_with_fallback(key: str) -> str:
-        alias = None
-        try:
-            to_replace, alias = key.rsplit('|', 1)
-        except ValueError:
-            to_replace = key
-        replaced = re.sub(
-            re.escape(old_name),
-            new_name,
-            to_replace,
-            count=1,
-            flags=re.IGNORECASE,
-        )
-        if alias:
-            replaced += f'{replaced}|{alias}'
-        return f'[[{replaced}]]'
+    def replacement_with_fallback(key: str, alias: str | None, selector: str | None, postfix_alias: str | None, otherwise: str) -> str:
+        if key.lower() != old_name.lower():
+            return otherwise
+        result = new_name
+        if alias is not None:
+            result += f'|{alias}'
+        if selector is not None:
+            result += f'${selector}'
+            if postfix_alias is not None:
+                result += f'|{postfix_alias}'
+        return f'[[{result}]]'
     return re.sub(
-        r'\[\[(?P<key>.+?)\]\]',
-        lambda m: replacement_with_fallback(m.group('key')),
+        FEATURE_REPLACEMENT_REGEX,
+        lambda m: replacement_with_fallback(m.group('key'), m.group('alias'), m.group('selector'), m.group('postfix_alias'), m.group(0)),
         text,
+        flags=re.IGNORECASE,
     )

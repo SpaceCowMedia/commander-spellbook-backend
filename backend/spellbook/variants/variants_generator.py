@@ -6,7 +6,6 @@ from multiset import FrozenMultiset, BaseMultiset
 from dataclasses import dataclass
 from django.db import transaction
 from django.utils.functional import cached_property
-
 from .utils import includes_any
 from .variant_data import Data, debug_queries
 from .combo_graph import FeatureWithAttributes, Graph, VariantSet, cardid, templateid, featureid
@@ -191,6 +190,9 @@ def update_state(dst: Ingredient, src: Ingredient, overwrite=False):
         dst.must_be_commander = dst.must_be_commander or src.must_be_commander
 
 
+FEATURE_REPLACEMENT_REGEX = r'\[\[(?P<key>.+?)(?:\|(?P<alias>[^$|]+?))?(?:\$(?P<selector>[1-9]\d*)(?:\|(?P<postfix_alias>[^$|]+?))?)?\]\]'
+
+
 def apply_replacements(
     data: Data,
     text: str,
@@ -217,50 +219,29 @@ def apply_replacements(
             replacement = ' + '.join(names)
             replacements_strings[feature.feature.name].append(replacement)
 
-    def replacement_alias_strategy(key: str) -> list[str]:
-        alias = ''
-        key = key.strip()
-        parts = key.rsplit('|', 1)
-        key = parts[0]
-        if len(parts) == 2:
-            alias = parts[1]
-        result = replacements_strings[key]
-        if alias:
-            replacements_strings[alias] = result
-        return result
-
-    def replacement_with_fallback(key: str, otherwise: str) -> str:
-        alias = ''
-        selector = 0
-        try:
-            if key.rindex('$') < key.rindex('|'):
-                parts = key.rsplit('|', 1)
-                key = parts[0]
-                alias = parts[1]
-        except ValueError:
-            pass
-        parts = key.split('$', 1)
-        key = parts[0]
-        if len(parts) == 2:
+    def replacement_with_fallback(key: str, alias: str | None, selector: str | None, postfix_alias: str | None, otherwise: str) -> str:
+        selector_index = 0
+        if selector:
             try:
-                selector = int(parts[1]) - 1
-                if selector < 0:
-                    return otherwise
+                selector_index = int(selector) - 1
             except ValueError:
                 return otherwise
-        strings = replacement_alias_strategy(key)
+        strings = replacements_strings[key]
         try:
-            result = strings[selector]
+            result = strings[selector_index]
         except IndexError:
             return otherwise
         if alias:
-            replacements_strings[alias].append(result)
+            replacements_strings[alias] = strings
+        if postfix_alias:
+            replacements_strings.setdefault(postfix_alias, []).append(result)
         return result
 
     return re.sub(
-        r'\[\[(?P<key>.+?)\]\]',
-        lambda m: replacement_with_fallback(m.group('key'), m.group(0)),
+        FEATURE_REPLACEMENT_REGEX,
+        lambda m: replacement_with_fallback(m.group('key'), m.group('alias'), m.group('selector'), m.group('postfix_alias'), m.group(0)),
         text,
+        flags=re.IGNORECASE,
     )
 
 

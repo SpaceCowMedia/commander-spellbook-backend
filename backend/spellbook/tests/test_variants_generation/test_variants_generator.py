@@ -161,7 +161,7 @@ class VariantsGeneratorTests(TestCaseMixinWithSeeding, TestCase):
         fz = Feature.objects.create(name='FZ')
         fw = Feature.objects.create(name='FW')
         fattr = FeatureAttribute.objects.create(name='FAttr')
-        combo = Combo.objects.create()
+        combo = Combo.objects.create(status=Combo.Status.UTILITY)
         fn = FeatureNeededInCombo.objects.create(combo=combo, feature=fx)
         fn.none_of_attributes.add(fattr)
         replacements = {

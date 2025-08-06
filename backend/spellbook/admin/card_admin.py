@@ -55,7 +55,8 @@ class CardAdmin(SpellbookModelAdmin):
                 'scryfall_link',
                 *scryfall_fields,
             ],
-            'description': 'Scryfall data is updated periodically.'
+            'description': 'Scryfall data is updated periodically.',
+            'classes': ['collapse'],
         }),
         ('Legalities', {
             'fields': Card.legalities_fields(),

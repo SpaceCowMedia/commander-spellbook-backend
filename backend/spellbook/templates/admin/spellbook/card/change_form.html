@@ -114,6 +114,26 @@
                             const currentDate = new Date();
                             django.jQuery('#id_spoiler').prop('checked', releasedAt > currentDate);
 
+                            if (data['image_status'] !== 'missing') {
+                                const frontFaceImages = Object.hasOwn(data, 'card_faces') ? data.card_faces[0].image_uris : data.image_uris;
+                                const backFaceImages = Object.hasOwn(data, 'card_faces') ? data.card_faces[1].image_uris : null;
+                                django.jQuery('#id_image_uri_front_png').val(frontFaceImages.png || '');
+                                django.jQuery('#id_image_uri_front_large').val(frontFaceImages.large || '');
+                                django.jQuery('#id_image_uri_front_normal').val(frontFaceImages.normal || '');
+                                django.jQuery('#id_image_uri_front_small').val(frontFaceImages.small || '');
+                                if (backFaceImages) {
+                                    django.jQuery('#id_image_uri_back_png').val(backFaceImages.png || '');
+                                    django.jQuery('#id_image_uri_back_large').val(backFaceImages.large || '');
+                                    django.jQuery('#id_image_uri_back_normal').val(backFaceImages.normal || '');
+                                    django.jQuery('#id_image_uri_back_small').val(backFaceImages.small || '');
+                                } else {
+                                    django.jQuery('#id_image_uri_back_png').val('');
+                                    django.jQuery('#id_image_uri_back_large').val('');
+                                    django.jQuery('#id_image_uri_back_normal').val('');
+                                    django.jQuery('#id_image_uri_back_small').val('');
+                                }
+                            }
+
                             card_info.update_card_oracle_image(
                                 document.getElementById('id_oracle_id').value,
                                 document.getElementById('card-images'));

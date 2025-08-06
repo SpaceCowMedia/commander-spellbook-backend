@@ -38,6 +38,15 @@ class CardViewsTests(TestCaseMixinWithSeeding, TestCase):
         self.assertEqual(card_result.prices.cardkingdom, str(c.price_cardkingdom))
         self.assertEqual(card_result.prices.cardmarket, str(c.price_cardmarket))
         self.assertEqual(len(card_result.features), c.features.count())
+        self.assertEqual(card_result.game_changer, c.game_changer)
+        self.assertEqual(card_result.extra_turn, c.extra_turn)
+        self.assertEqual(card_result.image_uri_front_png, c.image_uri_front_png)
+        self.assertEqual(card_result.image_uri_front_large, c.image_uri_front_large)
+        self.assertEqual(card_result.image_uri_front_normal, c.image_uri_front_normal)
+        self.assertEqual(card_result.image_uri_front_small, c.image_uri_front_small)
+        self.assertEqual(card_result.image_uri_back_png, c.image_uri_back_png)
+        self.assertEqual(card_result.image_uri_back_large, c.image_uri_back_large)
+        self.assertEqual(card_result.image_uri_back_normal, c.image_uri_back_normal)
         card_features_dict = {f.id: f for f in c.featureofcard_set.all()}  # type: ignore
         for feature_of_card in card_result.features:
             self.assertIn(feature_of_card.id, card_features_dict)

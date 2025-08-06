@@ -23,6 +23,8 @@ class CardTests(TestCaseMixinWithSeeding, TestCase):
         self.assertFalse(c.reserved)
         self.assertEqual(c.latest_printing_set, '')
         self.assertFalse(c.reprinted)
+        self.assertEqual(c.image_uri_front_png, 'http://localhost/x.png')
+        self.assertEqual(c.image_uri_back_normal, 'http://localhost/x.jpg')
 
     def test_query_string(self):
         c = Card.objects.get(id=self.c1_id)

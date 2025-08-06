@@ -44,6 +44,14 @@ class Card(Playable, PreSaveModelMixin, ScryfallLinkMixin):
             'tutor',
             'mass_land_denial',
             'extra_turn',
+            'image_uri_front_png',
+            'image_uri_front_large',
+            'image_uri_front_normal',
+            'image_uri_front_small',
+            'image_uri_back_png',
+            'image_uri_back_large',
+            'image_uri_back_normal',
+            'image_uri_back_small',
         ]
     type_line = models.CharField(max_length=MAX_CARD_NAME_LENGTH, blank=True, verbose_name='type line of card')
     oracle_text = models.TextField(blank=True, verbose_name='oracle text of card')
@@ -55,6 +63,14 @@ class Card(Playable, PreSaveModelMixin, ScryfallLinkMixin):
     mass_land_denial = models.BooleanField(default=False, help_text='Whether this card can inhibit or destroy numerous lands', verbose_name='mass land denial card')
     extra_turn = models.BooleanField(default=False, help_text='Whether this card grants an extra turn', verbose_name='extra turn card')
     game_changer = models.BooleanField(default=False, help_text='Whether this card is in the official Game Changer card list', verbose_name='game changer card')
+    image_uri_front_png = models.URLField(blank=True, null=True, verbose_name='image URI of the front of the card in PNG format')
+    image_uri_front_large = models.URLField(blank=True, null=True, verbose_name='image URI of the front of the card in large format')
+    image_uri_front_normal = models.URLField(blank=True, null=True, verbose_name='image URI of the front of the card in normal format')
+    image_uri_front_small = models.URLField(blank=True, null=True, verbose_name='image URI of the front of the card in small format')
+    image_uri_back_png = models.URLField(blank=True, null=True, verbose_name='image URI of the back of the card in PNG format')
+    image_uri_back_large = models.URLField(blank=True, null=True, verbose_name='image URI of the back of the card in large format')
+    image_uri_back_normal = models.URLField(blank=True, null=True, verbose_name='image URI of the back of the card in normal format')
+    image_uri_back_small = models.URLField(blank=True, null=True, verbose_name='image URI of the back of the card in small format')
 
     features = models.ManyToManyField(
         to=Feature,

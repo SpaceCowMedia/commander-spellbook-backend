@@ -247,6 +247,26 @@ def update_cards(cards: list[Card], scryfall: Scryfall, counts: dict[int, int], 
                 card.price_cardmarket = round(Decimal.from_float(p), 2)
             card.latest_printing_set = card_in_db['set'].lower()
             card.reprinted = card_in_db['reprint']
+            if card_in_db['image_status'] != 'missing':
+                front_images: dict[str, str] = card_in_db.get('image_uris', {}) if 'card_faces' not in card_in_db else card_in_db['card_faces'][0].get('image_uris', {})
+                back_images: dict[str, str] = {} if 'card_faces' not in card_in_db else card_in_db['card_faces'][1].get('image_uris', {})
+                card.image_uri_front_png = front_images.get('png', None)
+                card.image_uri_front_large = front_images.get('large', None)
+                card.image_uri_front_normal = front_images.get('normal', None)
+                card.image_uri_front_small = front_images.get('small', None)
+                card.image_uri_back_png = back_images.get('png', None)
+                card.image_uri_back_large = back_images.get('large', None)
+                card.image_uri_back_normal = back_images.get('normal', None)
+                card.image_uri_back_small = back_images.get('small', None)
+            else:
+                card.image_uri_front_png = None
+                card.image_uri_front_large = None
+                card.image_uri_front_normal = None
+                card.image_uri_front_small = None
+                card.image_uri_back_png = None
+                card.image_uri_back_large = None
+                card.image_uri_back_normal = None
+                card.image_uri_back_small = None
             fields_after = card_fields(card)
             if fields_before != fields_after:
                 updated = True

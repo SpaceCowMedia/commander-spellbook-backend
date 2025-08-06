@@ -11,6 +11,8 @@ class VariantInVariantUpdateSuggestionAdmin(admin.TabularInline):
     verbose_name = 'variant in suggestion'
     verbose_name_plural = 'variants in suggestion'
     autocomplete_fields = ['variant']
+    fields = ['variant', 'spellbook_link', 'issue']
+    readonly_fields = ['spellbook_link']
 
 
 class VariantUpdateSuggestionAdminForm(SpellbookAdminForm):

@@ -50,3 +50,8 @@ class VariantInVariantUpdateSuggestion(models.Model):
                 violation_error_message='This variant is already linked to this update suggestion.',
             )
         ]
+
+    def spellbook_link(self, raw=False) -> str | None:
+        if not self.variant_id:
+            return ''
+        return self.variant.spellbook_link(raw=raw)

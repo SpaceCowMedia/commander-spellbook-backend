@@ -121,16 +121,19 @@
                                 django.jQuery('#id_image_uri_front_large').val(frontFaceImages.large || '');
                                 django.jQuery('#id_image_uri_front_normal').val(frontFaceImages.normal || '');
                                 django.jQuery('#id_image_uri_front_small').val(frontFaceImages.small || '');
+                                django.jQuery('#id_image_uri_front_art_crop').val(frontFaceImages.art_crop || '');
                                 if (backFaceImages) {
                                     django.jQuery('#id_image_uri_back_png').val(backFaceImages.png || '');
                                     django.jQuery('#id_image_uri_back_large').val(backFaceImages.large || '');
                                     django.jQuery('#id_image_uri_back_normal').val(backFaceImages.normal || '');
                                     django.jQuery('#id_image_uri_back_small').val(backFaceImages.small || '');
+                                    django.jQuery('#id_image_uri_back_art_crop').val(backFaceImages.art_crop || '');
                                 } else {
                                     django.jQuery('#id_image_uri_back_png').val('');
                                     django.jQuery('#id_image_uri_back_large').val('');
                                     django.jQuery('#id_image_uri_back_normal').val('');
                                     django.jQuery('#id_image_uri_back_small').val('');
+                                    django.jQuery('#id_image_uri_back_art_crop').val('');
                                 }
                             }
 

@@ -255,19 +255,23 @@ def update_cards(cards: list[Card], scryfall: Scryfall, counts: dict[int, int], 
                 card.image_uri_front_large = front_images.get('large', None)
                 card.image_uri_front_normal = front_images.get('normal', None)
                 card.image_uri_front_small = front_images.get('small', None)
+                card.image_uri_front_art_crop = front_images.get('art_crop', None)
                 card.image_uri_back_png = back_images.get('png', None)
                 card.image_uri_back_large = back_images.get('large', None)
                 card.image_uri_back_normal = back_images.get('normal', None)
                 card.image_uri_back_small = back_images.get('small', None)
+                card.image_uri_back_art_crop = back_images.get('art_crop', None)
             else:
                 card.image_uri_front_png = None
                 card.image_uri_front_large = None
                 card.image_uri_front_normal = None
                 card.image_uri_front_small = None
+                card.image_uri_front_art_crop = None
                 card.image_uri_back_png = None
                 card.image_uri_back_large = None
                 card.image_uri_back_normal = None
                 card.image_uri_back_small = None
+                card.image_uri_back_art_crop = None
             fields_after = card_fields(card)
             if fields_before != fields_after:
                 updated = True

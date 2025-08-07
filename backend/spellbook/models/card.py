@@ -48,10 +48,12 @@ class Card(Playable, PreSaveModelMixin, ScryfallLinkMixin):
             'image_uri_front_large',
             'image_uri_front_normal',
             'image_uri_front_small',
+            'image_uri_front_art_crop',
             'image_uri_back_png',
             'image_uri_back_large',
             'image_uri_back_normal',
             'image_uri_back_small',
+            'image_uri_back_art_crop',
         ]
     type_line = models.CharField(max_length=MAX_CARD_NAME_LENGTH, blank=True, verbose_name='type line of card')
     oracle_text = models.TextField(blank=True, verbose_name='oracle text of card')
@@ -67,10 +69,12 @@ class Card(Playable, PreSaveModelMixin, ScryfallLinkMixin):
     image_uri_front_large = models.URLField(blank=True, null=True, verbose_name='image URI of the front of the card in large format')
     image_uri_front_normal = models.URLField(blank=True, null=True, verbose_name='image URI of the front of the card in normal format')
     image_uri_front_small = models.URLField(blank=True, null=True, verbose_name='image URI of the front of the card in small format')
+    image_uri_front_art_crop = models.URLField(blank=True, null=True, verbose_name='image URI of the card art crop')
     image_uri_back_png = models.URLField(blank=True, null=True, verbose_name='image URI of the back of the card in PNG format')
     image_uri_back_large = models.URLField(blank=True, null=True, verbose_name='image URI of the back of the card in large format')
     image_uri_back_normal = models.URLField(blank=True, null=True, verbose_name='image URI of the back of the card in normal format')
     image_uri_back_small = models.URLField(blank=True, null=True, verbose_name='image URI of the back of the card in small format')
+    image_uri_back_art_crop = models.URLField(blank=True, null=True, verbose_name='image URI of the back of the card art crop')
 
     features = models.ManyToManyField(
         to=Feature,

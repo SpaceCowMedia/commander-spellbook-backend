@@ -248,8 +248,9 @@ def update_cards(cards: list[Card], scryfall: Scryfall, counts: dict[int, int], 
             card.latest_printing_set = card_in_db['set'].lower()
             card.reprinted = card_in_db['reprint']
             if card_in_db['image_status'] != 'missing':
-                front_images: dict[str, str] = card_in_db.get('image_uris', {}) if 'card_faces' not in card_in_db else card_in_db['card_faces'][0].get('image_uris', {})
-                back_images: dict[str, str] = {} if 'card_faces' not in card_in_db else card_in_db['card_faces'][1].get('image_uris', {})
+                single_face = bool(card_in_db.get('image_uris')) or 'card_faces' not in card_in_db
+                front_images: dict[str, str] = card_in_db.get('image_uris', {}) if single_face else card_in_db['card_faces'][0].get('image_uris', {})
+                back_images: dict[str, str] = {} if single_face else card_in_db['card_faces'][1].get('image_uris', {})
                 card.image_uri_front_png = front_images.get('png', None)
                 card.image_uri_front_large = front_images.get('large', None)
                 card.image_uri_front_normal = front_images.get('normal', None)

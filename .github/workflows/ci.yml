@@ -157,25 +157,25 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Download backend image artifact ⬇
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: spellbook-backend
           path: /tmp
 
       - name: Download discord bot image artifact ⬇
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: spellbook-discord-bot
           path: /tmp
 
       - name: Download reddit bot image artifact ⬇
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: spellbook-reddit-bot
           path: /tmp
 
       - name: Download telegram bot image artifact ⬇
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: spellbook-telegram-bot
           path: /tmp
@@ -216,31 +216,31 @@ jobs:
     steps:
 
       - name: Download backend image artifact ⬇
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: spellbook-backend
           path: release
 
       - name: Download discord bot image artifact ⬇
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: spellbook-discord-bot
           path: release
 
       - name: Download reddit bot image artifact ⬇
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: spellbook-reddit-bot
           path: release
 
       - name: Download telegram bot image artifact ⬇
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: spellbook-telegram-bot
           path: release
 
       - name: Download typescript client ⬇
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: spellbook-client-typescript
           path: publish/client/typescript
@@ -301,25 +301,25 @@ jobs:
           mask-password: true
 
       - name: Download backend image artifact ⬇
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: spellbook-backend
           path: /tmp
 
       - name: Download discord bot image artifact ⬇
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: spellbook-discord-bot
           path: /tmp
 
       - name: Download reddit bot image artifact ⬇
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: spellbook-reddit-bot
           path: /tmp
 
       - name: Download telegram bot image artifact ⬇
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: spellbook-telegram-bot
           path: /tmp
@@ -343,7 +343,7 @@ jobs:
 
       - name: Download migration artifacts ⬇
         id: migration-artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: spellbook-backend-migrations
           path: /tmp/migrations
@@ -483,7 +483,7 @@ jobs:
         run: chmod +x *.sh
 
       - name: Download OpenApi artifact ⬇
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: spellbook-openapi
           path: client
@@ -527,7 +527,7 @@ jobs:
         run: chmod +x *.sh
 
       - name: Download OpenApi artifact ⬇
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: spellbook-openapi
           path: client
@@ -557,7 +557,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Download client artifact ⬇
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: spellbook-client-python
           path: client/python/spellbook_client

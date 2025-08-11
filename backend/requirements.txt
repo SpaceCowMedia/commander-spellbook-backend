@@ -49,7 +49,7 @@ django-cors-headers==4.7.0
     # via -r requirements.in
 django-filter==25.1
     # via -r requirements.in
-djangorestframework==3.16.0
+djangorestframework==3.16.1
     # via
     #   -r requirements.in
     #   djangorestframework-simplejwt

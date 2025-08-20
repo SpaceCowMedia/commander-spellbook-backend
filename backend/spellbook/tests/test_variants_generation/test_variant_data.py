@@ -45,10 +45,13 @@ class VariantDataTests(TestCaseMixinWithSeeding, TestCase):
         self.assertSetEqual(data.utility_features_ids, set(Feature.objects.filter(status=Feature.Status.UTILITY).values_list('id', flat=True)))
 
     def test_variants(self):
+        v: Variant = Variant.objects.first()  # type: ignore
+        v.status = Variant.Status.NOT_WORKING
+        v.save()
         data = Data()
         self.assertEqual(set(v.id for v in data.id_to_variant.values()), set(Variant.objects.values_list('id', flat=True)))
         self.assertSetEqual(
-            set(id_from_cards_and_templates_ids(v[0], v[1]) for v in data.not_working_variants),
+            set(id_from_cards_and_templates_ids(v[0], v[1]) for vs in data.not_working_variants.values() for v in vs.variants()),
             set(Variant.objects.filter(status=Variant.Status.NOT_WORKING).values_list('id', flat=True)),
         )
         self.assertDictEqual(data.id_to_variant, {v.id: v for v in Variant.objects.all()})

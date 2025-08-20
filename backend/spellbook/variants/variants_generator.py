@@ -6,7 +6,6 @@ from multiset import FrozenMultiset, BaseMultiset
 from dataclasses import dataclass
 from django.db import transaction
 from django.utils.functional import cached_property
-from .utils import includes_any
 from .variant_data import Data, debug_queries
 from .combo_graph import FeatureWithAttributes, Graph, VariantSet, cardid, templateid, featureid
 from spellbook.models import Combo, Feature, FeatureNeededInCombo, Job, Variant, CardInVariant, TemplateInVariant, id_from_cards_and_templates_ids, Playable, Card, Template, VariantAlias, Ingredient, FeatureProducedByVariant, VariantOfCombo, VariantIncludesCombo, ZoneLocation, CardType
@@ -540,8 +539,6 @@ def update_variant(
         restore: bool,
         job: Job | None):
     variant = data.id_to_variant[id]
-    ok = status in Variant.public_statuses() or \
-        status != Variant.Status.NOT_WORKING and not includes_any(v=variant_def.card_ids, others=(c for c, _ in data.not_working_variants))
     old_results_count = variant.result_count
     old_name = variant.name
     save_item = restore_variant(
@@ -550,8 +547,6 @@ def update_variant(
         variant_def=variant_def,
         restore_fields=restore,
     )
-    if not ok:
-        variant.status = Variant.Status.NOT_WORKING
     if restore:
         variant.generated_by = job
     save_item.should_update = restore or status != variant.status or old_results_count != variant.result_count or variant.name != old_name
@@ -573,9 +568,6 @@ def create_variant(
         variant_def=variant_def,
         restore_fields=True,
     )
-    ok = not includes_any(v=variant_def.card_ids, others=(c for c, _ in data.not_working_variants))
-    if not ok:
-        variant.status = Variant.Status.NOT_WORKING
     save_item.should_update = True
     return save_item
 
@@ -712,6 +704,7 @@ def generate_variants(combo: int | None = None, job: Job | None = None, log_coun
                 job=job)
             to_bulk_update.append(variant_to_update)
         else:
+            status = Variant.Status.NEW
             variant_to_save = create_variant(
                 data=data,
                 id=id,
@@ -719,6 +712,10 @@ def generate_variants(combo: int | None = None, job: Job | None = None, log_coun
                 job=job)
             to_bulk_create.append(variant_to_save)
         debug_queries()
+        if status not in Variant.public_statuses() and status is not Variant.Status.NOT_WORKING:
+            included_not_working = sorted(id for id, v in data.not_working_variants.items() if v.is_satisfied_by(variant_def.card_ids, variant_def.template_ids))
+            if included_not_working:
+                log_into_job(job, f'Variant {id} could be not working because it includes the following not working variants: {", ".join(included_not_working[:10])}{f" and {len(included_not_working) - 10} more..." if len(included_not_working) > 10 else ""}')
     log_into_job(job, f'Saving {len(variants)} variants...')
     with transaction.atomic():
         perform_bulk_saves(data, to_bulk_create, to_bulk_update)

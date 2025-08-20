@@ -1,12 +1,8 @@
-from typing import TypeVar, Iterable, Set
+from typing import TypeVar
 from multiset import BaseMultiset
 
 
 _T = TypeVar('_T')
-
-
-def includes_any(v: BaseMultiset[_T], others: Iterable[BaseMultiset[_T] | Set[_T]]) -> bool:
-    return any(v.issuperset(o) for o in others)
 
 
 def count_contains(v: BaseMultiset[_T], other: BaseMultiset[_T]) -> int:

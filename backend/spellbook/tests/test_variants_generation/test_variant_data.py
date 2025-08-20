@@ -1,6 +1,7 @@
 from multiset import FrozenMultiset
 from django.test import TestCase
 from spellbook.tests.testing import TestCaseMixinWithSeeding
+from spellbook.variants.combo_graph import VariantSet
 from spellbook.variants.variant_data import Data, debug_queries
 from spellbook.models import Variant, Combo, Feature, Card, Template, id_from_cards_and_templates_ids
 
@@ -64,14 +65,18 @@ class VariantDataTests(TestCaseMixinWithSeeding, TestCase):
         v1.status = Variant.Status.NOT_WORKING
         v1.save()
         data = Data()
-        self.assertSetEqual(set(data.not_working_variants), {(FrozenMultiset([self.c8_id, self.c1_id]), FrozenMultiset([self.t1_id]))})
+        vs = VariantSet()
+        vs.add(FrozenMultiset([self.c8_id, self.c1_id]), FrozenMultiset([self.t1_id]))
+        self.assertDictEqual(data.not_working_variants, {v1.id: vs})
         self.v2_id = id_from_cards_and_templates_ids([self.c8_id, self.c1_id], [])
         v2: Variant = Variant.objects.get(id=self.v2_id)
         v2.status = Variant.Status.NOT_WORKING
         v2.save()
         super().generate_variants()
         data = Data()
-        self.assertSetEqual(set(data.not_working_variants), {(FrozenMultiset([self.c8_id, self.c1_id]), FrozenMultiset())})
+        vs2 = VariantSet()
+        vs2.add(FrozenMultiset([self.c8_id, self.c1_id]), FrozenMultiset())
+        self.assertDictEqual(data.not_working_variants, {v1.id: vs, v2.id: vs2})
 
     def test_card_variant_dict(self):
         data = Data()

@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 import logging
-from typing import Iterable
 from multiset import FrozenMultiset
 from django.conf import settings
 from django.db import connection, reset_queries
@@ -164,18 +163,16 @@ class Data:
             if x is not None:
                 x.add(i)
         self.variant_produces_feature_dict = {(f.feature_id, f.variant_id): f for f in featureproducedbyvariants if f.feature_id in self.id_to_feature and f.variant_id in self.id_to_variant}
-
-        def fetch_not_working_variants(variants: Iterable[Variant]) -> VariantSet:
-            variants = [v for v in variants if v.status == Variant.Status.NOT_WORKING]
-            variant_set = VariantSet()
-            for v in variants:
-                variant_set.add(
-                    FrozenMultiset({c.card_id: c.quantity for c in self.variant_to_cards[v.id]}),
-                    FrozenMultiset({t.template_id: t.quantity for t in self.variant_to_templates[v.id]}),
-                )
-            return variant_set
         self.utility_features_ids = frozenset(f.id for f in self.id_to_feature.values() if f.status == Feature.Status.UTILITY)
-        self.not_working_variants = fetch_not_working_variants(self.id_to_variant.values()).variants()
+
+        def as_variant_set(v: Variant) -> VariantSet:
+            result = VariantSet(limit=None, allow_multiple_copies=False)
+            result.add(
+                FrozenMultiset({c.card_id: c.quantity for c in self.variant_to_cards[v.id]}),
+                FrozenMultiset({t.template_id: t.quantity for t in self.variant_to_templates[v.id]}),
+            )
+            return result
+        self.not_working_variants = {id: as_variant_set(v) for id, v in self.id_to_variant.items() if v.status == Variant.Status.NOT_WORKING}
 
 
 count = 0

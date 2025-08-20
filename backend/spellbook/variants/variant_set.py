@@ -154,3 +154,8 @@ class VariantSet:
                 continue
             result._add(key)
         return result
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, VariantSet):
+            return self.sets == other.sets and self.parameters == other.parameters
+        return False

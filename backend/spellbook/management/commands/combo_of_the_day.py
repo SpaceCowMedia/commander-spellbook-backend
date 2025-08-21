@@ -1,6 +1,6 @@
 from spellbook.models import Variant
 from spellbook.views import VariantViewSet
-from website.models import COMBO_OF_THE_DAY, WebsiteProperty
+from website.models import COMBO_OF_THE_DAY_PROPERTY, WebsiteProperty
 from ..abstract_command import AbstractCommand
 
 
@@ -10,7 +10,7 @@ class Command(AbstractCommand):
 
     def run(self, *args, **options):
         self.log('Replacing the combo of the day...')
-        website_property = WebsiteProperty.objects.get(key=COMBO_OF_THE_DAY)
+        website_property = WebsiteProperty.objects.get(key=COMBO_OF_THE_DAY_PROPERTY)
         current_combo = website_property.value.strip() or None
         if current_combo:
             try:

@@ -1,6 +1,9 @@
 from .base import QueryValue, Q, ValidationError, VariantFilterCollection
-from website.models import WebsiteProperty, FEATURED_SET_CODES
+from website.models import WebsiteProperty, FEATURED_SET_CODES_PROPERTIES, FEATURED_TABS_COUNT
 from spellbook.models import Feature, Variant
+
+
+FEATURED_TABS_TAGS = [f'featured-{i}' for i in range(1, FEATURED_TABS_COUNT + 1)]
 
 
 def tag_filter(qv: QueryValue) -> VariantFilterCollection:
@@ -43,8 +46,19 @@ def tag_filter(qv: QueryValue) -> VariantFilterCollection:
                     'Each opponent loses the game',
                 ]),
             ),))
-        case 'featured':
-            featured_sets = {s.strip().lower() for s in WebsiteProperty.objects.get(key=FEATURED_SET_CODES).value.split(',')}
+        case s if s == 'featured' or s in FEATURED_TABS_TAGS:
+            if s == 'featured':
+                keys = FEATURED_SET_CODES_PROPERTIES
+            else:
+                keys = [FEATURED_SET_CODES_PROPERTIES[FEATURED_TABS_TAGS.index(s)]]
+            featured_sets = {
+                s.strip().lower()
+                for p in WebsiteProperty.objects
+                .filter(key__in=keys)
+                .values_list('value', flat=True)
+                for s in p.split(',')
+                if s.strip()
+            }
             return VariantFilterCollection(cards_filters=(qv.to_query_filter(
                 Q(card__latest_printing_set__in=featured_sets, card__reprinted=False),
             ),))

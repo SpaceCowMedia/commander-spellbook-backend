@@ -7,7 +7,7 @@
 
 {% block admin_change_form_document_ready  %}
 {{ block.super }}
-{% if original.key == 'featured_set_codes' %}
+{% if 'featured_set_codes' in original.key %}
     <script>
         const scryfallSets = [];
         django.jQuery.getJSON(

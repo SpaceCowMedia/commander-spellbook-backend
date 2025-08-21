@@ -9,7 +9,7 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from spellbook.models import Job, Variant
 from spellbook.utils import launch_job_command
-from website.models import COMBO_OF_THE_DAY, WebsiteProperty
+from website.models import COMBO_OF_THE_DAY_PROPERTY, WebsiteProperty
 from .testing import TestCaseMixinWithSeeding
 from spellbook.models import id_from_cards_and_templates_ids
 
@@ -96,5 +96,5 @@ class CleanJobsTest(TestCaseMixinWithSeeding, TestCase):
     def test_combo_of_the_day(self):
         super().generate_and_publish_variants()
         launch_job_command('combo_of_the_day')
-        result = WebsiteProperty.objects.get(key=COMBO_OF_THE_DAY).value
+        result = WebsiteProperty.objects.get(key=COMBO_OF_THE_DAY_PROPERTY).value
         self.assertTrue(Variant.objects.filter(pk=result).exists())

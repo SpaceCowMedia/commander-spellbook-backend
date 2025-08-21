@@ -10,7 +10,7 @@ from spellbook.models.utils import SORTED_COLORS
 from spellbook.views import VariantViewSet
 from spellbook.serializers import VariantSerializer
 from spellbook.views.variants import VariantGroupedByComboFilter
-from website.models import WebsiteProperty, FEATURED_SET_CODES
+from website.models import WebsiteProperty, FEATURED_SET_CODES_PROPERTIES
 from ..testing import TestCaseMixinWithSeeding
 
 
@@ -700,7 +700,8 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
             self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
             for v in result.results:
                 self.variant_assertions(v)
-        WebsiteProperty.objects.filter(key=FEATURED_SET_CODES).update(value='STX,DND')
+        WebsiteProperty.objects.filter(key=FEATURED_SET_CODES_PROPERTIES[0]).update(value='STX,DND')
+        WebsiteProperty.objects.filter(key=FEATURED_SET_CODES_PROPERTIES[1]).update(value='ALPHA')
         c1: Card = Card.objects.all()[0]  # type: ignore
         c1.reprinted = False
         c1.latest_printing_set = 'stx'
@@ -711,7 +712,7 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
         c2.save()
         c3: Card = Card.objects.all()[2]  # type: ignore
         c3.reprinted = True
-        c3.latest_printing_set = 'stx'
+        c3.latest_printing_set = 'alpha'
         c3.save()
         query = 'is:featured'
         with self.subTest(f'query by tag: featured with query {query}'):
@@ -719,7 +720,17 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             self.assertEqual(response.get('Content-Type'), 'application/json')
             result = json.loads(response.content, object_hook=json_to_python_lambda)
-            variants = self.public_variants.filter(uses__latest_printing_set__in=['stx', 'dnd'], uses__reprinted=False).distinct()
+            variants = self.public_variants.filter(uses__latest_printing_set__in=['stx', 'dnd', 'alpha'], uses__reprinted=False).distinct()
+            self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
+            for v in result.results:
+                self.variant_assertions(v)
+        query = 'is:featured-2'
+        with self.subTest(f'query by tag: featured in tab 2 with query {query}'):
+            response = self.client.get(reverse('variants-list'), query_params={'q': query}, follow=True)  # type: ignore
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(response.get('Content-Type'), 'application/json')
+            result = json.loads(response.content, object_hook=json_to_python_lambda)
+            variants = self.public_variants.filter(uses__latest_printing_set__in=['alpha'], uses__reprinted=False).distinct()
             self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
             for v in result.results:
                 self.variant_assertions(v)

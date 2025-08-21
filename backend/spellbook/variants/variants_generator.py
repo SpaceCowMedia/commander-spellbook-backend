@@ -712,10 +712,6 @@ def generate_variants(combo: int | None = None, job: Job | None = None, log_coun
                 job=job)
             to_bulk_create.append(variant_to_save)
         debug_queries()
-        if status not in Variant.public_statuses() and status is not Variant.Status.NOT_WORKING:
-            included_not_working = sorted(id for id, v in data.not_working_variants.items() if v.is_satisfied_by(variant_def.card_ids, variant_def.template_ids))
-            if included_not_working:
-                log_into_job(job, f'Variant {id} could be not working because it includes the following not working variants: {", ".join(included_not_working[:10])}{f" and {len(included_not_working) - 10} more..." if len(included_not_working) > 10 else ""}')
     log_into_job(job, f'Saving {len(variants)} variants...')
     with transaction.atomic():
         perform_bulk_saves(data, to_bulk_create, to_bulk_update)

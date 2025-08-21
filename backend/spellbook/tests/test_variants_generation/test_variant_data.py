@@ -50,36 +50,12 @@ class VariantDataTests(TestCaseMixinWithSeeding, TestCase):
         v.save()
         data = Data()
         self.assertEqual(set(v.id for v in data.id_to_variant.values()), set(Variant.objects.values_list('id', flat=True)))
-        self.assertSetEqual(
-            set(id_from_cards_and_templates_ids(v[0], v[1]) for vs in data.not_working_variants.values() for v in vs.variants()),
-            set(Variant.objects.filter(status=Variant.Status.NOT_WORKING).values_list('id', flat=True)),
-        )
         self.assertDictEqual(data.id_to_variant, {v.id: v for v in Variant.objects.all()})
         self.assertDictEqual(data.variant_to_cards, {v.id: set(v.cardinvariant_set.all()) for v in Variant.objects.all()})
         self.assertDictEqual(data.variant_to_templates, {v.id: set(v.templateinvariant_set.all()) for v in Variant.objects.all()})
         self.assertDictEqual(data.variant_to_of_sets, {v.id: set(v.variantofcombo_set.all()) for v in Variant.objects.all()})
         self.assertDictEqual(data.variant_to_includes_sets, {v.id: set(v.variantincludescombo_set.all()) for v in Variant.objects.all()})
         self.assertDictEqual(data.variant_to_produces, {v.id: set(v.featureproducedbyvariant_set.all()) for v in Variant.objects.all()})
-
-    def test_not_working_variants(self):
-        super().generate_variants()
-        self.v1_id = id_from_cards_and_templates_ids([self.c8_id, self.c1_id], [self.t1_id])
-        v1: Variant = Variant.objects.get(id=self.v1_id)
-        v1.status = Variant.Status.NOT_WORKING
-        v1.save()
-        data = Data()
-        vs = VariantSet()
-        vs.add(FrozenMultiset([self.c8_id, self.c1_id]), FrozenMultiset([self.t1_id]))
-        self.assertDictEqual(data.not_working_variants, {v1.id: vs})
-        self.v2_id = id_from_cards_and_templates_ids([self.c8_id, self.c1_id], [])
-        v2: Variant = Variant.objects.get(id=self.v2_id)
-        v2.status = Variant.Status.NOT_WORKING
-        v2.save()
-        super().generate_variants()
-        data = Data()
-        vs2 = VariantSet()
-        vs2.add(FrozenMultiset([self.c8_id, self.c1_id]), FrozenMultiset())
-        self.assertDictEqual(data.not_working_variants, {v1.id: vs, v2.id: vs2})
 
     def test_card_variant_dict(self):
         data = Data()

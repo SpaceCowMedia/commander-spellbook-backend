@@ -16,8 +16,6 @@ aiosignal==1.4.0
     # via aiohttp
 annotated-types==0.7.0
     # via pydantic
-async-timeout==5.0.1
-    # via aiohttp
 attrs==24.2.0
     # via aiohttp
 frozenlist==1.4.1
@@ -26,6 +24,8 @@ frozenlist==1.4.1
     #   aiosignal
 idna==3.7
     # via yarl
+lazy-imports==1.0.1
+    # via -r requirements.in
 multidict==6.0.5
     # via
     #   aiohttp

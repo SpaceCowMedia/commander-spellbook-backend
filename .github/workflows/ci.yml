@@ -491,6 +491,12 @@ jobs:
       - name: Generate client 🏗️
         run: ./generate-client-python.sh
 
+      - name: Upload client artifact 📦
+        uses: actions/upload-artifact@v4
+        with:
+          name: spellbook-client-python
+          path: client/python/spellbook_client
+
       - name: Install client dependencies 🧶
         # It is important to not use --no-deps here, otherwise httpcore will raise an error during the tests
         run: pip install --no-cache-dir -r requirements.txt
@@ -503,12 +509,6 @@ jobs:
       - name: Run python tests 🧪
         run: python backend/manage.py test client/python/tests/ --no-input --parallel auto --pythonpath common
         working-directory: .
-
-      - name: Upload client artifact 📦
-        uses: actions/upload-artifact@v4
-        with:
-          name: spellbook-client-python
-          path: client/python/spellbook_client
 
 
   client-typescript:

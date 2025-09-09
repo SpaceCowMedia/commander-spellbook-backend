@@ -27,8 +27,9 @@ class TestCaseMixin(BaseTestCaseMixin):
 
     def generate_variants(self):
         result = launch_job_command('generate_variants')
-        assert result
+        self.assertIsNotNone(result)
         job = Job.objects.filter(name='generate_variants').order_by('-id').first()
+        self.assertEqual(job, result)
         assert job is not None
         if job.status == Job.Status.FAILURE:
             raise Exception(job.message)
@@ -87,6 +88,7 @@ class TestCaseMixin(BaseTestCaseMixin):
         template_ids_by_name: dict[str, int] = {}
         attribute_ids_by_name: dict[str, int] = {}
         combo_id = 1
+        feature_of_card_id = 1
         for recipe, result in model.items():
             cards = defaultdict[str, int](int)
             templates = defaultdict[str, int](int)
@@ -112,11 +114,12 @@ class TestCaseMixin(BaseTestCaseMixin):
                     attributes = [a.strip() for a in attributes.split(',') if a.strip()]
                     feature_id = feature_ids_by_name.setdefault(feature, reduce(lambda x, y: max(x, y), feature_ids_by_name.values(), 0) + 1)
                     f, _ = Feature.objects.get_or_create(pk=feature_id, name=feature, description='Test Feature', status=Feature.Status.UTILITY if feature.startswith('u') else Feature.Status.STANDALONE)
-                    foc = FeatureOfCard.objects.create(card=c, feature=f, zone_locations=ZoneLocation.BATTLEFIELD, quantity=quantity)
+                    foc = FeatureOfCard.objects.create(pk=feature_of_card_id, card=c, feature=f, zone_locations=ZoneLocation.BATTLEFIELD, quantity=quantity)
                     for attribute in attributes:
                         attribute_id = attribute_ids_by_name.setdefault(attribute, reduce(lambda x, y: max(x, y), attribute_ids_by_name.values(), 0) + 1)
                         a, _ = FeatureAttribute.objects.get_or_create(pk=attribute_id, name=attribute)
                         foc.attributes.add(a)
+                    feature_of_card_id += 1
             else:
                 for element in recipe:
                     if '*' in element:

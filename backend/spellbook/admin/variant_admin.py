@@ -211,21 +211,25 @@ class VariantAdmin(SpellbookModelAdmin):
 
     def generate(self, request: HttpRequest):
         if request.method == 'POST' and request.user.is_authenticated:
-            if launch_job_command('generate_variants', request.user, group='all'):  # type: ignore
+            job = launch_job_command('generate_variants', request.user, group='all')  # type: ignore
+            if job is not None:
                 messages.info(request, 'Variant generation job started.')
+                return redirect('admin:spellbook_job_change', job.id)
             else:
                 messages.warning(request, 'Variant generation is already running.')
-        return redirect('admin:spellbook_job_changelist')
+        return redirect('admin:spellbook_variant_changelist')
 
     def export(self, request: HttpRequest):
         if request.method == 'POST' and request.user.is_authenticated:
             from ..management.s3_upload import can_upload_to_s3
             args = ['--s3'] if can_upload_to_s3() else []
-            if launch_job_command('export_variants', request.user, args):  # type: ignore
+            job = launch_job_command('export_variants', request.user, args)  # type: ignore
+            if job is not None:
                 messages.info(request, 'Variant exporting job started.')
+                return redirect('admin:spellbook_job_change', job.id)
             else:
                 messages.warning(request, 'Variant exporting is already running.')
-        return redirect('admin:spellbook_job_changelist')
+        return redirect('admin:spellbook_variant_changelist')
 
     def get_urls(self):
         return [
@@ -263,7 +267,7 @@ class VariantAdmin(SpellbookModelAdmin):
                 if variant.published:
                     launch_job_command(
                         command='notify',
-                        user=request.user,
+                        user=request.user,  # type: ignore
                         args=['variant_updated', str(variant.id)],
                         allow_multiples=True,
                     )
@@ -271,7 +275,7 @@ class VariantAdmin(SpellbookModelAdmin):
                     variant.published = True
                     launch_job_command(
                         command='notify',
-                        user=request.user,
+                        user=request.user,  # type: ignore
                         args=['variant_published', str(variant.id)],
                         allow_multiples=True,
                     )

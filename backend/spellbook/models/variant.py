@@ -236,7 +236,7 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
         requires_commander = any(civ.must_be_commander for civ, _ in recipe.cards) or any(tiv.must_be_commander for tiv, _ in recipe.templates)
         old_values = {field: getattr(self, field) for field in self.computed_fields()}
         self.mana_value_needed = mana_value(self.mana_needed)
-        self.update_playable_fields([card for _, card in recipe.cards], requires_commander=requires_commander)
+        self.update_playable_fields((card for _, card in recipe.cards), requires_commander=requires_commander)
         battlefield_mana_value = sum(card.mana_value for civ, card in recipe.cards if ZoneLocation.BATTLEFIELD in civ.zone_locations)
         self.hulkline = \
             battlefield_mana_value <= 6 \

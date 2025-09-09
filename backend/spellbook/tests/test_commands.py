@@ -35,7 +35,7 @@ class CleanJobsTest(TestCaseMixinWithSeeding, TestCase):
         sleep(6)
         j2.save()
         result = launch_job_command('clean_jobs', None)
-        self.assertTrue(result)
+        self.assertIsNotNone(result)
         self.assertEqual(Job.objects.count(), 4)
         cleaned = Job.objects.get(name='test')
         self.assertEqual(cleaned.status, Job.Status.FAILURE)

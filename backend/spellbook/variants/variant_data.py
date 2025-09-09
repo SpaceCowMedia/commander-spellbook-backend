@@ -52,6 +52,7 @@ class Data:
         # Data
         self.id_to_card = {c.id: c for c in cards}
         self.id_to_template = {t.id: t for t in templates}
+        self.id_to_feature_of_card = {f.id: f for f in featureofcards}
         self.id_to_combo = {c.id: c for c in combos}
         self.id_to_variant = {v.id: v for v in variants}
         self.id_to_feature = {f.id: f for f in features}

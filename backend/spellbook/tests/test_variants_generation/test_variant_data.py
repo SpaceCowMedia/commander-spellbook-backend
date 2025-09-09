@@ -1,7 +1,7 @@
 from django.test import TestCase
 from spellbook.tests.testing import TestCaseMixinWithSeeding
 from spellbook.variants.variant_data import Data, debug_queries
-from spellbook.models import Variant, Combo, Feature, Card, Template
+from spellbook.models import FeatureOfCard, Variant, Combo, Feature, Card, Template
 
 
 class VariantDataTests(TestCaseMixinWithSeeding, TestCase):
@@ -15,6 +15,9 @@ class VariantDataTests(TestCaseMixinWithSeeding, TestCase):
         query = base.filter(status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY))
         self.assertEqual(len(data.id_to_combo), base.count())
         self.assertDictEqual(data.id_to_combo, {c.id: c for c in base})
+        base = FeatureOfCard.objects.all()
+        self.assertEqual(len(data.id_to_feature_of_card), base.count())
+        self.assertDictEqual(data.id_to_feature_of_card, {f.id: f for f in base})
         self.assertEqual(set(c.id for c in data.generator_combos), set(Combo.objects.filter(status=Combo.Status.GENERATOR).values_list('id', flat=True)))
         self.assertDictEqual({k: data.combo_to_cards[k] for k in query.values_list('id', flat=True)}, {combo.id: list(combo.cardincombo_set.all()) for combo in query.all()})
         self.assertDictEqual({k: data.combo_to_templates[k] for k in query.values_list('id', flat=True)}, {combo.id: list(combo.templateincombo_set.all()) for combo in query.all()})

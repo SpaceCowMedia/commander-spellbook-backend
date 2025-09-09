@@ -39,7 +39,7 @@ class ComboGraphTest(TestCaseMixinWithSeeding, TestCase):
 
     def test_combo_nodes(self):
         combo_graph = Graph(Data())
-        self.assertTrue(all(c.item.status in (Combo.Status.GENERATOR, Combo.Status.UTILITY) for c in combo_graph.bnodes.values()))
+        self.assertTrue(all(c.item.status in (Combo.Status.GENERATOR, Combo.Status.UTILITY) for c in combo_graph.combo_nodes.values()))
 
     def test_variant_limit(self):
         combo_graph = Graph(Data(), variant_limit=0)
@@ -143,7 +143,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
         self.assertMultisetEqual(variants[0].features, {1: 1})
         self.assertReplacementsEqual(variants[0].replacements, {1: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset())]})
         self.assertSetEqual(variants[0].needed_combos, {1})
-        self.assertSetEqual(variants[0].needed_features, {1})
+        self.assertSetEqual(variants[0].needed_feature_of_cards, set())
 
     def test_one_card_combo_with_replacement(self):
         self.setup_combo_graph({
@@ -162,7 +162,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
             2: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset())],
         })
         self.assertSetEqual(variants[0].needed_combos, {1})
-        self.assertSetEqual(variants[0].needed_features, {1, 2})
+        self.assertSetEqual(variants[0].needed_feature_of_cards, {1})
 
     def test_one_template_combo_with_replacement(self):
         self.setup_combo_graph({
@@ -181,7 +181,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
             2: [VariantIngredients(FrozenMultiset(), FrozenMultiset({1: 1}))],
         })
         self.assertSetEqual(variants[0].needed_combos, {1, 2})
-        self.assertSetEqual(variants[0].needed_features, {1, 2})
+        self.assertSetEqual(variants[0].needed_feature_of_cards, set())
 
     def test_two_one_card_combo(self):
         self.setup_combo_graph({
@@ -197,7 +197,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
         self.assertMultisetEqual(variants[0].features, {1: 1})
         self.assertReplacementsEqual(variants[0].replacements, {1: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset())]})
         self.assertSetEqual(variants[0].needed_combos, {1})
-        self.assertSetEqual(variants[0].needed_features, {1})
+        self.assertSetEqual(variants[0].needed_feature_of_cards, set())
         variants = combo_graph.results(combo_graph.variants(2))
         self.assertEqual(len(list(variants)), 1)
         self.assertMultisetEqual(variants[0].cards, {2: 1})
@@ -206,7 +206,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
         self.assertMultisetEqual(variants[0].features, {1: 1})
         self.assertReplacementsEqual(variants[0].replacements, {1: [VariantIngredients(FrozenMultiset({2: 1}), FrozenMultiset())]})
         self.assertSetEqual(variants[0].needed_combos, {2})
-        self.assertSetEqual(variants[0].needed_features, {1})
+        self.assertSetEqual(variants[0].needed_feature_of_cards, set())
 
     def test_card_plus_template(self):
         self.setup_combo_graph({
@@ -224,7 +224,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
             2: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset({1: 1}))],
         })
         self.assertSetEqual(variants[0].needed_combos, {1})
-        self.assertSetEqual(variants[0].needed_features, {1, 2})
+        self.assertSetEqual(variants[0].needed_feature_of_cards, set())
 
     def test_feature_replacement(self):
         self.setup_combo_graph({
@@ -245,7 +245,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
             2: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset())],
         })
         self.assertSetEqual(variants[0].needed_combos, {1, 3})
-        self.assertSetEqual(variants[0].needed_features, {1, 2})
+        self.assertSetEqual(variants[0].needed_feature_of_cards, set())
         self.assertMultisetEqual(variants[1].cards, {2: 1})
         self.assertMultisetEqual(variants[1].templates, {})
         self.assertSetEqual(variants[1].combos, {2, 3})
@@ -255,7 +255,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
             2: [VariantIngredients(FrozenMultiset({2: 1}), FrozenMultiset())],
         })
         self.assertSetEqual(variants[1].needed_combos, {2, 3})
-        self.assertSetEqual(variants[1].needed_features, {1, 2})
+        self.assertSetEqual(variants[1].needed_feature_of_cards, set())
 
     def test_replacement_with_multiple_copies(self):
         self.setup_combo_graph({
@@ -274,7 +274,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
             2: [VariantIngredients(FrozenMultiset({1: 2}), FrozenMultiset())],
         })
         self.assertSetEqual(variants[0].needed_combos, {1})
-        self.assertSetEqual(variants[0].needed_features, {1, 2})
+        self.assertSetEqual(variants[0].needed_feature_of_cards, {1})
         combo_graph = Graph(Data(), allow_multiple_copies=False)
         variants = combo_graph.results(combo_graph.variants(1))
         self.assertEqual(len(list(variants)), 0)
@@ -298,7 +298,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
             2: [VariantIngredients(FrozenMultiset({1: 2}), FrozenMultiset())],
         })
         self.assertSetEqual(variants[0].needed_combos, {1})
-        self.assertSetEqual(variants[0].needed_features, {1, 2})
+        self.assertSetEqual(variants[0].needed_feature_of_cards, {1})
         self.assertMultisetEqual(variants[1].cards, {1: 1, 2: 3})
         self.assertMultisetEqual(variants[1].templates, {})
         self.assertSetEqual(variants[1].combos, {1})
@@ -308,7 +308,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
             2: [VariantIngredients(FrozenMultiset({1: 1, 2: 3}), FrozenMultiset())],
         })
         self.assertSetEqual(variants[1].needed_combos, {1})
-        self.assertSetEqual(variants[1].needed_features, {1, 2})
+        self.assertSetEqual(variants[1].needed_feature_of_cards, {1, 2})
         self.assertMultisetEqual(variants[2].cards, {2: 6})
         self.assertMultisetEqual(variants[2].templates, {})
         self.assertSetEqual(variants[2].combos, {1})
@@ -318,7 +318,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
             2: [VariantIngredients(FrozenMultiset({2: 6}), FrozenMultiset())],
         })
         self.assertSetEqual(variants[2].needed_combos, {1})
-        self.assertSetEqual(variants[2].needed_features, {1, 2})
+        self.assertSetEqual(variants[2].needed_feature_of_cards, {2})
         combo_graph = Graph(Data(), allow_multiple_copies=False)
         variants = combo_graph.results(combo_graph.variants(1))
         self.assertEqual(len(list(variants)), 0)
@@ -364,7 +364,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
             2: [VariantIngredients(FrozenMultiset({1: 2}), FrozenMultiset())],
         })
         self.assertSetEqual(variants[0].needed_combos, {1, 3})
-        self.assertSetEqual(variants[0].needed_features, {1, 2})
+        self.assertSetEqual(variants[0].needed_feature_of_cards, set())
         self.assertMultisetEqual(variants[1].cards, {2: 1})
         self.assertMultisetEqual(variants[1].templates, {})
         self.assertMultisetEqual(variants[1].features, {1: 1, 2: 1})
@@ -374,7 +374,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
             2: [VariantIngredients(FrozenMultiset({2: 1}), FrozenMultiset())],
         })
         self.assertSetEqual(variants[1].needed_combos, {2, 3})
-        self.assertSetEqual(variants[1].needed_features, {1, 2})
+        self.assertSetEqual(variants[1].needed_feature_of_cards, set())
         combo_graph = Graph(Data(), allow_multiple_copies=False)
         variants = list(combo_graph.results(combo_graph.variants(3)))
         self.assertEqual(len(variants), 1)
@@ -387,7 +387,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
             2: [VariantIngredients(FrozenMultiset({2: 1}), FrozenMultiset())],
         })
         self.assertSetEqual(variants[0].needed_combos, {2, 3})
-        self.assertSetEqual(variants[0].needed_features, {1, 2})
+        self.assertSetEqual(variants[0].needed_feature_of_cards, set())
 
     def test_feature_replacement_multiplication(self):
         self.setup_combo_graph({
@@ -412,7 +412,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
             4: [VariantIngredients(FrozenMultiset({1: 2}), FrozenMultiset())],
         })
         self.assertSetEqual(variants[0].needed_combos, {1, 3, 4, 5})
-        self.assertSetEqual(variants[0].needed_features, {1, 2, 3, 4})
+        self.assertSetEqual(variants[0].needed_feature_of_cards, set())
         self.assertMultisetEqual(variants[1].cards, {1: 2, 2: 3})
         self.assertMultisetEqual(variants[1].templates, {})
         self.assertMultisetEqual(variants[1].features, {1: 2, 2: 1, 3: 2, 4: 2})
@@ -424,7 +424,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
             4: [VariantIngredients(FrozenMultiset({1: 2}), FrozenMultiset()), VariantIngredients(FrozenMultiset({2: 3}), FrozenMultiset())],
         })
         self.assertSetEqual(variants[1].needed_combos, {1, 2, 3, 4, 5})
-        self.assertSetEqual(variants[1].needed_features, {1, 2, 3, 4})
+        self.assertSetEqual(variants[1].needed_feature_of_cards, set())
         self.assertMultisetEqual(variants[2].cards, {2: 6})
         self.assertMultisetEqual(variants[2].templates, {})
         self.assertMultisetEqual(variants[2].features, {1: 2, 2: 1, 3: 2, 4: 2})
@@ -436,7 +436,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
             4: [VariantIngredients(FrozenMultiset({2: 3}), FrozenMultiset())],
         })
         self.assertSetEqual(variants[2].needed_combos, {2, 3, 4, 5})
-        self.assertSetEqual(variants[2].needed_features, {1, 2, 3, 4})
+        self.assertSetEqual(variants[2].needed_feature_of_cards, set())
         combo_graph = Graph(Data(), allow_multiple_copies=False)
         variants = list(combo_graph.results(combo_graph.variants(3)))
         self.assertEqual(len(variants), 0)
@@ -462,7 +462,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
                 3: [VariantIngredients(FrozenMultiset({2: 1, 3: 1}), FrozenMultiset())],
             })
             self.assertSetEqual(variants[0].needed_combos, {3, 4})
-            self.assertSetEqual(variants[0].needed_features, {1, 2, 3})
+            self.assertSetEqual(variants[0].needed_feature_of_cards, set())
 
     def test_removal_of_redundant_variants_with_multiples(self):
         self.setup_combo_graph({
@@ -484,7 +484,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
             3: [VariantIngredients(FrozenMultiset({1: 2, 2: 2}), FrozenMultiset())],
         })
         self.assertSetEqual(variants[0].needed_combos, {3, 4})
-        self.assertSetEqual(variants[0].needed_features, {1, 2, 3})
+        self.assertSetEqual(variants[0].needed_feature_of_cards, set())
         combo_graph = Graph(Data(), allow_multiple_copies=False)
         variants = list(combo_graph.results(combo_graph.variants(3)))
         self.assertEqual(len(variants), 0)
@@ -511,7 +511,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
             4: [VariantIngredients(FrozenMultiset({1: 1, 2: 1}), FrozenMultiset())],
         })
         self.assertSetEqual(variants[0].needed_combos, {1, 2, 3, 4, 5})
-        self.assertSetEqual(variants[0].needed_features, {1, 2, 3, 4})
+        self.assertSetEqual(variants[0].needed_feature_of_cards, set())
 
     def test_cross_merge(self):
         self.setup_combo_graph({
@@ -532,7 +532,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
             2: [VariantIngredients(FrozenMultiset({1: 2, 2: 2}), FrozenMultiset())],
         })
         self.assertSetEqual(variants[0].needed_combos, {1, 3})
-        self.assertSetEqual(variants[0].needed_features, {1, 2})
+        self.assertSetEqual(variants[0].needed_feature_of_cards, set())
         self.assertMultisetEqual(variants[1].cards, {1: 1, 2: 2, 3: 1})
         self.assertMultisetEqual(variants[1].templates, {})
         self.assertMultisetEqual(variants[1].features, {1: 2, 2: 1})
@@ -542,7 +542,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
             2: [VariantIngredients(FrozenMultiset({1: 1, 2: 2, 3: 1}), FrozenMultiset())],
         })
         self.assertSetEqual(variants[1].needed_combos, {1, 2, 3})
-        self.assertSetEqual(variants[1].needed_features, {1, 2})
+        self.assertSetEqual(variants[1].needed_feature_of_cards, set())
         self.assertMultisetEqual(variants[2].cards, {2: 2, 3: 2})
         self.assertMultisetEqual(variants[2].templates, {})
         self.assertMultisetEqual(variants[2].features, {1: 2, 2: 1})
@@ -552,7 +552,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
             2: [VariantIngredients(FrozenMultiset({2: 2, 3: 2}), FrozenMultiset())],
         })
         self.assertSetEqual(variants[2].needed_combos, {2, 3})
-        self.assertSetEqual(variants[2].needed_features, {1, 2})
+        self.assertSetEqual(variants[2].needed_feature_of_cards, set())
         combo_graph = Graph(Data(), allow_multiple_copies=False)
         variants = list(combo_graph.results(combo_graph.variants(3)))
         self.assertEqual(len(variants), 1)
@@ -565,7 +565,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
             2: [VariantIngredients(FrozenMultiset({1: 1, 2: 2, 3: 1}), FrozenMultiset())],
         })
         self.assertSetEqual(variants[0].needed_combos, {1, 2, 3})
-        self.assertSetEqual(variants[0].needed_features, {1, 2})
+        self.assertSetEqual(variants[0].needed_feature_of_cards, set())
 
     def test_opportunistic_choice(self):
         self.setup_combo_graph({
@@ -587,7 +587,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
             2: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset())],
         })
         self.assertSetEqual(variants[0].needed_combos, {2, 4})
-        self.assertSetEqual(variants[0].needed_features, {1, 2})
+        self.assertSetEqual(variants[0].needed_feature_of_cards, set())
         self.assertMultisetEqual(variants[1].cards, {3: 1})
         self.assertMultisetEqual(variants[1].templates, {})
         self.assertMultisetEqual(variants[1].features, {1: 1, 2: 1})
@@ -597,7 +597,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
             2: [VariantIngredients(FrozenMultiset({3: 1}), FrozenMultiset())],
         })
         self.assertSetEqual(variants[1].needed_combos, {3, 4})
-        self.assertSetEqual(variants[1].needed_features, {1, 2})
+        self.assertSetEqual(variants[1].needed_feature_of_cards, set())
 
     def test_combinations_of_requisites(self):
         self.setup_combo_graph({
@@ -619,7 +619,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
             2: [VariantIngredients(FrozenMultiset({1: 2}), FrozenMultiset())],
         })
         self.assertSetEqual(variants[0].needed_combos, {1, 4})
-        self.assertSetEqual(variants[0].needed_features, {1, 2})
+        self.assertSetEqual(variants[0].needed_feature_of_cards, set())
         self.assertMultisetEqual(variants[1].cards, {1: 1, 2: 1})
         self.assertMultisetEqual(variants[1].templates, {})
         self.assertMultisetEqual(variants[1].features, {1: 2, 2: 1})
@@ -629,7 +629,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
             2: [VariantIngredients(FrozenMultiset({1: 1, 2: 1}), FrozenMultiset())],
         })
         self.assertSetEqual(variants[1].needed_combos, {1, 2, 4})
-        self.assertSetEqual(variants[1].needed_features, {1, 2})
+        self.assertSetEqual(variants[1].needed_feature_of_cards, set())
         self.assertMultisetEqual(variants[2].cards, {1: 1, 3: 1})
         self.assertMultisetEqual(variants[2].templates, {})
         self.assertMultisetEqual(variants[2].features, {1: 2, 2: 1})
@@ -639,7 +639,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
             2: [VariantIngredients(FrozenMultiset({1: 1, 3: 1}), FrozenMultiset())],
         })
         self.assertSetEqual(variants[2].needed_combos, {1, 3, 4})
-        self.assertSetEqual(variants[2].needed_features, {1, 2})
+        self.assertSetEqual(variants[2].needed_feature_of_cards, set())
         self.assertMultisetEqual(variants[3].cards, {2: 2})
         self.assertMultisetEqual(variants[3].templates, {})
         self.assertMultisetEqual(variants[3].features, {1: 2, 2: 1})
@@ -649,7 +649,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
             2: [VariantIngredients(FrozenMultiset({2: 2}), FrozenMultiset())],
         })
         self.assertSetEqual(variants[3].needed_combos, {2, 4})
-        self.assertSetEqual(variants[3].needed_features, {1, 2})
+        self.assertSetEqual(variants[3].needed_feature_of_cards, set())
         self.assertMultisetEqual(variants[4].cards, {2: 1, 3: 1})
         self.assertMultisetEqual(variants[4].templates, {})
         self.assertMultisetEqual(variants[4].features, {1: 2, 2: 1})
@@ -659,7 +659,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
             2: [VariantIngredients(FrozenMultiset({2: 1, 3: 1}), FrozenMultiset())],
         })
         self.assertSetEqual(variants[4].needed_combos, {2, 3, 4})
-        self.assertSetEqual(variants[4].needed_features, {1, 2})
+        self.assertSetEqual(variants[4].needed_feature_of_cards, set())
         self.assertMultisetEqual(variants[5].cards, {3: 2})
         self.assertMultisetEqual(variants[5].templates, {})
         self.assertMultisetEqual(variants[5].features, {1: 2, 2: 1})
@@ -669,7 +669,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
             2: [VariantIngredients(FrozenMultiset({3: 2}), FrozenMultiset())],
         })
         self.assertSetEqual(variants[5].needed_combos, {3, 4})
-        self.assertSetEqual(variants[5].needed_features, {1, 2})
+        self.assertSetEqual(variants[5].needed_feature_of_cards, set())
         combo_graph = Graph(Data(), allow_multiple_copies=False)
         variants = list(combo_graph.results(combo_graph.variants(4)))
         self.assertEqual(len(variants), 3)
@@ -683,7 +683,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
             2: [VariantIngredients(FrozenMultiset({1: 1, 2: 1}), FrozenMultiset())],
         })
         self.assertSetEqual(variants[0].needed_combos, {1, 2, 4})
-        self.assertSetEqual(variants[0].needed_features, {1, 2})
+        self.assertSetEqual(variants[0].needed_feature_of_cards, set())
         self.assertMultisetEqual(variants[1].cards, {1: 1, 3: 1})
         self.assertMultisetEqual(variants[1].templates, {})
         self.assertMultisetEqual(variants[1].features, {1: 2, 2: 1})
@@ -693,7 +693,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
             2: [VariantIngredients(FrozenMultiset({1: 1, 3: 1}), FrozenMultiset())],
         })
         self.assertSetEqual(variants[1].needed_combos, {1, 3, 4})
-        self.assertSetEqual(variants[1].needed_features, {1, 2})
+        self.assertSetEqual(variants[1].needed_feature_of_cards, set())
         self.assertMultisetEqual(variants[2].cards, {2: 1, 3: 1})
         self.assertMultisetEqual(variants[2].templates, {})
         self.assertMultisetEqual(variants[2].features, {1: 2, 2: 1})
@@ -703,7 +703,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
             2: [VariantIngredients(FrozenMultiset({2: 1, 3: 1}), FrozenMultiset())],
         })
         self.assertSetEqual(variants[2].needed_combos, {2, 3, 4})
-        self.assertSetEqual(variants[2].needed_features, {1, 2})
+        self.assertSetEqual(variants[2].needed_feature_of_cards, set())
 
     def test_chained_multiplication(self):
         self.setup_combo_graph({
@@ -724,7 +724,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
             3: [VariantIngredients(FrozenMultiset({1: 30}), FrozenMultiset())],
         })
         self.assertSetEqual(variants[0].needed_combos, {1, 2, 3})
-        self.assertSetEqual(variants[0].needed_features, {1, 2, 3})
+        self.assertSetEqual(variants[0].needed_feature_of_cards, set())
         combo_graph = Graph(Data(), allow_multiple_copies=False)
         variants = list(combo_graph.results(combo_graph.variants(3)))
         self.assertEqual(len(variants), 0)
@@ -756,7 +756,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
             2: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset())],
         })
         self.assertSetEqual(variants[0].needed_combos, {1, 2, 3})
-        self.assertSetEqual(variants[0].needed_features, {1, 2})
+        self.assertSetEqual(variants[0].needed_feature_of_cards, set())
 
     def test_unsolvable_loop(self):
         self.setup_combo_graph({
@@ -788,7 +788,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
             3: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset())],
         })
         self.assertSetEqual(variants[0].needed_combos, {1, 2, 3, 4})
-        self.assertSetEqual(variants[0].needed_features, {1, 2, 3})
+        self.assertSetEqual(variants[0].needed_feature_of_cards, set())
 
     def test_additional_results(self):
         self.setup_combo_graph({
@@ -819,7 +819,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
             10: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset())],
         })
         self.assertSetEqual(variants[0].needed_combos, {1, 2, 3})
-        self.assertSetEqual(variants[0].needed_features, {1, 2, 3, 7})
+        self.assertSetEqual(variants[0].needed_feature_of_cards, {2})
         self.assertMultisetEqual(variants[1].cards, {1: 1, 2: 1, 4: 1})
         self.assertMultisetEqual(variants[1].templates, {})
         self.assertMultisetEqual(variants[1].features, {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 8: 1, 9: 1, 10: 1})
@@ -837,7 +837,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
             10: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset())],
         })
         self.assertSetEqual(variants[1].needed_combos, {1, 2, 4, 5, 6})
-        self.assertSetEqual(variants[1].needed_features, {1, 2, 3, 4, 7, 8, 9})
+        self.assertSetEqual(variants[1].needed_feature_of_cards, {2, 3})
 
     def test_variant_removal(self):
         self.setup_combo_graph({
@@ -860,7 +860,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
             3: [VariantIngredients(FrozenMultiset({3: 1}), FrozenMultiset())],
         })
         self.assertSetEqual(variants[0].needed_combos, {1, 2, 3})
-        self.assertSetEqual(variants[0].needed_features, {1, 2, 3})
+        self.assertSetEqual(variants[0].needed_feature_of_cards, set())
         self.assertMultisetEqual(variants[1].cards, {1: 1, 4: 1})
         self.assertMultisetEqual(variants[1].templates, {})
         self.assertMultisetEqual(variants[1].features, {1: 1, 2: 1, 3: 1, 4: 1})
@@ -872,7 +872,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
             4: [VariantIngredients(FrozenMultiset({4: 1}), FrozenMultiset())],
         })
         self.assertSetEqual(variants[1].needed_combos, {1, 4})
-        self.assertSetEqual(variants[1].needed_features, {1, 2, 3, 4})
+        self.assertSetEqual(variants[1].needed_feature_of_cards, set())
 
     def test_additional_results_avoiding_too_many_variants(self):
         threshold = 100
@@ -894,7 +894,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
             2: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset())],
         })
         self.assertSetEqual(variants[0].needed_combos, {1, 2})
-        self.assertSetEqual(variants[0].needed_features, {1, 2})
+        self.assertSetEqual(variants[0].needed_feature_of_cards, set())
 
     def test_always_sum_templates_when_multiple_copies_of_cards_are_not_enabled(self):
         self.setup_combo_graph({
@@ -914,7 +914,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
             2: [VariantIngredients(FrozenMultiset({1: 1, 2: 1}), FrozenMultiset({1: 4, 2: 1}))],
         })
         self.assertSetEqual(variants[0].needed_combos, {1, 2, 3})
-        self.assertSetEqual(variants[0].needed_features, {1, 2})
+        self.assertSetEqual(variants[0].needed_feature_of_cards, set())
 
     def test_without_feature_attributes(self):
         self.setup_combo_graph({
@@ -1028,7 +1028,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
         self.assertEqual(len(variants), 1)
         self.assertMultisetEqual(variants[0].cards, {1: 1, 2: 2})
 
-    def test_features_with_multiple_copies(self):
+    def test_card_features_with_multiple_copies(self):
         self.setup_combo_graph({
             'A': ('x', 'x'),
             ('x', 'x'): ('y',),
@@ -1040,6 +1040,27 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
         self.assertMultisetEqual(variants[0].templates, {})
         self.assertMultisetEqual(variants[0].features, {1: 2, 2: 1})
         self.assertSetEqual(variants[0].combos, {1})
+        self.assertSetEqual(variants[0].needed_combos, {1})
+        self.assertSetEqual(variants[0].needed_feature_of_cards, {1})
+        self.assertReplacementsEqual(variants[0].replacements, {
+            1: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset())],
+            2: [VariantIngredients(FrozenMultiset({1: 2}), FrozenMultiset())],
+        })
+
+    def test_combo_features_with_multiple_copies(self):
+        self.setup_combo_graph({
+            ('A',): ('x', 'x'),
+            ('x', 'x'): ('y',),
+        })
+        combo_graph = Graph(Data(), allow_multiple_copies=True)
+        variants = list(combo_graph.results(combo_graph.variants(2)))
+        self.assertEqual(len(variants), 1)
+        self.assertMultisetEqual(variants[0].cards, {1: 2})
+        self.assertMultisetEqual(variants[0].templates, {})
+        self.assertMultisetEqual(variants[0].features, {1: 2, 2: 1})
+        self.assertSetEqual(variants[0].combos, {1, 2})
+        self.assertSetEqual(variants[0].needed_combos, {1, 2})
+        self.assertSetEqual(variants[0].needed_feature_of_cards, set())
         self.assertReplacementsEqual(variants[0].replacements, {
             1: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset())],
             2: [VariantIngredients(FrozenMultiset({1: 2}), FrozenMultiset())],

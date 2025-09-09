@@ -29,9 +29,9 @@ class VariantSetTests(TestCase):
 
     def test_key_to_ingredients(self):
         self.assertEqual(VariantSet.ingredients_to_key(*VariantSet.key_to_ingredients(FrozenMultiset())), FrozenMultiset())
-        self.assertEqual(VariantSet.ingredients_to_key(*VariantSet.key_to_ingredients(FrozenMultiset({'C1': 7, 'C2': 14, 'T1': 21}))), FrozenMultiset({'C1': 7, 'C2': 14, 'T1': 21}))
-        self.assertEqual(VariantSet.ingredients_to_key(*VariantSet.key_to_ingredients(FrozenMultiset({'C1': 1, 'C2': 2, 'T1': 1, 'T2': 1}))), FrozenMultiset({'C1': 1, 'C2': 2, 'T1': 1, 'T2': 1}))
-        self.assertEqual(VariantSet.ingredients_to_key(*VariantSet.key_to_ingredients(FrozenMultiset({'C1': 10, 'C2': 10, 'T1': 10, 'T3': 10}))), FrozenMultiset({'C1': 10, 'C2': 10, 'T1': 10, 'T3': 10}))
+        self.assertEqual(VariantSet.ingredients_to_key(*VariantSet.key_to_ingredients(FrozenMultiset({1: 7, 2: 14, -1: 21}))), FrozenMultiset({1: 7, 2: 14, -1: 21}))
+        self.assertEqual(VariantSet.ingredients_to_key(*VariantSet.key_to_ingredients(FrozenMultiset({1: 1, 2: 2, -1: 1, -2: 1}))), FrozenMultiset({1: 1, 2: 2, -1: 1, -2: 1}))
+        self.assertEqual(VariantSet.ingredients_to_key(*VariantSet.key_to_ingredients(FrozenMultiset({1: 10, 2: 10, -1: 10, -3: 10}))), FrozenMultiset({1: 10, 2: 10, -1: 10, -3: 10}))
 
     def test_variant_set_add(self):
         variant_set = VariantSet()

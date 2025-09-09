@@ -14,6 +14,9 @@ class MinimalSetOfMultisets(Generic[_T]):
     in the collection is also present.
     """
 
+    __slots__ = ('_sets',)
+    _sets: set[FrozenMultiset[_T]]
+
     def __init__(self, sets: set[FrozenMultiset[_T]] | None = None):
         """
         Initializes a new minimal set of sets.
@@ -22,7 +25,7 @@ class MinimalSetOfMultisets(Generic[_T]):
             sets (set[FrozenMultiset] | None): Optional initial sets to be added to the collection,
             discarding all sets that are supersets of other sets in the collection.
         """
-        self._sets = set[FrozenMultiset[_T]]()
+        self._sets = set()
         if sets is not None:
             for s in sets:
                 self.add(s)

@@ -211,6 +211,28 @@
             },
         },
         {
+            "name": "Profile Generate Variants using PyPy",
+            "type": "debugpy",
+            "python": "pypy",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/backend",
+            "module": "cProfile",
+            "args": [
+                "-o", "${workspaceFolder}/backend/temp/profiles/generate_variants_pypy.prof", "manage.py", "generate_variants"
+            ],
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}${/}common",
+            },
+            "preLaunchTask": "Prelaunch",
+            "django": true,
+            "justMyCode": true,
+            "presentation": {
+                "hidden": false,
+                "group": "Spellbook",
+                "order": 5
+            },
+        },
+        {
             "name": "Export variants",
             "type": "debugpy",
             "request": "launch",
@@ -228,7 +250,7 @@
             "presentation": {
                 "hidden": false,
                 "group": "Spellbook",
-                "order": 5
+                "order": 6
             },
         },
         {
@@ -295,15 +317,14 @@
             },
         },
         {
-            "name": "Wipe combos, features and variants",
+            "name": "Cleanup Jobs (force)",
             "type": "debugpy",
             "request": "launch",
             "cwd": "${workspaceFolder}/backend",
             "program": "manage.py",
             "args": [
-                "shell",
-                "-c",
-                "from spellbook.models import *; Variant.objects.all().delete(); Combo.objects.all().delete(); Feature.objects.all().delete();"
+                "clean_jobs",
+                "--force"
             ],
             "env": {
                 "PYTHONPATH": "${workspaceFolder}${/}common",

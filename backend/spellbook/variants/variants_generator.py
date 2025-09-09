@@ -266,7 +266,7 @@ def restore_variant(
         required_templates.append(tiv)
     generator_combos = [data.id_to_combo[c_id] for c_id in sorted(variant_def.of_ids)]
     other_combos = [data.id_to_combo[c_id] for c_id in sorted(variant_def.included_ids - variant_def.of_ids)]
-    needed_combos = [*generator_combos, *other_combos]
+    needed_combos = [*generator_combos, *(c for c in other_combos if c.id in variant_def.needed_combos)]
     needed_feature_of_cards = [data.id_to_feature_of_card[f_id] for f_id in sorted(variant_def.needed_features_of_cards)]
     produces_ids = subtract_features(data, variant_def.included_ids, variant_def.feature_ids)
     produced_features = [

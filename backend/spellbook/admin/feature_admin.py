@@ -14,7 +14,14 @@ from .ingredient_admin import IngredientAdmin
 
 
 class CardInFeatureAdminInline(IngredientAdmin):
-    fields = ['card', *IngredientAdmin.fields, 'easy_prerequisites', 'notable_prerequisites', 'attributes']
+    fields = [
+        'card', 
+        'attributes',
+        *IngredientAdmin.fields,
+        'mana_needed',
+        'easy_prerequisites',
+        'notable_prerequisites'
+    ]
     model = FeatureOfCard
     extra = 0
     autocomplete_fields = ['card', 'attributes']

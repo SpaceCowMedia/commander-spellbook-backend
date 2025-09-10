@@ -1,6 +1,5 @@
 from django.test import TestCase
-from spellbook.models import merge_identities
-from spellbook.models.utils import auto_fix_missing_braces_to_oracle_symbols, upper_oracle_symbols, sanitize_mana, sanitize_scryfall_query
+from spellbook.models.utils import merge_identities, auto_fix_missing_braces_to_oracle_symbols, merge_mana_costs, upper_oracle_symbols, sanitize_mana, sanitize_scryfall_query
 
 
 class TestAddCurlyBracketsToOracleSymbols(TestCase):
@@ -147,7 +146,51 @@ class TestSanitizeScryfallQuery(TestCase):
         self.assertEqual(sanitize_scryfall_query('mana={WP} b mana={WP} c format:modern f:edh'), 'mana={W/P} b mana={W/P} c')
 
 
-class UtilsTests(TestCase):
+class TestMergeManaCosts(TestCase):
+    def test_empty(self):
+        self.assertEqual(merge_mana_costs([]), '')
+
+    def test_no_mana(self):
+        self.assertEqual(merge_mana_costs(['aaa eee oo ? *', 'bbb rrr yy ? *', 'asd']), 'aaa eee oo ? *, bbb rrr yy ? *, asd')
+
+    def test_one_mana(self):
+        self.assertEqual(merge_mana_costs(['{w}']), '{W}')
+        self.assertEqual(merge_mana_costs(['{13}']), '{13}')
+        self.assertEqual(merge_mana_costs(['{U/P}']), '{U/P}')
+
+    def test_multiple_mana(self):
+        self.assertEqual(merge_mana_costs(['{w}{u}{b}{r}{g}{b/p}']), '{W}{U}{B}{B/P}{R}{G}')
+        self.assertEqual(merge_mana_costs(['{C}{10}{S}']), '{11}{S}')
+
+    def test_multiple_costs(self):
+        self.assertEqual(merge_mana_costs(['{w}', '{u}', '{b}', '{r}', '{g}', '{b/p}']), '{W}{U}{B}{B/P}{R}{G}')
+        self.assertEqual(merge_mana_costs(['{b}{r}', '{w}{u}', '{b/p}{g}']), '{W}{U}{B}{B/P}{R}{G}')
+        self.assertEqual(merge_mana_costs(['{u}', '{r}{g}', '{C}', '{6}']), '{7}{G}{U}{R}')
+
+    def test_multiple_costs_with_repetitions(self):
+        self.assertEqual(merge_mana_costs(['{1}', '{w}{u}', '{u}{b}', '{b}{r}', '{r}{g}', '{g}{w}', '{C}', '{C}', '{1}']), '{4}{W}{W}{U}{U}{B}{B}{R}{R}{G}{G}')
+
+    def test_multiple_costs_with_non_mana(self):
+        self.assertEqual(merge_mana_costs(['{w}', 'aaa eee oo ? *', '{u}', 'bbb rrr yy ? *', '{b}', '{r/p}', '{b}', '{g/p}']), '{W}{U}{B}{B}{R/P}{G/P}, aaa eee oo ? *, bbb rrr yy ? *')
+
+    def test_plus_syntax(self):
+        self.assertEqual(merge_mana_costs(['{1} each turn', '{w}']), '{W} plus {1} each turn')
+        self.assertEqual(merge_mana_costs(['{1} and three mana of any color', '{w}']), '{W} plus {1} and three mana of any color')
+
+    def test_and_syntax(self):
+        self.assertEqual(merge_mana_costs(['{1} each turn', '{w} plus {u}']), '{1} each turn and {W} plus {U}')
+        self.assertEqual(merge_mana_costs(['{1} plus {2} each turn', '{P}']), '{P} and {1} plus {2} each turn')
+
+    def test_comma_syntax(self):
+        self.assertEqual(merge_mana_costs(['{1} plus {2} each turn and each upkeep', '{P}']), '{P}, {1} plus {2} each turn and each upkeep')
+
+    def test_trailing_characters(self):
+        self.assertEqual(merge_mana_costs(['{1} each turn.', '{w}']), '{W} plus {1} each turn')
+        self.assertEqual(merge_mana_costs([' {1} each turn. ', '{w} ']), '{W} plus {1} each turn')
+        self.assertEqual(merge_mana_costs(['{1} each turn . ', '{w}.']), '{W} plus {1} each turn')
+
+
+class TestMergeIdentities(TestCase):
     def test_merge_identities(self):
         self.assertEqual(merge_identities(['', '']), 'C')
         for c in 'CWUBRG':

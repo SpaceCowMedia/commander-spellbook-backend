@@ -87,7 +87,7 @@ class Combo(Recipe, ScryfallLinkMixin):
     mana_needed = models.CharField(blank=True, max_length=MAX_MANA_NEEDED_LENGTH, help_text='Mana needed for this combo. Use the {1}{W}{U}{B}{R}{G}{B/P}... format.', validators=[MANA_VALIDATOR, *TEXT_VALIDATORS])
     easy_prerequisites = models.TextField(blank=True, help_text='Easily achievable prerequisites for this combo.', validators=TEXT_VALIDATORS)
     notable_prerequisites = models.TextField(blank=True, help_text='Notable prerequisites for this combo.', validators=TEXT_VALIDATORS)
-    description = models.TextField(blank=True, help_text='Long description of the combo, in steps', validators=TEXT_VALIDATORS)
+    description = models.TextField(blank=True, help_text='Long description of the combo, in steps. Here and in every other text field you can reference feature replacements with the [[name]] syntax. Optionally, you can also give it an alias to use later with [[name|alias]] and/or select one of the multiple copies with [[name$number]].', validators=TEXT_VALIDATORS)
     notes = models.TextField(blank=True, help_text='Notes about the combo that will be displayed on the site', validators=TEXT_VALIDATORS)
     status = models.CharField(choices=Status.choices, default=Status.DRAFT, help_text='Is this combo a generator for variants?', verbose_name='status', max_length=2)
     allow_many_cards = models.BooleanField(default=False, help_text=f'Allow variants to have more cards ({HIGHER_CARD_LIMIT}) than the default limit ({DEFAULT_CARD_LIMIT}). On the other hand, with this option enabled, the limit on the number of allowed variants is lowered to {LOWER_VARIANT_LIMIT}, instead of the default {DEFAULT_VARIANT_LIMIT}.')

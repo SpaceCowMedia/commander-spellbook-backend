@@ -3,8 +3,8 @@ from django.dispatch import receiver
 from django.db.models.signals import post_save
 from django.db.models.functions import Upper
 from django.contrib.postgres.indexes import GinIndex, OpClass
-from .constants import MAX_CARD_NAME_LENGTH
-from .validators import TEXT_VALIDATORS
+from .constants import MAX_CARD_NAME_LENGTH, MAX_MANA_NEEDED_LENGTH
+from .validators import MANA_VALIDATOR, TEXT_VALIDATORS
 from .playable import Playable
 from .utils import strip_accents, simplify_card_name_on_database, simplify_card_name_with_spaces_on_database, CardType
 from .mixins import ScryfallLinkMixin, PreSaveModelMixin
@@ -154,8 +154,9 @@ class FeatureOfCard(Ingredient, WithFeatureAttributes):
     id: int
     card = models.ForeignKey(to=Card, on_delete=models.CASCADE)
     card_id: int
-    easy_prerequisites = models.TextField(blank=True, help_text='Easily achievable prerequisites for this combo.', validators=TEXT_VALIDATORS)
-    notable_prerequisites = models.TextField(blank=True, help_text='Notable prerequisites for this combo.', validators=TEXT_VALIDATORS)
+    mana_needed = models.CharField(blank=True, max_length=MAX_MANA_NEEDED_LENGTH, help_text='Mana needed for this card feature. Use the {1}{W}{U}{B}{R}{G}{B/P}... format.', validators=[MANA_VALIDATOR, *TEXT_VALIDATORS])
+    easy_prerequisites = models.TextField(blank=True, help_text='Easily achievable prerequisites for this card feature.', validators=TEXT_VALIDATORS)
+    notable_prerequisites = models.TextField(blank=True, help_text='Notable prerequisites for this card feature.', validators=TEXT_VALIDATORS)
 
     def __str__(self):
-        return f'{self.feature} for card {self.card.pk}'
+        return f'{self.feature} for card {self.card_id}'

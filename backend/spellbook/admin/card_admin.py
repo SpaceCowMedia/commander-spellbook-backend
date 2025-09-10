@@ -31,7 +31,14 @@ class CardTypeFilter(CustomFilter):
 
 
 class FeatureOfCardAdminInline(IngredientAdmin):
-    fields = ['feature', *IngredientAdmin.fields, 'easy_prerequisites', 'notable_prerequisites', 'attributes']
+    fields = [
+        'feature',
+        'attributes',
+        *IngredientAdmin.fields,
+        'mana_needed',
+        'easy_prerequisites',
+        'notable_prerequisites',
+    ]
     model = FeatureOfCard
     verbose_name = 'Feature'
     verbose_name_plural = 'Features'

@@ -1,6 +1,7 @@
 import re
 import unicodedata
 from typing import Generator, Iterable, Sequence
+from collections import defaultdict
 from ..regexs import MANA_SYMBOL, ORACLE_SYMBOL, ORACLE_SYMBOL_EXTENDED
 from ..parsers.scryfall_query_grammar import COMPARISON_OPERATORS, MANA_COMPARABLE_VARIABLES
 from django.utils.text import normalize_newlines
@@ -91,6 +92,47 @@ def sort_color_identity(identity_set: frozenset[str]) -> str:
 def merge_identities(identities: Iterable[str]) -> str:
     identity_set = frozenset(''.join(identities).upper()).intersection('WUBRG')
     return sort_color_identity(identity_set)
+
+
+def merge_mana_costs(mana_costs: Iterable[str]) -> str:
+    costs = defaultdict[str, int](int)
+    strings: list[str] = []
+    for mana_cost in mana_costs:
+        mana_cost = sanitize_mana(mana_cost.strip().removesuffix('.').strip())
+        if re.fullmatch(r'^(?:\s*' + MANA_SEARCH_REGEX + r')*\s*$', mana_cost):
+            for matching_symbol in re.findall(MANA_SEARCH_REGEX, mana_cost):
+                match matching_symbol:
+                    case n if matching_symbol.isdigit():
+                        costs['C'] += int(n)
+                    case _:
+                        costs[matching_symbol] += 1
+        else:
+            strings.append(mana_cost)
+    if costs:
+        cost_string = ''
+        colorless = costs.pop('C', 0)
+        identity = sort_color_identity(frozenset(''.join(costs.keys())).intersection('WUBRG'))
+        for color in identity:
+            for symbol in sorted((s for s in costs.keys() if color in s), key=lambda s: (len(s), s)):
+                cost_string += f'{{{symbol}}}' * costs[symbol]
+                del costs[symbol]
+        for symbol in sorted(costs.keys(), key=lambda s: (len(s), s)):
+            cost_string += f'{{{symbol}}}' * costs[symbol]
+        if colorless > 0:
+            cost_string = f'{{{colorless}}}' + cost_string
+        strings.insert(0, cost_string)
+    strings = [s for s in strings if s]
+    match len(strings):
+        case 0:
+            return ''
+        case 1:
+            return strings[0]
+        case 2 if not any(' plus ' in s for s in strings):
+            return ' plus '.join(strings)
+        case 2 if not any(' and ' in s for s in strings):
+            return ' and '.join(strings)
+        case _:
+            return ', '.join(strings)
 
 
 def mana_value(mana: str) -> int:

@@ -15,12 +15,12 @@ from .ingredient_admin import IngredientAdmin
 
 class CardInFeatureAdminInline(IngredientAdmin):
     fields = [
-        'card', 
+        'card',
         'attributes',
         *IngredientAdmin.fields,
         'mana_needed',
         'easy_prerequisites',
-        'notable_prerequisites'
+        'notable_prerequisites',
     ]
     model = FeatureOfCard
     extra = 0

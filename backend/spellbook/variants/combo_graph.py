@@ -7,7 +7,7 @@ from enum import Enum
 from dataclasses import dataclass
 from spellbook.models import Card, Feature, FeatureOfCard, Combo, Template
 from .variant_data import AttributesMatcher, Data
-from .variant_set import VariantSet, cardid, templateid
+from .variant_set import VariantSet, VariantSetParameters, cardid, templateid
 from .utils import count_contains
 
 
@@ -102,7 +102,7 @@ class CardNode(NodeWithoutState[Card]):
             features: Iterable['FeatureOfCardNode'] = [],
             combos: Mapping['ComboNode', int] = {},
     ):
-        variant_set = graph._new_variant_set()
+        variant_set = VariantSet(parameters=graph.variant_set_parameters)
         variant_set.add(FrozenMultiset({card.id: 1}), FrozenMultiset())
         super().__init__(graph, card, variant_set)
         self.features = list(features)
@@ -116,7 +116,7 @@ class TemplateNode(NodeWithoutState[Template]):
             template: Template,
             combos: Mapping['ComboNode', int] = {},
     ):
-        variant_set = graph._new_variant_set()
+        variant_set = VariantSet(parameters=graph.variant_set_parameters)
         variant_set.add(FrozenMultiset(), FrozenMultiset({template.id: 1}))
         super().__init__(graph, template, variant_set)
         self.combos = dict(combos)
@@ -133,8 +133,8 @@ class FeatureOfCardNode(NodeWithoutState[FeatureOfCard]):
     ):
         variant_set = VariantSet.product_sets(
             [card.variant_set] * quantity,
-            limit=graph.card_limit,
-            allow_multiple_copies=graph.allow_multiple_copies)
+            parameters=graph.variant_set_parameters,
+        )
         super().__init__(graph, feature_of_card, variant_set)
         self.quantity = quantity
         self.card = card
@@ -239,9 +239,8 @@ class Graph:
             card_limit=5,
             variant_limit=10000,
             allow_multiple_copies=False):
-        self.card_limit = card_limit
         self.variant_limit = variant_limit
-        self.allow_multiple_copies = allow_multiple_copies
+        self.variant_set_parameters = VariantSetParameters(max_depth=card_limit, allow_multiple_copies=allow_multiple_copies)
         self.filter: VariantIngredients | None = None
         self.data = data
         # Construct card nodes
@@ -351,9 +350,6 @@ class Graph:
         self._to_reset_nodes_filtered_state = set[Node]()
         self._to_reset_nodes_filtered_variant_set = set[Node]()
 
-    def _new_variant_set(self) -> VariantSet:
-        return VariantSet(limit=self.card_limit, allow_multiple_copies=self.allow_multiple_copies)
-
     def _error(self, msg: str):
         raise Exception(msg)
 
@@ -393,22 +389,22 @@ class Graph:
         combo.state = NodeState.VISITING
         card_variant_sets: list[VariantSet] = []
         for c, q in combo.cards.items():
-            variant_set = VariantSet.product_sets([c.variant_set] * q, limit=self.card_limit, allow_multiple_copies=self.allow_multiple_copies)
+            variant_set = VariantSet.product_sets([c.variant_set] * q, parameters=self.variant_set_parameters)
             if self.filter is not None:
                 variant_set = variant_set.filter(self.filter.cards, self.filter.templates)
             if not variant_set:
                 combo.state = NodeState.VISITED
-                combo.variant_set = self._new_variant_set()
+                combo.variant_set = VariantSet(parameters=self.variant_set_parameters)
                 return combo.variant_set
             card_variant_sets.append(variant_set)
         template_variant_sets: list[VariantSet] = []
         for t, q in combo.templates.items():
-            variant_set = VariantSet.product_sets([t.variant_set] * q, limit=self.card_limit, allow_multiple_copies=self.allow_multiple_copies)
+            variant_set = VariantSet.product_sets([t.variant_set] * q, parameters=self.variant_set_parameters)
             if self.filter is not None:
                 variant_set = variant_set.filter(self.filter.cards, self.filter.templates)
             if not variant_set:
                 combo.state = NodeState.VISITED
-                combo.variant_set = self._new_variant_set()
+                combo.variant_set = VariantSet(parameters=self.variant_set_parameters)
                 return combo.variant_set
             template_variant_sets.append(variant_set)
         needed_features_variant_sets: list[VariantSet] = []
@@ -416,25 +412,25 @@ class Graph:
             variant_sets = list[VariantSet]()
             for f, q in features_needed.items():
                 if f.state == NodeState.VISITING:
-                    return self._new_variant_set()
+                    return VariantSet(parameters=self.variant_set_parameters)
                 variant_set = self._feature_with_attribute_matchers_nodes_down(f)
                 variant_sets.extend([variant_set] * q)
             variant_count_estimate = sum(len(vs) for vs in variant_sets)
             if variant_count_estimate > self.variant_limit:
                 raise Graph.GraphError(f'{len(variant_sets)} x Feature "{feature}" has too many variants, approx. {variant_count_estimate}')
-            variant_set = VariantSet.product_sets(variant_sets, limit=self.card_limit, allow_multiple_copies=self.allow_multiple_copies)
+            variant_set = VariantSet.product_sets(variant_sets, parameters=self.variant_set_parameters)
             if self.filter is not None:
                 variant_set = variant_set.filter(self.filter.cards, self.filter.templates)
             if not variant_set:
                 combo.state = NodeState.VISITED
-                combo.variant_set = self._new_variant_set()
+                combo.variant_set = VariantSet(parameters=self.variant_set_parameters)
                 return combo.variant_set
             needed_features_variant_sets.append(variant_set)
         variant_sets: list[VariantSet] = card_variant_sets + template_variant_sets + needed_features_variant_sets
         variant_count_estimate = prod(len(vs) for vs in variant_sets)
         if variant_count_estimate > self.variant_limit:
             raise Graph.GraphError(f'Combo {combo.item} has too many variants, approx. {variant_count_estimate}')
-        combo.variant_set = VariantSet.and_sets(variant_sets, limit=self.card_limit, allow_multiple_copies=self.allow_multiple_copies)
+        combo.variant_set = VariantSet.and_sets(variant_sets, parameters=self.variant_set_parameters)
         combo.state = NodeState.VISITED
         return combo.variant_set
 
@@ -450,7 +446,7 @@ class Graph:
             variant_set = self._feature_with_attributes_nodes_down(m)
             if variant_set:
                 variant_sets.append(variant_set)
-        feature.variant_set = VariantSet.or_sets(variant_sets, limit=self.card_limit, allow_multiple_copies=self.allow_multiple_copies)
+        feature.variant_set = VariantSet.or_sets(variant_sets, parameters=self.variant_set_parameters)
         feature.state = NodeState.VISITED
         return feature.variant_set
 
@@ -471,7 +467,7 @@ class Graph:
         variant_count_estimate = sum(len(vs) for vs in variant_sets)
         if variant_count_estimate > self.variant_limit:
             raise Graph.GraphError(f'Feature "{feature.item}" has too many variants, approx. {variant_count_estimate}')
-        feature.variant_set = VariantSet.or_sets(variant_sets, limit=self.card_limit, allow_multiple_copies=self.allow_multiple_copies)
+        feature.variant_set = VariantSet.or_sets(variant_sets, parameters=self.variant_set_parameters)
         feature.state = NodeState.VISITED
         return feature.variant_set
 

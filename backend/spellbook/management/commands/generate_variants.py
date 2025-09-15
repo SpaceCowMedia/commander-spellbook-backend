@@ -21,7 +21,7 @@ class Command(AbstractCommand):
 
     def run(self, *args, **options):
         combo: int | None = options.get('combo_id')
-        added, restored, removed = generate_variants(combo, self.job, log_count=500 if 'PyPy' in self.interpreter else 300)
+        added, restored, removed = generate_variants(combo, self.job, log_count=500)
         if added == 0 and removed == 0 and restored == 0:
             message = 'Variants are already synced with'
         else:

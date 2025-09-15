@@ -555,17 +555,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
         self.assertSetEqual(variants[2].needed_feature_of_cards, set())
         combo_graph = Graph(Data(), allow_multiple_copies=False)
         variants = list(combo_graph.results(combo_graph.variants(3)))
-        self.assertEqual(len(variants), 1)
-        self.assertMultisetEqual(variants[0].cards, {1: 1, 2: 2, 3: 1})
-        self.assertMultisetEqual(variants[0].templates, {})
-        self.assertMultisetEqual(variants[0].features, {1: 2, 2: 1})
-        self.assertSetEqual(variants[0].combos, {1, 2, 3})
-        self.assertReplacementsEqual(variants[0].replacements, {
-            1: [VariantIngredients(FrozenMultiset({1: 1, 2: 1}), FrozenMultiset()), VariantIngredients(FrozenMultiset({2: 1, 3: 1}), FrozenMultiset())],
-            2: [VariantIngredients(FrozenMultiset({1: 1, 2: 2, 3: 1}), FrozenMultiset())],
-        })
-        self.assertSetEqual(variants[0].needed_combos, {1, 2, 3})
-        self.assertSetEqual(variants[0].needed_feature_of_cards, set())
+        self.assertEqual(len(variants), 0)
 
     def test_opportunistic_choice(self):
         self.setup_combo_graph({

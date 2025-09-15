@@ -1,7 +1,7 @@
 ###########
 # BUILDER #
 ###########
-FROM python:3.12.6-alpine AS builder
+FROM python:3.12-alpine AS builder
 
 # set work directory
 WORKDIR /usr/src/app
@@ -10,23 +10,32 @@ WORKDIR /usr/src/app
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 
 # install dependencies
-RUN echo "@testing https://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories && \
-    apk --update add gcc python3-dev musl-dev postgresql-dev libffi-dev pypy3@testing --no-cache
+RUN apk --update add gcc python3-dev musl-dev postgresql-dev libffi-dev --no-cache
 
 # pip
 RUN pip install --upgrade pip
-RUN pypy3 -m ensurepip && pypy3 -m pip install --upgrade pip
 
 # install dependencies
 COPY backend/requirements.txt .
 RUN pip wheel --no-cache-dir --no-deps --wheel-dir /usr/src/app/python/wheels -r requirements.txt
-RUN pypy3 -m pip wheel --no-cache-dir --no-deps --wheel-dir /usr/src/app/pypy/wheels $(grep -ivE "#|cryptography|cffi" requirements.txt)
 
+
+#################
+# PYPY BUILDER  #
+#################
+FROM builder AS pypy-builder
+
+RUN echo "@testing https://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories && \
+    apk --update add pypy3@testing
+
+RUN pypy3 -m ensurepip && pypy3 -m pip install --upgrade pip
+
+RUN pypy3 -m pip wheel --no-cache-dir --no-deps --wheel-dir /usr/src/app/pypy/wheels $(grep -ivE "#|cryptography|cffi" requirements.txt)
 
 #########
 # BASE  #
 #########
-FROM python:3.12.6-alpine AS base
+FROM python:3.12-alpine AS base
 
 # create the app user
 RUN addgroup -S app && adduser -S app -G app
@@ -37,19 +46,13 @@ RUN mkdir -p /home/app && mkdir -p $APP_HOME/staticfiles && chown -R app:app $AP
 WORKDIR $APP_HOME
 
 # install dependencies
-RUN echo "@testing https://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories && \
-    apk add --no-cache nginx pypy3@testing && \
+RUN apk add --no-cache nginx && \
     mkdir -p /run/nginx && \
-    apk --update add --no-cache libpq postgresql-dev && \
-    ln -s $(which pypy3) $(dirname $(which pypy3))/pypy && \
-    pypy -m ensurepip && pypy -m pip install --no-cache-dir --upgrade pip
+    apk --update add --no-cache libpq postgresql-dev
 COPY --from=builder /usr/src/app/python/wheels /python/wheels
-COPY --from=builder /usr/src/app/pypy/wheels /pypy/wheels
 COPY --from=builder /usr/src/app/requirements.txt .
 RUN pip install --no-cache-dir /python/wheels/* --no-deps
 RUN pip install --no-cache-dir psycopg[binary] gunicorn
-RUN pypy -m pip install --no-cache-dir /pypy/wheels/* --no-deps
-RUN pypy -m pip install --no-cache-dir psycopg
 
 # copy project
 COPY --chown=app:app backend/ common/ $APP_HOME
@@ -70,6 +73,22 @@ EXPOSE 80
 ENTRYPOINT ["/bin/sh", "entrypoint.prod.sh"]
 RUN echo -e 'gunicorn backend.wsgi:application --bind 0.0.0.0:8000\n' > entrypoint.prod.sh
 
+
+#########
+# PYPY  #
+#########
+FROM base AS pypy
+
+# install dependencies
+RUN echo "@testing https://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories && \
+    apk --update add pypy3@testing && \
+    ln -s $(which pypy3) $(dirname $(which pypy3))/pypy && \
+    pypy -m ensurepip && pypy -m pip install --no-cache-dir --upgrade pip
+
+COPY --from=builder /usr/src/app/pypy/wheels /pypy/wheels
+
+RUN pypy -m pip install --no-cache-dir /pypy/wheels/* --no-deps
+RUN pypy -m pip install --no-cache-dir psycopg
 
 #########
 # DEMO  #

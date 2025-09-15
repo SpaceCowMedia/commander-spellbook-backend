@@ -1,31 +1,55 @@
 from typing import Iterable, Callable
 from itertools import product, chain
 from functools import reduce
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from multiset import FrozenMultiset
 from .minimal_set_of_multisets import MinimalSetOfMultisets
 
 cardid = int
 templateid = int
+Key = FrozenMultiset[int]
 
 
 @dataclass(frozen=True)
 class VariantSetParameters:
     max_depth: int | float = float('inf')
-    allow_multiple_copies: bool = False
+    allow_multiple_copies: bool = True
+    filter: Key | None = None
+
+    def _check_key(self, key: Key) -> bool:
+        if not key:
+            return False
+        if len(key.distinct_elements()) > self.max_depth:
+            return False
+        cards_multiplicities = (q for c, q in key.items() if c > 0)
+        if not self.allow_multiple_copies and any(q > 1 for q in cards_multiplicities):
+            return False
+        if self.filter is not None and not self.filter.issuperset(key):
+            return False
+        return True
 
 
 class VariantSet:
-    def __init__(self, parameters: VariantSetParameters | None = None):
-        self.sets = MinimalSetOfMultisets[int]()
-        self.parameters = parameters if parameters is not None else VariantSetParameters()
+    __slots__ = ('__parameters', '__sets')
+
+    def __init__(self, parameters: VariantSetParameters | None = None, keys: Iterable[Key] = (), internal: 'MinimalSetOfMultisets[int] | None' = None):
+        self.__parameters = parameters if parameters is not None else VariantSetParameters()
+        self.__sets = internal if internal is not None else MinimalSetOfMultisets[int](k for k in keys if self.parameters._check_key(k))
+
+    @property
+    def parameters(self) -> VariantSetParameters:
+        return self.__parameters
+
+    @property
+    def sets(self) -> MinimalSetOfMultisets[int]:
+        return self.__sets
 
     @classmethod
-    def ingredients_to_key(cls, cards: FrozenMultiset[cardid], templates: FrozenMultiset[templateid]) -> FrozenMultiset[int]:
+    def ingredients_to_key(cls, cards: FrozenMultiset[cardid], templates: FrozenMultiset[templateid]) -> Key:
         return FrozenMultiset(dict(chain(((c_id, c_q) for c_id, c_q in cards.items()), ((-t_id, t_q) for t_id, t_q in templates.items()))))
 
     @classmethod
-    def key_to_ingredients(cls, key: FrozenMultiset[int]) -> tuple[FrozenMultiset[cardid], FrozenMultiset[templateid]]:
+    def key_to_ingredients(cls, key: Key) -> tuple[FrozenMultiset[cardid], FrozenMultiset[templateid]]:
         cards = dict[cardid, int]()
         templates = dict[templateid, int]()
         for item, quantity in key.items():
@@ -35,42 +59,11 @@ class VariantSet:
                 templates[-item] = quantity
         return (FrozenMultiset(cards), FrozenMultiset(templates))
 
-    def filter(self, cards: FrozenMultiset[cardid], templates: FrozenMultiset[templateid]) -> 'VariantSet':
-        result = VariantSet(parameters=self.parameters)
-        for subset in self.sets.subsets_of(self.ingredients_to_key(cards, templates)):
-            result._add(subset)
-        return result
-
-    def add(self, cards: FrozenMultiset[cardid], templates: FrozenMultiset[templateid]):
-        base_key = self.ingredients_to_key(cards, templates)
-        if len(base_key.distinct_elements()) > self.parameters.max_depth:
-            return
-        self._add(base_key)
-
-    def _add(self, key: FrozenMultiset[int]):
-        if len(key) == 0 or len(key.distinct_elements()) > self.parameters.max_depth:
-            return
-        self.sets.add(key)
-
-    def is_satisfied_by(self, cards: FrozenMultiset[cardid], templates: FrozenMultiset[templateid]) -> bool:
-        key = self.ingredients_to_key(cards, templates)
-        if len(key.distinct_elements()) > self.parameters.max_depth:
-            return False
-        return self.sets.contains_subset_of(key)
-
-    def satisfied_by(self, cards: FrozenMultiset[cardid], templates: FrozenMultiset[templateid]) -> list[tuple[FrozenMultiset[cardid], FrozenMultiset[templateid]]]:
-        key = self.ingredients_to_key(cards, templates)
-        if len(key.distinct_elements()) > self.parameters.max_depth:
-            return []
-        return [self.key_to_ingredients(subset) for subset in self.sets.subsets_of(key)]
-
-    def __copy__(self) -> 'VariantSet':
-        result = VariantSet(parameters=self.parameters)
-        result.sets = self.sets.copy()
-        return result
-
-    def _keys(self) -> Iterable[FrozenMultiset[int]]:
+    def keys(self) -> Iterable[Key]:
         return self.sets
+
+    def filter(self, key: Key) -> 'VariantSet':
+        return VariantSet(parameters=replace(self.parameters, filter=key), internal=self.sets.subtree(key))
 
     def __str__(self) -> str:
         return str(self.sets)
@@ -79,37 +72,31 @@ class VariantSet:
         return len(self.sets)
 
     def __or__(self, other: 'VariantSet'):
-        result = self.copy()
-        for key in other._keys():
-            result._add(key)
-        return result
+        assert self.parameters == other.parameters, "Cannot union VariantSets with different parameters"
+        return VariantSet(parameters=self.parameters, internal=MinimalSetOfMultisets.union(self.sets, other.sets))
 
     def __and__(self, other: 'VariantSet'):
-        result = VariantSet(parameters=self.parameters)
-        for left_key, right_key in product(self._keys(), other._keys()):
+        assert self.parameters == other.parameters, "Cannot intersect VariantSets with different parameters"
+        result = MinimalSetOfMultisets[int]()
+        for left_key, right_key in product(self.keys(), other.keys()):
             key = left_key | right_key
-            if len(key.distinct_elements()) > self.parameters.max_depth:
+            if not self.parameters._check_key(key):
                 continue
-            result._add(key)
-        return result
-
-    def _check_if_multiset_contains_multiple_copies(self, key: FrozenMultiset[int]) -> bool:
-        return any(key[item] > 1 for item in key if item > 0)
+            result.add(key)
+        return VariantSet(parameters=self.parameters, internal=result)
 
     def __add__(self, other: 'VariantSet'):
-        result = VariantSet(parameters=self.parameters)
-        for left_key, right_key in product(self._keys(), other._keys()):
+        assert self.parameters == other.parameters, "Cannot sum VariantSets with different parameters"
+        result = MinimalSetOfMultisets[int]()
+        for left_key, right_key in product(self.keys(), other.keys()):
             key = left_key + right_key
-            if len(key.distinct_elements()) > self.parameters.max_depth:
+            if not self.parameters._check_key(key):
                 continue
-            result._add(key)
-        return result
+            result.add(key)
+        return VariantSet(parameters=self.parameters, internal=result)
 
     def variants(self) -> list[tuple[FrozenMultiset[cardid], FrozenMultiset[templateid]]]:
-        return [self.key_to_ingredients(key) for key in self._keys()]
-
-    def copy(self):
-        return self.__copy__()
+        return [self.key_to_ingredients(key) for key in self.keys()]
 
     @classmethod
     def or_sets(cls, sets: list['VariantSet'], parameters: VariantSetParameters | None = None) -> 'VariantSet':
@@ -134,17 +121,24 @@ class VariantSet:
         parameters = parameters if parameters is not None else VariantSetParameters()
         if parameters.allow_multiple_copies:
             return VariantSet.sum_sets(sets, parameters=parameters)
-        result = VariantSet(parameters=parameters)
-        for key_combination in product(*(s._keys() for s in sets)):
-            cards_sets = [frozenset(c for c in key if c > 0) for key in key_combination]
-            cards_sets = [s for s in cards_sets if len(s) > 0]
+        result = MinimalSetOfMultisets[int]()
+        for key_combination in product(*(s.keys() for s in sets)):
+            # TODO: check performance gain
+            cards_sets = [
+                s
+                for s in (
+                    frozenset(c for c in key if c > 0)
+                    for key in key_combination
+                )
+                if len(s) > 0
+            ]
             if len(cards_sets) != len(set(cards_sets)):
                 continue
-            key = sum(key_combination, FrozenMultiset[int]())
-            if len(key.distinct_elements()) > result.parameters.max_depth:
+            key = sum(key_combination, Key())
+            if not parameters._check_key(key):
                 continue
-            result._add(key)
-        return result
+            result.add(key)
+        return VariantSet(parameters=parameters, internal=result)
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, VariantSet):

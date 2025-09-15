@@ -4,7 +4,7 @@ from collections import deque, defaultdict
 from multiset import FrozenMultiset, Multiset
 from itertools import chain
 from enum import Enum
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from spellbook.models import Card, Feature, FeatureOfCard, Combo, Template
 from .variant_data import AttributesMatcher, Data
 from .variant_set import VariantSet, VariantSetParameters, cardid, templateid
@@ -30,16 +30,16 @@ class Node(Generic[T]):
 
     @property
     def variant_set(self) -> VariantSet | None:
-        if self._graph.filter is None:
+        if self._graph.variant_set_parameters.filter is None:
             return self._variant_set
         if self._variant_set is not None and self._filtered_variant_set is None:
-            self._filtered_variant_set = self._variant_set.filter(self._graph.filter.cards, self._graph.filter.templates)
+            self._filtered_variant_set = self._variant_set.filter(self._graph.variant_set_parameters.filter)
             self._graph._to_reset_nodes_filtered_variant_set.add(self)
         return self._filtered_variant_set
 
     @variant_set.setter
     def variant_set(self, value: VariantSet | None):
-        if self._graph.filter is None:
+        if self._graph.variant_set_parameters.filter is None:
             self._variant_set = value
         else:
             self._filtered_variant_set = value
@@ -54,7 +54,7 @@ class Node(Generic[T]):
     def _reset_state(self):
         self._state = NodeState.NOT_VISITED
 
-    def _reset_filtered_state(self):
+    def _reset_subgraph_state(self):
         self._filtered_state = NodeState.NOT_VISITED
 
     def _reset_filtered_variant_set(self):
@@ -68,20 +68,20 @@ class NodeWithState(Node[T]):
     def __init__(self, graph: 'Graph', item: T):
         super().__init__(graph, item)
         self._state = NodeState.NOT_VISITED
-        self._filtered_state = NodeState.NOT_VISITED
+        self._subgraph_state = NodeState.NOT_VISITED
 
     @property
     def state(self) -> NodeState:
-        return self._state if self._graph.filter is None else self._filtered_state
+        return self._subgraph_state if self._graph.subgraph else self._state
 
     @state.setter
     def state(self, value: NodeState):
-        if self._graph.filter is None:
+        if self._graph.subgraph:
+            self._subgraph_state = value
+            self._graph._to_reset_nodes_subgraph_state.add(self)
+        else:
             self._state = value
             self._graph._to_reset_nodes_state.add(self)
-        else:
-            self._filtered_state = value
-            self._graph._to_reset_nodes_filtered_state.add(self)
 
 
 class NodeWithoutState(Node[T]):
@@ -102,8 +102,10 @@ class CardNode(NodeWithoutState[Card]):
             features: Iterable['FeatureOfCardNode'] = [],
             combos: Mapping['ComboNode', int] = {},
     ):
-        variant_set = VariantSet(parameters=graph.variant_set_parameters)
-        variant_set.add(FrozenMultiset({card.id: 1}), FrozenMultiset())
+        variant_set = VariantSet(
+            parameters=graph.variant_set_parameters,
+            keys=(VariantSet.ingredients_to_key(FrozenMultiset({card.id: 1}), FrozenMultiset()),),
+        )
         super().__init__(graph, card, variant_set)
         self.features = list(features)
         self.combos = dict(combos)
@@ -116,8 +118,10 @@ class TemplateNode(NodeWithoutState[Template]):
             template: Template,
             combos: Mapping['ComboNode', int] = {},
     ):
-        variant_set = VariantSet(parameters=graph.variant_set_parameters)
-        variant_set.add(FrozenMultiset(), FrozenMultiset({template.id: 1}))
+        variant_set = VariantSet(
+            parameters=graph.variant_set_parameters,
+            keys=(VariantSet.ingredients_to_key(FrozenMultiset(), FrozenMultiset({template.id: 1})),),
+        )
         super().__init__(graph, template, variant_set)
         self.combos = dict(combos)
 
@@ -241,7 +245,7 @@ class Graph:
             allow_multiple_copies=False):
         self.variant_limit = variant_limit
         self.variant_set_parameters = VariantSetParameters(max_depth=card_limit, allow_multiple_copies=allow_multiple_copies)
-        self.filter: VariantIngredients | None = None
+        self.subgraph = False
         self.data = data
         # Construct card nodes
         self.card_nodes: dict[cardid, CardNode] = {card_id: CardNode(self, card) for card_id, card in data.id_to_card.items()}
@@ -347,27 +351,25 @@ class Graph:
                         feature_with_attributes_matcher_node.matches.add(matching_node)
                         matching_node.matches.append(feature_with_attributes_matcher_node)
         self._to_reset_nodes_state = set[Node]()
-        self._to_reset_nodes_filtered_state = set[Node]()
+        self._to_reset_nodes_subgraph_state = set[Node]()
         self._to_reset_nodes_filtered_variant_set = set[Node]()
 
     def _error(self, msg: str):
         raise Exception(msg)
 
     def _reset(self):
-        if self.filter is not None:
-            for node in self._to_reset_nodes_filtered_state:
-                node._reset_filtered_state()
-            self._to_reset_nodes_filtered_state.clear()
-        else:
-            for node in self._to_reset_nodes_state:
-                node._reset_state()
-            self._to_reset_nodes_state.clear()
-            for node in self._to_reset_nodes_filtered_state:
-                node._reset_filtered_state()
-            self._to_reset_nodes_filtered_state.clear()
-            for node in self._to_reset_nodes_filtered_variant_set:
-                node._reset_filtered_variant_set()
-            self._to_reset_nodes_filtered_variant_set.clear()
+        for node in self._to_reset_nodes_subgraph_state:
+            node._reset_subgraph_state()
+        self._to_reset_nodes_subgraph_state.clear()
+        if self.subgraph:
+            return
+        for node in self._to_reset_nodes_state:
+            node._reset_state()
+        self._to_reset_nodes_state.clear()
+        for node in self._to_reset_nodes_filtered_variant_set:
+            node._reset_filtered_variant_set()
+        self._to_reset_nodes_filtered_variant_set.clear()
+        self.variant_set_parameters = replace(self.variant_set_parameters, filter=None)
 
     def variants(self, combo_id: int) -> VariantSet:
         combo_node = self.combo_nodes[combo_id]
@@ -390,8 +392,6 @@ class Graph:
         card_variant_sets: list[VariantSet] = []
         for c, q in combo.cards.items():
             variant_set = VariantSet.product_sets([c.variant_set] * q, parameters=self.variant_set_parameters)
-            if self.filter is not None:
-                variant_set = variant_set.filter(self.filter.cards, self.filter.templates)
             if not variant_set:
                 combo.state = NodeState.VISITED
                 combo.variant_set = VariantSet(parameters=self.variant_set_parameters)
@@ -400,8 +400,6 @@ class Graph:
         template_variant_sets: list[VariantSet] = []
         for t, q in combo.templates.items():
             variant_set = VariantSet.product_sets([t.variant_set] * q, parameters=self.variant_set_parameters)
-            if self.filter is not None:
-                variant_set = variant_set.filter(self.filter.cards, self.filter.templates)
             if not variant_set:
                 combo.state = NodeState.VISITED
                 combo.variant_set = VariantSet(parameters=self.variant_set_parameters)
@@ -419,8 +417,6 @@ class Graph:
             if variant_count_estimate > self.variant_limit:
                 raise Graph.GraphError(f'{len(variant_sets)} x Feature "{feature}" has too many variants, approx. {variant_count_estimate}')
             variant_set = VariantSet.product_sets(variant_sets, parameters=self.variant_set_parameters)
-            if self.filter is not None:
-                variant_set = variant_set.filter(self.filter.cards, self.filter.templates)
             if not variant_set:
                 combo.state = NodeState.VISITED
                 combo.variant_set = VariantSet(parameters=self.variant_set_parameters)
@@ -472,6 +468,7 @@ class Graph:
         return feature.variant_set
 
     def _card_nodes_up(self, ingredients: VariantIngredients) -> VariantRecipe:
+        self.variant_set_parameters = replace(self.variant_set_parameters, filter=VariantSet.ingredients_to_key(ingredients.cards, ingredients.templates))
         cards = FrozenMultiset[CardNode]({self.card_nodes[c]: q for c, q in ingredients.cards.items()})
         templates = FrozenMultiset[TemplateNode]({self.template_nodes[t]: q for t, q in ingredients.templates.items()})
         feature_of_card_nodes = set[FeatureOfCardNode]()
@@ -496,8 +493,8 @@ class Graph:
                 feature = feature_of_card.feature
                 cards_needed = feature_of_card.quantity
                 if feature.item.feature.uncountable:
-                    uncountable_feature_nodes.add(feature)
                     feature_count = 1
+                    uncountable_feature_nodes.add(feature)
                 else:
                     feature_count = quantity // cards_needed
                     countable_feature_nodes[feature] = countable_feature_nodes.get(feature, 0) + feature_count
@@ -523,7 +520,7 @@ class Graph:
             variant_set = None
             if combo.variant_set is not None:
                 variant_set = combo.variant_set
-                if not variant_set.is_satisfied_by(ingredients.cards, ingredients.templates):
+                if not variant_set:
                     combo.state = NodeState.VISITED
                     continue
             else:
@@ -542,21 +539,20 @@ class Graph:
                 if not all(f.item.feature.uncountable for f in combo.features_produced):
                     # it makes sense to compute the variant set only if the combo produces countable features
                     # variant set is only used to determine the amount of times the combo is used
-                    self.filter = ingredients
+                    self.subgraph = True
                     self._reset()
                     variant_set = self._combo_nodes_down(combo)
-                    self.filter = None
+                    self.subgraph = False
             combo.state = NodeState.VISITED
             combo_nodes.add(combo)
             if variant_set is not None:
-                satisfied_by = variant_set.satisfied_by(ingredients.cards, ingredients.templates)
                 replacements_for_combo = [
                     VariantIngredients(cards_satisfying, templates_satisfying)
                     for cards_satisfying, templates_satisfying
-                    in satisfied_by
+                    in variant_set.variants()
                 ]
                 quantity = 0
-                for cards_satisfying, templates_satisfying in satisfied_by:
+                for cards_satisfying, templates_satisfying in variant_set.variants():
                     count_for_cards = count_contains(ingredients.cards, cards_satisfying) if cards_satisfying else None
                     count_for_templates = count_contains(ingredients.templates, templates_satisfying) if templates_satisfying else None
                     if count_for_cards is not None:
@@ -619,6 +615,7 @@ class Graph:
             new_feature_of_card_nodes = {f for f in feature_of_card_nodes if f.feature.item in new_features_produced_by_needed_combos}
             needed_feature_of_card_nodes.update(new_feature_of_card_nodes)
             new_features_needed_by_needed_combos = {f.item for c in new_needed_combos for features_needed in c.features_needed.values() for f in features_needed}
+        self._reset()
         # Return the recipe
         return VariantRecipe(
             cards=ingredients.cards,
@@ -627,7 +624,7 @@ class Graph:
                 ((f.item.feature.id, q) for f, q in countable_feature_nodes.items()),
                 ((f.item.feature.id, 1) for f in uncountable_feature_nodes)
             ))),
-            combos={cn.item.id for cn in combo_nodes if cn.state == NodeState.VISITED},
+            combos={cn.item.id for cn in combo_nodes},
             replacements=replacements,
             needed_feature_of_cards={fn.item.id for fn in needed_feature_of_card_nodes},
             needed_combos={cn.item.id for cn in needed_combo_nodes},

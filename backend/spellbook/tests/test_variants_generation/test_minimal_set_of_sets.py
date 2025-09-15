@@ -24,36 +24,6 @@ class MinimalSetOfSetsTests(TestCase):
             FrozenMultiset([3, 4, 5, 5, 5]),
         })
 
-    def test_contains_subset(self):
-        self.assertFalse(MinimalSetOfMultisets().contains_subset_of(FrozenMultiset([1])))
-        self.assertTrue(MinimalSetOfMultisets({FrozenMultiset([1])}).contains_subset_of(FrozenMultiset([1])))
-        self.assertFalse(MinimalSetOfMultisets({FrozenMultiset([1, 2])}).contains_subset_of(FrozenMultiset([1])))
-        self.assertTrue(MinimalSetOfMultisets({FrozenMultiset([1, 2])}).contains_subset_of(FrozenMultiset([1, 2])))
-        self.assertTrue(MinimalSetOfMultisets({FrozenMultiset([1, 2])}).contains_subset_of(FrozenMultiset([1, 2, 3])))
-        self.assertTrue(MinimalSetOfMultisets({FrozenMultiset([1, 2]), FrozenMultiset([1, 2, 4])}).contains_subset_of(FrozenMultiset([1, 2, 3])))
-        self.assertTrue(MinimalSetOfMultisets({FrozenMultiset([1, 2]), FrozenMultiset([1, 2, 4])}).contains_subset_of(FrozenMultiset([1, 2, 3, 4])))
-        self.assertFalse(MinimalSetOfMultisets({FrozenMultiset([1, 2, 6]), FrozenMultiset([1, 2, 4])}).contains_subset_of(FrozenMultiset([1, 2, 3, 5])))
-        self.assertTrue(MinimalSetOfMultisets({FrozenMultiset([2]), FrozenMultiset([1, 2, 4])}).contains_subset_of(FrozenMultiset([1, 2, 3])))
-        self.assertTrue(MinimalSetOfMultisets({FrozenMultiset([2]), FrozenMultiset([1, 2, 4])}).contains_subset_of(FrozenMultiset([1, 2, 3, 4])))
-        self.assertFalse(self.subject.contains_subset_of(FrozenMultiset(range(100))))
-        self.assertTrue(self.subject.contains_subset_of(FrozenMultiset(list(range(100)) * 2)))
-        self.assertFalse(self.subject.contains_subset_of(FrozenMultiset(range(7, 10))))
-
-    def test_subsets_of(self):
-        self.assertSetEqual(set(MinimalSetOfMultisets().subsets_of(FrozenMultiset([1]))), set())
-        self.assertSetEqual(set(MinimalSetOfMultisets({FrozenMultiset([1])}).subsets_of(FrozenMultiset([1]))), {FrozenMultiset([1])})
-        self.assertSetEqual(set(MinimalSetOfMultisets({FrozenMultiset([1, 2])}).subsets_of(FrozenMultiset([1]))), set())
-        self.assertSetEqual(set(MinimalSetOfMultisets({FrozenMultiset([1, 2])}).subsets_of(FrozenMultiset([1, 2]))), {FrozenMultiset([1, 2])})
-        self.assertSetEqual(set(MinimalSetOfMultisets({FrozenMultiset([1, 2])}).subsets_of(FrozenMultiset([1, 2, 3]))), {FrozenMultiset([1, 2])})
-        self.assertSetEqual(set(MinimalSetOfMultisets({FrozenMultiset([1, 2]), FrozenMultiset([1, 2, 4])}).subsets_of(FrozenMultiset([1, 2, 3]))), {FrozenMultiset([1, 2])})
-        self.assertSetEqual(set(MinimalSetOfMultisets({FrozenMultiset([1, 2]), FrozenMultiset([1, 2, 4])}).subsets_of(FrozenMultiset([1, 2, 3, 4]))), {FrozenMultiset([1, 2])})
-        self.assertSetEqual(set(MinimalSetOfMultisets({FrozenMultiset([1, 2, 6]), FrozenMultiset([1, 2, 4]), FrozenMultiset([1, 1, 2, 4])}).subsets_of(FrozenMultiset([1, 2, 3, 4]))), {FrozenMultiset([1, 2, 4])})
-        self.assertSetEqual(set(MinimalSetOfMultisets({FrozenMultiset([1, 2, 6]), FrozenMultiset([1, 2, 4]), FrozenMultiset([1, 1, 2, 4])}).subsets_of(FrozenMultiset([1, 1, 2, 3, 4, 6]))), {FrozenMultiset([1, 2, 4]), FrozenMultiset([1, 2, 6])})
-        self.assertSetEqual(set(MinimalSetOfMultisets({FrozenMultiset([2]), FrozenMultiset([1, 2, 4])}).subsets_of(FrozenMultiset([1, 2, 3]))), {FrozenMultiset([2])})
-        self.assertSetEqual(set(MinimalSetOfMultisets({FrozenMultiset([2]), FrozenMultiset([1, 3]), FrozenMultiset([1, 2, 4])}).subsets_of(FrozenMultiset([1, 2, 3, 4]))), {FrozenMultiset([2]), FrozenMultiset([1, 3])})
-        self.assertSetEqual(set(self.subject.subsets_of(FrozenMultiset(range(100)) + FrozenMultiset(range(100)) + {5})), set(self.subject))
-        self.assertSetEqual(set(self.subject.subsets_of(FrozenMultiset(range(7, 10)))), set())
-
     def test_add(self):
         self.subject.add(FrozenMultiset([1, 1, 2, 3, 4, 5]))
         self.assertEqual(set(self.subject), {FrozenMultiset([1, 1, 2, 3]), FrozenMultiset([3, 4, 5, 5, 5])})
@@ -111,9 +81,13 @@ class MinimalSetOfSetsTests(TestCase):
         self.assertNotIn(FrozenMultiset([1, 2, 3, 4, 5]), self.subject)
         self.assertNotIn(FrozenMultiset([1]), self.subject)
 
-    def test_copy(self):
-        self.assertEqual(self.subject, self.subject.copy())
-        c = self.subject.copy()
-        c.add(FrozenMultiset({}))
-        self.assertNotEqual(self.subject, c)
-        self.assertNotEqual(len(self.subject), len(c))
+    def test_subtree(self):
+        self.assertEqual(self.subject.subtree(FrozenMultiset([1, 1])), MinimalSetOfMultisets())
+        self.assertEqual(self.subject.subtree(FrozenMultiset([1, 1, 2, 3])), MinimalSetOfMultisets({FrozenMultiset([1, 1, 2, 3])}))
+        self.assertEqual(self.subject.subtree(FrozenMultiset([1, 1, 2, 3, 3])), MinimalSetOfMultisets({FrozenMultiset([1, 1, 2, 3])}))
+        self.assertEqual(self.subject.subtree(FrozenMultiset([1, 1, 1, 2, 3, 4])), MinimalSetOfMultisets({FrozenMultiset([1, 1, 2, 3])}))
+        self.assertEqual(self.subject.subtree(FrozenMultiset([3, 4, 5, 5, 5])), MinimalSetOfMultisets({FrozenMultiset([3, 4, 5, 5, 5])}))
+        self.assertEqual(self.subject.subtree(FrozenMultiset([1, 1, 2, 3, 4, 5, 5, 5])), MinimalSetOfMultisets({
+            FrozenMultiset([1, 1, 2, 3]),
+            FrozenMultiset([3, 4, 5, 5, 5]),
+        }))

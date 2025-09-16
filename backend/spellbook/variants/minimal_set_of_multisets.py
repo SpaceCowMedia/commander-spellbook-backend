@@ -37,7 +37,7 @@ class MinimalSetOfMultisets(Generic[_T]):
         Creates a new minimal set of sets containing all sets in the collection that are subsets of the given set.
         """
         return MinimalSetOfMultisets(
-            (s for s in self.__sets if s.issubset(under))
+            _internal={s for s in self.__sets if s.issubset(under)}
         )
 
     def __contains_subset_of(self, aset: FrozenMultiset[_T]) -> bool:

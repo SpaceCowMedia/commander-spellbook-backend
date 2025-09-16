@@ -102,7 +102,7 @@ class CardAdmin(SpellbookModelAdmin):
             'replaces__id',
         ):
             return False
-        return super().lookup_allowed(lookup, value)
+        return super().lookup_allowed(lookup, value, request)  # type: ignore for deprecated typing
 
     def get_readonly_fields(self, request, obj):
         readonly_fields = list(super().get_readonly_fields(request, obj))

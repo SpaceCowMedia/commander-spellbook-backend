@@ -3,7 +3,7 @@ from spellbook.variants.minimal_set_of_multisets import MinimalSetOfMultisets
 from multiset import FrozenMultiset
 
 
-class MinimalSetOfSetsTests(TestCase):
+class MinimalSetOfMultisetsTests(TestCase):
     def setUp(self) -> None:
         self.subject = MinimalSetOfMultisets[int]({
             FrozenMultiset([1, 1, 2, 3]),

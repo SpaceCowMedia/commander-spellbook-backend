@@ -79,6 +79,9 @@ RUN echo -e 'gunicorn backend.wsgi:application --bind 0.0.0.0:8000\n' > entrypoi
 #########
 FROM base AS pypy
 
+# Switch to user root in order to install pypy
+USER root
+
 # install dependencies
 RUN echo "@testing https://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories && \
     apk --update add pypy3@testing && \
@@ -89,6 +92,9 @@ COPY --from=pypy-builder /usr/src/app/pypy/wheels /pypy/wheels
 
 RUN pypy -m pip install --no-cache-dir /pypy/wheels/* --no-deps
 RUN pypy -m pip install --no-cache-dir psycopg
+
+# Switch back to the app user
+USER app
 
 #########
 # DEMO  #

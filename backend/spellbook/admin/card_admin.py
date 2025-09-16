@@ -97,7 +97,7 @@ class CardAdmin(SpellbookModelAdmin):
     list_display = ['name', 'id', 'identity', 'variant_count']
     inlines = [FeatureOfCardAdminInline]
 
-    def lookup_allowed(self, lookup: str, value: str) -> bool:
+    def lookup_allowed(self, lookup: str, value: str, request) -> bool:
         if lookup in (
             'replaces__id',
         ):

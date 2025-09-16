@@ -85,7 +85,7 @@ RUN echo "@testing https://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/a
     ln -s $(which pypy3) $(dirname $(which pypy3))/pypy && \
     pypy -m ensurepip && pypy -m pip install --no-cache-dir --upgrade pip
 
-COPY --from=builder /usr/src/app/pypy/wheels /pypy/wheels
+COPY --from=pypy-builder /usr/src/app/pypy/wheels /pypy/wheels
 
 RUN pypy -m pip install --no-cache-dir /pypy/wheels/* --no-deps
 RUN pypy -m pip install --no-cache-dir psycopg
@@ -108,7 +108,7 @@ gunicorn backend.wsgi:application --bind 0.0.0.0:8000\n' > entrypoint.prod.sh
 ##############
 # PRODUCTION #
 ##############
-FROM base AS production
+FROM pypy AS production
 
 ADD backend/nginx/production.conf /etc/nginx/nginx.conf
 

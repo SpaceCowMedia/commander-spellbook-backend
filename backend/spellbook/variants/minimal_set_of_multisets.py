@@ -1,4 +1,5 @@
-from typing import Generator, Iterable, TypeVar, Generic, TYPE_CHECKING
+from copy import deepcopy
+from typing import Iterable, TypeVar, Generic, TYPE_CHECKING
 from bisect import bisect_left
 from multiset import FrozenMultiset, Multiset
 from anytree import Node, RenderTree
@@ -24,7 +25,13 @@ class MinimalSetOfMultisets(Generic[_T]):
     __alphabet: list[_T]
     __count: int
 
-    def __init__(self, sets: Iterable[FrozenMultiset[_T]] | None = None):
+    def __init__(
+        self,
+        sets: Iterable[FrozenMultiset[_T]] | None = None,
+        _internal_tree: Node | None = None,
+        _internal_alphabet: list[_T] | None = None,
+        _internal_count: int | None = None,
+    ):
         """
         Initializes a new minimal set of sets.
 
@@ -32,39 +39,41 @@ class MinimalSetOfMultisets(Generic[_T]):
             sets (set[FrozenMultiset] | None): Optional initial sets to be added to the collection,
             discarding all sets that are supersets of other sets in the collection.
         """
-        self.__count = 0
-        self.__tree = Node(name=0)
-        self.__alphabet = []
+        self.__count = _internal_count if _internal_count is not None else 0
+        self.__tree = _internal_tree if _internal_tree is not None else Node(name=0)
+        self.__alphabet = _internal_alphabet if _internal_alphabet is not None else []
         if sets is not None:
             self.extend(sets)
 
-    def __subtree_subsets_of(self, sequence: tuple[int, ...], index: int, node: Node) -> Generator[tuple[int, ...], None, None]:
+    def __subtree_subsets_of(self, sequence: tuple[int, ...], index: int, node: Node) -> tuple[Node | None, int]:
         if sequence[index] < node.name:
-            return
+            return None, 0
         if node.is_leaf and not node.is_root:
-            yield ()
-            return
+            return Node(name=node.name), 1
+        children = []
+        total = 0
         for child in node.children:
-            for subset in self.__subtree_subsets_of(sequence, index + 1, child):
-                yield (child.name, *subset)
+            subtree, count = self.__subtree_subsets_of(sequence, index + 1, child)
+            if subtree is not None:
+                children.append(subtree)
+                total += count
+        if total:
+            return Node(name=node.name, children=children), total
+        return None, 0
 
     def subtree(self, under: FrozenMultiset[_T] | Multiset[_T]) -> 'MinimalSetOfMultisets[_T]':
         """
         Creates a new minimal set of sets containing all sets in the collection that are subsets of the given set.
         """
+        subtree, count = self.__subtree_subsets_of(
+            (0, *(under.get(x, 0) for x in self.__alphabet)),
+            0,
+            self.__tree,
+        )
         return MinimalSetOfMultisets[_T](
-            FrozenMultiset(
-                {
-                    self.__alphabet[i]: count
-                    for i, count in enumerate(subset)
-                    if count > 0
-                }
-            )
-            for subset in self.__subtree_subsets_of(
-                (0, *(under.get(x, 0) for x in self.__alphabet)),
-                0,
-                self.__tree,
-            )
+            _internal_tree=subtree,
+            _internal_alphabet=self.__alphabet.copy() if subtree is not None else None,
+            _internal_count=count if subtree is not None else None,
         )
 
     def __subtree_contains_subset_of(self, sequence: tuple[int, ...], index: int, node: Node) -> bool:
@@ -77,9 +86,9 @@ class MinimalSetOfMultisets(Generic[_T]):
             for child in node.children
         )
 
-    def __contains_subset_of(self, aset: FrozenMultiset[_T] | Multiset[_T]) -> bool:
+    def __contains_subset_of(self, sequence: tuple[int, ...]) -> bool:
         return self.__subtree_contains_subset_of(
-            (0, *(aset.get(x, 0) for x in self.__alphabet)),
+            sequence,
             0,
             self.__tree,
         )
@@ -101,11 +110,9 @@ class MinimalSetOfMultisets(Generic[_T]):
             return True
         return False
 
-    def __remove_supersets_of(self, aset: FrozenMultiset[_T]):
-        if any(x not in self.__alphabet for x in aset.distinct_elements()):
-            return
+    def __remove_supersets_of(self, sequence: tuple[int, ...]):
         self.__subtree_remove_supersets_of(
-            (0, *(aset.get(x, 0) for x in self.__alphabet)),
+            sequence,
             0,
             self.__tree,
         )
@@ -143,10 +150,17 @@ class MinimalSetOfMultisets(Generic[_T]):
     def __add(self, aset: FrozenMultiset[_T]):
         self.__align_alphabet(sorted(aset.distinct_elements(), reverse=True))
         self.__subtree_insert(
-            tuple(aset.get(x, 0) for x in self.__alphabet),
-            0,
+            (0, *(aset.get(x, 0) for x in self.__alphabet)),
+            1,
             self.__tree,
         )
+
+    def __has_symbol(self, x):
+        'Locate the leftmost value exactly equal to x'
+        i = bisect_left(self.__alphabet, x)
+        if i != len(self.__alphabet) and self.__alphabet[i] == x:
+            return True
+        return False
 
     def add(self, aset: FrozenMultiset[_T]):
         """
@@ -154,8 +168,10 @@ class MinimalSetOfMultisets(Generic[_T]):
         If the set is a subset of any set in the collection, every superset of the set is removed,
         and the set is added to the collection.
         """
-        if not self.__contains_subset_of(aset):
-            self.__remove_supersets_of(aset)
+        sequence = (0, *(aset.get(x, 0) for x in self.__alphabet))
+        if not self.__contains_subset_of(sequence):
+            if all(self.__has_symbol(x) for x in aset.distinct_elements()):
+                self.__remove_supersets_of(sequence)
             self.__add(aset)
 
     def extend(self, sets: Iterable[FrozenMultiset[_T]]):
@@ -215,14 +231,23 @@ class MinimalSetOfMultisets(Generic[_T]):
             return self.__count == other.__count and set(self) == set(other)
         return False
 
+    def __copy__(self):
+        return MinimalSetOfMultisets[_T](
+            _internal_tree=deepcopy(self.__tree),
+            _internal_alphabet=self.__alphabet.copy(),
+            _internal_count=self.__count,
+        )
+
+    def copy(self):
+        "Returns a shallow copy of the collection."
+        return self.__copy__()
+
     @classmethod
     def union(cls, a: 'MinimalSetOfMultisets[_T]', b: 'MinimalSetOfMultisets[_T]'):
         """
         Creates a new minimal set of sets containing all sets of the given collections,
         discarding all sets that are supersets of other sets in any of the collections.
         """
-        # TODO: optimize
-        result = MinimalSetOfMultisets[_T]()
-        result.extend(a)
+        result = a.copy()
         result.extend(b)
         return result

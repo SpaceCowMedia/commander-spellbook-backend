@@ -91,3 +91,10 @@ class MinimalSetOfSetsTests(TestCase):
             FrozenMultiset([1, 1, 2, 3]),
             FrozenMultiset([3, 4, 5, 5, 5]),
         }))
+
+    def test_copy(self):
+        self.assertEqual(self.subject, self.subject.copy())
+        c = self.subject.copy()
+        c.add(FrozenMultiset({}))
+        self.assertNotEqual(self.subject, c)
+        self.assertNotEqual(len(self.subject), len(c))

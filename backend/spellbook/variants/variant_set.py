@@ -32,9 +32,9 @@ class VariantSetParameters:
 class VariantSet:
     __slots__ = ('__parameters', '__sets')
 
-    def __init__(self, parameters: VariantSetParameters | None = None, keys: Iterable[Key] = (), internal: 'MinimalSetOfMultisets[int] | None' = None):
+    def __init__(self, parameters: VariantSetParameters | None = None, keys: Iterable[Key] = (), _internal: 'MinimalSetOfMultisets[int] | None' = None):
         self.__parameters = parameters if parameters is not None else VariantSetParameters()
-        self.__sets = internal if internal is not None else MinimalSetOfMultisets[int](k for k in keys if self.parameters._check_key(k))
+        self.__sets = _internal if _internal is not None else MinimalSetOfMultisets[int](k for k in keys if self.parameters._check_key(k))
 
     @property
     def parameters(self) -> VariantSetParameters:
@@ -63,7 +63,7 @@ class VariantSet:
         return self.sets
 
     def filter(self, key: Key) -> 'VariantSet':
-        return VariantSet(parameters=replace(self.parameters, filter=key), internal=self.sets.subtree(key))
+        return VariantSet(parameters=replace(self.parameters, filter=key), _internal=self.sets.subtree(key))
 
     def __str__(self) -> str:
         return str(self.sets)
@@ -73,7 +73,7 @@ class VariantSet:
 
     def __or__(self, other: 'VariantSet'):
         assert self.parameters == other.parameters, "Cannot union VariantSets with different parameters"
-        return VariantSet(parameters=self.parameters, internal=MinimalSetOfMultisets.union(self.sets, other.sets))
+        return VariantSet(parameters=self.parameters, _internal=MinimalSetOfMultisets.union(self.sets, other.sets))
 
     def __and__(self, other: 'VariantSet'):
         assert self.parameters == other.parameters, "Cannot intersect VariantSets with different parameters"
@@ -83,7 +83,7 @@ class VariantSet:
             if not self.parameters._check_key(key):
                 continue
             result.add(key)
-        return VariantSet(parameters=self.parameters, internal=result)
+        return VariantSet(parameters=self.parameters, _internal=result)
 
     def __add__(self, other: 'VariantSet'):
         assert self.parameters == other.parameters, "Cannot sum VariantSets with different parameters"
@@ -93,7 +93,7 @@ class VariantSet:
             if not self.parameters._check_key(key):
                 continue
             result.add(key)
-        return VariantSet(parameters=self.parameters, internal=result)
+        return VariantSet(parameters=self.parameters, _internal=result)
 
     def variants(self) -> list[tuple[FrozenMultiset[cardid], FrozenMultiset[templateid]]]:
         return [self.key_to_ingredients(key) for key in self.keys()]
@@ -138,7 +138,7 @@ class VariantSet:
             if not parameters._check_key(key):
                 continue
             result.add(key)
-        return VariantSet(parameters=parameters, internal=result)
+        return VariantSet(parameters=parameters, _internal=result)
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, VariantSet):

@@ -181,7 +181,7 @@ class FeatureWithAttributesMatcherNode(NodeWithState[FeatureWithAttributesMatche
         matches: Iterable[FeatureWithAttributesNode] = [],
     ):
         super().__init__(graph, feature)
-        self.needed_by_combos = dict(needed_by_combos)
+        self.needed_by_combos = dict['ComboNode', int](needed_by_combos)
         self.matches = set(matches)
 
 
@@ -482,7 +482,7 @@ class Graph:
         for ingredient, quantity in chain(cards.items(), templates.items()):
             for combo in ingredient.combos:
                 if combo.state == NodeState.NOT_VISITED:
-                    if cards.issuperset(combo.cards) and templates.issuperset(combo.templates):
+                    if combo.variant_set or cards.issuperset(combo.cards) and templates.issuperset(combo.templates):
                         combo.state = NodeState.VISITING
                         combo_nodes_to_visit.append(combo)
                     else:
@@ -510,7 +510,7 @@ class Graph:
                 for matching_feature in feature.matches:
                     for feature_combo in matching_feature.needed_by_combos:
                         if feature_combo.state == NodeState.NOT_VISITED:
-                            if cards.issuperset(feature_combo.cards) and templates.issuperset(feature_combo.templates):
+                            if feature_combo.variant_set or cards.issuperset(feature_combo.cards) and templates.issuperset(feature_combo.templates):
                                 feature_combo.state = NodeState.VISITING
                                 combo_nodes_to_visit.append(feature_combo)
                             else:
@@ -578,7 +578,7 @@ class Graph:
                     for matching_feature in feature.matches:
                         for feature_combo in matching_feature.needed_by_combos:
                             if feature_combo.state == NodeState.NOT_VISITED:
-                                if cards.issuperset(feature_combo.cards) and templates.issuperset(feature_combo.templates):
+                                if feature_combo.variant_set or cards.issuperset(feature_combo.cards) and templates.issuperset(feature_combo.templates):
                                     feature_combo.state = NodeState.VISITING
                                     combo_nodes_to_visit.append(feature_combo)
                                 else:

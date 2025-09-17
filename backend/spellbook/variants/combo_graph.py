@@ -517,7 +517,7 @@ class Graph:
                                 feature_combo.state = NodeState.VISITED
         while combo_nodes_to_visit:
             combo = combo_nodes_to_visit.popleft()
-            variant_set = None
+            variant_set: VariantSet | None = None
             if combo.variant_set is not None:
                 variant_set = combo.variant_set
                 if not variant_set:

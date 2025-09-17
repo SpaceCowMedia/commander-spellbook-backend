@@ -9,7 +9,8 @@ from .validators import NAME_VALIDATORS
 
 class Feature(models.Model):
     class Status(models.TextChoices):
-        UTILITY = 'U'
+        HIDDEN_UTILITY = 'HU'
+        PUBLIC_UTILITY = 'PU'
         HELPER = 'H'
         CONTEXTUAL = 'C'
         STANDALONE = 'S'
@@ -19,8 +20,12 @@ class Feature(models.Model):
     description = models.TextField(blank=True, help_text='Long description of a produced effect', verbose_name='description of the feature')
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, editable=False)
-    status = models.CharField(choices=Status.choices, default=Status.UTILITY, help_text='Is this feature an utility for variant generation, a helper to be exploited somehow, or a standalone, probably impactful effect?', verbose_name='status', max_length=2)
+    status = models.CharField(choices=Status.choices, default=Status.HIDDEN_UTILITY, help_text='Is this feature an utility for variant generation, a helper to be exploited somehow, or a standalone, probably impactful effect? (public utilities are visible to combo submitters)', verbose_name='status', max_length=2)
     uncountable = models.BooleanField(default=False, help_text='Is this an uncountable feature? Uncountable features can only appear in one copy and speed up variant generation.', verbose_name='is uncountable')
+
+    @property
+    def is_utility(self) -> bool:
+        return self.status in (self.Status.HIDDEN_UTILITY, self.Status.PUBLIC_UTILITY)
 
     class Meta:
         verbose_name = 'feature'

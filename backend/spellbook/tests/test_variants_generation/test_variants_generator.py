@@ -60,7 +60,7 @@ class VariantsGeneratorTests(TestCaseMixinWithSeeding, TestCase):
         )
         self.assertEqual(features, FrozenMultiset())
         f = Feature.objects.get(pk=self.f1_id)
-        f.status = Feature.Status.UTILITY
+        f.status = Feature.Status.HIDDEN_UTILITY
         f.save()
         data = Data()
         features = subtract_features(
@@ -327,7 +327,7 @@ class VariantsGeneratorTests(TestCaseMixinWithSeeding, TestCase):
         useless_combo = Combo.objects.create(mana_needed='{W}', status=Combo.Status.UTILITY, description='<<<Unwanted text>>>')
         for i, card in enumerate(v.uses.all(), start=1):
             useless_combo.cardincombo_set.create(card=card, order=i, zone_locations=ZoneLocation.BATTLEFIELD)
-        useless_feature = Feature.objects.create(name='Useless', status=Feature.Status.UTILITY)
+        useless_feature = Feature.objects.create(name='Useless', status=Feature.Status.PUBLIC_UTILITY)
         useless_combo.produces.add(useless_feature)
         v.status = Variant.Status.RESTORE
         v.save()
@@ -347,7 +347,7 @@ class VariantsGeneratorTests(TestCaseMixinWithSeeding, TestCase):
         self.assertEqual(deleted, 0)
         v.refresh_from_db()
         self.assertIn(useless_combo.description, v.description)
-        useless_feature.status = Feature.Status.UTILITY
+        useless_feature.status = Feature.Status.HIDDEN_UTILITY
         useless_feature.save()
         enabler = Combo.objects.create(mana_needed='{W}', status=Combo.Status.UTILITY)
         result = Feature.objects.create(name='Result', status=Feature.Status.CONTEXTUAL)
@@ -366,7 +366,7 @@ class VariantsGeneratorTests(TestCaseMixinWithSeeding, TestCase):
         generate_variants()
         self.assertEqual(Variant.objects.count(), self.expected_variant_count)
         v: Variant = Variant.objects.first()  # type: ignore
-        useless_feature = Feature.objects.create(name='Useless', status=Feature.Status.UTILITY)
+        useless_feature = Feature.objects.create(name='Useless', status=Feature.Status.HIDDEN_UTILITY)
         foc = FeatureOfCard.objects.create(
             card=v.uses.first(),
             feature=useless_feature,
@@ -392,7 +392,7 @@ class VariantsGeneratorTests(TestCaseMixinWithSeeding, TestCase):
             self.assertEqual(deleted, 0)
             v.refresh_from_db()
             self.assertIn(foc.battlefield_card_state, v.cardinvariant_set.filter(card=foc.card).first().battlefield_card_state)  # type: ignore
-        useless_feature.status = Feature.Status.UTILITY
+        useless_feature.status = Feature.Status.PUBLIC_UTILITY
         useless_feature.save()
         enabler = Combo.objects.create(mana_needed='{W}', status=Combo.Status.UTILITY)
         result = Feature.objects.create(name='Result', status=Feature.Status.CONTEXTUAL)

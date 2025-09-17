@@ -13,13 +13,14 @@ class FeatureViewsTests(TestCaseMixinWithSeeding, TestCase):
         self.assertEqual(feature_result.id, f.id)
         self.assertEqual(feature_result.name, f.name)
         self.assertEqual(feature_result.uncountable, f.uncountable)
+        self.assertEqual(feature_result.status, f.status)
 
     def test_features_list_view(self):
         response = self.client.get(reverse('features-list'), follow=True)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.get('Content-Type'), 'application/json')
         result = json.loads(response.content, object_hook=json_to_python_lambda)
-        feature_count = Feature.objects.exclude(status=Feature.Status.UTILITY).count()
+        feature_count = Feature.objects.exclude(status=Feature.Status.HIDDEN_UTILITY).count()
         self.assertEqual(len(result.results), feature_count)
         for i in range(feature_count):
             self.feature_assertions(result.results[i])

@@ -162,7 +162,7 @@ class Data:
             if x is not None:
                 x.add(i)
         self.variant_produces_feature_dict = {(f.feature_id, f.variant_id): f for f in featureproducedbyvariants if f.feature_id in self.id_to_feature and f.variant_id in self.id_to_variant}
-        self.utility_features_ids = frozenset(f.id for f in self.id_to_feature.values() if f.status == Feature.Status.UTILITY)
+        self.utility_features_ids = frozenset(f.id for f in self.id_to_feature.values() if f.is_utility)
 
 
 count = 0

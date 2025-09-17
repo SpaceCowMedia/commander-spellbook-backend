@@ -113,7 +113,7 @@ class TestCaseMixin(BaseTestCaseMixin):
                     assert not feature.startswith('-')
                     attributes = [a.strip() for a in attributes.split(',') if a.strip()]
                     feature_id = feature_ids_by_name.setdefault(feature, reduce(lambda x, y: max(x, y), feature_ids_by_name.values(), 0) + 1)
-                    f, _ = Feature.objects.get_or_create(pk=feature_id, name=feature, description='Test Feature', status=Feature.Status.UTILITY if feature.startswith('u') else Feature.Status.STANDALONE)
+                    f, _ = Feature.objects.get_or_create(pk=feature_id, name=feature, description='Test Feature', status=Feature.Status.HIDDEN_UTILITY if feature.startswith('u') else Feature.Status.STANDALONE)
                     foc = FeatureOfCard.objects.create(pk=feature_of_card_id, card=c, feature=f, zone_locations=ZoneLocation.BATTLEFIELD, quantity=quantity)
                     for attribute in attributes:
                         attribute_id = attribute_ids_by_name.setdefault(attribute, reduce(lambda x, y: max(x, y), attribute_ids_by_name.values(), 0) + 1)
@@ -152,7 +152,7 @@ class TestCaseMixin(BaseTestCaseMixin):
                     assert r is not None
                     feature, any_of_attributes, all_of_attributes, none_of_attributes = r.groups()
                     feature_id = feature_ids_by_name.setdefault(feature, reduce(lambda x, y: max(x, y), feature_ids_by_name.values(), 0) + 1)
-                    f, _ = Feature.objects.get_or_create(pk=feature_id, name=feature, description='Test Feature', status=Feature.Status.UTILITY if feature.startswith('u') else Feature.Status.STANDALONE)
+                    f, _ = Feature.objects.get_or_create(pk=feature_id, name=feature, description='Test Feature', status=Feature.Status.HIDDEN_UTILITY if feature.startswith('u') else Feature.Status.STANDALONE)
                     fnc = FeatureNeededInCombo.objects.create(feature=f, combo=combo, quantity=quantity)
                     for attribute in (any_of_attributes or '').removeprefix('?').split(','):
                         attribute = attribute.strip()
@@ -180,11 +180,11 @@ class TestCaseMixin(BaseTestCaseMixin):
                         assert not attributes
                         feature = feature[1:]
                         feature_id = feature_ids_by_name.setdefault(feature, reduce(lambda x, y: max(x, y), feature_ids_by_name.values(), 0) + 1)
-                        f, _ = Feature.objects.get_or_create(pk=feature_id, name=feature, description='Test Feature', status=Feature.Status.UTILITY if feature.startswith('u') else Feature.Status.STANDALONE)
+                        f, _ = Feature.objects.get_or_create(pk=feature_id, name=feature, description='Test Feature', status=Feature.Status.HIDDEN_UTILITY if feature.startswith('u') else Feature.Status.STANDALONE)
                         FeatureRemovedInCombo.objects.create(feature=f, combo=combo)
                     else:
                         feature_id = feature_ids_by_name.setdefault(feature, reduce(lambda x, y: max(x, y), feature_ids_by_name.values(), 0) + 1)
-                        f, _ = Feature.objects.get_or_create(pk=feature_id, name=feature, description='Test Feature', status=Feature.Status.UTILITY if feature.startswith('u') else Feature.Status.STANDALONE)
+                        f, _ = Feature.objects.get_or_create(pk=feature_id, name=feature, description='Test Feature', status=Feature.Status.HIDDEN_UTILITY if feature.startswith('u') else Feature.Status.STANDALONE)
                         fpc = FeatureProducedInCombo.objects.create(feature=f, combo=combo)
                         for attribute in attributes:
                             attribute_id = attribute_ids_by_name.setdefault(attribute, reduce(lambda x, y: max(x, y), attribute_ids_by_name.values(), 0) + 1)
@@ -250,11 +250,12 @@ class TestCaseMixinWithSeeding(TestCaseMixin):
         c6 = Card.objects.create(name='F F', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000006'), identity='WU', legal_commander=True, spoiler=False, type_line='Enchantment', oracle_text='x6', mana_value=6, legal_brawl=False)
         c7 = Card.objects.create(name='G G _____', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000007'), identity='WB', legal_commander=True, spoiler=False, type_line='Artifact', oracle_text='x7x7')
         c8 = Card.objects.create(name='H-H', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000008'), identity='C', legal_commander=True, spoiler=False, type_line='Land', oracle_text='x8. x9.', mana_value=8)
-        f1 = Feature.objects.create(name='FA', description='Feature A', status=Feature.Status.UTILITY)
+        f1 = Feature.objects.create(name='FA', description='Feature A', status=Feature.Status.HIDDEN_UTILITY)
         f2 = Feature.objects.create(name='FB', description='Feature B', status=Feature.Status.CONTEXTUAL)
         f3 = Feature.objects.create(name='FC', description='Feature C', status=Feature.Status.HELPER)
         f4 = Feature.objects.create(name='FD', description='Feature D', status=Feature.Status.STANDALONE)
         f5 = Feature.objects.create(name='FE', description='Feature E', status=Feature.Status.STANDALONE, uncountable=True)
+        f6 = Feature.objects.create(name='FF', description='Feature F', status=Feature.Status.PUBLIC_UTILITY)
         b1 = Combo.objects.create(mana_needed='{W}{W}', easy_prerequisites='Some easy requisites.', notable_prerequisites='Some notable requisites.', description='a1', status=Combo.Status.GENERATOR, notes='aa1', comment='***1')
         b2 = Combo.objects.create(mana_needed='{U}{U}', easy_prerequisites='Some easy requisites.', notable_prerequisites='Some notable requisites.', description='b2', status=Combo.Status.GENERATOR, notes='bb2', comment='***2')
         b3 = Combo.objects.create(mana_needed='{B}{B}', notable_prerequisites='Some requisites.', description='c3', status=Combo.Status.UTILITY, notes='cc3', comment='***3')
@@ -340,6 +341,7 @@ class TestCaseMixinWithSeeding(TestCaseMixin):
         self.f3_id = f3.id
         self.f4_id = f4.id
         self.f5_id = f5.id
+        self.f6_id = f6.id
         self.b1_id = b1.id
         self.b2_id = b2.id
         self.b3_id = b3.id

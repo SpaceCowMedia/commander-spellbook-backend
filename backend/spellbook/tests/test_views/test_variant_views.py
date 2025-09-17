@@ -625,7 +625,7 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
                         for v in result.results:
                             self.variant_assertions(v)
         text_queries: list[tuple[str, str]] = []
-        for feature in Feature.objects.exclude(status=Feature.Status.UTILITY):
+        for feature in Feature.objects.exclude(status__in=(Feature.Status.HIDDEN_UTILITY, Feature.Status.PUBLIC_UTILITY)):
             name_without_spaces = feature.name.split()[0]
             text_queries += [
                 (f'results:"{feature.name}"', feature.name),

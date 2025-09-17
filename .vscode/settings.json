@@ -9,6 +9,7 @@
     "peacock.color": "#ab47bd",
     "python.testing.pytestArgs": [
         "backend",
+        "client/python",
     ],
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true,

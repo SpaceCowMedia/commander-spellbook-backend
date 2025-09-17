@@ -73,7 +73,7 @@ def deck_from_raw(raw_deck: RawDeck, cards_id_dict: dict[str, int], identity_dic
     for commander in raw_deck.commanders:
         next_card(commander, commanders)
     cards = main.union(commanders)
-    identity = merge_identities(identity_dict[id] for id in cards if id in identity_dict)
+    identity = merge_identities(identity_dict[id] for id in cards.distinct_elements() if id in identity_dict)
     return Deck(main=FrozenMultiset(main), commanders=FrozenMultiset(commanders), identity=identity)
 
 

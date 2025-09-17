@@ -22,7 +22,8 @@
         "**/venv",
         "**/node_modules",
         "**/__pycache__",
-        ".git"
+        ".git",
+        "hidden/"
     ],
     "python.analysis.extraPaths": [
         "common",

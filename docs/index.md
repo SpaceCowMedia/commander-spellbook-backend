@@ -14,10 +14,17 @@ Commander Spellbook consists of three main components:
 
 You need:
 
-- Python 3.9 or higher
-- To install the dependencies in `requirements.txt` using `pip install -r requirements.txt`
-- `pytest` and `pytest-django` for running the unit tests
+- Python 3.11 or higher
+- Docker and Docker Compose, for running the entire stack locally and for running some scripts
+- To install the dependencies:
+  - In the root of the repository, install the dependencies for local development using `pip install -r requirements.txt`
+  - In the backend folder, install the dependencies using `pip install -r requirements.txt`
+  - In the client folder:
+    - Generate the OpenAPI doc using the `generate-openapi.sh` script
+    - [Optional] Generate the TypeScript/JavaScript client using the `generate-client-typescript.sh` script
+    - Generate the python client using the `generate-client-python.sh` script
+    - Inside the client/python folder:
+        - Install the python client dependencies using `pip install -r requirements.txt`
 - `flake8` for linting the code, which is mandatory for contributing otherwise the CI will fail
 - [Optional] VS Code with the Python extension, for development and debugging exploiting the `launch.json` configuration
-- [Optional] Docker and Docker Compose, for running the entire stack locally
-- [Optional] `pip-tools` for managing the dependencies, in particular `requirements.in` is used to generate `requirements.txt` with the command `pip-compile`
+    - `pytest` to run the unit tests in VS Code

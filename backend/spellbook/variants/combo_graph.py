@@ -1,14 +1,13 @@
 from typing import Mapping, Iterable, Generic, TypeVar
 from math import prod
-from collections import deque, defaultdict
-from multiset import FrozenMultiset, Multiset
+from collections import deque, defaultdict, Counter
+from .multiset import FrozenMultiset, Multiset
 from itertools import chain
 from enum import Enum
 from dataclasses import dataclass, replace
 from spellbook.models import Card, Feature, FeatureOfCard, Combo, Template
 from .variant_data import AttributesMatcher, Data
 from .variant_set import VariantSet, VariantSetParameters, cardid, templateid
-from .utils import count_contains
 
 
 class NodeState(Enum):
@@ -104,11 +103,11 @@ class CardNode(NodeWithoutState[Card]):
     ):
         variant_set = VariantSet(
             parameters=graph.variant_set_parameters,
-            keys=(VariantSet.ingredients_to_key(FrozenMultiset({card.id: 1}), FrozenMultiset()),),
+            entries=(VariantSet.ingredients_to_entry(FrozenMultiset({card.id: 1}), FrozenMultiset()),),
         )
         super().__init__(graph, card, variant_set)
         self.features = list(features)
-        self.combos = dict(combos)
+        self.combos = Counter(combos)
 
 
 class TemplateNode(NodeWithoutState[Template]):
@@ -120,10 +119,10 @@ class TemplateNode(NodeWithoutState[Template]):
     ):
         variant_set = VariantSet(
             parameters=graph.variant_set_parameters,
-            keys=(VariantSet.ingredients_to_key(FrozenMultiset(), FrozenMultiset({template.id: 1})),),
+            entries=(VariantSet.ingredients_to_entry(FrozenMultiset(), FrozenMultiset({template.id: 1})),),
         )
         super().__init__(graph, template, variant_set)
-        self.combos = dict(combos)
+        self.combos = Counter(combos)
 
 
 class FeatureOfCardNode(NodeWithoutState[FeatureOfCard]):
@@ -181,7 +180,7 @@ class FeatureWithAttributesMatcherNode(NodeWithState[FeatureWithAttributesMatche
         matches: Iterable[FeatureWithAttributesNode] = [],
     ):
         super().__init__(graph, feature)
-        self.needed_by_combos = dict['ComboNode', int](needed_by_combos)
+        self.needed_by_combos = Counter['ComboNode'](needed_by_combos)
         self.matches = set(matches)
 
 
@@ -199,11 +198,11 @@ class ComboNode(NodeWithState[Combo]):
         super().__init__(graph, combo)
         self.cards = Multiset[CardNode](cards)
         self.templates = Multiset[TemplateNode](templates)
-        self.features_needed = dict[Feature, dict[FeatureWithAttributesMatcherNode, int]]()
+        self.features_needed = dict[Feature, Counter[FeatureWithAttributesMatcherNode]]()
         for f, q in countable_features_needed.items():
-            self.features_needed.setdefault(f.item.feature, {})[f] = q
+            self.features_needed.setdefault(f.item.feature, Counter())[f] = q
         for f in uncountable_features_needed:
-            self.features_needed.setdefault(f.item.feature, {})[f] = 1
+            self.features_needed.setdefault(f.item.feature, Counter())[f] = 1
         self.features_produced = list(features_produced)
 
 
@@ -337,10 +336,10 @@ class Graph:
                         )
                     )
                     if feature_with_attributes_matcher_node.item.feature.uncountable:
-                        combo_node.features_needed.setdefault(feature_with_attributes_matcher_node.item.feature, {})[feature_with_attributes_matcher_node] = 1
+                        combo_node.features_needed.setdefault(feature_with_attributes_matcher_node.item.feature, Counter())[feature_with_attributes_matcher_node] = 1
                         feature_with_attributes_matcher_node.needed_by_combos[combo_node] = 1
                     else:
-                        combo_node.features_needed.setdefault(feature_with_attributes_matcher_node.item.feature, {})[feature_with_attributes_matcher_node] = combo_node.features_needed.get(feature_with_attributes_matcher_node.item.feature, {}).get(feature_with_attributes_matcher_node, 0) + feature_needed_by_combo.quantity
+                        combo_node.features_needed.setdefault(feature_with_attributes_matcher_node.item.feature, Counter())[feature_with_attributes_matcher_node] = combo_node.features_needed.get(feature_with_attributes_matcher_node.item.feature, {}).get(feature_with_attributes_matcher_node, 0) + feature_needed_by_combo.quantity
                         feature_with_attributes_matcher_node.needed_by_combos[combo_node] = feature_with_attributes_matcher_node.needed_by_combos.get(combo_node, 0) + feature_needed_by_combo.quantity
         # Find matching feature with attributes nodes
         for feature_id, d in feature_attributes_matcher_nodes.items():
@@ -468,7 +467,7 @@ class Graph:
         return feature.variant_set
 
     def _card_nodes_up(self, ingredients: VariantIngredients) -> VariantRecipe:
-        self.variant_set_parameters = replace(self.variant_set_parameters, filter=VariantSet.ingredients_to_key(ingredients.cards, ingredients.templates))
+        self.variant_set_parameters = replace(self.variant_set_parameters, filter=VariantSet.ingredients_to_entry(ingredients.cards, ingredients.templates))
         cards = FrozenMultiset[CardNode]({self.card_nodes[c]: q for c, q in ingredients.cards.items()})
         templates = FrozenMultiset[TemplateNode]({self.template_nodes[t]: q for t, q in ingredients.templates.items()})
         feature_of_card_nodes = set[FeatureOfCardNode]()
@@ -553,8 +552,8 @@ class Graph:
                 ]
                 quantity = 0
                 for cards_satisfying, templates_satisfying in variant_set.variants():
-                    count_for_cards = count_contains(ingredients.cards, cards_satisfying) if cards_satisfying else None
-                    count_for_templates = count_contains(ingredients.templates, templates_satisfying) if templates_satisfying else None
+                    count_for_cards = ingredients.cards // cards_satisfying if cards_satisfying else None
+                    count_for_templates = ingredients.templates // templates_satisfying if templates_satisfying else None
                     if count_for_cards is not None:
                         if count_for_templates is not None:
                             quantity += min(count_for_cards, count_for_templates)

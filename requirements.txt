@@ -1,0 +1,4 @@
+# Requirements for local development and testing
+pydantic
+pytest-django
+pip-tools

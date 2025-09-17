@@ -1,7 +1,7 @@
 import logging
 import re
 from collections import defaultdict
-from multiset import FrozenMultiset, BaseMultiset
+from .multiset import FrozenMultiset
 from dataclasses import dataclass
 from django.db import transaction
 from django.utils.functional import cached_property
@@ -119,7 +119,7 @@ def get_variants_from_graph(data: Data, single_combo: int | None, job: Job | Non
     return result
 
 
-def subtract_features(data: Data, includes: set[int], features: BaseMultiset[featureid]) -> FrozenMultiset[featureid]:
+def subtract_features(data: Data, includes: set[int], features: FrozenMultiset[featureid]) -> FrozenMultiset[featureid]:
     to_remove = {r.feature_id for c in includes for r in data.combo_to_removed_features[c]}
     return FrozenMultiset({f: c for f, c in features.items() if f not in data.utility_features_ids and f not in to_remove})
 
@@ -293,7 +293,7 @@ def restore_variant(
         # re-generate the text fields
         replacements = {
             feature_wth_attributes: [
-                ([data.id_to_card[i] for i in recipe.card_ids], [data.id_to_template[i] for i in recipe.template_ids])
+                ([data.id_to_card[i] for i in recipe.card_ids.distinct_elements()], [data.id_to_template[i] for i in recipe.template_ids.distinct_elements()])
                 for recipe in recipes
             ]
             for feature_wth_attributes, recipes in variant_def.feature_replacements.items()

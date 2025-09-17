@@ -78,8 +78,6 @@ jsonschema-specifications==2025.9.1
     # via jsonschema
 lark==1.2.2
     # via -r requirements.in
-multiset==3.2.0
-    # via -r requirements.in
 oauthlib==3.2.2
     # via
     #   requests-oauthlib

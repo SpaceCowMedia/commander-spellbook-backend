@@ -4,8 +4,8 @@ import random
 from django.test import TestCase
 from rest_framework import status
 from common.inspection import json_to_python_lambda
-from multiset import FrozenMultiset
 from spellbook.models import Card, Template, Variant, merge_identities, CardInVariant
+from spellbook.variants.multiset import FrozenMultiset
 from ..testing import TestCaseMixinWithSeeding
 from django.urls import reverse
 

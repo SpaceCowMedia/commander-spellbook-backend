@@ -1,7 +1,7 @@
-from multiset import FrozenMultiset
 from django.test import TestCase
 from spellbook.models import Card, Combo, FeatureAttribute
 from spellbook.models.feature import Feature
+from spellbook.variants.multiset import FrozenMultiset
 from spellbook.variants.variant_data import Data
 from spellbook.variants.combo_graph import FeatureWithAttributes, Graph, VariantIngredients, VariantSet, VariantRecipe
 from spellbook.tests.testing import TestCaseMixinWithSeeding, TestCaseMixin
@@ -93,8 +93,6 @@ class ComboGraphTest(TestCaseMixinWithSeeding, TestCase):
         with self.assertNumQueries(0):
             variants = list(combo_graph.results(combo_graph.variants(self.b2_id)))
         for variant in variants:
-            card_ids = {c for c in variant.cards}
-            template_ids = {t for t in variant.templates}
             replacements = variant.replacements
             feature_needed_by_combos: set[int] = {f for f in data.id_to_combo[self.b2_id].needs.values_list('pk', flat=True)}
             self.assertTrue(set(f.feature.id for f in replacements.keys()).issuperset(feature_needed_by_combos))
@@ -103,10 +101,8 @@ class ComboGraphTest(TestCaseMixinWithSeeding, TestCase):
                 for replacement_value in replacement_values:
                     cards = replacement_value.cards
                     templates = replacement_value.templates
-                    replacement_card_ids = {c for c in cards}
-                    replacement_template_ids = {t for t in templates}
-                    self.assertTrue(card_ids.issuperset(replacement_card_ids))
-                    self.assertTrue(template_ids.issuperset(replacement_template_ids))
+                    self.assertTrue(set(variant.cards.distinct_elements()).issuperset(cards.distinct_elements()))
+                    self.assertTrue(set(variant.templates.distinct_elements()).issuperset(templates.distinct_elements()))
 
 
 class ComboGraphTestGeneration(TestCaseMixin, TestCase):
@@ -235,7 +231,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
         combo_graph = Graph(Data())
         variants = combo_graph.results(combo_graph.variants(3))
         self.assertEqual(len(list(variants)), 2)
-        variants.sort(key=lambda v: sorted(v.cards))
+        variants.sort(key=lambda v: sorted(v.cards.distinct_elements()))
         self.assertMultisetEqual(variants[0].cards, {1: 1})
         self.assertMultisetEqual(variants[0].templates, {})
         self.assertSetEqual(variants[0].combos, {1, 3})
@@ -288,7 +284,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
         combo_graph = Graph(Data(), allow_multiple_copies=True)
         variants = combo_graph.results(combo_graph.variants(1))
         self.assertEqual(len(list(variants)), 3)
-        variants.sort(key=lambda v: sorted(v.cards))
+        variants.sort(key=lambda v: sorted(v.cards.distinct_elements()))
         self.assertMultisetEqual(variants[0].cards, {1: 2})
         self.assertMultisetEqual(variants[0].templates, {})
         self.assertSetEqual(variants[0].combos, {1})
@@ -333,8 +329,8 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
         combo_graph = Graph(Data())
         variants_a = combo_graph.results(combo_graph.variants(4))
         variants_b = combo_graph.results(combo_graph.variants(4))
-        variants_a.sort(key=lambda v: sorted(v.cards))
-        variants_b.sort(key=lambda v: sorted(v.cards))
+        variants_a.sort(key=lambda v: sorted(v.cards.distinct_elements()))
+        variants_b.sort(key=lambda v: sorted(v.cards.distinct_elements()))
         self.assertEqual(variants_a, variants_b)
         self.assertEqual(len(variants_a), 2)
         self.assertMultisetEqual(variants_a[0].features, {1: 1, 2: 1, 3: 1})
@@ -354,7 +350,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
         combo_graph = Graph(Data(), allow_multiple_copies=True)
         variants = list(combo_graph.results(combo_graph.variants(3)))
         self.assertEqual(len(variants), 2)
-        variants.sort(key=lambda v: sorted(v.cards))
+        variants.sort(key=lambda v: sorted(v.cards.distinct_elements()))
         self.assertMultisetEqual(variants[0].cards, {1: 2})
         self.assertMultisetEqual(variants[0].templates, {})
         self.assertMultisetEqual(variants[0].features, {1: 1, 2: 1})
@@ -400,7 +396,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
         combo_graph = Graph(Data(), allow_multiple_copies=True)
         variants = list(combo_graph.results(combo_graph.variants(3)))
         self.assertEqual(len(variants), 3)
-        variants.sort(key=lambda v: sorted(v.cards))
+        variants.sort(key=lambda v: sorted(v.cards.distinct_elements()))
         self.assertMultisetEqual(variants[0].cards, {1: 4})
         self.assertMultisetEqual(variants[0].templates, {})
         self.assertMultisetEqual(variants[0].features, {1: 2, 2: 1, 3: 2, 4: 2})
@@ -522,7 +518,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
         combo_graph = Graph(Data(), allow_multiple_copies=True)
         variants = list(combo_graph.results(combo_graph.variants(3)))
         self.assertEqual(len(variants), 3)
-        variants.sort(key=lambda v: sorted(v.cards))
+        variants.sort(key=lambda v: sorted(v.cards.distinct_elements()))
         self.assertMultisetEqual(variants[0].cards, {1: 2, 2: 2})
         self.assertMultisetEqual(variants[0].templates, {})
         self.assertMultisetEqual(variants[0].features, {1: 2, 2: 1})
@@ -567,7 +563,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
         combo_graph = Graph(Data())
         variants = list(combo_graph.results(combo_graph.variants(4)))
         self.assertEqual(len(variants), 2)
-        variants.sort(key=lambda v: sorted(v.cards))
+        variants.sort(key=lambda v: sorted(v.cards.distinct_elements()))
         self.assertMultisetEqual(variants[0].cards, {1: 1})
         self.assertMultisetEqual(variants[0].templates, {})
         self.assertMultisetEqual(variants[0].features, {1: 1, 2: 1})
@@ -599,7 +595,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
         combo_graph = Graph(Data(), allow_multiple_copies=True)
         variants = list(combo_graph.results(combo_graph.variants(4)))
         self.assertEqual(len(variants), 6)
-        variants.sort(key=lambda v: sorted(v.cards))
+        variants.sort(key=lambda v: sorted(v.cards.distinct_elements()))
         self.assertMultisetEqual(variants[0].cards, {1: 2})
         self.assertMultisetEqual(variants[0].templates, {})
         self.assertMultisetEqual(variants[0].features, {1: 2, 2: 1})
@@ -663,7 +659,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
         combo_graph = Graph(Data(), allow_multiple_copies=False)
         variants = list(combo_graph.results(combo_graph.variants(4)))
         self.assertEqual(len(variants), 3)
-        variants.sort(key=lambda v: sorted(v.cards))
+        variants.sort(key=lambda v: sorted(v.cards.distinct_elements()))
         self.assertMultisetEqual(variants[0].cards, {1: 1, 2: 1})
         self.assertMultisetEqual(variants[0].templates, {})
         self.assertMultisetEqual(variants[0].features, {1: 2, 2: 1})
@@ -795,7 +791,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
         combo_graph = Graph(Data())
         variants = list(combo_graph.results(combo_graph.variants(1)))
         self.assertEqual(len(variants), 2)
-        variants.sort(key=lambda v: sorted(v.cards))
+        variants.sort(key=lambda v: sorted(v.cards.distinct_elements()))
         self.assertMultisetEqual(variants[0].cards, {1: 1, 2: 1, 3: 1})
         self.assertMultisetEqual(variants[0].templates, {})
         self.assertMultisetEqual(variants[0].features, {1: 1, 2: 1, 3: 1, 6: 1, 7: 1, 10: 1})
@@ -839,7 +835,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
         combo_graph = Graph(Data())
         variants = list(combo_graph.results(combo_graph.variants(1)))
         self.assertEqual(len(variants), 2)
-        variants.sort(key=lambda v: sorted(v.cards))
+        variants.sort(key=lambda v: sorted(v.cards.distinct_elements()))
         self.assertMultisetEqual(variants[0].cards, {1: 1, 2: 1, 3: 1})
         self.assertMultisetEqual(variants[0].templates, {})
         self.assertMultisetEqual(variants[0].features, {1: 1, 2: 1, 3: 1})
@@ -915,7 +911,7 @@ class ComboGraphTestGeneration(TestCaseMixin, TestCase):
         combo_graph = Graph(Data())
         variants = list(combo_graph.results(combo_graph.variants(2)))
         self.assertEqual(len(variants), 2)
-        variants.sort(key=lambda v: sorted(v.cards))
+        variants.sort(key=lambda v: sorted(v.cards.distinct_elements()))
         self.assertMultisetEqual(variants[0].cards, {1: 1})
         self.assertMultisetEqual(variants[1].cards, {2: 1})
 

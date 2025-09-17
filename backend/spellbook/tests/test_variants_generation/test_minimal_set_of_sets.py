@@ -1,6 +1,6 @@
 from django.test import TestCase
 from spellbook.variants.minimal_set_of_multisets import MinimalSetOfMultisets
-from multiset import FrozenMultiset
+from spellbook.variants.multiset import FrozenMultiset
 
 
 class MinimalSetOfMultisetsTests(TestCase):
@@ -41,16 +41,16 @@ class MinimalSetOfMultisetsTests(TestCase):
         self.assertEqual(set(self.subject), {FrozenMultiset([])})
 
     def test_union(self):
-        self.assertEqual(self.subject, MinimalSetOfMultisets.union(MinimalSetOfMultisets(), self.subject))
-        self.assertEqual(self.subject, MinimalSetOfMultisets.union(self.subject, MinimalSetOfMultisets()))
-        self.assertEqual(self.subject, MinimalSetOfMultisets.union(self.subject, self.subject))
+        self.assertEqual(self.subject, MinimalSetOfMultisets() | self.subject)
+        self.assertEqual(self.subject, self.subject | MinimalSetOfMultisets())
+        self.assertEqual(self.subject, self.subject | self.subject)
         other = MinimalSetOfMultisets({
             FrozenMultiset([1, 2, 3, 4, 5]),
             FrozenMultiset(range(50, 100)),
             FrozenMultiset([3, 3, 3]),
             FrozenMultiset([3]),
         })
-        self.assertEqual(set(MinimalSetOfMultisets.union(self.subject, other)), {
+        self.assertEqual(set(self.subject | other), {
             FrozenMultiset([3]),
             FrozenMultiset(range(50, 100)),
         })

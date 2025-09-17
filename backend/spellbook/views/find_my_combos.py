@@ -1,5 +1,4 @@
 from drf_spectacular.openapi import AutoSchema
-from multiset import FrozenMultiset
 from django.db.models import F, Sum, Case, When, Count
 from django.db.models.functions import Greatest, Coalesce
 from rest_framework import parsers, serializers
@@ -11,6 +10,7 @@ from drf_spectacular.extensions import OpenApiSerializerExtension
 from spellbook.models import Variant
 from spellbook.models.mixins import PreSerializedSerializer
 from spellbook.serializers import VariantSerializer
+from spellbook.variants.multiset import FrozenMultiset
 from website.views import PlainTextDeckListParser
 from .variants import VariantViewSet
 from .utils import Deck, DecklistAPIView

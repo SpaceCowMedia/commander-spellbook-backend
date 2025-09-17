@@ -1,4 +1,4 @@
-# Branching Model
+# Git Flow and Versioning
 
 This page describes the branching model used for the Commander Spellbook Backend project, based on Git.
 

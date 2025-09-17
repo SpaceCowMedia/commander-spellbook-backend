@@ -52,9 +52,7 @@ If we add the multiset `{1: 1, 2: 1}`, it is added to the MSM, and all its super
 
 You can find the implementation of the MSM in the [minimal_set_of_multisets.py](https://github.com/SpaceCowMedia/commander-spellbook-backend/blob/master/backend/spellbook/variants/minimal_set_of_multisets.py) file.
 
-Nevertheless, the implementation is not optimized for performance.
-It is intended to be a reference implementation, because the performance of the MSM is not critical for the Commander Spellbook project.
-If you need a more performant implementation, you can use the reference implementation as a starting point and optimize it for your use case.
+## References
 
 These are the papers/links to refer for the implementation of an optimized MSS (Minimal Set of Sets) data structure:
 
@@ -67,3 +65,7 @@ These are the papers/links to refer for the implementation of an optimized MSS (
 These are the papers/links to refer for the implementation of an optimized MSM (Minimal Set of Multisets) data structure:
 
 - [Article: _"Multiset-Trie Data Structure"_ on MDPI](https://www.mdpi.com/1999-4893/16/3/170) and [on ResearchGate](https://www.researchgate.net/publication/369437643_Multiset-Trie_Data_Structure)
+
+## Considerations
+
+PyPy works way better with simple Python code than with over-engineered data structures, so the currently fastest implementation of the MSM is the naive one, which uses a Python set to store the multisets and checks for supersets/subsets using simple loops.

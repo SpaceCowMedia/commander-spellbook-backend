@@ -1,5 +1,5 @@
-from typing import Iterable, TypeVar, Generic
-from multiset import FrozenMultiset, Multiset
+from typing import Iterable, TypeVar, Generic, Self
+from .multiset import FrozenMultiset
 
 _T = TypeVar('_T')
 
@@ -32,7 +32,7 @@ class MinimalSetOfMultisets(Generic[_T]):
         if sets is not None:
             self.extend(sets)
 
-    def subtree(self, under: FrozenMultiset[_T] | Multiset[_T]) -> 'MinimalSetOfMultisets[_T]':
+    def subtree(self, under: FrozenMultiset[_T]) -> 'MinimalSetOfMultisets[_T]':
         """
         Creates a new minimal set of sets containing all sets in the collection that are subsets of the given set.
         """
@@ -83,19 +83,14 @@ class MinimalSetOfMultisets(Generic[_T]):
             return self.__sets == other.__sets
         return False
 
-    def __copy__(self):
-        return MinimalSetOfMultisets(_internal=self.__sets.copy())
+    def __copy__(self) -> Self:
+        return self.__class__(_internal=self.__sets.copy())
 
-    def copy(self):
+    def copy(self) -> Self:
         "Returns a shallow copy of the collection."
         return self.__copy__()
 
-    @classmethod
-    def union(cls, a: 'MinimalSetOfMultisets[_T]', b: 'MinimalSetOfMultisets[_T]'):
-        """
-        Creates a new minimal set of sets containing all sets of the given collections,
-        discarding all sets that are supersets of other sets in any of the collections.
-        """
-        result = a.copy()
-        result.extend(b)
+    def __or__(self, other: Self) -> Self:
+        result = self.copy()
+        result.extend(other)
         return result

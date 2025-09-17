@@ -1,5 +1,4 @@
 from itertools import chain
-from multiset import FrozenMultiset
 from django.test import TestCase
 from django.db.models import Count
 from spellbook.models.combo import FeatureNeededInCombo
@@ -7,6 +6,7 @@ from spellbook.models.feature_attribute import FeatureAttribute
 from spellbook.tests.testing import TestCaseMixinWithSeeding
 from spellbook.models import Job, Variant, Card, IngredientInCombination, CardInVariant, TemplateInVariant, Template, Combo, Feature, VariantAlias, FeatureOfCard, ZoneLocation
 from spellbook.variants.combo_graph import FeatureWithAttributes
+from spellbook.variants.multiset import FrozenMultiset
 from spellbook.variants.variant_data import Data
 from spellbook.variants.variants_generator import get_variants_from_graph, get_default_zone_location_for_card, update_state_with_default
 from spellbook.variants.variants_generator import generate_variants, apply_replacements, subtract_features, update_state
@@ -27,13 +27,13 @@ class VariantsGeneratorTests(TestCaseMixinWithSeeding, TestCase):
         self.assertEqual(len(result), Variant.objects.count())
         self.assertEqual(set(result.keys()), set(Variant.objects.values_list('id', flat=True)))
         for variant_definition in result.values():
-            card_set = set(variant_definition.card_ids)
-            template_set = set(variant_definition.template_ids)
+            card_set = set(variant_definition.card_ids.distinct_elements())
+            template_set = set(variant_definition.template_ids.distinct_elements())
             for feature_replacement_list in variant_definition.feature_replacements.values():
                 self.assertGreater(len(feature_replacement_list), 0)
                 for feature_replacement in feature_replacement_list:
-                    self.assertTrue(card_set.issuperset(feature_replacement.card_ids))
-                    self.assertTrue(template_set.issuperset(feature_replacement.template_ids))
+                    self.assertTrue(card_set.issuperset(feature_replacement.card_ids.distinct_elements()))
+                    self.assertTrue(template_set.issuperset(feature_replacement.template_ids.distinct_elements()))
 
     def test_subtract_features(self):
         c = Combo.objects.create(mana_needed='{W}', status=Combo.Status.UTILITY)

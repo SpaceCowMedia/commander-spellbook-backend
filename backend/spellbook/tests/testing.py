@@ -7,6 +7,7 @@ from django.db.models import Q, Count, OuterRef, Subquery
 from django.db.models.functions import Coalesce
 from django.contrib.auth.models import User
 from common.testing import TestCaseMixin as BaseTestCaseMixin
+from spellbook.variants.multiset import FrozenMultiset
 from spellbook.models import Card, Feature, Combo, CardInCombo, Job, Template, TemplateInCombo
 from spellbook.models import CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, FeatureProducedInVariantSuggestion
 from spellbook.models import VariantSuggestion, VariantAlias, Variant, ZoneLocation
@@ -24,6 +25,13 @@ class TestCaseMixin(BaseTestCaseMixin):
     def tearDown(self) -> None:
         super().tearDown()
         self.modified_settings.disable()
+
+    def assertMultisetEqual(self, a, b):
+        if isinstance(a, FrozenMultiset):
+            a = {k: v for k, v in a.items()}
+        if isinstance(b, FrozenMultiset):
+            b = {k: v for k, v in b.items()}
+        self.assertDictEqual(a, b)
 
     def generate_variants(self):
         result = launch_job_command('generate_variants')

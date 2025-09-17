@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from functools import cached_property
-from multiset import FrozenMultiset, Multiset
 from common.serializers import CardInDeck as RawCardInDeck
 from common.abstractions import Deck as RawDeck
 from django.db.models import Sum, Case, When
@@ -10,6 +9,7 @@ from rest_framework.views import APIView
 from rest_framework.request import Request
 from common.serializers import DeckSerializer as RawDeckSerializer
 from spellbook.models import Card, Template, merge_identities
+from spellbook.variants.multiset import Multiset, FrozenMultiset
 from website.views import PlainTextDeckListParser
 
 

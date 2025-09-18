@@ -5,7 +5,7 @@ from django.db import migrations, models
 
 def utility_to_public_utility(apps, schema_editor):
     Feature = apps.get_model('spellbook', 'Feature')
-    Feature.objects.filter(status='U').update(status='PU')
+    Feature.objects.filter(status='U').update(status='HU')
 
 
 def any_utility_to_utility(apps, schema_editor):

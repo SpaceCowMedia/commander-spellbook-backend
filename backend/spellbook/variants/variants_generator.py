@@ -360,11 +360,11 @@ def restore_variant(
                                 and data.feature_needed_in_combo_to_attributes_matcher[feature_in_combo.id].matches(feature_attributes.attributes):
                             for feature_replacement in feature_replacements:
                                 # Apply the override to all cards replacing the feature
-                                for card in feature_replacement.card_ids:
+                                for card in feature_replacement.card_ids.distinct_elements():
                                     card_features_for_override[card].add(feature_in_combo)
                                     for location in feature_in_combo.zone_locations:
                                         card_zone_locations_overrides[card][location] += 1
-                                for template in feature_replacement.template_ids:
+                                for template in feature_replacement.template_ids.distinct_elements():
                                     template_features_for_override[template].add(feature_in_combo)
                                     for location in feature_in_combo.zone_locations:
                                         template_zone_locations_overrides[template][location] += 1

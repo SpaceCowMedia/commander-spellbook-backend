@@ -1,4 +1,4 @@
-from typing import Iterable, Callable, Self
+from typing import Iterable, Callable
 from itertools import product, chain
 from functools import reduce
 from dataclasses import dataclass, replace
@@ -61,7 +61,7 @@ class VariantSet:
     def entries(self) -> Iterable[Entry]:
         return self.sets
 
-    def filter(self, entry: Entry) -> Self:
+    def filter(self, entry: Entry):
         return self.__class__(parameters=replace(self.parameters, filter=entry), _internal=self.sets.subtree(entry))
 
     def __str__(self) -> str:
@@ -70,11 +70,11 @@ class VariantSet:
     def __len__(self) -> int:
         return len(self.sets)
 
-    def __or__(self, other: Self) -> Self:
+    def __or__(self, other: 'VariantSet'):  # TODO: replace with Self from typing with pypy 3.11
         assert self.parameters == other.parameters, "Cannot union VariantSets with different parameters"
         return self.__class__(parameters=self.parameters, _internal=self.sets | other.sets)
 
-    def __and__(self, other: Self):
+    def __and__(self, other: 'VariantSet'):  # TODO: replace with Self from typing with pypy 3.11
         assert self.parameters == other.parameters, "Cannot intersect VariantSets with different parameters"
         result = MinimalSetOfMultisets[int]()
         for left_entry, right_entry in product(self.entries(), other.entries()):
@@ -84,7 +84,7 @@ class VariantSet:
             result.add(entry)
         return self.__class__(parameters=self.parameters, _internal=result)
 
-    def __add__(self, other: Self):
+    def __add__(self, other: 'VariantSet'):  # TODO: replace with Self from typing with pypy 3.11
         assert self.parameters == other.parameters, "Cannot sum VariantSets with different parameters"
         result = MinimalSetOfMultisets[int]()
         for left_key, right_key in product(self.entries(), other.entries()):
@@ -98,25 +98,25 @@ class VariantSet:
         return [self.entry_to_ingredients(e) for e in self.entries()]
 
     @classmethod
-    def or_sets(cls, sets: list[Self], parameters: VariantSetParameters | None = None) -> Self:
+    def or_sets(cls, sets: list['VariantSet'], parameters: VariantSetParameters | None = None):  # TODO: replace with Self from typing with pypy 3.11
         return cls.aggregate_sets(sets, strategy=lambda x, y: x | y, parameters=parameters)
 
     @classmethod
-    def and_sets(cls, sets: list[Self], parameters: VariantSetParameters | None = None) -> Self:
+    def and_sets(cls, sets: list['VariantSet'], parameters: VariantSetParameters | None = None):  # TODO: replace with Self from typing with pypy 3.11
         return cls.aggregate_sets(sets, strategy=lambda x, y: x & y, parameters=parameters)
 
     @classmethod
-    def sum_sets(cls, sets: list[Self], parameters: VariantSetParameters | None = None) -> Self:
+    def sum_sets(cls, sets: list['VariantSet'], parameters: VariantSetParameters | None = None):  # TODO: replace with Self from typing with pypy 3.11
         return cls.aggregate_sets(sets, strategy=lambda x, y: x + y, parameters=parameters)
 
     @classmethod
-    def aggregate_sets(cls, sets: list[Self], strategy: Callable[[Self, Self], Self], parameters: VariantSetParameters | None = None) -> Self:
+    def aggregate_sets(cls, sets: list['VariantSet'], strategy: Callable[['VariantSet', 'VariantSet'], 'VariantSet'], parameters: VariantSetParameters | None = None):  # TODO: replace with Self from typing with pypy 3.11
         match len(sets):
             case 0: return cls(parameters=parameters)
             case _: return reduce(strategy, sets)
 
     @classmethod
-    def product_sets(cls, sets: list[Self], parameters: VariantSetParameters | None = None) -> Self:
+    def product_sets(cls, sets: list['VariantSet'], parameters: VariantSetParameters | None = None):  # TODO: replace with Self from typing with pypy 3.11
         parameters = parameters if parameters is not None else VariantSetParameters()
         if parameters.allow_multiple_copies:
             return cls.sum_sets(sets, parameters=parameters)

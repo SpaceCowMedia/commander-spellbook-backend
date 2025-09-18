@@ -1,4 +1,4 @@
-from typing import MutableMapping, Self, Generic, TypeVar, Hashable, Mapping as MappingType, Union, Optional, Iterable as IterableType, \
+from typing import MutableMapping, Generic, TypeVar, Hashable, Mapping as MappingType, Union, Optional, Iterable as IterableType, \
     ItemsView, KeysView, ValuesView
 from collections import Counter
 from collections.abc import Mapping
@@ -51,19 +51,19 @@ class BaseMultiset(Generic[_T]):
     def isdisjoint(self, other: 'BaseMultiset[_T]') -> bool:
         return self._elements.keys().isdisjoint(other._elements.keys())
 
-    def difference(self, other: 'BaseMultiset[_T]') -> Self:
+    def difference(self, other: 'BaseMultiset[_T]'):
         return self.__class__(_internal=self._elements - other._elements)
 
-    def union(self, other: 'BaseMultiset[_T]') -> Self:
+    def union(self, other: 'BaseMultiset[_T]'):
         return self.__class__(_internal=self._elements | other._elements)
 
-    def combine(self, other: 'BaseMultiset[_T]') -> Self:
+    def combine(self, other: 'BaseMultiset[_T]'):
         return self.__class__(_internal=self._elements + other._elements)
 
-    def intersection(self, other: 'BaseMultiset[_T]') -> Self:
+    def intersection(self, other: 'BaseMultiset[_T]'):
         return self.__class__(_internal=self._elements & other._elements)
 
-    def times(self, factor: int) -> Self:
+    def times(self, factor: int):
         if factor == 0:
             return self.__class__()
         if factor < 0:
@@ -102,7 +102,7 @@ class BaseMultiset(Generic[_T]):
     def get(self, element: _T, default: int) -> int:
         return self._elements.get(element, default)
 
-    def copy(self) -> Self:
+    def copy(self):
         return self.__class__(_internal=self._elements.copy())
 
     __copy__ = copy
@@ -128,22 +128,22 @@ class BaseMultiset(Generic[_T]):
     def __gt__(self, other: 'BaseMultiset[_T]') -> bool:
         return self._total > other._total and self.issuperset(other)
 
-    def __add__(self, other: 'BaseMultiset[_T]') -> Self:
+    def __add__(self, other: 'BaseMultiset[_T]'):
         return self.combine(other)
 
-    def __sub__(self, other: 'BaseMultiset[_T]') -> Self:
+    def __sub__(self, other: 'BaseMultiset[_T]'):
         return self.difference(other)
 
-    def __mul__(self, factor: int) -> Self:
+    def __mul__(self, factor: int):
         return self.times(factor)
 
-    def __rmul__(self, factor: int) -> Self:
+    def __rmul__(self, factor: int):
         return self.times(factor)
 
-    def __or__(self, other: 'BaseMultiset[_T]') -> Self:
+    def __or__(self, other: 'BaseMultiset[_T]'):
         return self.union(other)
 
-    def __and__(self, other: 'BaseMultiset[_T]') -> Self:
+    def __and__(self, other: 'BaseMultiset[_T]'):
         return self.intersection(other)
 
     def __floordiv__(self, other: 'BaseMultiset[_T]') -> int:

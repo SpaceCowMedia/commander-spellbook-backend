@@ -1,4 +1,4 @@
-from typing import Iterable, TypeVar, Generic, Self
+from typing import Iterable, TypeVar, Generic
 from .multiset import FrozenMultiset
 
 _T = TypeVar('_T')
@@ -83,14 +83,14 @@ class MinimalSetOfMultisets(Generic[_T]):
             return self.__sets == other.__sets
         return False
 
-    def __copy__(self) -> Self:
+    def __copy__(self):
         return self.__class__(_internal=self.__sets.copy())
 
-    def copy(self) -> Self:
+    def copy(self):
         "Returns a shallow copy of the collection."
         return self.__copy__()
 
-    def __or__(self, other: Self) -> Self:
+    def __or__(self, other: 'MinimalSetOfMultisets[_T]'):  # TODO: replace with Self from typing with pypy 3.11
         result = self.copy()
         result.extend(other)
         return result

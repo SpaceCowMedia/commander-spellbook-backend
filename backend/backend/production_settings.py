@@ -56,7 +56,7 @@ CONN_MAX_AGE = 60 * 60
 DATABASES = {
     'default': {
         'OPTIONS': {
-            'options': '-c statement_timeout=30000'  # 30 seconds in milliseconds
+            'options': '-c statement_timeout=60000'  # in milliseconds
         },
         'ENGINE': os.getenv('KUBE_SQL_ENGINE', os.getenv('SQL_ENGINE', 'django.db.backends.sqlite3')),
         'NAME': os.getenv('KUBE_SQL_DATABASE', os.environ.get("SQL_DATABASE", os.path.join(BASE_DIR, "db.sqlite3"))),

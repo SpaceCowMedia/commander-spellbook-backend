@@ -15,7 +15,7 @@ if os.getenv('SQL_ENGINE', DATABASES['default']['ENGINE']) != DATABASES['default
     DATABASES = {
         'default': {
             'OPTIONS': {
-                'options': '-c statement_timeout=60000'  # 60 seconds in milliseconds
+                'options': '-c statement_timeout=60000'  # in milliseconds
             },
             'ENGINE': os.getenv('SQL_ENGINE'),
             'NAME': os.environ.get("SQL_DATABASE", DATABASES['default']['NAME']),

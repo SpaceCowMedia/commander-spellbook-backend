@@ -239,11 +239,11 @@ def update_cards(cards: list[Card], scryfall: Scryfall, counts: dict[int, int], 
                     card.legal_brawl = True
             if 'prices' in card_in_db:
                 card_prices = card_in_db['prices']
-                p = card_prices['tcgplayer']['price'] if card_prices['tcgplayer'] is not None else 0.0
+                p = card_prices['tcgplayer']['price'] if card_prices['tcgplayer'] is not None and card_prices['tcgplayer'].get('price') else 0.0
                 card.price_tcgplayer = round(Decimal.from_float(p), 2)
-                p = card_prices['cardkingdom']['price'] if card_prices['cardkingdom'] is not None else 0.0
+                p = card_prices['cardkingdom']['price'] if card_prices['cardkingdom'] is not None and card_prices['cardkingdom'].get('price') else 0.0
                 card.price_cardkingdom = round(Decimal.from_float(p), 2)
-                p = card_prices['cardmarket']['price'] if card_prices['cardmarket'] is not None else 0.0
+                p = card_prices['cardmarket']['price'] if card_prices['cardmarket'] is not None and card_prices['cardmarket'].get('price') else 0.0
                 card.price_cardmarket = round(Decimal.from_float(p), 2)
             card.latest_printing_set = card_in_db['set'].lower()
             card.reprinted = card_in_db['reprint']

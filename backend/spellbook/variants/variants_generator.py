@@ -660,7 +660,7 @@ def sync_variant_aliases(data: Data, added_variants_ids: set[str], deleted_varia
     variant_aliases = [
         VariantAlias(
             id=v.id,
-            description=f'Added because {v.name} has been removed from the database.'
+            description=f'Added because "{v.name}" has been removed from the database.'
         )
         for v in deleted_variants
         if v.status in Variant.public_statuses()

@@ -1,9 +1,8 @@
 from django.contrib import admin
-from django.db.models import Q, TextField
-from django.forms.widgets import Textarea
-from spellbook.models import Card, FeatureOfCard, CardType
+from django.db.models import Q
+from spellbook.models import Card, CardType
 from .utils import IdentityFilter, SpellbookModelAdmin, CustomFilter
-from .ingredient_admin import IngredientAdmin
+from .ingredient_admin import FeatureOfCardAdmin
 
 
 class ManagedByScryfallFilter(CustomFilter):
@@ -30,22 +29,10 @@ class CardTypeFilter(CustomFilter):
         return Q(type_line__icontains=value)
 
 
-class FeatureOfCardAdminInline(IngredientAdmin):
-    fields = [
-        'feature',
-        'attributes',
-        *IngredientAdmin.fields,
-        'mana_needed',
-        'easy_prerequisites',
-        'notable_prerequisites',
-    ]
-    model = FeatureOfCard
+class FeatureOfCardAdminInline(FeatureOfCardAdmin):
+    related_field = 'feature'
     verbose_name = 'Feature'
     verbose_name_plural = 'Features'
-    autocomplete_fields = ['feature', 'attributes']
-    formfield_overrides = {
-        TextField: {'widget': Textarea(attrs={'rows': 1, 'cols': 25, 'style': 'resize: vertical; min-height: 2em;'})},
-    }
 
 
 @admin.register(Card)

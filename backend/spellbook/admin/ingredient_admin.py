@@ -1,7 +1,9 @@
-from django.forms import Textarea
 from django.contrib.admin import TabularInline
+from django.db.models import TextField, CharField
+from django.forms import TextInput, Textarea
 from adminsortable2.admin import SortableTabularInline
-from spellbook.models import ZoneLocation
+from django.http import HttpRequest
+from spellbook.models import ZoneLocation, FeatureOfCard
 from .utils import SpellbookAdminForm
 
 
@@ -45,6 +47,30 @@ class IngredientAdmin(TabularInline):
         'library_card_state',
         'must_be_commander',
     ]
+
+
+class FeatureOfCardAdmin(IngredientAdmin):
+    related_field: str
+    fields = [
+        'attributes',
+        IngredientAdmin.fields[0],
+        'mana_needed',
+        *IngredientAdmin.fields[1:],
+        'easy_prerequisites',
+        'notable_prerequisites',
+    ]
+    model = FeatureOfCard
+    autocomplete_fields = ['attributes']
+    formfield_overrides = {
+        CharField: {'widget': TextInput(attrs={'size': '12'})},
+        TextField: {'widget': _textarea()},
+    }
+
+    def get_fields(self, request: HttpRequest, obj: FeatureOfCard | None = None):
+        return [self.related_field, *self.fields]
+
+    def get_autocomplete_fields(self, request: HttpRequest):
+        return [self.related_field, *self.autocomplete_fields]
 
 
 class IngredientInCombinationAdmin(IngredientAdmin, SortableTabularInline):

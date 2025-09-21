@@ -8,8 +8,28 @@ from .utils import SpellbookModelAdmin
 class JobAdmin(SpellbookModelAdmin):
     date_hierarchy = 'created'
     readonly_fields = ['created', 'expected_termination', 'termination']
-    fields = ['id', 'name', 'args', 'group', 'status', 'created', 'expected_termination', 'termination', 'message', 'started_by']
-    list_display = ['id', 'name', 'group', 'status', 'created', 'expected_termination', 'termination', 'variant_count']
+    fields = [
+        'id',
+        'name',
+        'args',
+        'group',
+        'status',
+        'created',
+        'expected_termination',
+        'termination',
+        'started_by',
+        'message',
+    ]
+    list_display = [
+        'id',
+        'name',
+        'group',
+        'status',
+        'created',
+        'expected_termination',
+        'termination',
+        'variant_count',
+    ]
     list_filter = ['name', 'status']
 
     def variant_count(self, obj):

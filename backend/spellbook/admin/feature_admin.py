@@ -2,34 +2,20 @@ import re
 from typing import Any
 from itertools import chain
 from django.contrib import admin
-from django.db.models import QuerySet, TextField, Count
-from django.forms.widgets import Textarea
+from django.db.models import QuerySet, Count
 from django.http import HttpRequest
 from django.utils.html import format_html
-from spellbook.models import CardInCombo, Feature, FeatureOfCard, Combo, TemplateInCombo
+from spellbook.models import CardInCombo, Feature, Combo, TemplateInCombo
 from spellbook.models.scryfall import scryfall_link_for_query, scryfall_query_string_for_card_names, SCRYFALL_MAX_QUERY_LENGTH
 from spellbook.variants.variants_generator import FEATURE_REPLACEMENT_REGEX
 from .utils import SpellbookModelAdmin, SpellbookAdminForm
-from .ingredient_admin import IngredientAdmin
+from .ingredient_admin import FeatureOfCardAdmin
 
 
-class CardInFeatureAdminInline(IngredientAdmin):
-    fields = [
-        'card',
-        'attributes',
-        *IngredientAdmin.fields,
-        'mana_needed',
-        'easy_prerequisites',
-        'notable_prerequisites',
-    ]
-    model = FeatureOfCard
-    extra = 0
-    autocomplete_fields = ['card', 'attributes']
+class CardInFeatureAdminInline(FeatureOfCardAdmin):
+    related_field = 'card'
     verbose_name = 'Produced by card'
     verbose_name_plural = 'Produced by cards'
-    formfield_overrides = {
-        TextField: {'widget': Textarea(attrs={'rows': 1, 'cols': 25, 'style': 'resize: vertical; min-height: 2em;'})},
-    }
 
 
 class FeatureForm(SpellbookAdminForm):

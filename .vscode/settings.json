@@ -38,4 +38,6 @@
     "yaml.schemas": {
         "Kubernetes": "*kube*.yaml",
     },
+    "python.analysis.typeEvaluation.strictDictionaryInference": true,
+    "python.analysis.typeEvaluation.strictSetInference": true,
 }

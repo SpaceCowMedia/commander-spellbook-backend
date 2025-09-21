@@ -19,8 +19,8 @@ SANITIZATION_REPLACEMENTS = {
     '“”″❞〝〞ˮ': '"',  # double quotes
 }
 SORTED_COLORS = {
-    frozenset('C'): 'C',
-    **{frozenset(i): i for i in [
+    frozenset(i): i for i in (
+        'C',
         'W',
         'U',
         'B',
@@ -51,8 +51,8 @@ SORTED_COLORS = {
         'BRGW',
         'RGWU',
         'GWUB',
-        'WUBRG'
-    ]}
+        'WUBRG',
+    )
 }
 
 
@@ -111,7 +111,7 @@ def merge_mana_costs(mana_costs: Iterable[str]) -> str:
     if costs:
         cost_string = ''
         colorless = costs.pop('C', 0)
-        identity = sort_color_identity(frozenset(''.join(costs.keys())).intersection('WUBRG'))
+        identity = sort_color_identity(frozenset(c for cost in costs.keys() for c in cost).intersection('WUBRG'))
         for color in identity:
             for symbol in sorted((s for s in costs.keys() if color in s), key=lambda s: (len(s), s)):
                 cost_string += f'{{{symbol}}}' * costs[symbol]

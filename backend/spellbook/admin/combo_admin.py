@@ -78,7 +78,13 @@ class TemplateInComboAdminInline(IngredientInCombinationAdmin):
 
 
 class FeatureNeededInComboAdminInline(IngredientAdmin):
-    fields = ['feature', *IngredientAdmin.fields, 'any_of_attributes', 'all_of_attributes', 'none_of_attributes']
+    fields = [
+        'feature',
+        *IngredientAdmin.fields,
+        'any_of_attributes',
+        'all_of_attributes',
+        'none_of_attributes',
+    ]
     model = FeatureNeededInCombo
     verbose_name = 'Feature'
     verbose_name_plural = 'Required Features'

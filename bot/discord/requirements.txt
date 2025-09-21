@@ -17,21 +17,21 @@ aiosignal==1.4.0
     # via aiohttp
 annotated-types==0.7.0
     # via pydantic
-attrs==24.2.0
+attrs==25.3.0
     # via aiohttp
 discord-py==2.6.3
     # via -r requirements.in
-frozenlist==1.4.1
+frozenlist==1.7.0
     # via
     #   aiohttp
     #   aiosignal
-idna==3.7
+idna==3.10
     # via yarl
-multidict==6.0.5
+multidict==6.6.4
     # via
     #   aiohttp
     #   yarl
-propcache==0.2.0
+propcache==0.3.2
     # via
     #   aiohttp
     #   yarl
@@ -41,17 +41,17 @@ pydantic-core==2.33.2
     # via pydantic
 python-dateutil==2.9.0.post0
     # via -r requirements.in
-six==1.16.0
+six==1.17.0
     # via python-dateutil
-typing-extensions==4.12.2
+typing-extensions==4.15.0
     # via
     #   aiosignal
     #   pydantic
     #   pydantic-core
     #   typing-inspection
-typing-inspection==0.4.0
+typing-inspection==0.4.1
     # via pydantic
 urllib3==2.5.0
     # via -r requirements.in
-yarl==1.17.2
+yarl==1.20.1
     # via aiohttp

@@ -47,7 +47,7 @@ django==5.2.6
     #   social-auth-app-django
 django-admin-sortable2==2.2.8
     # via -r requirements.in
-django-cors-headers==4.8.0
+django-cors-headers==4.9.0
     # via -r requirements.in
 django-filter==25.1
     # via -r requirements.in
@@ -121,8 +121,6 @@ sqlparse==0.5.0
     # via django
 typing-extensions==4.15.0
     # via referencing
-tzdata==2025.2
-    # via django
 uritemplate==4.2.0
     # via drf-spectacular
 urllib3==2.5.0

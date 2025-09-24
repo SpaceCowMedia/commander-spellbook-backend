@@ -47,7 +47,7 @@ django==5.2.6
     #   social-auth-app-django
 django-admin-sortable2==2.2.8
     # via -r requirements.in
-django-cors-headers==4.8.0
+django-cors-headers==4.9.0
     # via -r requirements.in
 django-filter==25.1
     # via -r requirements.in

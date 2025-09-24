@@ -1,7 +1,7 @@
 from typing import Iterable, Callable
 from itertools import product, chain
 from functools import reduce
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from .multiset import FrozenMultiset
 from .minimal_set_of_multisets import MinimalSetOfMultisets
 
@@ -62,7 +62,14 @@ class VariantSet:
         return self.sets
 
     def filter(self, entry: Entry):
-        return self.__class__(parameters=replace(self.parameters, filter=entry), _internal=self.sets.subtree(entry))
+        return self.__class__(
+            parameters=VariantSetParameters(
+                max_depth=self.parameters.max_depth,
+                allow_multiple_copies=self.parameters.allow_multiple_copies,
+                filter=entry,
+            ),
+            _internal=self.sets.subtree(entry),
+        )
 
     def __str__(self) -> str:
         return str(self.sets)

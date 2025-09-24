@@ -86,10 +86,12 @@ class BaseMultiset(Generic[_T]):
 
     def issubset(self, other: 'BaseMultiset[_T]') -> bool:
         self_len = self._total
+        if self_len == 0:
+            return True
         other_len = other._total
         if self_len > other_len:
             return False
-        return all(self[element] <= other[element] for element in self._elements.keys())
+        return all(q <= other[element] for element, q in self._elements.items())
 
     def issuperset(self, other: 'BaseMultiset[_T]') -> bool:
         return other.issubset(self)

@@ -4,7 +4,7 @@ from collections import deque, defaultdict, Counter
 from .multiset import FrozenMultiset, Multiset
 from itertools import chain
 from enum import Enum
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from spellbook.models import Card, Feature, FeatureOfCard, Combo, Template
 from .variant_data import AttributesMatcher, Data
 from .variant_set import VariantSet, VariantSetParameters, cardid, templateid
@@ -368,7 +368,10 @@ class Graph:
         for node in self._to_reset_nodes_filtered_variant_set:
             node._reset_filtered_variant_set()
         self._to_reset_nodes_filtered_variant_set.clear()
-        self.variant_set_parameters = replace(self.variant_set_parameters, filter=None)
+        self.variant_set_parameters = VariantSetParameters(
+            max_depth=self.variant_set_parameters.max_depth,
+            allow_multiple_copies=self.variant_set_parameters.allow_multiple_copies,
+        )
 
     def variants(self, combo_id: int) -> VariantSet:
         combo_node = self.combo_nodes[combo_id]
@@ -467,7 +470,11 @@ class Graph:
         return feature.variant_set
 
     def _card_nodes_up(self, ingredients: VariantIngredients) -> VariantRecipe:
-        self.variant_set_parameters = replace(self.variant_set_parameters, filter=VariantSet.ingredients_to_entry(ingredients.cards, ingredients.templates))
+        self.variant_set_parameters = VariantSetParameters(
+            max_depth=self.variant_set_parameters.max_depth,
+            allow_multiple_copies=self.variant_set_parameters.allow_multiple_copies,
+            filter=VariantSet.ingredients_to_entry(ingredients.cards, ingredients.templates),
+        )
         cards = FrozenMultiset[CardNode]({self.card_nodes[c]: q for c, q in ingredients.cards.items()})
         templates = FrozenMultiset[TemplateNode]({self.template_nodes[t]: q for t, q in ingredients.templates.items()})
         feature_of_card_nodes = set[FeatureOfCardNode]()

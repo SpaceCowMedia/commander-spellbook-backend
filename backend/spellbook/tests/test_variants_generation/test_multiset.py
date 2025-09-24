@@ -55,7 +55,12 @@ class BaseMultisetTests(TestCase):
             ms.times(-1)
 
     def test_issubset_issuperset(self):
+        ms0 = self.MultisetClass()
+        self.assertTrue(ms0.issubset(ms0))
+        self.assertTrue(ms0.issuperset(ms0))
         ms1 = self.MultisetClass({1: 1, 2: 1})
+        self.assertTrue(ms0.issubset(ms1))
+        self.assertTrue(ms1.issuperset(ms0))
         ms2 = self.MultisetClass({1: 1, 2: 2})
         self.assertTrue(ms1.issubset(ms2))
         self.assertFalse(ms2.issubset(ms1))

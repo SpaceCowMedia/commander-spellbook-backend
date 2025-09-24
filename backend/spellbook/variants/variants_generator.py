@@ -14,7 +14,7 @@ from spellbook.utils import log_into_job
 from spellbook.models.constants import DEFAULT_CARD_LIMIT, DEFAULT_VARIANT_LIMIT, HIGHER_CARD_LIMIT, LOWER_VARIANT_LIMIT
 
 
-VARIANTS_TO_TRIGGER_LOG = 100
+VARIANTS_TO_TRIGGER_LOG = 200
 
 
 @dataclass
@@ -669,7 +669,7 @@ def sync_variant_aliases(data: Data, added_variants_ids: set[str], deleted_varia
     return added_count, deleted_count
 
 
-def generate_variants(combo: int | None = None, job: Job | None = None, log_count: int = 100) -> tuple[int, int, int]:
+def generate_variants(combo: int | None = None, job: Job | None = None, log_count: int = VARIANTS_TO_TRIGGER_LOG) -> tuple[int, int, int]:
     if combo is not None:
         log_into_job(job, f'Variant generation started for combo {combo}.')
     else:

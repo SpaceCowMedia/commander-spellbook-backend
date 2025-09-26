@@ -18,6 +18,9 @@
             "type": "shell",
             "command": "python manage.py seed_website_properties",
             "group": "none",
+            "dependsOn": [
+                "Apply migrations"
+            ],
             "options": {
                 "cwd": "${workspaceFolder}/backend",
                 "env": {

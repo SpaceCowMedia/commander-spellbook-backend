@@ -230,12 +230,8 @@ class TestCaseMixinWithSeeding(TestCaseMixin):
     admin: User
     user: User
 
-    def setUp(self) -> None:
-        super().setUp()
-        self.populate_db()
-        random.seed(42)
-
-    def populate_db(self):
+    @classmethod
+    def setUpTestData(cls):
         '''
         Populate the database with some test data.
         If used to generate variants, the expected generated variants are:
@@ -248,6 +244,7 @@ class TestCaseMixinWithSeeding(TestCaseMixin):
         - <Variant: B B + C C + E É + F F ➜ FB + FC> with id '2-3-5-6'
         - <Variant: A A + B B + TA + TB ➜ FD> with id '1-2--1-2'
         '''
+        super().setUpTestData()
         fa1 = FeatureAttribute.objects.create(name='FA1')
         fa2 = FeatureAttribute.objects.create(name='FA2')
         c1 = Card.objects.create(name='A A', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000001'), identity='W', legal_commander=True, spoiler=False, type_line='Instant', oracle_text='x1', keywords=['keyword1', 'keyword2'], game_changer=True, extra_turn=True, image_uri_front_png='http://localhost/x.png', image_uri_back_normal='http://localhost/x.jpg')
@@ -334,33 +331,33 @@ class TestCaseMixinWithSeeding(TestCaseMixin):
         a1 = VariantAlias.objects.create(id='1', description='a1')
 
         # Save ids
-        self.c1_id = c1.id
-        self.c2_id = c2.id
-        self.c3_id = c3.id
-        self.c4_id = c4.id
-        self.c5_id = c5.id
-        self.c6_id = c6.id
-        self.c7_id = c7.id
-        self.c8_id = c8.id
-        self.t1_id = t1.id
-        self.t2_id = t2.id
-        self.f1_id = f1.id
-        self.f2_id = f2.id
-        self.f3_id = f3.id
-        self.f4_id = f4.id
-        self.f5_id = f5.id
-        self.f6_id = f6.id
-        self.b1_id = b1.id
-        self.b2_id = b2.id
-        self.b3_id = b3.id
-        self.b4_id = b4.id
-        self.b5_id = b5.id
-        self.b6_id = b6.id
-        self.b7_id = b7.id
-        self.b8_id = b8.id
-        self.b9_id = b9.id
-        self.s1_id = s1.id
-        self.a1_id = a1.id
+        cls.c1_id = c1.id
+        cls.c2_id = c2.id
+        cls.c3_id = c3.id
+        cls.c4_id = c4.id
+        cls.c5_id = c5.id
+        cls.c6_id = c6.id
+        cls.c7_id = c7.id
+        cls.c8_id = c8.id
+        cls.t1_id = t1.id
+        cls.t2_id = t2.id
+        cls.f1_id = f1.id
+        cls.f2_id = f2.id
+        cls.f3_id = f3.id
+        cls.f4_id = f4.id
+        cls.f5_id = f5.id
+        cls.f6_id = f6.id
+        cls.b1_id = b1.id
+        cls.b2_id = b2.id
+        cls.b3_id = b3.id
+        cls.b4_id = b4.id
+        cls.b5_id = b5.id
+        cls.b6_id = b6.id
+        cls.b7_id = b7.id
+        cls.b8_id = b8.id
+        cls.b9_id = b9.id
+        cls.s1_id = s1.id
+        cls.a1_id = a1.id
 
-        self.user = User.objects.create(username='user', password='user')
-        self.admin = User.objects.create(username='admin', password='admin', is_staff=True, is_superuser=True)
+        cls.user = User.objects.create(username='user', password='user')
+        cls.admin = User.objects.create(username='admin', password='admin', is_staff=True, is_superuser=True)

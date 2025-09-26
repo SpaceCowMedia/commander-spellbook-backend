@@ -6,9 +6,8 @@ from common.stream import StreamToLogger
 
 
 class TestCaseMixin(SimpleTestCase):
-    def setUp(self) -> None:
-        logging.disable(logging.INFO)
-        random.seed(42)
+    @classmethod
+    def setUpTestData(cls):
         command = 'seed_website_properties'
         logger = logging.getLogger(command)
         call_command(
@@ -16,3 +15,7 @@ class TestCaseMixin(SimpleTestCase):
             stdout=StreamToLogger(logger, logging.INFO),
             stderr=StreamToLogger(logger, logging.ERROR)
         )
+
+    def setUp(self) -> None:
+        logging.disable(logging.INFO)
+        random.seed(42)

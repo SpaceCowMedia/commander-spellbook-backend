@@ -1,9 +1,9 @@
-from django.test import TestCase
+from django.test import SimpleTestCase
 from rest_framework import status
 from django.conf import settings
 
 
-class SchemaTestCase(TestCase):
+class SchemaTestCase(SimpleTestCase):
     def test_yaml(self):
         response = self.client.get('/schema', follow=True)
         self.assertEqual(response.status_code, status.HTTP_200_OK)

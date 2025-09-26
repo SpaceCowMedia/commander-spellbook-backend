@@ -1,10 +1,9 @@
-from django.test import TestCase
 from django.urls import reverse
 from spellbook.models import Card
-from ..testing import TestCaseMixinWithSeeding
+from ..testing import SpellbookTestCaseWithSeeding
 
 
-class CardAdminTests(TestCaseMixinWithSeeding, TestCase):
+class CardAdminTests(SpellbookTestCaseWithSeeding):
     def test_changelist_view(self):
         self.client.force_login(self.admin)
         response = self.client.get(reverse('admin:spellbook_card_changelist'))

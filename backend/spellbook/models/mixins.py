@@ -42,10 +42,10 @@ class PreSaveManager(Manager):
 class PreSaveModelMixin(Model):
     objects = PreSaveManager()
 
-    def pre_save(self) -> None:
+    def pre_save(self):
         pass
 
-    def save(self, *args, **kwargs) -> None:
+    def save(self, *args, **kwargs):
         self.pre_save()
         return super().save(*args, **kwargs)
 
@@ -80,7 +80,7 @@ class PreSaveSerializedModelMixin(PreSaveModelMixin):
     serialized_objects = SerializedObjectsManager()
     serialized = JSONField(null=True, blank=True, editable=False)
 
-    def update_serialized(self, serializer: type[ModelSerializer]) -> None:
+    def update_serialized(self, serializer: type[ModelSerializer]):
         self.serialized = dict(serializer(self).data)
 
     class Meta:

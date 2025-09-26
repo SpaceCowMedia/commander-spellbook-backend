@@ -1,5 +1,4 @@
-from django.test import TestCase
-from spellbook.tests.testing import TestCaseMixinWithSeeding
+from spellbook.tests.testing import SpellbookTestCaseWithSeeding
 from common.inspection import count_methods
 from spellbook.models import Card, Job, PreSerializedSerializer, Template, Variant, id_from_cards_and_templates_ids
 from spellbook.serializers import VariantSerializer
@@ -7,14 +6,15 @@ from decimal import Decimal
 from urllib.parse import quote_plus
 
 
-class VariantTests(TestCaseMixinWithSeeding, TestCase):
-    def setUp(self):
-        super().setUp()
-        self.generate_variants()
-        self.v1_id = id_from_cards_and_templates_ids([self.c8_id, self.c1_id], [self.t1_id])
-        self.v2_id = id_from_cards_and_templates_ids([self.c3_id, self.c1_id, self.c2_id], [self.t1_id])
-        self.v3_id = id_from_cards_and_templates_ids([self.c5_id, self.c6_id, self.c2_id, self.c3_id], [self.t1_id])
-        self.v4_id = id_from_cards_and_templates_ids([self.c8_id, self.c1_id], [])
+class VariantTests(SpellbookTestCaseWithSeeding):
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.generate_variants()
+        cls.v1_id = id_from_cards_and_templates_ids([cls.c8_id, cls.c1_id], [cls.t1_id])
+        cls.v2_id = id_from_cards_and_templates_ids([cls.c3_id, cls.c1_id, cls.c2_id], [cls.t1_id])
+        cls.v3_id = id_from_cards_and_templates_ids([cls.c5_id, cls.c6_id, cls.c2_id, cls.c3_id], [cls.t1_id])
+        cls.v4_id = id_from_cards_and_templates_ids([cls.c8_id, cls.c1_id], [])
 
     def test_variant_fields(self):
         v: Variant = Variant.objects.get(id=self.v1_id)

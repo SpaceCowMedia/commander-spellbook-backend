@@ -22,14 +22,14 @@ class AbstractCommand(BaseCommand):
         if self.job is not None:
             log_into_job(self.job, message)
 
-    def add_arguments(self, parser: CommandParser) -> None:
+    def add_arguments(self, parser: CommandParser):
         parser.add_argument(
             '--id',
             type=int,
             dest='job_id',
         )
 
-    def run_from_argv(self, argv: list[str]) -> None:
+    def run_from_argv(self, argv: list[str]):
         self.args = argv[2:]
         return super().run_from_argv(argv)
 

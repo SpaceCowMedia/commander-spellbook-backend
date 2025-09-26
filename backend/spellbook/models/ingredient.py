@@ -14,7 +14,7 @@ class CheckboxSelectMultipleAsCharField(CheckboxSelectMultiple):
 
 
 class MultipleChoiceFieldAsCharField(MultipleChoiceField):
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args, **kwargs):
         kwargs.pop('max_length', None)
         kwargs['widget'] = CheckboxSelectMultipleAsCharField
         super().__init__(*args, **kwargs)
@@ -38,7 +38,7 @@ class ZoneLocation(models.TextChoices):
 
 
 class ZoneLocationsField(models.CharField):
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args, **kwargs):
         kwargs.setdefault('help_text', 'Starting location(s) for the card.')
         kwargs.setdefault('verbose_name', 'starting location')
         kwargs['max_length'] = len(ZoneLocation.choices)
@@ -59,11 +59,11 @@ class Ingredient(models.Model):
     library_card_state = models.CharField(max_length=MAX_LOCATION_STATE_LENGTH, blank=True, help_text='State of the card in the library, if present.', validators=TEXT_VALIDATORS, verbose_name='library starting card state')
     must_be_commander = models.BooleanField(default=False, help_text='Does the card have to be a commander?', verbose_name='must be commander')
 
-    def clean(self) -> None:
+    def clean(self):
         self.clean_data(vars(self))
 
     @classmethod
-    def clean_data(cls, data: dict) -> None:
+    def clean_data(cls, data: dict):
         zone_locations = data.get('zone_locations')
         if zone_locations is None:
             return

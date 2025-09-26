@@ -1,23 +1,26 @@
 from django.test import LiveServerTestCase
+from django.utils.functional import classproperty
 from spellbook_client.models.paginated_variant_list import PaginatedVariantList
 from spellbook_client import ApiClient, configuration, VariantsApi
-from spellbook.tests.testing import TestCaseMixinWithSeeding
+from spellbook.tests.testing import SpellbookTestCaseWithSeeding
 
 
-class SpellbookClientTest(TestCaseMixinWithSeeding, LiveServerTestCase):
-    def setUp(self):
-        super().setUp()
+class SpellbookClientTest(SpellbookTestCaseWithSeeding, LiveServerTestCase):
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
         super().generate_and_publish_variants()
-        self.anonymous_api_client_configuration = configuration.Configuration(
-            host=self.live_server_url,
+        cls.anonymous_api_client_configuration = configuration.Configuration(
+            host=cls.live_server_url,
         )
 
-    @property
-    def anonymous_api_client(self):
-        return ApiClient(self.anonymous_api_client_configuration)
+    @classproperty
+    def anonymous_api_client(cls):
+        return ApiClient(cls.anonymous_api_client_configuration)
 
-    async def get_variants(self, q='') -> PaginatedVariantList:
-        async with self.anonymous_api_client as api_client:
+    @classmethod
+    async def get_variants(cls, q='') -> PaginatedVariantList:
+        async with cls.anonymous_api_client as api_client:
             api_instance = VariantsApi(api_client)
             result = await api_instance.variants_list(q=q)
             assert result is not None

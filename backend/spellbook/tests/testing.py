@@ -1,4 +1,3 @@
-import random
 import uuid
 import re
 from functools import reduce
@@ -6,7 +5,7 @@ from collections import defaultdict
 from django.db.models import Q, Count, OuterRef, Subquery
 from django.db.models.functions import Coalesce
 from django.contrib.auth.models import User
-from common.testing import TestCaseMixin as BaseTestCaseMixin
+from website.tests.testing import BaseTestCase
 from spellbook.variants.multiset import FrozenMultiset
 from spellbook.models import Card, Feature, Combo, CardInCombo, Job, Template, TemplateInCombo
 from spellbook.models import CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, FeatureProducedInVariantSuggestion
@@ -16,16 +15,7 @@ from spellbook.utils import launch_job_command
 from spellbook.serializers import VariantSerializer
 
 
-class TestCaseMixin(BaseTestCaseMixin):
-    def setUp(self) -> None:
-        super().setUp()
-        self.modified_settings = self.settings(ASYNC_GENERATION=False)
-        self.modified_settings.enable()
-
-    def tearDown(self) -> None:
-        super().tearDown()
-        self.modified_settings.disable()
-
+class SpellbookTestCase(BaseTestCase):
     def assertMultisetEqual(self, a, b):
         if isinstance(a, FrozenMultiset):
             a = {k: v for k, v in a.items()}
@@ -33,22 +23,22 @@ class TestCaseMixin(BaseTestCaseMixin):
             b = {k: v for k, v in b.items()}
         self.assertDictEqual(a, b)
 
-    def generate_variants(self):
-        result = launch_job_command('generate_variants')
-        self.assertIsNotNone(result)
-        job = Job.objects.filter(name='generate_variants').order_by('-id').first()
-        self.assertEqual(job, result)
+    @classmethod
+    def generate_variants(cls):
+        job = launch_job_command('generate_variants', background=False)
         assert job is not None
         if job.status == Job.Status.FAILURE:
             raise Exception(job.message)
-        assert job.status == Job.Status.SUCCESS
+        assert job.status == Job.Status.SUCCESS, f'{job} status was {job.status}'
 
-    def bulk_serialize_variants(self, q=None, extra_fields=[]):
+    @classmethod
+    def bulk_serialize_variants(cls, q=None, extra_fields=[]):
         if q is None:
             q = Variant.objects.all()
-        Variant.objects.bulk_serialize(q, serializer=VariantSerializer, fields=extra_fields)  # type: ignore
+        Variant.objects.bulk_serialize(q, serializer=VariantSerializer, fields=extra_fields)
 
-    def update_variants(self):
+    @classmethod
+    def update_variants(cls):
         Card.objects.update(
             variant_count=Coalesce(
                 Subquery(
@@ -84,13 +74,15 @@ class TestCaseMixin(BaseTestCaseMixin):
             variant.pre_save = lambda: None
         Variant.objects.bulk_update(variants, Variant.computed_fields() + ['variant_count'])
 
-    def generate_and_publish_variants(self):
-        self.generate_variants()
-        self.bulk_serialize_variants()
+    @classmethod
+    def generate_and_publish_variants(cls):
+        cls.generate_variants()
+        cls.bulk_serialize_variants()
         Variant.objects.update(status=Variant.Status.OK)
-        self.update_variants()
+        cls.update_variants()
 
-    def setup_combo_graph(self, model: dict[tuple[str, ...] | str, tuple[str, ...]]):
+    @classmethod
+    def setup_combo_graph(cls, model: dict[tuple[str, ...] | str, tuple[str, ...]]):
         card_ids_by_name: dict[str, int] = {}
         feature_ids_by_name: dict[str, int] = {}
         template_ids_by_name: dict[str, int] = {}
@@ -201,7 +193,7 @@ class TestCaseMixin(BaseTestCaseMixin):
                 combo_id += 1
 
 
-class TestCaseMixinWithSeeding(TestCaseMixin):
+class SpellbookTestCaseWithSeeding(SpellbookTestCase):
     c1_id = 0
     c2_id = 0
     c3_id = 0

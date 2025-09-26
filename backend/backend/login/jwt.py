@@ -28,7 +28,7 @@ class TokenObtainPairSerializer(BaseTokenObtainPairSerializer):
     code_param = 'code'
     code = False
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         data = kwargs.get('data', {})
         if self.code_param in data:

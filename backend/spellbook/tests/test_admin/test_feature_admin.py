@@ -1,9 +1,8 @@
-from django.test import TestCase
-from ..testing import TestCaseMixinWithSeeding
+from ..testing import SpellbookTestCaseWithSeeding
 from spellbook.admin.feature_admin import replace_feature_reference
 
 
-class FeatureAdminTests(TestCaseMixinWithSeeding, TestCase):
+class FeatureAdminTests(SpellbookTestCaseWithSeeding):
     def test_replace_feature_reference(self):
         for test_text, verified_text, old_name, new_name in [
             ('[[Feature1]]', '[[Feature2]]', 'Feature1', 'Feature2'),

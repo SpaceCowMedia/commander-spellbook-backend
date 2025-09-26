@@ -1,4 +1,4 @@
-from django.test import TestCase
+from unittest import TestCase
 from common.markdown_utils import escape_markdown
 
 

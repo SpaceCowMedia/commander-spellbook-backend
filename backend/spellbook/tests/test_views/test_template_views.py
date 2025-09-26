@@ -1,13 +1,12 @@
 import json
-from django.test import TestCase
 from rest_framework import status
 from django.urls import reverse
 from common.inspection import json_to_python_lambda
 from spellbook.models import Template
-from ..testing import TestCaseMixinWithSeeding
+from ..testing import SpellbookTestCaseWithSeeding
 
 
-class TemplateViewsTests(TestCaseMixinWithSeeding, TestCase):
+class TemplateViewsTests(SpellbookTestCaseWithSeeding):
     def template_assertions(self, template_result):
         t = Template.objects.get(id=template_result.id)
         self.assertEqual(template_result.id, t.id)

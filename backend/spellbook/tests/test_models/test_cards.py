@@ -1,5 +1,5 @@
 from django.test import TestCase
-from spellbook.tests.testing import TestCaseMixinWithSeeding
+from spellbook.tests.testing import SpellbookTestCaseWithSeeding
 from django.core.exceptions import ValidationError
 from common.inspection import count_methods
 from spellbook.models import Card, CardType
@@ -7,7 +7,7 @@ from spellbook.models.scryfall import SCRYFALL_WEBSITE_CARD_SEARCH
 from urllib.parse import quote_plus
 
 
-class CardTests(TestCaseMixinWithSeeding, TestCase):
+class CardTests(SpellbookTestCaseWithSeeding):
     def test_card_fields(self):
         c = Card.objects.get(id=self.c1_id)
         self.assertEqual(c.name, 'A A')

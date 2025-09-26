@@ -1,12 +1,12 @@
-from django.test import TestCase
-from spellbook.tests.testing import TestCaseMixinWithSeeding
+from spellbook.tests.testing import SpellbookTestCaseWithSeeding
 from spellbook.variants.variant_data import Data, debug_queries
 from spellbook.models import FeatureOfCard, Variant, Combo, Feature, Card, Template
 
 
-class VariantDataTests(TestCaseMixinWithSeeding, TestCase):
-    def setUp(self):
-        super().setUp()
+class VariantDataTests(SpellbookTestCaseWithSeeding):
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
         super().generate_variants()
 
     def test_combos(self):

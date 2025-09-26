@@ -62,7 +62,7 @@ class SpellbookModelAdmin(SortableAdminBase, ModelAdmin):
         TextField: {'widget': NormalizedTextareaWidget},
     }
 
-    def __init__(self, model: type, admin_site: admin.AdminSite | None) -> None:
+    def __init__(self, model: type, admin_site: admin.AdminSite | None):
         super().__init__(model, admin_site)
         for field in self.readonly_fields:
             if isinstance(field, str):
@@ -225,7 +225,7 @@ class AbstractCountFilter(CustomFilter):
     soft_max_count: int
     min_count: int = 0
 
-    def __init__(self, request, params: dict[str, str], model, model_admin) -> None:
+    def __init__(self, request, params: dict[str, str], model, model_admin):
         self.one_more_than_max = self.soft_max_count + 1
         self.one_more_than_max_display = f'{self.one_more_than_max}+'
         if not self.parameter_name:

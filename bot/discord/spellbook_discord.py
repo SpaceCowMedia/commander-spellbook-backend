@@ -308,7 +308,7 @@ class FindMyCombosModal(ui.Modal, title='Find My Combos'):
         style=discord.TextStyle.long,
     )
 
-    async def on_submit(self, interaction: discord.Interaction[commands.Bot]) -> None:
+    async def on_submit(self, interaction: discord.Interaction[commands.Bot]):
         await interaction.response.defer(ephemeral=interaction.guild is not None, thinking=True)
         if interaction.message is not None:
             await interaction.message.add_reaction('🔍')

@@ -1,13 +1,12 @@
 import json
-from django.test import TestCase
 from rest_framework import status
 from common.inspection import json_to_python_lambda
 from spellbook.models import Feature
-from ..testing import TestCaseMixinWithSeeding
+from ..testing import SpellbookTestCaseWithSeeding
 from django.urls import reverse
 
 
-class FeatureViewsTests(TestCaseMixinWithSeeding, TestCase):
+class FeatureViewsTests(SpellbookTestCaseWithSeeding):
     def feature_assertions(self, feature_result):
         f = Feature.objects.get(id=feature_result.id)
         self.assertEqual(feature_result.id, f.id)

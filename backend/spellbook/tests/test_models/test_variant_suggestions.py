@@ -1,11 +1,10 @@
-from django.test import TestCase
-from spellbook.tests.testing import TestCaseMixinWithSeeding
+from spellbook.tests.testing import SpellbookTestCaseWithSeeding
 from common.inspection import count_methods
 from spellbook.models import Card, CardUsedInVariantSuggestion, Feature, Template, Variant, VariantSuggestion, ZoneLocation, id_from_cards_and_templates_ids
 from django.core.exceptions import ValidationError
 
 
-class VariantSuggestionTests(TestCaseMixinWithSeeding, TestCase):
+class VariantSuggestionTests(SpellbookTestCaseWithSeeding):
     def test_variant_suggestion_fields(self):
         s = VariantSuggestion.objects.get(id=self.s1_id)
         card_names = {Card.objects.get(id=self.c1_id).name, Card.objects.get(id=self.c2_id).name}

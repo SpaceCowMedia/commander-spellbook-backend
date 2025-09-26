@@ -1,11 +1,10 @@
-from django.test import TestCase
-from spellbook.tests.testing import TestCaseMixinWithSeeding
+from spellbook.tests.testing import SpellbookTestCaseWithSeeding
 from common.inspection import count_methods
 from spellbook.models import Card, Template
 from spellbook.models.scryfall import SCRYFALL_API_ROOT, SCRYFALL_WEBSITE_CARD_SEARCH
 
 
-class TemplateTests(TestCaseMixinWithSeeding, TestCase):
+class TemplateTests(SpellbookTestCaseWithSeeding):
     def test_template_fields(self):
         t = Template.objects.get(id=self.t1_id)
         self.assertEqual(t.name, 'TA')

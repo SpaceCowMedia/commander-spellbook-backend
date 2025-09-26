@@ -1,27 +1,27 @@
 import json
 import itertools
 import random
-from django.test import TestCase
 from rest_framework import status
 from common.inspection import json_to_python_lambda
 from spellbook.models import Card, Template, Variant, merge_identities, CardInVariant
 from spellbook.variants.multiset import FrozenMultiset
-from ..testing import TestCaseMixinWithSeeding
+from ..testing import SpellbookTestCaseWithSeeding
 from django.urls import reverse
 
 
-class FindMyCombosViewTests(TestCaseMixinWithSeeding, TestCase):
-    def setUp(self) -> None:
-        super().setUp()
-        self.generate_and_publish_variants()
+class FindMyCombosViewTests(SpellbookTestCaseWithSeeding):
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.generate_and_publish_variants()
         Variant.objects.filter(id__in=random.sample(list(Variant.objects.values_list('id', flat=True)), 3)).update(status=Variant.Status.EXAMPLE)
-        CardInVariant.objects.filter(card_id=self.c1_id, variant__card_count=2).update(quantity=2)
-        self.bulk_serialize_variants()
-        self.variants = Variant.objects.filter(status__in=Variant.public_statuses()).prefetch_related('cardinvariant_set', 'cardinvariant_set__card')
-        self.variants_dict = {v.id: v for v in self.variants}
-        self.variants_cards = {v.id: FrozenMultiset({c.card.name: c.quantity for c in v.cardinvariant_set.all()}) for v in self.variants}
-        self.variants_templates = {v.id: FrozenMultiset({t.template.name: t.quantity for t in v.templateinvariant_set.all()}) for v in self.variants}
-        self.variants_commanders = {v.id: FrozenMultiset({c.card.name: c.quantity for c in v.cardinvariant_set.filter(must_be_commander=True)}) for v in self.variants}
+        CardInVariant.objects.filter(card_id=cls.c1_id, variant__card_count=2).update(quantity=2)
+        cls.bulk_serialize_variants()
+        cls.variants = Variant.objects.filter(status__in=Variant.public_statuses()).prefetch_related('cardinvariant_set', 'cardinvariant_set__card')
+        cls.variants_dict = {v.id: v for v in cls.variants}
+        cls.variants_cards = {v.id: FrozenMultiset({c.card.name: c.quantity for c in v.cardinvariant_set.all()}) for v in cls.variants}
+        cls.variants_templates = {v.id: FrozenMultiset({t.template.name: t.quantity for t in v.templateinvariant_set.all()}) for v in cls.variants}
+        cls.variants_commanders = {v.id: FrozenMultiset({c.card.name: c.quantity for c in v.cardinvariant_set.filter(must_be_commander=True)}) for v in cls.variants}
 
     def _check_result(
             self,

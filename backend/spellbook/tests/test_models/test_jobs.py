@@ -1,23 +1,22 @@
-from django.test import TestCase
-from spellbook.tests.testing import TestCaseMixinWithSeeding
+from spellbook.tests.testing import SpellbookTestCaseWithSeeding
 from common.inspection import count_methods
 from spellbook.models import Job
 from django.contrib.auth.models import User
 from django.utils import timezone
 
 
-class JobTests(TestCaseMixinWithSeeding, TestCase):
-    def setUp(self):
-        super().setUp()
-        User.objects.create_user(username='test', password='test', is_staff=True)
+class JobTests(SpellbookTestCaseWithSeeding):
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.u = User.objects.create_user(username='test', password='test', is_staff=True)
 
     def test_start(self):
-        u = User.objects.get(username='test')
-        j: Job = Job.start('job name', duration=timezone.timedelta(minutes=5), user=u)  # type: ignore
+        j: Job = Job.start('job name', duration=timezone.timedelta(minutes=5), user=self.u)  # type: ignore
         self.assertIsNotNone(j)
         self.assertEqual(j.name, 'job name')
         self.assertEqual(j.group, None)
-        self.assertEqual(j.started_by, u)
+        self.assertEqual(j.started_by, self.u)
         self.assertEqual(j.status, Job.Status.PENDING)
         self.assertListEqual(j.args, [])
         self.assertIsNotNone(j.expected_termination)

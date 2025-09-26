@@ -1,64 +1,66 @@
 from copy import deepcopy
 import json
 import logging
-from django.test import TestCase
 from django.contrib.auth.models import Permission
 from django.contrib.contenttypes.models import ContentType
 from django.urls import reverse
 from rest_framework import status
 from common.inspection import json_to_python_lambda
 from spellbook.models import VariantUpdateSuggestion, Variant
-from ..testing import TestCaseMixinWithSeeding
+from ..testing import SpellbookTestCaseWithSeeding
 
 
-class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
-    def setUp(self) -> None:
-        """Reduce the log level to avoid errors like 'not found'"""
-        super().setUp()
-        logger = logging.getLogger("django.request")
-        self.previous_level = logger.getEffectiveLevel()
-        logger.setLevel(logging.ERROR)
-        # Setup
+class VariantSuggestionsTests(SpellbookTestCaseWithSeeding):
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
         super().generate_variants()
         Variant.objects.update(status=Variant.Status.OK)
-        self.v1_id: int = Variant.objects.all()[0].id  # type: ignore
-        self.v2_id: int = Variant.objects.all()[1].id  # type: ignore
-        self.v3_id: int = Variant.objects.all()[2].id  # type: ignore
-        self.update_variants()
-        self.bulk_serialize_variants()
-        self.us1 = VariantUpdateSuggestion.objects.create(
+        cls.v1_id: int = Variant.objects.all()[0].id  # type: ignore
+        cls.v2_id: int = Variant.objects.all()[1].id  # type: ignore
+        cls.v3_id: int = Variant.objects.all()[2].id  # type: ignore
+        cls.update_variants()
+        cls.bulk_serialize_variants()
+        cls.us1 = VariantUpdateSuggestion.objects.create(
             status=VariantUpdateSuggestion.Status.NEW,
             comment='A comment',
             issue='An issue',
             solution='A solution',
-            suggested_by=self.user,
+            suggested_by=cls.user,
         )
-        self.us1.variants.create(
-            variant_id=self.v1_id,
+        cls.us1.variants.create(
+            variant_id=cls.v1_id,
             issue='An issue',
         )
-        self.post_data = {
+        cls.post_data = {
             'kind': 'NW',
             'comment': 'A comment',
             'issue': 'An issue',
             'solution': 'A solution',
             'variants': [
                 {
-                    'variant': self.v1_id,
+                    'variant': cls.v1_id,
                     'issue': 'An issue',
                 },
                 {
-                    'variant': self.v2_id,
+                    'variant': cls.v2_id,
                     'issue': 'Another issue',
                 }
             ],
         }
 
-    def tearDown(self) -> None:
+    def setUp(self):
+        """Reduce the log level to avoid errors like 'not found'"""
+        super().setUp()
+        logger = logging.getLogger("django.request")
+        self.previous_level = logger.getEffectiveLevel()
+        logger.setLevel(logging.ERROR)
+
+    def tearDown(self):
         """Reset the log level back to normal"""
-        super().tearDown()
         logger = logging.getLogger("django.request")
         logger.setLevel(self.previous_level)
+        super().tearDown()
 
     def suggestion_assertions(self, suggestion_result):
         vs = VariantUpdateSuggestion.objects.get(id=suggestion_result.id)

@@ -1,11 +1,10 @@
-from django.test import TestCase
-from spellbook.tests.testing import TestCaseMixinWithSeeding
+from spellbook.tests.testing import SpellbookTestCaseWithSeeding
 from common.inspection import count_methods
 from spellbook.models import Combo, ZoneLocation
 from urllib.parse import quote_plus
 
 
-class ComboTests(TestCaseMixinWithSeeding, TestCase):
+class ComboTests(SpellbookTestCaseWithSeeding):
     def test_combo_fields(self):
         c = Combo.objects.get(id=self.b1_id)
         self.assertEqual(c.description, 'a1')

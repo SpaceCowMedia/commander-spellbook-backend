@@ -3,18 +3,17 @@ import datetime
 from time import sleep
 from pathlib import Path
 from datetime import timedelta
-from django.test import TestCase
 from django.utils import timezone
 from django.conf import settings
 from django.contrib.auth.models import User
 from spellbook.models import Job, Variant
 from spellbook.utils import launch_job_command
 from website.models import COMBO_OF_THE_DAY_PROPERTY, WebsiteProperty
-from .testing import TestCaseMixinWithSeeding
+from .testing import SpellbookTestCaseWithSeeding
 from spellbook.models import id_from_cards_and_templates_ids
 
 
-class CleanJobsTest(TestCaseMixinWithSeeding, TestCase):
+class CleanJobsTest(SpellbookTestCaseWithSeeding):
     def test_clean_jobs(self):
         j = Job(
             name='test',
@@ -34,7 +33,7 @@ class CleanJobsTest(TestCaseMixinWithSeeding, TestCase):
             status=Job.Status.PENDING)
         sleep(6)
         j2.save()
-        result = launch_job_command('clean_jobs', None)
+        result = launch_job_command('clean_jobs', background=False)
         self.assertIsNotNone(result)
         self.assertEqual(Job.objects.count(), 4)
         cleaned = Job.objects.get(name='test')
@@ -45,7 +44,7 @@ class CleanJobsTest(TestCaseMixinWithSeeding, TestCase):
 
     def test_generate_variants(self):
         u = User.objects.create(username='test', password='test')
-        launch_job_command('generate_variants', u)
+        launch_job_command('generate_variants', u, background=False)
         v1_id = id_from_cards_and_templates_ids([self.c8_id, self.c1_id], [self.t1_id])
         v2_id = id_from_cards_and_templates_ids([self.c3_id, self.c1_id, self.c2_id], [self.t1_id])
         v3_id = id_from_cards_and_templates_ids([self.c5_id, self.c6_id, self.c2_id, self.c3_id], [self.t1_id])
@@ -65,14 +64,14 @@ class CleanJobsTest(TestCaseMixinWithSeeding, TestCase):
         single_combo_generator = Variant.objects.get(id=v1_id).of.first()
         expected_variants_ids = set(single_combo_generator.variants.values_list('id', flat=True))
         Variant.objects.all().delete()
-        launch_job_command('generate_variants', u, ['--combo', single_combo_generator.id])
+        launch_job_command('generate_variants', u, ['--combo', single_combo_generator.id], background=False)
         self.assertSetEqual(set(Variant.objects.values_list('id', flat=True)), expected_variants_ids)
 
     def test_export_variants(self):
         super().generate_variants()
         with self.settings(VERSION='abc'):
             file_path = Path(settings.STATIC_BULK_FOLDER) / 'test_export_variants.json'
-            launch_job_command('export_variants', None, ['--file', str(file_path)])
+            launch_job_command('export_variants', None, ['--file', str(file_path)], background=False)
             self.assertTrue(file_path.exists())
             with open(file_path) as f:
                 data = json.load(f)
@@ -83,7 +82,7 @@ class CleanJobsTest(TestCaseMixinWithSeeding, TestCase):
             for export_status in Variant.public_statuses():
                 with self.subTest(export_status=export_status):
                     Variant.objects.update(status=export_status)
-                    launch_job_command('export_variants', None, ['--file', str(file_path)])
+                    launch_job_command('export_variants', None, ['--file', str(file_path)], background=False)
                     with open(file_path) as f:
                         data = json.load(f)
                     self.assertEqual(len(data['variants']), Variant.objects.count())
@@ -95,6 +94,6 @@ class CleanJobsTest(TestCaseMixinWithSeeding, TestCase):
 
     def test_combo_of_the_day(self):
         super().generate_and_publish_variants()
-        launch_job_command('combo_of_the_day')
+        launch_job_command('combo_of_the_day', background=False)
         result = WebsiteProperty.objects.get(key=COMBO_OF_THE_DAY_PROPERTY).value
         self.assertTrue(Variant.objects.filter(pk=result).exists())

@@ -193,7 +193,7 @@ class FeatureRemovedInCombo(models.Model):
 @receiver(m2m_changed, sender=Combo.needs.through, dispatch_uid='combo_needs_changed2')
 @receiver(m2m_changed, sender=Combo.produces.through, dispatch_uid='combo_produces_changed2')
 @receiver(m2m_changed, sender=Combo.removes.through, dispatch_uid='combo_removes_changed2')
-def recipe_changed(sender, instance: Recipe, action: str, reverse: bool, model: models.Model, pk_set: set[int], **kwargs) -> None:
+def recipe_changed(sender, instance: Recipe, action: str, reverse: bool, model: models.Model, pk_set: set[int], **kwargs):
     if action.startswith('post_'):
         instance.update_recipe_from_data()
         instance.save()
@@ -204,7 +204,7 @@ def recipe_changed(sender, instance: Recipe, action: str, reverse: bool, model: 
 @receiver([post_save, post_delete], sender=Combo.needs.through, dispatch_uid='combo_needs_changed')
 @receiver([post_save, post_delete], sender=Combo.produces.through, dispatch_uid='combo_produces_changed')
 @receiver([post_save, post_delete], sender=Combo.removes.through, dispatch_uid='combo_removes_changed')
-def recipe_changed_2(sender, instance: CardInCombo | TemplateInCombo | FeatureNeededInCombo | FeatureProducedInCombo | FeatureRemovedInCombo, raw=False, **kwargs) -> None:
+def recipe_changed_2(sender, instance: CardInCombo | TemplateInCombo | FeatureNeededInCombo | FeatureProducedInCombo | FeatureRemovedInCombo, raw=False, **kwargs):
     if raw:
         return
     instance.combo.update_recipe_from_data()

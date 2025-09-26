@@ -12,12 +12,15 @@ def text_chunk(message: str, size: int) -> list[str]:
         next_block = content[:size]
         if len(content) > size and '\n' in next_block:
             split = next_block.rindex('\n')
+            skip = 1
         elif len(content) > size and ' ' in next_block:
             split = next_block.rindex(' ')
+            skip = 1
         else:
             split = size
+            skip = 0
         messages.append(content[:split])
-        content = content[split + 1:]
+        content = content[split + skip:]
     return messages
 
 

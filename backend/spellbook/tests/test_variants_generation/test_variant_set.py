@@ -1,5 +1,5 @@
 from typing import Iterable
-from django.test import TestCase
+from unittest import TestCase
 from spellbook.variants.variant_set import VariantSet, VariantSetParameters
 from spellbook.variants.multiset import FrozenMultiset, BaseMultiset
 

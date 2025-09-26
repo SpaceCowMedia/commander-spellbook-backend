@@ -29,7 +29,6 @@ DEBUG = True
 
 STATIC_BULK_FOLDER = Path('./temp/bulk')
 
-ASYNC_GENERATION = True
 PYPY_AVAILABLE = check_pypy
 
 VERSION = os.getenv('VERSION', 'dev')

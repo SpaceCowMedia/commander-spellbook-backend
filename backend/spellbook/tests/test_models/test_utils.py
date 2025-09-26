@@ -1,5 +1,6 @@
-from django.test import TestCase
-from spellbook.models.utils import merge_identities, auto_fix_missing_braces_to_oracle_symbols, merge_mana_costs, upper_oracle_symbols, sanitize_mana, sanitize_scryfall_query
+from unittest import TestCase
+from spellbook.models.utils import merge_identities, auto_fix_missing_braces_to_oracle_symbols, merge_mana_costs, \
+    upper_oracle_symbols, sanitize_mana, sanitize_scryfall_query
 
 
 class TestAddCurlyBracketsToOracleSymbols(TestCase):

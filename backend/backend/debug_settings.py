@@ -2,8 +2,6 @@ import os
 from .settings import *  # noqa: F403, F401
 from .settings import INSTALLED_APPS, TEMPLATES, MIDDLEWARE, DATABASES
 
-ASYNC_GENERATION = False
-
 assert 'django.contrib.admin' in INSTALLED_APPS, 'django.contrib.admin not in INSTALLED_APPS'
 assert any(t.get('BACKEND') == 'django.template.backends.django.DjangoTemplates' and t.get('APP_DIRS') for t in TEMPLATES), 'No DjangoTemplates backend in TEMPLATES'
 

@@ -1,22 +1,22 @@
 import json
 import random
 from typing import Iterable
-from django.test import TestCase
 from django.urls import reverse
 from rest_framework import status
 from common.inspection import json_to_python_lambda
 from spellbook.models import Card, Variant, CardInVariant
-from ..testing import TestCaseMixinWithSeeding
+from ..testing import SpellbookTestCaseWithSeeding
 
 
-class EstimateBracketViewTests(TestCaseMixinWithSeeding, TestCase):
-    def setUp(self) -> None:
-        super().setUp()
-        self.generate_and_publish_variants()
+class EstimateBracketViewTests(SpellbookTestCaseWithSeeding):
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.generate_and_publish_variants()
         Variant.objects.filter(id__in=random.sample(list(Variant.objects.values_list('id', flat=True)), 3)).update(status=Variant.Status.EXAMPLE)
-        CardInVariant.objects.filter(card_id=self.c1_id, variant__card_count=2).update(quantity=2)
-        self.update_variants()
-        self.bulk_serialize_variants()
+        CardInVariant.objects.filter(card_id=cls.c1_id, variant__card_count=2).update(quantity=2)
+        cls.update_variants()
+        cls.bulk_serialize_variants()
 
     def _check_result(
             self,

@@ -1,10 +1,9 @@
-from django.test import TestCase
-from spellbook.tests.testing import TestCaseMixinWithSeeding
+from spellbook.tests.testing import SpellbookTestCaseWithSeeding
 from common.inspection import count_methods
 from spellbook.models import Feature
 
 
-class FeatureTests(TestCaseMixinWithSeeding, TestCase):
+class FeatureTests(SpellbookTestCaseWithSeeding):
     def test_feature_fields(self):
         f = Feature.objects.get(id=self.f1_id)
         self.assertEqual(f.name, 'FA')

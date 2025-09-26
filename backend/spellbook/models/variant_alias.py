@@ -4,7 +4,7 @@ from .variant import Variant
 from .utils import recipe
 
 
-def no_variant_with_this_id(value: str) -> None:
+def no_variant_with_this_id(value: str):
     if Variant.objects.filter(id=value).exists():
         raise ValidationError(f'Variant with id {value} exists. An alias cannot have the same id as a variant.')
 

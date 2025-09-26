@@ -1,4 +1,4 @@
-from django.test import TestCase
+from unittest import TestCase
 from django.core.exceptions import ValidationError
 from spellbook.regexs import DOUBLE_SQUARE_BRACKET_TEXT_REGEX, MANA_REGEX, ORACLE_SYMBOL, SYMBOLS_TEXT_REGEX
 from spellbook.regexs import MANA_SYMBOL, URL_REGEX

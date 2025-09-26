@@ -1,9 +1,8 @@
 from itertools import chain
-from django.test import TestCase
 from django.db.models import Count
 from spellbook.models.combo import FeatureNeededInCombo
 from spellbook.models.feature_attribute import FeatureAttribute
-from spellbook.tests.testing import TestCaseMixinWithSeeding
+from spellbook.tests.testing import SpellbookTestCaseWithSeeding
 from spellbook.models import Job, Variant, Card, IngredientInCombination, CardInVariant, TemplateInVariant, Template, Combo, Feature, VariantAlias, FeatureOfCard, ZoneLocation
 from spellbook.variants.combo_graph import FeatureWithAttributes
 from spellbook.variants.multiset import FrozenMultiset
@@ -11,10 +10,9 @@ from spellbook.variants.variant_data import Data
 from spellbook.variants.variants_generator import get_variants_from_graph, get_default_zone_location_for_card, update_state_with_default
 from spellbook.variants.variants_generator import generate_variants, apply_replacements, subtract_features, update_state
 from spellbook.variants.variants_generator import sync_variant_aliases
-from spellbook.utils import launch_job_command
 
 
-class VariantsGeneratorTests(TestCaseMixinWithSeeding, TestCase):
+class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
     def test_get_variants_from_graph(self):
         job = Job.start('test_get_variants_from_graph')
         if job is None:
@@ -23,7 +21,7 @@ class VariantsGeneratorTests(TestCaseMixinWithSeeding, TestCase):
         self.assertIsInstance(result, dict)
         self.assertEqual(len(result), self.expected_variant_count)
         self.assertGreater(len(job.message), 0)
-        launch_job_command('generate_variants')
+        self.generate_variants()
         self.assertEqual(len(result), Variant.objects.count())
         self.assertEqual(set(result.keys()), set(Variant.objects.values_list('id', flat=True)))
         for variant_definition in result.values():

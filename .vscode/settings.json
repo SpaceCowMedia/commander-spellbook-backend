@@ -10,6 +10,7 @@
     "python.testing.pytestArgs": [
         "backend",
         "client/python",
+        "common",
     ],
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true,

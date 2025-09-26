@@ -1,26 +1,22 @@
 from copy import deepcopy
 import json
 import logging
-from django.test import TestCase
 from django.contrib.auth.models import Permission
 from django.contrib.contenttypes.models import ContentType
 from rest_framework import status
 from common.inspection import json_to_python_lambda
 from spellbook.models import VariantSuggestion, Variant
 from spellbook.models.utils import strip_accents
-from ..testing import TestCaseMixinWithSeeding
+from ..testing import SpellbookTestCaseWithSeeding
 from django.urls import reverse
 
 
-class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
-    def setUp(self) -> None:
-        """Reduce the log level to avoid errors like 'not found'"""
-        super().setUp()
-        logger = logging.getLogger("django.request")
-        self.previous_level = logger.getEffectiveLevel()
-        logger.setLevel(logging.ERROR)
+class VariantSuggestionsTests(SpellbookTestCaseWithSeeding):
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
         super().generate_and_publish_variants()
-        self.post_data = {
+        cls.post_data = {
             "uses": [
                 {
                     "card": "A card àèéìòù",
@@ -83,11 +79,18 @@ class VariantSuggestionsTests(TestCaseMixinWithSeeding, TestCase):
             "variantOf": Variant.objects.all()[0].id,
         }
 
-    def tearDown(self) -> None:
+    def setUp(self):
+        """Reduce the log level to avoid errors like 'not found'"""
+        super().setUp()
+        logger = logging.getLogger("django.request")
+        self.previous_level = logger.getEffectiveLevel()
+        logger.setLevel(logging.ERROR)
+
+    def tearDown(self):
         """Reset the log level back to normal"""
-        super().tearDown()
         logger = logging.getLogger("django.request")
         logger.setLevel(self.previous_level)
+        super().tearDown()
 
     def suggestion_assertions(self, suggestion_result):
         vs = VariantSuggestion.objects.get(id=suggestion_result.id)

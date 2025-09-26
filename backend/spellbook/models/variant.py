@@ -392,7 +392,7 @@ def update_variant_on_ingredient(sender, instance: CardInVariant | TemplateInVar
 
 
 @receiver(pre_delete, sender=Combo, dispatch_uid='combo_deleted')
-def combo_delete(sender, instance: Combo, **kwargs) -> None:
+def combo_delete(sender, instance: Combo, **kwargs):
     Variant.objects.alias(
         of_count=models.Count('of', distinct=True),
     ).filter(

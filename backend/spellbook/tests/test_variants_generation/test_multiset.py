@@ -1,5 +1,5 @@
 from typing import Callable
-from django.test import TestCase
+from unittest import TestCase
 from spellbook.variants.multiset import BaseMultiset, FrozenMultiset, Multiset
 
 

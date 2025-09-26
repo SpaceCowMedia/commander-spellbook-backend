@@ -1,6 +1,5 @@
 import json
 import random
-from django.test import TestCase
 from django.db import models
 from django.urls import reverse
 from rest_framework import status
@@ -11,10 +10,10 @@ from spellbook.views import VariantViewSet
 from spellbook.serializers import VariantSerializer
 from spellbook.views.variants import VariantGroupedByComboFilter
 from website.models import WebsiteProperty, FEATURED_SET_CODES_PROPERTIES
-from ..testing import TestCaseMixinWithSeeding
+from ..testing import SpellbookTestCaseWithSeeding
 
 
-class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
+class VariantViewsTests(SpellbookTestCaseWithSeeding):
     operators = {
         '>': 'gt',
         '<': 'lt',
@@ -24,16 +23,17 @@ class VariantViewsTests(TestCaseMixinWithSeeding, TestCase):
         ':': 'exact',
     }
 
-    def setUp(self) -> None:
-        super().setUp()
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
         super().generate_variants()
         Variant.objects.update(status=Variant.Status.OK)
         Variant.objects.filter(id__in=random.sample(list(Variant.objects.values_list('id', flat=True)), 3)).update(status=Variant.Status.EXAMPLE)
-        self.v1_id: int = Variant.objects.first().id  # type: ignore
-        self.public_variants = VariantViewSet.queryset
-        self.ok_variants = self.public_variants.filter(status=Variant.Status.OK)
-        self.update_variants()
-        self.bulk_serialize_variants()
+        cls.v1_id: int = Variant.objects.first().id  # type: ignore
+        cls.public_variants = VariantViewSet.queryset
+        cls.ok_variants = cls.public_variants.filter(status=Variant.Status.OK)
+        cls.update_variants()
+        cls.bulk_serialize_variants()
 
     def variant_assertions(self, variant_result):
         v: Variant = Variant.objects.get(id=variant_result.id)

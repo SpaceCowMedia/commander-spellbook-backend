@@ -10,7 +10,7 @@ class Command(AbstractCommand):
     name = 'clean_jobs'
     help = 'Clean pending jobs'
 
-    def add_arguments(self, parser: CommandParser) -> None:
+    def add_arguments(self, parser: CommandParser):
         super().add_arguments(parser)
         parser.add_argument(
             '--force',

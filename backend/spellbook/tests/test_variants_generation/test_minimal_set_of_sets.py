@@ -1,10 +1,11 @@
-from django.test import TestCase
+from unittest import TestCase
 from spellbook.variants.minimal_set_of_multisets import MinimalSetOfMultisets
 from spellbook.variants.multiset import FrozenMultiset
 
 
 class MinimalSetOfMultisetsTests(TestCase):
-    def setUp(self) -> None:
+    def setUp(self):
+        super().setUp()
         self.subject = MinimalSetOfMultisets[int]({
             FrozenMultiset([1, 1, 2, 3]),
             FrozenMultiset([1, 1, 2, 3, 4]),
@@ -12,7 +13,6 @@ class MinimalSetOfMultisetsTests(TestCase):
             FrozenMultiset([3, 4, 5, 5, 5, 6]),
             FrozenMultiset(list(range(10)) * 2),
         })
-        return super().setUp()
 
     def test_init(self):
         self.assertEqual(set(MinimalSetOfMultisets()), set())

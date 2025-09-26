@@ -1,11 +1,11 @@
 import logging
 import random
-from django.test import SimpleTestCase
+from django.test import TestCase
 from django.core.management import call_command
 from common.stream import StreamToLogger
 
 
-class TestCaseMixin(SimpleTestCase):
+class BaseTestCase(TestCase):
     @classmethod
     def setUpTestData(cls):
         command = 'seed_website_properties'
@@ -16,6 +16,6 @@ class TestCaseMixin(SimpleTestCase):
             stderr=StreamToLogger(logger, logging.ERROR)
         )
 
-    def setUp(self) -> None:
+    def setUp(self):
         logging.disable(logging.INFO)
         random.seed(42)

@@ -1,13 +1,12 @@
 import json
-from django.test import TestCase
 from django.urls import reverse
 from rest_framework import status
 from common.inspection import json_to_python_lambda
 from spellbook.models import Card, Template
-from ..testing import TestCaseMixinWithSeeding
+from ..testing import SpellbookTestCaseWithSeeding
 
 
-class CardViewsTests(TestCaseMixinWithSeeding, TestCase):
+class CardViewsTests(SpellbookTestCaseWithSeeding):
     def card_assertions(self, card_result):
         c = Card.objects.get(id=card_result.id)
         self.assertEqual(card_result.id, c.id)

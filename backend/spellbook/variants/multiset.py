@@ -155,7 +155,7 @@ class BaseMultiset(Generic[_T]):
 
 
 class Multiset(Generic[_T], BaseMultiset[_T]):
-    def __setitem__(self, element: _T, quantity: int) -> None:
+    def __setitem__(self, element: _T, quantity: int):
         if quantity < 0:
             raise ValueError('The quantity must not be negative.')
         elif quantity == 0:
@@ -165,13 +165,13 @@ class Multiset(Generic[_T], BaseMultiset[_T]):
         self._elements[element] = quantity
         self._total += quantity - current_quantity
 
-    def __delitem__(self, element: _T) -> None:
+    def __delitem__(self, element: _T):
         current_quantity = self._elements.get(element, 0)
         if current_quantity:
             del self._elements[element]
             self._total -= current_quantity
 
-    def add(self, element: _T, quantity: int = 1) -> None:
+    def add(self, element: _T, quantity: int = 1):
         if quantity < 0:
             raise ValueError('The quantity must not be negative.')
         self._elements[element] += quantity

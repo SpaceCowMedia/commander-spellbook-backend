@@ -1,9 +1,9 @@
 import json
-from django.test import TestCase
+from django.test import SimpleTestCase
 from rest_framework import status
 
 
-class RestApiTestCase(TestCase):
+class RestApiTestCase(SimpleTestCase):
     def test_root_endpoint(self):
         response = self.client.get('/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)

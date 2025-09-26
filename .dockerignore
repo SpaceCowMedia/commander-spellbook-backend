@@ -17,7 +17,10 @@ docs/
 demo/
 .github/
 .vscode/
+common/**/test_*
+common/tests/
 backend/.kubernetes/
 backend/backend/debug_settings.py
 client/*/tests
+client/**/test_*
 client/*/pytest.ini

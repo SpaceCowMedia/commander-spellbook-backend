@@ -240,7 +240,7 @@ class SpellbookTestCaseWithSeeding(SpellbookTestCase):
         b9 = Combo.objects.create(mana_needed='', easy_prerequisites='Some easy requisites.', notable_prerequisites='Some notable requisites.', description='i9', status=Combo.Status.GENERATOR, notes='ii9', comment='***9')
         t1 = Template.objects.create(name='TA', scryfall_query='tou>5', description='hello.')
         t2 = Template.objects.create(name='TB')
-        t2.replacements.add(c1)
+        t2.replacements.add(c3)
         fc1 = FeatureOfCard.objects.create(card=c1, feature=f1, zone_locations=ZoneLocation.BATTLEFIELD, quantity=1, notable_prerequisites='Some requisites for card.')
         fc1.attributes.add(fa2)
         FeatureOfCard.objects.create(card=c1, feature=f1, zone_locations=ZoneLocation.BATTLEFIELD, quantity=1, notable_prerequisites='Some requisites for card two.', easy_prerequisites='Some easy requisites for card two.')

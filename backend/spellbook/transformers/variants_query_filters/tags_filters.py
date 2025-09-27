@@ -15,12 +15,12 @@ def tag_filter(qv: QueryValue) -> VariantFilterCollection:
                 Q(spoiler=True),
             ),))
         case 'commander':
-            return VariantFilterCollection(cards_filters=(qv.to_query_filter(
+            return VariantFilterCollection(cardinvariants_filters=(qv.to_query_filter(
                 Q(must_be_commander=True),
             ),))
         case 'reserved':
             return VariantFilterCollection(cards_filters=(qv.to_query_filter(
-                Q(card__reserved=True),
+                Q(reserved=True),
             ),))
         case 'mandatory':
             return VariantFilterCollection(results_filters=(qv.to_query_filter(
@@ -59,7 +59,7 @@ def tag_filter(qv: QueryValue) -> VariantFilterCollection:
                 for s in p.split(',')
                 if s.strip()
             }
-            return VariantFilterCollection(cards_filters=(qv.to_query_filter(
+            return VariantFilterCollection(cardinvariants_filters=(qv.to_query_filter(
                 Q(card__latest_printing_set__in=featured_sets, card__reprinted=False),
             ),))
         case 'example':

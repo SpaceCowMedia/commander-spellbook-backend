@@ -17,4 +17,4 @@ def commander_filter(qv: QueryValue) -> VariantFilterCollection:
             q &= Q(must_be_commander=True)
         case _:
             raise ValidationError(f'Operator {qv.operator} is not supported for commander name search.')
-    return VariantFilterCollection(cards_filters=(qv.to_query_filter(q),))
+    return VariantFilterCollection(cardinvariants_filters=(qv.to_query_filter(q),))

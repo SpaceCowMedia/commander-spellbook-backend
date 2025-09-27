@@ -194,30 +194,6 @@ class SpellbookTestCase(BaseTestCase):
 
 
 class SpellbookTestCaseWithSeeding(SpellbookTestCase):
-    c1_id = 0
-    c2_id = 0
-    c3_id = 0
-    c4_id = 0
-    c5_id = 0
-    c6_id = 0
-    c7_id = 0
-    c8_id = 0
-    t1_id = 0
-    f1_id = 0
-    f2_id = 0
-    f3_id = 0
-    f4_id = 0
-    f5_id = 0
-    b1_id = 0
-    b2_id = 0
-    b3_id = 0
-    b4_id = 0
-    b5_id = 0
-    b6_id = 0
-    b7_id = 0
-    b8_id = 0
-    b9_id = 0
-    s1_id = 0
     expected_variant_count = 8
     admin: User
     user: User

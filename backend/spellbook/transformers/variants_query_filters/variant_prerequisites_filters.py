@@ -25,6 +25,6 @@ def prerequisites_filter(qv: QueryValue) -> VariantFilterCollection:
         qv.to_query_filter(q),
         QueryFilter(
             q=~Q(status=Variant.Status.EXAMPLE),
-            negatable=False,
+            excludable=False,
         ),
     ))

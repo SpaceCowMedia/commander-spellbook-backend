@@ -1,7 +1,8 @@
 from typing import Any
 from django.contrib import admin
+from django.db.models import Q
 from spellbook.models.template import Template, TemplateReplacement
-from .utils import SpellbookAdminForm, SpellbookModelAdmin
+from .utils import SpellbookAdminForm, SpellbookModelAdmin, CustomFilter
 
 
 class TemplateReplacementAdminInline(admin.StackedInline):
@@ -26,6 +27,21 @@ class TemplateAdminForm(SpellbookAdminForm):
         return cleaned_data
 
 
+class TemplateReplacementsFilter(CustomFilter):
+    title = 'has replacements'
+    parameter_name = 'has_replacements'
+    data_type = bool
+
+    def lookups(self, request, model_admin):
+        return [(True, 'Yes'), (False, 'No')]
+
+    def filter(self, value: data_type):
+        if value:
+            return Q(replacements__isnull=False)
+        else:
+            return Q(replacements__isnull=True)
+
+
 @admin.register(Template)
 class TemplateAdmin(SpellbookModelAdmin):
     form = TemplateAdminForm
@@ -37,4 +53,5 @@ class TemplateAdmin(SpellbookModelAdmin):
         'name',
         'scryfall_query',
     ]
+    list_filter = [TemplateReplacementsFilter]
     inlines = [TemplateReplacementAdminInline]

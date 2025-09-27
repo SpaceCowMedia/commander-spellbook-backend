@@ -1,7 +1,7 @@
 from lark import Lark, Transformer, LarkError, UnexpectedToken, UnexpectedCharacters
 from django.db.models import Q, QuerySet
 from django.core.exceptions import ValidationError
-from spellbook.models import TemplateInVariant, Variant, FeatureProducedByVariant, CardInVariant
+from spellbook.models import TemplateInVariant, Variant, FeatureProducedByVariant, CardInVariant, Card
 from .variants_query_filters.template_search_filters import template_search_filter
 from .variants_query_filters.varant_variants_filters import variants_filter
 from .variants_query_filters.card_search_filters import card_search_filter
@@ -142,19 +142,52 @@ def variants_query_parser(base: QuerySet[Variant], query_string: str) -> QuerySe
             raise ValidationError('Too many search parameters.')
         filtered_variants = base
         for filter in filters.variants_filters:
-            filtered_variants = filtered_variants.exclude(filter.q) if filter.negated else filtered_variants.filter(filter.q)
+            filtered_variants = filtered_variants.exclude(filter.q) if filter.exclude else filtered_variants.filter(filter.q)
         for filter in filters.cards_filters:
-            filtered_cards = CardInVariant.objects.filter(filter.q)
-            q = Q(pk__in=filtered_cards.values('variant_id'))
-            filtered_variants = filtered_variants.exclude(q) if filter.negated else filtered_variants.filter(q)
+            matching_cards = Card.objects.filter(filter.q)
+            if filter.exclude:
+                not_matching_cards = Card.objects.exclude(filter.q)
+                filtered_variants = filtered_variants.exclude(
+                    pk__in=matching_cards
+                    .filter(used_in_variants__isnull=False)
+                    .values('used_in_variants')
+                    .order_by(),
+                )
+                # TODO: optimize
+                filtered_variants = filtered_variants.filter(
+                    Q(requires__replacements__isnull=True) | Q(
+                        pk__in=not_matching_cards
+                        .filter(replaces__required_by_variants__isnull=False)
+                        .values('replaces__required_by_variants')
+                        .order_by(),
+                    ),
+                )
+            else:
+                filtered_variants = filtered_variants.filter(
+                    pk__in=matching_cards
+                    .filter(used_in_variants__isnull=False)
+                    .values('used_in_variants')
+                    .order_by()
+                    .union(
+                        matching_cards
+                        .filter(replaces__required_by_variants__isnull=False)
+                        .values('replaces__required_by_variants')
+                        .order_by(),
+                        all=True,
+                    ),
+                )
+        for filter in filters.cardinvariants_filters:
+            matching_cardinvariants = CardInVariant.objects.filter(filter.q)
+            q = Q(pk__in=matching_cardinvariants.values('variant_id'))
+            filtered_variants = filtered_variants.exclude(q) if filter.exclude else filtered_variants.filter(q)
         for filter in filters.templates_filters:
             filtered_templates = TemplateInVariant.objects.filter(filter.q)
             q = Q(pk__in=filtered_templates.values('variant_id'))
-            filtered_variants = filtered_variants.exclude(q) if filter.negated else filtered_variants.filter(q)
+            filtered_variants = filtered_variants.exclude(q) if filter.exclude else filtered_variants.filter(q)
         for filter in filters.results_filters:
             filtered_produces = FeatureProducedByVariant.objects.filter(filter.q)
             q = Q(pk__in=filtered_produces.values('variant_id'))
-            filtered_variants = filtered_variants.exclude(q) if filter.negated else filtered_variants.filter(q)
+            filtered_variants = filtered_variants.exclude(q) if filter.exclude else filtered_variants.filter(q)
         return filtered_variants
     except UnexpectedToken as e:
         if e.token.type == '$END':

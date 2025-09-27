@@ -42,7 +42,7 @@ def launch_job_command(command: str, user: User | None = None, args: list[str] =
     if job is not None:
         logger = logging.getLogger(command)
         try:
-            if background and not settings.DEBUG:
+            if background:
                 launch_command_async(command, ['--id', str(job.id)] + args)
             else:
                 call_command(

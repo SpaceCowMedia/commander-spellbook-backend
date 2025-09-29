@@ -1,6 +1,7 @@
 import json
 import itertools
 import random
+from django.db import models
 from rest_framework import status
 from common.inspection import json_to_python_lambda
 from spellbook.models import Card, Template, Variant, merge_identities, CardInVariant
@@ -17,11 +18,11 @@ class FindMyCombosViewTests(SpellbookTestCaseWithSeeding):
         Variant.objects.filter(id__in=random.sample(list(Variant.objects.values_list('id', flat=True)), 3)).update(status=Variant.Status.EXAMPLE)
         CardInVariant.objects.filter(card_id=cls.c1_id, variant__card_count=2).update(quantity=2)
         cls.bulk_serialize_variants()
-        cls.variants = Variant.objects.filter(status__in=Variant.public_statuses()).prefetch_related('cardinvariant_set', 'cardinvariant_set__card')
-        cls.variants_dict = {v.id: v for v in cls.variants}
-        cls.variants_cards = {v.id: FrozenMultiset({c.card.name: c.quantity for c in v.cardinvariant_set.all()}) for v in cls.variants}
-        cls.variants_templates = {v.id: FrozenMultiset({t.template.name: t.quantity for t in v.templateinvariant_set.all()}) for v in cls.variants}
-        cls.variants_commanders = {v.id: FrozenMultiset({c.card.name: c.quantity for c in v.cardinvariant_set.filter(must_be_commander=True)}) for v in cls.variants}
+        cls.variants: models.QuerySet[Variant] = Variant.objects.filter(status__in=Variant.public_statuses()).prefetch_related('cardinvariant_set', 'cardinvariant_set__card')
+        cls.variants_dict: dict[str, Variant] = {v.id: v for v in cls.variants}
+        cls.variants_cards: dict[str, FrozenMultiset[str]] = {v.id: FrozenMultiset({c.card.name: c.quantity for c in v.cardinvariant_set.all()}) for v in cls.variants}
+        cls.variants_templates: dict[str, FrozenMultiset[str]] = {v.id: FrozenMultiset({t.template.name: t.quantity for t in v.templateinvariant_set.all()}) for v in cls.variants}
+        cls.variants_commanders: dict[str, FrozenMultiset[str]] = {v.id: FrozenMultiset({c.card.name: c.quantity for c in v.cardinvariant_set.filter(must_be_commander=True)}) for v in cls.variants}
 
     def _check_result(
             self,
@@ -29,6 +30,7 @@ class FindMyCombosViewTests(SpellbookTestCaseWithSeeding):
             identity: str,
             cards: FrozenMultiset[str],
             commanders: FrozenMultiset[str],
+            templates: FrozenMultiset[str],
     ):
         self.assertEqual(result.results.identity, identity)
         identity_set = set(identity) | {'C'}
@@ -36,40 +38,38 @@ class FindMyCombosViewTests(SpellbookTestCaseWithSeeding):
             v = self.variants_dict[v.id]
             self.assertIn(v.status, Variant.public_statuses())
             self.assertTrue(self.variants_cards[v.id].issubset(cards))
+            self.assertTrue(self.variants_templates[v.id].issubset(templates))
             self.assertTrue(set(v.identity).issubset(identity_set))
             self.assertTrue(self.variants_commanders[v.id].issubset(commanders))
         for v in result.results.included_by_changing_commanders:
             v = self.variants_dict[v.id]
             self.assertIn(v.status, Variant.public_statuses())
             self.assertTrue(self.variants_cards[v.id].issubset(cards))
+            self.assertTrue(self.variants_templates[v.id].issubset(templates))
             self.assertTrue(set(v.identity).issubset(identity_set))
             self.assertFalse(self.variants_commanders[v.id].issubset(commanders))
         for v in result.results.almost_included:
             v = self.variants_dict[v.id]
             self.assertIn(v.status, Variant.public_statuses())
-            self.assertTrue(bool(self.variants_cards[v.id].intersection(cards)))
-            self.assertFalse(self.variants_cards[v.id].issubset(cards))
+            self.assertEqual(len(self.variants_cards[v.id].difference(cards)) + len(self.variants_templates[v.id].difference(templates)), 1)
             self.assertTrue(set(v.identity).issubset(identity_set))
             self.assertTrue(self.variants_commanders[v.id].issubset(commanders))
         for v in result.results.almost_included_by_adding_colors:
             v = self.variants_dict[v.id]
             self.assertIn(v.status, Variant.public_statuses())
-            self.assertTrue(bool(self.variants_cards[v.id].intersection(cards)))
-            self.assertFalse(self.variants_cards[v.id].issubset(cards))
+            self.assertEqual(len(self.variants_cards[v.id].difference(cards)) + len(self.variants_templates[v.id].difference(templates)), 1)
             self.assertFalse(set(v.identity).issubset(identity_set))
             self.assertTrue(self.variants_commanders[v.id].issubset(commanders))
         for v in result.results.almost_included_by_changing_commanders:
             v = self.variants_dict[v.id]
             self.assertIn(v.status, Variant.public_statuses())
-            self.assertTrue(bool(self.variants_cards[v.id].intersection(cards)))
-            self.assertFalse(self.variants_cards[v.id].issubset(cards))
+            self.assertEqual(len(self.variants_cards[v.id].difference(cards)) + len(self.variants_templates[v.id].difference(templates)), 1)
             self.assertTrue(set(v.identity).issubset(identity_set))
             self.assertFalse(self.variants_commanders[v.id].issubset(commanders))
         for v in result.results.almost_included_by_adding_colors_and_changing_commanders:
             v = self.variants_dict[v.id]
             self.assertIn(v.status, Variant.public_statuses())
-            self.assertTrue(bool(self.variants_cards[v.id].intersection(cards)))
-            self.assertFalse(self.variants_cards[v.id].issubset(cards))
+            self.assertEqual(len(self.variants_cards[v.id].difference(cards)) + len(self.variants_templates[v.id].difference(templates)), 1)
             self.assertFalse(set(v.identity).issubset(identity_set))
             self.assertFalse(self.variants_commanders[v.id].issubset(commanders))
 
@@ -90,10 +90,11 @@ class FindMyCombosViewTests(SpellbookTestCaseWithSeeding):
                 with self.subTest('single card'):
                     card = Card.objects.get(id=self.c1_id)
                     card_str = str(card.id) if using_ids else card.name
+                    quantity = 2
                     if 'json' in content_type:
-                        deck_list = json.dumps({'main': [{'card': card_str, 'quantity': 2}]})
+                        deck_list = json.dumps({'main': [{'card': card_str, 'quantity': quantity}]})
                     else:
-                        deck_list = f'2 {card_str}'
+                        deck_list = f'{quantity} {card_str}'
                     identity = card.identity
                     response = self.client.generic('GET', reverse('find-my-combos'), data=deck_list, follow=True, headers={'Content-Type': content_type})  # type: ignore
                     self.assertEqual(response.status_code, status.HTTP_200_OK)  # type: ignore
@@ -102,17 +103,17 @@ class FindMyCombosViewTests(SpellbookTestCaseWithSeeding):
                     self.assertEqual(result.results.identity, identity)
                     self.assertEqual(len(result.results.included), 0)
                     self.assertEqual(len(result.results.almost_included), 2)
-                    self.assertEqual(len(result.results.almost_included_by_adding_colors), 1)
+                    self.assertEqual(len(result.results.almost_included_by_adding_colors), 0)
                     self.assertEqual(len(result.results.almost_included_by_changing_commanders), 0)
                     self.assertEqual(len(result.results.almost_included_by_adding_colors_and_changing_commanders), 0)
-                    self._check_result(result, identity, FrozenMultiset({card.name}), FrozenMultiset())
-            card_names = list(Card.objects.values_list('name', flat=True))
+                    self._check_result(result, identity, FrozenMultiset({card.name: quantity}), FrozenMultiset(), FrozenMultiset(Template.objects.filter(scryfall_query__isnull=False).values_list('name', flat=True)))
+            card_names = list[str](Card.objects.values_list('name', flat=True))
             for card_count in [4, Card.objects.count()]:
                 for commander_count in [0, 1, 2, 4]:
                     with self.subTest(f'{card_count} cards with {commander_count} commanders'):
                         for card_set in itertools.combinations(card_names, card_count):
                             card_set = FrozenMultiset[str]({c: q for q, c in enumerate(card_set, start=1)})
-                            template_set = FrozenMultiset[str]({t.name: sum(card_set.get(c.name, 0) for c in t.replacements.all()) if not t.scryfall_query else 1 for t in Template.objects.all()})
+                            template_set = FrozenMultiset[str]({t.name: sum(card_set.get(c.name, 0) for c in t.replacements.filter(name__in=card_set.distinct_elements())) if not t.scryfall_query else 1 for t in Template.objects.all()})
                             for commander_set in itertools.combinations(card_set.items(), commander_count):
                                 commander_set = FrozenMultiset[str](dict(commander_set))
                                 commander_list = list(commander_set.items())
@@ -144,4 +145,4 @@ class FindMyCombosViewTests(SpellbookTestCaseWithSeeding):
                                 self.assertEqual(len(result.results.almost_included_by_changing_commanders), len(almost_included_within_identity_but_not_commanders))
                                 self.assertEqual(len(result.results.almost_included_by_adding_colors), len(almost_included_within_commanders_but_not_identity))
                                 self.assertEqual(len(result.results.almost_included_by_adding_colors_and_changing_commanders), len(almost_included_outside_identity_outside_commanders))
-                                self._check_result(result, identity, card_set, commander_set)
+                                self._check_result(result, identity, card_set, commander_set, template_set)

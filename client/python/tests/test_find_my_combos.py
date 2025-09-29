@@ -29,6 +29,10 @@ class TestFindMyCombos(SpellbookClientTest):
                 [self.c1_id, self.c2_id, self.c3_id],
                 [self.t1_id],
             ),
+            id_from_cards_and_templates_ids(
+                [self.c1_id, self.c2_id],
+                [self.t1_id, self.t2_id],
+            ),
         }, {v.id for v in result.results.almost_included})
         self.assertSetEqual(set(), {v.id for v in result.results.almost_included_by_adding_colors})
         self.assertSetEqual(set(), {v.id for v in result.results.almost_included_by_changing_commanders})

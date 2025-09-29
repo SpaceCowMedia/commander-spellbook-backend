@@ -159,6 +159,19 @@ class VariantViewsTests(SpellbookTestCaseWithSeeding):
         self.assertEqual(result.id, self.v1_id)
         self.variant_assertions(result)
 
+    def variants_matching_all_cards(self, matching_cards: models.QuerySet[Card]) -> models.QuerySet[Variant]:
+        templates_without_matching_cards = Template.objects.exclude(replacements__isnull=True).exclude(replacements__in=matching_cards).order_by()
+        variants_with_only_matching_cards = self.public_variants.exclude(uses__in=Card.objects.exclude(pk__in=matching_cards)).order_by()
+        variants_with_only_matching_cards_without_templates_without_matching_cards = variants_with_only_matching_cards.exclude(requires__in=templates_without_matching_cards)
+        variants = variants_with_only_matching_cards_without_templates_without_matching_cards.distinct()
+        return variants
+
+    def variants_matching_any_cards(self, matching_cards: models.QuerySet[Card]) -> models.QuerySet[Variant]:
+        variants_with_matching_cards = self.public_variants.filter(uses__in=matching_cards).values('pk').order_by()
+        variants_with_matching_templates = self.public_variants.filter(requires__replacements__in=matching_cards).values('pk').order_by()
+        variants = self.public_variants.filter(pk__in=variants_with_matching_cards.union(variants_with_matching_templates)).distinct()
+        return variants
+
     def test_variants_list_view_query_by_card_name(self):
         a_card = Card.objects.get(pk=self.c1_id)
         queries: list[tuple[str, str]] = []
@@ -201,14 +214,9 @@ class VariantViewsTests(SpellbookTestCaseWithSeeding):
                     models.Q(name__icontains=term) | models.Q(name_unaccented__icontains=term) | models.Q(name_unaccented_simplified__icontains=term) | models.Q(name_unaccented_simplified_with_spaces__icontains=term)
                 )
             if '@' in q:
-                templates_without_matching_cards = Template.objects.exclude(replacements__isnull=True).exclude(replacements__in=matching_cards).order_by()
-                variants_with_only_matching_cards = self.public_variants.exclude(uses__in=Card.objects.exclude(pk__in=matching_cards)).order_by()
-                variants_with_only_matching_cards_without_templates_without_matching_cards = variants_with_only_matching_cards.exclude(requires__in=templates_without_matching_cards)
-                variants = variants_with_only_matching_cards_without_templates_without_matching_cards.distinct()
+                variants = self.variants_matching_all_cards(matching_cards)
             else:
-                variants_with_matching_cards = self.public_variants.filter(uses__in=matching_cards).values('pk').order_by()
-                variants_with_matching_templates = self.public_variants.filter(requires__replacements__in=matching_cards).values('pk').order_by()
-                variants = self.public_variants.filter(pk__in=variants_with_matching_cards.union(variants_with_matching_templates)).distinct()
+                variants = self.variants_matching_any_cards(matching_cards)
             with self.subTest(f'query by card name: {term} with query {q}'):
                 response = self.client.get(reverse('variants-list'), query_params={'q': q}, follow=True)  # type: ignore
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -332,9 +340,9 @@ class VariantViewsTests(SpellbookTestCaseWithSeeding):
                     models.Q(type_line__icontains=term)
                 )
             if '@' in q:
-                variants = self.public_variants.exclude(uses__in=Card.objects.exclude(pk__in=matching_cards)).distinct()
+                variants = self.variants_matching_all_cards(matching_cards)
             else:
-                variants = self.public_variants.filter(uses__in=matching_cards).distinct()
+                variants = self.variants_matching_any_cards(matching_cards)
             with self.subTest(f'query by card type: {term} with query {q}'):
                 response = self.client.get(reverse('variants-list'), query_params={'q': q}, follow=True)  # type: ignore
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -368,9 +376,9 @@ class VariantViewsTests(SpellbookTestCaseWithSeeding):
                     models.Q(oracle_text__icontains=term)
                 )
             if '@' in q:
-                variants = self.public_variants.exclude(uses__in=Card.objects.exclude(pk__in=matching_cards)).distinct()
+                variants = self.variants_matching_all_cards(matching_cards)
             else:
-                variants = self.public_variants.filter(uses__in=matching_cards).distinct()
+                variants = self.variants_matching_any_cards(matching_cards)
             with self.subTest(f'query by card oracle text: {term} with query {q}'):
                 response = self.client.get(reverse('variants-list'), query_params={'q': q}, follow=True)  # type: ignore
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -398,9 +406,9 @@ class VariantViewsTests(SpellbookTestCaseWithSeeding):
                 models.Q(keywords__icontains=term)
             )
             if '@' in q:
-                variants = self.public_variants.exclude(uses__in=Card.objects.exclude(pk__in=matching_cards)).distinct()
+                variants = self.variants_matching_all_cards(matching_cards)
             else:
-                variants = self.public_variants.filter(uses__in=matching_cards).distinct()
+                variants = self.variants_matching_any_cards(matching_cards)
             with self.subTest(f'query by card keyword: {term} with query {q}'):
                 response = self.client.get(reverse('variants-list'), query_params={'q': q}, follow=True)  # type: ignore
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -425,9 +433,9 @@ class VariantViewsTests(SpellbookTestCaseWithSeeding):
             q_django = {f'mana_value__{operator_django}': mv}
             matching_cards = Card.objects.filter(**q_django)
             if '@' in q:
-                variants = self.public_variants.exclude(uses__in=Card.objects.exclude(pk__in=matching_cards)).distinct()
+                variants = self.variants_matching_all_cards(matching_cards)
             else:
-                variants = self.public_variants.filter(uses__in=matching_cards).distinct()
+                variants = self.variants_matching_any_cards(matching_cards)
             with self.subTest(f'query by card mana value: {mv} with query {q}'):
                 response = self.client.get(reverse('variants-list'), query_params={'q': q}, follow=True)  # type: ignore
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -910,8 +918,8 @@ class VariantViewsTests(SpellbookTestCaseWithSeeding):
 
     def test_variants_list_view_query_by_a_combination_of_terms(self):
         queries = [
-            ('result=FD A result:B', self.public_variants.filter(uses__name__icontains='A').filter(produces__name__iexact='FD').filter(produces__name__icontains='B').values_list('id', flat=True).distinct().order_by()),
-            ('-card:a card:b -desc:easy', self.public_variants.exclude(uses__name__icontains='a').filter(uses__name__icontains='b').exclude(description__icontains='easy').exclude(status=Variant.Status.EXAMPLE).values_list('id', flat=True).distinct().order_by()),
+            ('result=FD A result:B', self.variants_matching_any_cards(Card.objects.filter(name__icontains='A')).filter(produces__name__iexact='FD').filter(produces__name__icontains='B').values_list('id', flat=True).distinct().order_by()),
+            ('-card:a card:b -desc:easy', self.variants_matching_any_cards(Card.objects.filter(name__icontains='b')).exclude(uses__name__icontains='a').exclude(description__icontains='easy').exclude(status=Variant.Status.EXAMPLE).values_list('id', flat=True).distinct().order_by()),
         ]
         for q, variants in queries:
             with self.subTest(f'query by a combination of terms: {q}'):

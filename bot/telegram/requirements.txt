@@ -59,7 +59,7 @@ pydantic-core==2.33.2
     # via pydantic
 python-dateutil==2.9.0.post0
     # via -r requirements.in
-python-telegram-bot[http2]==22.4
+python-telegram-bot[http2]==22.5
     # via -r requirements.in
 six==1.17.0
     # via python-dateutil

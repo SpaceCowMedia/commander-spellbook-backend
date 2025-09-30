@@ -163,30 +163,26 @@ def variants_query_parser(base: QuerySet[Variant], query_string: str) -> QuerySe
                     .filter(replacements__isnull=False) \
                     .exclude(replacements__in=Card.objects.exclude(filter.q))
                 filtered_variants = filtered_variants.exclude(
-                    pk__in=base
-                    .values('pk')
-                    .filter(uses__in=matching_cards)
-                    .order_by()
-                    .union(
-                        base
+                    Q(
+                        pk__in=base
                         .values('pk')
-                        .filter(requires__in=not_matching_templates)
-                        .order_by(),
-                        all=True,
+                        .filter(uses__in=matching_cards),
+                    ) | Q(
+                        pk__in=base
+                        .values('pk')
+                        .filter(requires__in=not_matching_templates),
                     ),
                 )
             else:
                 filtered_variants = filtered_variants.filter(
-                    pk__in=base
-                    .values('pk')
-                    .filter(uses__in=matching_cards)
-                    .order_by()
-                    .union(
-                        base
+                    Q(
+                        pk__in=base
                         .values('pk')
-                        .filter(requires__replacements__in=matching_cards)
-                        .order_by(),
-                        all=True,
+                        .filter(uses__in=matching_cards),
+                    ) | Q(
+                        pk__in=base
+                        .values('pk')
+                        .filter(requires__replacements__in=matching_cards),
                     ),
                 )
         return filtered_variants

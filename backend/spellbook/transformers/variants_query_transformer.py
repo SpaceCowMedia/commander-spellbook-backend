@@ -1,7 +1,7 @@
 from lark import Lark, Transformer, LarkError, UnexpectedToken, UnexpectedCharacters
 from django.db.models import Q, QuerySet
 from django.core.exceptions import ValidationError
-from spellbook.models import Template, TemplateInVariant, Variant, FeatureProducedByVariant, CardInVariant, Card
+from spellbook.models import TemplateInVariant, TemplateReplacement, Variant, FeatureProducedByVariant, CardInVariant, Card
 from .variants_query_filters.template_search_filters import template_search_filter
 from .variants_query_filters.varant_variants_filters import variants_filter
 from .variants_query_filters.card_search_filters import card_search_filter
@@ -159,30 +159,30 @@ def variants_query_parser(base: QuerySet[Variant], query_string: str) -> QuerySe
         for filter in filters.cards_filters:
             matching_cards = Card.objects.filter(filter.q)
             if filter.exclude:
-                not_matching_templates = Template.objects \
-                    .filter(replacements__isnull=False) \
-                    .exclude(replacements__in=Card.objects.exclude(filter.q))
+                # templates_to_exclude = TemplateReplacement.objects \
+                #     .values('template') \
+                #     .exclude(card__in=Card.objects.exclude(filter.q))
                 filtered_variants = filtered_variants.exclude(
                     Q(
-                        pk__in=base
-                        .values('pk')
-                        .filter(uses__in=matching_cards),
+                        pk__in=CardInVariant.objects
+                        .values('variant_id')
+                        .filter(card__in=matching_cards),
                     ) | Q(
-                        pk__in=base
-                        .values('pk')
-                        .filter(requires__in=not_matching_templates),
+                        # pk__in=TemplateInVariant.objects
+                        # .values('variant_id')
+                        # .filter(template__in=templates_to_exclude),
                     ),
                 )
             else:
                 filtered_variants = filtered_variants.filter(
                     Q(
-                        pk__in=base
-                        .values('pk')
-                        .filter(uses__in=matching_cards),
+                        pk__in=CardInVariant.objects
+                        .values('variant_id')
+                        .filter(card__in=matching_cards),
                     ) | Q(
-                        pk__in=base
-                        .values('pk')
-                        .filter(requires__replacements__in=matching_cards),
+                        # pk__in=TemplateInVariant.objects
+                        # .values('variant_id')
+                        # .filter(template__replacements__in=matching_cards),
                     ),
                 )
         return filtered_variants

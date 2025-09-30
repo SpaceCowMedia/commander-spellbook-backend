@@ -1,7 +1,7 @@
 from lark import Lark, Transformer, LarkError, UnexpectedToken, UnexpectedCharacters
 from django.db.models import Q, QuerySet
 from django.core.exceptions import ValidationError
-from spellbook.models import TemplateInVariant, TemplateReplacement, Variant, FeatureProducedByVariant, CardInVariant, Card
+from spellbook.models import TemplateInVariant, Variant, FeatureProducedByVariant, CardInVariant, Card
 from .variants_query_filters.template_search_filters import template_search_filter
 from .variants_query_filters.varant_variants_filters import variants_filter
 from .variants_query_filters.card_search_filters import card_search_filter

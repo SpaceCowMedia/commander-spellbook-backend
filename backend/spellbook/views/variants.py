@@ -38,7 +38,11 @@ class VariantGroupedByComboFilter(filters.BaseFilterBackend):
         ).filter(
             pk=F('top_variant'),
         )
-        return queryset.filter(pk__in=top_variants_for_each_combo)
+        return Variant.serialized_objects.filter(
+            pk__in=top_variants_for_each_combo
+        ).order_by(
+            *queryset.query.order_by
+        )
 
     def get_schema_operation_parameters(self, view):
         return [

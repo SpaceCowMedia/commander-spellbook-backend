@@ -7,7 +7,13 @@ from common.stream import StreamToLogger
 
 class BaseTestCase(TestCase):
     @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        random.seed(42)
+
+    @classmethod
     def setUpTestData(cls):
+        super().setUpTestData()
         command = 'seed_website_properties'
         logger = logging.getLogger(command)
         call_command(
@@ -17,5 +23,6 @@ class BaseTestCase(TestCase):
         )
 
     def setUp(self):
-        logging.disable(logging.INFO)
+        super().setUp()
         random.seed(42)
+        logging.disable(logging.INFO)

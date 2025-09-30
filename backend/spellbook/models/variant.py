@@ -173,7 +173,8 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
                 models.When(status='NW', then=models.Value(5)),
                 default=models.Value(10),
             ),
-            '-created'
+            '-created',
+            'id'
         ]
         indexes = [
             models.Index(fields=['status']),

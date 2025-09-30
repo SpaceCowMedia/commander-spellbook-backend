@@ -1,3 +1,4 @@
+from typing import Sequence
 import uuid
 import re
 from functools import reduce
@@ -32,9 +33,9 @@ class SpellbookTestCase(BaseTestCase):
         assert job.status == Job.Status.SUCCESS, f'{job} status was {job.status}'
 
     @classmethod
-    def bulk_serialize_variants(cls, q=None, extra_fields=[]):
+    def bulk_serialize_variants(cls, q: Sequence[Variant] | None = None, extra_fields=[]):
         if q is None:
-            q = Variant.objects.all()
+            q = list(Variant.objects.all())
         Variant.objects.bulk_serialize(q, serializer=VariantSerializer, fields=extra_fields)
 
     @classmethod

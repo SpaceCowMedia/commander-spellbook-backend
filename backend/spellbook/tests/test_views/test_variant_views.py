@@ -28,7 +28,11 @@ class VariantViewsTests(SpellbookTestCaseWithSeeding):
         super().setUpTestData()
         super().generate_variants()
         Variant.objects.update(status=Variant.Status.OK)
-        Variant.objects.filter(id__in=random.sample(list(Variant.objects.values_list('id', flat=True)), 3)).update(status=Variant.Status.EXAMPLE)
+        Variant.objects.filter(
+            id__in=Variant.objects
+            .exclude(uses__name__icontains='b')
+            .values_list('id', flat=True),
+        ).update(status=Variant.Status.EXAMPLE)
         cls.v1_id: int = Variant.objects.first().id  # type: ignore
         cls.public_variants = VariantViewSet.queryset
         cls.ok_variants = cls.public_variants.filter(status=Variant.Status.OK)
@@ -933,7 +937,7 @@ class VariantViewsTests(SpellbookTestCaseWithSeeding):
                     self.variant_assertions(v)
 
     def seed_popularity(self) -> list[Variant]:
-        variants = list(Variant.objects.all())
+        variants = list[Variant](Variant.objects.all())
         for popularity, variant in enumerate(variants):
             variant.popularity = popularity if popularity > 0 else None
         self.bulk_serialize_variants(q=variants, extra_fields=['popularity'])

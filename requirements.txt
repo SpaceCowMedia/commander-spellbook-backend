@@ -2,3 +2,5 @@
 pydantic
 pytest-django
 pip-tools
+django-debug-toolbar
+psycopg2

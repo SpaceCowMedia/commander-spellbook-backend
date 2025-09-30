@@ -20,13 +20,13 @@ class VariantGroupedByComboFilter(filters.BaseFilterBackend):
     def get_current_value(self, request: HttpRequest) -> str | None:
         return request.query_params.get(self.query_param)  # type: ignore
 
-    def filter_queryset(self, request: HttpRequest, queryset: QuerySet[Variant], view):
+    def filter_queryset(self, request: HttpRequest, queryset: QuerySet[Variant], view: 'VariantViewSet'):
         group_by_params = self.get_current_value(request)
         if group_by_params in ('true', 'True', '1', ''):
-            return self._filter_queryset(queryset)
+            return self._filter_queryset(queryset, view)
         return queryset
 
-    def _filter_queryset(self, queryset: QuerySet[Variant]) -> QuerySet[Variant]:
+    def _filter_queryset(self, queryset: QuerySet[Variant], view: 'VariantViewSet') -> QuerySet[Variant]:
         order_by = queryset.query.order_by + DEFAULT_VIEW_ORDERING
         order_by = list(remove_duplicates_in_order_by(order_by))
         top_variants_for_each_combo = queryset.alias(
@@ -38,7 +38,7 @@ class VariantGroupedByComboFilter(filters.BaseFilterBackend):
         ).filter(
             pk=F('top_variant'),
         )
-        return Variant.serialized_objects.filter(
+        return view.queryset.filter(  # type: ignore
             pk__in=top_variants_for_each_combo
         ).order_by(
             *queryset.query.order_by

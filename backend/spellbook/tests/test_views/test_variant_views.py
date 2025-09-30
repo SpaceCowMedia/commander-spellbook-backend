@@ -164,17 +164,19 @@ class VariantViewsTests(SpellbookTestCaseWithSeeding):
         self.variant_assertions(result)
 
     def variants_matching_all_cards(self, matching_cards: models.QuerySet[Card]) -> models.QuerySet[Variant]:
-        templates_without_matching_cards = Template.objects.exclude(replacements__isnull=True).exclude(replacements__in=matching_cards).order_by()
         variants_with_only_matching_cards = self.public_variants.exclude(uses__in=Card.objects.exclude(pk__in=matching_cards)).order_by()
-        variants_with_only_matching_cards_without_templates_without_matching_cards = variants_with_only_matching_cards.exclude(requires__in=templates_without_matching_cards)
-        variants = variants_with_only_matching_cards_without_templates_without_matching_cards.distinct()
-        return variants
+        return variants_with_only_matching_cards.distinct()
+        # templates_without_matching_cards = Template.objects.exclude(replacements__isnull=True).exclude(replacements__in=matching_cards).order_by()
+        # variants_with_only_matching_cards_without_templates_without_matching_cards = variants_with_only_matching_cards.exclude(requires__in=templates_without_matching_cards)
+        # variants = variants_with_only_matching_cards_without_templates_without_matching_cards.distinct()
+        # return variants
 
     def variants_matching_any_cards(self, matching_cards: models.QuerySet[Card]) -> models.QuerySet[Variant]:
-        variants_with_matching_cards = self.public_variants.filter(uses__in=matching_cards).values('pk').order_by()
-        variants_with_matching_templates = self.public_variants.filter(requires__replacements__in=matching_cards).values('pk').order_by()
-        variants = self.public_variants.filter(pk__in=variants_with_matching_cards.union(variants_with_matching_templates)).distinct()
-        return variants
+        variants_with_matching_cards = self.public_variants.filter(uses__in=matching_cards)
+        return variants_with_matching_cards.distinct()
+        # variants_with_matching_templates = self.public_variants.filter(requires__replacements__in=matching_cards)
+        # variants = self.public_variants.filter(pk__in=variants_with_matching_cards.values('pk').order_by().union(variants_with_matching_templates.values('pk').order_by())).distinct()
+        # return variants
 
     def test_variants_list_view_query_by_card_name(self):
         a_card = Card.objects.get(pk=self.c1_id)

@@ -143,6 +143,7 @@ def variants_query_parser(base: QuerySet[Variant], query_string: str) -> QuerySe
         filtered_variants = base
         for filter in filters.variants_filters:
             filtered_variants = filtered_variants.exclude(filter.q) if filter.exclude else filtered_variants.filter(filter.q)
+            base = filtered_variants
         for filter in filters.cardinvariants_filters:
             matching_cardinvariants = CardInVariant.objects.filter(filter.q)
             q = Q(pk__in=matching_cardinvariants.values('variant_id'))
@@ -158,30 +159,32 @@ def variants_query_parser(base: QuerySet[Variant], query_string: str) -> QuerySe
         for filter in filters.cards_filters:
             matching_cards = Card.objects.filter(filter.q)
             if filter.exclude:
+                not_matching_templates = Template.objects \
+                    .filter(replacements__isnull=False) \
+                    .exclude(replacements__in=Card.objects.exclude(filter.q))
                 filtered_variants = filtered_variants.exclude(
-                    pk__in=matching_cards
-                    .filter(used_in_variants__isnull=False)
-                    .values('used_in_variants')
+                    pk__in=base
+                    .values('pk')
+                    .filter(uses__in=matching_cards)
                     .order_by()
                     .union(
-                        Template.objects
-                        .filter(replacements__isnull=False)
-                        .exclude(replacements__in=Card.objects.exclude(filter.q))
-                        .values('required_by_variants')
+                        base
+                        .values('pk')
+                        .filter(requires__in=not_matching_templates)
                         .order_by(),
                         all=True,
                     ),
                 )
             else:
                 filtered_variants = filtered_variants.filter(
-                    pk__in=matching_cards
-                    .filter(used_in_variants__isnull=False)
-                    .values('used_in_variants')
+                    pk__in=base
+                    .values('pk')
+                    .filter(uses__in=matching_cards)
                     .order_by()
                     .union(
-                        matching_cards
-                        .filter(replaces__required_by_variants__isnull=False)
-                        .values('replaces__required_by_variants')
+                        base
+                        .values('pk')
+                        .filter(requires__replacements__in=matching_cards)
                         .order_by(),
                         all=True,
                     ),

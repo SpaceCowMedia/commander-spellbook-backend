@@ -405,7 +405,7 @@
                 "order": 15
             }
         },
-        {
+         {
             "name": "Launch Reddit Bot",
             "type": "debugpy",
             "request": "launch",
@@ -430,6 +430,33 @@
             }
         },
         {
+            "name": "Launch Reddit Bot Daily Tasks",
+            "type": "debugpy",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/bot/reddit",
+            "envFile": "${workspaceFolder}/bot/reddit/secrets.env",
+            "windows": {
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}${/}common;${workspaceFolder}${/}client${/}python",
+                },
+            },
+            "linux": {
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}${/}common:${workspaceFolder}${/}client${/}python",
+                },
+            },
+            "program": "spellbook_reddit.py",
+            "args": [
+                "--daily",
+            ],
+            "justMyCode": false,
+            "presentation": {
+                "hidden": false,
+                "group": "Spellbook",
+                "order": 17
+            }
+        },
+        {
             "name": "Launch Telegram Bot",
             "type": "debugpy",
             "request": "launch",
@@ -450,7 +477,7 @@
             "presentation": {
                 "hidden": false,
                 "group": "Spellbook",
-                "order": 17
+                "order": 18
             }
         }
     ]

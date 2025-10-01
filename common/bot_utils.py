@@ -40,7 +40,11 @@ def summary_from_query(query: str, query_url: str) -> str:
 
 
 def url_from_variant(variant: Variant) -> str:
-    return f'{WEBSITE_URL}/combo/{variant.id}'
+    return url_from_variant_id(variant.id)
+
+
+def url_from_variant_id(variant_id: str) -> str:
+    return f'{WEBSITE_URL}/combo/{variant_id}'
 
 
 def compute_variant_name(variant: Variant) -> str:

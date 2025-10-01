@@ -1,3 +1,4 @@
+from argparse import ArgumentParser
 import os
 import re
 import random
@@ -12,17 +13,19 @@ import asyncpraw.models.reddit.redditor
 import asyncpraw.models.reddit.submission
 import asyncpraw.models.reddit.subreddit
 import asyncpraw.exceptions
-from spellbook_client import VariantsApi, ApiException
-from bot_utils import parse_queries, SpellbookQuery, API, compute_variant_recipe, url_from_variant
+from spellbook_client import PropertiesApi, VariantsApi, ApiException
+from bot_utils import parse_queries, SpellbookQuery, API, compute_variant_recipe, url_from_variant, url_from_variant_id
 
 
 REDDIT_USERNAME = os.getenv('REDDIT_USERNAME')
+MAIN_SUBREDDIT = 'CommanderSpellbook'
 
 MAX_SEARCH_RESULTS = 5
 logging.basicConfig(level=logging.INFO)
 LOGGER = logging.getLogger(__file__)
 
 SUBREDDITS = [
+    MAIN_SUBREDDIT,
     # 'magicTCG',
     # 'MagicArena',
     # 'EDH',
@@ -40,7 +43,6 @@ SUBREDDITS = [
     # 'freemagic',
     # 'custommagic',
     # 'jankEDH',
-    'CommanderSpellbook',
 ]
 
 
@@ -119,9 +121,9 @@ async def process_submissions(reddit: asyncpraw.Reddit):
                 if result is None:
                     LOGGER.error('Failed to post reply to submission %s', submission.id)
             except asyncprawcore.exceptions.Forbidden:
-                LOGGER.warning('Failed to post reply to submission %s', submission.id)
+                LOGGER.warning('Failed to post (forbidden) reply to submission %s', submission.id)
             except (asyncprawcore.AsyncPrawcoreException, asyncpraw.exceptions.AsyncPRAWException) as e:
-                LOGGER.exception('Failed to post reply to submission %s', submission.id, exc_info=e)
+                LOGGER.exception('Failed to post (error) reply to submission %s', submission.id, exc_info=e)
 
 
 async def answer_greeting(comment: asyncpraw.models.reddit.comment.Comment):
@@ -147,9 +149,9 @@ async def answer_greeting(comment: asyncpraw.models.reddit.comment.Comment):
             if result is None:
                 LOGGER.error('Failed to post reply to comment %s', comment.id)
         except asyncprawcore.exceptions.Forbidden:
-            LOGGER.warning('Failed to post reply to comment %s', comment.id)
+            LOGGER.warning('Failed to post (forbidden) reply to comment %s', comment.id)
         except (asyncprawcore.AsyncPrawcoreException, asyncpraw.exceptions.AsyncPRAWException) as e:
-            LOGGER.exception('Failed to post reply to comment %s', comment.id, exc_info=e)
+            LOGGER.exception('Failed to post (error) reply to comment %s', comment.id, exc_info=e)
 
 
 async def process_comments(reddit: asyncpraw.Reddit):
@@ -167,14 +169,46 @@ async def process_comments(reddit: asyncpraw.Reddit):
                 if result is None:
                     LOGGER.error('Failed to post reply to comment %s', comment.id)
             except asyncprawcore.exceptions.Forbidden:
-                LOGGER.warning('Failed to post reply to comment %s', comment.id)
+                LOGGER.warning('Failed to post (forbidden) reply to comment %s', comment.id)
             except (asyncprawcore.AsyncPrawcoreException, asyncpraw.exceptions.AsyncPRAWException) as e:
-                LOGGER.exception('Failed to post reply to comment %s', comment.id, exc_info=e)
+                LOGGER.exception('Failed to post (error) reply to comment %s', comment.id, exc_info=e)
         else:
             await answer_greeting(comment)
 
 
+async def post_daily_combo(reddit: asyncpraw.Reddit):
+    try:
+        async with API() as api_client:
+            api = PropertiesApi(api_client)
+            result = await api.properties_retrieve('combo_of_the_day')
+        combo_of_the_day: str = result.value
+    except ApiException:
+        LOGGER.error('Failed to fetch combo of the day')
+        return
+    subreddit: asyncpraw.models.Subreddit = await reddit.subreddit(MAIN_SUBREDDIT)
+    try:
+        submission: asyncpraw.models.reddit.submission.Submission = await subreddit.submit(
+            title='Combo of the Day',
+            url=url_from_variant_id(combo_of_the_day),
+        )
+        if submission is None:
+            LOGGER.error('Failed to post daily combo')
+        else:
+            LOGGER.info('Posted daily combo: %s', submission.id)
+    except asyncprawcore.exceptions.Forbidden:
+        LOGGER.warning('Failed to post (forbidden) daily combo: forbidden')
+    except (asyncprawcore.AsyncPrawcoreException, asyncpraw.exceptions.AsyncPRAWException) as e:
+        LOGGER.exception('Failed to post (error) daily combo', exc_info=e)
+
+
+async def daily(reddit: asyncpraw.Reddit):
+    await post_daily_combo(reddit)
+
+
 async def main():
+    parser = ArgumentParser()
+    parser.add_argument('--daily', action='store_true', help='Run daily tasks')
+    args = parser.parse_args()
     reddit = asyncpraw.Reddit(
         client_id=os.getenv('REDDIT_CLIENT_ID'),
         client_secret=os.getenv('REDDIT_CLIENT_SECRET'),
@@ -182,6 +216,9 @@ async def main():
         password=os.getenv('REDDIT_PASSWORD'),
         user_agent=f'Commander Spellbook bot for u/{os.getenv('REDDIT_USERNAME')}',
     )
+    if args.daily:
+        await daily(reddit)
+        return
     LOGGER.info('Starting Reddit bot as u/%s', REDDIT_USERNAME)
     await asyncio.gather(
         process_submissions(reddit),

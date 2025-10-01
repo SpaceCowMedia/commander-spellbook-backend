@@ -31,12 +31,12 @@ SUBREDDITS = [
     # 'EDH',
     # 'BudgetBrews',
     # 'custommagic',
-    # 'mtg',
+    'mtg',
     # 'BadMtgCombos',
     # 'PioneerMTG',
     # 'mtgrules',
     # 'Pauper',
-    # 'CompetitiveEDH',
+    'CompetitiveEDH',
     # 'ModernMagic',
     # 'EDHBrews',
     # 'DegenerateEDH',
@@ -102,7 +102,7 @@ async def process_input(text: str) -> str | None:
                 reply += f'Failed to fetch results for {query_info.summary}\n'
             else:
                 reply += f'* Failed to fetch results for {query_info.summary}\n'
-    help_text = '^({{query}} to search combos, following the Commander Spellbook) [syntax](https://commanderspellbook.com/syntax-guide)'
+    help_text = 'Use {{query}} to search for combos. Commander Spellbook [syntax guide](https://commanderspellbook.com/syntax-guide).'
     return f'{reply}\n\n{help_text}'
 
 
@@ -127,12 +127,10 @@ async def process_submissions(reddit: asyncpraw.Reddit):
 
 
 async def answer_greeting(comment: asyncpraw.models.reddit.comment.Comment):
-    if random.random() > 0.1:
-        # Consider only replying to a fraction of comments to reduce spam
-        return
     formatted_input = comment.body.strip()
     parent = await comment.parent()
     await parent.load()
+    answer = None
     if parent.author.name == REDDIT_USERNAME and re.match(r'^(?:(?:good|amazing|great) (?:bot|job)|gj)', formatted_input, re.IGNORECASE):
         if getattr(parent, 'body', None) in GOOD_BOT_RESPONSES + THANKS_RESPONSES:
             answer = '👍'
@@ -214,7 +212,7 @@ async def main():
         client_secret=os.getenv('REDDIT_CLIENT_SECRET'),
         username=REDDIT_USERNAME,
         password=os.getenv('REDDIT_PASSWORD'),
-        user_agent=f'Commander Spellbook bot for u/{os.getenv('REDDIT_USERNAME')}',
+        user_agent=f'Commander Spellbook bot for u/{REDDIT_USERNAME}',
     )
     if args.daily:
         await daily(reddit)

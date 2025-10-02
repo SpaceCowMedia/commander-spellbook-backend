@@ -16,7 +16,7 @@ from spellbook_client import PropertiesApi, VariantsApi, ApiException
 from bot_utils import parse_queries, SpellbookQuery, API, compute_variant_recipe, url_from_variant, url_from_variant_id
 
 
-REDDIT_USERNAME = os.getenv('REDDIT_USERNAME')
+REDDIT_USERNAME = os.getenv('KUBE_REDDIT_USERNAME', os.getenv('REDDIT_USERNAME'))
 MAIN_SUBREDDIT = 'CommanderSpellbook'
 
 MAX_SEARCH_RESULTS = 5
@@ -214,10 +214,10 @@ async def main():
     parser.add_argument('--daily', action='store_true', help='Run daily tasks')
     args = parser.parse_args()
     async with asyncpraw.Reddit(
-        client_id=os.getenv('REDDIT_CLIENT_ID'),
-        client_secret=os.getenv('REDDIT_CLIENT_SECRET'),
+        client_id=os.getenv('KUBE_REDDIT_CLIENT_ID', os.getenv('REDDIT_CLIENT_ID')),
+        client_secret=os.getenv('KUBE_REDDIT_CLIENT_SECRET', os.getenv('REDDIT_CLIENT_SECRET')),
         username=REDDIT_USERNAME,
-        password=os.getenv('REDDIT_PASSWORD'),
+        password=os.getenv('KUBE_REDDIT_PASSWORD', os.getenv('REDDIT_PASSWORD')),
         user_agent=f'Commander Spellbook bot for u/{REDDIT_USERNAME}',
     ) as reddit:
         if args.daily:

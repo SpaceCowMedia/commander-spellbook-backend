@@ -103,7 +103,7 @@ async def process_input(text: str) -> str | None:
             else:
                 reply += f'* Failed to fetch results for {query_info.summary}\n'
     help_text = 'Use {{query}} to search for combos. Commander Spellbook [syntax guide](https://commanderspellbook.com/syntax-guide).'
-    return f'{reply}\n\n{help_text}'
+    return f'{reply}\n\n___\n{help_text}'
 
 
 async def process_submissions(reddit: asyncpraw.Reddit):

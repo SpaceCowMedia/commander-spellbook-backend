@@ -207,21 +207,21 @@ async def main():
     parser = ArgumentParser()
     parser.add_argument('--daily', action='store_true', help='Run daily tasks')
     args = parser.parse_args()
-    reddit = asyncpraw.Reddit(
+    async with asyncpraw.Reddit(
         client_id=os.getenv('REDDIT_CLIENT_ID'),
         client_secret=os.getenv('REDDIT_CLIENT_SECRET'),
         username=REDDIT_USERNAME,
         password=os.getenv('REDDIT_PASSWORD'),
         user_agent=f'Commander Spellbook bot for u/{REDDIT_USERNAME}',
-    )
-    if args.daily:
-        await daily(reddit)
-        return
-    LOGGER.info('Starting Reddit bot as u/%s', REDDIT_USERNAME)
-    await asyncio.gather(
-        process_submissions(reddit),
-        process_comments(reddit),
-    )
+    ) as reddit:
+        if args.daily:
+            await daily(reddit)
+            return
+        LOGGER.info('Starting Reddit bot as u/%s', REDDIT_USERNAME)
+        await asyncio.gather(
+            process_submissions(reddit),
+            process_comments(reddit),
+        )
 
 if __name__ == "__main__":
     asyncio.run(main())

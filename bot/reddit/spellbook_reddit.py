@@ -11,7 +11,6 @@ import asyncpraw.models.reddit
 import asyncpraw.models.reddit.comment
 import asyncpraw.models.reddit.redditor
 import asyncpraw.models.reddit.submission
-import asyncpraw.models.reddit.subreddit
 import asyncpraw.exceptions
 from spellbook_client import PropertiesApi, VariantsApi, ApiException
 from bot_utils import parse_queries, SpellbookQuery, API, compute_variant_recipe, url_from_variant, url_from_variant_id

@@ -26,13 +26,13 @@ def parse_queries(text: str) -> list[str]:
 
 def patch_query(query: str) -> str:
     patched_query = query
-    if not any(f'{key}:' in patched_query for key in ('legal', 'banned', 'format')):
+    if not any(f'{key}:' in patched_query.lower() for key in ('legal', 'banned', 'format')):
         patched_query += ' format:commander'
     return patched_query
 
 
 def url_from_query(query: str) -> str:
-    return f'{WEBSITE_URL}/search?q={encode_query(patch_query(query))}'
+    return f'{WEBSITE_URL}/search?q={encode_query(patch_query(query))}&groupByCombo=false'
 
 
 def summary_from_query(query: str, query_url: str) -> str:

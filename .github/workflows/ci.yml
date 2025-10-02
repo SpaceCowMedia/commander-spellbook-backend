@@ -93,7 +93,7 @@ jobs:
         run: flake8 .
 
       - name: Lint bots 🧹
-        if: ${{ matrix.python-version == '3.12' }}
+        if: matrix.python-version == '3.12'
         working-directory: bot
         run: flake8 .
 

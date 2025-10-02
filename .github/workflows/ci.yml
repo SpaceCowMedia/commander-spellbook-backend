@@ -407,16 +407,28 @@ jobs:
         run: |
           docker tag spellbook-discord-bot:latest $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+      
+      - name: Push Reddit bot image to Amazon ECR 📦
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ secrets.AWS_REDDIT_ECR_REPO_NAME }}
+          IMAGE_TAG: latest
+        run: |
+          docker tag spellbook-reddit-bot:latest $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
       - name: Rollout pods 🚀
         working-directory: ${{ steps.migration-artifacts.outputs.download-path }}
         run: |
           export KUBECONFIG=spellbookkubeconfig.yaml
-          declare -a deployments=("spellbook-api" "spellbook-discord-bot")
+          declare -a deployments=("spellbook-api" "spellbook-discord-bot" "spellbook-reddit-bot")
           for deployment in "${deployments[@]}"; do
             export NAMESPACE=spellbook-prod
             if [ "$deployment" == "spellbook-discord-bot" ]; then
               export NAMESPACE=spellbook-discord-bot-prod
+            fi
+            if [ "$deployment" == "spellbook-reddit-bot" ]; then
+              export NAMESPACE=spellbook-reddit-bot-prod
             fi
             kubectl rollout restart deployment/$deployment -n $NAMESPACE
             timeout ${KUBECTL_TIMEOUT} kubectl rollout status deployment/$deployment -n $NAMESPACE

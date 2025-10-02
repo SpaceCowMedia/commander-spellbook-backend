@@ -109,7 +109,9 @@ async def process_submissions(reddit: asyncpraw.Reddit):
     subreddit: asyncpraw.models.Subreddit = await reddit.subreddit('+'.join(SUBREDDITS))
     async for submission in subreddit.stream.submissions(skip_existing=True):
         submission: asyncpraw.models.reddit.submission.Submission
-        author: asyncpraw.models.reddit.redditor.Redditor = submission.author
+        author: asyncpraw.models.reddit.redditor.Redditor | None = submission.author
+        if author is None:
+            continue
         if author.name == REDDIT_USERNAME:
             continue
         formatted_input = f'# {submission.title}\n\n{submission.selftext}'
@@ -129,13 +131,16 @@ async def answer_greeting(comment: asyncpraw.models.reddit.comment.Comment):
     formatted_input = comment.body.strip()
     parent = await comment.parent()
     await parent.load()
+    author: asyncpraw.models.reddit.redditor.Redditor | None = comment.author
+    if author is None:
+        return
     answer = None
-    if parent.author.name == REDDIT_USERNAME and re.match(r'^(?:(?:good|amazing|great) (?:bot|job)|gj)', formatted_input, re.IGNORECASE):
+    if author.name == REDDIT_USERNAME and re.match(r'^(?:(?:good|amazing|great) (?:bot|job)|gj)', formatted_input, re.IGNORECASE):
         if getattr(parent, 'body', None) in GOOD_BOT_RESPONSES + THANKS_RESPONSES:
             answer = '👍'
         else:
             answer = random.choice(GOOD_BOT_RESPONSES)
-    elif parent.author.name == REDDIT_USERNAME and re.match(r'^(?:thanks|thank you).{0,20}$', formatted_input, re.IGNORECASE):
+    elif author.name == REDDIT_USERNAME and re.match(r'^(?:thanks|thank you).{0,20}$', formatted_input, re.IGNORECASE):
         if getattr(parent, 'body', None) in GOOD_BOT_RESPONSES + THANKS_RESPONSES:
             answer = '👍'
         else:
@@ -155,7 +160,9 @@ async def process_comments(reddit: asyncpraw.Reddit):
     subreddit: asyncpraw.models.Subreddit = await reddit.subreddit('+'.join(SUBREDDITS))
     async for comment in subreddit.stream.comments(skip_existing=True):
         comment: asyncpraw.models.reddit.comment.Comment
-        author: asyncpraw.models.reddit.redditor.Redditor = comment.author
+        author: asyncpraw.models.reddit.redditor.Redditor | None = comment.author
+        if author is None:
+            continue
         if author.name == REDDIT_USERNAME:
             continue
         formatted_input = comment.body.strip()

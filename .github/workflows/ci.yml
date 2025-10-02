@@ -605,6 +605,12 @@ jobs:
       - name: Checkout 🛎️
         uses: actions/checkout@v5
 
+      - name: Download client artifact ⬇
+        uses: actions/download-artifact@v5
+        with:
+          name: spellbook-client-python
+          path: client/python/spellbook_client
+
       - name: Build and export image 🏗️
         uses: docker/build-push-action@v6
         with:
@@ -635,6 +641,12 @@ jobs:
 
       - name: Checkout 🛎️
         uses: actions/checkout@v5
+
+      - name: Download client artifact ⬇
+        uses: actions/download-artifact@v5
+        with:
+          name: spellbook-client-python
+          path: client/python/spellbook_client
 
       - name: Build and export image 🏗️
         uses: docker/build-push-action@v6

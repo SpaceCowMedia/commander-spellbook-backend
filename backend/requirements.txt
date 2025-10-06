@@ -49,7 +49,7 @@ django-admin-sortable2==2.2.8
     # via -r requirements.in
 django-cors-headers==4.9.0
     # via -r requirements.in
-django-filter==25.1
+django-filter==25.2
     # via -r requirements.in
 djangorestframework==3.16.1
     # via

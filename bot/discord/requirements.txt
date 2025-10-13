@@ -19,7 +19,7 @@ annotated-types==0.7.0
     # via pydantic
 attrs==25.3.0
     # via aiohttp
-discord-py==2.6.3
+discord-py==2.6.4
     # via -r requirements.in
 frozenlist==1.7.0
     # via

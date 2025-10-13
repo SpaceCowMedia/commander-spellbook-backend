@@ -1,4 +1,4 @@
-discord.py==2.6.3
+discord.py==2.6.4
 # client
 urllib3==2.5.0
 python-dateutil==2.9.0.post0

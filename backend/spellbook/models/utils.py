@@ -1,6 +1,6 @@
 import re
 import unicodedata
-from typing import Generator, Iterable, Sequence
+from typing import Callable, Generator, Iterable, Sequence
 from collections import defaultdict
 from ..regexs import MANA_SYMBOL, ORACLE_SYMBOL, ORACLE_SYMBOL_EXTENDED
 from ..parsers.scryfall_query_grammar import COMPARISON_OPERATORS, MANA_COMPARABLE_VARIABLES
@@ -54,6 +54,7 @@ SORTED_COLORS = {
         'WUBRG',
     )
 }
+COLORS = frozenset('WUBRG')
 
 
 class CardType(TextChoices):
@@ -90,8 +91,19 @@ def sort_color_identity(identity_set: frozenset[str]) -> str:
 
 
 def merge_identities(identities: Iterable[str]) -> str:
-    identity_set = frozenset(''.join(identities).upper()).intersection('WUBRG')
+    identity_set = frozenset(''.join(identities).upper()).intersection(COLORS)
     return sort_color_identity(identity_set)
+
+
+def get_color_or_empty(x: str) -> str:
+    s = x.upper()
+    return s if s in COLORS else ''
+
+
+def sort_by_identity(sequence: Iterable[str], color: Callable[[str], str]) -> list[str]:
+    tuples = [(x, get_color_or_empty(color(x))) for x in sequence]
+    identity = sort_color_identity(frozenset(c for _, c in tuples if c))
+    return [s for s, _ in sorted(tuples, key=lambda t: -1 if t[1] == '' else identity.index(t[1]))]
 
 
 def merge_mana_costs(mana_costs: Iterable[str]) -> str:
@@ -103,23 +115,71 @@ def merge_mana_costs(mana_costs: Iterable[str]) -> str:
             for matching_symbol in re.findall(MANA_SEARCH_REGEX, mana_cost):
                 match matching_symbol:
                     case n if matching_symbol.isdigit():
-                        costs['C'] += int(n)
+                        costs['1'] += int(n)
                     case _:
                         costs[matching_symbol] += 1
         else:
             strings.append(mana_cost)
     if costs:
         cost_string = ''
-        colorless = costs.pop('C', 0)
-        identity = sort_color_identity(frozenset(c for cost in costs.keys() for c in cost).intersection('WUBRG'))
-        for color in identity:
-            for symbol in sorted((s for s in costs.keys() if color in s), key=lambda s: (len(s), s)):
+
+        def process_symbol(symbol: str):
+            nonlocal cost_string
+            if symbol in costs:
                 cost_string += f'{{{symbol}}}' * costs[symbol]
                 del costs[symbol]
+
+        # Specification: https://www.reddit.com/r/custommagic/comments/1nhtr3w/guide_for_formatting_mana_costs/
+        # Variable generic mana symbols
+        for symbol in 'XYZ':
+            process_symbol(symbol)
+        # Numbered generic mana symbols
+        if '1' in costs:
+            count = costs['1']
+            del costs['1']
+            cost_string += f'{{{count}}}'
+        # Group symbols by their leftmost half
+        grouped_symbols = defaultdict[str, list[str]](list)
+        for symbol in costs.keys():
+            key = symbol.split('/')[0]
+            grouped_symbols[key].append(symbol)
+        # Numbered colorless hybrid mana symbols
+        symbols = grouped_symbols.pop('2', [])
+        for symbol in sort_by_identity(symbols, lambda s: s[-1]):
+            process_symbol(symbol)
+        # Colorless mana symbols
+        symbols = grouped_symbols.pop('C', [])
+        for symbol in sort_by_identity(symbols, lambda s: s[-1]):
+            process_symbol(symbol)
+        # Colored mana symbols sorted
+        identity = sort_color_identity(COLORS.intersection(grouped_symbols))
+        for color in identity:
+            # Group by color
+            symbols = grouped_symbols.pop(color, [])
+            hybrid = list[str]()
+            non_hybrid = list[str]()
+            # Separate hybrid and non-hybrid symbols
+            for symbol in symbols:
+                identity = COLORS.intersection(symbol)
+                match len(identity):
+                    case 1:
+                        non_hybrid.append(symbol)
+                    case _:
+                        hybrid.append(symbol)
+            # Re-arrange such that normal mana precedes phyrexian mana
+            non_hybrid.sort(key=lambda s: (len(s), s))
+            # Colored mana precedes hybrid mana
+            for symbol in non_hybrid:
+                process_symbol(symbol)
+            # Re-arrange such that normal mana precedes phyrexian mana
+            hybrid.sort(key=lambda s: (len(s), s))
+            # Re-arrange such that the leftmost halves are sorted
+            hybrid = sort_by_identity(hybrid, lambda s: s.split('/')[1])
+            for symbol in hybrid:
+                process_symbol(symbol)
+        # Snow mana symbols and eventual weird symbols at the end
         for symbol in sorted(costs.keys(), key=lambda s: (len(s), s)):
             cost_string += f'{{{symbol}}}' * costs[symbol]
-        if colorless > 0:
-            cost_string = f'{{{colorless}}}' + cost_string
         strings.insert(0, cost_string)
     strings = [s for s in strings if s]
     match len(strings):
@@ -165,6 +225,7 @@ def auto_fix_reverse_hybrid_mana(text: str):
             case 1:
                 text = replace_reversed(text, f'2{color_combo}')
                 text = replace_reversed(text, f'{color_combo}P')
+                text = replace_reversed(text, f'C{color_combo}')
             case 2:
                 text = replace_reversed(text, color_combo)
     return text
@@ -176,10 +237,16 @@ def auto_fix_missing_braces_to_oracle_symbols(text: str):
     return text
 
 
+def auto_fix_missing_slashes_in_hybrid_mana(text: str):
+    text = re.sub(r'\{([WUBRGCP2])([WUBRGCP2])\}', r'{\1/\2}', text, flags=re.IGNORECASE)
+    text = re.sub(r'\{([WUBRGCP2])([WUBRGCP2])([WUBRGCP2])\}', r'{\1/\2/\3}', text, flags=re.IGNORECASE)
+    return text
+
+
 def sanitize_mana(mana: str) -> str:
     mana = auto_fix_missing_braces_to_oracle_symbols(mana)
+    mana = auto_fix_missing_slashes_in_hybrid_mana(mana)
     mana = auto_fix_reverse_hybrid_mana(mana)
-    mana = re.sub(r'\{([WUBRG])P\}', r'{\1/P}', mana, flags=re.IGNORECASE)
     mana = upper_oracle_symbols(mana)
     return mana
 

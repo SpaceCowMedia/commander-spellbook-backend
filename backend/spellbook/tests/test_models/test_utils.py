@@ -1,9 +1,9 @@
 from unittest import TestCase
 from spellbook.models.utils import merge_identities, auto_fix_missing_braces_to_oracle_symbols, merge_mana_costs, \
-    upper_oracle_symbols, sanitize_mana, sanitize_scryfall_query
+    upper_oracle_symbols, sanitize_mana, sanitize_scryfall_query, auto_fix_missing_slashes_in_hybrid_mana
 
 
-class TestAddCurlyBracketsToOracleSymbols(TestCase):
+class TestAutoFixMissingBracesToOracleSymbols(TestCase):
     def test_empty_string(self):
         self.assertEqual(auto_fix_missing_braces_to_oracle_symbols(''), '')
 
@@ -39,6 +39,36 @@ class TestAddCurlyBracketsToOracleSymbols(TestCase):
 
     def test_with_following_text(self):
         self.assertEqual(auto_fix_missing_braces_to_oracle_symbols(r'WUBRG mana'), r'WUBRG mana')
+
+
+class TestAutoFixMissingSlashesInHybridMana(TestCase):
+    def test_empty_string(self):
+        self.assertEqual(auto_fix_missing_slashes_in_hybrid_mana(''), '')
+
+    def test_no_oracle_symbols(self):
+        self.assertEqual(auto_fix_missing_slashes_in_hybrid_mana(r'? *'), r'? *')
+
+    def test_one_oracle_symbol(self):
+        self.assertEqual(auto_fix_missing_slashes_in_hybrid_mana(r'{WP}'), r'{W/P}')
+        self.assertEqual(auto_fix_missing_slashes_in_hybrid_mana(r'{wp}'), r'{w/p}')
+        self.assertEqual(auto_fix_missing_slashes_in_hybrid_mana(r'{CW}'), r'{C/W}')
+        self.assertEqual(auto_fix_missing_slashes_in_hybrid_mana(r'{cw}'), r'{c/w}')
+        self.assertEqual(auto_fix_missing_slashes_in_hybrid_mana(r'{CP}'), r'{C/P}')
+        self.assertEqual(auto_fix_missing_slashes_in_hybrid_mana(r'{cp}'), r'{c/p}')
+        self.assertEqual(auto_fix_missing_slashes_in_hybrid_mana(r'{RB}'), r'{R/B}')
+        self.assertEqual(auto_fix_missing_slashes_in_hybrid_mana(r'{rb}'), r'{r/b}')
+        self.assertEqual(auto_fix_missing_slashes_in_hybrid_mana(r'{2G}'), r'{2/G}')
+        self.assertEqual(auto_fix_missing_slashes_in_hybrid_mana(r'{2g}'), r'{2/g}')
+
+    def test_multiple_oracle_symbols(self):
+        self.assertEqual(auto_fix_missing_slashes_in_hybrid_mana(r'{WP}{RB}{2G}'), r'{W/P}{R/B}{2/G}')
+        self.assertEqual(auto_fix_missing_slashes_in_hybrid_mana(r'{wp}{rb}{2g}'), r'{w/p}{r/b}{2/g}')
+
+    def test_mixed_case_oracle_symbols(self):
+        self.assertEqual(auto_fix_missing_slashes_in_hybrid_mana(r'{Wp}{R/b}{2g}'), r'{W/p}{R/b}{2/g}')
+
+    def test_with_following_text(self):
+        self.assertEqual(auto_fix_missing_slashes_in_hybrid_mana(r'{WP}{RB}{2G} mana'), r'{W/P}{R/B}{2/G} mana')
 
 
 class TestUpperOracleSymbols(TestCase):
@@ -91,6 +121,8 @@ class TestSanitizeMana(TestCase):
         self.assertEqual(sanitize_mana('W/P'), '{W/P}')
         self.assertEqual(sanitize_mana('{WP}'), '{W/P}')
         self.assertEqual(sanitize_mana('{wp}'), '{W/P}')
+        self.assertEqual(sanitize_mana('{WC}'), '{C/W}')
+        self.assertEqual(sanitize_mana('{W2}'), '{2/W}')
 
     def test_fix_hybrid(self):
         self.assertEqual(sanitize_mana('2/W'), '{2/W}')
@@ -161,15 +193,38 @@ class TestMergeManaCosts(TestCase):
 
     def test_multiple_mana(self):
         self.assertEqual(merge_mana_costs(['{w}{u}{b}{r}{g}{b/p}']), '{W}{U}{B}{B/P}{R}{G}')
-        self.assertEqual(merge_mana_costs(['{C}{10}{S}']), '{11}{S}')
+        self.assertEqual(merge_mana_costs(['{C}{S}{10}']), '{10}{C}{S}')
 
     def test_multiple_costs(self):
         self.assertEqual(merge_mana_costs(['{w}', '{u}', '{b}', '{r}', '{g}', '{b/p}']), '{W}{U}{B}{B/P}{R}{G}')
         self.assertEqual(merge_mana_costs(['{b}{r}', '{w}{u}', '{b/p}{g}']), '{W}{U}{B}{B/P}{R}{G}')
-        self.assertEqual(merge_mana_costs(['{u}', '{r}{g}', '{C}', '{6}']), '{7}{G}{U}{R}')
+        self.assertEqual(merge_mana_costs(['{u}', '{r}{g}', '{C}', '{6}']), '{6}{C}{G}{U}{R}')
 
     def test_multiple_costs_with_repetitions(self):
-        self.assertEqual(merge_mana_costs(['{1}', '{w}{u}', '{u}{b}', '{b}{r}', '{r}{g}', '{g}{w}', '{C}', '{C}', '{1}']), '{4}{W}{W}{U}{U}{B}{B}{R}{R}{G}{G}')
+        self.assertEqual(merge_mana_costs(['{1}', '{w}{u}', '{u}{b}', '{b}{r}', '{r}{g}', '{g}{w}', '{C}', '{C}', '{1}']), '{2}{C}{C}{W}{W}{U}{U}{B}{B}{R}{R}{G}{G}')
+
+    def test_extreme_example(self):
+        self.assertEqual(merge_mana_costs([
+            '{R/P}',
+            '{X}',
+            '{C/U}',
+            '{2/B}',
+            '{W}',
+            '{W/U}',
+            '{B}',
+            '{B/R/P}',
+            '{2/R}',
+            '{G}',
+            '{C}',
+            '{C}',
+            '{G/W/P}',
+            '{S}',
+            '{2}',
+            '{1}',
+            '{1}',
+            '{Y}',
+            '{R/W}',
+        ]), '{X}{Y}{4}{2/B}{2/R}{C}{C}{C/U}{B}{B/R/P}{R/P}{R/W}{G}{G/W/P}{W}{W/U}{S}')
 
     def test_multiple_costs_with_non_mana(self):
         self.assertEqual(merge_mana_costs(['{w}', 'aaa eee oo ? *', '{u}', 'bbb rrr yy ? *', '{b}', '{r/p}', '{b}', '{g/p}']), '{W}{U}{B}{B}{R/P}{G/P}, aaa eee oo ? *, bbb rrr yy ? *')

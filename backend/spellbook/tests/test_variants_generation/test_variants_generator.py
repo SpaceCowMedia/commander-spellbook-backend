@@ -474,6 +474,6 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
         generate_variants(c.id)
         v: Variant = Variant.objects.get(of=c)
         self.assertEqual(v.mana_value_needed, 8)
-        self.assertEqual(v.mana_needed, '{4}{U}{U}{U}{U}{X}')
+        self.assertEqual(v.mana_needed, '{X}{4}{U}{U}{U}{U}')
         self.assertEqual(v.easy_prerequisites, 'A\nB\nC')
         self.assertEqual(v.notable_prerequisites, 'A\nB\nC')

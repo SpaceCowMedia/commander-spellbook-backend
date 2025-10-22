@@ -131,7 +131,7 @@ async def answer_greeting(comment: asyncpraw.models.reddit.comment.Comment):
     formatted_input = comment.body.strip()
     parent = await comment.parent()
     await parent.load()
-    author: asyncpraw.models.reddit.redditor.Redditor | None = comment.author
+    author: asyncpraw.models.reddit.redditor.Redditor | None = parent.author
     if author is None:
         return
     answer = None

@@ -195,17 +195,6 @@ async def post_daily_combo(reddit: asyncpraw.Reddit):
     try:
         submission: asyncpraw.models.reddit.submission.Submission = await subreddit.submit(
             title='♾️ New Combo of the Day! ♾️',
-            selftext=f'''
-            ## Check out today's combo of the day
-
-            ### Cards
-            {compute_variant_name(variant, '\n')}
-
-            ### Results
-            {compute_variant_results(variant, '\n')}
-            ---
-            Explore more combos at [Commander Spellbook]({WEBSITE_URL})!
-            ''',
             url=url_from_variant_id(combo_of_the_day),
             send_replies=False,
             spoiler=variant.spoiler,
@@ -214,6 +203,21 @@ async def post_daily_combo(reddit: asyncpraw.Reddit):
             LOGGER.error('Failed to post daily combo')
         else:
             LOGGER.info('Posted daily combo: %s', submission.id)
+        comment = f'''
+        ## Check out today's combo of the day
+
+        ### Cards
+
+        * {compute_variant_name(variant, '\n* ')}
+
+        ### Results
+
+        * {compute_variant_results(variant, '\n* ')}
+
+        ---
+        Explore more combos at [Commander Spellbook]({WEBSITE_URL})!
+        '''.strip().replace('        ', '')
+        await submission.reply(comment)
     except asyncprawcore.exceptions.Forbidden:
         LOGGER.warning('Failed to post (forbidden) daily combo: forbidden')
     except (asyncprawcore.AsyncPrawcoreException, asyncpraw.exceptions.AsyncPRAWException) as e:

@@ -47,8 +47,8 @@ def url_from_variant_id(variant_id: str) -> str:
     return f'{WEBSITE_URL}/combo/{variant_id}'
 
 
-def compute_variant_name(variant: Variant) -> str:
-    return ' + '.join(chain(
+def compute_variant_name(variant: Variant, separator=' + ') -> str:
+    return separator.join(chain(
         ((f'{card.quantity}x ' if card.quantity and card.quantity > 1 else '') + card.card.name for card in variant.uses),
         ((f'{template.quantity}x ' if template.quantity and template.quantity > 1 else '') + template.template.name for template in variant.requires),
     ))
@@ -60,8 +60,8 @@ def compute_variant_recipe(variant: Variant) -> str:
     return f'{variant_name} ➜ {variant_results}'
 
 
-def compute_variant_results(variant: Variant) -> str:
-    return '\n'.join(
+def compute_variant_results(variant: Variant, separator='\n') -> str:
+    return separator.join(
         (f'{result.quantity}x ' if result.quantity and result.quantity > 1 else '') + result.feature.name
         for result in variant.produces
     )

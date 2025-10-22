@@ -13,7 +13,7 @@ import asyncpraw.models.reddit.redditor
 import asyncpraw.models.reddit.submission
 import asyncpraw.exceptions
 from spellbook_client import PropertiesApi, VariantsApi, ApiException
-from bot_utils import parse_queries, SpellbookQuery, API, compute_variant_recipe, url_from_variant, url_from_variant_id
+from bot_utils import compute_variant_name, compute_variant_results, parse_queries, SpellbookQuery, API, compute_variant_recipe, url_from_variant, url_from_variant_id, WEBSITE_URL
 
 
 REDDIT_USERNAME = os.getenv('KUBE_REDDIT_USERNAME', os.getenv('REDDIT_USERNAME'))
@@ -101,7 +101,7 @@ async def process_input(text: str) -> str | None:
                 reply += f'Failed to fetch results for {query_info.summary}\n'
             else:
                 reply += f'* Failed to fetch results for {query_info.summary}\n'
-    help_text = 'Use {{query}} to search for combos. Commander Spellbook [syntax guide](https://commanderspellbook.com/syntax-guide).'
+    help_text = 'Use {{query}} to search for combos. Commander Spellbook [syntax guide]'f'({WEBSITE_URL}).'
     return f'{reply}\n\n___\n{help_text}'
 
 
@@ -185,15 +185,30 @@ async def post_daily_combo(reddit: asyncpraw.Reddit):
         async with API() as api_client:
             api = PropertiesApi(api_client)
             result = await api.properties_retrieve('combo_of_the_day')
-        combo_of_the_day: str = result.value
+            combo_of_the_day: str = result.value
+            api = VariantsApi(api_client)
+            variant = await api.variants_retrieve(combo_of_the_day)
     except ApiException:
         LOGGER.error('Failed to fetch combo of the day')
         return
     subreddit: asyncpraw.models.Subreddit = await reddit.subreddit(MAIN_SUBREDDIT)
     try:
         submission: asyncpraw.models.reddit.submission.Submission = await subreddit.submit(
-            title='Combo of the Day',
+            title='♾️ New Combo of the Day! ♾️',
+            selftext=f'''
+            ## Check out today's combo of the day
+
+            ### Cards
+            {compute_variant_name(variant, '\n')}
+
+            ### Results
+            {compute_variant_results(variant, '\n')}
+            ---
+            Explore more combos at [Commander Spellbook]({WEBSITE_URL})!
+            ''',
             url=url_from_variant_id(combo_of_the_day),
+            send_replies=False,
+            spoiler=variant.spoiler,
         )
         if submission is None:
             LOGGER.error('Failed to post daily combo')

@@ -49,13 +49,13 @@ jobs:
           outputs: type=docker,dest=/tmp/spellbook-backend.tar
 
       - name: Upload image artifact 📦
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: spellbook-backend
           path: /tmp/spellbook-backend.tar
 
       - name: Upload migration artifatcs 📦
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: spellbook-backend-migrations
           path: backend/.kubernetes/migration/prod
@@ -466,7 +466,7 @@ jobs:
         run: ./generate-openapi.sh
 
       - name: Upload OpenApi artifact 📦
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: spellbook-openapi
           path: client/openapi.*
@@ -504,7 +504,7 @@ jobs:
         run: ./generate-client-python.sh
 
       - name: Upload client artifact 📦
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: spellbook-client-python
           path: client/python/spellbook_client
@@ -548,7 +548,7 @@ jobs:
         run: ./generate-client-typescript.sh
 
       - name: Upload client artifact 📦
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: spellbook-client-typescript
           path: client/typescript
@@ -585,7 +585,7 @@ jobs:
           outputs: type=docker,dest=/tmp/spellbook-discord-bot.tar
 
       - name: Upload image artifact 📦
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: spellbook-discord-bot
           path: /tmp/spellbook-discord-bot.tar
@@ -622,7 +622,7 @@ jobs:
           outputs: type=docker,dest=/tmp/spellbook-reddit-bot.tar
 
       - name: Upload image artifact 📦
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: spellbook-reddit-bot
           path: /tmp/spellbook-reddit-bot.tar
@@ -659,7 +659,7 @@ jobs:
           outputs: type=docker,dest=/tmp/spellbook-telegram-bot.tar
 
       - name: Upload image artifact 📦
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: spellbook-telegram-bot
           path: /tmp/spellbook-telegram-bot.tar

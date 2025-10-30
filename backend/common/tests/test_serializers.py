@@ -81,7 +81,7 @@ class TestDeckSerializer(TestCase):
     def test_archidekt_string(self):
         serializer = DeckSerializer(data='''
         10x Forest (clb) 662 [Lands] ^BID,#fbe955^
-        4x Llanowar Elves (m19) 192 [Creatures] ^COMPILED,#ef56e4^
+        4x Llanowar Elves (m19) 192 [Creatures, Mana Dork] ^COMPILED,#ef56e4^
         1x Bottomless Pool // Locker Room (iko) 243 [ASD,KEK] ^COMPILED,#ef56e4^
         1x Nissa, Who Shakes the World () 30 [Commander{top}] ^Have,#37d67a^
         '''.replace('        ', ''))

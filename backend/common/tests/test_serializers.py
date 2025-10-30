@@ -126,7 +126,7 @@ class TestDeckSerializer(TestCase):
         // Main
         10 Forest
         // Commanders
-        {'\n'.join(f'1 Pinocchio #{i}' for i in range(DeckSerializer.MAX_COMMANDERS_LIST_LENGTH + 1))}
+        {"\n".join(f"1 Pinocchio #{i}" for i in range(DeckSerializer.MAX_COMMANDERS_LIST_LENGTH + 1))}
         ''')
         self.assertFalse(serializer.is_valid())
         self.assertIn('commanders', serializer.errors)
@@ -135,7 +135,7 @@ class TestDeckSerializer(TestCase):
     def test_too_many_main_deck_cards(self):
         serializer = DeckSerializer(data=f'''
         // Main
-        {'\n'.join(f'1 Pinocchio #{i}' for i in range(DeckSerializer.MAX_MAIN_LIST_LENGTH + 1))}
+        {"\n".join(f"1 Pinocchio #{i}" for i in range(DeckSerializer.MAX_MAIN_LIST_LENGTH + 1))}
         // Commanders
         1 Nissa, Who Shakes the World
         ''')

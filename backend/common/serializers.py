@@ -7,7 +7,7 @@ from .abstractions import Deck, CardInDeck
 
 MAX_CARD_NAME_LENGTH = 256
 MAX_DECKLIST_LINES = 600
-DECKLIST_LINE_REGEX = r'^(?:(?P<quantity>\d{1,20})x?\s{1,6})?(?P<card>.*?[^\s])(?:(?:\s{1,6}<\w{1,50}>)?(?:\s{1,6}\[\w{1,50}\](?:\s{1,6}\(\w{1,50}\))?|\s{1,6}\(\w{1,50}\)(?:\s[\w-]+(?:\s\*\w\*)?)?))?$'
+DECKLIST_LINE_REGEX = r'^(?:(?P<quantity>\d{1,20})x?\s{1,6})?(?P<card>.*?[^\s])(?:\s{1,6}(?:<\w{1,50}>|\[(?P<tags_1>[\w{},]{1,50})\]|\*\w{1,50}\*|\(\w{0,50}\)|\^[\w,#]{1,50}\^)(?:\s{1,6}(?:<\w{1,50}>|\[(?P<tags_2>[\w{},]{1,50})\]|\*\w{1,50}\*|\(\w{0,50}\)|\^[\w,#]{1,50}\^|[\w-]+))*)?(?P<tags_3>\s{1,6}#\s?!\s?Commander)?$'
 DECKLIST_LINE_PARSER = re.compile(DECKLIST_LINE_REGEX)
 
 
@@ -44,7 +44,7 @@ class CardInDeckSerializer(serializers.Serializer):
 
 
 class DeckSerializer(serializers.Serializer):
-    MAX_COMMANDERS_LIST_LENGTH = MAX_DECKLIST_LINES // 100
+    MAX_COMMANDERS_LIST_LENGTH = MAX_DECKLIST_LINES // 50
     MAX_MAIN_LIST_LENGTH = MAX_DECKLIST_LINES
     main = serializers.ListField(child=CardInDeckSerializer(), max_length=MAX_MAIN_LIST_LENGTH, default=list)
     commanders = serializers.ListField(child=CardInDeckSerializer(), max_length=MAX_COMMANDERS_LIST_LENGTH, default=list)
@@ -60,14 +60,23 @@ class DeckSerializer(serializers.Serializer):
                 if not line:
                     continue
                 line_lower = line.lower()
-                if line_lower.startswith('// command') or line_lower in ('commanders', 'commander', 'command', 'command zone'):
+                if line_lower.startswith('// sideboard') or line_lower.startswith('// maybeboard') or line_lower in ('about', 'sideboard', 'maybeboard'):
+                    current_set = dict()  # ignore about section
+                elif line_lower.startswith('// command') or line_lower in ('commanders', 'commander', 'command', 'command zone'):
                     current_set = commanders
-                elif line_lower.startswith('//') or line_lower in ('main', 'deck'):
+                elif line_lower.startswith('//') or line_lower in ('main', 'deck', 'mainboard'):
                     current_set = main
                 elif regex_match := DECKLIST_LINE_PARSER.fullmatch(line):
+                    tags = (t for tag in f"{regex_match.group('tags_1') or ''},{regex_match.group('tags_2') or ''},{regex_match.group('tags_3') or ''}".lower().split(',') if (t := tag.strip()))
+                    is_commander = any('commander' in tag for tag in tags)
+                    if is_commander:
+                        previous_set = current_set
+                        current_set = commanders
                     card_name = regex_match.group('card').strip()
                     previous = current_set.setdefault(card_name, {'card': card_name, 'quantity': 0, })
                     previous['quantity'] += int(regex_match.group('quantity') or 1)  # type: ignore
+                    if is_commander:
+                        current_set = previous_set
             data = {'main': main.values(), 'commanders': commanders.values(), }
         return super().to_internal_value(data)
 

@@ -1,6 +1,6 @@
 import re
 import unicodedata
-from typing import Callable, Generator, Iterable, Sequence
+from typing import Callable, Generator, Iterable
 from collections import defaultdict
 from ..regexs import MANA_SYMBOL, ORACLE_SYMBOL, ORACLE_SYMBOL_EXTENDED
 from ..parsers.scryfall_query_grammar import COMPARISON_OPERATORS, MANA_COMPARABLE_VARIABLES
@@ -295,7 +295,7 @@ def simplify_card_name_with_spaces_on_database(field: str) -> Expression:
     )
 
 
-def remove_duplicates_in_order_by(order_by: Sequence[str | F | OrderBy]) -> Generator[F | OrderBy, None, None]:
+def remove_duplicates_in_order_by(order_by: Iterable[str | F | OrderBy]) -> Generator[F | OrderBy, None, None]:
     seen = set()
     for o in order_by:
         if isinstance(o, str):
@@ -310,3 +310,20 @@ def remove_duplicates_in_order_by(order_by: Sequence[str | F | OrderBy]) -> Gene
         if name not in seen:
             seen.add(name)
             yield o
+
+
+def remove_random_from_order_by(order_by: Iterable[str | F | OrderBy]) -> Generator[F | OrderBy, None, None]:
+    for o in order_by:
+        if isinstance(o, str):
+            if o == '?':
+                continue
+            o = F(o)
+        elif isinstance(o, F):
+            if o.name == '?':
+                continue
+        elif isinstance(o, OrderBy) and isinstance(o.expression, F):
+            if o.expression.name == '?':
+                continue
+        else:
+            raise ValueError(f'Unknown order by type: {o}')
+        yield o

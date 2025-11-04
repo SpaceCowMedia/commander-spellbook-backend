@@ -7,7 +7,7 @@ from django_filters.rest_framework import DjangoFilterBackend, FilterSet
 from django_filters.filters import CharFilter
 from drf_spectacular.utils import extend_schema, inline_serializer
 from spellbook.models import Variant, PreSerializedSerializer
-from spellbook.models.utils import remove_duplicates_in_order_by
+from spellbook.models.utils import remove_duplicates_in_order_by, remove_random_from_order_by
 from spellbook.models.variant import DEFAULT_VIEW_ORDERING
 from spellbook.serializers import VariantSerializer
 from .filters import SpellbookQueryFilter, OrderingFilterWithNullsLast
@@ -28,7 +28,7 @@ class VariantGroupedByComboFilter(filters.BaseFilterBackend):
 
     def _filter_queryset(self, queryset: QuerySet[Variant], view: 'VariantViewSet') -> QuerySet[Variant]:
         order_by = queryset.query.order_by + DEFAULT_VIEW_ORDERING
-        order_by = list(remove_duplicates_in_order_by(order_by))
+        order_by = list(remove_duplicates_in_order_by(remove_random_from_order_by(order_by)))
         top_variants_for_each_combo = queryset.alias(
             top_variant=Window(
                 expression=FirstValue('pk'),

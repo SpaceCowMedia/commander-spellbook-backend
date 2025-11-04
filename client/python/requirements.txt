@@ -26,7 +26,7 @@ frozenlist==1.4.1
     #   aiosignal
 idna==3.7
     # via yarl
-lazy-imports==1.0.1
+lazy-imports==1.1.0
     # via -r requirements.in
 multidict==6.0.5
     # via

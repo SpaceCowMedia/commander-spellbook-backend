@@ -45,7 +45,7 @@ django==5.2.8
     #   drf-spectacular
     #   drf-spectacular-sidecar
     #   social-auth-app-django
-django-admin-sortable2==2.2.8
+django-admin-sortable2==2.3
     # via -r requirements.in
 django-cors-headers==4.9.0
     # via -r requirements.in

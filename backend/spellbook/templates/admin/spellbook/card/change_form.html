@@ -211,4 +211,33 @@
             {% endwith %}
         </tbody>
     </table>
+    <table>
+        <thead>
+            <tr>
+                <th class="column-variant">Used in variants</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in original.used_in_variants.all|slice:suggested_slice %}
+                <tr class="form-row">
+                    <td class="field-variant">
+                        <p>
+                            <a href="{% url 'admin:spellbook_variant_change' item.id %}">{{ item }}</a>
+                        </p>
+                    </td>
+                </tr>
+            {% endfor %}
+            {% with variant_count=original.used_in_variants.count %}
+            {% if variant_count > 0 %}
+                <tr class="form-row">
+                    <td class="field-variant">
+                        <p>
+                            <a href="{% url 'admin:spellbook_variant_changelist' %}?uses__id={{ original.id }}">View all {{ variant_count }} variants where {{ original.name }} is used...</a>
+                        </p>
+                    </td>
+                </tr>
+            {% endif %}
+            {% endwith %}
+        </tbody>
+    </table>
 {% endblock %}

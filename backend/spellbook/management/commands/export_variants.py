@@ -46,25 +46,27 @@ class Command(AbstractCommand):
 
     def run(self, *args, **options):
         self.log('Update preview representations for preview variants...')
-        with transaction.atomic(durable=True):
-            variants_query = VariantSerializer.prefetch_related(Variant.objects.filter(status__in=Variant.preview_statuses()))
-            variants_count = variants_query.count()
-            for i in range(0, variants_count, self.batch_size):
+        variants_query = VariantSerializer.prefetch_related(Variant.objects.filter(status__in=Variant.preview_statuses()))
+        variants_count = variants_query.count()
+        for i in range(0, variants_count, self.batch_size):
+            with transaction.atomic(durable=True):
                 variants_source = list[Variant](variants_query[i:i + self.batch_size])
                 Variant.objects.bulk_serialize(objs=variants_source, serializer=VariantSerializer)
                 del variants_source
+            self.log(f'  Processed {min(i + self.batch_size, variants_count)} / {variants_count} preview variants')
         del variants_query
         variants: list[dict | None]
         self.log('Fetching and processing public variants from db...')
-        with transaction.atomic(durable=True):
-            variants_query = VariantSerializer.prefetch_related(Variant.objects.filter(status__in=Variant.public_statuses()))
-            variants_count = variants_query.count()
-            variants = [None] * variants_count
-            for i in range(0, variants_count, self.batch_size):
+        variants_query = VariantSerializer.prefetch_related(Variant.objects.filter(status__in=Variant.public_statuses()))
+        variants_count = variants_query.count()
+        variants: list[dict | None] = [None] * variants_count
+        for i in range(0, variants_count, self.batch_size):
+            with transaction.atomic(durable=True):
                 variants_source = list[Variant](variants_query[i:i + self.batch_size])
                 Variant.objects.bulk_serialize(objs=variants_source, serializer=VariantSerializer)
-                variants[i:i + self.batch_size] = (camelize(prepare_variant(v)) for v in variants_source)
-                del variants_source
+            variants[i:i + self.batch_size] = (camelize(prepare_variant(v)) for v in variants_source)
+            del variants_source
+            self.log(f'  Processed {min(i + self.batch_size, variants_count)} / {variants_count} public variants')
         del variants_query
         self.log('Fetching variant aliases from db...')
         with transaction.atomic(durable=True):

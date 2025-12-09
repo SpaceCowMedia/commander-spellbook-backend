@@ -5,7 +5,7 @@ from django.utils import timezone
 from django.contrib.admin.models import LogEntry, ADDITION
 from django.contrib.contenttypes.models import ContentType
 from django.conf import settings
-from django.db import transaction
+from django.db import transaction, connection
 from djangorestframework_camel_case.util import camelize
 from spellbook.models import Variant, Job, VariantAlias
 from spellbook.serializers import VariantSerializer, VariantAliasSerializer
@@ -28,7 +28,7 @@ def prepare_variant_alias(variant_alias: VariantAlias):
 class Command(AbstractCommand):
     name = 'export_variants'
     help = 'Exports variants to a JSON file'
-    batch_size = 5000
+    batch_size = 5000 if not connection.vendor == 'sqlite' else 1000
 
     def add_arguments(self, parser):
         super().add_arguments(parser)
@@ -45,16 +45,27 @@ class Command(AbstractCommand):
         )
 
     def run(self, *args, **options):
-        self.log('Fetching variants from db...')
-        variants_source = list[Variant]()
+        self.log('Update preview representations for preview variants...')
         with transaction.atomic(durable=True):
-            variants_query = VariantSerializer.prefetch_related(Variant.objects.filter(status__in=Variant.public_statuses() + Variant.preview_statuses()))
-            for i in range(0, variants_query.count(), self.batch_size):
-                variants_source.extend(variants_query[i:i + self.batch_size])
-        self.log('Fetching variants from db...done', self.style.SUCCESS)
-        self.log('Updating variants preserialized representation...')
-        Variant.objects.bulk_serialize(objs=variants_source, serializer=VariantSerializer, batch_size=self.batch_size)
-        self.log('Updating variants preserialized representation...done', self.style.SUCCESS)
+            variants_query = VariantSerializer.prefetch_related(Variant.objects.filter(status__in=Variant.preview_statuses()))
+            variants_count = variants_query.count()
+            for i in range(0, variants_count, self.batch_size):
+                variants_source = list[Variant](variants_query[i:i + self.batch_size])
+                Variant.objects.bulk_serialize(objs=variants_source, serializer=VariantSerializer)
+                del variants_source
+        del variants_query
+        variants: list[dict | None]
+        self.log('Fetching and processing public variants from db...')
+        with transaction.atomic(durable=True):
+            variants_query = VariantSerializer.prefetch_related(Variant.objects.filter(status__in=Variant.public_statuses()))
+            variants_count = variants_query.count()
+            variants = [None] * variants_count
+            for i in range(0, variants_count, self.batch_size):
+                variants_source = list[Variant](variants_query[i:i + self.batch_size])
+                Variant.objects.bulk_serialize(objs=variants_source, serializer=VariantSerializer)
+                variants[i:i + self.batch_size] = (camelize(prepare_variant(v)) for v in variants_source)
+                del variants_source
+        del variants_query
         self.log('Fetching variant aliases from db...')
         with transaction.atomic(durable=True):
             variants_alias_source = list[VariantAlias](VariantAliasSerializer.prefetch_related(VariantAliasViewSet.queryset))
@@ -62,21 +73,20 @@ class Command(AbstractCommand):
         result = {
             'timestamp': timezone.now().isoformat(),
             'version': settings.VERSION,
-            'variants': [prepare_variant(v) for v in variants_source if v.status in Variant.public_statuses()],
-            'aliases': [prepare_variant_alias(va) for va in variants_alias_source],
+            'variants': variants,
+            'aliases': [camelize(prepare_variant_alias(va)) for va in variants_alias_source],
         }
-        camelized_json = camelize(result)
         if options['s3']:
             self.log('Uploading to S3...')
-            upload_json_to_aws(camelized_json, DEFAULT_VARIANTS_FILE_NAME)
+            upload_json_to_aws(result, DEFAULT_VARIANTS_FILE_NAME)
             self.log('Done')
         elif options['file'] is not None:
             output: Path = options['file'].resolve()
             self.log(f'Exporting variants to {output}...')
             output.parent.mkdir(parents=True, exist_ok=True)
             with output.open('w', encoding='utf8') as f, gzip.open(str(output) + '.gz', mode='wt', encoding='utf8') as fz:
-                json.dump(camelized_json, f)
-                json.dump(camelized_json, fz)
+                json.dump(result, f)
+                json.dump(result, fz)
             self.log('Done')
         else:
             raise Exception('No file specified')

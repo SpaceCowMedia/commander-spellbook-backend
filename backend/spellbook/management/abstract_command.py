@@ -3,7 +3,7 @@ from platform import python_implementation
 from time import sleep
 from django.utils import timezone
 from django.core.management.base import BaseCommand, CommandParser, CommandError
-from django.db import OperationalError
+from django.db import OperationalError, IntegrityError
 from django.conf import settings
 from discord_webhook import DiscordWebhook
 from text_utils import discord_chunk
@@ -46,7 +46,7 @@ class AbstractCommand(BaseCommand):
             self.job.termination = timezone.now()
             self.job.status = Job.Status.SUCCESS
             self.job.save()
-        except OperationalError as e:
+        except IntegrityError as e:
             termination = timezone.now()
             for _ in range(6):
                 sleep(10)

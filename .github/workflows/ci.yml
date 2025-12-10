@@ -255,6 +255,7 @@ jobs:
         working-directory: publish/client/typescript
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        continue-on-error: true
         run: |
           npm version ${{ needs.build.outputs.version }}
           npm ci

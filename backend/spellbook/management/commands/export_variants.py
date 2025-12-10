@@ -17,12 +17,12 @@ from ..s3_upload import upload_json_to_aws
 DEFAULT_VARIANTS_FILE_NAME = 'variants.json'
 
 
-def prepare_variant(variant: Variant):
-    return VariantViewSet.serializer_class(variant).data
+def prepare_variant(variant: Variant) -> dict:
+    return camelize(VariantViewSet.serializer_class(variant).data)  # type: ignore
 
 
-def prepare_variant_alias(variant_alias: VariantAlias):
-    return VariantAliasViewSet.serializer_class(variant_alias).data
+def prepare_variant_alias(variant_alias: VariantAlias) -> dict:
+    return camelize(VariantAliasViewSet.serializer_class(variant_alias).data)  # type: ignore
 
 
 class Command(AbstractCommand):
@@ -64,19 +64,27 @@ class Command(AbstractCommand):
             with transaction.atomic(durable=True):
                 variants_source = list[Variant](variants_query[i:i + self.batch_size])
                 Variant.objects.bulk_serialize(objs=variants_source, serializer=VariantSerializer)
-            variants[i:i + self.batch_size] = (camelize(prepare_variant(v)) for v in variants_source)
+            variants[i:i + self.batch_size] = (prepare_variant(v) for v in variants_source)
             del variants_source
             self.log(f'  Processed {min(i + self.batch_size, variants_count)} / {variants_count} public variants')
         del variants_query
         self.log('Fetching variant aliases from db...')
-        with transaction.atomic(durable=True):
-            variants_alias_source = list[VariantAlias](VariantAliasSerializer.prefetch_related(VariantAliasViewSet.queryset))
+        variants_alias_query = VariantAliasSerializer.prefetch_related(VariantAliasViewSet.queryset)
+        variants_alias_count = variants_alias_query.count()
+        variants_alias: list[dict | None] = [None] * variants_alias_count
+        for i in range(0, variants_alias_count, self.batch_size):
+            with transaction.atomic(durable=True):
+                variants_alias_source = list[VariantAlias](variants_alias_query[i:i + self.batch_size])
+            variants_alias[i:i + self.batch_size] = (prepare_variant_alias(va) for va in variants_alias_source)
+            del variants_alias_source
+            self.log(f'  Processed {min(i + self.batch_size, variants_alias_count)} / {variants_alias_count} variant aliases')
+        del variants_alias_query
         self.log('Exporting variants...')
         result = {
             'timestamp': timezone.now().isoformat(),
             'version': settings.VERSION,
             'variants': variants,
-            'aliases': [camelize(prepare_variant_alias(va)) for va in variants_alias_source],
+            'aliases': variants_alias,
         }
         if options['s3']:
             self.log('Uploading to S3...')

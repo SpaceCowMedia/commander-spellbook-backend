@@ -39,7 +39,7 @@ def edhrec():
     return variants_db
 
 
-def update_variants(variants: list[Variant], counts: dict[str, int], edhrec: dict[str, dict], log=lambda t: print(t), log_warning=lambda t: print(t), log_error=lambda t: print(t)):
+def update_variants(variants: list[Variant], edhrec: dict[str, dict], log=lambda t: print(t), log_warning=lambda t: print(t), log_error=lambda t: print(t)):
     variants_to_save: list[Variant] = []
     for variant in variants:
         updated = False
@@ -54,11 +54,6 @@ def update_variants(variants: list[Variant], counts: dict[str, int], edhrec: dic
             updated = True
         # Update with card data
         if variant.update_variant():
-            updated = True
-        # Update with Spellbook data
-        variant_count = counts.get(variant.id, 0)
-        if variant.variant_count != variant_count:
-            variant.variant_count = variant_count
             updated = True
         # Save if updated
         if updated:

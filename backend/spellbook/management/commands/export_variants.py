@@ -51,8 +51,8 @@ class Command(AbstractCommand):
         for i in range(0, variants_count, self.batch_size):
             with transaction.atomic(durable=True):
                 variants_source = list[Variant](variants_query[i:i + self.batch_size])
-                Variant.objects.bulk_serialize(objs=variants_source, serializer=VariantSerializer)
-                del variants_source
+            Variant.objects.bulk_serialize(objs=variants_source, serializer=VariantSerializer)
+            del variants_source
             self.log(f'  Processed {min(i + self.batch_size, variants_count)} / {variants_count} preview variants')
         del variants_query
         variants: list[dict | None]
@@ -63,7 +63,7 @@ class Command(AbstractCommand):
         for i in range(0, variants_count, self.batch_size):
             with transaction.atomic(durable=True):
                 variants_source = list[Variant](variants_query[i:i + self.batch_size])
-                Variant.objects.bulk_serialize(objs=variants_source, serializer=VariantSerializer)
+            Variant.objects.bulk_serialize(objs=variants_source, serializer=VariantSerializer)
             variants[i:i + self.batch_size] = (prepare_variant(v) for v in variants_source)
             del variants_source
             self.log(f'  Processed {min(i + self.batch_size, variants_count)} / {variants_count} public variants')

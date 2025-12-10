@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import json
+from urllib.error import HTTPError
 import uuid
 import datetime
 from decimal import Decimal
@@ -110,25 +111,29 @@ def scryfall(bulk_collection: str | None = None) -> Scryfall:
     )
 
 
-def get_cards_from_scryfall_query(q: str) -> frozenset[str]:
+def get_cards_from_scryfall_query(q: str, log_error=lambda t: print(t)) -> frozenset[str]:
     req = Request(f'https://api.scryfall.com/cards/search?format=json&q={quote_plus(q + " unique:cards")}')
     has_next = True
     result = set[str]()
     max_pages = 10
     while has_next and max_pages > 0:
-        with urlopen(req) as response:
-            data = json.loads(response.read().decode())
-            has_next = data['has_more']
-            if has_next:
-                req = Request(data['next_page'])
-            for card in data['data']:
-                card_and_faces = [card]
-                faces = card.get('card_faces', [])
-                if len(faces) > 1:
-                    card_and_faces += faces
-                for face in card_and_faces:
-                    if 'oracle_id' in face:
-                        result.add(face['oracle_id'])
+        try:
+            with urlopen(req) as response:
+                data = json.loads(response.read().decode())
+                has_next = data['has_more']
+                if has_next:
+                    req = Request(data['next_page'])
+                for card in data['data']:
+                    card_and_faces = [card]
+                    faces = card.get('card_faces', [])
+                    if len(faces) > 1:
+                        card_and_faces += faces
+                    for face in card_and_faces:
+                        if 'oracle_id' in face:
+                            result.add(face['oracle_id'])
+        except HTTPError as e:
+            log_error(f'Error fetching scryfall data for query "{q}": {e}')
+            break
         max_pages -= 1
     return frozenset(result)
 

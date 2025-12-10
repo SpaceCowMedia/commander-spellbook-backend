@@ -10,7 +10,7 @@ from ..edhrec import edhrec, update_variants
 class Command(AbstractCommand):
     name = 'update_variants'
     help = 'Updates variants using cards and EDHREC data'
-    batch_size = 5000 if not connection.vendor == 'sqlite' else 1000
+    batch_size = 4500 if not connection.vendor == 'sqlite' else 1000
 
     def run(self, *args, **options):
         # Combos
@@ -49,7 +49,7 @@ class Command(AbstractCommand):
                 for i, c in Variant
                 .objects
                 .order_by()
-                .filter(pk__in=variants)
+                .filter(pk__in=(v.pk for v in variants))
                 .annotate(variant_count_updated=Count(
                     'of__variants',
                     distinct=True,

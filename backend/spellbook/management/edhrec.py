@@ -39,7 +39,7 @@ def edhrec():
     return variants_db
 
 
-def update_variants(variants: list[Variant], edhrec: dict[str, dict], log=lambda t: print(t), log_warning=lambda t: print(t), log_error=lambda t: print(t)):
+def update_variants(variants: list[Variant], edhrec: dict[str, dict], variant_counts: dict[str, int]):
     variants_to_save: list[Variant] = []
     for variant in variants:
         updated = False
@@ -54,6 +54,11 @@ def update_variants(variants: list[Variant], edhrec: dict[str, dict], log=lambda
             updated = True
         # Update with card data
         if variant.update_variant():
+            updated = True
+        # Update with variant data
+        variant_count = variant_counts.get(variant.id, 0)
+        if variant.variant_count != variant_count:
+            variant.variant_count = variant_count
             updated = True
         # Save if updated
         if updated:

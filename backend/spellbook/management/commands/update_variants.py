@@ -1,6 +1,6 @@
 from spellbook.models import Variant
 from spellbook.models.combo import Combo
-from django.db.models import Subquery, OuterRef, Count
+from django.db.models import Subquery, OuterRef, Count, Q
 from django.db.models.functions import Coalesce
 from django.db import transaction, connection
 from ..abstract_command import AbstractCommand
@@ -38,36 +38,33 @@ class Command(AbstractCommand):
         variants_query = Variant.recipes_prefetched.prefetch_related('uses', 'requires', 'produces')
         self.log('Updating variants...')
         updated_variant_count = 0
-        for i in range(0, variants_query.count(), self.batch_size):
-            self.log(f'Starting batch {i // self.batch_size + 1}...')
+        variants_count = variants_query.count()
+        batch_count = (variants_count + self.batch_size - 1) // self.batch_size
+        for i in range(0, variants_count, self.batch_size):
+            self.log(f'Starting batch {i // self.batch_size + 1}/{batch_count}...')
             with transaction.atomic(durable=True):
                 variants = list[Variant](variants_query[i:i + self.batch_size])
-            Variant.objects.filter(pk__in=variants).update(
-                variant_count=Coalesce(
-                    Subquery(
-                        Variant
-                        .objects
-                        .filter(status__in=Variant.public_statuses())
-                        .filter(of__variants=OuterRef('pk'))
-                        .order_by()
-                        .distinct()
-                        .values('of__variants')
-                        .annotate(total=Count('pk'))
-                        .values('total'),
-                    ),
-                    0,
-                ),
-            )
+            variants_counts: dict[str, int] = {
+                i: c
+                for i, c in Variant
+                .objects
+                .order_by()
+                .filter(pk__in=variants)
+                .annotate(variant_count_updated=Count(
+                    'of__variants',
+                    distinct=True,
+                    filter=Q(of__variants__status__in=Variant.public_statuses()),
+                ))
+                .values_list('id', 'variant_count_updated')
+            }
             variants_to_save = update_variants(
                 variants,
                 edhrec_variant_db,
-                log=lambda x: self.log(x),
-                log_warning=lambda x: self.log(x, self.style.WARNING),
-                log_error=lambda x: self.log(x, self.style.ERROR),
+                variants_counts,
             )
             updated_variant_count += len(variants_to_save)
-            Variant.objects.bulk_update(variants_to_save, fields=Variant.computed_fields() + ['popularity'])
-            del variants, variants_to_save
-            self.log(f'  Processed {min(i + self.batch_size, variants_query.count())} / {variants_query.count()} variants')
+            self.log(f'  Saving {len(variants_to_save)} updated variants...')
+            Variant.objects.bulk_update(variants_to_save, fields=Variant.computed_fields() + ['popularity', 'variant_count'])
+            del variants, variants_counts, variants_to_save
         del variants_query
         self.log(f'Updating variants...done, updated {updated_variant_count} variants', self.style.SUCCESS)

@@ -28,7 +28,7 @@ def prepare_variant_alias(variant_alias: VariantAlias) -> dict:
 class Command(AbstractCommand):
     name = 'export_variants'
     help = 'Exports variants to a JSON file'
-    batch_size = 5000 if not connection.vendor == 'sqlite' else 1000
+    batch_size = 8000 if not connection.vendor == 'sqlite' else 1000
 
     def add_arguments(self, parser):
         super().add_arguments(parser)

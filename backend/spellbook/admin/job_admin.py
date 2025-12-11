@@ -7,13 +7,14 @@ from .utils import SpellbookModelAdmin
 @admin.register(Job)
 class JobAdmin(SpellbookModelAdmin):
     date_hierarchy = 'created'
-    readonly_fields = ['created', 'expected_termination', 'termination']
+    readonly_fields = ['created', 'expected_termination', 'termination', 'version']
     fields = [
         'id',
         'name',
         'args',
         'group',
         'status',
+        'version',
         'created',
         'expected_termination',
         'termination',
@@ -26,8 +27,8 @@ class JobAdmin(SpellbookModelAdmin):
         'group',
         'status',
         'created',
-        'expected_termination',
         'termination',
+        'expected_termination',
         'variant_count',
     ]
     list_filter = ['name', 'status']

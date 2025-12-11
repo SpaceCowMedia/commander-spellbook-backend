@@ -40,7 +40,7 @@ class AbstractCommand(BaseCommand):
         elif self.job is None:
             raise CommandError(f'Job with name {self.name} already running')
         try:
-            self.log(f'Running {self.name} ({settings.VERSION}) using {self.interpreter}...')
+            self.log(f'Running {self.name} using {self.interpreter}...')
             self.run(*args, **options)
             self.log(f'{self.name} finished successfully.', self.style.SUCCESS)
             self.job.termination = timezone.now()

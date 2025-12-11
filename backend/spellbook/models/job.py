@@ -2,6 +2,7 @@ import logging
 from django.utils import timezone
 from django.db import models, transaction, OperationalError
 from django.contrib.auth.models import User
+from django.conf import settings
 
 
 class Job(models.Model):
@@ -26,11 +27,20 @@ class Job(models.Model):
         on_delete=models.SET_NULL,
         help_text='User that started this job',
     )
+    version = models.CharField(max_length=50, blank=False, verbose_name='application version at job start')
 
     TIMEOUT = timezone.timedelta(minutes=30)
 
     @classmethod
-    def start(cls, name: str, args: list[str] | None = None, group: str | None = None, duration: timezone.timedelta | None = None, user: User | None = None, allow_multiples: bool = False):
+    def start(
+        cls,
+        name: str,
+        args: list[str] | None = None,
+        group: str | None = None,
+        duration: timezone.timedelta | None = None,
+        user: User | None = None,
+        allow_multiples: bool = False,
+    ):
         if args is None:
             args = []
         try:
@@ -55,7 +65,9 @@ class Job(models.Model):
                     args=args,
                     group=group,
                     expected_termination=timezone.now() + duration,
-                    started_by=user)
+                    started_by=user,
+                    version=settings.VERSION,
+                )
         except OperationalError as e:
             logging.exception(e, stack_info=True)
             return None

@@ -29,7 +29,8 @@ class JobTests(SpellbookTestCaseWithSeeding):
                 group='abc',
                 status=Job.Status.SUCCESS,
                 expected_termination=timezone.now() + timezone.timedelta(minutes=10),
-                termination=timezone.now() + timezone.timedelta(minutes=5)
+                termination=timezone.now() + timezone.timedelta(minutes=5),
+                version='1.0.0',
             ),
         ] + [
             Job(
@@ -38,7 +39,8 @@ class JobTests(SpellbookTestCaseWithSeeding):
                 group='another group',
                 status=Job.Status.SUCCESS,
                 expected_termination=timezone.now() + timezone.timedelta(minutes=1),
-                termination=timezone.now() + timezone.timedelta(minutes=1)
+                termination=timezone.now() + timezone.timedelta(minutes=1),
+                version='1.0.0',
             ) for _ in range(5)
         ])
         j: Job = Job.start('a job name', ['a'], group='abc')  # type: ignore
@@ -56,7 +58,8 @@ class JobTests(SpellbookTestCaseWithSeeding):
             name='a job name',
             status=Job.Status.SUCCESS,
             expected_termination=timezone.now() + timezone.timedelta(minutes=10),
-            termination=timezone.now() + timezone.timedelta(minutes=5)
+            termination=timezone.now() + timezone.timedelta(minutes=5),
+            version='1.0.0',
         )
         j: Job = Job.get_or_start(-1, 'a job name', duration=timezone.timedelta(minutes=5))  # type: ignore
         self.assertIsNone(j)
@@ -74,7 +77,8 @@ class JobTests(SpellbookTestCaseWithSeeding):
             name='a job name',
             status=Job.Status.SUCCESS,
             expected_termination=timezone.now() + timezone.timedelta(minutes=10),
-            termination=timezone.now() + timezone.timedelta(minutes=5)
+            termination=timezone.now() + timezone.timedelta(minutes=5),
+            version='1.0.0',
         )
         j: Job = Job.get_or_start(-1, 'a job name')  # type: ignore
         self.assertIsNone(j)

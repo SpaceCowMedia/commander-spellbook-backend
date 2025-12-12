@@ -255,7 +255,6 @@ jobs:
       - name: Publish typescript client 📤
         working-directory: publish/client/typescript
         run: |
-          npm install -g npm@latest
           npm version ${{ needs.build.outputs.version }}
           npm ci
           npm run build

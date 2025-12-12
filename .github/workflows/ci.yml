@@ -254,8 +254,6 @@ jobs:
 
       - name: Publish typescript client 📤
         working-directory: publish/client/typescript
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           npm version ${{ needs.build.outputs.version }}
           npm ci

@@ -4,7 +4,7 @@ from typing import Iterable
 from django.urls import reverse
 from rest_framework import status
 from common.inspection import json_to_python_lambda
-from spellbook.models import Card, Variant, CardInVariant
+from spellbook.models import Card, Template, Variant, CardInVariant
 from ..testing import SpellbookTestCaseWithSeeding
 
 
@@ -49,8 +49,8 @@ class EstimateBracketViewTests(SpellbookTestCaseWithSeeding):
                 self.assertEqual(response.get('Content-Type'), 'application/json')
                 result = json.loads(response.content, object_hook=json_to_python_lambda)
                 self._check_result(result, set([card.name]), set())
+            cards = sorted(Card.objects.values_list('name', flat=True))
             with self.subTest('all cards'):
-                cards = sorted(Card.objects.values_list('name', flat=True))
                 if 'json' in content_type:
                     data = json.dumps({'main': [{'card': card, 'quantity': 2} for card in cards]})
                 else:
@@ -60,4 +60,19 @@ class EstimateBracketViewTests(SpellbookTestCaseWithSeeding):
                 self.assertEqual(response.get('Content-Type'), 'application/json')
                 result = json.loads(response.content, object_hook=json_to_python_lambda)
                 self.assertGreater(result.bracket_tag, Variant.BracketTag.CASUAL)
+                self._check_result(result, cards, set())
+            with self.subTest('template as extra turns'):
+                t = Template.objects.get(pk=self.t1_id)
+                t.name = 'Extra Turn Template'
+                t.save()
+                if 'json' in content_type:
+                    data = json.dumps({'main': [{'card': card, 'quantity': 2} for card in cards]})
+                else:
+                    data = '\n'.join(f'2 {card}' for card in cards)
+                response = self.client.post(reverse('estimate-bracket'), data, follow=True, content_type=content_type)  # type: ignore
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
+                self.assertEqual(response.get('Content-Type'), 'application/json')
+                result = json.loads(response.content, object_hook=json_to_python_lambda)
+                self.assertGreaterEqual(result.bracket_tag, Variant.BracketTag.POWERFUL)
+                self.assertGreaterEqual(len(result.extra_turn_templates), 1)
                 self._check_result(result, cards, set())

@@ -1,5 +1,5 @@
 from drf_spectacular.openapi import AutoSchema
-from django.db.models import F, Sum, Case, When, Count
+from django.db.models import F, Sum, Case, When, Count, QuerySet
 from django.db.models.functions import Greatest, Coalesce
 from rest_framework import parsers, serializers
 from rest_framework.response import Response
@@ -111,7 +111,26 @@ class FindMyCombosView(DecklistAPIView):
     @extend_schema(request=DecklistAPIView.request, responses=response)
     def get(self, request: Request) -> Response:
         deck = self.parse(request)
+        variants_query = self.find_variants(deck)
+        paginator = self.pagination_class()
+        paginator.max_limit = 1000  # type: ignore
+        paginator.default_limit = 1000
+        variants_page: list[Variant] = paginator.paginate_queryset(variants_query, request)  # type: ignore
+        return paginator.get_paginated_response(FindMyCombosResponseSerializer({
+            'variants': variants_page,
+            'identity': deck.identity,
+            'deck': deck,
+        }).data)
 
+    @extend_schema(request=DecklistAPIView.request, responses=response)
+    def post(self, request: Request) -> Response:
+        return self.get(request)
+
+    def get_queryset(self):
+        # Used by OpenAPI schema generation
+        return Variant.objects.none()
+
+    def find_variants(self, deck: Deck) -> QuerySet[Variant]:
         card_quantity_in_deck = Case(
             *(When(cardinvariant__card_id=card_id, then=quantity) for card_id, quantity in deck.cards.items()),
             default=0,
@@ -149,22 +168,4 @@ class FindMyCombosView(DecklistAPIView):
 
         viewset = VariantViewSet()
         viewset.setup(self.request)
-        variants_query = viewset.filter_queryset(viewset.get_queryset().filter(id__in=variant_id_list))
-
-        paginator = self.pagination_class()
-        paginator.max_limit = 1000  # type: ignore
-        paginator.default_limit = 1000
-        variants_page: list[Variant] = paginator.paginate_queryset(variants_query, request)  # type: ignore
-        return paginator.get_paginated_response(FindMyCombosResponseSerializer({
-            'variants': variants_page,
-            'identity': deck.identity,
-            'deck': deck,
-        }).data)
-
-    @extend_schema(request=DecklistAPIView.request, responses=response)
-    def post(self, request: Request) -> Response:
-        return self.get(request)
-
-    def get_queryset(self):
-        # Used by OpenAPI schema generation
-        return Variant.objects.none()
+        return viewset.filter_queryset(viewset.get_queryset().filter(id__in=variant_id_list))

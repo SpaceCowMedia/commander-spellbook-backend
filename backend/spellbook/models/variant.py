@@ -413,8 +413,6 @@ class BracketEstimateData:
     extra_turn_cards: list[Card]
     extra_turn_templates: list[Template]
     extra_turns_combos: list[Variant]
-    tutor_cards: list[Card]
-    tutor_templates: list[Template]
     lock_combos: list[Variant]
     skip_turns_combos: list[Variant]
     definitely_early_game_two_card_combos: list[Variant]
@@ -499,8 +497,6 @@ def estimate_bracket(cards: Sequence[Card], templates: Sequence[Template], inclu
             mass_land_denial_templates=[t for t in templates if any(term in t.name.lower() for term in ('mass land destruction', 'mass land denial'))],
             extra_turn_cards=[c for c in cards if c.extra_turn],
             extra_turn_templates=[t for t in templates if any(term in t.name.lower() for term in ('extra turn',))],
-            tutor_cards=[c for c in cards if c.tutor],
-            tutor_templates=[t for t in templates if any(term in t.name.lower() for term in ('tutor',))],
             mass_land_denial_combos=mass_land_denial_combos,
             extra_turns_combos=extra_turns_combos,
             lock_combos=lock_combos,
@@ -532,8 +528,6 @@ def estimate_bracket(cards: Sequence[Card], templates: Sequence[Template], inclu
     elif any((
         data.definitely_late_game_two_card_combos,
         data.game_changer_cards,
-        len(data.tutor_cards) >= 3,
-        len(data.tutor_templates) >= 3,
     )):
         bracket = Variant.BracketTag.POWERFUL
     elif any((

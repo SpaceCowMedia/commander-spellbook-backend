@@ -46,7 +46,7 @@ class EstimateBracketView(DecklistAPIView):
             .exclude(scryfall_query__isnull=False)
         )
 
-        variant_id_list = find_variants(deck)
+        variant_id_list = find_variants(deck, missing=0)
         variants_query = Variant.recipes_prefetched \
             .filter(status__in=Variant.public_statuses()) \
             .filter(id__in=variant_id_list)

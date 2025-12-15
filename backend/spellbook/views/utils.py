@@ -99,7 +99,7 @@ class DecklistAPIView(APIView):
         return deck
 
 
-def find_variants(deck: Deck) -> Sequence[str]:
+def find_variants(deck: Deck, missing=1) -> Sequence[str]:
     card_quantity_in_deck = Case(
         *(When(cardinvariant__card_id=card_id, then=quantity) for card_id, quantity in deck.cards.items()),
         default=0,
@@ -132,7 +132,7 @@ def find_variants(deck: Deck) -> Sequence[str]:
             ) / Greatest(Count('cardinvariant', distinct=True), 1),
         ) \
         .filter(
-            missing_count__lte=1,
+            missing_count__lte=missing,
         )
 
     return variant_id_list  # type: ignore

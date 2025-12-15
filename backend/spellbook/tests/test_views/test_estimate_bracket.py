@@ -1,10 +1,10 @@
 import json
-import random
+from itertools import chain
 from typing import Iterable
 from django.urls import reverse
 from rest_framework import status
 from common.inspection import json_to_python_lambda
-from spellbook.models import Card, Template, Variant, CardInVariant
+from spellbook.models import Card, Template, Variant, CardInVariant, Feature
 from ..testing import SpellbookTestCaseWithSeeding
 
 
@@ -13,8 +13,8 @@ class EstimateBracketViewTests(SpellbookTestCaseWithSeeding):
     def setUpTestData(cls):
         super().setUpTestData()
         cls.generate_and_publish_variants()
-        Variant.objects.filter(id__in=random.sample(list(Variant.objects.values_list('id', flat=True)), 3)).update(status=Variant.Status.EXAMPLE)
         CardInVariant.objects.filter(card_id=cls.c1_id, variant__card_count=2).update(quantity=2)
+        Feature.objects.filter(pk=cls.f4_id).update(name='Infinite Extra Turns')
         cls.update_variants()
         cls.bulk_serialize_variants()
 
@@ -28,6 +28,19 @@ class EstimateBracketViewTests(SpellbookTestCaseWithSeeding):
         cards_in_db = (Card.objects.get(name=name) for collection in (cards, commanders) for name in collection)
         if any(c.game_changer or c.extra_turn or c.mass_land_denial for c in cards_in_db):
             self.assertNotIn(result.bracket_tag, [Variant.BracketTag.CASUAL, Variant.BracketTag.PRECON_APPROPRIATE])
+        for combo in chain(
+            result.mass_land_denial_combos,
+            result.extra_turns_combos,
+            result.lock_combos,
+            result.skip_turns_combos,
+            result.definitely_early_game_two_card_combos,
+            result.arguably_early_game_two_card_combos,
+            result.definitely_late_game_two_card_combos,
+            result.borderline_late_game_two_card_combos,
+        ):
+            for card in combo.uses:
+                name = card.card.name
+                self.assertIn(name, cards or commanders)
 
     def test_estimate_bracket_views(self):
         for content_type in ['text/plain', 'application/json']:

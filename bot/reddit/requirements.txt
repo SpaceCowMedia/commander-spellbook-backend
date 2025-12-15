@@ -69,7 +69,7 @@ typing-inspection==0.4.2
     # via pydantic
 update-checker==0.18.0
     # via asyncpraw
-urllib3==2.6.0
+urllib3==2.6.2
     # via
     #   -r requirements.in
     #   requests

@@ -1,6 +1,4 @@
 from drf_spectacular.openapi import AutoSchema
-from django.db.models import F, Sum, Case, When, Count, QuerySet
-from django.db.models.functions import Greatest, Coalesce
 from rest_framework import parsers, serializers
 from rest_framework.response import Response
 from rest_framework.request import Request
@@ -13,7 +11,7 @@ from spellbook.serializers import VariantSerializer
 from spellbook.variants.multiset import FrozenMultiset
 from website.views import PlainTextDeckListParser
 from .variants import VariantViewSet
-from .utils import Deck, DecklistAPIView
+from .utils import Deck, DecklistAPIView, find_variants
 
 
 class FindMyCombosResponseSerializer(serializers.BaseSerializer):
@@ -111,7 +109,10 @@ class FindMyCombosView(DecklistAPIView):
     @extend_schema(request=DecklistAPIView.request, responses=response)
     def get(self, request: Request) -> Response:
         deck = self.parse(request)
-        variants_query = self.find_variants(deck)
+        variant_id_list = find_variants(deck)
+        viewset = VariantViewSet()
+        viewset.setup(self.request)
+        variants_query = viewset.filter_queryset(viewset.get_queryset().filter(id__in=variant_id_list))
         paginator = self.pagination_class()
         paginator.max_limit = 1000  # type: ignore
         paginator.default_limit = 1000
@@ -129,43 +130,3 @@ class FindMyCombosView(DecklistAPIView):
     def get_queryset(self):
         # Used by OpenAPI schema generation
         return Variant.objects.none()
-
-    def find_variants(self, deck: Deck) -> QuerySet[Variant]:
-        card_quantity_in_deck = Case(
-            *(When(cardinvariant__card_id=card_id, then=quantity) for card_id, quantity in deck.cards.items()),
-            default=0,
-        )
-
-        template_quantity_in_deck = Case(
-            *(When(templateinvariant__template_id=template_id, then=quantity) for template_id, quantity in deck.templates.items()),
-            default=0,
-        )
-
-        variant_id_list = Variant.objects \
-            .values('id') \
-            .alias(
-                missing_count=Coalesce(
-                    Sum(
-                        Greatest(
-                            F('cardinvariant__quantity') - card_quantity_in_deck,
-                            0,
-                        ),
-                    ),
-                    0,
-                ) / Greatest(Count('templateinvariant', distinct=True), 1) + Coalesce(
-                    Sum(
-                        Greatest(
-                            F('templateinvariant__quantity') - template_quantity_in_deck,
-                            0,
-                        ),
-                    ),
-                    0,
-                ) / Greatest(Count('cardinvariant', distinct=True), 1),
-            ) \
-            .filter(
-                missing_count__lte=1,
-            )
-
-        viewset = VariantViewSet()
-        viewset.setup(self.request)
-        return viewset.filter_queryset(viewset.get_queryset().filter(id__in=variant_id_list))

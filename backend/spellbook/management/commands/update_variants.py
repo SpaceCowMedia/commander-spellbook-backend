@@ -35,7 +35,7 @@ class Command(AbstractCommand):
         self.log('Fetching EDHREC dataset...')
         edhrec_variant_db = edhrec()
         self.log('Fetching Commander Spellbook dataset...')
-        variants_query = Variant.recipes_prefetched.prefetch_related('uses', 'requires', 'produces')
+        variants_query = Variant.recipes_prefetched.all()
         self.log('Updating variants...')
         updated_variant_count = 0
         variants_count = variants_query.count()

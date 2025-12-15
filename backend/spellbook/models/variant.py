@@ -26,6 +26,11 @@ from .constants import MAX_MANA_NEEDED_LENGTH
 class RecipePrefetchedManager(PreSaveSerializedManager):
     def get_queryset(self):
         return super().get_queryset().prefetch_related(
+            'uses',
+            'requires',
+            'produces',
+            'of',
+            'includes',
             'cardinvariant_set',
             'cardinvariant_set__card',
             'templateinvariant_set',

@@ -2,11 +2,10 @@ from rest_framework import parsers, serializers
 from rest_framework.response import Response
 from rest_framework.request import Request
 from drf_spectacular.utils import extend_schema
-from spellbook.models import Card, Template, estimate_bracket
+from spellbook.models import Card, Template, Variant, estimate_bracket
 from spellbook.serializers import CardSerializer, TemplateSerializer, VariantSerializer, BracketTagSerializer
-from spellbook.views import FindMyCombosView
 from website.views import PlainTextDeckListParser
-from .utils import DecklistAPIView
+from .utils import DecklistAPIView, find_variants
 
 
 class EstimateBracketResultSerializer(serializers.Serializer):
@@ -47,9 +46,10 @@ class EstimateBracketView(DecklistAPIView):
             .exclude(scryfall_query__isnull=False)
         )
 
-        find_my_combos_view = FindMyCombosView()
-        find_my_combos_view.setup(request)  # type: ignore
-        variants_query = find_my_combos_view.find_variants(deck)
+        variant_id_list = find_variants(deck)
+        variants_query = Variant.recipes_prefetched \
+            .filter(status__in=Variant.public_statuses()) \
+            .filter(id__in=variant_id_list)
         variants = list(variants_query)
 
         result = estimate_bracket(cards, templates, tuple((v, v.get_recipe()) for v in variants))

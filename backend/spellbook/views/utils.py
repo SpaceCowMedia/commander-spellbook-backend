@@ -1,14 +1,15 @@
 from dataclasses import dataclass
 from functools import cached_property
+from typing import Sequence
 from common.serializers import CardInDeck as RawCardInDeck
 from common.abstractions import Deck as RawDeck
-from django.db.models import Sum, Case, When
-from django.db.models.functions import Coalesce
+from django.db.models import F, Sum, Case, When, Count
+from django.db.models.functions import Coalesce, Greatest
 from rest_framework import parsers
 from rest_framework.views import APIView
 from rest_framework.request import Request
 from common.serializers import DeckSerializer as RawDeckSerializer
-from spellbook.models import Card, Template, merge_identities
+from spellbook.models import Card, Template, Variant, merge_identities
 from spellbook.variants.multiset import Multiset, FrozenMultiset
 from website.views import PlainTextDeckListParser
 
@@ -96,3 +97,42 @@ class DecklistAPIView(APIView):
         del cards_data
         deck = deck_from_raw(raw_deck, cards_data_dict, cards_identity_dict)
         return deck
+
+
+def find_variants(deck: Deck) -> Sequence[str]:
+    card_quantity_in_deck = Case(
+        *(When(cardinvariant__card_id=card_id, then=quantity) for card_id, quantity in deck.cards.items()),
+        default=0,
+    )
+
+    template_quantity_in_deck = Case(
+        *(When(templateinvariant__template_id=template_id, then=quantity) for template_id, quantity in deck.templates.items()),
+        default=0,
+    )
+
+    variant_id_list = Variant.objects \
+        .values('pk') \
+        .alias(
+            missing_count=Coalesce(
+                Sum(
+                    Greatest(
+                        F('cardinvariant__quantity') - card_quantity_in_deck,
+                        0,
+                    ),
+                ),
+                0,
+            ) / Greatest(Count('templateinvariant', distinct=True), 1) + Coalesce(
+                Sum(
+                    Greatest(
+                        F('templateinvariant__quantity') - template_quantity_in_deck,
+                        0,
+                    ),
+                ),
+                0,
+            ) / Greatest(Count('cardinvariant', distinct=True), 1),
+        ) \
+        .filter(
+            missing_count__lte=1,
+        )
+
+    return variant_id_list  # type: ignore

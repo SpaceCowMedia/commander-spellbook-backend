@@ -35,8 +35,17 @@ class EstimateBracketView(DecklistAPIView):
     def get(self, request: Request) -> Response:
         deck = self.parse(request)
 
-        cards = list(Card.objects.filter(pk__in=deck.cards.distinct_elements()))
-        templates = list(Template.objects.filter(replacements__in=cards).distinct())
+        cards = list(
+            Card
+            .objects
+            .filter(pk__in=deck.cards.distinct_elements())
+        )
+        templates = list(
+            Template
+            .objects
+            .filter(pk__in=deck.templates.distinct_elements())
+            .exclude(scryfall_query__isnull=False)
+        )
 
         find_my_combos_view = FindMyCombosView()
         find_my_combos_view.setup(request)  # type: ignore

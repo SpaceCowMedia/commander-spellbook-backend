@@ -62,7 +62,7 @@ class EstimateBracketViewTests(SpellbookTestCaseWithSeeding):
                 self.assertGreater(result.bracket_tag, Variant.BracketTag.CASUAL)
                 self._check_result(result, cards, set())
             with self.subTest('template as extra turns'):
-                t = Template.objects.get(pk=self.t1_id)
+                t = Template.objects.get(pk=self.t2_id)
                 t.name = 'Extra Turn Template'
                 t.save()
                 if 'json' in content_type:

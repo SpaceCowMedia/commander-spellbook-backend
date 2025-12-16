@@ -68,6 +68,8 @@ class AutocompleteQueryFilter(AbstractQueryFilter):
     def query_parser(self, queryset, search_terms):
         if search_terms == '?':
             return queryset.order_by('?')
+        if not search_terms or not self.fields:
+            return queryset
         annotations = {}
         filters = Q()
         for field in self.fields:

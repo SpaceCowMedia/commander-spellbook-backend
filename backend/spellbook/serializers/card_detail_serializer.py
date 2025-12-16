@@ -62,4 +62,7 @@ class CardDetailSerializer(serializers.ModelSerializer):
 
     @classmethod
     def prefetch_related(cls, queryset: QuerySet[Card]):
-        return queryset.prefetch_related('features')
+        return queryset.prefetch_related(
+            'featureofcard_set',
+            'featureofcard_set__feature',
+        )

@@ -1,8 +1,7 @@
 from drf_spectacular.openapi import AutoSchema
-from rest_framework import parsers, serializers
+from rest_framework import parsers, serializers, settings
 from rest_framework.response import Response
 from rest_framework.request import Request
-from rest_framework.pagination import LimitOffsetPagination
 from drf_spectacular.utils import extend_schema, Direction
 from drf_spectacular.extensions import OpenApiSerializerExtension
 from spellbook.models import Variant
@@ -101,7 +100,7 @@ class FindMyCombosView(DecklistAPIView):
     action = 'list'
     permission_classes = []
     parser_classes = [PlainTextDeckListParser, parsers.JSONParser]
-    pagination_class = LimitOffsetPagination
+    pagination_class = settings.api_settings.DEFAULT_PAGINATION_CLASS
     response = FindMyCombosResponseSerializer
     filter_backends = VariantViewSet.filter_backends
     filterset_class = VariantViewSet.filterset_class

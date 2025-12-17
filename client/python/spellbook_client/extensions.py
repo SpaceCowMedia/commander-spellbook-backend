@@ -8,6 +8,7 @@ from spellbook_client.api.find_my_combos_api import FindMyCombosApi
 async def find_my_combos_create_plain(
     self: FindMyCombosApi,
     decklist: str,
+    count: Optional[bool] = None,
     limit: Optional[StrictInt] = None,
     offset: Optional[StrictInt] = None,
     group_by_combo: Optional[bool] = None,
@@ -29,6 +30,7 @@ async def find_my_combos_create_plain(
 ) -> PaginatedFindMyCombosResponseList:
     _param = self._find_my_combos_create_serialize(
         deck_request=decklist,
+        count=count,
         group_by_combo=group_by_combo,
         limit=limit,
         offset=offset,

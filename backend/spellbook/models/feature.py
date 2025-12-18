@@ -57,6 +57,8 @@ def update_variant_fields(sender, instance, created, raw, **kwargs):
     from .variant import Variant
     variants_query = Variant.recipes_prefetched.filter(produces=instance)
     variant_count = variants_query.count()
+    if not variant_count:
+        return
     batch_size = batch_size_or_default(variant_count)
     for i in range(0, variant_count, batch_size):
         variants_to_save = []
@@ -76,6 +78,8 @@ def update_combo_fields(sender, instance, created, raw, **kwargs):
     from .combo import Combo
     combos = Combo.recipes_prefetched.filter(models.Q(produces=instance) | models.Q(needs=instance))
     combo_count = combos.count()
+    if not combo_count:
+        return
     batch_size = batch_size_or_default(combo_count)
     for i in range(0, combo_count, batch_size):
         combos_to_save = []

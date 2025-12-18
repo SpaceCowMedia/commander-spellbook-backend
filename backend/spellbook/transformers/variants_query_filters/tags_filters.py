@@ -30,6 +30,14 @@ def tag_filter(qv: QueryValue) -> VariantFilterCollection:
             return VariantFilterCollection(results_filters=(qv.to_query_filter(
                 Q(feature__name='Lock'),
             ),))
+        case 'mld' | 'masslanddestruction' | 'masslanddenial' | 'masslandremoval':
+            return VariantFilterCollection(results_filters=(qv.to_query_filter(
+                Q(feature__name__in=[
+                    'Mass Land Destruction',
+                    'Mass Land Denial',
+                    'Mass Land Removal',
+                ]),
+            ),))
         case 'infinite':
             return VariantFilterCollection(results_filters=(qv.to_query_filter(
                 Q(feature__name__istartswith='infinite'),

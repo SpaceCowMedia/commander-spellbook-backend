@@ -1,10 +1,11 @@
 import re
 import unicodedata
-from typing import Callable, Generator, Iterable
+from typing import Callable, Generator, Iterable, TypeVar
 from collections import defaultdict
 from ..regexs import MANA_SYMBOL, ORACLE_SYMBOL, ORACLE_SYMBOL_EXTENDED
 from ..parsers.scryfall_query_grammar import COMPARISON_OPERATORS, MANA_COMPARABLE_VARIABLES
 from django.utils.text import normalize_newlines
+from django.db import connection
 from django.db.models import Expression, F, Value, TextChoices, OrderBy
 from django.db.models.functions import Replace, Trim
 
@@ -327,3 +328,17 @@ def remove_random_from_order_by(order_by: Iterable[str | F | OrderBy]) -> Genera
         else:
             raise ValueError(f'Unknown order by type: {o}')
         yield o
+
+
+__T = TypeVar('__T', int, int | None)
+
+
+def batch_size_or_default(default: __T = None) -> int | __T:
+    '''
+    Returns an appropriate batch size for bulk operations depending on the database backend.
+    SQLite has a limit of 1000 expressions per query, so we need to limit batch size accordingly.
+    Postgres can handle larger batches, so we can return the default or None for unlimited.
+    '''
+    if connection.vendor == 'sqlite':
+        return 1000
+    return default

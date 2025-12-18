@@ -9,7 +9,7 @@ from .variant_data import Data, debug_queries
 from .combo_graph import FeatureWithAttributes, Graph, VariantSet, cardid, templateid, featureid
 from spellbook.models import Combo, FeatureNeededInCombo, Job, Variant, CardInVariant, TemplateInVariant, ZoneLocation, CardType
 from spellbook.models import Playable, Card, Template, VariantAlias, Ingredient, FeatureProducedByVariant, VariantOfCombo, VariantIncludesCombo
-from spellbook.models import id_from_cards_and_templates_ids, merge_mana_costs
+from spellbook.models import id_from_cards_and_templates_ids, merge_mana_costs, batch_size_or_default
 from spellbook.utils import log_into_job
 from spellbook.models.constants import DEFAULT_CARD_LIMIT, DEFAULT_VARIANT_LIMIT, HIGHER_CARD_LIMIT, LOWER_VARIANT_LIMIT
 
@@ -566,7 +566,7 @@ def create_variant(
     return save_item
 
 
-BATCH_SIZE = 5000
+BATCH_SIZE = batch_size_or_default(5000)
 
 
 def perform_bulk_saves(data: Data, to_create: list[VariantBulkSaveItem], to_update: list[VariantBulkSaveItem]):

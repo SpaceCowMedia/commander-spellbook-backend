@@ -476,7 +476,7 @@ def estimate_bracket(cards: Sequence[Card], templates: Sequence[Template], inclu
             v
             for v, recipe in included_variants
             if any(
-                re.search(r'mass land (?:destruction|denial)', feature.name, re.IGNORECASE)
+                re.search(r'mass land (?:destruction|denial|removal)', feature.name, re.IGNORECASE)
                 for _, feature in recipe.features
             )
         ]
@@ -484,7 +484,7 @@ def estimate_bracket(cards: Sequence[Card], templates: Sequence[Template], inclu
             v
             for v, recipe in included_variants
             if any(
-                feature.name.lower() == 'lock'
+                'lock' in feature.name.lower()
                 for _, feature in recipe.features
             )
         ]

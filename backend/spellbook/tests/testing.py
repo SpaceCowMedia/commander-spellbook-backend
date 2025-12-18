@@ -8,7 +8,7 @@ from django.db.models.functions import Coalesce
 from django.contrib.auth.models import User
 from website.tests.testing import BaseTestCase
 from spellbook.variants.multiset import FrozenMultiset
-from spellbook.models import Card, Feature, Combo, CardInCombo, Job, Template, TemplateInCombo
+from spellbook.models import Card, Feature, Combo, CardInCombo, Job, Template, TemplateInCombo, batch_size_or_default
 from spellbook.models import CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, FeatureProducedInVariantSuggestion
 from spellbook.models import VariantSuggestion, VariantAlias, Variant, ZoneLocation
 from spellbook.models import FeatureOfCard, FeatureNeededInCombo, FeatureProducedInCombo, FeatureRemovedInCombo, FeatureAttribute
@@ -36,7 +36,7 @@ class SpellbookTestCase(BaseTestCase):
     def bulk_serialize_variants(cls, q: Sequence[Variant] | None = None, extra_fields=[]):
         if q is None:
             q = list(Variant.objects.all())
-        Variant.objects.bulk_serialize(q, serializer=VariantSerializer, fields=extra_fields)
+        Variant.objects.bulk_serialize(q, serializer=VariantSerializer, fields=extra_fields, batch_size=batch_size_or_default())
 
     @classmethod
     def update_variants(cls):
@@ -73,7 +73,7 @@ class SpellbookTestCase(BaseTestCase):
             variant.variant_count = variant.variant_count_updated
             variant.update_variant()
             variant.pre_save = lambda: None
-        Variant.objects.bulk_update(variants, Variant.computed_fields() + ['variant_count'])
+        Variant.objects.bulk_update(variants, Variant.computed_fields() + ['variant_count'], batch_size=batch_size_or_default())
 
     @classmethod
     def generate_and_publish_variants(cls):

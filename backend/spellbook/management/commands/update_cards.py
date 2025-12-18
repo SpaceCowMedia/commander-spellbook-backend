@@ -1,5 +1,5 @@
 from django.db.models import Q, Count
-from spellbook.models import Card
+from spellbook.models import Card, batch_size_or_default
 from spellbook.models.variant import Variant
 from ..abstract_command import AbstractCommand
 from ..scryfall import scryfall, update_cards
@@ -8,7 +8,7 @@ from ..scryfall import scryfall, update_cards
 class Command(AbstractCommand):
     name = 'update_cards'
     help = 'Updates cards using Scryfall/EDHREC bulk data'
-    batch_size = 5000
+    batch_size = batch_size_or_default(5000)
 
     def run(self, *args, **options):
         self.log('Fetching Scryfall and EDHREC datasets...')

@@ -5,7 +5,7 @@ from django.contrib import admin
 from django.db.models import QuerySet, Count
 from django.http import HttpRequest
 from django.utils.html import format_html
-from spellbook.models import CardInCombo, Feature, Combo, TemplateInCombo
+from spellbook.models import CardInCombo, Feature, Combo, TemplateInCombo, batch_size_or_default
 from spellbook.models.scryfall import scryfall_link_for_query, scryfall_query_string_for_card_names, SCRYFALL_MAX_QUERY_LENGTH
 from spellbook.variants.variants_generator import FEATURE_REPLACEMENT_REGEX
 from .utils import SpellbookModelAdmin, SpellbookAdminForm
@@ -153,9 +153,9 @@ class FeatureAdmin(SpellbookModelAdmin):
                     combo.description = replace_feature_reference(old_name, new_name, combo.description)
                     combo.notes = replace_feature_reference(old_name, new_name, combo.notes)
                     combo.comment = replace_feature_reference(old_name, new_name, combo.comment)
-                Combo.objects.bulk_update(combos, combo_fields)
-                CardInCombo.objects.bulk_update(cards_in_combos, ingredient_fields)
-                TemplateInCombo.objects.bulk_update(templates_in_combos, ingredient_fields)
+                Combo.objects.bulk_update(combos, combo_fields, batch_size=batch_size_or_default())
+                CardInCombo.objects.bulk_update(cards_in_combos, ingredient_fields, batch_size=batch_size_or_default())
+                TemplateInCombo.objects.bulk_update(templates_in_combos, ingredient_fields, batch_size=batch_size_or_default())
 
 
 def replace_feature_reference(old_name: str, new_name: str, text: str) -> str:

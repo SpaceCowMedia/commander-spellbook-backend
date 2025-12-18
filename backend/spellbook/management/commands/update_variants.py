@@ -1,8 +1,8 @@
-from spellbook.models import Variant
+from spellbook.models import Variant, batch_size_or_default
 from spellbook.models.combo import Combo
 from django.db.models import Subquery, OuterRef, Count, Q
 from django.db.models.functions import Coalesce
-from django.db import transaction, connection
+from django.db import transaction
 from ..abstract_command import AbstractCommand
 from ..edhrec import edhrec, update_variants
 
@@ -10,7 +10,7 @@ from ..edhrec import edhrec, update_variants
 class Command(AbstractCommand):
     name = 'update_variants'
     help = 'Updates variants using cards and EDHREC data'
-    batch_size = 4500 if not connection.vendor == 'sqlite' else 1000
+    batch_size = batch_size_or_default(4500)
 
     def run(self, *args, **options):
         # Combos

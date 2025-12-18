@@ -3,7 +3,7 @@ from django.db import transaction
 from django.db.models import QuerySet, Manager, Model
 from rest_framework import serializers
 from spellbook.models import CardUsedInVariantSuggestion, FeatureProducedInVariantSuggestion, TemplateRequiredInVariantSuggestion, VariantSuggestion, IngredientInCombination, ZoneLocation
-from spellbook.models.utils import sanitize_newlines_apostrophes_and_quotes, sanitize_mana, sanitize_scryfall_query
+from spellbook.models.utils import sanitize_newlines_apostrophes_and_quotes, sanitize_mana, sanitize_scryfall_query, batch_size_or_default
 from .user_serializer import UserSerializer
 from .utils import StringMultipleChoiceField
 
@@ -135,8 +135,8 @@ class VariantSuggestionSerializer(serializers.ModelSerializer):
                 for key, value in d.items():
                     setattr(model, key, value)
                 to_update.append(model)
-        manager.bulk_create(to_create)
-        manager.bulk_update(to_update, serializer.fields.keys())  # type: ignore
+        manager.bulk_create(to_create, batch_size=batch_size_or_default())
+        manager.bulk_update(to_update, serializer.fields.keys(), batch_size=batch_size_or_default())  # type: ignore
         manager.filter(pk__in=(model.pk for model in to_delete)).delete()
 
     @transaction.atomic(durable=True)

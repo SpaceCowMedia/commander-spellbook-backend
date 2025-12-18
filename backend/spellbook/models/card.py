@@ -6,7 +6,7 @@ from django.contrib.postgres.indexes import GinIndex, OpClass
 from .constants import MAX_CARD_NAME_LENGTH, MAX_MANA_NEEDED_LENGTH
 from .validators import MANA_VALIDATOR, TEXT_VALIDATORS
 from .playable import Playable
-from .utils import strip_accents, simplify_card_name_on_database, simplify_card_name_with_spaces_on_database, CardType
+from .utils import strip_accents, simplify_card_name_on_database, simplify_card_name_with_spaces_on_database, batch_size_or_default, CardType
 from .mixins import ScryfallLinkMixin, PreSaveModelMixin
 from .feature import Feature
 from .fields import KeywordsField
@@ -132,7 +132,7 @@ def update_variant_fields(sender, instance, created, raw, **kwargs):
         if new_variant_name != variant.name:
             variant.name = new_variant_name
             variants_to_save.append(variant)
-    Variant.objects.bulk_update(variants_to_save, fields=Variant.playable_fields() + ['name'])
+    Variant.objects.bulk_update(variants_to_save, fields=Variant.playable_fields() + ['name'], batch_size=batch_size_or_default())
 
 
 @receiver(post_save, sender=Card, dispatch_uid='update_combo_fields')
@@ -147,7 +147,7 @@ def update_combo_fields(sender, instance, created, raw, **kwargs):
         if new_combo_name != combo.name:
             combo.name = new_combo_name
             combos_to_save.append(combo)
-    Combo.objects.bulk_update(combos_to_save, fields=['name'])
+    Combo.objects.bulk_update(combos_to_save, fields=['name'], batch_size=batch_size_or_default())
 
 
 class FeatureOfCard(Ingredient, WithFeatureAttributes):

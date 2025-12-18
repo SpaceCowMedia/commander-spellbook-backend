@@ -5,9 +5,9 @@ from django.utils import timezone
 from django.contrib.admin.models import LogEntry, ADDITION
 from django.contrib.contenttypes.models import ContentType
 from django.conf import settings
-from django.db import transaction, connection
+from django.db import transaction
 from djangorestframework_camel_case.util import camelize
-from spellbook.models import Variant, Job, VariantAlias
+from spellbook.models import Variant, Job, VariantAlias, batch_size_or_default
 from spellbook.serializers import VariantSerializer, VariantAliasSerializer
 from spellbook.views.variants import VariantViewSet
 from spellbook.views.variant_aliases import VariantAliasViewSet
@@ -28,7 +28,7 @@ def prepare_variant_alias(variant_alias: VariantAlias) -> dict:
 class Command(AbstractCommand):
     name = 'export_variants'
     help = 'Exports variants to a JSON file'
-    batch_size = 8000 if not connection.vendor == 'sqlite' else 1000
+    batch_size = batch_size_or_default(8000)
 
     def add_arguments(self, parser):
         super().add_arguments(parser)

@@ -3,6 +3,7 @@ from django.dispatch import receiver
 from django.db.models.signals import post_save
 from django.db.models.functions import Lower, Upper
 from django.contrib.postgres.indexes import GinIndex, OpClass
+from .utils import batch_size_or_default
 from .constants import MAX_FEATURE_NAME_LENGTH
 from .validators import NAME_VALIDATORS
 
@@ -54,14 +55,18 @@ def update_variant_fields(sender, instance, created, raw, **kwargs):
     if raw or created:
         return
     from .variant import Variant
-    variants = Variant.recipes_prefetched.filter(produces=instance)
-    variants_to_save = []
-    for variant in variants:
-        new_variant_name = variant._str()
-        if new_variant_name != variant.name:
-            variant.name = new_variant_name
-            variants_to_save.append(variant)
-    Variant.objects.bulk_update(variants_to_save, ['name'])
+    variants_query = Variant.recipes_prefetched.filter(produces=instance)
+    variant_count = variants_query.count()
+    batch_size = batch_size_or_default(variant_count)
+    for i in range(0, variant_count, batch_size):
+        variants_to_save = []
+        variants = list[Variant](variants_query[i:i + batch_size])
+        for variant in variants:
+            new_variant_name = variant._str()
+            if new_variant_name != variant.name:
+                variant.name = new_variant_name
+                variants_to_save.append(variant)
+        Variant.objects.bulk_update(variants_to_save, ['name'])
 
 
 @receiver(post_save, sender=Feature, dispatch_uid='update_combo_fields')
@@ -70,10 +75,14 @@ def update_combo_fields(sender, instance, created, raw, **kwargs):
         return
     from .combo import Combo
     combos = Combo.recipes_prefetched.filter(models.Q(produces=instance) | models.Q(needs=instance))
-    combos_to_save = []
-    for combo in combos:
-        new_combo_name = combo._str()
-        if new_combo_name != combo.name:
-            combo.name = new_combo_name
-            combos_to_save.append(combo)
-    Combo.objects.bulk_update(combos_to_save, ['name'])
+    combo_count = combos.count()
+    batch_size = batch_size_or_default(combo_count)
+    for i in range(0, combo_count, batch_size):
+        combos_to_save = []
+        batch_combos = list[Combo](combos[i:i + batch_size])
+        for combo in batch_combos:
+            new_combo_name = combo._str()
+            if new_combo_name != combo.name:
+                combo.name = new_combo_name
+                combos_to_save.append(combo)
+        Combo.objects.bulk_update(combos_to_save, ['name'])

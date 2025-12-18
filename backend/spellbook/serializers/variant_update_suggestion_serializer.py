@@ -3,7 +3,7 @@ from django.db import transaction
 from django.db.models import QuerySet
 from rest_framework import serializers
 from spellbook.models import VariantInVariantUpdateSuggestion, VariantUpdateSuggestion, Variant
-from spellbook.models.utils import sanitize_newlines_apostrophes_and_quotes
+from spellbook.models.utils import sanitize_newlines_apostrophes_and_quotes, batch_size_or_default
 from .user_serializer import UserSerializer
 
 
@@ -74,8 +74,8 @@ class VariantUpdateSuggestionSerializer(serializers.ModelSerializer):
                 for key, value in d.items():
                     setattr(model, key, value)
                 variants_to_update.append(model)
-        VariantInVariantUpdateSuggestion.objects.bulk_create(variants_to_create)
-        VariantInVariantUpdateSuggestion.objects.bulk_update(variants_to_update, self.fields['variants'].child.fields.keys())
+        VariantInVariantUpdateSuggestion.objects.bulk_create(variants_to_create, batch_size=batch_size_or_default())
+        VariantInVariantUpdateSuggestion.objects.bulk_update(variants_to_update, self.fields['variants'].child.fields.keys(), batch_size=batch_size_or_default())
         VariantInVariantUpdateSuggestion.objects.filter(pk__in=(model.pk for model in variants_to_delete)).delete()
         return instance
 

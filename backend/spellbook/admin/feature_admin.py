@@ -98,7 +98,7 @@ class FeatureAdmin(SpellbookModelAdmin):
         'produced_by_count',
         'updated',
     ]
-    list_filter = ['status']
+    list_filter = ['status', 'uncountable']
 
     def lookup_allowed(self, lookup: str, value: str, request) -> bool:
         if lookup in (

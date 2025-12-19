@@ -155,7 +155,6 @@ class VariantRelatedFilter(CustomFilter):
         return [
             ('unused', 'Unused'),
             ('overlapping', 'Overlapping'),
-            ('duplicate', 'Duplicate'),
         ]
 
     def filter(self, value: str) -> Q:
@@ -167,11 +166,6 @@ class VariantRelatedFilter(CustomFilter):
                     pk__in=Combo.objects.alias(
                         possible_overlaps=Count('variants__of', distinct=True),
                     ).filter(possible_overlaps__gt=1),
-                )
-            case 'duplicate':
-                # Find combos that have the same name as another combo
-                return Q(
-                    name__in=Combo.objects.values('name').alias(name_count=Count('pk')).filter(name_count__gt=1)
                 )
         return Q()
 

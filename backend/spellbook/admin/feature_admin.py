@@ -2,13 +2,13 @@ import re
 from typing import Any
 from itertools import chain
 from django.contrib import admin
-from django.db.models import QuerySet, Count
+from django.db.models import QuerySet, Count, Q
 from django.http import HttpRequest
 from django.utils.html import format_html
 from spellbook.models import CardInCombo, Feature, Combo, TemplateInCombo, batch_size_or_default
 from spellbook.models.scryfall import scryfall_link_for_query, scryfall_query_string_for_card_names, SCRYFALL_MAX_QUERY_LENGTH
 from spellbook.variants.variants_generator import FEATURE_REPLACEMENT_REGEX
-from .utils import SpellbookModelAdmin, SpellbookAdminForm
+from .utils import SpellbookModelAdmin, SpellbookAdminForm, CustomFilter
 from .ingredient_admin import FeatureOfCardAdmin
 
 
@@ -66,6 +66,28 @@ class FeatureForm(SpellbookAdminForm):
         )
 
 
+class ComboRelatedFilter(CustomFilter):
+    title = 'how is used by combos'
+    parameter_name = 'in_combos'
+
+    def lookups(self, request, model_admin):
+        return [
+            ('unused', 'Unused'),
+        ]
+
+    def filter(self, value: str) -> Q:
+        match value:
+            case 'unused':
+                return Q(
+                    pk__in=Feature.objects.values('pk').filter(
+                        needed_by_combos__isnull=True,
+                        produced_by_combos__isnull=True,
+                        removed_by_combos__isnull=True,
+                    ),
+                )
+        return Q()
+
+
 @admin.register(Feature)
 class FeatureAdmin(SpellbookModelAdmin):
     form = FeatureForm
@@ -98,7 +120,7 @@ class FeatureAdmin(SpellbookModelAdmin):
         'produced_by_count',
         'updated',
     ]
-    list_filter = ['status', 'uncountable']
+    list_filter = ['status', 'uncountable', ComboRelatedFilter]
 
     def lookup_allowed(self, lookup: str, value: str, request) -> bool:
         if lookup in (

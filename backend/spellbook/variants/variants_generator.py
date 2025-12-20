@@ -566,7 +566,7 @@ def create_variant(
     return save_item
 
 
-BATCH_SIZE = batch_size_or_default(4000)
+BATCH_SIZE = batch_size_or_default(2500)
 
 
 def perform_bulk_saves(data: Data, to_create: list[VariantBulkSaveItem], to_update: list[VariantBulkSaveItem]):

@@ -566,19 +566,40 @@ def create_variant(
     return save_item
 
 
-BATCH_SIZE = batch_size_or_default(2500)
+BATCH_SIZE = batch_size_or_default(1500)
 
 
-def perform_bulk_saves(data: Data, to_create: list[VariantBulkSaveItem], to_update: list[VariantBulkSaveItem]):
+def perform_bulk_saves(data: Data, to_create: list[VariantBulkSaveItem], to_update: list[VariantBulkSaveItem], job: Job | None = None):
+    log_into_job(job, f'Creating {len(to_create)} variants')
     Variant.objects.bulk_create([v.variant for v in to_create], batch_size=BATCH_SIZE)
+
+    to_update_filtered = [v for v in to_update if v.should_update]
+    log_into_job(job, f'Updating {len(to_update_filtered)} variants')
     update_fields = ['name', 'status', 'mana_needed', 'easy_prerequisites', 'notable_prerequisites', 'description', 'notes', 'comment', 'result_count', 'generated_by'] + Playable.playable_fields()
-    Variant.objects.bulk_update([v.variant for v in to_update if v.should_update], fields=update_fields, batch_size=BATCH_SIZE)
-    CardInVariant.objects.bulk_create([c for v in to_create for c in v.uses], batch_size=BATCH_SIZE)
+    Variant.objects.bulk_update([v.variant for v in to_update_filtered], fields=update_fields, batch_size=BATCH_SIZE)
+
+    to_create_civs = [c for v in to_create for c in v.uses]
+    log_into_job(job, f'Creating {len(to_create_civs)} CardInVariant entries')
+    CardInVariant.objects.bulk_create(to_create_civs, batch_size=BATCH_SIZE)
+    del to_create_civs
+
+    to_update_civs = [c for v in to_update_filtered for c in v.uses]
+    log_into_job(job, f'Updating {len(to_update_civs)} CardInVariant entries')
     update_fields = ['zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'must_be_commander', 'order', 'quantity']
-    CardInVariant.objects.bulk_update([c for v in to_update if v.should_update for c in v.uses], fields=update_fields, batch_size=BATCH_SIZE)
-    TemplateInVariant.objects.bulk_create([t for v in to_create for t in v.requires], batch_size=BATCH_SIZE)
+    CardInVariant.objects.bulk_update(to_update_civs, fields=update_fields, batch_size=BATCH_SIZE)
+    del to_update_civs
+
+    to_create_tivs = [t for v in to_create for t in v.requires]
+    log_into_job(job, f'Creating {len(to_create_tivs)} TemplateInVariant entries')
+    TemplateInVariant.objects.bulk_create(to_create_tivs, batch_size=BATCH_SIZE)
+    del to_create_tivs
+
+    to_update_tivs = [t for v in to_update_filtered for t in v.requires]
+    log_into_job(job, f'Updating {len(to_update_tivs)} TemplateInVariant entries')
     update_fields = ['zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'must_be_commander', 'order', 'quantity']
-    TemplateInVariant.objects.bulk_update([t for v in to_update if v.should_update for t in v.requires], fields=update_fields, batch_size=BATCH_SIZE)
+    TemplateInVariant.objects.bulk_update(to_update_tivs, fields=update_fields, batch_size=BATCH_SIZE)
+    del to_update_tivs
+
     to_delete_of = [
         of.id
         for v in to_update
@@ -586,8 +607,10 @@ def perform_bulk_saves(data: Data, to_create: list[VariantBulkSaveItem], to_upda
         if of.combo_id not in v.of
     ]
     if to_delete_of:
+        log_into_job(job, f'Deleting {len(to_delete_of)} VariantOfCombo entries')
         VariantOfCombo.objects.filter(id__in=to_delete_of).delete()
     del to_delete_of
+
     to_create_of = [
         VariantOfCombo(variant_id=v.variant.id, combo_id=c)
         for v in to_create
@@ -598,8 +621,10 @@ def perform_bulk_saves(data: Data, to_create: list[VariantBulkSaveItem], to_upda
         for combo_id in v.of
         if (combo_id, v.variant.id) not in data.variant_of_combo_dict
     ]
+    log_into_job(job, f'Creating {len(to_create_of)} VariantOfCombo entries')
     VariantOfCombo.objects.bulk_create(to_create_of, batch_size=BATCH_SIZE)
     del to_create_of
+
     to_delete_includes = [
         includes.id
         for v in to_update
@@ -607,8 +632,10 @@ def perform_bulk_saves(data: Data, to_create: list[VariantBulkSaveItem], to_upda
         if includes.combo_id not in v.includes
     ]
     if to_delete_includes:
+        log_into_job(job, f'Deleting {len(to_delete_includes)} VariantIncludesCombo entries')
         VariantIncludesCombo.objects.filter(id__in=to_delete_includes).delete()
     del to_delete_includes
+
     to_create_includes = [
         VariantIncludesCombo(variant_id=v.variant.id, combo_id=c)
         for v in to_create
@@ -619,8 +646,10 @@ def perform_bulk_saves(data: Data, to_create: list[VariantBulkSaveItem], to_upda
         for combo_id in v.includes
         if (combo_id, v.variant.id) not in data.variant_includes_combo_dict
     ]
+    log_into_job(job, f'Creating {len(to_create_includes)} VariantIncludesCombo entries')
     VariantIncludesCombo.objects.bulk_create(to_create_includes, batch_size=BATCH_SIZE)
     del to_create_includes
+
     to_delete_produces = [
         produces.id
         for v in to_update
@@ -628,8 +657,10 @@ def perform_bulk_saves(data: Data, to_create: list[VariantBulkSaveItem], to_upda
         if produces.feature_id not in v.produces_ids
     ]
     if to_delete_produces:
+        log_into_job(job, f'Deleting {len(to_delete_produces)} FeatureProducedByVariant entries')
         FeatureProducedByVariant.objects.filter(id__in=to_delete_produces).delete()
     del to_delete_produces
+
     to_create_produces = [
         i
         for v in to_create
@@ -640,8 +671,10 @@ def perform_bulk_saves(data: Data, to_create: list[VariantBulkSaveItem], to_upda
         for i in v.produces
         if (i.feature_id, v.variant.id) not in data.variant_produces_feature_dict
     ]
+    log_into_job(job, f'Creating {len(to_create_produces)} FeatureProducedByVariant entries')
     FeatureProducedByVariant.objects.bulk_create(to_create_produces, batch_size=BATCH_SIZE)
     del to_create_produces
+
     to_update_produces: list[FeatureProducedByVariant] = []
     for v in to_update:
         for i in v.produces:
@@ -651,6 +684,7 @@ def perform_bulk_saves(data: Data, to_create: list[VariantBulkSaveItem], to_upda
                 old_instance.quantity = i.quantity
                 to_update_produces.append(old_instance)
     update_fields = ['quantity']
+    log_into_job(job, f'Updating {len(to_update_produces)} FeatureProducedByVariant entries')
     FeatureProducedByVariant.objects.bulk_update(to_update_produces, fields=update_fields, batch_size=BATCH_SIZE)
 
 

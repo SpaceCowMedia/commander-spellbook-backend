@@ -24,31 +24,31 @@ class AttributesMatcher:
 class Data:
     def __init__(self):
         # Features
-        features = list(Feature.objects.all())
+        features = list(Feature.objects.order_by())
         # Cards
-        cards = list(Card.objects.all())
-        featureofcards = list(FeatureOfCard.objects.all())
-        featureofcard_attributes = list(FeatureOfCard.attributes.through.objects.all())
+        cards = list(Card.objects.order_by())
+        featureofcards = list(FeatureOfCard.objects.order_by())
+        featureofcard_attributes = list(FeatureOfCard.attributes.through.objects.order_by())
         # Templates
-        templates = list(Template.objects.all())
+        templates = list(Template.objects.order_by())
         # Combos
-        combos = list(Combo.objects.all())  # Draft combos are only used to update the variant count
-        cardincombos = list(CardInCombo.objects.filter(combo__status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY)))
-        templateincombos = list(TemplateInCombo.objects.filter(combo__status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY)))
-        featureproducedincombos = list(FeatureProducedInCombo.objects.filter(combo__status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY)))
-        featureneededincombos = list(FeatureNeededInCombo.objects.filter(combo__status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY)))
-        featureremovedincombos = list(FeatureRemovedInCombo.objects.filter(combo__status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY)))
-        featureneededincombo_anyofattributes = list(FeatureNeededInCombo.any_of_attributes.through.objects.filter(featureneededincombo__combo__status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY)))
-        featureneededincombo_allofattributes = list(FeatureNeededInCombo.all_of_attributes.through.objects.filter(featureneededincombo__combo__status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY)))
-        featureneededincombo_noneofattributes = list(FeatureNeededInCombo.none_of_attributes.through.objects.filter(featureneededincombo__combo__status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY)))
-        featureproducedincombo_attributes = list(FeatureProducedInCombo.attributes.through.objects.filter(featureproducedincombo__combo__status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY)))
+        combos = list(Combo.objects.order_by())  # Draft combos are only used to update the variant count
+        cardincombos = list(CardInCombo.objects.filter(combo__status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY)).order_by())
+        templateincombos = list(TemplateInCombo.objects.filter(combo__status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY)).order_by())
+        featureproducedincombos = list(FeatureProducedInCombo.objects.filter(combo__status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY)).order_by())
+        featureneededincombos = list(FeatureNeededInCombo.objects.filter(combo__status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY)).order_by())
+        featureremovedincombos = list(FeatureRemovedInCombo.objects.filter(combo__status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY)).order_by())
+        featureneededincombo_anyofattributes = list(FeatureNeededInCombo.any_of_attributes.through.objects.filter(featureneededincombo__combo__status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY)).order_by())
+        featureneededincombo_allofattributes = list(FeatureNeededInCombo.all_of_attributes.through.objects.filter(featureneededincombo__combo__status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY)).order_by())
+        featureneededincombo_noneofattributes = list(FeatureNeededInCombo.none_of_attributes.through.objects.filter(featureneededincombo__combo__status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY)).order_by())
+        featureproducedincombo_attributes = list(FeatureProducedInCombo.attributes.through.objects.filter(featureproducedincombo__combo__status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY)).order_by())
         # Variants
-        variants = list[Variant](Variant.objects.all())
-        cardinvariants = list(CardInVariant.objects.all())
-        templateinvariants = list(TemplateInVariant.objects.all())
-        variantofcombos = list(VariantOfCombo.objects.all())
-        variantincludescombos = list(VariantIncludesCombo.objects.all())
-        featureproducedbyvariants = list(FeatureProducedByVariant.objects.all())
+        variants = list[Variant](Variant.objects.order_by())
+        cardinvariants = list(CardInVariant.objects.order_by())
+        templateinvariants = list(TemplateInVariant.objects.order_by())
+        variantofcombos = list(VariantOfCombo.objects.order_by())
+        variantincludescombos = list(VariantIncludesCombo.objects.order_by())
+        featureproducedbyvariants = list(FeatureProducedByVariant.objects.order_by())
         # Data
         self.id_to_card = {c.id: c for c in cards}
         self.id_to_template = {t.id: t for t in templates}

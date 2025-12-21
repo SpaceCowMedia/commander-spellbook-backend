@@ -5,7 +5,7 @@ metadata:
   namespace: spellbook-prod
 spec:
   timeZone: America/Los_Angeles
-  schedule: '0 * * * *'
+  schedule: '0 */2 * * *'
   jobTemplate:
     spec:
       template:

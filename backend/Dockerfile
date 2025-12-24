@@ -99,14 +99,13 @@ USER app
 #########
 # DEMO  #
 #########
-FROM base AS demo
+FROM pypy AS demo
 
 RUN echo -e 'set -e\n\
 python manage.py collectstatic --no-input --clear\n\
 sleep 3\n\
 python manage.py migrate --noinput\n\
-python manage.py clean_jobs\n\
-python manage.py export_variants\n\
+python manage.py clean_jobs --force\n\
 python manage.py seed_website_properties\n\
 gunicorn backend.wsgi:application --bind 0.0.0.0:8000\n' > entrypoint.prod.sh
 

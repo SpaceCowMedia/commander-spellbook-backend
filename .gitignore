@@ -149,3 +149,4 @@ kubesecret.yaml
 
 # Hidden files
 hidden/
+backend/spellbook/management/commands/batch_size_benchmark.py

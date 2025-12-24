@@ -8,7 +8,7 @@ from django.shortcuts import redirect
 from django.contrib import admin, messages
 from django.forms import Textarea
 from django.utils import timezone
-from spellbook.models import Variant, CardInVariant, TemplateInVariant, batch_size_or_default
+from spellbook.models import Variant, CardInVariant, TemplateInVariant, DEFAULT_BATCH_SIZE
 from spellbook.utils import launch_job_command
 from spellbook.transformers.variants_query_transformer import variants_query_parser
 from spellbook.serializers import VariantSerializer
@@ -70,7 +70,7 @@ def set_status(request, queryset, status: Variant.Status):
         variant.published = variant.published or publish
         variant.status = status
         variant.updated = now
-    Variant.objects.bulk_serialize(variants, fields=['status', 'published', 'updated'], serializer=VariantSerializer, batch_size=batch_size_or_default())  # type: ignore
+    Variant.objects.bulk_serialize(variants, fields=['status', 'published', 'updated'], serializer=VariantSerializer, batch_size=DEFAULT_BATCH_SIZE)
     plural = 's' if len(variants) > 1 else ''
     messages.success(request, f'{len(variants)} variant{plural} marked as {status.name}.')
     if publish:

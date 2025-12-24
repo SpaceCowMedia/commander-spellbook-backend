@@ -1,4 +1,4 @@
-from spellbook.models import Variant, batch_size_or_default
+from spellbook.models import Variant, DEFAULT_BATCH_SIZE
 from spellbook.models.combo import Combo
 from django.db.models import Subquery, OuterRef, Count, Q
 from django.db.models.functions import Coalesce
@@ -10,7 +10,6 @@ from ..edhrec import edhrec, update_variants
 class Command(AbstractCommand):
     name = 'update_variants'
     help = 'Updates variants using cards and EDHREC data'
-    batch_size = batch_size_or_default(4500)
 
     def run(self, *args, **options):
         # Combos
@@ -39,11 +38,11 @@ class Command(AbstractCommand):
         self.log('Updating variants...')
         updated_variant_count = 0
         variants_count = variants_query.count()
-        batch_count = (variants_count + self.batch_size - 1) // self.batch_size
-        for i in range(0, variants_count, self.batch_size):
-            self.log(f'Starting batch {i // self.batch_size + 1}/{batch_count}...')
+        batch_count = (variants_count + DEFAULT_BATCH_SIZE - 1) // DEFAULT_BATCH_SIZE
+        for i in range(0, variants_count, DEFAULT_BATCH_SIZE):
+            self.log(f'Starting batch {i // DEFAULT_BATCH_SIZE + 1}/{batch_count}...')
             with transaction.atomic(durable=True):
-                variants = list[Variant](variants_query[i:i + self.batch_size])
+                variants = list[Variant](variants_query[i:i + DEFAULT_BATCH_SIZE])
             variants_counts: dict[str, int] = {
                 i: c
                 for i, c in Variant

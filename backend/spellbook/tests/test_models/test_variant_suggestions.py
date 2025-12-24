@@ -72,5 +72,5 @@ class VariantSuggestionTests(SpellbookTestCaseWithSeeding):
 
     def test_card_in_variant_suggestion_validation(self):
         s = VariantSuggestion.objects.get(id=self.s1_id)
-        c = CardUsedInVariantSuggestion(card='A card', variant=s, order=1, zone_locations=ZoneLocation.COMMAND_ZONE)
+        c = CardUsedInVariantSuggestion(card='A card', suggestion=s, order=1, zone_locations=ZoneLocation.COMMAND_ZONE)
         self.assertRaises(ValidationError, lambda: c.full_clean())

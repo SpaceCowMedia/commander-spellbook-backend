@@ -1,6 +1,7 @@
 import re
 import unicodedata
-from typing import Callable, Generator, Iterable, TypeVar
+from platform import python_implementation
+from typing import Callable, Generator, Iterable
 from collections import defaultdict
 from ..regexs import MANA_SYMBOL, ORACLE_SYMBOL, ORACLE_SYMBOL_EXTENDED
 from ..parsers.scryfall_query_grammar import COMPARISON_OPERATORS, MANA_COMPARABLE_VARIABLES
@@ -330,15 +331,28 @@ def remove_random_from_order_by(order_by: Iterable[str | F | OrderBy]) -> Genera
         yield o
 
 
-__T = TypeVar('__T', int, int | None)
+def __default_batch_size() -> int:
+    '''Returns an appropriate batch size for the current database connection.'''
+    otherwise = 100
+    match python_implementation():
+        case 'PyPy':
+            match connection.vendor:
+                case 'sqlite':
+                    return 1000
+                case 'postgresql':
+                    return 45
+                case _:
+                    return otherwise
+        case 'CPython':
+            match connection.vendor:
+                case 'sqlite':
+                    return 1000
+                case 'postgresql':
+                    return 275
+                case _:
+                    return otherwise
+        case _:
+            return otherwise
 
 
-def batch_size_or_default(default: __T = None) -> int | __T:
-    '''
-    Returns an appropriate batch size for bulk operations depending on the database backend.
-    SQLite has a limit of 1000 expressions per query, so we need to limit batch size accordingly.
-    Postgres can handle larger batches, so we can return the default or None for unlimited.
-    '''
-    if connection.vendor == 'sqlite':
-        return 1000
-    return default
+DEFAULT_BATCH_SIZE = __default_batch_size()

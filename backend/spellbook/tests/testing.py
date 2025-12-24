@@ -8,7 +8,7 @@ from django.db.models.functions import Coalesce
 from django.contrib.auth.models import User
 from website.tests.testing import BaseTestCase
 from spellbook.variants.multiset import FrozenMultiset
-from spellbook.models import Card, Feature, Combo, CardInCombo, Job, Template, TemplateInCombo, batch_size_or_default
+from spellbook.models import Card, Feature, Combo, CardInCombo, Job, Template, TemplateInCombo, DEFAULT_BATCH_SIZE
 from spellbook.models import CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, FeatureProducedInVariantSuggestion
 from spellbook.models import VariantSuggestion, VariantAlias, Variant, ZoneLocation
 from spellbook.models import FeatureOfCard, FeatureNeededInCombo, FeatureProducedInCombo, FeatureRemovedInCombo, FeatureAttribute
@@ -36,7 +36,7 @@ class SpellbookTestCase(BaseTestCase):
     def bulk_serialize_variants(cls, q: Sequence[Variant] | None = None, extra_fields=[]):
         if q is None:
             q = list(Variant.objects.all())
-        Variant.objects.bulk_serialize(q, serializer=VariantSerializer, fields=extra_fields, batch_size=batch_size_or_default())
+        Variant.objects.bulk_serialize(q, serializer=VariantSerializer, fields=extra_fields, batch_size=DEFAULT_BATCH_SIZE)
 
     @classmethod
     def update_variants(cls):
@@ -73,7 +73,7 @@ class SpellbookTestCase(BaseTestCase):
             variant.variant_count = variant.variant_count_updated
             variant.update_variant()
             variant.pre_save = lambda: None
-        Variant.objects.bulk_update(variants, Variant.computed_fields() + ['variant_count'], batch_size=batch_size_or_default())
+        Variant.objects.bulk_update(variants, Variant.computed_fields() + ['variant_count'], batch_size=DEFAULT_BATCH_SIZE)
 
     @classmethod
     def generate_and_publish_variants(cls):
@@ -292,10 +292,10 @@ class SpellbookTestCaseWithSeeding(SpellbookTestCase):
         FeatureProducedInCombo.objects.create(feature=f4, combo=b9)
 
         s1 = VariantSuggestion.objects.create(status=VariantSuggestion.Status.NEW, mana_needed='{W}{W}', easy_prerequisites='Some easy requisites.', notable_prerequisites='Some notable requisites.', description='1', spoiler=True, suggested_by=None)
-        CardUsedInVariantSuggestion.objects.create(card=c1.name, variant=s1, order=1, zone_locations=ZoneLocation.HAND)
-        CardUsedInVariantSuggestion.objects.create(card=c2.name, variant=s1, order=2, zone_locations=ZoneLocation.BATTLEFIELD, battlefield_card_state='tapped')
-        TemplateRequiredInVariantSuggestion.objects.create(template=t1.name, variant=s1, order=1, zone_locations=ZoneLocation.GRAVEYARD, graveyard_card_state='on top')
-        FeatureProducedInVariantSuggestion.objects.create(feature=f1.name, variant=s1)
+        CardUsedInVariantSuggestion.objects.create(card=c1.name, suggestion=s1, order=1, zone_locations=ZoneLocation.HAND)
+        CardUsedInVariantSuggestion.objects.create(card=c2.name, suggestion=s1, order=2, zone_locations=ZoneLocation.BATTLEFIELD, battlefield_card_state='tapped')
+        TemplateRequiredInVariantSuggestion.objects.create(template=t1.name, suggestion=s1, order=1, zone_locations=ZoneLocation.GRAVEYARD, graveyard_card_state='on top')
+        FeatureProducedInVariantSuggestion.objects.create(feature=f1.name, suggestion=s1)
 
         a1 = VariantAlias.objects.create(id='1', description='a1')
 

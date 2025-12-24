@@ -1,11 +1,10 @@
-from itertools import zip_longest
 from django.db import transaction
-from django.db.models import QuerySet, Manager, Model
+from django.db.models import QuerySet
 from rest_framework import serializers
 from spellbook.models import CardUsedInVariantSuggestion, FeatureProducedInVariantSuggestion, TemplateRequiredInVariantSuggestion, VariantSuggestion, IngredientInCombination, ZoneLocation
-from spellbook.models.utils import sanitize_newlines_apostrophes_and_quotes, sanitize_mana, sanitize_scryfall_query, batch_size_or_default
+from spellbook.models.utils import sanitize_newlines_apostrophes_and_quotes, sanitize_mana, sanitize_scryfall_query
 from .user_serializer import UserSerializer
-from .utils import StringMultipleChoiceField
+from .utils import StringMultipleChoiceField, ModelSerializerWithRelatedModels
 
 
 class IngredientInVariantSuggestionSerializer(serializers.ModelSerializer):
@@ -55,7 +54,8 @@ class FeatureProducedInVariantSuggestionSerializer(serializers.ModelSerializer):
         ]
 
 
-class VariantSuggestionSerializer(serializers.ModelSerializer):
+class VariantSuggestionSerializer(serializers.ModelSerializer, ModelSerializerWithRelatedModels):
+    related_field = 'suggestion'
     uses = CardUsedInVariantSuggestionSerializer(many=True)
     requires = TemplateRequiredInVariantSuggestionSerializer(many=True)
     produces = FeatureProducedInVariantSuggestionSerializer(many=True)
@@ -105,39 +105,23 @@ class VariantSuggestionSerializer(serializers.ModelSerializer):
             'suggested_by': self.context['request'].user,
         }
         instance = super().create(extended_kwargs)
-        for i, use in enumerate(uses_set, start=1):
-            CardUsedInVariantSuggestion.objects.create(variant=instance, order=i, **use)
-        for i, require in enumerate(requires_set, start=1):
-            TemplateRequiredInVariantSuggestion.objects.create(variant=instance, order=i, **require)
-        for produce in produces_set:
-            FeatureProducedInVariantSuggestion.objects.create(variant=instance, **produce)
+        self._create_related_model(
+            instance,
+            CardUsedInVariantSuggestion.objects,
+            uses_set,
+        )
+        self._create_related_model(
+            instance,
+            TemplateRequiredInVariantSuggestion.objects,
+            requires_set,
+        )
+        self._create_related_model(
+            instance,
+            FeatureProducedInVariantSuggestion.objects,
+            produces_set,
+            with_order=False,
+        )
         return instance
-
-    def _update_related_model(
-        self,
-        instance,
-        manager: Manager,
-        data: list[dict],
-        serializer: serializers.ModelSerializer,
-        with_order: bool = True,
-    ):
-        to_create: list[Model] = []
-        to_update: list[Model] = []
-        to_delete: list[Model] = []
-        for i, (d, model) in enumerate(zip_longest(data, manager.all()), start=1):
-            if d is not None and with_order:
-                d['order'] = i
-            if model is None:
-                to_create.append(manager.model(**d, variant=instance))
-            elif d is None:
-                to_delete.append(model)
-            else:
-                for key, value in d.items():
-                    setattr(model, key, value)
-                to_update.append(model)
-        manager.bulk_create(to_create, batch_size=batch_size_or_default())
-        manager.bulk_update(to_update, serializer.fields.keys(), batch_size=batch_size_or_default())  # type: ignore
-        manager.filter(pk__in=(model.pk for model in to_delete)).delete()
 
     @transaction.atomic(durable=True)
     def update(self, instance: VariantSuggestion, validated_data: dict):  # type: ignore

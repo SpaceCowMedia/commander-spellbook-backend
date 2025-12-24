@@ -108,7 +108,7 @@ class CardUsedInVariantSuggestion(PreSaveModelMixin, IngredientInCombination):
         expression=simplify_card_name_with_spaces_on_database('card_unaccented'),
         output_field=models.CharField(max_length=MAX_CARD_NAME_LENGTH, blank=True, editable=False),
     )
-    variant = models.ForeignKey(to=VariantSuggestion, on_delete=models.CASCADE, related_name='uses')
+    suggestion = models.ForeignKey(to=VariantSuggestion, on_delete=models.CASCADE, related_name='uses')
 
     def __str__(self):
         return self.card
@@ -123,7 +123,7 @@ class CardUsedInVariantSuggestion(PreSaveModelMixin, IngredientInCombination):
 class TemplateRequiredInVariantSuggestion(IngredientInCombination):
     template = models.CharField(max_length=Template.MAX_TEMPLATE_NAME_LENGTH, blank=False, help_text='Template name', verbose_name='template name', validators=NAME_VALIDATORS)
     scryfall_query = models.CharField(max_length=SCRYFALL_MAX_QUERY_LENGTH, blank=True, null=True, verbose_name='Scryfall query', help_text=SCRYFALL_QUERY_HELP, validators=[SCRYFALL_QUERY_VALIDATOR])
-    variant = models.ForeignKey(to=VariantSuggestion, on_delete=models.CASCADE, related_name='requires')
+    suggestion = models.ForeignKey(to=VariantSuggestion, on_delete=models.CASCADE, related_name='requires')
 
     def __str__(self):
         return self.template
@@ -134,7 +134,7 @@ class TemplateRequiredInVariantSuggestion(IngredientInCombination):
 
 class FeatureProducedInVariantSuggestion(models.Model):
     feature = models.CharField(max_length=MAX_FEATURE_NAME_LENGTH, blank=False, help_text='Feature name', verbose_name='feature name', validators=NAME_VALIDATORS)
-    variant = models.ForeignKey(to=VariantSuggestion, on_delete=models.CASCADE, related_name='produces')
+    suggestion = models.ForeignKey(to=VariantSuggestion, on_delete=models.CASCADE, related_name='produces')
 
     def __str__(self):
         return self.feature
@@ -154,6 +154,6 @@ def update_variant_suggestion_name(
 ):
     if raw:
         return
-    variant_suggestion = instance.variant
+    variant_suggestion = instance.suggestion
     variant_suggestion.update_recipe_from_data()
     variant_suggestion.save()

@@ -7,7 +7,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.conf import settings
 from django.db import transaction
 from djangorestframework_camel_case.util import camelize
-from spellbook.models import Variant, Job, VariantAlias, batch_size_or_default
+from spellbook.models import Variant, Job, VariantAlias, DEFAULT_BATCH_SIZE
 from spellbook.serializers import VariantSerializer, VariantAliasSerializer
 from spellbook.views.variants import VariantViewSet
 from spellbook.views.variant_aliases import VariantAliasViewSet
@@ -28,7 +28,6 @@ def prepare_variant_alias(variant_alias: VariantAlias) -> dict:
 class Command(AbstractCommand):
     name = 'export_variants'
     help = 'Exports variants to a JSON file'
-    batch_size = batch_size_or_default(8000)
 
     def add_arguments(self, parser):
         super().add_arguments(parser)
@@ -48,36 +47,36 @@ class Command(AbstractCommand):
         self.log('Update preview representations for preview variants...')
         variants_query = VariantSerializer.prefetch_related(Variant.objects.filter(status__in=Variant.preview_statuses()))
         variants_count = variants_query.count()
-        for i in range(0, variants_count, self.batch_size):
+        for i in range(0, variants_count, DEFAULT_BATCH_SIZE):
             with transaction.atomic(durable=True):
-                variants_source = list[Variant](variants_query[i:i + self.batch_size])
+                variants_source = list[Variant](variants_query[i:i + DEFAULT_BATCH_SIZE])
             Variant.objects.bulk_serialize(objs=variants_source, serializer=VariantSerializer)
             del variants_source
-            self.log(f'  Processed {min(i + self.batch_size, variants_count)} / {variants_count} preview variants')
+            self.log(f'  Processed {min(i + DEFAULT_BATCH_SIZE, variants_count)} / {variants_count} preview variants')
         del variants_query
         variants: list[dict | None]
         self.log('Fetching and processing public variants from db...')
         variants_query = VariantSerializer.prefetch_related(Variant.objects.filter(status__in=Variant.public_statuses()))
         variants_count = variants_query.count()
         variants: list[dict | None] = [None] * variants_count
-        for i in range(0, variants_count, self.batch_size):
+        for i in range(0, variants_count, DEFAULT_BATCH_SIZE):
             with transaction.atomic(durable=True):
-                variants_source = list[Variant](variants_query[i:i + self.batch_size])
+                variants_source = list[Variant](variants_query[i:i + DEFAULT_BATCH_SIZE])
             Variant.objects.bulk_serialize(objs=variants_source, serializer=VariantSerializer)
-            variants[i:i + self.batch_size] = (prepare_variant(v) for v in variants_source)
+            variants[i:i + DEFAULT_BATCH_SIZE] = (prepare_variant(v) for v in variants_source)
             del variants_source
-            self.log(f'  Processed {min(i + self.batch_size, variants_count)} / {variants_count} public variants')
+            self.log(f'  Processed {min(i + DEFAULT_BATCH_SIZE, variants_count)} / {variants_count} public variants')
         del variants_query
         self.log('Fetching variant aliases from db...')
         variants_alias_query = VariantAliasSerializer.prefetch_related(VariantAliasViewSet.queryset)
         variants_alias_count = variants_alias_query.count()
         variants_alias: list[dict | None] = [None] * variants_alias_count
-        for i in range(0, variants_alias_count, self.batch_size):
+        for i in range(0, variants_alias_count, DEFAULT_BATCH_SIZE):
             with transaction.atomic(durable=True):
-                variants_alias_source = list[VariantAlias](variants_alias_query[i:i + self.batch_size])
-            variants_alias[i:i + self.batch_size] = (prepare_variant_alias(va) for va in variants_alias_source)
+                variants_alias_source = list[VariantAlias](variants_alias_query[i:i + DEFAULT_BATCH_SIZE])
+            variants_alias[i:i + DEFAULT_BATCH_SIZE] = (prepare_variant_alias(va) for va in variants_alias_source)
             del variants_alias_source
-            self.log(f'  Processed {min(i + self.batch_size, variants_alias_count)} / {variants_alias_count} variant aliases')
+            self.log(f'  Processed {min(i + DEFAULT_BATCH_SIZE, variants_alias_count)} / {variants_alias_count} variant aliases')
         del variants_alias_query
         self.log('Exporting variants...')
         result = {

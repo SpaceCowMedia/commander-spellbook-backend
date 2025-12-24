@@ -1,10 +1,10 @@
-from itertools import zip_longest
 from django.db import transaction
 from django.db.models import QuerySet
 from rest_framework import serializers
 from spellbook.models import VariantInVariantUpdateSuggestion, VariantUpdateSuggestion, Variant
-from spellbook.models.utils import sanitize_newlines_apostrophes_and_quotes, batch_size_or_default
+from spellbook.models.utils import sanitize_newlines_apostrophes_and_quotes
 from .user_serializer import UserSerializer
+from .utils import ModelSerializerWithRelatedModels
 
 
 class VariantInVariantUpdateSuggestionSerializer(serializers.ModelSerializer):
@@ -18,7 +18,8 @@ class VariantInVariantUpdateSuggestionSerializer(serializers.ModelSerializer):
         ]
 
 
-class VariantUpdateSuggestionSerializer(serializers.ModelSerializer):
+class VariantUpdateSuggestionSerializer(serializers.ModelSerializer, ModelSerializerWithRelatedModels):
+    related_field = 'suggestion'
     variants = VariantInVariantUpdateSuggestionSerializer(many=True, required=False)
     suggested_by = UserSerializer(many=False, read_only=True)
 
@@ -54,29 +55,25 @@ class VariantUpdateSuggestionSerializer(serializers.ModelSerializer):
             'suggested_by': self.context['request'].user,
         }
         instance = super().create(extended_kwargs)
-        for variant in variants_set:
-            VariantInVariantUpdateSuggestion.objects.create(suggestion=instance, **variant)
+        self._create_related_model(
+            instance,
+            VariantInVariantUpdateSuggestion.objects,
+            variants_set,
+            with_order=False,
+        )
         return instance
 
     @transaction.atomic(durable=True)
     def update(self, instance: VariantUpdateSuggestion, validated_data: dict):
         variants_validated_data: list[dict] = validated_data.pop('variants', [])
         instance = super().update(instance, validated_data.copy())
-        variants_to_create: list[VariantInVariantUpdateSuggestion] = []
-        variants_to_update: list[VariantInVariantUpdateSuggestion] = []
-        variants_to_delete: list[VariantInVariantUpdateSuggestion] = []
-        for d, model in zip_longest(variants_validated_data, instance.variants.all()):
-            if model is None:
-                variants_to_create.append(VariantInVariantUpdateSuggestion(**d, suggestion=instance))
-            elif d is None:
-                variants_to_delete.append(model)
-            else:
-                for key, value in d.items():
-                    setattr(model, key, value)
-                variants_to_update.append(model)
-        VariantInVariantUpdateSuggestion.objects.bulk_create(variants_to_create, batch_size=batch_size_or_default())
-        VariantInVariantUpdateSuggestion.objects.bulk_update(variants_to_update, self.fields['variants'].child.fields.keys(), batch_size=batch_size_or_default())
-        VariantInVariantUpdateSuggestion.objects.filter(pk__in=(model.pk for model in variants_to_delete)).delete()
+        self._update_related_model(
+            instance,
+            instance.variants,
+            variants_validated_data,
+            self.fields['variants'].child,
+            with_order=False,
+        )
         return instance
 
     @classmethod

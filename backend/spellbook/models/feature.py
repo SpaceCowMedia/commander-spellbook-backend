@@ -3,7 +3,7 @@ from django.dispatch import receiver
 from django.db.models.signals import post_save
 from django.db.models.functions import Lower, Upper
 from django.contrib.postgres.indexes import GinIndex, OpClass
-from .utils import batch_size_or_default
+from .utils import DEFAULT_BATCH_SIZE
 from .constants import MAX_FEATURE_NAME_LENGTH
 from .validators import NAME_VALIDATORS
 
@@ -59,10 +59,9 @@ def update_variant_fields(sender, instance, created, raw, **kwargs):
     variant_count = variants_query.count()
     if not variant_count:
         return
-    batch_size = batch_size_or_default(variant_count)
-    for i in range(0, variant_count, batch_size):
+    for i in range(0, variant_count, DEFAULT_BATCH_SIZE):
         variants_to_save = []
-        variants = list[Variant](variants_query[i:i + batch_size])
+        variants = list[Variant](variants_query[i:i + DEFAULT_BATCH_SIZE])
         for variant in variants:
             new_variant_name = variant._str()
             if new_variant_name != variant.name:
@@ -80,10 +79,9 @@ def update_combo_fields(sender, instance, created, raw, **kwargs):
     combo_count = combos.count()
     if not combo_count:
         return
-    batch_size = batch_size_or_default(combo_count)
-    for i in range(0, combo_count, batch_size):
+    for i in range(0, combo_count, DEFAULT_BATCH_SIZE):
         combos_to_save = []
-        batch_combos = list[Combo](combos[i:i + batch_size])
+        batch_combos = list[Combo](combos[i:i + DEFAULT_BATCH_SIZE])
         for combo in batch_combos:
             new_combo_name = combo._str()
             if new_combo_name != combo.name:

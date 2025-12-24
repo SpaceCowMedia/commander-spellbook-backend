@@ -9,7 +9,7 @@ from .variant_data import Data, debug_queries
 from .combo_graph import FeatureWithAttributes, Graph, VariantSet, cardid, templateid, featureid
 from spellbook.models import Combo, FeatureNeededInCombo, Job, Variant, CardInVariant, TemplateInVariant, ZoneLocation, CardType
 from spellbook.models import Playable, Card, Template, VariantAlias, Ingredient, FeatureProducedByVariant, VariantOfCombo, VariantIncludesCombo
-from spellbook.models import id_from_cards_and_templates_ids, merge_mana_costs, batch_size_or_default
+from spellbook.models import id_from_cards_and_templates_ids, merge_mana_costs, DEFAULT_BATCH_SIZE
 from spellbook.utils import log_into_job
 from spellbook.models.constants import DEFAULT_CARD_LIMIT, DEFAULT_VARIANT_LIMIT, HIGHER_CARD_LIMIT, LOWER_VARIANT_LIMIT
 
@@ -566,38 +566,35 @@ def create_variant(
     return save_item
 
 
-BATCH_SIZE = batch_size_or_default(1500)
-
-
 def perform_bulk_saves(data: Data, to_create: list[VariantBulkSaveItem], to_update: list[VariantBulkSaveItem], job: Job | None = None):
     log_into_job(job, f'Creating {len(to_create)} variants')
-    Variant.objects.bulk_create([v.variant for v in to_create], batch_size=BATCH_SIZE)
+    Variant.objects.bulk_create([v.variant for v in to_create], batch_size=DEFAULT_BATCH_SIZE)
 
     to_update_filtered = [v for v in to_update if v.should_update]
     log_into_job(job, f'Updating {len(to_update_filtered)} variants')
     update_fields = ['name', 'status', 'mana_needed', 'easy_prerequisites', 'notable_prerequisites', 'description', 'notes', 'comment', 'result_count', 'generated_by'] + Playable.playable_fields()
-    Variant.objects.bulk_update([v.variant for v in to_update_filtered], fields=update_fields, batch_size=BATCH_SIZE)
+    Variant.objects.bulk_update([v.variant for v in to_update_filtered], fields=update_fields, batch_size=DEFAULT_BATCH_SIZE)
 
     to_create_civs = [c for v in to_create for c in v.uses]
     log_into_job(job, f'Creating {len(to_create_civs)} CardInVariant entries')
-    CardInVariant.objects.bulk_create(to_create_civs, batch_size=BATCH_SIZE)
+    CardInVariant.objects.bulk_create(to_create_civs, batch_size=DEFAULT_BATCH_SIZE)
     del to_create_civs
 
     to_update_civs = [c for v in to_update_filtered for c in v.uses]
     log_into_job(job, f'Updating {len(to_update_civs)} CardInVariant entries')
     update_fields = ['zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'must_be_commander', 'order', 'quantity']
-    CardInVariant.objects.bulk_update(to_update_civs, fields=update_fields, batch_size=BATCH_SIZE)
+    CardInVariant.objects.bulk_update(to_update_civs, fields=update_fields, batch_size=DEFAULT_BATCH_SIZE)
     del to_update_civs
 
     to_create_tivs = [t for v in to_create for t in v.requires]
     log_into_job(job, f'Creating {len(to_create_tivs)} TemplateInVariant entries')
-    TemplateInVariant.objects.bulk_create(to_create_tivs, batch_size=BATCH_SIZE)
+    TemplateInVariant.objects.bulk_create(to_create_tivs, batch_size=DEFAULT_BATCH_SIZE)
     del to_create_tivs
 
     to_update_tivs = [t for v in to_update_filtered for t in v.requires]
     log_into_job(job, f'Updating {len(to_update_tivs)} TemplateInVariant entries')
     update_fields = ['zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'must_be_commander', 'order', 'quantity']
-    TemplateInVariant.objects.bulk_update(to_update_tivs, fields=update_fields, batch_size=BATCH_SIZE)
+    TemplateInVariant.objects.bulk_update(to_update_tivs, fields=update_fields, batch_size=DEFAULT_BATCH_SIZE)
     del to_update_tivs
 
     to_delete_of = [
@@ -622,7 +619,7 @@ def perform_bulk_saves(data: Data, to_create: list[VariantBulkSaveItem], to_upda
         if (combo_id, v.variant.id) not in data.variant_of_combo_dict
     ]
     log_into_job(job, f'Creating {len(to_create_of)} VariantOfCombo entries')
-    VariantOfCombo.objects.bulk_create(to_create_of, batch_size=BATCH_SIZE)
+    VariantOfCombo.objects.bulk_create(to_create_of, batch_size=DEFAULT_BATCH_SIZE)
     del to_create_of
 
     to_delete_includes = [
@@ -647,7 +644,7 @@ def perform_bulk_saves(data: Data, to_create: list[VariantBulkSaveItem], to_upda
         if (combo_id, v.variant.id) not in data.variant_includes_combo_dict
     ]
     log_into_job(job, f'Creating {len(to_create_includes)} VariantIncludesCombo entries')
-    VariantIncludesCombo.objects.bulk_create(to_create_includes, batch_size=BATCH_SIZE)
+    VariantIncludesCombo.objects.bulk_create(to_create_includes, batch_size=DEFAULT_BATCH_SIZE)
     del to_create_includes
 
     to_delete_produces = [
@@ -672,7 +669,7 @@ def perform_bulk_saves(data: Data, to_create: list[VariantBulkSaveItem], to_upda
         if (i.feature_id, v.variant.id) not in data.variant_produces_feature_dict
     ]
     log_into_job(job, f'Creating {len(to_create_produces)} FeatureProducedByVariant entries')
-    FeatureProducedByVariant.objects.bulk_create(to_create_produces, batch_size=BATCH_SIZE)
+    FeatureProducedByVariant.objects.bulk_create(to_create_produces, batch_size=DEFAULT_BATCH_SIZE)
     del to_create_produces
 
     to_update_produces: list[FeatureProducedByVariant] = []
@@ -685,7 +682,7 @@ def perform_bulk_saves(data: Data, to_create: list[VariantBulkSaveItem], to_upda
                 to_update_produces.append(old_instance)
     update_fields = ['quantity']
     log_into_job(job, f'Updating {len(to_update_produces)} FeatureProducedByVariant entries')
-    FeatureProducedByVariant.objects.bulk_update(to_update_produces, fields=update_fields, batch_size=BATCH_SIZE)
+    FeatureProducedByVariant.objects.bulk_update(to_update_produces, fields=update_fields, batch_size=DEFAULT_BATCH_SIZE)
 
 
 def sync_variant_aliases(data: Data, added_variants_ids: set[str], deleted_variants_ids: set[str]) -> tuple[int, int]:
@@ -699,7 +696,7 @@ def sync_variant_aliases(data: Data, added_variants_ids: set[str], deleted_varia
         for v in deleted_variants
         if v.status in Variant.public_statuses()
     ]
-    added_count = len(VariantAlias.objects.bulk_create(variant_aliases, ignore_conflicts=True, batch_size=BATCH_SIZE))
+    added_count = len(VariantAlias.objects.bulk_create(variant_aliases, ignore_conflicts=True, batch_size=DEFAULT_BATCH_SIZE))
     return added_count, deleted_count
 
 

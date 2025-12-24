@@ -34,12 +34,11 @@ class WithOverrideMixin(serializers.Field):
 
 
 class ModelSerializerWithRelatedModels:
-    related_field: str
-
     def _create_related_model(
         self,
         instance,
         manager: BaseManager,
+        related_field: str,
         data: list[dict],
         with_order: bool = True,
     ):
@@ -47,13 +46,14 @@ class ModelSerializerWithRelatedModels:
         for i, d in enumerate(data, start=1):
             if with_order:
                 d['order'] = i
-            to_create.append(manager.model(**{**d, self.related_field: instance}))
+            to_create.append(manager.model(**{**d, related_field: instance}))
         manager.bulk_create(to_create, batch_size=DEFAULT_BATCH_SIZE)
 
     def _update_related_model(
         self,
         instance,
         manager: BaseManager,
+        related_field: str,
         data: list[dict],
         serializer: serializers.ModelSerializer,
         with_order: bool = True,
@@ -66,7 +66,7 @@ class ModelSerializerWithRelatedModels:
             if d is not None and with_order:
                 d['order'] = i
             if model is None:
-                to_create.append(manager.model(**{**d, self.related_field: instance}))
+                to_create.append(manager.model(**{**d, related_field: instance}))
             elif d is None:
                 to_delete.append(model.pk)
             else:

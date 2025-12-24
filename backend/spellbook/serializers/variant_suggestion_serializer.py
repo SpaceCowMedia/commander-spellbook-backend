@@ -55,7 +55,6 @@ class FeatureProducedInVariantSuggestionSerializer(serializers.ModelSerializer):
 
 
 class VariantSuggestionSerializer(serializers.ModelSerializer, ModelSerializerWithRelatedModels):
-    related_field = 'suggestion'
     uses = CardUsedInVariantSuggestionSerializer(many=True)
     requires = TemplateRequiredInVariantSuggestionSerializer(many=True)
     produces = FeatureProducedInVariantSuggestionSerializer(many=True)
@@ -108,16 +107,19 @@ class VariantSuggestionSerializer(serializers.ModelSerializer, ModelSerializerWi
         self._create_related_model(
             instance,
             CardUsedInVariantSuggestion.objects,
+            CardUsedInVariantSuggestion.suggestion.field.name,
             uses_set,
         )
         self._create_related_model(
             instance,
             TemplateRequiredInVariantSuggestion.objects,
+            TemplateRequiredInVariantSuggestion.suggestion.field.name,
             requires_set,
         )
         self._create_related_model(
             instance,
             FeatureProducedInVariantSuggestion.objects,
+            FeatureProducedInVariantSuggestion.suggestion.field.name,
             produces_set,
             with_order=False,
         )
@@ -139,18 +141,21 @@ class VariantSuggestionSerializer(serializers.ModelSerializer, ModelSerializerWi
         self._update_related_model(
             instance,
             instance.uses,
+            CardUsedInVariantSuggestion.suggestion.field.name,
             uses_validated_data,
             self.fields['uses'].child,
         )
         self._update_related_model(
             instance,
             instance.requires,
+            TemplateRequiredInVariantSuggestion.suggestion.field.name,
             requires_validated_data,
             self.fields['requires'].child,
         )
         self._update_related_model(
             instance,
             instance.produces,
+            FeatureProducedInVariantSuggestion.suggestion.field.name,
             produces_validated_data,
             self.fields['produces'].child,
             with_order=False,

@@ -19,7 +19,6 @@ class VariantInVariantUpdateSuggestionSerializer(serializers.ModelSerializer):
 
 
 class VariantUpdateSuggestionSerializer(serializers.ModelSerializer, ModelSerializerWithRelatedModels):
-    related_field = 'suggestion'
     variants = VariantInVariantUpdateSuggestionSerializer(many=True, required=False)
     suggested_by = UserSerializer(many=False, read_only=True)
 
@@ -58,6 +57,7 @@ class VariantUpdateSuggestionSerializer(serializers.ModelSerializer, ModelSerial
         self._create_related_model(
             instance,
             VariantInVariantUpdateSuggestion.objects,
+            VariantInVariantUpdateSuggestion.suggestion.field.name,
             variants_set,
             with_order=False,
         )
@@ -70,6 +70,7 @@ class VariantUpdateSuggestionSerializer(serializers.ModelSerializer, ModelSerial
         self._update_related_model(
             instance,
             instance.variants,
+            VariantInVariantUpdateSuggestion.suggestion.field.name,
             variants_validated_data,
             self.fields['variants'].child,
             with_order=False,

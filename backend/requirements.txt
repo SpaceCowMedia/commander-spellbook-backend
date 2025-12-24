@@ -27,7 +27,7 @@ cffi==1.15.1
 charset-normalizer==3.2.0
     # via requests
 cryptography==44.0.1
-    # via social-auth-core
+    # via pyjwt
 defusedxml==0.7.1
     # via
     #   python3-openid
@@ -78,13 +78,13 @@ jsonschema-specifications==2025.9.1
     # via jsonschema
 lark==1.3.1
     # via -r requirements.in
-oauthlib==3.2.2
+oauthlib==3.3.1
     # via
     #   requests-oauthlib
     #   social-auth-core
 pycparser==2.21
     # via cffi
-pyjwt==2.8.0
+pyjwt[crypto]==2.10.1
     # via
     #   djangorestframework-simplejwt
     #   social-auth-core
@@ -98,12 +98,12 @@ referencing==0.36.2
     # via
     #   jsonschema
     #   jsonschema-specifications
-requests==2.32.4
+requests==2.32.5
     # via
     #   discord-webhook
     #   requests-oauthlib
     #   social-auth-core
-requests-oauthlib==1.3.1
+requests-oauthlib==2.0.0
     # via social-auth-core
 rpds-py==0.27.1
     # via
@@ -113,9 +113,9 @@ s3transfer==0.16.0
     # via boto3
 six==1.16.0
     # via python-dateutil
-social-auth-app-django==5.6.0
+social-auth-app-django==5.7.0
     # via -r requirements.in
-social-auth-core==4.4.2
+social-auth-core==4.8.3
     # via social-auth-app-django
 sqlparse==0.5.0
     # via django

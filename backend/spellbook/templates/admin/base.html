@@ -25,20 +25,31 @@
         }
 
         /* POST form buttons in object tools */
-        .object-tools button {
-            border-radius: 15px;
+        .object-tools form {
             display: block;
             float: left;
-            padding: 6px 12px;
             background: var(--object-tools-bg);
             color: var(--object-tools-fg);
             font-weight: 400;
             font-size: 11px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            border-width: 0px;
-            cursor: pointer;
             position: relative;
+            border-radius: 15px;
+            padding-top: 2px;
+        }
+        .object-tools form>* {
+            border-radius: inherit;
+            padding: 6px 12px;
+            position: relative;
+            background: var(--object-tools-bg);
+            border-width: 0px;
+        }
+        .object-tools form button {
+            cursor: pointer;
+        }
+        .object-tools form button:hover {
+            background: var(--object-tools-hover-bg);
         }
 
         .button__text {

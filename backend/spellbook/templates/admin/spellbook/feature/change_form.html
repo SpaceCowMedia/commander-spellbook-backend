@@ -22,6 +22,19 @@
     </script>
 {% endblock %}
 
+{% block object-tools-items %}
+<li>
+    <form method="post" action="{% url 'admin:spellbook_feature_merge' original.id %}" class="inline" novalidate>
+        {% csrf_token %}
+        <button type="submit" class="default">
+            <span class="button__text">Merge into</span>
+        </button>
+        <input type="text" name="into" placeholder="Feature ID" style="width: 6em;" required>
+    </form>
+</li>
+{{ block.super }}
+{% endblock %}
+
 {% block after-content %}
     <table>
         <thead>

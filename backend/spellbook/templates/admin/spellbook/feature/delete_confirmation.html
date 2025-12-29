@@ -1,0 +1,23 @@
+{% extends "admin/delete_confirmation.html" %}
+{% load i18n admin_urls static %}
+
+{% block delete_confirm %}
+    {% if merge_into %}
+        <p>{% blocktranslate with escaped_object=object escaped_merge_into=merge_into %}Are you sure you want to merge the {{ object_name }} “{{ escaped_object }}” into “{{ escaped_merge_into }}”? Some of the following related items will be replaced or deleted:{% endblocktranslate %}</p>
+        {% include "admin/includes/object_delete_summary.html" %}
+        <h2>{% translate "Objects" %}</h2>
+        <ul id="deleted-objects">{{ deleted_objects|unordered_list }}</ul>
+        <form method="post">{% csrf_token %}
+        <div>
+        <input type="hidden" name="post" value="yes">
+        <input type="hidden" name="merge_into" value="{{ merge_into.id }}">
+        {% if is_popup %}<input type="hidden" name="{{ is_popup_var }}" value="1">{% endif %}
+        {% if to_field %}<input type="hidden" name="{{ to_field_var }}" value="{{ to_field }}">{% endif %}
+        <input type="submit" value="{% translate 'Yes, I’m sure' %}">
+        <a role="button" href="#" class="button cancel-link">{% translate "No, take me back" %}</a>
+        </div>
+        </form>
+    {% else %}
+        {{ block.super }}
+    {% endif %}
+{% endblock %}

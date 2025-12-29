@@ -428,21 +428,29 @@ class ComboAdmin(SpellbookModelAdmin):
             if updated:
                 messages.info(request, f'Set {updated} "New" variants to "Restore" status.')
 
-    def generate_variants(self, request: HttpRequest, id: int):
+    def generate_variants(self, request: HttpRequest, object_id: str):
         if request.method == 'POST' and request.user.is_authenticated:
-            job = launch_job_command('generate_variants', request.user, args=['--combo', str(id)], group='single')  # type: ignore
-            if job is not None:
-                messages.info(request, f'Variant generation job for combo {id} started.')
-                return redirect('admin:spellbook_job_change', job.id)
+            combo = Combo.objects.filter(pk=object_id).first()
+            if not combo:
+                messages.error(request, f'Combo with id {object_id} does not exist.')
+                return redirect('admin:spellbook_combo_changelist')
+            if combo.status == Combo.Status.GENERATOR:
+                job = launch_job_command('generate_variants', request.user, args=['--combo', object_id], group='single')  # type: ignore
+                if job is not None:
+                    messages.info(request, f'Variant generation job for combo {object_id} started.')
+                    return redirect('admin:spellbook_job_change', job.id)
+                else:
+                    messages.warning(request, 'Variant generation is already running.')
             else:
-                messages.warning(request, 'Variant generation is already running.')
-        return redirect('admin:spellbook_combo_change', id)
+                messages.error(request, f'Combo with id {object_id} is not marked as a generator combo.')
+        return redirect('admin:spellbook_combo_change', object_id)
 
     def get_urls(self):
         return [
             path(
-                'generate-variants/<int:id>',
+                '<path:object_id>/generate-variants/',
                 self.admin_site.admin_view(view=self.generate_variants, cacheable=False),
                 name='spellbook_combo_generate_variants',
             ),
-        ] + super().get_urls()
+            *super().get_urls(),
+        ]

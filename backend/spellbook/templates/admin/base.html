@@ -26,27 +26,31 @@
 
         /* POST form buttons in object tools */
         .object-tools form {
-            display: block;
-            float: left;
+            position: relative;
+            display: flex;
+            flex-direction: row;
+            align-items: stretch;
             background: var(--object-tools-bg);
+            border-radius: 15px;
+            border-width: 0px;
+        }
+        .object-tools * {
             color: var(--object-tools-fg);
             font-weight: 400;
             font-size: 11px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            position: relative;
-            border-radius: 15px;
-            padding-top: 2px;
         }
         .object-tools form>* {
             border-radius: inherit;
-            padding: 6px 12px;
-            position: relative;
             background: var(--object-tools-bg);
             border-width: 0px;
+            margin: 0;
+            padding-top: 4px;
         }
         .object-tools form button {
             cursor: pointer;
+            padding: 6px 12px;
         }
         .object-tools form button:hover {
             background: var(--object-tools-hover-bg);

@@ -123,6 +123,7 @@ class VariantSuggestionSerializer(serializers.ModelSerializer, ModelSerializerWi
             produces_set,
             with_order=False,
         )
+        self._post_save(instance)
         return instance
 
     @transaction.atomic(durable=True)
@@ -160,7 +161,12 @@ class VariantSuggestionSerializer(serializers.ModelSerializer, ModelSerializerWi
             self.fields['produces'].child,
             with_order=False,
         )
+        self._post_save(instance)
         return instance
+
+    def _post_save(self, instance: VariantSuggestion):
+        instance.update_recipe_from_data()
+        instance.save()
 
     @classmethod
     def prefetch_related(cls, queryset: QuerySet[VariantSuggestion]):

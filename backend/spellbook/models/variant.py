@@ -158,7 +158,7 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
         '''
         Returns the fields that are computed from related models.
         '''
-        return Playable.playable_fields() + [
+        return cls.recipe_fields() + cls.playable_fields() + [
             'hulkline',
             'bracket_tag',
             'mana_value_needed',
@@ -239,10 +239,17 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
             self,
             recipe: Recipe,
     ) -> bool:
+        previous_values = {field: getattr(self, field) for field in self.computed_fields()}
+        self.update_recipe_from_memory(
+            cards={c.name: civ.quantity for civ, c in recipe.cards},
+            templates={t.name: tiv.quantity for tiv, t in recipe.templates},
+            features_needed={},
+            features_produced={f.name: fp.quantity for fp, f in recipe.features},
+            features_removed={},
+        )
         requires_commander = any(civ.must_be_commander for civ, _ in recipe.cards) or any(tiv.must_be_commander for tiv, _ in recipe.templates)
-        old_values = {field: getattr(self, field) for field in self.computed_fields()}
-        self.mana_value_needed = mana_value(self.mana_needed)
         self.update_playable_fields((card for _, card in recipe.cards), requires_commander=requires_commander)
+        self.mana_value_needed = mana_value(self.mana_needed)
         battlefield_mana_value = sum(card.mana_value for civ, card in recipe.cards if ZoneLocation.BATTLEFIELD in civ.zone_locations)
         self.hulkline = \
             battlefield_mana_value <= 6 \
@@ -260,7 +267,7 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
             )
         self.bracket_tag = estimate_bracket([card for _, card in recipe.cards], [template for _, template in recipe.templates], included_variants=[(self, recipe)]).bracket_tag
         new_values = {field: getattr(self, field) for field in self.computed_fields()}
-        return old_values != new_values
+        return previous_values != new_values
 
     def update_playable_fields(self, cards: Iterable['Card'], requires_commander: bool) -> bool:
         '''Returns True if any field was changed, False otherwise.'''
@@ -392,9 +399,8 @@ def update_variant_on_ingredient(sender, instance: CardInVariant | TemplateInVar
     if raw:
         return
     variant = instance.variant
-    variant.update_variant()
-    variant.update_recipe_from_data()
-    variant.save()
+    if variant.update_variant():
+        variant.save(update_fields=Variant.computed_fields())
 
 
 @receiver(pre_delete, sender=Combo, dispatch_uid='combo_deleted')

@@ -25,6 +25,16 @@ class Recipe(models.Model):
     def features_removed(self) -> dict[str, int]:
         return {}
 
+    @classmethod
+    def recipe_fields(cls) -> list[str]:
+        return [
+            'name',
+            'ingredient_count',
+            'card_count',
+            'template_count',
+            'result_count',
+        ]
+
     def _str(self) -> str:
         if self.pk is None:
             base = f'New {self._meta.model_name}'
@@ -72,15 +82,31 @@ class Recipe(models.Model):
     def compute_template_count(cls, templates: dict[str, int]) -> int:
         return sum(templates.values())
 
-    def update_recipe_from_memory(self, cards: dict[str, int], templates: dict[str, int], features_needed: dict[str, int], features_produced: dict[str, int], features_removed: dict[str, int]):
+    def update_recipe_from_memory(
+            self,
+            cards: dict[str, int],
+            templates: dict[str, int],
+            features_needed: dict[str, int],
+            features_produced: dict[str, int],
+            features_removed: dict[str, int],
+    ) -> bool:
+        previous_values = {field: getattr(self, field) for field in self.recipe_fields()}
         self.name = self.compute_name(cards, templates, features_needed, features_produced, features_removed)
         self.ingredient_count = self.compute_ingredient_count(cards, templates, features_needed)
         self.card_count = self.compute_card_count(cards, templates, features_needed)
         self.template_count = self.compute_template_count(templates)
         self.result_count = self.compute_result_count(features_produced)
+        updated_values = {field: getattr(self, field) for field in self.recipe_fields()}
+        return previous_values != updated_values
 
-    def update_recipe_from_data(self):
-        self.update_recipe_from_memory(self.cards(), self.templates(), self.features_needed(), self.features_produced(), self.features_removed())
+    def update_recipe_from_data(self) -> bool:
+        return self.update_recipe_from_memory(
+            self.cards(),
+            self.templates(),
+            self.features_needed(),
+            self.features_produced(),
+            self.features_removed(),
+        )
 
     class Meta:
         abstract = True

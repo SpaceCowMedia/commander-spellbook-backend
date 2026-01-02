@@ -155,5 +155,5 @@ def update_variant_suggestion_name(
     if raw:
         return
     variant_suggestion = instance.suggestion
-    variant_suggestion.update_recipe_from_data()
-    variant_suggestion.save()
+    if variant_suggestion.update_recipe_from_data():
+        variant_suggestion.save(update_fields=Recipe.recipe_fields())

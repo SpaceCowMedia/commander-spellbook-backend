@@ -127,6 +127,8 @@ class VariantSuggestionsTests(SpellbookTestCaseWithSeeding):
         if suggestion_result.suggested_by is not None:
             self.assertEqual(suggestion_result.suggested_by.id, vs.suggested_by.id)  # type: ignore
             self.assertEqual(suggestion_result.suggested_by.username, vs.suggested_by.username)  # type: ignore
+        self.assertIsNotNone(vs.name)
+        self.assertNotEqual(vs.name, '')
 
     def test_suggestions_list_view(self):
         response = self.client.get(reverse('variant-suggestions-list'), follow=True)

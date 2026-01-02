@@ -8,7 +8,7 @@ from django.utils.functional import cached_property
 from .variant_data import Data, debug_queries
 from .combo_graph import FeatureWithAttributes, Graph, VariantSet, cardid, templateid, featureid
 from spellbook.models import Combo, FeatureNeededInCombo, Job, Variant, CardInVariant, TemplateInVariant, ZoneLocation, CardType
-from spellbook.models import Playable, Card, Template, VariantAlias, Ingredient, FeatureProducedByVariant, VariantOfCombo, VariantIncludesCombo
+from spellbook.models import Card, Template, VariantAlias, Ingredient, FeatureProducedByVariant, VariantOfCombo, VariantIncludesCombo
 from spellbook.models import id_from_cards_and_templates_ids, merge_mana_costs, DEFAULT_BATCH_SIZE
 from spellbook.utils import log_into_job
 from spellbook.models.constants import DEFAULT_CARD_LIMIT, DEFAULT_VARIANT_LIMIT, HIGHER_CARD_LIMIT, LOWER_VARIANT_LIMIT
@@ -278,7 +278,7 @@ def restore_variant(
             quantity=quantity,
         ) for f_id, quantity in produces_ids.items()
     ]
-    produced_features.sort(key=lambda f: f.feature_id)
+    produced_features.sort(key=lambda f: f.feature.name)
     uses = dict[int, CardInVariant]()
     for card_in_variant in used_cards:
         card_in_variant.order = 0  # will be updated later
@@ -497,21 +497,6 @@ def restore_variant(
         [(t, data.id_to_template[t.template_id]) for t in required_templates],
         [(f, data.id_to_feature[f.feature_id]) for f in produced_features],
     ))
-    variant.update_recipe_from_memory(
-        cards={data.id_to_card[civ.card_id].name: civ.quantity for civ in uses_list()},
-        templates={data.id_to_template[tiv.template_id].name: tiv.quantity for tiv in requires_list()},
-        features_needed={},
-        features_produced={
-            f: q
-            for f, q in sorted(
-                [
-                    (data.id_to_feature[f.feature_id].name, f.quantity)
-                    for f in produced_features
-                ],
-            )
-        },
-        features_removed={},
-    )
 
     # Return the final object
     return VariantBulkSaveItem(
@@ -572,7 +557,7 @@ def perform_bulk_saves(data: Data, to_create: list[VariantBulkSaveItem], to_upda
 
     to_update_filtered = [v for v in to_update if v.should_update]
     log_into_job(job, f'Updating {len(to_update_filtered)} variants')
-    update_fields = ['name', 'status', 'mana_needed', 'easy_prerequisites', 'notable_prerequisites', 'description', 'notes', 'comment', 'result_count', 'generated_by'] + Playable.playable_fields()
+    update_fields = ['status', 'mana_needed', 'easy_prerequisites', 'notable_prerequisites', 'description', 'notes', 'comment', 'generated_by'] + Variant.computed_fields()
     Variant.objects.bulk_update([v.variant for v in to_update_filtered], fields=update_fields, batch_size=DEFAULT_BATCH_SIZE)
 
     to_create_civs = [c for v in to_create for c in v.uses]

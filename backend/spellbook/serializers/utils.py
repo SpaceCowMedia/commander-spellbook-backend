@@ -1,6 +1,7 @@
-from itertools import zip_longest
+from itertools import zip_longest, chain
 from django.db.models import Model
 from django.db.models.manager import BaseManager
+from django.db.models.signals import pre_save, post_save, pre_delete, post_delete
 from rest_framework import serializers, fields
 from spellbook.models import DEFAULT_BATCH_SIZE
 
@@ -47,7 +48,18 @@ class ModelSerializerWithRelatedModels:
             if with_order:
                 d['order'] = i
             to_create.append(manager.model(**{**d, related_field: instance}))
+        for model in to_create:
+            pre_save.send(
+                sender=manager.model,
+                instance=model,
+            )
         manager.bulk_create(to_create, batch_size=DEFAULT_BATCH_SIZE)
+        for model in to_create:
+            post_save.send(
+                sender=manager.model,
+                instance=model,
+                created=True,
+            )
 
     def _update_related_model(
         self,
@@ -60,7 +72,7 @@ class ModelSerializerWithRelatedModels:
     ):
         to_create: list[Model] = []
         to_update: list[Model] = []
-        to_delete = []
+        to_delete: list[Model] = []
         models = manager.order_by('order') if with_order else manager.all()
         for i, (d, model) in enumerate(zip_longest(data, models), start=1):
             if d is not None and with_order:
@@ -68,12 +80,39 @@ class ModelSerializerWithRelatedModels:
             if model is None:
                 to_create.append(manager.model(**{**d, related_field: instance}))
             elif d is None:
-                to_delete.append(model.pk)
+                to_delete.append(model)
             else:
                 for key, value in d.items():
                     setattr(model, key, value)
                 to_update.append(model)
+        for model in chain(to_create, to_update):
+            pre_save.send(
+                sender=manager.model,
+                instance=model,
+            )
+        for model in to_delete:
+            pre_delete.send(
+                sender=manager.model,
+                instance=model,
+            )
         manager.bulk_create(to_create, batch_size=DEFAULT_BATCH_SIZE)
         manager.bulk_update(to_update, serializer.fields.keys(), batch_size=DEFAULT_BATCH_SIZE)  # type: ignore
         for batch_start in range(0, len(to_delete), DEFAULT_BATCH_SIZE):
-            manager.filter(pk__in=to_delete[batch_start:batch_start + DEFAULT_BATCH_SIZE]).delete()
+            manager.filter(pk__in=(m.pk for m in to_delete[batch_start:batch_start + DEFAULT_BATCH_SIZE])).delete()
+        for model in to_create:
+            post_save.send(
+                sender=manager.model,
+                instance=model,
+                created=True,
+            )
+        for model in to_update:
+            post_save.send(
+                sender=manager.model,
+                instance=model,
+                created=False,
+            )
+        for model in to_delete:
+            post_delete.send(
+                sender=manager.model,
+                instance=model,
+            )

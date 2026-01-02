@@ -93,17 +93,11 @@ class VariantSuggestionSerializer(serializers.ModelSerializer, ModelSerializerWi
 
     @transaction.atomic(durable=True)
     def create(self, validated_data: dict):
-        uses_key = 'uses'
-        requires_key = 'requires'
-        produces_key = 'produces'
-        uses_set = validated_data.pop(uses_key)
-        requires_set = validated_data.pop(requires_key)
-        produces_set = validated_data.pop(produces_key)
-        extended_kwargs = {
-            **validated_data,
-            'suggested_by': self.context['request'].user,
-        }
-        instance = super().create(extended_kwargs)
+        uses_set = validated_data.pop('uses')
+        requires_set = validated_data.pop('requires')
+        produces_set = validated_data.pop('produces')
+        validated_data['suggested_by'] = self.context['request'].user
+        instance = super().create(validated_data)
         self._create_related_model(
             instance,
             CardUsedInVariantSuggestion.objects,
@@ -123,7 +117,6 @@ class VariantSuggestionSerializer(serializers.ModelSerializer, ModelSerializerWi
             produces_set,
             with_order=False,
         )
-        self._post_save(instance)
         return instance
 
     @transaction.atomic(durable=True)
@@ -131,14 +124,7 @@ class VariantSuggestionSerializer(serializers.ModelSerializer, ModelSerializerWi
         uses_validated_data = validated_data.pop('uses', [])
         requires_validated_data = validated_data.pop('requires', [])
         produces_validated_data = validated_data.pop('produces', [])
-        instance.update_recipe_from_memory(
-            cards={use['card']: use.get('quantity', 1) for use in uses_validated_data if use.get('card')},
-            templates={require['template']: require.get('quantity', 1) for require in requires_validated_data if require.get('template')},
-            features_needed={},
-            features_produced={feature['feature']: 1 for feature in produces_validated_data if feature.get('feature')},
-            features_removed={},
-        )
-        instance = super().update(instance, validated_data.copy())
+        instance = super().update(instance, validated_data)
         self._update_related_model(
             instance,
             instance.uses,
@@ -161,12 +147,7 @@ class VariantSuggestionSerializer(serializers.ModelSerializer, ModelSerializerWi
             self.fields['produces'].child,
             with_order=False,
         )
-        self._post_save(instance)
         return instance
-
-    def _post_save(self, instance: VariantSuggestion):
-        instance.update_recipe_from_data()
-        instance.save()
 
     @classmethod
     def prefetch_related(cls, queryset: QuerySet[VariantSuggestion]):

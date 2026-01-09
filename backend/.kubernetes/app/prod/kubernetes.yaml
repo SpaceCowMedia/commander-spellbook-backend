@@ -125,7 +125,7 @@ spec:
     name: spellbook-api
   minReplicas: 2
   maxReplicas: 36
-  targetCPUUtilizationPercentage: 80
+  targetCPUUtilizationPercentage: 70
 
 ---
 # API Service
@@ -158,7 +158,7 @@ metadata:
     alb.ingress.kubernetes.io/ip-address-type: dualstack
     alb.ingress.kubernetes.io/target-type: ip
     alb.ingress.kubernetes.io/tags: project=commanderspellbook,environment=prod
-    alb.ingress.kubernetes.io/target-group-attributes: deregistration_delay.timeout_seconds=60
+    alb.ingress.kubernetes.io/target-group-attributes: deregistration_delay.timeout_seconds=60,load_balancing.algorithm.type=least_outstanding_requests
     ## SSL Settings
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}, {"HTTP":80}]'
     alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-2:083767677168:certificate/e6f5834f-bd9a-4333-962a-8fe0857e84ea

@@ -124,7 +124,9 @@ spec:
     kind: Deployment
     name: spellbook-api
   minReplicas: 2
-  maxReplicas: 36
+  # Limited 2026-01-09 because API pods fork long CPU-heavy job and it
+  # causes the autoscaler to kick in even though it can't help
+  maxReplicas: 3
   targetCPUUtilizationPercentage: 70
 
 ---

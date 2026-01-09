@@ -34,7 +34,7 @@ spec:
                 value: commanderspellbook.com
             initialDelaySeconds: 30
             periodSeconds: 10
-            timeoutSeconds: 5
+            timeoutSeconds: 10
             
           livenessProbe:
             httpGet:
@@ -45,7 +45,7 @@ spec:
                 value: commanderspellbook.com
             initialDelaySeconds: 40
             periodSeconds: 20
-            timeoutSeconds: 5
+            timeoutSeconds: 10
           env:
             - name: SECRET_KEY
               valueFrom:

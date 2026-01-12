@@ -13,6 +13,7 @@ import os
 from pathlib import Path
 from datetime import timedelta
 from common.pypy_utils import PYPY_AVAILABLE as check_pypy
+from constants import SORTED_COLORS
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -255,6 +256,7 @@ SPECTACULAR_SETTINGS = {
     ],
     'ENUM_NAME_OVERRIDES': {
         'SuggestionStatusEnum': 'spellbook.models.suggestion.Suggestion.Status',
+        'ColorEnum': [(c, c) for c in SORTED_COLORS.values()],
     },
 }
 

@@ -1,6 +1,6 @@
 from django import template
 from django.utils.safestring import mark_safe
-from spellbook.models.utils import SORTED_COLORS
+from constants import SORTED_COLORS
 
 register = template.Library()
 

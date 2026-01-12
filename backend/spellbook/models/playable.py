@@ -2,7 +2,7 @@ from decimal import Decimal
 from django.db import models
 from django.db.models.functions import Length, StrIndex
 from django.db.models.lookups import GreaterThan
-from .utils import SORTED_COLORS
+from constants import SORTED_COLORS
 
 
 class Playable(models.Model):

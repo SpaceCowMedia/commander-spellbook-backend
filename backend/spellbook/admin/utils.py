@@ -13,10 +13,11 @@ from django.forms import Textarea
 from django.core.exceptions import FieldDoesNotExist
 from django.contrib.admin import ModelAdmin
 from django.contrib.admin.views.main import ORDER_VAR, ChangeList
-from adminsortable2.admin import SortableAdminBase
 from django.utils.safestring import SafeText
+from constants import SORTED_COLORS
+from adminsortable2.admin import SortableAdminBase
 from spellbook.variants.variants_generator import DEFAULT_CARD_LIMIT
-from spellbook.models.utils import sanitize_newlines_apostrophes_and_quotes, sanitize_mana, sanitize_scryfall_query, SORTED_COLORS
+from spellbook.models.utils import sanitize_newlines_apostrophes_and_quotes, sanitize_mana, sanitize_scryfall_query
 
 
 def datetime_to_html(datetime: datetime | None) -> SafeText:

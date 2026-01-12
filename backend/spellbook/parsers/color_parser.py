@@ -1,4 +1,4 @@
-from spellbook.models.utils import SORTED_COLORS
+from constants import SORTED_COLORS
 
 
 def parse_color(value: str) -> str | None:

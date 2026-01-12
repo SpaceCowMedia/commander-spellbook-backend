@@ -1,0 +1,38 @@
+
+SORTED_COLORS = {
+    frozenset(i): i for i in (
+        'C',
+        'W',
+        'U',
+        'B',
+        'R',
+        'G',
+        'WU',
+        'WB',
+        'RW',
+        'GW',
+        'UB',
+        'UR',
+        'GU',
+        'BR',
+        'BG',
+        'RG',
+        'WUB',
+        'URW',
+        'GWU',
+        'RWB',
+        'WBG',
+        'RGW',
+        'UBR',
+        'BGU',
+        'GUR',
+        'BRG',
+        'WUBR',
+        'UBRG',
+        'BRGW',
+        'RGWU',
+        'GWUB',
+        'WUBRG',
+    )
+}
+COLORS = frozenset('WUBRG')

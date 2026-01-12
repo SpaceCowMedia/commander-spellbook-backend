@@ -9,6 +9,7 @@ from django.utils.text import normalize_newlines
 from django.db import connection
 from django.db.models import Expression, F, Value, TextChoices, OrderBy
 from django.db.models.functions import Replace, Trim
+from constants import SORTED_COLORS, COLORS
 
 
 COMPARISON_OPERATOR = rf'(?:{"|".join(COMPARISON_OPERATORS)})'
@@ -20,43 +21,6 @@ SANITIZATION_REPLACEMENTS = {
     'ʻʼ‘’❛❜': '\'',  # quotes
     '“”″❞〝〞ˮ': '"',  # double quotes
 }
-SORTED_COLORS = {
-    frozenset(i): i for i in (
-        'C',
-        'W',
-        'U',
-        'B',
-        'R',
-        'G',
-        'WU',
-        'WB',
-        'RW',
-        'GW',
-        'UB',
-        'UR',
-        'GU',
-        'BR',
-        'BG',
-        'RG',
-        'WUB',
-        'URW',
-        'GWU',
-        'RWB',
-        'WBG',
-        'RGW',
-        'UBR',
-        'BGU',
-        'GUR',
-        'BRG',
-        'WUBR',
-        'UBRG',
-        'BRGW',
-        'RGWU',
-        'GWUB',
-        'WUBRG',
-    )
-}
-COLORS = frozenset('WUBRG')
 
 
 class CardType(TextChoices):

@@ -3,9 +3,9 @@ import random
 from django.db import models
 from django.urls import reverse
 from rest_framework import status
+from constants import SORTED_COLORS
 from common.inspection import json_to_python_lambda
 from spellbook.models import Card, Template, Feature, Variant, CardInVariant, TemplateInVariant, Combo
-from spellbook.models.utils import SORTED_COLORS
 from spellbook.views import VariantViewSet
 from spellbook.serializers import VariantSerializer
 from spellbook.views.variants import VariantGroupedByComboFilter
@@ -504,7 +504,7 @@ class VariantViewsTests(SpellbookTestCaseWithSeeding):
                                 if c_set == color_set and '=' in operator or \
                                     c_set.issuperset(color_set) and c_set != color_set and '>' in operator or \
                                         c_set.issubset(color_set) and c_set != color_set and '<' in operator or \
-                                        c_set.issubset(color_set) and ':' in operator:
+                                        c_set == color_set and ':' in operator:
                                     if '@' not in q:
                                         ok = True
                                         break

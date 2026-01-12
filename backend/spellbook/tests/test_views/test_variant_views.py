@@ -490,8 +490,7 @@ class VariantViewsTests(SpellbookTestCaseWithSeeding):
                             variants = self.variants_matching_any_cards(Card.objects.filter(**qq))
                     elif isinstance(color, str):
                         color_set = set(color) - {'C'}
-                        operator_for_query = operator_django if operator != ':' else 'eq'
-                        qq = {f'color_count__{operator_for_query}': len(color_set)}
+                        qq = {f'color_count__{operator_django}': len(color_set)}
                         if '@' in q:
                             variants_result = self.variants_matching_all_cards(Card.objects.filter(**qq))
                         else:

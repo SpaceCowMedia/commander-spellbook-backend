@@ -9,6 +9,7 @@ from .variants_query_filters.card_type_filters import card_type_filter
 from .variants_query_filters.card_oracle_filters import card_oracle_filter
 from .variants_query_filters.card_keyword_filters import card_keyword_filter
 from .variants_query_filters.card_mana_value_filters import card_mana_value_filter
+from .variants_query_filters.card_color_filters import card_color_filter
 from .variants_query_filters.variant_identity_filters import identity_filter
 from .variants_query_filters.variant_prerequisites_filters import prerequisites_filter
 from .variants_query_filters.variant_description_filters import description_filter
@@ -53,6 +54,10 @@ class VariantsQueryTransformer(Transformer):
     def card_mana_value_search(self, values):
         q = QueryValue.from_string(values[0])
         return card_mana_value_filter(q)
+
+    def card_color_search(self, values):
+        q = QueryValue.from_string(values[0])
+        return card_color_filter(q)
 
     def identity_search(self, values):
         q = QueryValue.from_string(values[0])

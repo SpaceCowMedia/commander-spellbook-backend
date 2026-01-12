@@ -19,7 +19,7 @@ from .ingredient import IngredientInCombination, ZoneLocation
 from .combo import Combo
 from .job import Job
 from .validators import TEXT_VALIDATORS, MANA_VALIDATOR
-from .utils import CardType, mana_value, merge_identities
+from .utils import CardType, mana_value, merge_color_identities
 from .constants import MAX_MANA_NEEDED_LENGTH
 
 
@@ -274,12 +274,13 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
         cards = list(cards)
         old_values = {field: getattr(self, field) for field in self.playable_fields()}
         self.mana_value = sum(card.mana_value for card in cards)
-        self.identity = merge_identities(playable.identity for playable in cards)
+        self.identity = merge_color_identities(playable.identity for playable in cards)
+        self.color = merge_color_identities(playable.color for playable in cards)
         self.spoiler = any(playable.spoiler for playable in cards)
         self.legal_commander = all(playable.legal_commander for playable in cards)
         self.legal_pauper_commander_main = all(playable.legal_pauper_commander_main for playable in cards)
         pauper_commanders = [playable for playable in cards if not playable.legal_pauper_commander_main]
-        pauper_commanders_identity = merge_identities(playable.identity for playable in pauper_commanders)
+        pauper_commanders_identity = merge_color_identities(playable.identity for playable in pauper_commanders)
         self.legal_pauper_commander = all(playable.legal_pauper_commander for playable in cards) and (
             len(pauper_commanders) == 0 or self.identity == pauper_commanders_identity and (
                 len(pauper_commanders) == 1 or (

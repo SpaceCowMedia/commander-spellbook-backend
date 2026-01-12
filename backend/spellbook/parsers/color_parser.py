@@ -1,7 +1,7 @@
 from spellbook.models.utils import SORTED_COLORS
 
 
-def parse_identity(value: str) -> str | None:
+def parse_color(value: str) -> str | None:
     value = value.upper()
     value_set = frozenset(value)
     if value_set in SORTED_COLORS:

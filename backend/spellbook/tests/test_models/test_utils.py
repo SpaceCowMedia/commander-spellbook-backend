@@ -1,5 +1,5 @@
 from unittest import TestCase
-from spellbook.models.utils import merge_identities, auto_fix_missing_braces_to_oracle_symbols, merge_mana_costs, \
+from spellbook.models.utils import merge_color_identities, auto_fix_missing_braces_to_oracle_symbols, merge_mana_costs, \
     upper_oracle_symbols, sanitize_mana, sanitize_scryfall_query, auto_fix_missing_slashes_in_hybrid_mana
 
 
@@ -247,20 +247,20 @@ class TestMergeManaCosts(TestCase):
 
 
 class TestMergeIdentities(TestCase):
-    def test_merge_identities(self):
-        self.assertEqual(merge_identities(['', '']), 'C')
+    def test_merge_color_identities(self):
+        self.assertEqual(merge_color_identities(['', '']), 'C')
         for c in 'CWUBRG':
-            self.assertEqual(merge_identities([c, '']), c)
-            self.assertEqual(merge_identities(['', c]), c)
-            self.assertEqual(merge_identities([c, c]), c)
-        self.assertSetEqual(set(merge_identities(['W', 'U'])), set('WU'))
-        self.assertSetEqual(set(merge_identities(['W', 'U', 'B'])), set('WUB'))
-        self.assertSetEqual(set(merge_identities(['W', 'U', 'B', 'R'])), set('WUBR'))
-        self.assertSetEqual(set(merge_identities(['W', 'U', 'B', 'R', 'G'])), set('WUBRG'))
-        self.assertSetEqual(set(merge_identities(sorted(['W', 'U', 'B', 'R', 'G']))), set('WUBRG'))
-        self.assertSetEqual(set(merge_identities(['W', 'U', 'B', 'R', 'G', 'W'])), set('WUBRG'))
-        self.assertSetEqual(set(merge_identities(['WU', 'BR', 'G', 'WG'])), set('WUBRG'))
-        self.assertSetEqual(set(merge_identities(['S'])), set('C'))
-        self.assertSetEqual(set(merge_identities(['S', 'R'])), set('R'))
-        self.assertSetEqual(set(merge_identities(['r', 'g'])), set('RG'))
-        self.assertSetEqual(set(merge_identities(['g', 'r'])), set('RG'))
+            self.assertEqual(merge_color_identities([c, '']), c)
+            self.assertEqual(merge_color_identities(['', c]), c)
+            self.assertEqual(merge_color_identities([c, c]), c)
+        self.assertSetEqual(set(merge_color_identities(['W', 'U'])), set('WU'))
+        self.assertSetEqual(set(merge_color_identities(['W', 'U', 'B'])), set('WUB'))
+        self.assertSetEqual(set(merge_color_identities(['W', 'U', 'B', 'R'])), set('WUBR'))
+        self.assertSetEqual(set(merge_color_identities(['W', 'U', 'B', 'R', 'G'])), set('WUBRG'))
+        self.assertSetEqual(set(merge_color_identities(sorted(['W', 'U', 'B', 'R', 'G']))), set('WUBRG'))
+        self.assertSetEqual(set(merge_color_identities(['W', 'U', 'B', 'R', 'G', 'W'])), set('WUBRG'))
+        self.assertSetEqual(set(merge_color_identities(['WU', 'BR', 'G', 'WG'])), set('WUBRG'))
+        self.assertSetEqual(set(merge_color_identities(['S'])), set('C'))
+        self.assertSetEqual(set(merge_color_identities(['S', 'R'])), set('R'))
+        self.assertSetEqual(set(merge_color_identities(['r', 'g'])), set('RG'))
+        self.assertSetEqual(set(merge_color_identities(['g', 'r'])), set('RG'))

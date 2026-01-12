@@ -88,13 +88,17 @@ def id_from_cards_and_templates_ids(cards: Iterable[int], templates: Iterable[in
     return '-'.join(str(c) for c in sorted(cards)) + ('--' + '--'.join(str(t) for t in sorted_templates) if len(sorted_templates) > 0 else '')
 
 
-def sort_color_identity(identity_set: frozenset[str]) -> str:
+def sort_color_identity_set(identity_set: frozenset[str]) -> str:
     return SORTED_COLORS[identity_set or frozenset('C')]
 
 
-def merge_identities(identities: Iterable[str]) -> str:
-    identity_set = frozenset(''.join(identities).upper()).intersection(COLORS)
-    return sort_color_identity(identity_set)
+def sort_color_identity(identity: str) -> str:
+    identity_set = frozenset(identity.upper()).intersection(COLORS)
+    return sort_color_identity_set(identity_set)
+
+
+def merge_color_identities(identities: Iterable[str]) -> str:
+    return sort_color_identity(''.join(identities))
 
 
 def get_color_or_empty(x: str) -> str:
@@ -104,7 +108,7 @@ def get_color_or_empty(x: str) -> str:
 
 def sort_by_identity(sequence: Iterable[str], color: Callable[[str], str]) -> list[str]:
     tuples = [(x, get_color_or_empty(color(x))) for x in sequence]
-    identity = sort_color_identity(frozenset(c for _, c in tuples if c))
+    identity = sort_color_identity_set(frozenset(c for _, c in tuples if c))
     return [s for s, _ in sorted(tuples, key=lambda t: -1 if t[1] == '' else identity.index(t[1]))]
 
 
@@ -154,7 +158,7 @@ def merge_mana_costs(mana_costs: Iterable[str]) -> str:
         for symbol in sort_by_identity(symbols, lambda s: s[-1]):
             process_symbol(symbol)
         # Colored mana symbols sorted
-        identity = sort_color_identity(COLORS.intersection(grouped_symbols))
+        identity = sort_color_identity_set(COLORS.intersection(grouped_symbols))
         for color in identity:
             # Group by color
             symbols = grouped_symbols.pop(color, [])

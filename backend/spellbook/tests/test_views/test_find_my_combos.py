@@ -4,7 +4,7 @@ import random
 from django.db import models
 from rest_framework import status
 from common.inspection import json_to_python_lambda
-from spellbook.models import Card, Template, Variant, merge_identities, CardInVariant
+from spellbook.models import Card, Template, Variant, merge_color_identities, CardInVariant
 from spellbook.variants.multiset import FrozenMultiset
 from ..testing import SpellbookTestCaseWithSeeding
 from django.urls import reverse
@@ -124,7 +124,7 @@ class FindMyCombosViewTests(SpellbookTestCaseWithSeeding):
                                     deck_list_str = json.dumps({'main': [{'card': c, 'quantity': q} for c, q in deck_list], 'commanders': [{'card': c, 'quantity': q} for c, q in commander_list]})
                                 else:
                                     deck_list_str = '\n'.join(['// Command'] + [f'{q}x {c} [ALFA]' for c, q in commander_list] + ['// Main'] + [f'{q} {c} (XD)' for c, q in deck_list])
-                                identity = merge_identities(c.identity for c in Card.objects.filter(name__in=[c for c, _ in deck_list + commander_list]))
+                                identity = merge_color_identities(c.identity for c in Card.objects.filter(name__in=[c for c, _ in deck_list + commander_list]))
                                 identity_set = set(identity) | {'C'}
                                 response = self.client.generic('GET', reverse('find-my-combos'), data=deck_list_str, follow=True, headers={'Content-Type': content_type})  # type: ignore
                                 self.assertEqual(response.status_code, status.HTTP_200_OK)  # type: ignore

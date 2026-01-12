@@ -12,5 +12,5 @@ from .suggestion import Suggestion
 from .variant_suggestion import VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, FeatureProducedInVariantSuggestion
 from .variant_update_suggestion import VariantUpdateSuggestion, VariantInVariantUpdateSuggestion
 from .variant_alias import VariantAlias
-from .utils import id_from_cards_and_templates_ids, merge_identities, recipe, CardType, merge_mana_costs, DEFAULT_BATCH_SIZE
+from .utils import id_from_cards_and_templates_ids, merge_color_identities, recipe, CardType, merge_mana_costs, DEFAULT_BATCH_SIZE
 from .mixins import PreSerializedSerializer

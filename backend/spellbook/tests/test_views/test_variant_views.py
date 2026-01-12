@@ -451,6 +451,76 @@ class VariantViewsTests(SpellbookTestCaseWithSeeding):
                 for v in result.results:
                     self.variant_assertions(v)
 
+    def test_variants_list_view_query_by_cardcolor(self):
+        for operator, operator_django in self.operators.items():
+            queries = []
+            for color in SORTED_COLORS:
+                color = list(color)
+                random.shuffle(color)
+                color = ''.join(color)
+                if not color:
+                    raise ValueError('Empty color')
+                queries.extend([
+                    (f'cardcolor{operator}{color}', color),
+                    (f'cardcolors{operator}{color}', color),
+                    (f'@cardcolor{operator}{color}', color),
+                ])
+            for color_name, color in [('blue', 'U'), ('black', 'B'), ('COLORLESS', 'C')]:
+                queries.extend([
+                    (f'cardcolor{operator}{color_name}', color),
+                    (f'cardcolors{operator}"{color_name}"', color),
+                ])
+            for i in range(7):
+                queries.extend([
+                    (f'cardcolor{operator}{i}', i),
+                    (f'cardcolors{operator}{i}', i),
+                    (f'@cardcolor{operator}{i}', i),
+                ])
+            for q, color in queries:
+                with self.subTest(f'query by card color: {color} with query {q}'):
+                    response = self.client.get(reverse('variants-list'), query_params={'q': q}, follow=True)  # type: ignore
+                    self.assertEqual(response.status_code, status.HTTP_200_OK)
+                    self.assertEqual(response.get('Content-Type'), 'application/json')
+                    result = json.loads(response.content, object_hook=json_to_python_lambda)
+                    if isinstance(color, int):
+                        qq = {f'color_count__{operator_django}': color}
+                        if '@' in q:
+                            variants = self.variants_matching_all_cards(Card.objects.filter(**qq))
+                        else:
+                            variants = self.variants_matching_any_cards(Card.objects.filter(**qq))
+                    elif isinstance(color, str):
+                        color_set = set(color) - {'C'}
+                        operator_for_query = operator_django if operator != ':' else 'eq'
+                        qq = {f'color_count__{operator_for_query}': len(color_set)}
+                        if '@' in q:
+                            variants_result = self.variants_matching_all_cards(Card.objects.filter(**qq))
+                        else:
+                            variants_result = self.variants_matching_any_cards(Card.objects.filter(**qq))
+                        variants = []
+                        for v in variants_result:
+                            ok = '@' in q
+                            for c in v.uses.all():
+                                c: Card
+                                c_set = set(c.color) - {'C'}
+                                if c_set == color_set and '=' in operator or \
+                                    c_set.issuperset(color_set) and c_set != color_set and '>' in operator or \
+                                        c_set.issubset(color_set) and c_set != color_set and '<' in operator or \
+                                        c_set.issubset(color_set) and ':' in operator:
+                                    if '@' not in q:
+                                        ok = True
+                                        break
+                                else:
+                                    if '@' in q:
+                                        ok = False
+                                        break
+                            if ok:
+                                variants.append(v)
+                    query_result_ids = {v.id for v in result.results}
+                    variants_ids = {v.id for v in variants}
+                    self.assertSetEqual(query_result_ids, variants_ids)
+                    for v in result.results:
+                        self.variant_assertions(v)
+
     def test_variants_list_view_query_by_identity(self):
         for operator, operator_django in self.operators.items():
             queries = []

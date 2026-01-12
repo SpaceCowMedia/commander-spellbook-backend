@@ -8,7 +8,7 @@ from .utils import SORTED_COLORS
 class Playable(models.Model):
     @classmethod
     def playable_fields(cls):
-        return ['identity', 'spoiler', 'mana_value'] + cls.legalities_fields() + cls.prices_fields()
+        return ['identity', 'color', 'spoiler', 'mana_value'] + cls.legalities_fields() + cls.prices_fields()
     identity = models.CharField(max_length=5, blank=False, null=False, default='C', verbose_name='color identity', choices=[(c, c) for c in SORTED_COLORS.values()])
     identity_w = models.GeneratedField(
         db_persist=True,
@@ -35,12 +35,43 @@ class Playable(models.Model):
         expression=GreaterThan(StrIndex('identity', models.Value('G')), models.Value(0)),
         output_field=models.BooleanField(default=False, verbose_name='identity green'),
     )
+    color = models.CharField(max_length=5, blank=False, null=False, default='C', verbose_name='colors', choices=[(c, c) for c in SORTED_COLORS.values()])
+    color_w = models.GeneratedField(
+        db_persist=True,
+        expression=GreaterThan(StrIndex('color', models.Value('W')), models.Value(0)),
+        output_field=models.BooleanField(default=False, verbose_name='color white'),
+    )
+    color_u = models.GeneratedField(
+        db_persist=True,
+        expression=GreaterThan(StrIndex('color', models.Value('U')), models.Value(0)),
+        output_field=models.BooleanField(default=False, verbose_name='color blue'),
+    )
+    color_b = models.GeneratedField(
+        db_persist=True,
+        expression=GreaterThan(StrIndex('color', models.Value('B')), models.Value(0)),
+        output_field=models.BooleanField(default=False, verbose_name='color black'),
+    )
+    color_r = models.GeneratedField(
+        db_persist=True,
+        expression=GreaterThan(StrIndex('color', models.Value('R')), models.Value(0)),
+        output_field=models.BooleanField(default=False, verbose_name='color red'),
+    )
+    color_g = models.GeneratedField(
+        db_persist=True,
+        expression=GreaterThan(StrIndex('color', models.Value('G')), models.Value(0)),
+        output_field=models.BooleanField(default=False, verbose_name='color green'),
+    )
     spoiler = models.BooleanField(default=False, help_text='Is this from an upcoming set?', verbose_name='is spoiler')
     mana_value = models.PositiveSmallIntegerField(default=0)
     identity_count = models.GeneratedField(
         db_persist=True,
         expression=models.Case(models.When(identity='C', then=models.Value(0)), default=Length('identity')),
         output_field=models.PositiveSmallIntegerField(default=0, verbose_name='identity color count'),
+    )
+    color_count = models.GeneratedField(
+        db_persist=True,
+        expression=models.Case(models.When(color='C', then=models.Value(0)), default=Length('color')),
+        output_field=models.PositiveSmallIntegerField(default=0, verbose_name='color count'),
     )
 
     # Legalities

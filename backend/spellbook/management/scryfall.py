@@ -8,7 +8,7 @@ from urllib.request import Request, urlopen
 from urllib.parse import quote_plus, urlencode
 from django.utils import timezone
 from django.db.models import Q
-from spellbook.models import Card, merge_identities
+from spellbook.models import Card, merge_color_identities
 
 
 def standardize_name(name: str) -> str:
@@ -187,8 +187,8 @@ def update_cards(cards: list[Card], scryfall: Scryfall, counts: dict[int, int], 
             def card_fields(card: Card) -> tuple:
                 return tuple(getattr(card, field) for field in Card.scryfall_fields() + Card.playable_fields())
             fields_before = card_fields(card)
-            card_identity = merge_identities(card_in_db['color_identity'])
-            card.identity = card_identity
+            card.identity = merge_color_identities(card_in_db['color_identity'])
+            card.color = merge_color_identities(card_in_db['colors'] if 'colors' in card_in_db else card_in_db['card_faces'][0]['colors'])
             card.spoiler = not card_in_db['reprint'] \
                 and datetime.datetime.strptime(card_in_db['released_at'], '%Y-%m-%d').date() > timezone.now().date()
             card.type_line = card_in_db['type_line']

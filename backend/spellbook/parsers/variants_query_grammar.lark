@@ -25,6 +25,7 @@ CARD_SEARCH_SHORTCUT.-1: STRING
     | CARD_ORACLE_SEARCH -> card_oracle_search
     | CARD_KEYWORD_SEARCH -> card_keyword_search
     | CARD_MANA_VALUE_SEARCH -> card_mana_value_search
+    | CARD_COLOR_SEARCH -> card_color_search
     | IDENTITY_SEARCH -> identity_search
     | PREREQUISITES_SEARCH -> prerequisites_search
     | STEPS_SEARCH -> steps_search
@@ -51,6 +52,8 @@ CARD_ORACLE_SEARCH: ALL_RELATED_OPERATOR? CARD_ORACLE_SEARCH_KEY EQUALITY_OPERAT
 CARD_KEYWORD_SEARCH: ALL_RELATED_OPERATOR? CARD_KEYWORD_SEARCH_KEY MATCHES_OPERATOR STRING
 
 CARD_MANA_VALUE_SEARCH: ALL_RELATED_OPERATOR? CARD_MANA_VALUE_SEARCH_KEY COMPARISON_OPERATOR NUMBER
+
+CARD_COLOR_SEARCH: ALL_RELATED_OPERATOR? CARD_COLOR_SEARCH_KEY COMPARISON_OPERATOR STRING_OR_NUMBER
 
 IDENTITY_SEARCH: IDENTITY_SEARCH_KEY COMPARISON_OPERATOR STRING_OR_NUMBER
 
@@ -112,6 +115,8 @@ CARD_ORACLE_SEARCH_KEY: "cardoracle"i | "oracle"i | "o"i  | "text"i
 CARD_KEYWORD_SEARCH_KEY: "cardkeywords"i | "cardkeyword"i | "keyword"i | "keywords"i | "kw"i
 
 CARD_MANA_VALUE_SEARCH_KEY: "cardmanavalue"i | "manavalue"i | "mv"i | "cmc"i
+
+CARD_COLOR_SEARCH_KEY: "cardcolor"i | "cardcolors"i
 
 IDENTITY_SEARCH_KEY: "coloridentity"i | "identity"i | "color"i | "colors"i | "id"i | "ids"i | "c"i | "ci"i
 

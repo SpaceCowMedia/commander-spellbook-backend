@@ -90,6 +90,10 @@ class VariantTests(SpellbookTestCaseWithSeeding):
         c.save()
         self.assertTrue(v.update_playable_fields(cards, requires_commander=False))
         self.assertFalse(v.update_playable_fields(cards, requires_commander=False))
+        c.color = 'WUBRG'
+        c.save()
+        self.assertTrue(v.update_playable_fields(cards, requires_commander=False))
+        self.assertFalse(v.update_playable_fields(cards, requires_commander=False))
         c.spoiler = True
         c.save()
         self.assertTrue(v.update_playable_fields(cards, requires_commander=False))

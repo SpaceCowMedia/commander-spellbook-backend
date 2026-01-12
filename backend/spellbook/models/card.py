@@ -32,6 +32,7 @@ class Card(Playable, PreSaveModelMixin, ScryfallLinkMixin):
     def scryfall_fields(cls):
         return [
             'identity',
+            'color',
             'spoiler',
             'type_line',
             'oracle_text',

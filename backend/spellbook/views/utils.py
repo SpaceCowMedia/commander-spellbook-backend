@@ -9,7 +9,7 @@ from rest_framework import parsers
 from rest_framework.views import APIView
 from rest_framework.request import Request
 from common.serializers import DeckSerializer as RawDeckSerializer
-from spellbook.models import Card, Template, Variant, merge_identities
+from spellbook.models import Card, Template, Variant, merge_color_identities
 from spellbook.variants.multiset import Multiset, FrozenMultiset
 from website.views import PlainTextDeckListParser
 
@@ -74,7 +74,7 @@ def deck_from_raw(raw_deck: RawDeck, cards_id_dict: dict[str, int], identity_dic
     for commander in raw_deck.commanders:
         next_card(commander, commanders)
     cards = main.union(commanders)
-    identity = merge_identities(identity_dict[id] for id in cards.distinct_elements() if id in identity_dict)
+    identity = merge_color_identities(identity_dict[id] for id in cards.distinct_elements() if id in identity_dict)
     return Deck(main=FrozenMultiset(main), commanders=FrozenMultiset(commanders), identity=identity)
 
 

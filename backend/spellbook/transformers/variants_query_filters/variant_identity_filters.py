@@ -1,5 +1,5 @@
 from .base import QueryValue, VariantFilterCollection, Q, ValidationError
-from spellbook.parsers.color_parser import parse_identity
+from spellbook.parsers.color_parser import parse_color
 
 
 def identity_filter(qv: QueryValue) -> VariantFilterCollection:
@@ -7,7 +7,7 @@ def identity_filter(qv: QueryValue) -> VariantFilterCollection:
     identity = ''
     not_in_identity = ''
     if not value_is_digit:
-        identity = parse_identity(qv.value)
+        identity = parse_color(qv.value)
         if identity is None:
             raise ValidationError(f'Invalid color identity: {qv.value}')
         elif identity == 'C':
@@ -34,7 +34,7 @@ def identity_filter(qv: QueryValue) -> VariantFilterCollection:
             q = Q(identity_count__gte=len(identity))
             for color in identity:
                 q &= Q(**{f'identity_{color.lower()}': True})
-        case '=' | ':' if value_is_digit:
+        case ':' | '=' if value_is_digit:
             q = Q(identity_count=qv.value)
         case '<' if value_is_digit:
             q = Q(identity_count__lt=qv.value)

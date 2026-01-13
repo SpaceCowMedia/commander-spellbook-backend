@@ -141,7 +141,7 @@ class VariantBulkSaveItem:
         return {p.feature_id for p in self.produces}
 
 
-def get_default_zone_location_for_card(card: Card) -> str:
+def get_default_zone_location_for_card(card: Card) -> ZoneLocation:
     if card.is_of_type(CardType.INSTANT) or card.is_of_type(CardType.SORCERY):
         return ZoneLocation.HAND
     return ZoneLocation.BATTLEFIELD

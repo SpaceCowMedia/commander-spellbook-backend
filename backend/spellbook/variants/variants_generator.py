@@ -723,23 +723,21 @@ def generate_variants(combo: int | None = None, job: Job | None = None, log_coun
             to_bulk_create.append(variant_to_save)
         debug_queries()
     log_into_job(job, f'Saving {len(variants)} variants...')
-    with transaction.atomic():
-        perform_bulk_saves(data, to_bulk_create, to_bulk_update)
-        new_id_set = set(variants.keys())
-        added = new_id_set - old_id_set
-        restored = new_id_set & to_restore
-        log_into_job(job, f'Added {len(added)} new variants.')
-        log_into_job(job, f'Updated {len(restored)} variants.')
-        if combo is None:
-            to_delete = old_id_set - new_id_set
-        else:
-            to_delete = set[str]()
-        delete_query = Variant.objects.filter(id__in=to_delete)
-        deleted_count = len(to_delete)
-        delete_query.delete()
-        log_into_job(job, f'Deleted {deleted_count} variants...')
-        added_aliases, deleted_aliases = sync_variant_aliases(data, added, to_delete)
-        log_into_job(job, f'Added {added_aliases} new aliases, deleted {deleted_aliases} aliases.')
-        log_into_job(job, 'Done.')
-        debug_queries(True)
-        return len(added), len(restored), deleted_count
+    perform_bulk_saves(data, to_bulk_create, to_bulk_update)
+    new_id_set = set(variants.keys())
+    added = new_id_set - old_id_set
+    restored = new_id_set & to_restore
+    log_into_job(job, f'Added {len(added)} new variants.')
+    log_into_job(job, f'Updated {len(restored)} variants.')
+    if combo is None:
+        to_delete = old_id_set - new_id_set
+    else:
+        to_delete = set[str]()
+    delete_query = Variant.objects.filter(id__in=to_delete)
+    deleted_count, _ = delete_query.delete()
+    log_into_job(job, f'Deleted {deleted_count} variants...')
+    added_aliases, deleted_aliases = sync_variant_aliases(data, added, to_delete)
+    log_into_job(job, f'Added {added_aliases} new aliases, deleted {deleted_aliases} aliases.')
+    log_into_job(job, 'Done.')
+    debug_queries(True)
+    return len(added), len(restored), deleted_count

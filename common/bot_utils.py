@@ -90,3 +90,6 @@ class SpellbookQuery:
     @cached_property
     def summary(self) -> str:
         return summary_from_query(self.query, self.url)
+
+    def __str__(self) -> str:
+        return self.query

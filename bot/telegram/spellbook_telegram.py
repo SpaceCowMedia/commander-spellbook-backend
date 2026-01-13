@@ -3,7 +3,7 @@ import telegram
 import telegram.ext
 import logging
 from typing import Callable, Awaitable
-from spellbook_client import VariantsApi, InvalidUrlResponse, ApiException, Variant, FindMyCombosApi, DeckRequest, CardInDeckRequest, CardListFromUrlApi
+from spellbook_client import VariantsApi, InvalidUrlResponse, ApiException, Variant, FindMyCombosApi, DeckRequest, CardInDeckRequest, CardListFromUrlApi, VariantsQueryValidationError
 from bot_utils import parse_queries, uri_validator, SpellbookQuery, API, url_from_variant, compute_variant_recipe, compute_variant_name, compute_variant_results
 from text_utils import telegram_chunk, chunk_diff_async
 
@@ -125,42 +125,65 @@ async def search_inline(update: telegram.Update, context: telegram.ext.ContextTy
             ))
             return
         current_offset = int(inline_query.offset or 0)
-        query_info = SpellbookQuery(query)
-        async with API() as api_client:
-            api = VariantsApi(api_client)
-            result = await api.variants_list(
-                q=query_info.patched_query,
-                limit=max_search_result,
-                ordering='-popularity',
-                offset=current_offset,
-            )
         next_offset = current_offset + max_search_result
-        inline_results = [
-            telegram.InlineQueryResultArticle(
-                id=str(hash(query_info.patched_query)),
-                title=f'Found {result.count} results for {query_info.query}',
-                url=query_info.url,
-                hide_url=True,
-                input_message_content=telegram.InputTextMessageContent(
-                    message_text=query_info.summary,
-                    parse_mode=telegram.constants.ParseMode.MARKDOWN,
-                ),
+        query_info = SpellbookQuery(query)
+        result = None
+        try:
+            async with API() as api_client:
+                api = VariantsApi(api_client)
+                result = await api.variants_list(
+                    q=query_info.patched_query,
+                    limit=max_search_result,
+                    ordering='-popularity',
+                    offset=current_offset,
+                )
+            inline_results = [
+                telegram.InlineQueryResultArticle(
+                    id=str(hash(query_info.patched_query)),
+                    title=f'Found {result.count} results for {query_info.query}',
+                    url=query_info.url,
+                    input_message_content=telegram.InputTextMessageContent(
+                        message_text=query_info.summary,
+                        parse_mode=telegram.constants.ParseMode.MARKDOWN,
+                    ),
+                )
+            ] if current_offset == 0 else []
+            inline_results.extend(
+                telegram.InlineQueryResultArticle(
+                    id=str(variant.id),
+                    title=compute_variant_name(variant),
+                    description=compute_variant_results(variant),
+                    input_message_content=telegram.InputTextMessageContent(
+                        message_text=f'[{compute_variant_recipe(variant)}]({url_from_variant(variant)})',
+                        parse_mode=telegram.constants.ParseMode.MARKDOWN,
+                    ),
+                    url=url_from_variant(variant),
+                )
+                for variant in result.results
             )
-        ] if current_offset == 0 else []
-        inline_results.extend([
-            telegram.InlineQueryResultArticle(
-                id=str(variant.id),
-                title=compute_variant_name(variant),
-                description=compute_variant_results(variant),
-                input_message_content=telegram.InputTextMessageContent(
-                    message_text=f'[{compute_variant_recipe(variant)}]({url_from_variant(variant)})',
-                    parse_mode=telegram.constants.ParseMode.MARKDOWN,
+        except ApiException as e:
+            data = e.data
+            if isinstance(data, VariantsQueryValidationError):
+                error_messages = data.q or []
+                reply = f'Errors in your query for {query_info.summary}:\n' + '\n'.join(f'• {msg}' for msg in error_messages)
+                title = 'Query Error'
+                description = ',\n'.join(error_messages)
+            else:
+                reply = f'Failed to fetch results for {query_info.summary}'
+                title = 'Error'
+                description = 'An unexpected error occurred.'
+            inline_results = [
+                telegram.InlineQueryResultArticle(
+                    id=str(hash(query_info.patched_query)),
+                    title=title,
+                    url='https://commanderspellbook.com/syntax-guide/',
+                    description=description,
+                    input_message_content=telegram.InputTextMessageContent(
+                        message_text=reply,
+                        parse_mode=telegram.constants.ParseMode.MARKDOWN,
+                    ),
                 ),
-                url=url_from_variant(variant),
-                hide_url=True,
-            )
-            for variant in result.results
-        ])
+            ]
         if len(query) < 10:
             inline_button = telegram.InlineQueryResultsButton(
                 text='Syntax Guide',
@@ -172,7 +195,7 @@ async def search_inline(update: telegram.Update, context: telegram.ext.ContextTy
             results=inline_results,
             button=inline_button,
             cache_time=24 * 60 * 60,
-            next_offset=str(next_offset) if next_offset < result.count else None,
+            next_offset=str(next_offset) if result and next_offset < result.count else None,
         )
 
 

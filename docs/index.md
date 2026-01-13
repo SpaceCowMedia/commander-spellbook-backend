@@ -28,5 +28,4 @@ You need:
 - `flake8` for linting the code, which is mandatory for contributing otherwise the CI will fail
 - [Optional] VS Code with the Python extension, for development and debugging exploiting the `launch.json` configuration
     - `pytest` to run the unit tests in VS Code
-- [Optional] PyPy 3.10 or later for running long tasks faster
-  - Remember to install the dependencies using `pypy -m pip install -r requirements.txt` in the backend folder
+- [Optional] Cython for running long tasks faster (especially the variant generation code)

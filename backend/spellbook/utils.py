@@ -13,8 +13,7 @@ from spellbook.models import Job
 
 def launch_command_async(command: str, args: list[str] = []):
     manage_py_path = pathlib.Path(__file__).parent.parent / 'manage.py'
-    avoid_pypy = command in ['runserver', 'shell', 'export_variants']
-    interpreter = 'pypy' if not avoid_pypy and settings.PYPY_AVAILABLE else 'python'
+    interpreter = 'python'
     args = [interpreter, manage_py_path.resolve(), command] + args
     if sys.platform == "win32":
         subprocess.Popen(

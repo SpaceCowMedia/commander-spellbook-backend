@@ -12,7 +12,6 @@ https://docs.djangoproject.com/en/dev/ref/settings/
 import os
 from pathlib import Path
 from datetime import timedelta
-from common.pypy_utils import PYPY_AVAILABLE as check_pypy
 from constants import SORTED_COLORS
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -29,8 +28,6 @@ SECRET_KEY = 'django-insecure-!5xe$b7a9e4osw_3i23&&f1_s$inz*=j#97-6z88sf!!(f6w2q
 DEBUG = True
 
 STATIC_BULK_FOLDER = Path('./temp/bulk')
-
-PYPY_AVAILABLE = check_pypy
 
 VERSION = os.getenv('VERSION', 'dev')
 

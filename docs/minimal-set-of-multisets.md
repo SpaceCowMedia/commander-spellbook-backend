@@ -68,4 +68,4 @@ These are the papers/links to refer for the implementation of an optimized MSM (
 
 ## Considerations
 
-PyPy works way better with simple Python code than with over-engineered data structures, so the currently fastest implementation of the MSM is the naive one, which uses a Python set to store the multisets and checks for supersets/subsets using simple loops.
+Cython works way better with simple Python code than with over-engineered data structures, so the currently fastest implementation of the MSM is the naive one, which uses a Python set to store the multisets and checks for supersets/subsets using simple loops.

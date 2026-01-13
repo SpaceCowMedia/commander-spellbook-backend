@@ -1,7 +1,13 @@
+##########
+# PYTHON #
+##########
+FROM python:3.12-alpine AS python
+
+
 ###########
 # BUILDER #
 ###########
-FROM python:3.12-alpine AS builder
+FROM python AS builder
 
 # set work directory
 WORKDIR /usr/src/app
@@ -20,22 +26,10 @@ COPY backend/requirements.txt .
 RUN pip wheel --no-cache-dir --no-deps --wheel-dir /usr/src/app/python/wheels -r requirements.txt
 
 
-#################
-# PYPY BUILDER  #
-#################
-FROM builder AS pypy-builder
-
-RUN echo "@testing https://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories && \
-    apk --update add pypy3@testing
-
-RUN pypy3 -m ensurepip && pypy3 -m pip install --upgrade pip
-
-RUN pypy3 -m pip wheel --no-cache-dir --no-deps --wheel-dir /usr/src/app/pypy/wheels $(grep -ivE "#|cryptography|cffi" requirements.txt)
-
 #########
 # BASE  #
 #########
-FROM python:3.12-alpine AS base
+FROM python AS base
 
 # create the app user
 RUN addgroup -S app && adduser -S app -G app
@@ -74,32 +68,37 @@ ENTRYPOINT ["/bin/sh", "entrypoint.prod.sh"]
 RUN echo -e 'gunicorn backend.wsgi:application --bind 0.0.0.0:8000\n' > entrypoint.prod.sh
 
 
-#########
-# PYPY  #
-#########
-FROM base AS pypy
+##########
+# CYTHON #
+##########
+FROM builder AS cython
 
-# Switch to user root in order to install pypy
-USER root
+RUN pip install --upgrade cython setuptools
 
-# install dependencies
-RUN echo "@testing https://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories && \
-    apk --update add pypy3@testing && \
-    ln -s $(which pypy3) $(dirname $(which pypy3))/pypy && \
-    pypy -m ensurepip && pypy -m pip install --no-cache-dir --upgrade pip
 
-COPY --from=pypy-builder /usr/src/app/pypy/wheels /pypy/wheels
+##################
+# CYTHON-BUILDER #
+##################
 
-RUN pypy -m pip install --no-cache-dir /pypy/wheels/* --no-deps
-RUN pypy -m pip install --no-cache-dir psycopg
+FROM cython AS cython-builder
 
-# Switch back to the app user
-USER app
+COPY backend/ common/ /usr/src/app/
+WORKDIR /usr/src/app/
+RUN cythonize -i 'spellbook/variants/*.py'
+
+
+###############
+# BASE-CYTHON #
+###############
+FROM base AS base-cython
+
+COPY --from=cython-builder --parents /usr/src/app/./**/*.so $APP_HOME
+
 
 #########
 # DEMO  #
 #########
-FROM pypy AS demo
+FROM base-cython AS demo
 
 RUN echo -e 'set -e\n\
 python manage.py collectstatic --no-input --clear\n\
@@ -113,7 +112,7 @@ gunicorn backend.wsgi:application --bind 0.0.0.0:8000\n' > entrypoint.prod.sh
 ##############
 # PRODUCTION #
 ##############
-FROM pypy AS production
+FROM base-cython AS production
 
 ADD backend/nginx/production.conf /etc/nginx/nginx.conf
 

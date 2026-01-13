@@ -12,6 +12,14 @@
 **/*_data.json
 **/.*_cache
 **/*.log
+**/*$py.class
+**/*.c
+**/*.so
+**/*.py[cod]
+**/*.pdb
+**/*.whl
+**/*.egg
+**/*.egg-info
 hidden/
 docs/
 demo/

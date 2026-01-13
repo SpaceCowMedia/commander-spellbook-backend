@@ -1,6 +1,5 @@
 import re
 import unicodedata
-from platform import python_implementation
 from typing import Callable, Generator, Iterable
 from collections import defaultdict
 from ..regexs import MANA_SYMBOL, ORACLE_SYMBOL, ORACLE_SYMBOL_EXTENDED
@@ -302,23 +301,11 @@ def remove_random_from_order_by(order_by: Iterable[str | F | OrderBy]) -> Genera
 def __default_batch_size() -> int:
     '''Returns an appropriate batch size for the current database connection.'''
     otherwise = 100
-    match python_implementation():
-        case 'PyPy':
-            match connection.vendor:
-                case 'sqlite':
-                    return 1000
-                case 'postgresql':
-                    return 45
-                case _:
-                    return otherwise
-        case 'CPython':
-            match connection.vendor:
-                case 'sqlite':
-                    return 1000
-                case 'postgresql':
-                    return 275
-                case _:
-                    return otherwise
+    match connection.vendor:
+        case 'sqlite':
+            return 1000
+        case 'postgresql':
+            return 275
         case _:
             return otherwise
 

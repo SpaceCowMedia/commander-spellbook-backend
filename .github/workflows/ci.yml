@@ -110,6 +110,9 @@ jobs:
           - ubuntu-latest
           - windows-latest
           - macos-latest
+        cython:
+          - true
+          - false
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -136,6 +139,15 @@ jobs:
 
       - name: Print Django version 🐍
         run: python manage.py version
+        working-directory: backend
+
+      - name: Install Cython dependencies 🚛
+        if: matrix.cython == 'true'
+        run: pip install --upgrade cython setuptools
+
+      - name: Cythonize 🏎
+        if: matrix.cython == 'true'
+        run: cythonize -i 'spellbook/variants/*.py'
         working-directory: backend
 
       - name: Unit Test 🧪

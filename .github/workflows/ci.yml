@@ -141,11 +141,11 @@ jobs:
         working-directory: backend
 
       - name: Install Cython dependencies 🚛
-        if: matrix.cython == 'true'
+        if: matrix.cython
         run: pip install --upgrade cython setuptools
 
       - name: Cythonize 🏎
-        if: matrix.cython == 'true'
+        if: matrix.cython
         run: cythonize -i 'spellbook/variants/*.py'
         working-directory: backend
 

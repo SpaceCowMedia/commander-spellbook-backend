@@ -78,11 +78,13 @@ class BaseMultiset(Generic[_T]):
             raise ZeroDivisionError('Cannot count the number of times an empty multiset is contained in another multiset')
         if other._total > self._total:
             return 0
-        return min(
-            self[k] // v
-            for k, v in other.items()
-            if v > 0
-        )
+        m = None
+        for k, v in other.items():
+            if v > 0:
+                x = self[k] // v
+                if m is None or x < m:
+                    m = x
+        return m or 0
 
     def issubset(self, other: 'BaseMultiset[_T]') -> bool:
         self_len = self._total

@@ -4,7 +4,7 @@
 {% block links %}
     {{ block.super }}
     {% if can_view_related %}
-        <img src="{% static 'admin/img/icon-copy.svg' %}" alt="" width="24" height="24" 
+        <img src="{% static 'admin/images/icon-copy.svg' %}" alt="" width="24" height="24" 
             onclick="const selection = django.jQuery(this).prevAll('select').select2('data').find(item => item.selected); if (selection) { setClipboard(selection.text); this.style.opacity = 0.5; setTimeout(() => this.style.opacity = 1, 200); }"
             style="cursor: pointer;" title="Copy to clipboard"/>
     {% endif %}

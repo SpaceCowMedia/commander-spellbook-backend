@@ -16,6 +16,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
+from django.views.generic import TemplateView
 from common.hybridrouter import HybridRouter
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView, TokenVerifyView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
@@ -35,6 +36,7 @@ router.register(r'users', views.UserViewSet, basename='users')
 # Wire up our API using automatic URL routing.
 # Additionally, we include login URLs for the browsable API.
 urlpatterns = [
+    path('robots.txt', TemplateView.as_view(template_name='robots.txt', content_type='text/plain')),
     path('', include(router.urls)),
     # Authentication
     path('', include('social_django.urls', namespace='social')),

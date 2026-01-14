@@ -3,7 +3,6 @@ import re
 from collections import defaultdict
 from .multiset import FrozenMultiset
 from dataclasses import dataclass
-from django.db import transaction
 from django.utils.functional import cached_property
 from .variant_data import Data, debug_queries
 from .combo_graph import FeatureWithAttributes, Graph, VariantSet, cardid, templateid, featureid

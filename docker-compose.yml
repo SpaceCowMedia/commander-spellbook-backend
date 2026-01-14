@@ -2,7 +2,7 @@ services:
   nginx:
     image: nginx:1.23-alpine
     ports:
-      - 80:80
+      - ${PORT:-80}:80
     depends_on:
       - web
     volumes:

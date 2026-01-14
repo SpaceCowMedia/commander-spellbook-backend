@@ -84,6 +84,9 @@ services:
         required: false
     environment:
       SPELLBOOK_API_URL: http://web:8000
+    profiles:
+      - discord
+      - bot
     restart: always
 
   reddit-bot:
@@ -102,6 +105,9 @@ services:
         required: false
     environment:
       SPELLBOOK_API_URL: http://web:8000
+    profiles:
+      - reddit
+      - bot
     restart: always
 
   telegram-bot:
@@ -120,6 +126,9 @@ services:
         required: false
     environment:
       SPELLBOOK_API_URL: http://web:8000
+    profiles:
+      - telegram
+      - bot
     restart: always
 
 

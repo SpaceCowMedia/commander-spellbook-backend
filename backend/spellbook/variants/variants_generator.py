@@ -733,7 +733,8 @@ def generate_variants(combo: int | None = None, job: Job | None = None, log_coun
     else:
         to_delete = set[str]()
     delete_query = Variant.objects.filter(id__in=to_delete)
-    deleted_count, _ = delete_query.delete()
+    _, deleted_counts = delete_query.delete()
+    deleted_count = deleted_counts.get('spellbook.Variant', 0)
     log_into_job(job, f'Deleted {deleted_count} variants...')
     added_aliases, deleted_aliases = sync_variant_aliases(data, added, to_delete)
     log_into_job(job, f'Added {added_aliases} new aliases, deleted {deleted_aliases} aliases.')

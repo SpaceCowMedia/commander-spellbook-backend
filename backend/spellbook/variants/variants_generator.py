@@ -615,7 +615,12 @@ def perform_bulk_saves(data: Data, to_create: list[VariantBulkSaveItem], to_upda
         for i in v.produces
         if (i.feature_id, v.variant.id) not in data.variant_produces_feature_dict
     )
-    produces_bulk_update = tuple(p for v in to_update for p in v.produces)
+    produces_bulk_update = tuple(
+        p
+        for v in to_update
+        for p in v.produces
+        if (p.feature_id, v.variant.id) in data.variant_produces_feature_dict
+    )
     produces_bulk_update_fields = ['quantity']
     log_into_job(job, 'Perform bulk updates...')
     with transaction.atomic():

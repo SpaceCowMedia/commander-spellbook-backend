@@ -555,12 +555,14 @@ def create_variant(
 
 
 def perform_bulk_saves(data: Data, to_create: list[VariantBulkSaveItem], to_update: list[VariantBulkSaveItem], job: Job | None = None):
+    log_into_job(job, 'Prepare variants...')
     variant_bulk_create = tuple(v.variant for v in to_create)
     variant_bulk_update = tuple(v.variant for v in to_update)
     # perform pre_save outside the transaction to reduce lock time
     log_into_job(job, 'Preprocess variants...')
     for variant in chain(variant_bulk_create, variant_bulk_update):
         variant.pre_save()
+    log_into_job(job, 'Prepare variant related entities...')
     variant_bulk_update_fields = ['status', 'mana_needed', 'easy_prerequisites', 'notable_prerequisites', 'description', 'notes', 'comment', 'generated_by'] + Variant.computed_fields()
     cardinvariant_bulk_create = tuple(c for v in to_create for c in v.uses)
     cardinvariant_bulk_update = tuple(c for v in to_update for c in v.uses)

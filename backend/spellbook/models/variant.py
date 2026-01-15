@@ -330,6 +330,9 @@ class CardInVariant(IngredientInCombination):
 
     class Meta(IngredientInCombination.Meta):
         unique_together = [('card', 'variant')]
+        indexes = [
+            models.Index(fields=['variant_id'], include=['id', 'card_id', 'quantity'], name='cardinvariant_variant_idx'),
+        ] if connection.vendor == 'postgresql' else []
 
 
 class TemplateInVariant(IngredientInCombination):
@@ -344,6 +347,9 @@ class TemplateInVariant(IngredientInCombination):
 
     class Meta(IngredientInCombination.Meta):
         unique_together = [('template', 'variant')]
+        indexes = [
+            models.Index(fields=['variant_id'], include=['id', 'template_id', 'quantity'], name='templateinvariant_variant_idx'),
+        ] if connection.vendor == 'postgresql' else []
 
 
 class FeatureProducedByVariant(models.Model):

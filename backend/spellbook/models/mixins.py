@@ -28,14 +28,16 @@ class ScryfallLinkMixin:
 class PreSaveManager(Manager):
     use_in_migrations = True
 
-    def bulk_create(self, objs: Iterable['PreSaveModelMixin'], *args, **kwargs) -> List:
-        for obj in objs:
-            obj.pre_save()
+    def bulk_create(self, objs: Iterable['PreSaveModelMixin'], skip_pre_save=False, *args, **kwargs) -> List:
+        if not skip_pre_save:
+            for obj in objs:
+                obj.pre_save()
         return super().bulk_create(objs, *args, **kwargs)
 
-    def bulk_update(self, objs: Iterable['PreSaveModelMixin'], fields: Sequence[str], *args, **kwargs) -> int:
-        for obj in objs:
-            obj.pre_save()
+    def bulk_update(self, objs: Iterable['PreSaveModelMixin'], fields: Sequence[str], skip_pre_save=False, *args, **kwargs) -> int:
+        if not skip_pre_save:
+            for obj in objs:
+                obj.pre_save()
         return super().bulk_update(objs, fields, *args, **kwargs)
 
 
@@ -45,8 +47,9 @@ class PreSaveModelMixin(Model):
     def pre_save(self):
         pass
 
-    def save(self, *args, **kwargs):
-        self.pre_save()
+    def save(self, skip_pre_save=False, *args, **kwargs):
+        if not skip_pre_save:
+            self.pre_save()
         return super().save(*args, **kwargs)
 
     class Meta:

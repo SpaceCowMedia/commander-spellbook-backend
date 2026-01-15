@@ -272,13 +272,14 @@ def restore_variant(
     needed_combos = [*generator_combos, *(c for c in other_combos if c.id in variant_def.needed_combos)]
     needed_feature_of_cards = [data.id_to_feature_of_card[f_id] for f_id in sorted(variant_def.needed_features_of_cards)]
     produces_ids = subtract_features(data, variant_def.included_ids, variant_def.feature_ids)
-    produced_features = [
-        FeatureProducedByVariant(
-            feature=data.id_to_feature[f_id],
-            variant=variant,
-            quantity=quantity,
-        ) for f_id, quantity in produces_ids.items()
-    ]
+    produced_features = list[FeatureProducedByVariant]()
+    for f_id, quantity in produces_ids.items():
+        if (f_id, variant.id) in data.variant_produces_feature_dict:
+            fiv = data.variant_produces_feature_dict[(f_id, variant.id)]
+            fiv.quantity = quantity
+        else:
+            fiv = FeatureProducedByVariant(feature=data.id_to_feature[f_id], variant=variant, quantity=quantity)
+        produced_features.append(fiv)
     produced_features.sort(key=lambda f: f.feature.name)
     uses = dict[int, CardInVariant]()
     for card_in_variant in used_cards:

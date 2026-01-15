@@ -276,6 +276,7 @@ def restore_variant(
     for f_id, quantity in produces_ids.items():
         if (f_id, variant.id) in data.variant_produces_feature_dict:
             fiv = data.variant_produces_feature_dict[(f_id, variant.id)]
+            fiv.feature = data.id_to_feature[f_id]
             fiv.quantity = quantity
         else:
             fiv = FeatureProducedByVariant(feature=data.id_to_feature[f_id], variant=variant, quantity=quantity)
@@ -675,7 +676,6 @@ def generate_variants(combo: int | None = None, job: Job | None = None, log_coun
     log_into_job(job, f'Processing {len(variants)} variants...')
     to_bulk_update = list[VariantBulkSaveItem]()
     to_bulk_create = list[VariantBulkSaveItem]()
-    index = 0
     for id, variant_def in variants.items():
         if id in old_id_set:
             status = data.id_to_variant[id].status
@@ -696,9 +696,6 @@ def generate_variants(combo: int | None = None, job: Job | None = None, log_coun
                 variant_def=variant_def,
                 job=job)
             to_bulk_create.append(variant_to_save)
-        if index % log_count == 0 or index == len(variants) - 1:
-            log_into_job(job, f'{index + 1}/{len(variants)} variants processed.')
-        index += 1
     log_into_job(job, f'Saving {len(variants)} variants...')
     perform_bulk_saves(data, to_bulk_create, to_bulk_update)
     log_into_job(job, f'Saved {len(variants)} variants.')

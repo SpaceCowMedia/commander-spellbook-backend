@@ -303,7 +303,7 @@ def __default_batch_size() -> int:
     otherwise = 100
     match connection.vendor:
         case 'sqlite':
-            return 1000
+            return 200
         case 'postgresql':
             return 275
         case _:

@@ -6,7 +6,7 @@ from .multiset import FrozenMultiset
 from dataclasses import dataclass
 from django.utils.functional import cached_property
 from django.db import transaction
-from .variant_data import Data, debug_queries
+from .variant_data import Data
 from .combo_graph import FeatureWithAttributes, Graph, VariantSet, cardid, templateid, featureid
 from spellbook.models import Combo, FeatureNeededInCombo, Job, Variant, CardInVariant, TemplateInVariant, ZoneLocation, CardType
 from spellbook.models import Card, Template, VariantAlias, Ingredient, FeatureProducedByVariant, VariantOfCombo, VariantIncludesCombo
@@ -671,12 +671,11 @@ def generate_variants(combo: int | None = None, job: Job | None = None, log_coun
     log_into_job(job, 'Fetching all variant unique ids...')
     old_id_set = set(data.id_to_variant.keys())
     log_into_job(job, 'Computing combos graph representation...')
-    debug_queries()
     variants = get_variants_from_graph(data, combo, job, log_count)
-    log_into_job(job, f'Postprocessing {len(variants)} variants...')
-    debug_queries()
+    log_into_job(job, f'Processing {len(variants)} variants...')
     to_bulk_update = list[VariantBulkSaveItem]()
     to_bulk_create = list[VariantBulkSaveItem]()
+    index = 0
     for id, variant_def in variants.items():
         if id in old_id_set:
             status = data.id_to_variant[id].status
@@ -697,7 +696,9 @@ def generate_variants(combo: int | None = None, job: Job | None = None, log_coun
                 variant_def=variant_def,
                 job=job)
             to_bulk_create.append(variant_to_save)
-        debug_queries()
+        if index % log_count == 0 or index == len(variants) - 1:
+            log_into_job(job, f'{index + 1}/{len(variants)} variants processed.')
+        index += 1
     log_into_job(job, f'Saving {len(variants)} variants...')
     perform_bulk_saves(data, to_bulk_create, to_bulk_update)
     log_into_job(job, f'Saved {len(variants)} variants.')
@@ -717,5 +718,4 @@ def generate_variants(combo: int | None = None, job: Job | None = None, log_coun
     added_aliases, deleted_aliases = sync_variant_aliases(data, added, to_delete)
     log_into_job(job, f'Added {added_aliases} new aliases, deleted {deleted_aliases} aliases.')
     log_into_job(job, 'Done.')
-    debug_queries(True)
     return len(added), len(restored), deleted_count

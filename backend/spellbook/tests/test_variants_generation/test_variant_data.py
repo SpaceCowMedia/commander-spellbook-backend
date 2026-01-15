@@ -1,5 +1,5 @@
 from spellbook.tests.testing import SpellbookTestCaseWithSeeding
-from spellbook.variants.variant_data import Data, debug_queries
+from spellbook.variants.variant_data import Data
 from spellbook.models import FeatureOfCard, Variant, Combo, Feature, Card, Template
 
 
@@ -67,12 +67,6 @@ class VariantDataTests(SpellbookTestCaseWithSeeding):
         data = Data()
         for template_id, variant_id in data.variant_requires_template_dict.keys():
             self.assertIn(template_id, set(data.id_to_variant[variant_id].requires.all().values_list('id', flat=True)))
-
-    def test_debug_queries(self):
-        with self.settings(DEBUG=True):
-            q = debug_queries()
-            Variant.objects.all().count()
-            self.assertEqual(debug_queries() - q, 1)
 
     def test_number_of_queries(self):
         with self.assertNumQueries(21):

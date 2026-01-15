@@ -1,7 +1,4 @@
 from dataclasses import dataclass
-import logging
-from django.conf import settings
-from django.db import connection, reset_queries
 from spellbook.models.card import Card, FeatureOfCard
 from spellbook.models.feature import Feature
 from spellbook.models.combo import Combo, CardInCombo, TemplateInCombo, FeatureNeededInCombo, FeatureProducedInCombo, FeatureRemovedInCombo
@@ -163,16 +160,3 @@ class Data:
                 x.add(i)
         self.variant_produces_feature_dict = {(f.feature_id, f.variant_id): f for f in featureproducedbyvariants if f.feature_id in self.id_to_feature and f.variant_id in self.id_to_variant}
         self.utility_features_ids = frozenset(f.id for f in self.id_to_feature.values() if f.is_utility)
-
-
-count = 0
-
-
-def debug_queries(output=False):
-    global count
-    if settings.DEBUG:
-        count += len(connection.queries)
-        reset_queries()
-        if output:
-            logging.info(f'Number of queries so far: {count}')
-    return count

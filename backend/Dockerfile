@@ -3,9 +3,6 @@
 ##########
 FROM python:3.12-alpine AS python
 
-# pip
-RUN pip install --upgrade pip --no-cache-dir
-
 
 ###########
 # BUILDER #

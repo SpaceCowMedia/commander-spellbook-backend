@@ -3,6 +3,9 @@
 ##########
 FROM python:3.12-alpine AS python
 
+# pip
+RUN pip install --upgrade pip --no-cache-dir
+
 
 ###########
 # BUILDER #
@@ -16,10 +19,7 @@ WORKDIR /usr/src/app
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 
 # install dependencies
-RUN apk --update add gcc python3-dev musl-dev postgresql-dev libffi-dev --no-cache
-
-# pip
-RUN pip install --upgrade pip
+RUN apk --update add postgresql-dev libffi-dev --no-cache
 
 # install dependencies
 COPY backend/requirements.txt .

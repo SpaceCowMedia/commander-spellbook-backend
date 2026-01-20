@@ -27,7 +27,7 @@ patches:
   - patch: |-
       - op: replace
         path: "/metadata/annotations/alb.ingress.kubernetes.io~1tags"
-        value: "project=spellbook,environment=dev"
+        value: "project=commanderspellbook,environment=dev"
     target:
       kind: Ingress
       name: spellbook-ingress

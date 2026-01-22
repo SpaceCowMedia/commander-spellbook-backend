@@ -28,7 +28,7 @@ class CardListFromTextTests(BaseTestCase):
         self.assertEqual(response.get('Content-Type'), 'application/json')
         result = json.loads(response.content, object_hook=json_to_python_lambda)
         self.assertIsNotNone(result.main)
-        data = f'1x {"A" * 500}'
+        data = f'1x {'A' * 500}'
         response = self.client.post('/card-list-from-text', data=data, content_type='text/plain')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.get('Content-Type'), 'application/json')

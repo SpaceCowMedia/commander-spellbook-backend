@@ -8,20 +8,21 @@ _Other = Union['BaseMultiset[_T]', IterableType[_T], MappingType[_T, int]]
 
 
 class BaseMultiset(Generic[_T]):
-    """A multiset implementation.
+    '''
+    A multiset implementation.
 
     A multiset is similar to the builtin :class:`set`, but elements can occur multiple times in the multiset.
     It is also similar to a :class:`list` without ordering of the values and hence no index-based operations.
 
     :see: https://en.wikipedia.org/wiki/Multiset
-    """
+    '''
 
     __slots__ = ('_elements', '_total')
     _elements: Counter[_T]
     _total: int
 
     def __init__(self, iterable: Optional[_Other] = None, _internal: Optional[Counter[_T]] = None):
-        assert iterable is None or _internal is None, "Either 'iterable' or '_internal' must be provided, not both."
+        assert iterable is None or _internal is None, 'Either "iterable" or "_internal" must be provided, not both.'
         if isinstance(iterable, BaseMultiset):
             self._elements = iterable._elements.copy()
             self._total = iterable._total

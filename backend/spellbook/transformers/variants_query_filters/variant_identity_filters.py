@@ -45,5 +45,5 @@ def identity_filter(qv: QueryValue) -> VariantFilterCollection:
         case '>=' if value_is_digit:
             q = Q(identity_count__gte=qv.value)
         case _:
-            raise ValidationError(f'Operator {qv.operator} is not supported for identity search with {"numbers" if value_is_digit else "strings"}.')
+            raise ValidationError(f'Operator {qv.operator} is not supported for identity search with {'numbers' if value_is_digit else 'strings'}.')
     return VariantFilterCollection(variants_filters=(qv.to_query_filter(q),))

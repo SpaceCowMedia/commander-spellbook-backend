@@ -26,9 +26,9 @@ SCRYFALL_QUERY_VALIDATOR = LarkGrammarValidator(SCRYFALL_GRAMMAR)
 SCRYFALL_QUERY_HELP = f'''\
 Variables supported: {', '.join(VARIABLES_SUPPORTED)}.
 Operators supported: =, !=, <, >, <=, >=, :.
-You can compose a "and"/"or" expression made of "and"/"or" expressions, like "(c:W or c:U) and (t:creature or t:artifact)".
-You can also omit parentheses when not necessary, like "(c:W or c:U) t:creature".
-Card names are only supported if wrapped in double quotes and preceded by an exclamation mark (!) in order to match the exact name, like !"Lightning Bolt".
-You can negate any expression by prepending a dash (-), like "-t:creature".
+You can compose a 'and'/'or' expression made of 'and'/'or' expressions, like '(c:W or c:U) and (t:creature or t:artifact)'.
+You can also omit parentheses when not necessary, like '(c:W or c:U) t:creature'.
+Card names are only supported if wrapped in double quotes and preceded by an exclamation mark (!) in order to match the exact name, like !'Lightning Bolt'.
+You can negate any expression by prepending a dash (-), like '-t:creature'.
 More info at: https://scryfall.com/docs/syntax.
 '''

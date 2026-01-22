@@ -17,7 +17,7 @@ def is_member_of_guild(backend, details, response, uid, user, *args, **kwargs):
     if backend.name == 'discord':
         api = f'https://{backend.HOSTNAME}/api/users/@me/guilds'
         headers = {
-            'Authorization': f'Bearer {response["access_token"]}',
+            'Authorization': f'Bearer {response['access_token']}',
             'Content-Type': 'application/json',
             'Accept': 'application/json',
         }

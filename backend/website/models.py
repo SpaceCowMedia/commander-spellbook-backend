@@ -23,7 +23,7 @@ class WebsiteProperty(models.Model):
     description = models.TextField(blank=True)
 
     def __str__(self):
-        return self.key.replace("_", " ").title()
+        return self.key.replace('_', ' ').title()
 
     class Meta:
         verbose_name = 'Website Property'

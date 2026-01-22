@@ -35,4 +35,4 @@ def card_search_filter(qv: QueryValue) -> VariantFilterCollection:
                 Q(card_count=qv.value),
             ),))
         case _:
-            raise ValidationError(f'Operator {qv.operator} is not supported for card search with {"numbers" if value_is_digit else "strings"}.')
+            raise ValidationError(f'Operator {qv.operator} is not supported for card search with {'numbers' if value_is_digit else 'strings'}.')

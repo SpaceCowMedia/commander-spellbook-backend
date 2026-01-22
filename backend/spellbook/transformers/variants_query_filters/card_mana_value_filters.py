@@ -15,5 +15,5 @@ def card_mana_value_filter(qv: QueryValue) -> VariantFilterCollection:
         case '>=' if value_is_digit:
             q = Q(mana_value__gte=qv.value)
         case _:
-            raise ValidationError(f'Operator {qv.operator} is not supported for card mana value search with {"numbers" if value_is_digit else "strings"}.')
+            raise ValidationError(f'Operator {qv.operator} is not supported for card mana value search with {'numbers' if value_is_digit else 'strings'}.')
     return VariantFilterCollection(cards_filters=(qv.to_query_filter(q),))

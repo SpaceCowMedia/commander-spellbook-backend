@@ -201,7 +201,7 @@ class CustomFilter(admin.SimpleListFilter):
     def get_facet_counts(self, pk_attname, filtered_qs):
         counts = {}
         for i, choice in enumerate(self.lookup_choices):
-            counts[f"{i}__c"] = Count(
+            counts[f'{i}__c'] = Count(
                 pk_attname,
                 filter=self.filter(choice[0])
             )

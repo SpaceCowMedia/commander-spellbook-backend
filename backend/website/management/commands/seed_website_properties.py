@@ -12,12 +12,12 @@ class Command(BaseCommand):
         missing = properties - existing
         obsolete = existing - properties
         if missing:
-            self.stdout.write(f'Creating missing properties: {", ".join(missing)}')
+            self.stdout.write(f'Creating missing properties: {', '.join(missing)}')
             WebsiteProperty.objects.bulk_create([
                 WebsiteProperty(key=key)
                 for key in missing
             ])
         if obsolete:
-            self.stdout.write(f'Deleting obsolete properties: {", ".join(obsolete)}')
+            self.stdout.write(f'Deleting obsolete properties: {', '.join(obsolete)}')
             WebsiteProperty.objects.filter(key__in=obsolete).delete()
         self.stdout.write(self.style.SUCCESS('Website properties were seeded.'))

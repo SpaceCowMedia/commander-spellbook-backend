@@ -15,7 +15,7 @@ def launch_command_async(command: str, args: list[str] = []):
     manage_py_path = pathlib.Path(__file__).parent.parent / 'manage.py'
     interpreter = 'python'
     args = [interpreter, manage_py_path.resolve(), command] + args
-    if sys.platform == "win32":
+    if sys.platform == 'win32':
         subprocess.Popen(
             args=args,
             creationflags=subprocess.CREATE_NEW_PROCESS_GROUP)
@@ -24,12 +24,12 @@ def launch_command_async(command: str, args: list[str] = []):
 
 
 def launch_job_command(command: str, user: User | None = None, args: list[str] = [], allow_multiples: bool = False, group: str | None = None, background: bool = True) -> Job | None:
-    """
+    '''
     Launch a command asynchronously and create a Job object to track it.
     The command must be a management command that can take a --id parameter with the Job id.
     Returns true if the command was launched, false in case of errors or
     if there is already a job ongoing with the same name, unless allow_multiples is passed.
-    """
+    '''
     job = Job.start(
         name=command,
         args=args,

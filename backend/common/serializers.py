@@ -67,7 +67,7 @@ class DeckSerializer(serializers.Serializer):
                 elif line_lower.startswith('//') or line_lower in ('main', 'deck', 'mainboard'):
                     current_set = main
                 elif regex_match := DECKLIST_LINE_PARSER.fullmatch(line):
-                    tags = (t for tag in f"{regex_match.group('tags_1') or ''},{regex_match.group('tags_2') or ''},{regex_match.group('tags_3') or ''}".lower().split(',') if (t := tag.strip()))
+                    tags = (t for tag in f'{regex_match.group('tags_1') or ''},{regex_match.group('tags_2') or ''},{regex_match.group('tags_3') or ''}'.lower().split(',') if (t := tag.strip()))
                     is_commander = any('commander' in tag for tag in tags)
                     if is_commander:
                         previous_set = current_set

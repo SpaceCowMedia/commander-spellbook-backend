@@ -45,5 +45,5 @@ def card_color_filter(qv: QueryValue) -> VariantFilterCollection:
         case '>=' if value_is_digit:
             q = Q(color_count__gte=qv.value)
         case _:
-            raise ValidationError(f'Operator {qv.operator} is not supported for card color search with {"numbers" if value_is_digit else "strings"}.')
+            raise ValidationError(f'Operator {qv.operator} is not supported for card color search with {'numbers' if value_is_digit else 'strings'}.')
     return VariantFilterCollection(cards_filters=(qv.to_query_filter(q),))

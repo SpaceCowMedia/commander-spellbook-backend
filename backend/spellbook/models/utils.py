@@ -11,10 +11,10 @@ from django.db.models.functions import Replace, Trim
 from constants import SORTED_COLORS, COLORS
 
 
-COMPARISON_OPERATOR = rf'(?:{"|".join(COMPARISON_OPERATORS)})'
+COMPARISON_OPERATOR = rf'(?:{'|'.join(COMPARISON_OPERATORS)})'
 MANA_SEARCH_REGEX = r'\{(' + MANA_SYMBOL + r')\}'
 MANA_PREFIX_REGEX = r'(^(?:\s*' + MANA_SEARCH_REGEX + r')*)'
-MANA_COMPARABLE_VARIABLE = rf'(?:{"|".join(MANA_COMPARABLE_VARIABLES)})'
+MANA_COMPARABLE_VARIABLE = rf'(?:{'|'.join(MANA_COMPARABLE_VARIABLES)})'
 SANITIZATION_REPLACEMENTS = {
     'ʹʻʼʾˈ՚′＇ꞌ': '\'',  # apostrophes
     'ʻʼ‘’❛❜': '\'',  # quotes

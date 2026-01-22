@@ -74,12 +74,12 @@ class HybridRouter(routers.DefaultRouter):
                             format=kwargs.get('format', None)
                         )
                     else:
-                        ret[api_view_key] = "WITH PARAMS: " + regex.pattern
+                        ret[api_view_key] = 'WITH PARAMS: ' + regex.pattern
                 return response.Response(ret)
 
         return APIRootView.as_view()
 
     def register_router(self, another_router):
         self.registry.extend(another_router.registry)
-        if hasattr(another_router, "_api_view_urls"):
+        if hasattr(another_router, '_api_view_urls'):
             self._api_view_urls.update(another_router._api_view_urls)

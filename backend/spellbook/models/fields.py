@@ -34,7 +34,7 @@ class KeywordsField(JSONField):
     empty_values = KEYWORDS_EMPTY_VALUES
 
     def __init__(self, *args, **kwargs):
-        kwargs.setdefault("default", list)
+        kwargs.setdefault('default', list)
         super().__init__(*args, **kwargs)
 
     def validate(self, value, model_instance):
@@ -44,7 +44,7 @@ class KeywordsField(JSONField):
     def formfield(self, **kwargs):
         return super().formfield(
             **{
-                "form_class": KeywordsFormField,
+                'form_class': KeywordsFormField,
                 **kwargs,
             }
         )

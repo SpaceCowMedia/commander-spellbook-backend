@@ -221,7 +221,7 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
     def clean(self):
         super().clean()
         if not self.mana_needed and not self.is_mana_needed_total_first_turn:
-            raise ValidationError(f'If {self._meta.get_field("mana_needed").verbose_name} is empty, {self._meta.get_field("is_mana_needed_total_first_turn").verbose_name} must be True.')
+            raise ValidationError(f'If {self._meta.get_field('mana_needed').verbose_name} is empty, {self._meta.get_field('is_mana_needed_total_first_turn').verbose_name} must be True.')
 
     @dataclass(frozen=True)
     class Recipe:

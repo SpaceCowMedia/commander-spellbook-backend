@@ -17,10 +17,10 @@ class AbstractQueryFilter(filters.BaseFilterBackend):
         raise NotImplementedError
 
     def get_search_terms(self, request) -> str:
-        """
+        '''
         Search terms are set by a ?q=... query parameter,
         and may be whitespace delimited.
-        """
+        '''
         params = request.query_params.get(self.search_param, '')
         params = params.replace('\x00', '')  # remove null characters
         return params

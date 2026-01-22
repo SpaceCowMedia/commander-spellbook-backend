@@ -35,4 +35,4 @@ def results_filter(qv: QueryValue) -> VariantFilterCollection:
                 Q(result_count=qv.value),
             ),))
         case _:
-            raise ValidationError(f'Operator {qv.operator} is not supported for results search with {"numbers" if value_is_digit else "strings"}.')
+            raise ValidationError(f'Operator {qv.operator} is not supported for results search with {'numbers' if value_is_digit else 'strings'}.')

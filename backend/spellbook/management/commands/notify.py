@@ -48,7 +48,7 @@ class Command(AbstractCommand):
                 suggestion_name = f'`{escape_markdown(variant_suggestion.name)}`'
                 if variant_suggestion.spoiler:
                     suggestion_name = f'||{suggestion_name}||'
-                past_tense = "accepted" if accepted else "rejected"
+                past_tense = 'accepted' if accepted else 'rejected'
                 if discord_account:
                     webhook_text += f'<@{discord_account.uid}>, your suggestion for {suggestion_name} has been **{past_tense}**'
                 else:
@@ -61,7 +61,7 @@ class Command(AbstractCommand):
                 if accepted:
                     webhook_text += 'When an editor implements it, links to the combo\'s variants will be posted to this changelog.\n'
                 if discord_account:
-                    webhook_text += f'Thanks for your submission{"" if accepted else " though"}!\n'
+                    webhook_text += f'Thanks for your submission{'' if accepted else ' though'}!\n'
         if webhook_text:
             self.discord_webhook(webhook_text)
 
@@ -84,10 +84,10 @@ class Command(AbstractCommand):
                         suggestion_name = f'variant [{variant.id}](<{variant.spellbook_link(raw=True)}>)'
                     case _ if variants_count <= 3:
                         variants = list[str](f'[{variant.id}](<{variant.spellbook_link(raw=True)}>)' for variant in Variant.objects.filter(variant_update_suggestions__suggestion=variant_update_suggestion))
-                        suggestion_name = f'variants {", ".join(variants[:-1])} and {variants[-1]}'
+                        suggestion_name = f'variants {', '.join(variants[:-1])} and {variants[-1]}'
                     case _:
                         suggestion_name = f'{variants_count} variants'
-                past_tense = "accepted" if accepted else "rejected"
+                past_tense = 'accepted' if accepted else 'rejected'
                 if discord_account:
                     webhook_text += f'<@{discord_account.uid}>, your update suggestion #{variant_update_suggestion.id} for {suggestion_name} has been **{past_tense}**'
                 else:
@@ -100,12 +100,12 @@ class Command(AbstractCommand):
                 if accepted:
                     webhook_text += 'When an editor implements it, links to the updated variants will be posted to this changelog.\n'
                 if discord_account:
-                    webhook_text += f'Thanks for your submission{"" if accepted else " though"}!\n'
+                    webhook_text += f'Thanks for your submission{'' if accepted else ' though'}!\n'
         if webhook_text:
             self.discord_webhook(webhook_text)
 
     def run(self, *args, **options):
-        self.log(f'Notifying about {options["event"]} with identifiers {options["identifiers"]}')
+        self.log(f'Notifying about {options['event']} with identifiers {options['identifiers']}')
         match options['event']:
             case self.variant_suggestion_accepted:
                 self.variant_suggestion_event(accepted=True, identifiers=options['identifiers'])

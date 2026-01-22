@@ -78,11 +78,11 @@ class VariantSet:
         return len(self.sets)
 
     def __or__(self, other: Self):
-        assert self.parameters == other.parameters, "Cannot union VariantSets with different parameters"
+        assert self.parameters == other.parameters, 'Cannot union VariantSets with different parameters'
         return self.__class__(parameters=self.parameters, _internal=self.sets | other.sets)
 
     def __and__(self, other: Self):
-        assert self.parameters == other.parameters, "Cannot intersect VariantSets with different parameters"
+        assert self.parameters == other.parameters, 'Cannot intersect VariantSets with different parameters'
         result = MinimalSetOfMultisets[int]()
         for left_entry, right_entry in product(self.entries(), other.entries()):
             entry = left_entry | right_entry
@@ -92,7 +92,7 @@ class VariantSet:
         return self.__class__(parameters=self.parameters, _internal=result)
 
     def __add__(self, other: Self):
-        assert self.parameters == other.parameters, "Cannot sum VariantSets with different parameters"
+        assert self.parameters == other.parameters, 'Cannot sum VariantSets with different parameters'
         result = MinimalSetOfMultisets[int]()
         for left_key, right_key in product(self.entries(), other.entries()):
             entry = left_key + right_key

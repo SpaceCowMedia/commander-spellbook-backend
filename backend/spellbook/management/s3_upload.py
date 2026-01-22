@@ -23,7 +23,7 @@ def upload_json_to_aws(data, s3_file_name):
         import boto3
         from botocore.exceptions import NoCredentialsError
     except ImportError:
-        logging.exception("Could not import boto3", stack_info=True)
+        logging.exception('Could not import boto3', stack_info=True)
         raise
     try:
         s3 = boto3.client('s3')
@@ -49,8 +49,8 @@ def upload_json_to_aws(data, s3_file_name):
             ContentType='application/json'
         )
     except NoCredentialsError:
-        logging.exception("Credentials not available", stack_info=True)
+        logging.exception('Credentials not available', stack_info=True)
         raise
     except Exception:
-        logging.exception("Amazon S3 client raised an exception", stack_info=True)
+        logging.exception('Amazon S3 client raised an exception', stack_info=True)
         raise

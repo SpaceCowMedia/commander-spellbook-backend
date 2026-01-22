@@ -10,9 +10,9 @@ class ValidationMixin:
 
     @action(detail=False, methods=['POST'], url_path=validation_path)
     def validate_create(self, request: Request, *args, **kwargs):
-        """
+        '''
         Validate the variant suggestion data.
-        """
+        '''
         serializer = self.get_serializer(data=request.data)  # type: ignore
         serializer.is_valid(raise_exception=True)
         headers = self.get_success_headers(serializer.data)  # type: ignore
@@ -20,9 +20,9 @@ class ValidationMixin:
 
     @action(detail=True, methods=['PUT', 'PATCH'], url_path=validation_path)
     def validate_update(self, request: Request, pk=None):
-        """
+        '''
         Validate the variant suggestion update data.
-        """
+        '''
         partial = request.method == 'PATCH'
         instance = self.get_object()  # type: ignore
         serializer: BaseSerializer = self.get_serializer(instance, data=request.data, partial=partial)  # type: ignore

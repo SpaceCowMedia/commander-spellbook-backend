@@ -5,13 +5,13 @@ _T = TypeVar('_T')
 
 
 class MinimalSetOfMultisets(Generic[_T]):
-    """
+    '''
     A class representing a minimal set of sets.
 
     This class provides functionality to store and manipulate sets of elements.
     It ensures that the stored sets are minimal, meaning that no subset of another set
     in the collection is also present.
-    """
+    '''
 
     __slots__ = ('__sets')
     __sets: set[FrozenMultiset[_T]]
@@ -21,21 +21,21 @@ class MinimalSetOfMultisets(Generic[_T]):
         sets: Iterable[FrozenMultiset[_T]] | None = None,
         _internal: set[FrozenMultiset[_T]] | None = None,
     ):
-        """
+        '''
         Initializes a new minimal set of sets.
 
         Args:
             sets (set[FrozenMultiset] | None): Optional initial sets to be added to the collection,
             discarding all sets that are supersets of other sets in the collection.
-        """
+        '''
         self.__sets = _internal if _internal is not None else set()
         if sets is not None:
             self.extend(sets)
 
     def subtree(self, under: FrozenMultiset[_T]) -> 'MinimalSetOfMultisets[_T]':
-        """
+        '''
         Creates a new minimal set of sets containing all sets in the collection that are subsets of the given set.
-        """
+        '''
         return MinimalSetOfMultisets(
             _internal={s for s in self.__sets if s.issubset(under)}
         )
@@ -47,19 +47,19 @@ class MinimalSetOfMultisets(Generic[_T]):
         self.__sets.difference_update([s for s in self.__sets if s.issuperset(aset)])
 
     def add(self, aset: FrozenMultiset[_T]):
-        """
+        '''
         Adds a set to the collection if it is not a superset of any set in the collection.
         If the set is a subset of any set in the collection, every superset of the set is removed,
         and the set is added to the collection.
-        """
+        '''
         if not self.__contains_subset_of(aset):
             self.__remove_supersets_of(aset)
             self.__sets.add(aset)
 
     def extend(self, sets: Iterable[FrozenMultiset[_T]]):
-        """
+        '''
         Adds multiple sets to the collection, discarding all sets that are supersets of other sets in the collection.
-        """
+        '''
         for s in sets:
             self.add(s)
 
@@ -87,7 +87,7 @@ class MinimalSetOfMultisets(Generic[_T]):
         return self.__class__(_internal=self.__sets.copy())
 
     def copy(self):
-        "Returns a shallow copy of the collection."
+        'Returns a shallow copy of the collection.'
         return self.__copy__()
 
     def __or__(self, other: Self):

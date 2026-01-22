@@ -14,7 +14,7 @@ Commander Spellbook consists of three main components:
 
 You need:
 
-- Python 3.11 or higher
+- Python 3.12 or higher
 - Docker and Docker Compose, for running the entire stack locally and for running some scripts
 - To install the dependencies:
   - In the root of the repository, install the dependencies for local development using `pip install -r requirements.txt`

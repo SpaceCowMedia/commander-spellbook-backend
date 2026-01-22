@@ -6,7 +6,7 @@
 #
 anytree==2.13.0
     # via -r requirements.in
-asgiref==3.8.1
+asgiref==3.11.0
     # via
     #   django
     #   django-cors-headers
@@ -34,7 +34,7 @@ defusedxml==0.7.1
     #   social-auth-core
 discord-webhook==1.4.1
     # via -r requirements.in
-django==5.2.9
+django==6.0.1
     # via
     #   -r requirements.in
     #   django-admin-sortable2
@@ -121,6 +121,8 @@ sqlparse==0.5.0
     # via django
 typing-extensions==4.15.0
     # via referencing
+tzdata==2025.3
+    # via django
 uritemplate==4.2.0
     # via drf-spectacular
 urllib3==2.6.3

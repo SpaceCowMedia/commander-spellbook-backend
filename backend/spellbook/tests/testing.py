@@ -139,7 +139,7 @@ class SpellbookTestCase(BaseTestCase):
                         templates[element] += quantity
                     else:
                         cards[element] += quantity
-                combo = Combo.objects.create(pk=combo_id, mana_needed='', easy_prerequisites='Test Easy Prerequisites', notable_prerequisites='Test Notable Prerequisites', description='Test Description', status=Combo.Status.GENERATOR)
+                combo = Combo.objects.create(pk=combo_id, mana_needed='', is_mana_needed_total_first_turn=True, easy_prerequisites='Test Easy Prerequisites', notable_prerequisites='Test Notable Prerequisites', description='Test Description', status=Combo.Status.GENERATOR)
                 for i, (card, quantity) in enumerate(cards.items(), start=1):
                     card_id = card_ids_by_name.setdefault(card, reduce(lambda x, y: max(x, y), card_ids_by_name.values(), 0) + 1)
                     c, _ = Card.objects.get_or_create(pk=card_id, name=card, identity='W', legal_commander=True, spoiler=False, type_line='Test Card')
@@ -230,15 +230,15 @@ class SpellbookTestCaseWithSeeding(SpellbookTestCase):
         f4 = Feature.objects.create(name='FD', description='Feature D', status=Feature.Status.STANDALONE)
         f5 = Feature.objects.create(name='FE', description='Feature E', status=Feature.Status.STANDALONE, uncountable=True)
         f6 = Feature.objects.create(name='FF', description='Feature F', status=Feature.Status.PUBLIC_UTILITY)
-        b1 = Combo.objects.create(mana_needed='{W}{W}', easy_prerequisites='Some easy requisites.', notable_prerequisites='Some notable requisites.', description='a1', status=Combo.Status.GENERATOR, notes='aa1', comment='***1')
-        b2 = Combo.objects.create(mana_needed='{U}{U}', easy_prerequisites='Some easy requisites.', notable_prerequisites='Some notable requisites.', description='b2', status=Combo.Status.GENERATOR, notes='bb2', comment='***2')
+        b1 = Combo.objects.create(mana_needed='{W}{W}', is_mana_needed_total_first_turn=True, easy_prerequisites='Some easy requisites.', notable_prerequisites='Some notable requisites.', description='a1', status=Combo.Status.GENERATOR, notes='aa1', comment='***1')
+        b2 = Combo.objects.create(mana_needed='{U}{U}', is_mana_needed_total_first_turn=True, easy_prerequisites='Some easy requisites.', notable_prerequisites='Some notable requisites.', description='b2', status=Combo.Status.GENERATOR, notes='bb2', comment='***2')
         b3 = Combo.objects.create(mana_needed='{B}{B}', notable_prerequisites='Some requisites.', description='c3', status=Combo.Status.UTILITY, notes='cc3', comment='***3')
         b4 = Combo.objects.create(mana_needed='{R}{R}', notable_prerequisites='Some requisites.', description='d4', status=Combo.Status.GENERATOR, notes='dd4', comment='***4')
         b5 = Combo.objects.create(mana_needed='{G}{G}', notable_prerequisites='Some requisites.', description='e5', status=Combo.Status.UTILITY, notes='ee5', comment='***5')
         b6 = Combo.objects.create(mana_needed='{W}{U}{B}{R}{G}', notable_prerequisites='Some requisites.', description='f6', status=Combo.Status.GENERATOR, allow_many_cards=True, notes='ff6', comment='***6')
         b7 = Combo.objects.create(mana_needed='{W}{U}{B}{R}{G}', notable_prerequisites='Some requisites.', description='g7', status=Combo.Status.DRAFT, notes='gg7', comment='***7')
         b8 = Combo.objects.create(mana_needed='{W}{U}{B}{R}{G}', notable_prerequisites='Some requisites.', description='h8', status=Combo.Status.NEEDS_REVIEW, notes='hh8', comment='***8')
-        b9 = Combo.objects.create(mana_needed='', easy_prerequisites='Some easy requisites.', notable_prerequisites='Some notable requisites.', description='i9', status=Combo.Status.GENERATOR, notes='ii9', comment='***9')
+        b9 = Combo.objects.create(mana_needed='', is_mana_needed_total_first_turn=True, easy_prerequisites='Some easy requisites.', notable_prerequisites='Some notable requisites.', description='i9', status=Combo.Status.GENERATOR, notes='ii9', comment='***9')
         t1 = Template.objects.create(name='TA', scryfall_query='tou>5', description='hello.')
         t2 = Template.objects.create(name='TB')
         t2.replacements.add(c3)

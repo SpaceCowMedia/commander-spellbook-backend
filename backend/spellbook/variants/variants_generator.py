@@ -328,6 +328,10 @@ def restore_variant(
         variant.easy_prerequisites = apply_replacements(data, '\n'.join(easy_prerequisites_list), replacements, variant_def.needed_combos)
         variant.notable_prerequisites = apply_replacements(data, '\n'.join(notable_prerequisites_list), replacements, variant_def.needed_combos)
         variant.mana_needed = apply_replacements(data, merge_mana_costs(mana_needed_list), replacements, variant_def.needed_combos)
+        variant.is_mana_needed_total_first_turn = not variant.mana_needed or all(
+            c.is_mana_needed_total_first_turn
+            for c in needed_combos
+        )
         variant.description = apply_replacements(data, '\n'.join(c.description for c in needed_combos if len(c.description) > 0), replacements, variant_def.needed_combos)
         variant.notes = apply_replacements(data, '\n'.join(c.notes for c in needed_combos if len(c.notes) > 0), replacements, variant_def.needed_combos)
         variant.comment = apply_replacements(data, '\n'.join(c.comment for c in needed_combos if len(c.comment) > 0), replacements, variant_def.needed_combos)
@@ -563,7 +567,7 @@ def perform_bulk_saves(data: Data, to_create: list[VariantBulkSaveItem], to_upda
     for variant in chain(variant_bulk_create, variant_bulk_update):
         variant.pre_save()
     log_into_job(job, 'Prepare variant related entities...')
-    variant_bulk_update_fields = ['status', 'mana_needed', 'easy_prerequisites', 'notable_prerequisites', 'description', 'notes', 'comment', 'generated_by'] + Variant.computed_fields()
+    variant_bulk_update_fields = ['status', 'mana_needed', 'is_mana_needed_total_first_turn', 'easy_prerequisites', 'notable_prerequisites', 'description', 'notes', 'comment', 'generated_by'] + Variant.computed_fields()
     cardinvariant_bulk_create = tuple(c for v in to_create for c in v.uses)
     cardinvariant_bulk_update = tuple(c for v in to_update for c in v.uses)
     cardinvariant_bulk_update_fields = ['zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'must_be_commander', 'order', 'quantity']

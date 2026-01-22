@@ -16,6 +16,7 @@ class ComboTests(SpellbookTestCaseWithSeeding):
         self.assertEqual(c.produces.count(), 2)
         self.assertEqual(c.removes.count(), 0)
         self.assertEqual(c.mana_needed, '{W}{W}')
+        self.assertEqual(c.is_mana_needed_total_first_turn, True)
         self.assertEqual(c.easy_prerequisites, 'Some easy requisites.')
         self.assertEqual(c.notable_prerequisites, 'Some notable requisites.')
         self.assertEqual(c.status, Combo.Status.GENERATOR)
@@ -35,6 +36,7 @@ class ComboTests(SpellbookTestCaseWithSeeding):
         self.assertEqual(c.produces.count(), 1)
         self.assertEqual(c.removes.count(), 1)
         self.assertEqual(c.mana_needed, '{U}{U}')
+        self.assertEqual(c.is_mana_needed_total_first_turn, True)
         self.assertEqual(c.easy_prerequisites, 'Some easy requisites.')
         self.assertEqual(c.notable_prerequisites, 'Some notable requisites.')
         self.assertEqual(c.status, Combo.Status.GENERATOR)
@@ -65,4 +67,4 @@ class ComboTests(SpellbookTestCaseWithSeeding):
         self.assertTrue(c.query_string().startswith('q='))
 
     def test_method_count(self):
-        self.assertEqual(count_methods(Combo), 5)
+        self.assertEqual(count_methods(Combo), 6)

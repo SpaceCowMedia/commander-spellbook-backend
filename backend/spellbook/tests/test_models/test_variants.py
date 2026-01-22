@@ -29,6 +29,7 @@ class VariantTests(SpellbookTestCaseWithSeeding):
         self.assertEqual(v.status, Variant.Status.NEW)
         self.assertIn('{U}{U}', v.mana_needed)
         self.assertIn('{R}{R}', v.mana_needed)
+        self.assertEqual(v.is_mana_needed_total_first_turn, False)
         self.assertIn('Some easy requisites.', v.easy_prerequisites)
         self.assertIn('Some notable requisites.', v.notable_prerequisites)
         self.assertIn('2', v.description)
@@ -62,7 +63,7 @@ class VariantTests(SpellbookTestCaseWithSeeding):
         self.assertTrue(v.query_string().startswith('q='))
 
     def test_method_count(self):
-        self.assertEqual(count_methods(Variant), 12)
+        self.assertEqual(count_methods(Variant), 13)
 
     def test_update_variant_from_cards(self):
         v: Variant = Variant.objects.get(id=self.v1_id)

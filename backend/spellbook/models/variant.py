@@ -116,6 +116,7 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
     variantofcombo_set: models.Manager['VariantOfCombo']
     status = models.CharField(choices=Status.choices, db_default=Status.NEW, max_length=2, help_text='Variant status for editors')
     mana_needed = models.CharField(blank=True, max_length=MAX_MANA_NEEDED_LENGTH, help_text='Mana needed for this combo. Use the {1}{W}{U}{B}{R}{G}{B/P}... format.', validators=[MANA_VALIDATOR, *TEXT_VALIDATORS])
+    is_mana_needed_total_first_turn = models.BooleanField(default=False, help_text='Does the initial {N} accurately represent the MINIMUM total mana needed on the first turn?')
     mana_value_needed = models.PositiveIntegerField(editable=False, help_text='Mana value needed for this combo. Calculated from mana_needed.')
     easy_prerequisites = models.TextField(blank=True, help_text='Easily achievable prerequisites for this combo.', validators=TEXT_VALIDATORS)
     notable_prerequisites = models.TextField(blank=True, help_text='Notable prerequisites for this combo.', validators=TEXT_VALIDATORS)
@@ -216,6 +217,11 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
         ) + (
             self.notable_prerequisites.count('\n') + 1 if self.notable_prerequisites else 0
         )
+
+    def clean(self):
+        super().clean()
+        if not self.mana_needed and not self.is_mana_needed_total_first_turn:
+            raise ValidationError(f'If {self._meta.get_field("mana_needed").verbose_name} is empty, {self._meta.get_field("is_mana_needed_total_first_turn").verbose_name} must be True.')
 
     @dataclass(frozen=True)
     class Recipe:

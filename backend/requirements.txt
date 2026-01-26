@@ -45,7 +45,7 @@ django==6.0.1
     #   drf-spectacular
     #   drf-spectacular-sidecar
     #   social-auth-app-django
-django-admin-sortable2==2.3
+django-admin-sortable2==2.3.1
     # via -r requirements.in
 django-cors-headers==4.9.0
     # via -r requirements.in
@@ -121,8 +121,6 @@ sqlparse==0.5.0
     # via django
 typing-extensions==4.15.0
     # via referencing
-tzdata==2025.3
-    # via django
 uritemplate==4.2.0
     # via drf-spectacular
 urllib3==2.6.3

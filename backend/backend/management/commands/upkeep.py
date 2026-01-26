@@ -10,4 +10,6 @@ class Command(BaseCommand):
         call_command('flushexpiredtokens')
         self.stdout.write('Flushing expired sessions...')
         call_command('clearsessions')
+        self.stdout.write('Pruning old task results...')
+        call_command('prune_db_task_results')
         self.stdout.write(self.style.SUCCESS('Done.'))

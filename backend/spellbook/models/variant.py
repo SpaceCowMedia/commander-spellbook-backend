@@ -17,7 +17,6 @@ from .template import Template
 from .feature import Feature
 from .ingredient import IngredientInCombination, ZoneLocation
 from .combo import Combo
-from .job import Job
 from .validators import TEXT_VALIDATORS, MANA_VALIDATOR
 from .utils import CardType, mana_value, merge_color_identities
 from .constants import MAX_MANA_NEEDED_LENGTH
@@ -125,7 +124,7 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
     comment = models.TextField(blank=True, help_text='Notes about the combo', validators=TEXT_VALIDATORS)
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, editable=False)
-    generated_by = models.ForeignKey(Job, on_delete=models.SET_NULL, null=True, blank=True, editable=False, help_text='Job that generated this variant', related_name='variants')
+    generated_by = models.CharField(max_length=255, null=True, blank=True, editable=False, help_text='Task that generated this variant')
     popularity = models.PositiveIntegerField(db_default=None, null=True, editable=False, help_text='Popularity of this variant, provided by EDHREC')
     description_line_count = models.PositiveIntegerField(editable=False, help_text='Number of lines in the description')
     prerequisites_line_count = models.PositiveIntegerField(editable=False, help_text='Number of lines in the other prerequisites')

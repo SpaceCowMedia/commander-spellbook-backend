@@ -48,11 +48,29 @@ jobs:
           build-args: VERSION=${{ steps.semver.outputs.version }}
           outputs: type=docker,dest=/tmp/spellbook-backend.tar
 
-      - name: Upload image artifact 📦
+      - name: Build and export image 🏗️
+        uses: docker/build-push-action@v6
+        with:
+          push: false
+          load: true
+          file: backend/Dockerfile
+          context: .
+          tags: spellbook-worker:latest
+          target: worker
+          build-args: VERSION=${{ steps.semver.outputs.version }}
+          outputs: type=docker,dest=/tmp/spellbook-worker.tar
+
+      - name: Upload web image artifact 📦
         uses: actions/upload-artifact@v6
         with:
           name: spellbook-backend
           path: /tmp/spellbook-backend.tar
+
+      - name: Upload worker image artifact 📦
+        uses: actions/upload-artifact@v6
+        with:
+          name: spellbook-worker
+          path: /tmp/spellbook-worker.tar
 
       - name: Upload migration artifatcs 📦
         uses: actions/upload-artifact@v6
@@ -93,7 +111,6 @@ jobs:
         run: flake8 .
 
       - name: Lint bots 🧹
-        if: matrix.python-version == '3.12'
         working-directory: bot
         run: flake8 .
 
@@ -255,7 +272,7 @@ jobs:
           name: spellbook-client-typescript
           path: publish/client/typescript
 
-      - name: Seup Node.js 🟩
+      - name: Setup Node.js 🟩
         uses: actions/setup-node@v6
         with:
           node-version: 20.x
@@ -336,6 +353,7 @@ jobs:
       - name: Load image from artifact 🐳
         run: |
           docker load --input /tmp/spellbook-backend.tar
+          docker load --input /tmp/spellbook-worker.tar
           docker load --input /tmp/spellbook-discord-bot.tar
           docker load --input /tmp/spellbook-reddit-bot.tar
           docker load --input /tmp/spellbook-telegram-bot.tar
@@ -348,6 +366,15 @@ jobs:
           IMAGE_TAG: ${{ needs.build.outputs.version }}
         run: |
           docker tag spellbook-backend:latest $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+      - name: Push versioned worker image to Amazon ECR 📦
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ secrets.AWS_WORKER_ECR_REPO_NAME }}
+          IMAGE_TAG: ${{ needs.build.outputs.version }}
+        run: |
+          docker tag spellbook-worker:latest $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
       - name: Download migration artifacts ⬇

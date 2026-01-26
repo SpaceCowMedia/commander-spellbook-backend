@@ -51,22 +51,6 @@
             }
         },
         {
-            "label": "Clean pending jobs",
-            "type": "shell",
-            "command": "${PYTHON} manage.py clean_jobs --force",
-            "group": "none",
-            "dependsOn": [
-                "Apply migrations"
-            ],
-            "options": {
-                "cwd": "${workspaceFolder}/backend",
-                "env": {
-                    "PYTHONPATH": "${workspaceFolder}${/}common",
-                    "PYTHON": "${command:python.interpreterPath}",
-                },
-            }
-        },
-        {
             "label": "Upkeep",
             "type": "shell",
             "command": "${PYTHON} manage.py upkeep",
@@ -87,7 +71,6 @@
             "group": "none",
             "dependsOn": [
                 "Apply migrations",
-                "Clean pending jobs",
                 "Upkeep",
                 "Seed Website Properties",
             ],
@@ -126,23 +109,6 @@
             }
         },
         {
-            "label": "Clean pending jobs with production settings",
-            "type": "shell",
-            "command": "set -a; . \"$ENV_FILE\"; ${PYTHON} manage.py clean_jobs --force --settings=backend.production_settings",
-            "group": "none",
-            "dependsOn": [
-                "Apply migrations"
-            ],
-            "options": {
-                "cwd": "${workspaceFolder}/backend",
-                "env": {
-                    "PYTHONPATH": "${workspaceFolder}${/}common",
-                    "ENV_FILE": "${workspaceFolder}/backend/secrets.env",
-                    "PYTHON": "${command:python.interpreterPath}",
-                },
-            }
-        },
-        {
             "label": "Upkeep with production settings",
             "type": "shell",
             "command": "set -a; . \"$ENV_FILE\"; ${PYTHON} manage.py upkeep --settings=backend.production_settings",
@@ -164,7 +130,6 @@
             "group": "none",
             "dependsOn": [
                 "Apply migrations with production settings",
-                "Clean pending jobs with production settings",
                 "Upkeep with production settings",
                 "Seed Website Properties with production settings",
             ],

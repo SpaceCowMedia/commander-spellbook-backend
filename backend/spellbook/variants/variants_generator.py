@@ -8,14 +8,14 @@ from django.utils.functional import cached_property
 from django.db import transaction
 from .variant_data import Data
 from .combo_graph import FeatureWithAttributes, Graph, VariantSet, cardid, templateid, featureid
-from spellbook.models import Combo, FeatureNeededInCombo, Job, Variant, CardInVariant, TemplateInVariant, ZoneLocation, CardType
+from spellbook.models import Combo, FeatureNeededInCombo, Variant, CardInVariant, TemplateInVariant, ZoneLocation, CardType
 from spellbook.models import Card, Template, VariantAlias, Ingredient, FeatureProducedByVariant, VariantOfCombo, VariantIncludesCombo
 from spellbook.models import id_from_cards_and_templates_ids, merge_mana_costs, DEFAULT_BATCH_SIZE
-from spellbook.utils import log_into_job
 from spellbook.models.constants import DEFAULT_CARD_LIMIT, DEFAULT_VARIANT_LIMIT, HIGHER_CARD_LIMIT, LOWER_VARIANT_LIMIT
 
 
 VARIANTS_TO_TRIGGER_LOG = 200
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -34,7 +34,7 @@ class VariantDefinition(VariantRecipeDefinition):
     needed_features_of_cards: set[int]
 
 
-def get_variants_from_graph(data: Data, single_combo: int | None, job: Job | None, log_count: int) -> dict[str, VariantDefinition]:
+def get_variants_from_graph(data: Data, single_combo: int | None) -> dict[str, VariantDefinition]:
     combos_by_status = dict[tuple[bool, bool], list[Combo]]()
     generator_combos = (data.id_to_combo[single_combo],) if single_combo is not None else data.generator_combos
     for combo in generator_combos:
@@ -45,7 +45,7 @@ def get_variants_from_graph(data: Data, single_combo: int | None, job: Job | Non
     for (allows_many_cards, allows_multiple_copies), combos in combos_by_status.items():
         conditions = ([f'at most {HIGHER_CARD_LIMIT} cards'] if allows_many_cards else [f'at most {DEFAULT_CARD_LIMIT} cards']) + \
             (['multiple copies'] if allows_multiple_copies else ['only singleton copies'])
-        log_into_job(job, 'Processing combos that allow ' + ' and '.join(conditions) + '...')
+        logger.info('Processing combos that allow ' + ' and '.join(conditions) + '...')
         card_limit = DEFAULT_CARD_LIMIT
         variant_limit = DEFAULT_VARIANT_LIMIT
         if allows_many_cards:
@@ -57,7 +57,7 @@ def get_variants_from_graph(data: Data, single_combo: int | None, job: Job | Non
             variant_limit=variant_limit,
             allow_multiple_copies=allows_multiple_copies,
         )
-        log_into_job(job, 'Computing all variants recipes, following combos\' requirements graphs...')
+        logger.info('Computing all variants recipes, following combos\' requirements graphs...')
         total = len(combos)
         index = 0
         variant_sets: list[tuple[Combo, VariantSet]] = []
@@ -65,21 +65,21 @@ def get_variants_from_graph(data: Data, single_combo: int | None, job: Job | Non
             try:
                 variant_set = graph.variants(combo.id)
             except Graph.GraphError:
-                log_into_job(job, f'Error while computing all variants for generator combo {combo} with ID {combo.id}')
+                logger.error(f'Error while computing all variants for generator combo {combo} with ID {combo.id}')
                 raise
             variant_sets.append((combo, variant_set))
-            if len(variant_set) > VARIANTS_TO_TRIGGER_LOG or index % log_count == 0 or index == total - 1:
-                log_into_job(job, f'{index + 1}/{total} combos processed (just processed combo {combo.id})')
+            if len(variant_set) > VARIANTS_TO_TRIGGER_LOG or index % VARIANTS_TO_TRIGGER_LOG == 0 or index == total - 1:
+                logger.info(f'{index + 1}/{total} combos processed (just processed combo {combo.id})')
             index += 1
-        log_into_job(job, 'Processing all recipes to find all the produced results and more...')
+        logger.info('Processing all recipes to find all the produced results and more...')
         index = 0
         for combo, variant_set in variant_sets:
             if len(variant_set) > VARIANTS_TO_TRIGGER_LOG:
-                log_into_job(job, f'About to process results for combo {combo.id} ({index + 1}/{total}) with {len(variant_set)} variants...')
+                logger.info(f'About to process results for combo {combo.id} ({index + 1}/{total}) with {len(variant_set)} variants...')
             try:
                 variants = graph.results(variant_set)
             except Graph.GraphError:
-                log_into_job(job, f'Error while computing all results for generator combo {combo} with ID {combo.id}')
+                logger.error(f'Error while computing all results for generator combo {combo} with ID {combo.id}')
                 raise
             for variant in variants:
                 id = id_from_cards_and_templates_ids(variant.cards.distinct_elements(), variant.templates.distinct_elements())
@@ -114,8 +114,8 @@ def get_variants_from_graph(data: Data, single_combo: int | None, job: Job | Non
                     if single_combo is not None:
                         # avoid removing all previous generator combos when generating for a single combo
                         result[id].of_ids.update(of.combo_id for of in data.variant_to_of_sets.get(id, []))
-            if len(variant_set) > VARIANTS_TO_TRIGGER_LOG or index % log_count == 0 or index == total - 1:
-                log_into_job(job, f'{index + 1}/{total} combos processed (just processed combo {combo.id})')
+            if len(variant_set) > VARIANTS_TO_TRIGGER_LOG or index % VARIANTS_TO_TRIGGER_LOG == 0 or index == total - 1:
+                logger.info(f'{index + 1}/{total} combos processed (just processed combo {combo.id})')
             index += 1
     return result
 
@@ -523,7 +523,7 @@ def update_variant(
         variant_def: VariantDefinition,
         status: Variant.Status | str,
         restore: bool,
-        job: Job | None):
+        job: str | None):
     variant = data.id_to_variant[id]
     old_results_count = variant.result_count
     old_name = variant.name
@@ -543,7 +543,7 @@ def create_variant(
         data: Data,
         id: str,
         variant_def: VariantDefinition,
-        job: Job | None):
+        job: str | None):
     variant = Variant(
         id=id,
         generated_by=job,
@@ -558,15 +558,15 @@ def create_variant(
     return save_item
 
 
-def perform_bulk_saves(data: Data, to_create: list[VariantBulkSaveItem], to_update: list[VariantBulkSaveItem], job: Job | None = None):
-    log_into_job(job, 'Prepare variants...')
+def perform_bulk_saves(data: Data, to_create: list[VariantBulkSaveItem], to_update: list[VariantBulkSaveItem]):
+    logger.info('Prepare variants...')
     variant_bulk_create = tuple(v.variant for v in to_create)
     variant_bulk_update = tuple(v.variant for v in to_update)
     # perform pre_save outside the transaction to reduce lock time
-    log_into_job(job, 'Preprocess variants...')
+    logger.info('Preprocess variants...')
     for variant in chain(variant_bulk_create, variant_bulk_update):
         variant.pre_save()
-    log_into_job(job, 'Prepare variant related entities...')
+    logger.info('Prepare variant related entities...')
     variant_bulk_update_fields = ['status', 'mana_needed', 'is_mana_needed_total_first_turn', 'easy_prerequisites', 'notable_prerequisites', 'description', 'notes', 'comment', 'generated_by'] + Variant.computed_fields()
     cardinvariant_bulk_create = tuple(c for v in to_create for c in v.uses)
     cardinvariant_bulk_update = tuple(c for v in to_update for c in v.uses)
@@ -629,7 +629,7 @@ def perform_bulk_saves(data: Data, to_create: list[VariantBulkSaveItem], to_upda
         if (p.feature_id, v.variant.id) in data.variant_produces_feature_dict
     )
     produces_bulk_update_fields = ['quantity']
-    log_into_job(job, 'Perform bulk updates...')
+    logger.info('Perform bulk updates...')
     with transaction.atomic():
         # delete
         if of_bulk_delete:
@@ -667,19 +667,19 @@ def sync_variant_aliases(data: Data, added_variants_ids: set[str], deleted_varia
     return added_count, deleted_count
 
 
-def generate_variants(combo: int | None = None, job: Job | None = None, log_count: int = VARIANTS_TO_TRIGGER_LOG) -> tuple[int, int, int]:
+def generate_variants(combo: int | None = None, job: str | None = None) -> tuple[int, int, int]:
     if combo is not None:
-        log_into_job(job, f'Variant generation started for combo {combo}.')
+        logger.info(f'Variant generation started for combo {combo}.')
     else:
-        log_into_job(job, 'Variant generation started for all combos.')
-    log_into_job(job, 'Fetching data...')
+        logger.info('Variant generation started for all combos.')
+    logger.info('Fetching data...')
     data = Data()
     to_restore = set(k for k, v in data.id_to_variant.items() if v.status == Variant.Status.RESTORE or len(data.variant_to_of_sets[k]) == 0)
-    log_into_job(job, 'Fetching all variant unique ids...')
+    logger.info('Fetching all variant unique ids...')
     old_id_set = set(data.id_to_variant.keys())
-    log_into_job(job, 'Computing combos graph representation...')
-    variants = get_variants_from_graph(data, combo, job, log_count)
-    log_into_job(job, f'Processing {len(variants)} variants...')
+    logger.info('Computing combos graph representation...')
+    variants = get_variants_from_graph(data, combo)
+    logger.info(f'Processing {len(variants)} variants...')
     to_bulk_update = list[VariantBulkSaveItem]()
     to_bulk_create = list[VariantBulkSaveItem]()
     for id, variant_def in variants.items():
@@ -702,14 +702,14 @@ def generate_variants(combo: int | None = None, job: Job | None = None, log_coun
                 variant_def=variant_def,
                 job=job)
             to_bulk_create.append(variant_to_save)
-    log_into_job(job, f'Saving {len(variants)} variants...')
+    logger.info(f'Saving {len(variants)} variants...')
     perform_bulk_saves(data, to_bulk_create, to_bulk_update)
-    log_into_job(job, f'Saved {len(variants)} variants.')
+    logger.info(f'Saved {len(variants)} variants.')
     new_id_set = set(variants.keys())
     added = new_id_set - old_id_set
     restored = new_id_set & to_restore
-    log_into_job(job, f'Added {len(added)} new variants.')
-    log_into_job(job, f'Updated {len(restored)} variants.')
+    logger.info(f'Added {len(added)} new variants.')
+    logger.info(f'Updated {len(restored)} variants.')
     if combo is None:
         to_delete = old_id_set - new_id_set
     else:
@@ -717,8 +717,8 @@ def generate_variants(combo: int | None = None, job: Job | None = None, log_coun
     delete_query = Variant.objects.filter(id__in=to_delete)
     _, deleted_counts = delete_query.delete()
     deleted_count = deleted_counts.get('spellbook.Variant', 0)
-    log_into_job(job, f'Deleted {deleted_count} variants...')
+    logger.info(f'Deleted {deleted_count} variants.')
     added_aliases, deleted_aliases = sync_variant_aliases(data, added, to_delete)
-    log_into_job(job, f'Added {added_aliases} new aliases, deleted {deleted_aliases} aliases.')
-    log_into_job(job, 'Done.')
+    logger.info(f'Added {added_aliases} new aliases, deleted {deleted_aliases} aliases.')
+    logger.info('Done.')
     return len(added), len(restored), deleted_count

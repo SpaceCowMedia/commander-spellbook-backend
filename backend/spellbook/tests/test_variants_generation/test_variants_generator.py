@@ -3,7 +3,7 @@ from django.db.models import Count
 from spellbook.models.combo import FeatureNeededInCombo
 from spellbook.models.feature_attribute import FeatureAttribute
 from spellbook.tests.testing import SpellbookTestCaseWithSeeding
-from spellbook.models import Job, Variant, Card, IngredientInCombination, CardInVariant, TemplateInVariant, Template, Combo, Feature, VariantAlias, FeatureOfCard, ZoneLocation
+from spellbook.models import Variant, Card, IngredientInCombination, CardInVariant, TemplateInVariant, Template, Combo, Feature, VariantAlias, FeatureOfCard, ZoneLocation
 from spellbook.variants.combo_graph import FeatureWithAttributes
 from spellbook.variants.multiset import FrozenMultiset
 from spellbook.variants.variant_data import Data
@@ -14,13 +14,9 @@ from spellbook.variants.variants_generator import sync_variant_aliases
 
 class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
     def test_get_variants_from_graph(self):
-        job = Job.start('test_get_variants_from_graph')
-        if job is None:
-            self.fail('Job.start() returned None')
-        result = get_variants_from_graph(data=Data(), single_combo=None, job=job, log_count=100)
+        result = get_variants_from_graph(data=Data(), single_combo=None)
         self.assertIsInstance(result, dict)
         self.assertEqual(len(result), self.expected_variant_count)
-        self.assertGreater(len(job.message), 0)
         self.generate_variants()
         self.assertEqual(len(result), Variant.objects.count())
         self.assertEqual(set(result.keys()), set(Variant.objects.values_list('id', flat=True)))

@@ -11,8 +11,8 @@ from django.utils.safestring import mark_safe
 from django.urls import reverse, path
 from django.shortcuts import redirect
 from django.utils import timezone
-from spellbook.utils import launch_job_command
 from spellbook.models import Card, FeatureNeededInCombo, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion
+from spellbook.tasks import generate_variants_task
 from .utils import SpellbookModelAdmin, SpellbookAdminForm, CustomFilter, IngredientCountListFilter
 from .ingredient_admin import IngredientAdmin, IngredientInCombinationAdmin
 
@@ -435,12 +435,7 @@ class ComboAdmin(SpellbookModelAdmin):
                 messages.error(request, f'Combo with id {object_id} does not exist.')
                 return redirect('admin:spellbook_combo_changelist')
             if combo.status == Combo.Status.GENERATOR:
-                job = launch_job_command('generate_variants', request.user, args=['--combo', object_id], group='single')  # type: ignore
-                if job is not None:
-                    messages.info(request, f'Variant generation job for combo {object_id} started.')
-                    return redirect('admin:spellbook_job_change', job.id)
-                else:
-                    messages.warning(request, 'Variant generation is already running.')
+                generate_variants_task.enqueue(combo=object_id, started_by_user_id=request.user.pk)
             else:
                 messages.error(request, f'Combo with id {object_id} is not marked as a generator combo.')
         return redirect('admin:spellbook_combo_change', object_id)

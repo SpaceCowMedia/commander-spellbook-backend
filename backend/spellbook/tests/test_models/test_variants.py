@@ -1,6 +1,6 @@
 from spellbook.tests.testing import SpellbookTestCaseWithSeeding
 from common.inspection import count_methods
-from spellbook.models import Card, Job, PreSerializedSerializer, Template, Variant, id_from_cards_and_templates_ids
+from spellbook.models import Card, PreSerializedSerializer, Template, Variant, id_from_cards_and_templates_ids
 from spellbook.serializers import VariantSerializer
 from decimal import Decimal
 from urllib.parse import quote_plus
@@ -39,7 +39,8 @@ class VariantTests(SpellbookTestCaseWithSeeding):
         self.assertIn('4', v.comment)
         self.assertIn('4', v.notes)
         self.assertEqual(v.identity, 'W')
-        self.assertEqual(v.generated_by.id, Job.objects.get(name='generate_variants').id)  # type: ignore
+        ids = set(Variant.objects.values_list('generated_by', flat=True))
+        self.assertSetEqual(ids, {v.generated_by})
         self.assertEqual(v.legal_commander, True)
         self.assertEqual(v.spoiler, False)
         self.assertEqual(v.description_line_count, v.description.count('\n') + 1)

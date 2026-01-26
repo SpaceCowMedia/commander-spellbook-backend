@@ -9,9 +9,9 @@ from django.contrib import admin, messages
 from django.forms import Textarea
 from django.utils import timezone
 from spellbook.models import Variant, CardInVariant, TemplateInVariant, DEFAULT_BATCH_SIZE
-from spellbook.utils import launch_job_command
 from spellbook.transformers.variants_query_transformer import variants_query_parser
 from spellbook.serializers import VariantSerializer
+from spellbook.tasks import export_variants_task, notify_task, generate_variants_task
 from .utils import IdentityFilter, SpellbookModelAdmin, SpellbookAdminForm, CardCountListFilter
 from .ingredient_admin import IngredientAdmin
 
@@ -75,18 +75,14 @@ def set_status(request, queryset, status: Variant.Status):
     messages.success(request, f'{len(variants)} variant{plural} marked as {status.name}.')
     if publish:
         if unpublished:
-            launch_job_command(
-                command='notify',
-                user=request.user,
-                args=['variant_published', *[str(variant.id) for variant in unpublished]],
-                allow_multiples=True,
+            notify_task.enqueue(
+                event='variant_published',
+                identifiers=[str(variant.id) for variant in unpublished],
             )
         if published:
-            launch_job_command(
-                command='notify',
-                user=request.user,
-                args=['variant_updated', *[str(variant.id) for variant in published]],
-                allow_multiples=True,
+            notify_task.enqueue(
+                event='variant_updated',
+                identifiers=[str(variant.id) for variant in published],
             )
 
 
@@ -211,24 +207,16 @@ class VariantAdmin(SpellbookModelAdmin):
 
     def generate(self, request: HttpRequest):
         if request.method == 'POST' and request.user.is_authenticated:
-            job = launch_job_command('generate_variants', request.user, group='all')  # type: ignore
-            if job is not None:
-                messages.info(request, 'Variant generation job started.')
-                return redirect('admin:spellbook_job_change', job.id)
-            else:
-                messages.warning(request, 'Variant generation is already running.')
+            generate_variants_task.enqueue(started_by_user_id=request.user.pk)
+            messages.info(request, 'Variant generation job started.')
         return redirect('admin:spellbook_variant_changelist')
 
     def export(self, request: HttpRequest):
         if request.method == 'POST' and request.user.is_authenticated:
-            from ..management.s3_upload import can_upload_to_s3
-            args = ['--s3'] if can_upload_to_s3() else []
-            job = launch_job_command('export_variants', request.user, args)  # type: ignore
-            if job is not None:
-                messages.info(request, 'Variant exporting job started.')
-                return redirect('admin:spellbook_job_change', job.id)
-            else:
-                messages.warning(request, 'Variant exporting is already running.')
+            from ..tasks.s3_upload import can_upload_to_s3
+            s3 = can_upload_to_s3()
+            export_variants_task.enqueue(file=not s3, s3=s3)
+            messages.info(request, 'Variant export job started.')
         return redirect('admin:spellbook_variant_changelist')
 
     def get_urls(self):
@@ -265,19 +253,15 @@ class VariantAdmin(SpellbookModelAdmin):
         if change and 'status' in form.changed_data:
             if variant.status in Variant.public_statuses():
                 if variant.published:
-                    launch_job_command(
-                        command='notify',
-                        user=request.user,  # type: ignore
-                        args=['variant_updated', str(variant.id)],
-                        allow_multiples=True,
+                    notify_task.enqueue(
+                        event='variant_updated',
+                        identifiers=[str(variant.id)],
                     )
                 else:
                     variant.published = True
-                    launch_job_command(
-                        command='notify',
-                        user=request.user,  # type: ignore
-                        args=['variant_published', str(variant.id)],
-                        allow_multiples=True,
+                    notify_task.enqueue(
+                        event='variant_published',
+                        identifiers=[str(variant.id)],
                     )
         # Feature: update serialized JSON when variant is edited
         # effectively resulting in a real time update of the variant

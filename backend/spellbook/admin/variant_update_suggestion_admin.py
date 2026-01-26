@@ -1,8 +1,8 @@
 from typing import Any
 from django.contrib import admin
+from spellbook.tasks import notify_task
 from .utils import SpellbookAdminForm, SpellbookModelAdmin
 from spellbook.models import Combo, VariantUpdateSuggestion, VariantInVariantUpdateSuggestion
-from spellbook.utils import launch_job_command
 
 
 class VariantInVariantUpdateSuggestionAdmin(admin.TabularInline):
@@ -69,18 +69,14 @@ class VariantUpdateSuggestionAdmin(SpellbookModelAdmin):
             if 'status' in form.changed_data and request.user != new_object.suggested_by:
                 match new_object.status:
                     case VariantUpdateSuggestion.Status.ACCEPTED:
-                        launch_job_command(
-                            command='notify',
-                            user=request.user,
-                            args=['variant_update_suggestion_accepted', str(new_object.id)],
-                            allow_multiples=True,
+                        notify_task.enqueue(
+                            event='variant_update_suggestion_accepted',
+                            identifiers=[str(new_object.id)],
                         )
                     case VariantUpdateSuggestion.Status.REJECTED:
-                        launch_job_command(
-                            command='notify',
-                            user=request.user,
-                            args=['variant_update_suggestion_rejected', str(new_object.id)],
-                            allow_multiples=True,
+                        notify_task.enqueue(
+                            event='variant_update_suggestion_rejected',
+                            identifiers=[str(new_object.id)],
                         )
         return new_object
 

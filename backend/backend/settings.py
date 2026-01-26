@@ -22,7 +22,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/dev/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-!5xe$b7a9e4osw_3i23&&f1_s$inz*=j#97-6z88sf!!(f6w2q'
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-!5xe$b7a9e4osw_3i23&&f1_s$inz*=j#97-6z88sf!!(f6w2q')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'corsheaders',
     'social_django',
+    'django_tasks.backends.database',
     'backend',
     'spellbook',
     'website',
@@ -114,7 +115,7 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
-    }
+    },
 }
 
 # Social Auth PostgresSQL settings
@@ -286,5 +287,14 @@ LOGGING = {
         # 'django.db.backends': {
         #     'level': 'DEBUG',
         # },
+    }
+}
+
+TASKS = {
+    'default': {
+        'BACKEND': 'django_tasks.backends.database.DatabaseBackend',
+        'OPTIONS': {
+            'id_function': 'uuid.uuid4',  # TODO: move to uuid7 from Python 3.14
+        }
     }
 }

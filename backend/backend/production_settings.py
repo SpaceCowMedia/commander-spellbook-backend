@@ -1,12 +1,7 @@
 import os
-import sys
 from .settings import *  # noqa: F403, F401
-from .settings import BASE_DIR, REST_FRAMEWORK, INSTALLED_APPS
+from .settings import BASE_DIR, INSTALLED_APPS
 from urllib.parse import urlparse
-
-TESTING = sys.argv[1:2] == ['test']
-
-SECRET_KEY = os.environ['SECRET_KEY'] if not TESTING else 'test'
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
@@ -69,24 +64,6 @@ DATABASES = {
 
 if DATABASES['default']['ENGINE'] == 'django.db.backends.postgresql':
     INSTALLED_APPS.append('django.contrib.postgres')
-
-REST_FRAMEWORK = {
-    **REST_FRAMEWORK,
-    'DEFAULT_THROTTLE_CLASSES': [
-        'rest_framework.throttling.AnonRateThrottle',
-        'rest_framework.throttling.UserRateThrottle'
-    ],
-    'DEFAULT_THROTTLE_RATES': {
-        'anon': '100/minute',
-        'user': '1000/minute'
-    }
-}
-
-if TESTING:
-    REST_FRAMEWORK['DEFAULT_THROTTLE_RATES'] = {
-        'anon': '10000/minute',
-        'user': '10000/minute',
-    }
 
 LOGGING = {
     'version': 1,

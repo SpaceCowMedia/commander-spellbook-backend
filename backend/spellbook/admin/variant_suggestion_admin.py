@@ -6,9 +6,9 @@ from django.urls import reverse, path
 from django.http.request import HttpRequest
 from django.shortcuts import redirect
 from spellbook.models import VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, FeatureProducedInVariantSuggestion
+from spellbook.tasks import notify_task
 from .ingredient_admin import IngredientInCombinationAdmin
 from .utils import SpellbookModelAdmin, CardCountListFilter
-from spellbook.utils import launch_job_command
 
 
 class CardUsedInVariantSuggestionAdminInline(IngredientInCombinationAdmin):
@@ -42,11 +42,9 @@ class FeatureProducedInVariantAdminInline(admin.TabularInline):
 def set_rejected(modeladmin, request, queryset):
     queryset.update(status=VariantSuggestion.Status.REJECTED, updated=timezone.now())
     ids = queryset.exclude(suggested_by=request.user).values_list('id', flat=True)
-    launch_job_command(
-        command='notify',
-        user=request.user,
-        args=['variant_suggestion_rejected', *map(str, ids)],
-        allow_multiples=True,
+    notify_task.enqueue(
+        event='variant_suggestion_rejected',
+        identifiers=[str(id) for id in ids],
     )
 
 
@@ -104,18 +102,14 @@ class VariantSuggestionAdmin(SpellbookModelAdmin):
             if 'status' in form.changed_data and request.user != new_object.suggested_by:
                 match new_object.status:
                     case VariantSuggestion.Status.ACCEPTED:
-                        launch_job_command(
-                            command='notify',
-                            user=request.user,
-                            args=['variant_suggestion_accepted', str(new_object.id)],
-                            allow_multiples=True,
+                        notify_task.enqueue(
+                            event='variant_suggestion_accepted',
+                            identifiers=[str(new_object.id)],
                         )
                     case VariantSuggestion.Status.REJECTED:
-                        launch_job_command(
-                            command='notify',
-                            user=request.user,
-                            args=['variant_suggestion_rejected', str(new_object.id)],
-                            allow_multiples=True,
+                        notify_task.enqueue(
+                            event='variant_suggestion_rejected',
+                            identifiers=[str(new_object.id)],
                         )
         return new_object
 

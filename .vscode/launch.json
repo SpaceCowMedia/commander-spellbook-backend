@@ -37,6 +37,31 @@
             }
         },
         {
+            "name": "Start Worker",
+            "type": "debugpy",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/backend",
+            "program": "manage.py",
+            "args": [
+                "db_worker",
+            ],
+            "pythonArgs": [
+                "-Wd"
+            ],
+            "envFile": "${workspaceFolder}/backend/secrets.env",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}${/}common",
+            },
+            "preLaunchTask": "Prelaunch",
+            "django": true,
+            "justMyCode": false,
+            "presentation": {
+                "hidden": false,
+                "group": "Django",
+                "order": 1
+            }
+        },
+        {
             "name": "Start Server (Production)",
             "type": "debugpy",
             "request": "launch",
@@ -270,28 +295,6 @@
                 "hidden": false,
                 "group": "Spellbook",
                 "order": 9
-            },
-        },
-        {
-            "name": "Cleanup Jobs (force)",
-            "type": "debugpy",
-            "request": "launch",
-            "cwd": "${workspaceFolder}/backend",
-            "program": "manage.py",
-            "args": [
-                "clean_jobs",
-                "--force"
-            ],
-            "env": {
-                "PYTHONPATH": "${workspaceFolder}${/}common",
-            },
-            "preLaunchTask": "Apply migrations",
-            "django": true,
-            "justMyCode": true,
-            "presentation": {
-                "hidden": false,
-                "group": "Spellbook",
-                "order": 12
             },
         },
         {

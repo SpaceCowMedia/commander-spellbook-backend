@@ -3,6 +3,9 @@
 ##########
 FROM python:3.12-alpine AS python
 
+# set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+
 
 ###########
 # BUILDER #
@@ -11,9 +14,6 @@ FROM python AS builder
 
 # set work directory
 WORKDIR /usr/src/app
-
-# set environment variables
-ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 
 # install dependencies
 RUN apk --update add postgresql-dev libffi-dev --no-cache
@@ -37,12 +37,10 @@ RUN mkdir -p /home/app && mkdir -p $APP_HOME/staticfiles && chown -R app:app $AP
 WORKDIR $APP_HOME
 
 # install dependencies
-RUN apk add --no-cache nginx && \
-    mkdir -p /run/nginx && \
-    apk --update add --no-cache libpq postgresql-dev
-COPY --from=builder /usr/src/app/python/wheels /python/wheels
+RUN apk --update add --no-cache libpq
+COPY --from=builder /usr/src/app/python/wheels /python-wheels
 COPY --from=builder /usr/src/app/requirements.txt .
-RUN pip install --no-cache-dir /python/wheels/* --no-deps
+RUN pip install --no-cache-dir /python-wheels/* --no-deps && rm -rf /python-wheels
 RUN pip install --no-cache-dir psycopg[binary] gunicorn
 
 # copy project
@@ -62,7 +60,6 @@ ENV DJANGO_SETTINGS_MODULE=backend.production_settings
 # run entrypoint.prod.sh
 EXPOSE 80
 ENTRYPOINT ["/bin/sh", "entrypoint.prod.sh"]
-RUN echo -e 'gunicorn backend.wsgi:application --bind 0.0.0.0:8000\n' > entrypoint.prod.sh
 
 
 ##########
@@ -101,9 +98,8 @@ RUN echo -e 'set -e\n\
 python manage.py collectstatic --no-input --clear\n\
 sleep 3\n\
 python manage.py migrate --noinput\n\
-python manage.py clean_jobs --force\n\
 python manage.py seed_website_properties\n\
-gunicorn backend.wsgi:application --bind 0.0.0.0:8000\n' > entrypoint.prod.sh
+gunicorn backend.wsgi:application --bind 0.0.0.0:8000' > entrypoint.prod.sh
 
 
 ##############
@@ -111,11 +107,25 @@ gunicorn backend.wsgi:application --bind 0.0.0.0:8000\n' > entrypoint.prod.sh
 ##############
 FROM base-cython AS production
 
-ADD backend/nginx/production.conf /etc/nginx/nginx.conf
-
 # Switch to user root in order to run nginx on port 80
 USER root
 
+# Install nginx
+RUN apk add --no-cache nginx && \
+    mkdir -p /run/nginx
+
+ADD backend/nginx/production.conf /etc/nginx/nginx.conf
+
 RUN echo -e 'python manage.py collectstatic --no-input --clear\n\
 nginx\n\
-gunicorn backend.wsgi:application --bind 0.0.0.0:8000 --workers=3\n' > entrypoint.prod.sh
+gunicorn backend.wsgi:application --bind 0.0.0.0:8000 --workers=3' > entrypoint.prod.sh
+
+
+##########
+# WORKER #
+##########
+FROM base-cython AS worker
+
+ENV DJANGO_SETTINGS_MODULE=backend.worker_settings
+
+ENTRYPOINT [ "python", "manage.py", "db_worker" ]

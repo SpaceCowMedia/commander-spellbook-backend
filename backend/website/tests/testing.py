@@ -1,10 +1,13 @@
 import logging
 import random
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.core.management import call_command
 from common.stream import StreamToLogger
 
 
+@override_settings(
+    TASKS={'default': {'BACKEND': 'django.tasks.backends.immediate.ImmediateBackend'}},
+)
 class BaseTestCase(TestCase):
     @classmethod
     def setUpClass(cls):

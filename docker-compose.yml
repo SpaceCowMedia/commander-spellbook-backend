@@ -20,18 +20,18 @@ services:
     image: spellbook-backend
     expose:
       - 8000
-    depends_on:
+    depends_on: &web_depends_on
       db:
         condition: service_healthy
-    links:
+    links: &web_links
       - db
     volumes:
       - static_volume:/home/app/web/staticfiles:rw
-    env_file:
+    env_file: &web_env_file
       - backend/.env
       - path: backend/secrets.env
         required: false
-    environment:
+    environment: &web_env_vars
       SQL_ENGINE: django.db.backends.postgresql
       SQL_DATABASE: spellbook_db_test
       SQL_USER: test_user
@@ -46,6 +46,24 @@ services:
       interval: 10s
       timeout: 10s
       retries: 100
+    restart: always
+
+  worker:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      target: worker
+      args:
+        VERSION: worker
+    image: spellbook-worker
+    depends_on:
+      *web_depends_on
+    links:
+      *web_links
+    env_file:
+      *web_env_file
+    environment:
+      *web_env_vars
     restart: always
 
   db:

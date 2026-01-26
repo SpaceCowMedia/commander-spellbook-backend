@@ -3,16 +3,17 @@ import uuid
 import re
 from functools import reduce
 from collections import defaultdict
+from django.tasks import TaskResult, TaskResultStatus
 from django.db.models import Q, Count, OuterRef, Subquery
 from django.db.models.functions import Coalesce
 from django.contrib.auth.models import User
+from spellbook.tasks.generate_variants import generate_variants_task
 from website.tests.testing import BaseTestCase
 from spellbook.variants.multiset import FrozenMultiset
-from spellbook.models import Card, Feature, Combo, CardInCombo, Job, Template, TemplateInCombo, DEFAULT_BATCH_SIZE
+from spellbook.models import Card, Feature, Combo, CardInCombo, Template, TemplateInCombo, DEFAULT_BATCH_SIZE
 from spellbook.models import CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, FeatureProducedInVariantSuggestion
 from spellbook.models import VariantSuggestion, VariantAlias, Variant, ZoneLocation
 from spellbook.models import FeatureOfCard, FeatureNeededInCombo, FeatureProducedInCombo, FeatureRemovedInCombo, FeatureAttribute
-from spellbook.utils import launch_job_command
 from spellbook.serializers import VariantSerializer
 
 
@@ -26,11 +27,9 @@ class SpellbookTestCase(BaseTestCase):
 
     @classmethod
     def generate_variants(cls):
-        job = launch_job_command('generate_variants', background=False)
-        assert job is not None
-        if job.status == Job.Status.FAILURE:
-            raise Exception(job.message)
-        assert job.status == Job.Status.SUCCESS, f'{job} status was {job.status}'
+        result: TaskResult = generate_variants_task.enqueue()
+        assert result.is_finished
+        assert result.status == TaskResultStatus.SUCCESSFUL
 
     @classmethod
     def bulk_serialize_variants(cls, q: Sequence[Variant] | None = None, extra_fields=[]):

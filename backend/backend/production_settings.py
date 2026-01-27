@@ -50,9 +50,6 @@ CONN_MAX_AGE = 60 * 60
 # https://docs.djangoproject.com/en/dev/ref/settings/#databases
 DATABASES = {
     'default': {
-        'OPTIONS': {
-            'options': '-c statement_timeout=60000'  # in milliseconds
-        },
         'ENGINE': os.getenv('KUBE_SQL_ENGINE', os.getenv('SQL_ENGINE', 'django.db.backends.sqlite3')),
         'NAME': os.getenv('KUBE_SQL_DATABASE', os.environ.get('SQL_DATABASE', os.path.join(BASE_DIR, 'db.sqlite3'))),
         'USER': os.getenv('KUBE_SQL_USER', os.environ.get('SQL_USER', 'user')),
@@ -64,6 +61,9 @@ DATABASES = {
 
 if DATABASES['default']['ENGINE'] == 'django.db.backends.postgresql':
     INSTALLED_APPS.append('django.contrib.postgres')
+    DATABASES['default']['OPTIONS'] = {  # type: ignore
+        'options': '-c statement_timeout=60000'  # in milliseconds
+    }
 
 LOGGING = {
     'version': 1,

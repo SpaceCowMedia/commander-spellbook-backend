@@ -36,7 +36,7 @@ jobs:
         name: Checkout 🛎️
         uses: EasyDesk/action-semver-checkout@v1
 
-      - name: Build and export image 🏗️
+      - name: Build and export backend image 🏗️
         uses: docker/build-push-action@v6
         with:
           push: false
@@ -48,7 +48,7 @@ jobs:
           build-args: VERSION=${{ steps.semver.outputs.version }}
           outputs: type=docker,dest=/tmp/spellbook-backend.tar
 
-      - name: Build and export image 🏗️
+      - name: Build and export worker image 🏗️
         uses: docker/build-push-action@v6
         with:
           push: false
@@ -60,7 +60,7 @@ jobs:
           build-args: VERSION=${{ steps.semver.outputs.version }}
           outputs: type=docker,dest=/tmp/spellbook-worker.tar
 
-      - name: Upload web image artifact 📦
+      - name: Upload backend image artifact 📦
         uses: actions/upload-artifact@v6
         with:
           name: spellbook-backend
@@ -255,6 +255,12 @@ jobs:
           name: spellbook-backend
           path: release
 
+      - name: Download worker image artifact ⬇
+        uses: actions/download-artifact@v7
+        with:
+          name: spellbook-worker
+          path: release
+
       - name: Download discord bot image artifact ⬇
         uses: actions/download-artifact@v7
         with:
@@ -339,6 +345,12 @@ jobs:
           name: spellbook-backend
           path: /tmp
 
+      - name: Download worker image artifact ⬇
+        uses: actions/download-artifact@v7
+        with:
+          name: spellbook-worker
+          path: /tmp
+
       - name: Download discord bot image artifact ⬇
         uses: actions/download-artifact@v7
         with:
@@ -366,7 +378,7 @@ jobs:
           docker load --input /tmp/spellbook-telegram-bot.tar
           docker image ls -a
 
-      - name: Push versioned image to Amazon ECR 📦
+      - name: Push versioned backend image to Amazon ECR 📦
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: ${{ secrets.AWS_ECR_REPO_NAME }}
@@ -433,13 +445,22 @@ jobs:
           kubectl delete job/spellbook-migration -n spellbook-prod
           exit $exit_code
 
-      - name: Push image to Amazon ECR 📦
+      - name: Push backend image to Amazon ECR 📦
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: ${{ secrets.AWS_ECR_REPO_NAME }}
           IMAGE_TAG: latest
         run: |
           docker tag spellbook-backend:latest $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+      - name: Push worker image to Amazon ECR 📦
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ secrets.AWS_WORKER_ECR_REPO_NAME }}
+          IMAGE_TAG: latest
+        run: |
+          docker tag spellbook-worker:latest $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
       - name: Push Discord bot image to Amazon ECR 📦

@@ -1,4 +1,5 @@
 import logging
+from django.tasks import task
 from spellbook.models import VariantSuggestion, Variant, VariantUpdateSuggestion
 from social_django.models import UserSocialAuth
 from common.markdown_utils import escape_markdown
@@ -79,6 +80,7 @@ def variant_update_suggestion_event(accepted: bool, identifiers: list[str]):
         discord_webhook_task.enqueue(webhook_text)
 
 
+@task
 def notify_task(event: str, identifiers: list[str]):
     logger.info(f'Notifying about {event} with identifiers {identifiers}')
     match event:

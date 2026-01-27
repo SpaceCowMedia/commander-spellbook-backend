@@ -1036,7 +1036,7 @@ class VariantViewsTests(SpellbookTestCaseWithSeeding):
                 best_variants_ids.add(best_variant.id)
         self.assertLess(len(best_variants_ids), variant_count)
         with self.subTest('without parameter'):
-            response = self.client.get(reverse('variants-list'), query_params={'ordering': '-popularity'}, follow=True)  # type: ignore
+            response = self.client.get(reverse('variants-list'), query_params={'ordering': '-popularity', 'count': True}, follow=True)  # type: ignore
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             self.assertEqual(response.get('Content-Type'), 'application/json')
             result = json.loads(response.content, object_hook=json_to_python_lambda)
@@ -1044,7 +1044,7 @@ class VariantViewsTests(SpellbookTestCaseWithSeeding):
             result_id_set = {v.id for v in result.results}
             self.assertTrue(result_id_set.issuperset(best_variants_ids) and result_id_set != best_variants_ids)
         with self.subTest('with false value'):
-            response = self.client.get(reverse('variants-list'), query_params={parameter: 'false', 'ordering': '-popularity'}, follow=True)  # type: ignore
+            response = self.client.get(reverse('variants-list'), query_params={parameter: 'false', 'ordering': '-popularity', 'count': True}, follow=True)  # type: ignore
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             self.assertEqual(response.get('Content-Type'), 'application/json')
             result = json.loads(response.content, object_hook=json_to_python_lambda)
@@ -1052,7 +1052,7 @@ class VariantViewsTests(SpellbookTestCaseWithSeeding):
             result_id_set = {v.id for v in result.results}
             self.assertTrue(result_id_set.issuperset(best_variants_ids) and result_id_set != best_variants_ids)
         with self.subTest('with true value'):
-            response = self.client.get(reverse('variants-list'), query_params={parameter: 'true', 'ordering': '-popularity'}, follow=True)  # type: ignore
+            response = self.client.get(reverse('variants-list'), query_params={parameter: 'true', 'ordering': '-popularity', 'count': True}, follow=True)  # type: ignore
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             self.assertEqual(response.get('Content-Type'), 'application/json')
             result = json.loads(response.content, object_hook=json_to_python_lambda)

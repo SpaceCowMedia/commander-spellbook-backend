@@ -1,0 +1,66 @@
+{% extends "admin/change_form.html" %}
+{% load static %}
+
+{% block extrahead %}
+    {{ block.super }}
+    {% include 'admin/spellbook/includes/jqueryui_imports.html' %}
+{% endblock %}
+
+{% block after-content %}
+    <table>
+        <thead>
+            <tr>
+                <th class="progress-header">Progress</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% with progress=original.metadata.progress %}
+        {% if progress %}
+            <tr class="form-row">
+                <script>
+                    django.jQuery(function($) {
+                        const progress = "{{ progress }}";
+                        const values = progress.split('/');
+                        const completed = parseInt(values[0]);
+                        const total = parseInt(values[1]);
+                        $('#progress-bar').progressbar({ value: completed, max: total, });
+                    });
+                </script>
+                <td class="progress">
+                    <div id="progress-bar"></div>
+                </td>
+            </tr>
+        {% endif %}
+        {% endwith %}
+        {% with log=original.metadata.log %}
+        {% if log %}
+            <tr class="form-row">
+                <td class="log">
+                    <pre style="white-space: pre-wrap;">{{ log }}</pre>
+                </td>
+            </tr>
+        {% endif %}
+        {% endwith %}
+        </tbody>
+    </table>
+    {% with variant_count=original.metadata.variant_count generation_id=original.metadata.generation_id %}
+    {% if variant_count and generation_id %}
+        <table>
+            <thead>
+                <tr>
+                    <th class="urls">New variants</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr class="form-row">
+                    <td class="url">
+                        <p>
+                            <a href="{% url 'admin:spellbook_variant_changelist' %}{% querystring generated_by=generation_id %}">View all {{ variant_count }} variants created by this task...</a>
+                        </p>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    {% endif %}
+    {% endwith %}
+{% endblock %}

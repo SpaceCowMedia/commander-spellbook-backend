@@ -1,5 +1,6 @@
 import logging
-from django.tasks import task, TaskContext
+from django.tasks import task
+from django_tasks import TaskContext
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.admin.models import LogEntry, ADDITION
 from spellbook.models import Variant
@@ -12,14 +13,41 @@ logger = logging.getLogger(__name__)
 
 @task(takes_context=True)
 def generate_variants_task(context: TaskContext, combo: int | None = None, started_by_user_id: int | None = None) -> str:
-    job_id = task_result_identifier(context.task_result)
-    added, restored, removed = generate_variants(combo=combo, job=job_id)
+    job_id = task_result_identifier(context.task_result)  # type: ignore
+    context.metadata['generation_id'] = job_id
+    context.metadata['progress'] = '0/1'
+    context.metadata['log'] = ''
+    context.save_metadata()
+
+    def log(message: str):
+        logger.info(message)
+        context.metadata['log'] = message
+        context.save_metadata()
+
+    def log_error(message: str):
+        logger.error(message)
+        context.metadata['log'] = message
+        context.save_metadata()
+
+    def progress(current: int, total: int):
+        context.metadata['progress'] = f'{current}/{total}'
+        context.save_metadata()
+    added, restored, removed = generate_variants(
+        combo=combo,
+        job=job_id,
+        log=log,
+        log_error=log_error,
+        progress=progress,
+    )
+    context.metadata['variant_count'] = added + restored
+    context.save_metadata()
     if added == 0 and removed == 0 and restored == 0:
         message = 'Variants are already synced with'
     else:
         message = f'Generated {added} new variants, restored {restored} variants, removed {removed} variants for'
     message += ' all combos'
     logger.info(message)
+    context.metadata['log'] = message
     if started_by_user_id is not None:
         LogEntry(
             user_id=started_by_user_id,

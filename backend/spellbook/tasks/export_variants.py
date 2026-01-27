@@ -11,7 +11,7 @@ from spellbook.models import Variant, VariantAlias, DEFAULT_BATCH_SIZE
 from spellbook.serializers import VariantSerializer, VariantAliasSerializer
 from spellbook.views.variants import VariantViewSet
 from spellbook.views.variant_aliases import VariantAliasViewSet
-from .s3_upload import upload_json_to_aws_task
+from .s3_upload import upload_json_to_aws
 
 
 def prepare_variant(variant: Variant) -> dict:
@@ -73,9 +73,7 @@ def export_variants_task(file: bool = False, s3: bool = False):
     }
     if s3:
         logger.info('Uploading to S3...')
-        upload_json_to_aws_task.using(
-            backend='django.tasks.backends.immediate.ImmediateBackend',
-        ).enqueue(result, DEFAULT_VARIANTS_FILE_NAME)
+        upload_json_to_aws(result, DEFAULT_VARIANTS_FILE_NAME)
         logger.info('Done')
     elif file is not None:
         output: Path = (settings.STATIC_BULK_FOLDER / DEFAULT_VARIANTS_FILE_NAME).resolve()

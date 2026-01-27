@@ -3,8 +3,6 @@ import json
 import gzip
 import logging
 
-from django.tasks import task
-
 BUCKET = os.environ.get('AWS_S3_BUCKET', None)
 
 
@@ -20,8 +18,7 @@ def can_upload_to_s3() -> bool:
     return BUCKET is not None
 
 
-@task
-def upload_json_to_aws_task(data, s3_file_name):
+def upload_json_to_aws(data, s3_file_name: str):
     try:
         import boto3
         from botocore.exceptions import NoCredentialsError

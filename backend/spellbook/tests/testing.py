@@ -29,7 +29,7 @@ class SpellbookTestCase(BaseTestCase):
     def generate_variants(cls):
         result: TaskResult = generate_variants_task.enqueue()
         assert result.is_finished
-        assert result.status == TaskResultStatus.SUCCESSFUL
+        assert result.status == TaskResultStatus.SUCCESSFUL, '\n'.join(e.traceback for e in result.errors)
 
     @classmethod
     def bulk_serialize_variants(cls, q: Sequence[Variant] | None = None, extra_fields=[]):

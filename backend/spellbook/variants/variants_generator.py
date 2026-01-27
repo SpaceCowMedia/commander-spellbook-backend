@@ -42,6 +42,8 @@ def get_variants_from_graph(
 ) -> dict[str, VariantDefinition]:
     combos_by_status = dict[tuple[bool, bool], list[Combo]]()
     generator_combos = (data.id_to_combo[single_combo],) if single_combo is not None else data.generator_combos
+    progress_total = len(generator_combos) * 3
+    progress_current = 0
     for combo in generator_combos:
         allows_many_cards = combo.allow_many_cards
         allows_multiple_copies = combo.allow_multiple_copies
@@ -73,8 +75,10 @@ def get_variants_from_graph(
                 log_error(f'Error while computing all variants for generator combo {combo} with ID {combo.id}')
                 raise
             variant_sets.append((combo, variant_set))
+            progress_current += 1
             if len(variant_set) > VARIANTS_TO_TRIGGER_LOG or index % VARIANTS_TO_TRIGGER_LOG == 0 or index == total - 1:
                 log(f'{index + 1}/{total} combos processed (just processed combo {combo.id})')
+                progress(progress_current, progress_total)
             index += 1
         log('Processing all recipes to find all the produced results and more...')
         index = 0
@@ -119,8 +123,10 @@ def get_variants_from_graph(
                     if single_combo is not None:
                         # avoid removing all previous generator combos when generating for a single combo
                         result[id].of_ids.update(of.combo_id for of in data.variant_to_of_sets.get(id, []))
+            progress_current += 2
             if len(variant_set) > VARIANTS_TO_TRIGGER_LOG or index % VARIANTS_TO_TRIGGER_LOG == 0 or index == total - 1:
                 log(f'{index + 1}/{total} combos processed (just processed combo {combo.id})')
+                progress(progress_current, progress_total)
             index += 1
     return result
 
@@ -570,21 +576,26 @@ def perform_bulk_saves(
     log=lambda _: None,
     progress=lambda x, t: None,
 ):
+    step_count = 8
     log('Prepare variants...')
     variant_bulk_create = tuple(v.variant for v in to_create)
     variant_bulk_update = tuple(v.variant for v in to_update)
+    progress(1, step_count)
     # perform pre_save outside the transaction to reduce lock time
     log('Preprocess variants...')
     for variant in chain(variant_bulk_create, variant_bulk_update):
         variant.pre_save()
-    log('Prepare variant related entities...')
     variant_bulk_update_fields = ['status', 'mana_needed', 'is_mana_needed_total_first_turn', 'easy_prerequisites', 'notable_prerequisites', 'description', 'notes', 'comment', 'generated_by'] + Variant.computed_fields()
+    progress(2, step_count)
+    log('Prepare variant related entities...')
     cardinvariant_bulk_create = tuple(c for v in to_create for c in v.uses)
     cardinvariant_bulk_update = tuple(c for v in to_update for c in v.uses)
     cardinvariant_bulk_update_fields = ['zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'must_be_commander', 'order', 'quantity']
+    progress(3, step_count)
     templateinvariant_bulk_create = tuple(t for v in to_create for t in v.requires)
     templateinvariant_bulk_update = tuple(t for v in to_update for t in v.requires)
     templateinvariant_bulk_update_fields = ['zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'must_be_commander', 'order', 'quantity']
+    progress(4, step_count)
     of_bulk_delete = tuple(
         of.id
         for v in to_update
@@ -601,6 +612,7 @@ def perform_bulk_saves(
         for combo_id in v.of
         if (combo_id, v.variant.id) not in data.variant_of_combo_dict
     )
+    progress(5, step_count)
     includes_bulk_delete = tuple(
         includes.id
         for v in to_update
@@ -617,6 +629,7 @@ def perform_bulk_saves(
         for combo_id in v.includes
         if (combo_id, v.variant.id) not in data.variant_includes_combo_dict
     )
+    progress(6, step_count)
     produces_bulk_delete = tuple(
         produces.id
         for v in to_update
@@ -640,6 +653,7 @@ def perform_bulk_saves(
         if (p.feature_id, v.variant.id) in data.variant_produces_feature_dict
     )
     produces_bulk_update_fields = ['quantity']
+    progress(7, step_count)
     log('Perform bulk updates...')
     with transaction.atomic():
         # delete
@@ -724,7 +738,7 @@ def generate_variants(
             to_bulk_create.append(variant_to_save)
     progress(85, 100)
     log(f'Saving {len(variants)} variants...')
-    perform_bulk_saves(data, to_bulk_create, to_bulk_update)
+    perform_bulk_saves(data, to_bulk_create, to_bulk_update, log, progress=lambda x, t: progress(85 + int(x / t * 10), 100))
     progress(95, 100)
     log(f'Saved {len(variants)} variants.')
     new_id_set = set(variants.keys())

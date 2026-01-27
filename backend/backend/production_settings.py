@@ -50,12 +50,12 @@ CONN_MAX_AGE = 60 * 60
 # https://docs.djangoproject.com/en/dev/ref/settings/#databases
 DATABASES = {
     'default': {
-        'ENGINE': os.getenv('KUBE_SQL_ENGINE', os.getenv('SQL_ENGINE', 'django.db.backends.sqlite3')),
-        'NAME': os.getenv('KUBE_SQL_DATABASE', os.environ.get('SQL_DATABASE', os.path.join(BASE_DIR, 'db.sqlite3'))),
-        'USER': os.getenv('KUBE_SQL_USER', os.environ.get('SQL_USER', 'user')),
-        'PASSWORD': os.getenv('KUBE_SQL_PASSWORD', os.environ.get('SQL_PASSWORD', 'password')),
-        'HOST': os.getenv('KUBE_SQL_HOST', os.environ.get('SQL_HOST', 'localhost')),
-        'PORT': os.getenv('KUBE_SQL_PORT', os.environ.get('SQL_PORT', '5432')),
+        'ENGINE': os.getenv('SQL_ENGINE', 'django.db.backends.sqlite3'),
+        'NAME': os.getenv('SQL_DATABASE', os.path.join(BASE_DIR, 'db.sqlite3')),
+        'USER': os.getenv('SQL_USER', 'user'),
+        'PASSWORD': os.getenv('SQL_PASSWORD', 'password'),
+        'HOST': os.getenv('SQL_HOST', 'localhost'),
+        'PORT': os.getenv('SQL_PORT', '5432'),
     }
 }
 

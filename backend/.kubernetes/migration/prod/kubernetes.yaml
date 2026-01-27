@@ -18,32 +18,32 @@ spec:
               secretKeyRef:
                 name: api-secrets
                 key: django-secret
-          - name: KUBE_SQL_ENGINE
+          - name: SQL_ENGINE
             valueFrom:
               secretKeyRef:
                 name: api-secrets
                 key: db-engine
-          - name: KUBE_SQL_DATABASE
+          - name: SQL_DATABASE
             valueFrom:
               secretKeyRef:
                 name: api-secrets
                 key: db-name
-          - name: KUBE_SQL_USER
+          - name: SQL_USER
             valueFrom:
               secretKeyRef:
                 name: api-secrets
                 key: db-user
-          - name: KUBE_SQL_PASSWORD
+          - name: SQL_PASSWORD
             valueFrom:
               secretKeyRef:
                 name: api-secrets
                 key: db-password
-          - name: KUBE_SQL_HOST
+          - name: SQL_HOST
             valueFrom:
               secretKeyRef:
                 name: api-secrets
                 key: db-host
-          - name: KUBE_SQL_PORT
+          - name: SQL_PORT
             valueFrom:
               secretKeyRef:
                 name: api-secrets

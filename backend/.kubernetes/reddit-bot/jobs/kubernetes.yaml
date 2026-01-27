@@ -19,22 +19,22 @@ spec:
                 - -c
                 - python spellbook_reddit.py --daily;
               env:
-                - name: KUBE_REDDIT_USERNAME
+                - name: REDDIT_USERNAME
                   valueFrom:
                     secretKeyRef:
                       name: reddit-bot-secrets
                       key: reddit-username
-                - name: KUBE_REDDIT_PASSWORD
+                - name: REDDIT_PASSWORD
                   valueFrom:
                     secretKeyRef:
                       name: reddit-bot-secrets
                       key: reddit-password
-                - name: KUBE_REDDIT_CLIENT_ID
+                - name: REDDIT_CLIENT_ID
                   valueFrom:
                     secretKeyRef:
                       name: reddit-bot-secrets
                       key: reddit-client-id
-                - name: KUBE_REDDIT_CLIENT_SECRET
+                - name: REDDIT_CLIENT_SECRET
                   valueFrom:
                     secretKeyRef:
                       name: reddit-bot-secrets

@@ -1,0 +1,107 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: spellbook-prod
+  name: spellbook-worker
+  labels:
+    app: spellbook-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: spellbook-worker
+  template:
+    metadata:
+      labels:
+        app: spellbook-worker
+    spec:
+      serviceAccountName: worker-service-account
+      containers:
+        - name: spellbook-worker-app
+          image: 083767677168.dkr.ecr.us-east-2.amazonaws.com/spellbook-worker-prod-ecr
+          resources:
+            requests:
+              # Will consume upwards of 1 core during tasks
+              cpu: 200m
+              memory: 8Gi
+          livenessProbe:
+            exec:
+              command:
+                - pgrep
+                - -f
+                - "db_worker"
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          env:
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: api-secrets
+                  key: django-secret
+            - name: SQL_ENGINE
+              valueFrom:
+                secretKeyRef:
+                  name: api-secrets
+                  key: db-engine
+            - name: SQL_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: api-secrets
+                  key: db-name
+            - name: SQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: api-secrets
+                  key: db-user
+            - name: SQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: api-secrets
+                  key: db-password
+            - name: SQL_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: api-secrets
+                  key: db-host
+            - name: SQL_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: api-secrets
+                  key: db-port
+            - name: AWS_S3_BUCKET
+              valueFrom:
+                secretKeyRef:
+                  name: api-secrets
+                  key: aws-s3-bucket
+            - name: THIS_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: DISCORD_CLIENTID
+              valueFrom:
+                secretKeyRef:
+                  name: api-secrets
+                  key: discord-client-id
+            - name: DISCORD_CLIENTSECRET
+              valueFrom:
+                secretKeyRef:
+                  name: api-secrets
+                  key: discord-client-secret
+            - name: DISCORD_WEBHOOK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: api-secrets
+                  key: discord-webhook-url
+            - name: MOXFIELD_USER_AGENT
+              valueFrom:
+                secretKeyRef:
+                  name: api-secrets
+                  key: moxfield-user-agent
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: worker-service-account
+  namespace: spellbook-prod
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::083767677168:role/spellbook-application-role

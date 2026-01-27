@@ -485,7 +485,7 @@ jobs:
         working-directory: ${{ steps.migration-artifacts.outputs.download-path }}
         run: |
           export KUBECONFIG=spellbookkubeconfig.yaml
-          declare -a deployments=("spellbook-api" "spellbook-discord-bot" "spellbook-reddit-bot")
+          declare -a deployments=("spellbook-api" "spellbook-discord-bot" "spellbook-reddit-bot" "spellbook-worker")
           for deployment in "${deployments[@]}"; do
             export NAMESPACE=spellbook-prod
             if [ "$deployment" == "spellbook-discord-bot" ]; then

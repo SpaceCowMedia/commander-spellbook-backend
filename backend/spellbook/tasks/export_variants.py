@@ -38,6 +38,7 @@ def export_variants_task(context: TaskContext, file: bool = False, s3: bool = Fa
     else:
         def progress(fraction: float):
             pass
+    progress(0)
     preview_variants_query = VariantSerializer.prefetch_related(Variant.objects.filter(status__in=Variant.preview_statuses()))
     preview_variants_count = preview_variants_query.count()
     public_variants_query = VariantSerializer.prefetch_related(Variant.objects.filter(status__in=Variant.public_statuses()))
@@ -48,7 +49,6 @@ def export_variants_task(context: TaskContext, file: bool = False, s3: bool = Fa
     current_progress = 0
     preprocess_multiplier = 0.6
     logger.info('Update preview representations for preview variants...')
-    progress(current_progress / total_progress * preprocess_multiplier)
     for i in range(0, preview_variants_count, DEFAULT_BATCH_SIZE):
         with transaction.atomic(durable=True):
             variants_source = list[Variant](preview_variants_query[i:i + DEFAULT_BATCH_SIZE])

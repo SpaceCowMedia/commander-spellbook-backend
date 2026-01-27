@@ -42,7 +42,8 @@ def get_variants_from_graph(
 ) -> dict[str, VariantDefinition]:
     combos_by_status = dict[tuple[bool, bool], list[Combo]]()
     generator_combos = (data.id_to_combo[single_combo],) if single_combo is not None else data.generator_combos
-    progress_total = len(generator_combos) * 3
+    results_progress_multiplier = 10
+    progress_total = len(generator_combos) * (1 + results_progress_multiplier)
     progress_current = 0
     for combo in generator_combos:
         allows_many_cards = combo.allow_many_cards
@@ -123,7 +124,7 @@ def get_variants_from_graph(
                     if single_combo is not None:
                         # avoid removing all previous generator combos when generating for a single combo
                         result[id].of_ids.update(of.combo_id for of in data.variant_to_of_sets.get(id, []))
-            progress_current += 2
+            progress_current += results_progress_multiplier
             if len(variant_set) > VARIANTS_TO_TRIGGER_LOG or index % VARIANTS_TO_TRIGGER_LOG == 0 or index == total - 1:
                 log(f'{index + 1}/{total} combos processed (just processed combo {combo.id})')
                 progress(progress_current, progress_total)

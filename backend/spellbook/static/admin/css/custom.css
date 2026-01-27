@@ -33,6 +33,7 @@ div.inline-related {
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    vertical-align: top;
 }
 .object-tools form>* {
     border-radius: inherit;

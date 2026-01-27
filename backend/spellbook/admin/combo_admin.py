@@ -436,7 +436,7 @@ class ComboAdmin(SpellbookModelAdmin):
                 messages.error(request, f'Combo with id {object_id} does not exist.')
                 return redirect('admin:spellbook_combo_changelist')
             if combo.status == Combo.Status.GENERATOR:
-                result: TaskResult = generate_variants_task.enqueue(combo=object_id, started_by_user_id=request.user.pk)
+                result: TaskResult = generate_variants_task.enqueue(combo=int(object_id), started_by_user_id=request.user.pk)
                 messages.info(request, f'Enqueued variant generation task for combo {object_id}.')
                 return redirect('admin:django_tasks_database_dbtaskresult_change', result.id)
             else:

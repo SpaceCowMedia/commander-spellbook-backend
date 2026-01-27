@@ -11,6 +11,7 @@ from django.utils.safestring import mark_safe
 from django.urls import reverse, path
 from django.shortcuts import redirect
 from django.utils import timezone
+from django.tasks import TaskResult
 from spellbook.models import Card, FeatureNeededInCombo, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion
 from spellbook.tasks import generate_variants_task
 from .utils import SpellbookModelAdmin, SpellbookAdminForm, CustomFilter, IngredientCountListFilter
@@ -435,7 +436,9 @@ class ComboAdmin(SpellbookModelAdmin):
                 messages.error(request, f'Combo with id {object_id} does not exist.')
                 return redirect('admin:spellbook_combo_changelist')
             if combo.status == Combo.Status.GENERATOR:
-                generate_variants_task.enqueue(combo=object_id, started_by_user_id=request.user.pk)
+                result: TaskResult = generate_variants_task.enqueue(combo=object_id, started_by_user_id=request.user.pk)
+                messages.info(request, f'Enqueued variant generation task for combo {object_id}.')
+                return redirect('admin:django_tasks_database_dbtaskresult_change', result.id)
             else:
                 messages.error(request, f'Combo with id {object_id} is not marked as a generator combo.')
         return redirect('admin:spellbook_combo_change', object_id)

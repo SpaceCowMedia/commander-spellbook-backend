@@ -8,6 +8,7 @@ from django.shortcuts import redirect
 from django.contrib import admin, messages
 from django.forms import Textarea
 from django.utils import timezone
+from django.tasks import TaskResult
 from spellbook.models import Variant, CardInVariant, TemplateInVariant, DEFAULT_BATCH_SIZE
 from spellbook.transformers.variants_query_transformer import variants_query_parser
 from spellbook.serializers import VariantSerializer
@@ -207,16 +208,18 @@ class VariantAdmin(SpellbookModelAdmin):
 
     def generate(self, request: HttpRequest):
         if request.method == 'POST' and request.user.is_authenticated:
-            generate_variants_task.enqueue(started_by_user_id=request.user.pk)
-            messages.info(request, 'Variant generation job started.')
+            result: TaskResult = generate_variants_task.enqueue(started_by_user_id=request.user.pk)
+            messages.info(request, 'Enqueued variant generation task for all combos.')
+            return redirect('admin:django_tasks_database_dbtaskresult_change', result.id)
         return redirect('admin:spellbook_variant_changelist')
 
     def export(self, request: HttpRequest):
         if request.method == 'POST' and request.user.is_authenticated:
             from ..tasks.s3_upload import can_upload_to_s3
             s3 = can_upload_to_s3()
-            export_variants_task.enqueue(file=not s3, s3=s3)
-            messages.info(request, 'Variant export job started.')
+            result: TaskResult = export_variants_task.enqueue(file=not s3, s3=s3)
+            messages.info(request, 'Enqueued variant export task.')
+            return redirect('admin:django_tasks_database_dbtaskresult_change', result.id)
         return redirect('admin:spellbook_variant_changelist')
 
     def get_urls(self):

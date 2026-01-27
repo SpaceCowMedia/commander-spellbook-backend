@@ -340,8 +340,8 @@ def restore_variant(
         variant.easy_prerequisites = apply_replacements(data, '\n'.join(easy_prerequisites_list), replacements, variant_def.needed_combos)
         variant.notable_prerequisites = apply_replacements(data, '\n'.join(notable_prerequisites_list), replacements, variant_def.needed_combos)
         variant.mana_needed = apply_replacements(data, merge_mana_costs(mana_needed_list), replacements, variant_def.needed_combos)
-        variant.is_mana_needed_total_first_turn = not variant.mana_needed or all(
-            c.is_mana_needed_total_first_turn
+        variant.is_mana_needed_an_accurate_minimum = not variant.mana_needed or all(
+            c.is_mana_needed_an_accurate_minimum
             for c in needed_combos
         )
         variant.description = apply_replacements(data, '\n'.join(c.description for c in needed_combos if len(c.description) > 0), replacements, variant_def.needed_combos)
@@ -586,7 +586,7 @@ def perform_bulk_saves(
     log('Preprocess variants...')
     for variant in chain(variant_bulk_create, variant_bulk_update):
         variant.pre_save()
-    variant_bulk_update_fields = ['status', 'mana_needed', 'is_mana_needed_total_first_turn', 'easy_prerequisites', 'notable_prerequisites', 'description', 'notes', 'comment', 'generated_by'] + Variant.computed_fields()
+    variant_bulk_update_fields = ['status', 'mana_needed', 'is_mana_needed_an_accurate_minimum', 'easy_prerequisites', 'notable_prerequisites', 'description', 'notes', 'comment', 'generated_by'] + Variant.computed_fields()
     progress(2, step_count)
     log('Prepare variant related entities...')
     cardinvariant_bulk_create = tuple(c for v in to_create for c in v.uses)

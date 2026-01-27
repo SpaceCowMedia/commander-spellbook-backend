@@ -224,8 +224,8 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
                 for variant in Variant.objects.all():
                     self.assertEqual(variant.status, Variant.Status.NEW)
                     self.assertEqual(variant.mana_value, sum(variant.uses.values_list('mana_value', flat=True)))
-                    self.assertEqual(variant.is_mana_needed_total_first_turn, not variant.mana_needed or all(
-                        c.is_mana_needed_total_first_turn
+                    self.assertEqual(variant.is_mana_needed_an_accurate_minimum, not variant.mana_needed or all(
+                        c.is_mana_needed_an_accurate_minimum
                         for c in variant.includes.all()
                     ))
                     self.assertGreater(len(variant.name), 0)

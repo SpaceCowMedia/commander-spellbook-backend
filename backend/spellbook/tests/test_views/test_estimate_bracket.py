@@ -27,16 +27,16 @@ class EstimateBracketViewTests(SpellbookTestCaseWithSeeding):
         self.assertIn(result.bracket_tag, Variant.BracketTag.values)
         cards_in_db = (Card.objects.get(name=name) for collection in (cards, commanders) for name in collection)
         if any(c.game_changer or c.extra_turn or c.mass_land_denial for c in cards_in_db):
-            self.assertNotIn(result.bracket_tag, [Variant.BracketTag.CASUAL, Variant.BracketTag.PRECON_APPROPRIATE])
+            self.assertNotIn(result.bracket_tag, [Variant.BracketTag.EXHIBITION, Variant.BracketTag.CORE])
         for combo in chain(
             result.mass_land_denial_combos,
             result.extra_turns_combos,
             result.lock_combos,
             result.skip_turns_combos,
-            result.definitely_early_game_two_card_combos,
-            result.arguably_early_game_two_card_combos,
-            result.definitely_late_game_two_card_combos,
-            result.borderline_late_game_two_card_combos,
+            result.control_all_opponents_combos,
+            result.control_some_opponents_combos,
+            result.skip_turns_combos,
+            (c.combo for c in result.two_card_combos),
         ):
             for card in combo.uses:
                 name = card.card.name
@@ -50,7 +50,7 @@ class EstimateBracketViewTests(SpellbookTestCaseWithSeeding):
                 self.assertEqual(response.get('Content-Type'), 'application/json')
                 result = json.loads(response.content, object_hook=json_to_python_lambda)
                 self._check_result(result, set(), set())
-                self.assertEqual(result.bracket_tag, Variant.BracketTag.CASUAL)
+                self.assertEqual(result.bracket_tag, Variant.BracketTag.EXHIBITION)
             with self.subTest('one card'):
                 card = Card.objects.get(id=self.c1_id)
                 if 'json' in content_type:
@@ -72,7 +72,7 @@ class EstimateBracketViewTests(SpellbookTestCaseWithSeeding):
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
                 self.assertEqual(response.get('Content-Type'), 'application/json')
                 result = json.loads(response.content, object_hook=json_to_python_lambda)
-                self.assertGreater(result.bracket_tag, Variant.BracketTag.CASUAL)
+                self.assertGreater(result.bracket_tag, Variant.BracketTag.EXHIBITION)
                 self._check_result(result, cards, set())
             with self.subTest('template as extra turns'):
                 t = Template.objects.get(pk=self.t2_id)

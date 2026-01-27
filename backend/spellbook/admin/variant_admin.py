@@ -144,7 +144,7 @@ class VariantAdmin(SpellbookModelAdmin):
         ('Generated', {'fields': generated_readonly_fields}),
         ('Editable', {'fields': [
             'status',
-            ('mana_needed', 'is_mana_needed_total_first_turn'),
+            ('mana_needed', 'is_mana_needed_an_accurate_minimum'),
             'easy_prerequisites',
             'notable_prerequisites',
             'description',

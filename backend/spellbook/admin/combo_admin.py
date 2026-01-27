@@ -178,7 +178,7 @@ class ComboAdmin(SpellbookModelAdmin):
     readonly_fields = ['id', 'scryfall_link', 'updated', 'created']
     fieldsets = [
         ('Generated', {'fields': ['id', 'scryfall_link', 'updated', 'created']}),
-        ('More Requirements', {'fields': [('mana_needed', 'is_mana_needed_total_first_turn'), 'easy_prerequisites', 'notable_prerequisites']}),
+        ('More Requirements', {'fields': [('mana_needed', 'is_mana_needed_an_accurate_minimum'), 'easy_prerequisites', 'notable_prerequisites']}),
         ('Description', {'fields': ['status', 'allow_many_cards', 'allow_multiple_copies', 'description', 'notes', 'comment']}),
     ]
     inlines = [

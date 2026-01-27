@@ -1,5 +1,6 @@
-from dataclasses import dataclass
 import re
+from dataclasses import dataclass
+from itertools import chain
 from typing import Iterable, Sequence
 from django.db import models, connection
 from django.dispatch import receiver
@@ -60,8 +61,8 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
         SPICY = 'S'
         POWERFUL = 'P'
         ODDBALL = 'O'
-        PRECON_APPROPRIATE = 'PA'
-        CASUAL = 'C'
+        CORE = 'C'
+        EXHIBITION = 'E'
 
     @classmethod
     def public_statuses(cls):
@@ -115,7 +116,7 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
     variantofcombo_set: models.Manager['VariantOfCombo']
     status = models.CharField(choices=Status.choices, db_default=Status.NEW, max_length=2, help_text='Variant status for editors')
     mana_needed = models.CharField(blank=True, max_length=MAX_MANA_NEEDED_LENGTH, help_text='Mana needed for this combo. Use the {1}{W}{U}{B}{R}{G}{B/P}... format.', validators=[MANA_VALIDATOR, *TEXT_VALIDATORS])
-    is_mana_needed_total_first_turn = models.BooleanField(default=False, help_text='Does the initial {N} accurately represent the MINIMUM total mana needed on the first turn?')
+    is_mana_needed_an_accurate_minimum = models.BooleanField(default=False, help_text='Does the first mana cost in this field represent the MINIMUM needed to start the combo, ignoring all other text?')
     mana_value_needed = models.PositiveIntegerField(editable=False, help_text='Mana value needed for this combo. Calculated from mana_needed.')
     easy_prerequisites = models.TextField(blank=True, help_text='Easily achievable prerequisites for this combo.', validators=TEXT_VALIDATORS)
     notable_prerequisites = models.TextField(blank=True, help_text='Notable prerequisites for this combo.', validators=TEXT_VALIDATORS)
@@ -140,14 +141,14 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
             models.When(bracket_tag_override=BracketTag.SPICY, then=models.Value(3)),
             models.When(bracket_tag_override=BracketTag.POWERFUL, then=models.Value(3)),
             models.When(bracket_tag_override=BracketTag.ODDBALL, then=models.Value(2)),
-            models.When(bracket_tag_override=BracketTag.PRECON_APPROPRIATE, then=models.Value(2)),
-            models.When(bracket_tag_override=BracketTag.CASUAL, then=models.Value(1)),
+            models.When(bracket_tag_override=BracketTag.CORE, then=models.Value(2)),
+            models.When(bracket_tag_override=BracketTag.EXHIBITION, then=models.Value(1)),
             models.When(bracket_tag=BracketTag.RUTHLESS, then=models.Value(4)),
             models.When(bracket_tag=BracketTag.SPICY, then=models.Value(3)),
             models.When(bracket_tag=BracketTag.POWERFUL, then=models.Value(3)),
             models.When(bracket_tag=BracketTag.ODDBALL, then=models.Value(2)),
-            models.When(bracket_tag=BracketTag.PRECON_APPROPRIATE, then=models.Value(2)),
-            models.When(bracket_tag=BracketTag.CASUAL, then=models.Value(1)),
+            models.When(bracket_tag=BracketTag.CORE, then=models.Value(2)),
+            models.When(bracket_tag=BracketTag.EXHIBITION, then=models.Value(1)),
             default=models.Value(0),
         ),
         output_field=models.PositiveSmallIntegerField(help_text='Bracket number based on the tag'),
@@ -219,8 +220,8 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
 
     def clean(self):
         super().clean()
-        if not self.mana_needed and not self.is_mana_needed_total_first_turn:
-            raise ValidationError(f'If {self._meta.get_field('mana_needed').verbose_name} is empty, {self._meta.get_field('is_mana_needed_total_first_turn').verbose_name} must be True.')
+        if not self.mana_needed and not self.is_mana_needed_an_accurate_minimum:
+            raise ValidationError(f'If {self._meta.get_field('mana_needed').verbose_name} is empty, {self._meta.get_field('is_mana_needed_an_accurate_minimum').verbose_name} must be True.')
 
     @dataclass(frozen=True)
     class Recipe:
@@ -428,6 +429,15 @@ def combo_delete(sender, instance: Combo, **kwargs):
 
 
 @dataclass(frozen=True)
+class ClassifiedCombo:
+    combo: Variant
+    relevant: bool
+    borderline_relevant: bool
+    definitely_two_card: bool
+    speed: int
+
+
+@dataclass(frozen=True)
 class BracketEstimateData:
     game_changer_cards: list[Card]
     mass_land_denial_cards: list[Card]
@@ -437,11 +447,10 @@ class BracketEstimateData:
     extra_turn_templates: list[Template]
     extra_turns_combos: list[Variant]
     lock_combos: list[Variant]
+    control_all_opponents_combos: list[Variant]
+    control_some_opponents_combos: list[Variant]
     skip_turns_combos: list[Variant]
-    definitely_early_game_two_card_combos: list[Variant]
-    arguably_early_game_two_card_combos: list[Variant]
-    definitely_late_game_two_card_combos: list[Variant]
-    borderline_late_game_two_card_combos: list[Variant]
+    two_card_combos: list[ClassifiedCombo]
 
 
 @dataclass(frozen=True)
@@ -451,42 +460,62 @@ class BracketEstimate:
 
 
 def estimate_bracket(cards: Sequence[Card], templates: Sequence[Template], included_variants: Sequence[tuple[Variant, Variant.Recipe]]) -> BracketEstimate:
+
     def _data() -> BracketEstimateData:
-        definitely_early_game_two_card_combos: list[Variant] = []
-        arguably_early_game_two_card_combos: list[Variant] = []
-        definitely_late_game_two_card_combos: list[Variant] = []
-        borderline_late_game_two_card_combos: list[Variant] = []
+        two_card_combos: list[ClassifiedCombo] = []
 
         for variant, recipe in included_variants:
-            arguably_two_card = sum(
-                civ.quantity
-                for civ, _ in recipe.cards
-                if ZoneLocation.LIBRARY not in civ.zone_locations and ZoneLocation.COMMAND_ZONE not in civ.zone_locations
-            ) + sum(
-                tiv.quantity
-                for tiv, _ in recipe.templates
-                if ZoneLocation.LIBRARY not in tiv.zone_locations and ZoneLocation.COMMAND_ZONE not in tiv.zone_locations
-            ) <= 2
-            no_extra_card_prerequisites = not variant.notable_prerequisites
-            definitely_two_card = arguably_two_card and no_extra_card_prerequisites
+            normal_cards = sum(
+                card.quantity
+                for card, _ in chain(recipe.cards, recipe.templates)
+                if ZoneLocation.LIBRARY not in card.zone_locations and ZoneLocation.COMMAND_ZONE not in card.zone_locations
+            )
             relevant = any(feature.status in (Feature.Status.STANDALONE,) for _, feature in recipe.features)
             borderline_relevant = any(feature.status in (Feature.Status.STANDALONE, Feature.Status.CONTEXTUAL) for _, feature in recipe.features)
-            definitely_early_game = variant.mana_value_needed <= 4
-            arguably_early_game = variant.mana_value_needed <= 5
-            if relevant and definitely_two_card and definitely_early_game:
-                definitely_early_game_two_card_combos.append(variant)
-            elif relevant and arguably_two_card and arguably_early_game:
-                arguably_early_game_two_card_combos.append(variant)
-            elif relevant and definitely_two_card and not arguably_early_game:
-                definitely_late_game_two_card_combos.append(variant)
-            elif borderline_relevant and arguably_two_card and not arguably_early_game:
-                borderline_late_game_two_card_combos.append(variant)
+            arguable_cards = int(bool(variant.notable_prerequisites)) + int(not borderline_relevant) + sum(
+                card.quantity
+                for card, _ in chain(recipe.cards, recipe.templates)
+                if ZoneLocation.LIBRARY not in card.zone_locations and ZoneLocation.COMMAND_ZONE in card.zone_locations
+            )
+            definitely_two_card = normal_cards + arguable_cards <= 2
+            arguably_two_card = normal_cards <= 2 and arguable_cards > 0
+            if variant.mana_value_needed == 0:
+                speed = 5
+            elif variant.mana_value_needed <= 4:
+                speed = 4
+            elif variant.mana_value_needed <= 6:
+                speed = 3
+            elif variant.mana_value_needed <= 8:
+                speed = 2
+            else:
+                speed = 1
+            speed_confidence = variant.is_mana_needed_an_accurate_minimum
+            if not speed_confidence:
+                speed += 1
+            if definitely_two_card or arguably_two_card:
+                two_card_combos.append(
+                    ClassifiedCombo(
+                        combo=variant,
+                        relevant=relevant,
+                        borderline_relevant=borderline_relevant,
+                        definitely_two_card=definitely_two_card,
+                        speed=speed,
+                    )
+                )
 
         extra_turns_combos = [
             v
             for v, recipe in included_variants
             if any(
-                re.search(r'(?:near-)?infinite (?:extra )?turns?', feature.name, re.IGNORECASE)
+                re.search(
+                    r'(?:near-)?infinite (?:extra )?turns?',
+                    feature.name,
+                    re.IGNORECASE,
+                ) and not re.search(
+                    r'(?:near-)?infinite (?:extra )?turns? for .* opponent',
+                    feature.name,
+                    re.IGNORECASE,
+                )
                 for _, feature in recipe.features
             )
         ]
@@ -510,7 +539,23 @@ def estimate_bracket(cards: Sequence[Card], templates: Sequence[Template], inclu
             v
             for v, recipe in included_variants
             if any(
-                re.search(r'(?:infinite(?:ly)? )?skip (?:(?:all )?(?:your )|infinite )?(?:future )?turns?', feature.name, re.IGNORECASE)
+                re.search(r'(?:infinite(?:ly)? )?skip (?:(?:all )?(?:your |their )|infinite )?(?:future )?turns?', feature.name, re.IGNORECASE)
+                for _, feature in recipe.features
+            )
+        ]
+        all_opponents_control_combos = [
+            v
+            for v, recipe in included_variants
+            if any(
+                re.search(r'you control (?:your|(up to )?three) opponents', feature.name, re.IGNORECASE)
+                for _, feature in recipe.features
+            )
+        ]
+        some_opponents_control_combos = [
+            v
+            for v, recipe in included_variants
+            if any(
+                re.search(r'you control (?:one|an|(?:up to )?two) opponents', feature.name, re.IGNORECASE)
                 for _, feature in recipe.features
             )
         ]
@@ -524,46 +569,32 @@ def estimate_bracket(cards: Sequence[Card], templates: Sequence[Template], inclu
             extra_turns_combos=extra_turns_combos,
             lock_combos=lock_combos,
             skip_turns_combos=skip_turns_combos,
-            definitely_early_game_two_card_combos=definitely_early_game_two_card_combos,
-            arguably_early_game_two_card_combos=arguably_early_game_two_card_combos,
-            definitely_late_game_two_card_combos=definitely_late_game_two_card_combos,
-            borderline_late_game_two_card_combos=borderline_late_game_two_card_combos,
+            two_card_combos=two_card_combos,
+            control_all_opponents_combos=all_opponents_control_combos,
+            control_some_opponents_combos=some_opponents_control_combos,
         )
 
     data = _data()
 
-    if any((
-        data.definitely_early_game_two_card_combos,
-        len(data.extra_turn_cards) >= 2,
-        data.extra_turns_combos,
-        data.mass_land_denial_cards,
-        data.mass_land_denial_templates,
-        data.mass_land_denial_combos,
-        len(data.game_changer_cards) >= 4,
-    )):
+    if any(v.speed >= 4 and v.relevant and v.definitely_two_card for v in data.two_card_combos) \
+       or len(data.extra_turn_cards) >= 2 \
+       or data.extra_turns_combos \
+       or data.mass_land_denial_cards \
+       or data.mass_land_denial_templates \
+       or data.mass_land_denial_combos \
+       or len(data.game_changer_cards) >= 4 \
+       or data.control_all_opponents_combos:
         bracket = Variant.BracketTag.RUTHLESS
-    elif any((
-        data.arguably_early_game_two_card_combos,
-        data.lock_combos,
-        data.skip_turns_combos,
-    )):
+    elif any(v.speed >= 4 and (v.relevant or v.borderline_relevant and v.definitely_two_card) for v in data.two_card_combos) or data.lock_combos or data.skip_turns_combos or data.control_some_opponents_combos:
         bracket = Variant.BracketTag.SPICY
-    elif any((
-        data.definitely_late_game_two_card_combos,
-        data.game_changer_cards,
-    )):
+    elif any(v.speed >= 3 and v.relevant and v.definitely_two_card for v in data.two_card_combos) or data.game_changer_cards:
         bracket = Variant.BracketTag.POWERFUL
-    elif any((
-        data.borderline_late_game_two_card_combos,
-    )):
+    elif any(v.speed >= 3 and v.borderline_relevant for v in data.two_card_combos):
         bracket = Variant.BracketTag.ODDBALL
-    elif any((
-        data.extra_turn_cards,
-        data.extra_turn_templates,
-    )):
-        bracket = Variant.BracketTag.PRECON_APPROPRIATE
+    elif data.extra_turn_cards or data.extra_turn_templates or any(v.speed >= 2 and v.relevant and v.definitely_two_card for v in data.two_card_combos):
+        bracket = Variant.BracketTag.CORE
     else:
-        bracket = Variant.BracketTag.CASUAL
+        bracket = Variant.BracketTag.EXHIBITION
 
     return BracketEstimate(
         bracket_tag=bracket,

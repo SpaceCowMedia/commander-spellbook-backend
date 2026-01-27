@@ -29,7 +29,7 @@ class VariantTests(SpellbookTestCaseWithSeeding):
         self.assertEqual(v.status, Variant.Status.NEW)
         self.assertIn('{U}{U}', v.mana_needed)
         self.assertIn('{R}{R}', v.mana_needed)
-        self.assertEqual(v.is_mana_needed_total_first_turn, False)
+        self.assertEqual(v.is_mana_needed_an_accurate_minimum, False)
         self.assertIn('Some easy requisites.', v.easy_prerequisites)
         self.assertIn('Some notable requisites.', v.notable_prerequisites)
         self.assertIn('2', v.description)

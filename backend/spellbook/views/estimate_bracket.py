@@ -8,6 +8,14 @@ from website.views import PlainTextDeckListParser
 from .utils import DecklistAPIView, find_variants
 
 
+class ClassifiedVariantSerializer(serializers.Serializer):
+    combo = VariantSerializer()
+    relevant = serializers.BooleanField()
+    borderline_relevant = serializers.BooleanField()
+    definitely_two_card = serializers.BooleanField()
+    speed = serializers.IntegerField()
+
+
 class EstimateBracketResultSerializer(serializers.Serializer):
     bracket_tag = BracketTagSerializer()
     game_changer_cards = serializers.ListField(child=CardSerializer(), source='data.game_changer_cards')
@@ -18,11 +26,10 @@ class EstimateBracketResultSerializer(serializers.Serializer):
     extra_turn_templates = serializers.ListField(child=TemplateSerializer(), source='data.extra_turn_templates')
     extra_turns_combos = serializers.ListField(child=VariantSerializer(), source='data.extra_turns_combos')
     lock_combos = serializers.ListField(child=VariantSerializer(), source='data.lock_combos')
+    control_all_opponents_combos = serializers.ListField(child=VariantSerializer(), source='data.control_all_opponents_combos')
+    control_some_opponents_combos = serializers.ListField(child=VariantSerializer(), source='data.control_some_opponents_combos')
     skip_turns_combos = serializers.ListField(child=VariantSerializer(), source='data.skip_turns_combos')
-    definitely_early_game_two_card_combos = serializers.ListField(child=VariantSerializer(), source='data.definitely_early_game_two_card_combos')
-    arguably_early_game_two_card_combos = serializers.ListField(child=VariantSerializer(), source='data.arguably_early_game_two_card_combos')
-    definitely_late_game_two_card_combos = serializers.ListField(child=VariantSerializer(), source='data.definitely_late_game_two_card_combos')
-    borderline_late_game_two_card_combos = serializers.ListField(child=VariantSerializer(), source='data.borderline_late_game_two_card_combos')
+    two_card_combos = serializers.ListField(child=ClassifiedVariantSerializer(), source='data.two_card_combos')
 
 
 class EstimateBracketView(DecklistAPIView):

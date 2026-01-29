@@ -80,7 +80,7 @@ def variant_update_suggestion_event(accepted: bool, identifiers: list[str]):
         discord_webhook(webhook_text)
 
 
-@task
+@task(priority=10)
 def notify_task(event: str, identifiers: list[str]):
     logger.info(f'Notifying about {event} with identifiers {identifiers}')
     match event:

@@ -3,7 +3,7 @@ from django.tasks import task
 from spellbook.models import VariantSuggestion, Variant, VariantUpdateSuggestion
 from social_django.models import UserSocialAuth
 from common.markdown_utils import escape_markdown
-from .discord_webhook import discord_webhook_task
+from .discord_webhook import discord_webhook
 
 
 logger = logging.getLogger(__name__)
@@ -37,7 +37,7 @@ def variant_suggestion_event(accepted: bool, identifiers: list[str]):
             if discord_account:
                 webhook_text += f'Thanks for your submission{'' if accepted else ' though'}!\n'
     if webhook_text:
-        discord_webhook_task.enqueue(webhook_text)
+        discord_webhook(webhook_text)
 
 
 def variant_update_suggestion_event(accepted: bool, identifiers: list[str]):
@@ -77,7 +77,7 @@ def variant_update_suggestion_event(accepted: bool, identifiers: list[str]):
             if discord_account:
                 webhook_text += f'Thanks for your submission{'' if accepted else ' though'}!\n'
     if webhook_text:
-        discord_webhook_task.enqueue(webhook_text)
+        discord_webhook(webhook_text)
 
 
 @task
@@ -103,7 +103,7 @@ def notify_task(event: str, identifiers: list[str]):
                     if variant.spoiler:
                         text = f'||{text}||'
                     webhook_text += text + '\n'
-                discord_webhook_task.enqueue(webhook_text)
+                discord_webhook(webhook_text)
             else:
                 logger.error('No variants found')
 

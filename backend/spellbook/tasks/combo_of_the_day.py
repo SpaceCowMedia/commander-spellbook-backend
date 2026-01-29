@@ -3,7 +3,7 @@ from django.tasks import task
 from spellbook.models import Variant
 from spellbook.views import VariantViewSet
 from website.models import COMBO_OF_THE_DAY_PROPERTY, WebsiteProperty
-from .discord_webhook import discord_webhook_task
+from .discord_webhook import discord_webhook
 
 
 logger = logging.getLogger(__name__)
@@ -31,4 +31,4 @@ def combo_of_the_day_task():
         announcement = f'# ♾️ New Combo of the Day! ♾️\n\n[{new_combo.name}]({new_combo.spellbook_link(raw=True)})'
     website_property.save()
     if announcement:
-        discord_webhook_task.enqueue(announcement)
+        discord_webhook(announcement)

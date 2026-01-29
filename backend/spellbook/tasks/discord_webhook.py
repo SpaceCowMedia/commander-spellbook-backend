@@ -1,5 +1,4 @@
 import logging
-from django.tasks import task
 from django.conf import settings
 from discord_webhook import DiscordWebhook
 from text_utils import discord_chunk
@@ -8,8 +7,7 @@ from text_utils import discord_chunk
 logger = logging.getLogger(__name__)
 
 
-@task
-def discord_webhook_task(content: str):
+def discord_webhook(content: str):
     logger.info('Sending Discord webhook post...')
     if settings.DISCORD_WEBHOOK_URL:
         messages = discord_chunk(content)

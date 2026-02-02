@@ -54,6 +54,8 @@ class CustomPagination(LimitOffsetPagination):
         return template.render(context)
 
     def get_html_context(self):
+        if self.count_query:
+            return super().get_html_context()
         return {
             'previous_url': self.get_previous_link(),
             'next_url': self.get_next_link(),

@@ -53,6 +53,13 @@ class CustomPagination(LimitOffsetPagination):
         context = self.get_html_context()
         return template.render(context)
 
+    def get_html_context(self):
+        return {
+            'previous_url': self.get_previous_link(),
+            'next_url': self.get_next_link(),
+            'page_links': [],
+        }
+
     def get_schema_operation_parameters(self, view):
         parameters = super().get_schema_operation_parameters(view)
         parameters.append({

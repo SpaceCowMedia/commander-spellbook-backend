@@ -68,14 +68,16 @@ async def handle_queries(
                     q=query_info.patched_query,
                     limit=MAX_SEARCH_RESULTS,
                     ordering='-popularity',
+                    count=True,
                 )
-            if len(queries) == 1 and result.count == 1:
+            result_count: int = result.count  # type: ignore
+            if len(queries) == 1 and result_count == 1:
                 variant = result.results[0]
                 variant_url = url_from_variant(variant)
                 variant_recipe = compute_variant_recipe(variant)
                 reply += f'\n\n**Showing 1 result for {query_info.summary}**\n\n[{variant_recipe}](<{variant_url}>)'
-            elif result.count > 0:
-                reply += f'\n\n**Showing {len(result.results)} of {result.count} results for {query_info.summary}**\n\n'
+            elif result_count > 0:
+                reply += f'\n\n**Showing {len(result.results)} of {result_count} results for {query_info.summary}**\n\n'
                 reply += compute_variants_results(result.results)
             else:
                 reply += f'\n\nNo results found for {query_info.summary}'
@@ -127,7 +129,7 @@ async def search_inline(update: telegram.Update, context: telegram.ext.ContextTy
         current_offset = int(inline_query.offset or 0)
         next_offset = current_offset + max_search_result
         query_info = SpellbookQuery(query)
-        result = None
+        result_count: int | None = None
         try:
             async with API() as api_client:
                 api = VariantsApi(api_client)
@@ -136,11 +138,13 @@ async def search_inline(update: telegram.Update, context: telegram.ext.ContextTy
                     limit=max_search_result,
                     ordering='-popularity',
                     offset=current_offset,
+                    count=True,
                 )
+            result_count = result.count
             inline_results = [
                 telegram.InlineQueryResultArticle(
                     id=str(hash(query_info.patched_query)),
-                    title=f'Found {result.count} results for {query_info.query}',
+                    title=f'Found {result_count} results for {query_info.query}',
                     url=query_info.url,
                     input_message_content=telegram.InputTextMessageContent(
                         message_text=query_info.summary,
@@ -195,7 +199,7 @@ async def search_inline(update: telegram.Update, context: telegram.ext.ContextTy
             results=inline_results,
             button=inline_button,
             cache_time=24 * 60 * 60,
-            next_offset=str(next_offset) if result and next_offset < result.count else None,
+            next_offset=str(next_offset) if result_count is not None and next_offset < result_count else None,
         )
 
 

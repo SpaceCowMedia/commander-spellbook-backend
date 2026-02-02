@@ -89,3 +89,40 @@ class TestFindMyCombos(SpellbookClientTest):
             self.assertSetEqual(set(), {v.id for v in result.results.almost_included_by_adding_colors})
             self.assertSetEqual(set(), {v.id for v in result.results.almost_included_by_changing_commanders})
             self.assertSetEqual(set(), {v.id for v in result.results.almost_included_by_adding_colors_and_changing_commanders})
+
+    async def test_missing_count_by_default(self):
+        async with self.anonymous_api_client as api_client:
+            api_instance = FindMyCombosApi(api_client)
+            result = await api_instance.find_my_combos_create(
+                deck_request=DeckRequest(
+                    commanders=[
+                        CardInDeckRequest(card='F F'),
+                    ],
+                    main=[
+                        CardInDeckRequest(card='B B'),
+                        CardInDeckRequest(card='C C'),
+                        CardInDeckRequest(card='E É'),
+                    ],
+                ),
+            )
+            self.assertIsNone(result.count)
+
+    async def test_with_count_parameter(self):
+        async with self.anonymous_api_client as api_client:
+            api_instance = FindMyCombosApi(api_client)
+            result = await api_instance.find_my_combos_create(
+                deck_request=DeckRequest(
+                    commanders=[
+                        CardInDeckRequest(card='F F'),
+                    ],
+                    main=[
+                        CardInDeckRequest(card='B B'),
+                        CardInDeckRequest(card='C C'),
+                        CardInDeckRequest(card='E É'),
+                    ],
+                ),
+                count=True,
+            )
+            self.assertIsNotNone(result.count)
+            count: int = result.count  # type: ignore
+            self.assertGreaterEqual(count, len(result.results.included))

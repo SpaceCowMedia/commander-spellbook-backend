@@ -113,8 +113,9 @@ async def handle_queries(
                     q=query_info.patched_query,
                     limit=MAX_SEARCH_RESULTS,
                     ordering=ORDERING,
+                    count=True,
                 )
-            result_count: int = result.count
+            result_count: int = result.count  # type: ignore
             results: list[Variant] = result.results
             if len(queries) == 1 and result_count == 1:
                 variant = results[0]

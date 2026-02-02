@@ -76,6 +76,7 @@ async def process_input(text: str) -> str | None:
                     q=query_info.patched_query,
                     limit=MAX_SEARCH_RESULTS,
                     ordering='-popularity',
+                    count=True,
                 )
             match result.count:
                 case 0:

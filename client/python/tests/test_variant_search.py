@@ -13,6 +13,16 @@ class TestVariantSearch(SpellbookClientTest):
                 'A A' in card.card.name for card in variant.uses
             ))
 
+    async def test_missing_count_by_default(self):
+        variants = await self.get_variants(q='"A A"', count=None)
+        self.assertIsNone(variants.count)
+
+    async def test_with_count_parameter(self):
+        variants = await self.get_variants(q='"A A"', count=True)
+        self.assertIsNotNone(variants.count)
+        count: int = variants.count  # type: ignore
+        self.assertGreaterEqual(count, len(variants.results))
+
     async def test_by_results(self):
         variants = await self.get_variants(q='"A A" result:C')
         for variant in variants.results:

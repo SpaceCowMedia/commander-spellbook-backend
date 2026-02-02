@@ -19,9 +19,9 @@ class SpellbookClientTest(SpellbookTestCaseWithSeeding, LiveServerTestCase):
         return ApiClient(cls.anonymous_api_client_configuration)
 
     @classmethod
-    async def get_variants(cls, q='') -> PaginatedVariantList:
+    async def get_variants(cls, q='', count=None) -> PaginatedVariantList:
         async with cls.anonymous_api_client as api_client:
             api_instance = VariantsApi(api_client)
-            result = await api_instance.variants_list(q=q)
+            result = await api_instance.variants_list(q=q, count=count)
             assert result is not None
             return result

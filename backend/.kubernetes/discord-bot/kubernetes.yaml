@@ -31,8 +31,9 @@ spec:
           livenessProbe:
             exec:
               command:
-                - curl
-                - -f
+                - wget
+                - --output-document=/dev/null
+                - --quiet
                 - https://backend.commanderspellbook.com
             initialDelaySeconds: 40
             periodSeconds: 20

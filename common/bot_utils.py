@@ -36,7 +36,7 @@ def url_from_query(query: str) -> str:
 
 
 def summary_from_query(query: str, query_url: str) -> str:
-    return f'["`{query}`"]({query_url})'
+    return f'[`{query}`]({query_url})'
 
 
 def url_from_variant(variant: Variant) -> str:

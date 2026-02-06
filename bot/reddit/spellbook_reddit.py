@@ -19,7 +19,7 @@ from bot_utils import compute_variant_name, compute_variant_results, parse_queri
 REDDIT_USERNAME = os.getenv('REDDIT_USERNAME')
 MAIN_SUBREDDIT = 'CommanderSpellbook'
 
-MAX_SEARCH_RESULTS = 5
+MAX_SEARCH_RESULTS = 2
 logging.basicConfig(level=logging.INFO)
 LOGGER = logging.getLogger(__file__)
 
@@ -79,6 +79,8 @@ async def process_input(text: str) -> str | None:
                     count=True,
                 )
             match result.count:
+                case None:
+                    reply += f'Failed to fetch results for {query_info.summary}\n'
                 case 0:
                     reply += f'{'* ' if len(queries) > 1 else ''}No results found for {query_info.summary}\n'
                 case 1:
@@ -91,12 +93,15 @@ async def process_input(text: str) -> str | None:
                     else:
                         reply += f'* Found 1 result for {query_info.summary}: {variant_link}\n'
                 case n:
-                    reply += f'{'* ' if len(queries) > 1 else ''}Found {n} results for {query_info.summary}, such as:\n'
+                    more = len(result.results) < n
+                    reply += f'{'* ' if len(queries) > 1 else ''}Found {n} results for {query_info.summary}{', such as' if more else ''}:\n'
                     for variant in result.results:
                         variant_recipe = compute_variant_recipe(variant)
                         variant_url = url_from_variant(variant)
                         variant_link = f'[{variant_recipe}]({variant_url})'
                         reply += f'  1. {variant_link} (found in {variant.popularity} decks)\n'
+                    if more:
+                        reply += f'  1. [and more]({query_info.url})\n'
         except ApiException:
             if len(queries) == 1:
                 reply += f'Failed to fetch results for {query_info.summary}\n'

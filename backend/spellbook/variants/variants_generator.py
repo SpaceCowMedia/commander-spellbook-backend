@@ -139,7 +139,6 @@ def subtract_features(data: Data, includes: set[int], features: FrozenMultiset[f
 
 @dataclass
 class VariantBulkSaveItem:
-    should_update: bool
     # Data fields
     variant: Variant
     # Relationships fields
@@ -519,7 +518,6 @@ def restore_variant(
 
     # Return the final object
     return VariantBulkSaveItem(
-        should_update=False,
         variant=variant,
         uses=list(uses_list()),
         requires=list(requires_list()),
@@ -533,12 +531,9 @@ def update_variant(
         data: Data,
         id: str,
         variant_def: VariantDefinition,
-        status: Variant.Status | str,
         restore: bool,
         job: str | None):
     variant = data.id_to_variant[id]
-    old_results_count = variant.result_count
-    old_name = variant.name
     save_item = restore_variant(
         data=data,
         variant=variant,
@@ -547,7 +542,6 @@ def update_variant(
     )
     if restore:
         variant.generated_by = job
-    save_item.should_update = restore or status != variant.status or old_results_count != variant.result_count or variant.name != old_name
     return save_item
 
 
@@ -566,7 +560,6 @@ def create_variant(
         variant_def=variant_def,
         restore_fields=True,
     )
-    save_item.should_update = True
     return save_item
 
 
@@ -719,18 +712,14 @@ def generate_variants(
     to_bulk_create = list[VariantBulkSaveItem]()
     for id, variant_def in variants.items():
         if id in old_id_set:
-            status = data.id_to_variant[id].status
             variant_to_update = update_variant(
                 data=data,
                 id=id,
                 variant_def=variant_def,
-                status=status,
                 restore=id in to_restore,
                 job=job)
-            if variant_to_update.should_update:
-                to_bulk_update.append(variant_to_update)
+            to_bulk_update.append(variant_to_update)
         else:
-            status = Variant.Status.NEW
             variant_to_save = create_variant(
                 data=data,
                 id=id,

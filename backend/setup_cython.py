@@ -6,40 +6,15 @@ using Cython for performance optimization.
 """
 from setuptools import setup, Extension
 from Cython.Build import cythonize
-import numpy as np
 
 # Define the modules to be cythonized
 extensions = [
-    Extension(
-        "spellbook.variants.multiset",
-        ["backend/spellbook/variants/multiset.py"],
-        include_dirs=[],
-    ),
-    Extension(
-        "spellbook.variants.minimal_set_of_multisets",
-        ["backend/spellbook/variants/minimal_set_of_multisets.py"],
-        include_dirs=[],
-    ),
-    Extension(
-        "spellbook.variants.variant_set",
-        ["backend/spellbook/variants/variant_set.py"],
-        include_dirs=[],
-    ),
-    Extension(
-        "spellbook.variants.variant_data",
-        ["backend/spellbook/variants/variant_data.py"],
-        include_dirs=[],
-    ),
-    Extension(
-        "spellbook.variants.combo_graph",
-        ["backend/spellbook/variants/combo_graph.py"],
-        include_dirs=[],
-    ),
-    Extension(
-        "spellbook.variants.variants_generator",
-        ["backend/spellbook/variants/variants_generator.py"],
-        include_dirs=[],
-    ),
+    Extension("spellbook.variants.multiset", ["backend/spellbook/variants/multiset.py"]),
+    Extension("spellbook.variants.minimal_set_of_multisets", ["backend/spellbook/variants/minimal_set_of_multisets.py"]),
+    Extension("spellbook.variants.variant_set", ["backend/spellbook/variants/variant_set.py"]),
+    Extension("spellbook.variants.variant_data", ["backend/spellbook/variants/variant_data.py"]),
+    Extension("spellbook.variants.combo_graph", ["backend/spellbook/variants/combo_graph.py"]),
+    Extension("spellbook.variants.variants_generator", ["backend/spellbook/variants/variants_generator.py"]),
 ]
 
 setup(

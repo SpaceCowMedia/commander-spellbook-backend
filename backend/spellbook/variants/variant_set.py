@@ -21,8 +21,10 @@ class VariantSetParameters:
             return False
         if len(entry.distinct_elements()) > self.max_depth:
             return False
-        if not self.allow_multiple_copies and any(q > 1 for c, q in entry.items() if c > 0):
-            return False
+        if not self.allow_multiple_copies:
+            for c, q in entry.items():
+                if c > 0 and q > 1:
+                    return False
         if self.filter is not None and not self.filter.issuperset(entry):
             return False
         return True

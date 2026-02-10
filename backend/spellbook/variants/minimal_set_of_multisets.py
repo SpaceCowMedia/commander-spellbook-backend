@@ -41,10 +41,18 @@ class MinimalSetOfMultisets(Generic[_T]):
         )
 
     def __contains_subset_of(self, aset: FrozenMultiset[_T]) -> bool:
-        return any(s.issubset(aset) for s in self.__sets)
+        for s in self.__sets:
+            if s.issubset(aset):
+                return True
+        return False
 
     def __remove_supersets_of(self, aset: FrozenMultiset[_T]):
-        self.__sets.difference_update([s for s in self.__sets if s.issuperset(aset)])
+        to_remove = []
+        for s in self.__sets:
+            if s.issuperset(aset):
+                to_remove.append(s)
+        for s in to_remove:
+            self.__sets.discard(s)
 
     def add(self, aset: FrozenMultiset[_T]):
         '''

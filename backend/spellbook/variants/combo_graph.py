@@ -228,7 +228,12 @@ class VariantRecipe(VariantIngredients):
 
 def satisfies(produced: Iterable[FeatureWithAttributes], needed: Iterable[FeatureWithAttributesMatcher]) -> bool:
     for n in needed:
-        if not any(p.feature == n.feature and n.matcher.matches(p.attributes) for p in produced):
+        found = False
+        for p in produced:
+            if p.feature == n.feature and n.matcher.matches(p.attributes):
+                found = True
+                break
+        if not found:
             return False
     return True
 
@@ -267,7 +272,13 @@ class Graph:
                         ),
                     )
                 )
-                if any(f.feature == feature_with_attributes_node for f in card_node.features):
+                # Check if card already produces this feature with these attributes
+                already_has_feature = False
+                for f in card_node.features:
+                    if f.feature == feature_with_attributes_node:
+                        already_has_feature = True
+                        break
+                if already_has_feature:
                     # A card cannot produce the same feature with the same attributes multiple times
                     continue
                 feature_of_card_node = FeatureOfCardNode(
@@ -315,7 +326,13 @@ class Graph:
                             ),
                         )
                     )
-                    if any(f == feature_with_attributes_node for f in combo_node.features_produced):
+                    # Check if combo already produces this feature
+                    already_produces = False
+                    for f in combo_node.features_produced:
+                        if f == feature_with_attributes_node:
+                            already_produces = True
+                            break
+                    if already_produces:
                         # A combo cannot produce the same feature with the same attributes multiple times
                         continue
                     combo_node.features_produced.append(feature_with_attributes_node)

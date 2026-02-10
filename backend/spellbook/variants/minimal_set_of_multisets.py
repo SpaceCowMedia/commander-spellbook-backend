@@ -47,8 +47,6 @@ class MinimalSetOfMultisets(Generic[_T]):
         return False
 
     def __remove_supersets_of(self, aset: FrozenMultiset[_T]):
-        # Use list comprehension with difference_update for optimal performance
-        # Cython can still optimize this pattern effectively
         self.__sets.difference_update([s for s in self.__sets if s.issuperset(aset)])
 
     def add(self, aset: FrozenMultiset[_T]):

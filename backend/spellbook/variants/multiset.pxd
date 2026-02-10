@@ -3,7 +3,6 @@
 # cython: wraparound=False
 # cython: cdivision=True
 # cython: initializedcheck=False
-# cython: nonecheck=False
 # cython: embedsignature=True
 # cython: optimize.use_switch=True
 # cython: optimize.unpack_method_calls=True
@@ -15,7 +14,6 @@
 # - wraparound=False: Disables negative indexing
 # - cdivision=True: Uses C division semantics (faster)
 # - initializedcheck=False: Assumes variables are initialized
-# - nonecheck=False: Disables None checks for better performance
 # - embedsignature=True: Embeds function signatures in docstrings
 # - optimize.use_switch=True: Uses switch statements for optimization
 # - optimize.unpack_method_calls=True: Optimizes method calls

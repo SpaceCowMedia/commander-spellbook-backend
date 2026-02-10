@@ -47,14 +47,9 @@ class MinimalSetOfMultisets(Generic[_T]):
         return False
 
     def __remove_supersets_of(self, aset: FrozenMultiset[_T]):
-        # Use explicit loop instead of list comprehension for better Cython optimization
-        # Cython can generate more efficient C code with explicit loops and early breaks
-        to_remove = []
-        for s in self.__sets:
-            if s.issuperset(aset):
-                to_remove.append(s)
-        for s in to_remove:
-            self.__sets.discard(s)
+        # Use list comprehension with difference_update for optimal performance
+        # Cython can still optimize this pattern effectively
+        self.__sets.difference_update([s for s in self.__sets if s.issuperset(aset)])
 
     def add(self, aset: FrozenMultiset[_T]):
         '''

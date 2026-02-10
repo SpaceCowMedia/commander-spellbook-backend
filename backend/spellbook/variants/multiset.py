@@ -88,7 +88,7 @@ class BaseMultiset(Generic[_T]):
                 x: int = self[k] // v
                 if m == _COUNT_NOT_SET or x < m:
                     m = x
-        return m if m >= 0 else 0
+        return m if m != _COUNT_NOT_SET else 0
 
     def issubset(self, other: 'BaseMultiset[_T]') -> bool:
         self_len: int = self._total

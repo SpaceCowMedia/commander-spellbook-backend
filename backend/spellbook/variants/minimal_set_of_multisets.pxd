@@ -3,5 +3,13 @@
 # cython: wraparound=False
 # cython: cdivision=True
 # cython: initializedcheck=False
+# cython: embedsignature=True
+# cython: optimize.use_switch=True
+# cython: optimize.unpack_method_calls=True
 
 # Type definitions for minimal_set_of_multisets.py to enable Cython optimization
+#
+# Performance improvements for:
+# - Set operations (add, extend, subtree)
+# - Subset/superset checking in loops
+# - Set comprehensions and filtering operations

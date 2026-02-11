@@ -145,9 +145,7 @@ jobs:
           cache: pip
 
       - name: Install dependencies 🧶
-        run: |
-          pip install pytest pytest-django pytest-cov
-          pip install --no-deps tblib $(grep -ivE "#|cryptography|cffi" requirements.txt)
+        run: pip install --no-deps tblib $(grep -ivE "#|cryptography|cffi" requirements.txt)
         working-directory: backend
 
       - name: Install missing windows dependencies 🟦
@@ -169,14 +167,8 @@ jobs:
         working-directory: backend
 
       - name: Unit Test 🧪
-        run: python -m pytest --disable-warnings --maxfail=1 --showlocals --rootdir=. --junitxml=pytest.xml --cov-report=term-missing:skip-covered common/ backend/ | tee pytest-coverage.txt
-
-      - name: Pytest coverage comment
-        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12' && !matrix.cython
-        uses: MishaKav/pytest-coverage-comment@main
-        with:
-          pytest-coverage-path: ./pytest-coverage.txt
-          junitxml-path: ./pytest.xml
+        run: python -Wd manage.py test --no-input --parallel auto --pythonpath ../common
+        working-directory: backend
 
 
   integration-test:
@@ -591,7 +583,7 @@ jobs:
         working-directory: backend
 
       - name: Run python tests 🧪
-        run: python backend/manage.py test client/python/tests/ --no-input --parallel auto --pythonpath common
+        run: python backend/manage.py test client/python/tests/ common/ --no-input --parallel auto --pythonpath common
         working-directory: .
 
 

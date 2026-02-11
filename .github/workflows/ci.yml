@@ -151,7 +151,7 @@ jobs:
       - name: Install missing windows dependencies 🟦
         if: contains(matrix.os, 'windows')
         run: |
-          pip install pytz tzdata --upgrade
+          pip install pytz tzdata pytest pytest-cov --upgrade
 
       - name: Print Django version 🐍
         run: python manage.py version
@@ -159,7 +159,7 @@ jobs:
 
       - name: Install Cython dependencies 🚛
         if: matrix.cython
-        run: pip install --upgrade cython setuptools pytest
+        run: pip install --upgrade cython setuptools
 
       - name: Cythonize 🏎
         if: matrix.cython

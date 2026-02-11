@@ -167,7 +167,7 @@ jobs:
         working-directory: backend
 
       - name: Unit Test 🧪
-        run: python -m pytest --disable-warnings --maxfail=1 --showlocals --junitxml=pytest.xml --cov-report=term-missing:skip-covered | tee pytest-coverage.txt
+        run: python -m pytest --disable-warnings --maxfail=1 --showlocals --rootdir=. --junitxml=pytest.xml --cov-report=term-missing:skip-covered | tee pytest-coverage.txt
 
       - name: Pytest coverage comment
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12' && !matrix.cython

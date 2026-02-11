@@ -145,7 +145,7 @@ jobs:
           cache: pip
 
       - name: Install dependencies 🧶
-        run: pip install --no-cache-dir --no-deps pytest pytest-cov tblib $(grep -ivE "#|cryptography|cffi" requirements.txt)
+        run: pip install --no-cache-dir --no-deps pytest pytest-metadata pytest-cov tblib $(grep -ivE "#|cryptography|cffi" requirements.txt)
         working-directory: backend
 
       - name: Install missing windows dependencies 🟦

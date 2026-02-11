@@ -29,7 +29,7 @@ class TestBotUtils(TestCase):
 
     def test_summary_from_query(self):
         summary = summary_from_query('foo', 'http://url')
-        self.assertEqual(summary, '["`foo`"](http://url)')
+        self.assertEqual(summary, '[`foo`](http://url)')
 
     @patch.dict(os.environ, {'SPELLBOOK_WEBSITE_URL': ''})
     def test_url_from_variant(self):

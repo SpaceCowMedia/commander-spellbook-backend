@@ -22,11 +22,11 @@ botocore==1.42.44
     #   s3transfer
 certifi==2024.7.4
     # via requests
-cffi==1.15.1
+cffi==2.0.0
     # via cryptography
 charset-normalizer==3.2.0
     # via requests
-cryptography==44.0.1
+cryptography==46.0.5
     # via pyjwt
 defusedxml==0.7.1
     # via

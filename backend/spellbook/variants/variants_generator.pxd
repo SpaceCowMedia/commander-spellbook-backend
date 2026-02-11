@@ -9,6 +9,7 @@
 # cython: infer_types=True
 # cython: overflowcheck=False
 # cython: profile=False
+# cython: annotation_typing=True
 
 # Type definitions for variants_generator.py to enable Cython optimization
 #

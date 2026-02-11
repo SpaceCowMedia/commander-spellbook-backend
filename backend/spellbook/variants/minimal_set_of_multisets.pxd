@@ -9,6 +9,7 @@
 # cython: infer_types=True
 # cython: overflowcheck=False
 # cython: profile=False
+# cython: annotation_typing=True
 
 # Type definitions for minimal_set_of_multisets.py to enable Cython optimization
 #

@@ -9,6 +9,7 @@
 # cython: infer_types=True
 # cython: overflowcheck=False
 # cython: profile=False
+# cython: annotation_typing=True
 
 # Type definitions for multiset.py to enable Cython optimization
 # This .pxd file provides compiler directives for performance improvements:
@@ -23,6 +24,7 @@
 # - infer_types=True: Enables automatic type inference for better optimization
 # - overflowcheck=False: Disables integer overflow checking (faster arithmetic)
 # - profile=False: Disables profiling hooks for maximum speed
+# - annotation_typing=True: Uses PEP 484 annotations for type inference
 #
 # These directives provide significant performance improvements for:
 # - Dictionary operations in Counter

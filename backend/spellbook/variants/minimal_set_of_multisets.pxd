@@ -6,6 +6,9 @@
 # cython: embedsignature=True
 # cython: optimize.use_switch=True
 # cython: optimize.unpack_method_calls=True
+# cython: infer_types=True
+# cython: overflowcheck=False
+# cython: profile=False
 
 # Type definitions for minimal_set_of_multisets.py to enable Cython optimization
 #

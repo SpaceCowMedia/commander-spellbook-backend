@@ -6,6 +6,9 @@
 # cython: embedsignature=True
 # cython: optimize.use_switch=True
 # cython: optimize.unpack_method_calls=True
+# cython: infer_types=True
+# cython: overflowcheck=False
+# cython: profile=False
 
 # Type definitions for multiset.py to enable Cython optimization
 # This .pxd file provides compiler directives for performance improvements:
@@ -17,6 +20,9 @@
 # - embedsignature=True: Embeds function signatures in docstrings
 # - optimize.use_switch=True: Uses switch statements for optimization
 # - optimize.unpack_method_calls=True: Optimizes method calls
+# - infer_types=True: Enables automatic type inference for better optimization
+# - overflowcheck=False: Disables integer overflow checking (faster arithmetic)
+# - profile=False: Disables profiling hooks for maximum speed
 #
 # These directives provide significant performance improvements for:
 # - Dictionary operations in Counter

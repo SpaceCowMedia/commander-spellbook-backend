@@ -131,15 +131,13 @@ class VariantSet:
             return cls.sum_sets(sets, parameters=parameters)
         result = MinimalSetOfMultisets[int]()
         for key_combination in product(*(s.entries() for s in sets)):
-            # TODO: check performance gain
-            cards_sets = [
-                s
-                for s in (
-                    frozenset(c for c in entry.distinct_elements() if c > 0)
-                    for entry in key_combination
-                )
-                if len(s) > 0
-            ]
+            # Optimized: build cards_sets with explicit loop for better Cython compilation
+            cards_sets = []
+            for entry in key_combination:
+                card_set = frozenset(c for c in entry.distinct_elements() if c > 0)
+                if len(card_set) > 0:
+                    cards_sets.append(card_set)
+            # Check for duplicate card sets
             if len(cards_sets) != len(set(cards_sets)):
                 continue
             entry = sum(key_combination, Entry())

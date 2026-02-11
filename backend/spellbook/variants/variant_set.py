@@ -21,8 +21,10 @@ class VariantSetParameters:
             return False
         if len(entry.distinct_elements()) > self.max_depth:
             return False
-        if not self.allow_multiple_copies and any(q > 1 for c, q in entry.items() if c > 0):
-            return False
+        if not self.allow_multiple_copies:
+            for c, q in entry.items():
+                if c > 0 and q > 1:
+                    return False
         if self.filter is not None and not self.filter.issuperset(entry):
             return False
         return True
@@ -129,15 +131,13 @@ class VariantSet:
             return cls.sum_sets(sets, parameters=parameters)
         result = MinimalSetOfMultisets[int]()
         for key_combination in product(*(s.entries() for s in sets)):
-            # TODO: check performance gain
-            cards_sets = [
-                s
-                for s in (
-                    frozenset(c for c in entry.distinct_elements() if c > 0)
-                    for entry in key_combination
-                )
-                if len(s) > 0
-            ]
+            # Optimized: build cards_sets with explicit loop for better Cython compilation
+            cards_sets = []
+            for entry in key_combination:
+                card_set = frozenset(c for c in entry.distinct_elements() if c > 0)
+                if len(card_set) > 0:
+                    cards_sets.append(card_set)
+            # Check for duplicate card sets
             if len(cards_sets) != len(set(cards_sets)):
                 continue
             entry = sum(key_combination, Entry())

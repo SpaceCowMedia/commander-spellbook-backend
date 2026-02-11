@@ -13,9 +13,22 @@ class AttributesMatcher:
     none_of: frozenset[int]
 
     def matches(self, attributes: frozenset[int]) -> bool:
-        return (not self.any_of or any(a in attributes for a in self.any_of)) \
-            and (self.all_of <= attributes) \
-            and not (self.none_of & attributes)
+        # Check any_of condition
+        if self.any_of:
+            has_any = False
+            for a in self.any_of:
+                if a in attributes:
+                    has_any = True
+                    break
+            if not has_any:
+                return False
+        # Check all_of condition
+        if not (self.all_of <= attributes):
+            return False
+        # Check none_of condition
+        if self.none_of & attributes:
+            return False
+        return True
 
 
 class Data:

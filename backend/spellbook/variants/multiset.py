@@ -6,6 +6,9 @@ from collections.abc import Mapping
 _T = TypeVar('_T', bound=Hashable)
 _Other = Union['BaseMultiset[_T]', IterableType[_T], MappingType[_T, int]]
 
+# Sentinel value for count_contains when no minimum has been found yet
+_COUNT_NOT_SET = -1
+
 
 class BaseMultiset(Generic[_T]):
     '''
@@ -79,19 +82,19 @@ class BaseMultiset(Generic[_T]):
             raise ZeroDivisionError('Cannot count the number of times an empty multiset is contained in another multiset')
         if other._total > self._total:
             return 0
-        m = None
+        m: int = _COUNT_NOT_SET
         for k, v in other.items():
             if v > 0:
-                x = self[k] // v
-                if m is None or x < m:
+                x: int = self[k] // v
+                if m == _COUNT_NOT_SET or x < m:
                     m = x
-        return m or 0
+        return m if m != _COUNT_NOT_SET else 0
 
     def issubset(self, other: 'BaseMultiset[_T]') -> bool:
-        self_len = self._total
+        self_len: int = self._total
         if self_len == 0:
             return True
-        other_len = other._total
+        other_len: int = other._total
         if self_len > other_len:
             return False
         for element, q in self._elements.items():

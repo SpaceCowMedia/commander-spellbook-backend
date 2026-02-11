@@ -1,0 +1,20 @@
+# cython: language_level=3
+# cython: boundscheck=False
+# cython: wraparound=False
+# cython: cdivision=True
+# cython: initializedcheck=False
+# cython: embedsignature=True
+# cython: optimize.use_switch=True
+# cython: optimize.unpack_method_calls=True
+# cython: infer_types=True
+# cython: overflowcheck=False
+# cython: profile=False
+# cython: annotation_typing=True
+
+# Type definitions for variant_set.py to enable Cython optimization
+#
+# Performance improvements for:
+# - Product operations over multiple variant sets
+# - Entry checking and filtering
+# - Set union, intersection, and sum operations
+# - Iteration over variant entries

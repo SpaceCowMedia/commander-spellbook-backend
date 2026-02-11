@@ -1,0 +1,19 @@
+# cython: language_level=3
+# cython: boundscheck=False
+# cython: wraparound=False
+# cython: cdivision=True
+# cython: initializedcheck=False
+# cython: embedsignature=True
+# cython: optimize.use_switch=True
+# cython: optimize.unpack_method_calls=True
+# cython: infer_types=True
+# cython: overflowcheck=False
+# cython: profile=False
+# cython: annotation_typing=True
+
+# Type definitions for minimal_set_of_multisets.py to enable Cython optimization
+#
+# Performance improvements for:
+# - Set operations (add, extend, subtree)
+# - Subset/superset checking in loops
+# - Set comprehensions and filtering operations

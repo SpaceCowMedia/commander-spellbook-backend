@@ -10,11 +10,3 @@
 # cython: overflowcheck=False
 # cython: profile=False
 # cython: annotation_typing=True
-
-# Type definitions for variant_set.py to enable Cython optimization
-#
-# Performance improvements for:
-# - Product operations over multiple variant sets
-# - Entry checking and filtering
-# - Set union, intersection, and sum operations
-# - Iteration over variant entries

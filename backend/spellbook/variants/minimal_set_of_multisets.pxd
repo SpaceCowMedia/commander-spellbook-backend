@@ -10,10 +10,3 @@
 # cython: overflowcheck=False
 # cython: profile=False
 # cython: annotation_typing=True
-
-# Type definitions for minimal_set_of_multisets.py to enable Cython optimization
-#
-# Performance improvements for:
-# - Set operations (add, extend, subtree)
-# - Subset/superset checking in loops
-# - Set comprehensions and filtering operations

@@ -10,10 +10,3 @@
 # cython: overflowcheck=False
 # cython: profile=False
 # cython: annotation_typing=True
-
-# Type definitions for variant_data.py to enable Cython optimization
-#
-# Performance improvements for:
-# - Dictionary lookups and iterations
-# - List comprehensions
-# - Data structure initialization and population

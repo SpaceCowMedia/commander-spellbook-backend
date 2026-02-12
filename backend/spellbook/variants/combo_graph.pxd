@@ -10,11 +10,3 @@
 # cython: overflowcheck=False
 # cython: profile=False
 # cython: annotation_typing=True
-
-# Type definitions for combo_graph.py to enable Cython optimization
-#
-# Performance improvements for:
-# - Graph traversal and node operations
-# - Variant set computations
-# - Node state management
-# - Feature matching and requirements checking

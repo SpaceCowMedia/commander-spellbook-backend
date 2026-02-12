@@ -658,14 +658,12 @@ class Graph:
             needed_combo_nodes.update(new_needed_combos)
 
             # Find feature of cards that produce the new features
-            new_feature_of_card_nodes = set[FeatureOfCardNode]()
             for f in feature_of_card_nodes:
                 if f.feature.item in new_features_produced_by_needed_combos:
-                    new_feature_of_card_nodes.add(f)
-            needed_feature_of_card_nodes.update(new_feature_of_card_nodes)
+                    needed_feature_of_card_nodes.add(f)
 
             # Update needed features for next iteration
-            new_features_needed_by_needed_combos = set[FeatureWithAttributesMatcher]()
+            new_features_needed_by_needed_combos.clear()
             for c in new_needed_combos:
                 for features_needed in c.features_needed.values():
                     for f in features_needed:

@@ -123,7 +123,7 @@ social-auth-app-django==5.7.0
     # via -r requirements.in
 social-auth-core==4.8.3
     # via social-auth-app-django
-sqlparse==0.5.0
+sqlparse==0.5.4
     # via django
 typing-extensions==4.15.0
     # via

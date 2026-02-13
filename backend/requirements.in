@@ -10,6 +10,6 @@ djangorestframework-simplejwt==5.5.1
 drf-spectacular==0.29.0
 drf-spectacular-sidecar==2026.1.1
 social-auth-app-django==5.7.0
-django-tasks==0.11.0
+django-tasks==0.12.0
 discord-webhook==1.4.1
 lark==1.3.1

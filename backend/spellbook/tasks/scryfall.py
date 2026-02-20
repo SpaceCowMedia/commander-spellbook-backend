@@ -9,6 +9,11 @@ from urllib.parse import quote_plus, urlencode
 from django.utils import timezone
 from django.db.models import Q
 from spellbook.models import Card, merge_color_identities
+from django.conf import settings
+
+
+USER_AGENT = f'CommanderSpellbook/{settings.VERSION}'
+HEADERS = {'User-Agent': USER_AGENT, 'Accept': 'application/json'}
 
 
 def standardize_name(name: str) -> str:
@@ -30,14 +35,15 @@ def scryfall(bulk_collection: str | None = None) -> Scryfall:
         raise ValueError('Invalid bulk collection type')
     # Scryfall card database fetching
     req = Request(
-        f'https://api.scryfall.com/bulk-data/{bulk_collection}?format=json'
+        f'https://api.scryfall.com/bulk-data/{bulk_collection}?format=json',
+        headers=HEADERS,
     )
     card_db = dict[str, dict]()
     with urlopen(req) as response:
         data = json.loads(response.read().decode())
         req = Request(
             data['download_uri'],  # type: ignore
-            headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; rv:91.0) Gecko/20100101 Firefox/91.0'}
+            headers=HEADERS,
         )
         with urlopen(req) as response:
             data = json.loads(response.read().decode())
@@ -58,7 +64,8 @@ def scryfall(bulk_collection: str | None = None) -> Scryfall:
 
     # EDHREC card database fetching
     req = Request(
-        'https://json.edhrec.com/static/prices'
+        'https://json.edhrec.com/static/prices',
+        headers=HEADERS,
     )
     with urlopen(req) as response:
         data = json.loads(response.read().decode())
@@ -84,7 +91,8 @@ def scryfall(bulk_collection: str | None = None) -> Scryfall:
     extra_turn = get_cards_from_scryfall_query('otag:extra-turn')
     # Other missing data
     req = Request(
-        'https://raw.githubusercontent.com/chevEldrid/pdh-json-updater/master/pauper_commander.json'
+        'https://raw.githubusercontent.com/chevEldrid/pdh-json-updater/master/pauper_commander.json',
+        headers=HEADERS,
     )
     with urlopen(req) as response:
         data = json.loads(response.read().decode())
@@ -112,7 +120,7 @@ def scryfall(bulk_collection: str | None = None) -> Scryfall:
 
 
 def get_cards_from_scryfall_query(q: str, log_error=lambda t: print(t)) -> frozenset[str]:
-    req = Request(f'https://api.scryfall.com/cards/search?format=json&q={quote_plus(q + ' unique:cards')}')
+    req = Request(f'https://api.scryfall.com/cards/search?format=json&q={quote_plus(q + " unique:cards")}', headers=HEADERS)
     has_next = True
     result = set[str]()
     max_pages = 10
@@ -122,7 +130,7 @@ def get_cards_from_scryfall_query(q: str, log_error=lambda t: print(t)) -> froze
                 data = json.loads(response.read().decode())
                 has_next = data['has_more']
                 if has_next:
-                    req = Request(data['next_page'])
+                    req = Request(data['next_page'], headers=HEADERS)
                 for card in data['data']:
                     card_and_faces = [card]
                     faces = card.get('card_faces', [])
@@ -142,7 +150,9 @@ def fuzzy_restore_card(scryfall: dict, name: str):
     if name in scryfall:
         return
     req = Request(
-        'https://api.scryfall.com/cards/named?' + urlencode({'fuzzy': name}))
+        'https://api.scryfall.com/cards/named?' + urlencode({'fuzzy': name}),
+        headers=HEADERS,
+    )
     with urlopen(req) as response:
         data = json.loads(response.read().decode())
         actual_name = standardize_name(data['name'])

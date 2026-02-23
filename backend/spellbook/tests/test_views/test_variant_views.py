@@ -299,9 +299,15 @@ class VariantViewsTests(SpellbookTestCaseWithSeeding):
                     self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
                     for v in result.results:
                         self.variant_assertions(v)
-        with self.subTest('Test all- prefix in combination with card_count'):
+        with self.subTest('Test all- prefix with card_count'):
             response = self.client.get(reverse('variants-list'), query_params={'q': f'all-cards:{2}'}, follow=True)  # type: ignore
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        with self.subTest('Test invalid quotes with card count'):
+            response = self.client.get(reverse('variants-list'), query_params={'q': f'cards:"{2}"'}, follow=True)  # type: ignore
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(response.get('Content-Type'), 'application/json')
+            result = json.loads(response.content, object_hook=json_to_python_lambda)
+            self.assertEqual(len(result.results), 0)
 
     def test_variants_list_view_query_by_template_count(self):
         min_templates, max_templates = self.public_variants.aggregate(min_templates=models.Min('template_count'), max_templates=models.Max('template_count')).values()

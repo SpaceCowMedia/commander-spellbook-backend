@@ -3,7 +3,7 @@ from spellbook.models import Variant
 
 
 def description_filter(qv: QueryValue) -> VariantFilterCollection:
-    value_is_digit = qv.value.isdigit()
+    value_is_digit = qv.is_numeric()
     match qv.operator:
         case ':' if not value_is_digit:
             q = Q(description__icontains=qv.value)

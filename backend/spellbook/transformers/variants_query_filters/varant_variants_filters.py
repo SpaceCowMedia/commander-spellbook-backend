@@ -2,7 +2,7 @@ from .base import QueryValue, VariantFilterCollection, Q, ValidationError
 
 
 def variants_filter(qv: QueryValue) -> VariantFilterCollection:
-    if not qv.value.isdigit():
+    if not qv.is_numeric():
         raise ValidationError(f'Value {qv.value} is not supported for variants search.')
     match qv.operator:
         case ':' | '=':

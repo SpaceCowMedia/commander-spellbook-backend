@@ -10,6 +10,7 @@ class QueryValue:
     key: str
     operator: str
     value: str
+    quotes: bool
 
     def is_for_all_related(self) -> bool:
         match self.prefix.lower():
@@ -26,7 +27,8 @@ class QueryValue:
             case None:
                 raise ValidationError(f'Invalid query value: {string}')
             case match:
-                return cls(match['prefix'] or '', match['key'], match['operator'], match['long_value'] or match['short_value'])
+                quotes = bool(match['long_value'])
+                return cls(match['prefix'] or '', match['key'], match['operator'], match['long_value'] if quotes else match['short_value'], quotes)
 
     @classmethod
     def from_short_string(cls, string: str, key: str, operator: str) -> 'QueryValue':
@@ -34,12 +36,15 @@ class QueryValue:
             case None:
                 raise ValidationError(f'Invalid query value: {string}')
             case match:
-                return cls('', key, operator, match['long_value'] or match['short_value'])
+                return cls('', key, operator, match['long_value'] or match['short_value'], quotes=True)  # Treat short values as quoted strings
 
     def to_query_filter(self, q: Q) -> 'QueryFilter':
         if self.is_for_all_related():
             return QueryFilter(q=~q, exclude=True)
         return QueryFilter(q=q)
+
+    def is_numeric(self) -> bool:
+        return not self.quotes and self.value.isdigit()
 
 
 @dataclass(frozen=True)

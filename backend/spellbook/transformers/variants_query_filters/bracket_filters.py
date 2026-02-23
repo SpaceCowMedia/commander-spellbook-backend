@@ -2,7 +2,7 @@ from .base import QueryValue, VariantFilterCollection, Q, ValidationError
 
 
 def bracket_filter(qv: QueryValue) -> VariantFilterCollection:
-    if not qv.value.isdigit():
+    if not qv.is_numeric():
         raise ValidationError(f'Value {qv.value} is not supported for bracket search.')
     if not (1 <= int(qv.value) <= 5):
         raise ValidationError(f'Value {qv.value} is not supported for bracket search. Choose a value between 1 and 5.')

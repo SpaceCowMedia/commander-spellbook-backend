@@ -3,7 +3,7 @@ from spellbook.parsers.color_parser import parse_color
 
 
 def card_color_filter(qv: QueryValue) -> VariantFilterCollection:
-    value_is_digit = qv.value.isdigit()
+    value_is_digit = qv.is_numeric()
     color = ''
     not_in_color = ''
     if not value_is_digit:

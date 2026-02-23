@@ -134,7 +134,7 @@ COMMANDER_SEARCH_KEY: "commander"i
 
 LEGAL_SEARCH_KEY: "legal"i | "format"i | "banned"i
 
-PRICE_SEARCH_KEY: "price"i | "usd"i | "eur"i | SUPPORTED_STORE
+PRICE_SEARCH_KEY: "price"i | "usd"i | "eur"i | "mkm"i | SUPPORTED_STORE
 
 POPULARITY_SEARCH_KEY: "popularity"i | "pop"i | "deck"i | "decks"i
 

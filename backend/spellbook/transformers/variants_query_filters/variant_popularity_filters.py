@@ -2,7 +2,7 @@ from .base import QueryValue, VariantFilterCollection, Q, ValidationError
 
 
 def popularity_filter(qv: QueryValue) -> VariantFilterCollection:
-    if not qv.value.isdigit():
+    if not qv.is_numeric():
         raise ValidationError(f'Value {qv.value} is not supported for popularity search.')
     match qv.operator:
         case ':' | '=':

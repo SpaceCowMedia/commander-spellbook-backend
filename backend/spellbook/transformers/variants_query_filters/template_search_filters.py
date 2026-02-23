@@ -2,7 +2,7 @@ from .base import QueryValue, VariantFilterCollection, Q, ValidationError
 
 
 def template_search_filter(qv: QueryValue) -> VariantFilterCollection:
-    value_is_digit = qv.value.isdigit()
+    value_is_digit = qv.is_numeric()
     if value_is_digit and qv.is_for_all_related():
         raise ValidationError(f'Prefix {qv.prefix} is not supported for template search with numbers.')
     match qv.operator:

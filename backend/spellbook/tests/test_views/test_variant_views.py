@@ -34,7 +34,7 @@ class VariantViewsTests(SpellbookTestCaseWithSeeding):
             .values_list('id', flat=True),
         ).update(status=Variant.Status.EXAMPLE)
         cls.v1_id: int = Variant.objects.first().id  # type: ignore
-        cls.public_variants = VariantViewSet.queryset
+        cls.public_variants: models.Manager[Variant] = VariantViewSet.queryset
         cls.ok_variants = cls.public_variants.filter(status=Variant.Status.OK)
         cls.update_variants()
         cls.bulk_serialize_variants()
@@ -959,22 +959,54 @@ class VariantViewsTests(SpellbookTestCaseWithSeeding):
                         self.variant_assertions(v)
 
     def test_variants_list_view_query_by_bracket(self):
-        for bracket in range(1, 6):
-            for operator, operator_django in self.operators.items():
+        with self.subTest('query by bracket with number'):
+            for bracket in range(1, 6):
+                for operator, operator_django in self.operators.items():
+                    queries = [
+                        f'bracket{operator}{bracket}',
+                    ]
+                    for q in queries:
+                        q_django = {f'bracket__{operator_django}': bracket}
+                        with self.subTest(f'query by bracket: {bracket} with query {q}'):
+                            response = self.client.get(reverse('variants-list'), query_params={'q': q}, follow=True)  # type: ignore
+                            self.assertEqual(response.status_code, status.HTTP_200_OK)
+                            self.assertEqual(response.get('Content-Type'), 'application/json')
+                            result = json.loads(response.content, object_hook=json_to_python_lambda)
+                            variants = self.public_variants.filter(**q_django).distinct()
+                            self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
+                            for v in result.results:
+                                self.variant_assertions(v)
+        with self.subTest('query by bracket with tag'):
+            for value, bracket in Variant.BracketTag.choices:
+                v = self.public_variants.first()
+                assert v is not None
+                v.bracket_tag_override = value
+                v.save()
                 queries = [
-                    f'bracket{operator}{bracket}',
+                    f'bracket:{bracket}',
+                    f'bracket={bracket}',
                 ]
                 for q in queries:
-                    q_django = {f'bracket__{operator_django}': bracket}
                     with self.subTest(f'query by bracket: {bracket} with query {q}'):
                         response = self.client.get(reverse('variants-list'), query_params={'q': q}, follow=True)  # type: ignore
                         self.assertEqual(response.status_code, status.HTTP_200_OK)
                         self.assertEqual(response.get('Content-Type'), 'application/json')
                         result = json.loads(response.content, object_hook=json_to_python_lambda)
-                        variants = self.public_variants.filter(**q_django).distinct()
+                        variants = self.public_variants.filter(models.Q(bracket_tag_override=value) | models.Q(bracket_tag_override=None, bracket_tag=value)).distinct()
                         self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
                         for v in result.results:
                             self.variant_assertions(v)
+        with self.subTest('query by bracket with invalid value'):
+            queries = [
+                'bracket<=invalid',
+                'bracket>=invalid',
+                'bracket<invalid',
+                'bracket>invalid',
+            ]
+            for q in queries:
+                with self.subTest(f'query by bracket with invalid value with query {q}'):
+                    response = self.client.get(reverse('variants-list'), query_params={'q': q}, follow=True)  # type: ignore
+                    self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_variants_list_view_query_by_variants(self):
         for bracket in range(

@@ -140,4 +140,4 @@ POPULARITY_SEARCH_KEY: "popularity"i | "pop"i | "deck"i | "decks"i
 
 VARIANTS_SEARCH_KEY: "variant"i | "variants"i
 
-BRACKET_SEARCH_KEY: "bracket"i
+BRACKET_SEARCH_KEY: "bracket"i | "brackets"i | "b"i

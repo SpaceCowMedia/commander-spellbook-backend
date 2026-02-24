@@ -964,6 +964,8 @@ class VariantViewsTests(SpellbookTestCaseWithSeeding):
                 for operator, operator_django in self.operators.items():
                     queries = [
                         f'bracket{operator}{bracket}',
+                        f'brackets{operator}{bracket}',
+                        f'b{operator}{bracket}',
                     ]
                     for q in queries:
                         q_django = {f'bracket__{operator_django}': bracket}
@@ -984,7 +986,8 @@ class VariantViewsTests(SpellbookTestCaseWithSeeding):
                 v.save()
                 queries = [
                     f'bracket:{bracket}',
-                    f'bracket={bracket}',
+                    f'brackets={bracket}',
+                    f'b:{bracket}',
                 ]
                 for q in queries:
                     with self.subTest(f'query by bracket: {bracket} with query {q}'):

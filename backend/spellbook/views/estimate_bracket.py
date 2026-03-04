@@ -18,6 +18,7 @@ class ClassifiedVariantSerializer(serializers.Serializer):
 
 class EstimateBracketResultSerializer(serializers.Serializer):
     bracket_tag = BracketTagSerializer()
+    banned_cards = serializers.ListField(child=CardSerializer(), source='data.banned_cards')
     game_changer_cards = serializers.ListField(child=CardSerializer(), source='data.game_changer_cards')
     mass_land_denial_cards = serializers.ListField(child=CardSerializer(), source='data.mass_land_denial_cards')
     mass_land_denial_templates = serializers.ListField(child=TemplateSerializer(), source='data.mass_land_denial_templates')

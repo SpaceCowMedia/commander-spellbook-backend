@@ -10,18 +10,22 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RemoveField(
-            model_name='variant',
-            name='bracket_tag_override',
-        ),
-        migrations.AlterField(
-            model_name='variant',
-            name='bracket',
-            field=models.GeneratedField(db_persist=True, expression=models.Case(models.When(bracket_tag='R', then=models.Value(4)), models.When(bracket_tag='S', then=models.Value(3)), models.When(bracket_tag='P', then=models.Value(3)), models.When(bracket_tag='O', then=models.Value(2)), models.When(bracket_tag='C', then=models.Value(2)), models.When(bracket_tag='E', then=models.Value(1)), default=models.Value(0)), output_field=models.PositiveSmallIntegerField(help_text='Bracket number based on the tag')),
-        ),
         migrations.AlterField(
             model_name='variant',
             name='bracket_tag',
             field=models.CharField(choices=[('R', 'Ruthless'), ('S', 'Spicy'), ('P', 'Powerful'), ('O', 'Oddball'), ('C', 'Core'), ('E', 'Exhibition'), ('B', 'Banned')], default='R', editable=False, help_text='Bracket tag for this variant', max_length=2),
+        ),
+        migrations.RemoveField(
+            model_name='variant',
+            name='bracket',
+        ),
+        migrations.AddField(
+            model_name='variant',
+            name='bracket',
+            field=models.GeneratedField(db_persist=True, expression=models.Case(models.When(bracket_tag='R', then=models.Value(4)), models.When(bracket_tag='S', then=models.Value(3)), models.When(bracket_tag='P', then=models.Value(3)), models.When(bracket_tag='O', then=models.Value(2)), models.When(bracket_tag='C', then=models.Value(2)), models.When(bracket_tag='E', then=models.Value(1)), default=models.Value(0)), output_field=models.PositiveSmallIntegerField(help_text='Bracket number based on the tag')),
+        ),
+        migrations.RemoveField(
+            model_name='variant',
+            name='bracket_tag_override',
         ),
     ]

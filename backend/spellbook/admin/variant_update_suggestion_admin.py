@@ -1,6 +1,7 @@
 from typing import Any
 from django.contrib import admin
-from spellbook.tasks import notify_task
+from django.utils import timezone
+from spellbook.tasks import notify_task, EventNotification
 from .utils import SpellbookAdminForm, SpellbookModelAdmin
 from spellbook.models import Combo, VariantUpdateSuggestion, VariantInVariantUpdateSuggestion
 
@@ -22,6 +23,26 @@ class VariantUpdateSuggestionAdminForm(SpellbookAdminForm):
         return Combo.objects.filter(
             included_in_variants__variant_update_suggestions__suggestion=self.instance
         ).distinct().order_by('-created')
+
+
+@admin.action(description='Mark selected suggestions as REJECTED')
+def set_rejected(modeladmin, request, queryset):
+    queryset.update(status=VariantUpdateSuggestion.Status.REJECTED, updated=timezone.now())
+    ids = queryset.exclude(suggested_by=request.user).values_list('id', flat=True)
+    notify_task.enqueue(
+        event=EventNotification.variant_update_suggestion_rejected,
+        identifiers=[str(id) for id in ids],
+    )
+
+
+@admin.action(description='Mark selected suggestions as ACCEPTED')
+def set_accepted(modeladmin, request, queryset):
+    queryset.update(status=VariantUpdateSuggestion.Status.ACCEPTED, updated=timezone.now())
+    ids = queryset.exclude(suggested_by=request.user).values_list('id', flat=True)
+    notify_task.enqueue(
+        event=EventNotification.variant_update_suggestion_accepted,
+        identifiers=[str(id) for id in ids],
+    )
 
 
 @admin.register(VariantUpdateSuggestion)
@@ -49,6 +70,7 @@ class VariantUpdateSuggestionAdmin(SpellbookModelAdmin):
     inlines = [VariantInVariantUpdateSuggestionAdmin]
     list_filter = ['status', 'kind']
     list_display = ['__str__', 'kind', 'status', 'updated', 'suggested_by']
+    actions = [set_accepted, set_rejected]
     search_fields = [
         '=pk',
         '=suggested_by__username',

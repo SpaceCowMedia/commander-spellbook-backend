@@ -6,7 +6,7 @@ from django.urls import reverse, path
 from django.http.request import HttpRequest
 from django.shortcuts import redirect
 from spellbook.models import VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, FeatureProducedInVariantSuggestion
-from spellbook.tasks import notify_task
+from spellbook.tasks import notify_task, EventNotification
 from .ingredient_admin import IngredientInCombinationAdmin
 from .utils import SpellbookModelAdmin, CardCountListFilter
 
@@ -43,7 +43,7 @@ def set_rejected(modeladmin, request, queryset):
     queryset.update(status=VariantSuggestion.Status.REJECTED, updated=timezone.now())
     ids = queryset.exclude(suggested_by=request.user).values_list('id', flat=True)
     notify_task.enqueue(
-        event='variant_suggestion_rejected',
+        event=EventNotification.variant_suggestion_rejected,
         identifiers=[str(id) for id in ids],
     )
 

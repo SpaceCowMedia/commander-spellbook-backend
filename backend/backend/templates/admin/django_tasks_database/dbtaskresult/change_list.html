@@ -1,0 +1,21 @@
+{% extends "admin/change_list.html" %}
+{% load static %}
+
+{% block extrahead %}
+    {{ block.super }}
+    {% include 'admin/spellbook/includes/jqueryui_imports.html' %}
+    <script>
+        django.jQuery(function($) {
+            $('#result_list td.field-progress').each(function() {
+                const progress = $(this).text();
+                if (progress) {
+                    const values = progress.split('/');
+                    const completed = parseInt(values[0]);
+                    const total = parseInt(values[1]);
+                    const progressBar = $('<div style="height: 1em; min-width: 15em;"></div>').progressbar({ value: completed, max: total, });
+                    $(this).html(progressBar);
+                }
+            });
+        });
+    </script>
+{% endblock %}

@@ -27,7 +27,7 @@ def bracket_filter(qv: QueryValue) -> VariantFilterCollection:
         case '>=' if value_is_digit:
             q = Q(bracket__gte=qv.value)
         case ':' | '=' if bracket_tag:
-            q = Q(bracket_tag_override=bracket_tag) | Q(bracket_tag_override=None, bracket_tag=bracket_tag)
+            q = Q(bracket_tag=bracket_tag)
         case _:
             raise ValidationError(f'Operator {qv.operator} is not supported for bracket search.')
     return VariantFilterCollection(variants_filters=(qv.to_query_filter(q),))

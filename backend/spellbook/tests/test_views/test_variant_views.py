@@ -980,10 +980,6 @@ class VariantViewsTests(SpellbookTestCaseWithSeeding):
                                 self.variant_assertions(v)
         with self.subTest('query by bracket with tag'):
             for value, bracket in Variant.BracketTag.choices:
-                v = self.public_variants.first()
-                assert v is not None
-                v.bracket_tag_override = value
-                v.save()
                 queries = [
                     f'bracket:{bracket}',
                     f'brackets={bracket}',
@@ -995,7 +991,7 @@ class VariantViewsTests(SpellbookTestCaseWithSeeding):
                         self.assertEqual(response.status_code, status.HTTP_200_OK)
                         self.assertEqual(response.get('Content-Type'), 'application/json')
                         result = json.loads(response.content, object_hook=json_to_python_lambda)
-                        variants = self.public_variants.filter(models.Q(bracket_tag_override=value) | models.Q(bracket_tag_override=None, bracket_tag=value)).distinct()
+                        variants = self.public_variants.filter(bracket_tag=value).distinct()
                         self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
                         for v in result.results:
                             self.variant_assertions(v)

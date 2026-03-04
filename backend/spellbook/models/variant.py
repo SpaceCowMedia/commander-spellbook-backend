@@ -143,9 +143,9 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
             models.When(bracket_tag=BracketTag.ODDBALL, then=models.Value(2)),
             models.When(bracket_tag=BracketTag.CORE, then=models.Value(2)),
             models.When(bracket_tag=BracketTag.EXHIBITION, then=models.Value(1)),
-            default=models.Value(0),
+            default=None,
         ),
-        output_field=models.PositiveSmallIntegerField(help_text='Bracket number based on the tag'),
+        output_field=models.PositiveSmallIntegerField(null=True, help_text='Bracket number based on the tag'),
     )
 
     @classmethod

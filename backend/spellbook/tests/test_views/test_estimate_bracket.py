@@ -1,11 +1,18 @@
 import json
-from itertools import chain
+from itertools import chain, combinations
 from typing import Iterable
 from django.urls import reverse
 from rest_framework import status
 from common.inspection import json_to_python_lambda
 from spellbook.models import Card, Template, Variant, CardInVariant, Feature
 from ..testing import SpellbookTestCaseWithSeeding
+
+
+def powerset(iterable):
+    "Subsequences of the iterable from shortest to longest."
+    # powerset([1,2,3]) → () (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)
+    s = list(iterable)
+    return chain.from_iterable(combinations(s, r) for r in range(len(s) + 1))
 
 
 class EstimateBracketViewTests(SpellbookTestCaseWithSeeding):
@@ -26,7 +33,9 @@ class EstimateBracketViewTests(SpellbookTestCaseWithSeeding):
     ):
         self.assertIn(result.bracket_tag, Variant.BracketTag.values)
         cards_in_db = (Card.objects.get(name=name) for collection in (cards, commanders) for name in collection)
-        if any(c.game_changer or c.extra_turn or c.mass_land_denial for c in cards_in_db):
+        if any(not c.legal_commander for c in cards_in_db):
+            self.assertEqual(result.bracket_tag, Variant.BracketTag.BANNED)
+        elif any(c.game_changer or c.extra_turn or c.mass_land_denial for c in cards_in_db):
             self.assertNotIn(result.bracket_tag, [Variant.BracketTag.EXHIBITION, Variant.BracketTag.CORE])
         for combo in chain(
             result.mass_land_denial_combos,
@@ -62,7 +71,8 @@ class EstimateBracketViewTests(SpellbookTestCaseWithSeeding):
                 self.assertEqual(response.get('Content-Type'), 'application/json')
                 result = json.loads(response.content, object_hook=json_to_python_lambda)
                 self._check_result(result, set([card.name]), set())
-            cards = sorted(Card.objects.values_list('name', flat=True))
+            cards: list[str] = sorted(Card.objects.values_list('name', flat=True))
+            legal_cards: list[str] = sorted(Card.objects.filter(legal_commander=True).values_list('name', flat=True))
             with self.subTest('all cards'):
                 if 'json' in content_type:
                     data = json.dumps({'main': [{'card': card, 'quantity': 2} for card in cards]})
@@ -72,20 +82,33 @@ class EstimateBracketViewTests(SpellbookTestCaseWithSeeding):
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
                 self.assertEqual(response.get('Content-Type'), 'application/json')
                 result = json.loads(response.content, object_hook=json_to_python_lambda)
-                self.assertEqual(result.bracket_tag, Variant.BracketTag.EXHIBITION)
+                self.assertEqual(result.bracket_tag, Variant.BracketTag.BANNED)
+                self.assertGreater(len(result.banned_cards), 0)
                 self._check_result(result, cards, set())
+            for card_set in powerset(legal_cards):
+                with self.subTest('legal cards', cards=card_set):
+                    if 'json' in content_type:
+                        data = json.dumps({'main': [{'card': card, 'quantity': 2} for card in card_set]})
+                    else:
+                        data = '\n'.join(f'2 {card}' for card in card_set)
+                    response = self.client.post(reverse('estimate-bracket'), data, follow=True, content_type=content_type)  # type: ignore
+                    self.assertEqual(response.status_code, status.HTTP_200_OK)
+                    self.assertEqual(response.get('Content-Type'), 'application/json')
+                    result = json.loads(response.content, object_hook=json_to_python_lambda)
+                    self.assertEqual(len(result.banned_cards), 0)
+                    self._check_result(result, card_set, set())
             with self.subTest('template as extra turns'):
                 t = Template.objects.get(pk=self.t2_id)
                 t.name = 'Extra Turn Template'
                 t.save()
                 if 'json' in content_type:
-                    data = json.dumps({'main': [{'card': card, 'quantity': 2} for card in cards]})
+                    data = json.dumps({'main': [{'card': card, 'quantity': 2} for card in legal_cards]})
                 else:
-                    data = '\n'.join(f'2 {card}' for card in cards)
+                    data = '\n'.join(f'2 {card}' for card in legal_cards)
                 response = self.client.post(reverse('estimate-bracket'), data, follow=True, content_type=content_type)  # type: ignore
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
                 self.assertEqual(response.get('Content-Type'), 'application/json')
                 result = json.loads(response.content, object_hook=json_to_python_lambda)
-                self.assertEqual(result.bracket_tag, Variant.BracketTag.POWERFUL)
+                self.assertEqual(result.bracket_tag, Variant.BracketTag.RUTHLESS)
                 self.assertGreaterEqual(len(result.extra_turn_templates), 1)
-                self._check_result(result, cards, set())
+                self._check_result(result, legal_cards, set())

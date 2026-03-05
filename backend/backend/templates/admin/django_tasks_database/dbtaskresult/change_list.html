@@ -8,7 +8,7 @@
         django.jQuery(function($) {
             $('#result_list td.field-progress').each(function() {
                 const progress = $(this).text();
-                if (progress) {
+                if (progress && progress.includes('/')) {
                     const values = progress.split('/');
                     const completed = parseInt(values[0]);
                     const total = parseInt(values[1]);

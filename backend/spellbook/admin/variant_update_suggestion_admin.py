@@ -29,20 +29,22 @@ class VariantUpdateSuggestionAdminForm(SpellbookAdminForm):
 def set_rejected(modeladmin, request, queryset):
     queryset.update(status=VariantUpdateSuggestion.Status.REJECTED, updated=timezone.now())
     ids = queryset.exclude(suggested_by=request.user).values_list('id', flat=True)
-    notify_task.enqueue(
-        event=EventNotification.variant_update_suggestion_rejected,
-        identifiers=[str(id) for id in ids],
-    )
+    if ids:
+        notify_task.enqueue(
+            event=EventNotification.variant_update_suggestion_rejected,
+            identifiers=[str(id) for id in ids],
+        )
 
 
 @admin.action(description='Mark selected suggestions as ACCEPTED')
 def set_accepted(modeladmin, request, queryset):
     queryset.update(status=VariantUpdateSuggestion.Status.ACCEPTED, updated=timezone.now())
     ids = queryset.exclude(suggested_by=request.user).values_list('id', flat=True)
-    notify_task.enqueue(
-        event=EventNotification.variant_update_suggestion_accepted,
-        identifiers=[str(id) for id in ids],
-    )
+    if ids:
+        notify_task.enqueue(
+            event=EventNotification.variant_update_suggestion_accepted,
+            identifiers=[str(id) for id in ids],
+        )
 
 
 @admin.register(VariantUpdateSuggestion)

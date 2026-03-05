@@ -42,10 +42,11 @@ class FeatureProducedInVariantAdminInline(admin.TabularInline):
 def set_rejected(modeladmin, request, queryset):
     queryset.update(status=VariantSuggestion.Status.REJECTED, updated=timezone.now())
     ids = queryset.exclude(suggested_by=request.user).values_list('id', flat=True)
-    notify_task.enqueue(
-        event=EventNotification.variant_suggestion_rejected,
-        identifiers=[str(id) for id in ids],
-    )
+    if ids:
+        notify_task.enqueue(
+            event=EventNotification.variant_suggestion_rejected,
+            identifiers=[str(id) for id in ids],
+        )
 
 
 @admin.register(VariantSuggestion)

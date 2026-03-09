@@ -292,6 +292,8 @@ def update_cards(cards: list[Card], scryfall: Scryfall, counts: dict[int, int], 
                     card.layout_rotation_front = LayoutRotation.COUNTERCLOCKWISE if 'Aftermath' in card_in_db['keywords'] else LayoutRotation.CLOCKWISE
                 case 'flip':
                     card.layout_rotation_front = LayoutRotation.FLIP
+                case _ if card_in_db['type_line'].split(' ', 1)[0] == 'Battle':
+                    card.layout_rotation_front = LayoutRotation.CLOCKWISE
             fields_after = card_fields(card)
             if fields_before != fields_after:
                 updated = True

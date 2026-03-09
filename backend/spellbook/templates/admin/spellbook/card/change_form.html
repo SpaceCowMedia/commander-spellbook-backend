@@ -137,13 +137,12 @@
                                 }
                             }
 
-                            let rotation = null;
                             if (data['layout'] === 'split') {
                                 django.jQuery('#id_layout_rotation_front').val(data.keywords.includes('Aftermath') ? 'counterclockwise' : 'clockwise');
-                                rotation = data.keywords.includes('Aftermath') ? '-90deg' : '90deg';
                             } else if (data['layout'] === 'flip') {
                                 django.jQuery('#id_layout_rotation_front').val('flip');
-                                rotation = '180deg';
+                            } else if (data['type_line'].split(' ', 1)[0] === 'Battle') {
+                                django.jQuery('#id_layout_rotation_front').val('clockwise');
                             } else {
                                 django.jQuery('#id_layout_rotation_front').val('');
                             }

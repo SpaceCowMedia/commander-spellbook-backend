@@ -115,8 +115,8 @@
                             django.jQuery('#id_spoiler').prop('checked', releasedAt > currentDate);
 
                             if (data['image_status'] !== 'missing') {
-                                const frontFaceImages = Object.hasOwn(data, 'card_faces') ? data.card_faces[0].image_uris : data.image_uris;
-                                const backFaceImages = Object.hasOwn(data, 'card_faces') ? data.card_faces[1].image_uris : null;
+                                const frontFaceImages = Object.hasOwn(data, 'card_faces') && data.card_faces[0].image_uris ? data.card_faces[0].image_uris : data.image_uris;
+                                const backFaceImages = Object.hasOwn(data, 'card_faces') && data.card_faces[1].image_uris ? data.card_faces[1].image_uris : null;
                                 django.jQuery('#id_image_uri_front_png').val(frontFaceImages.png || '');
                                 django.jQuery('#id_image_uri_front_large').val(frontFaceImages.large || '');
                                 django.jQuery('#id_image_uri_front_normal').val(frontFaceImages.normal || '');
@@ -135,6 +135,17 @@
                                     django.jQuery('#id_image_uri_back_small').val('');
                                     django.jQuery('#id_image_uri_back_art_crop').val('');
                                 }
+                            }
+
+                            let rotation = null;
+                            if (data['layout'] === 'split') {
+                                django.jQuery('#id_layout_rotation_front').val(data.keywords.includes('Aftermath') ? 'counterclockwise' : 'clockwise');
+                                rotation = data.keywords.includes('Aftermath') ? '-90deg' : '90deg';
+                            } else if (data['layout'] === 'flip') {
+                                django.jQuery('#id_layout_rotation_front').val('flip');
+                                rotation = '180deg';
+                            } else {
+                                django.jQuery('#id_layout_rotation_front').val('');
                             }
 
                             card_info.update_card_oracle_image(

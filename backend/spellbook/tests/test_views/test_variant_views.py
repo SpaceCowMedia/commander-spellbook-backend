@@ -88,6 +88,7 @@ class VariantViewsTests(SpellbookTestCaseWithSeeding):
             self.assertEqual(card.image_uri_front_normal, c.image_uri_front_normal)
             self.assertEqual(card.image_uri_front_small, c.image_uri_front_small)
             self.assertEqual(card.image_uri_front_art_crop, c.image_uri_front_art_crop)
+            self.assertEqual(card.layout_rotation_front, c.layout_rotation_front)
             self.assertEqual(card.image_uri_back_png, c.image_uri_back_png)
             self.assertEqual(card.image_uri_back_large, c.image_uri_back_large)
             self.assertEqual(card.image_uri_back_normal, c.image_uri_back_normal)

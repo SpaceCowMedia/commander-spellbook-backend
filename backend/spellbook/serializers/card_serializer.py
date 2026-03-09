@@ -16,6 +16,7 @@ class CardSerializer(serializers.ModelSerializer):
             'image_uri_front_normal',
             'image_uri_front_small',
             'image_uri_front_art_crop',
+            'layout_rotation_front',
             'image_uri_back_png',
             'image_uri_back_large',
             'image_uri_back_normal',

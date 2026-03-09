@@ -14,6 +14,12 @@ from .ingredient import Ingredient
 from .feature_attribute import WithFeatureAttributes
 
 
+class LayoutRotation(models.TextChoices):
+    CLOCKWISE = 'clockwise', 'Clockwise'
+    COUNTERCLOCKWISE = 'counterclockwise', 'Counterclockwise'
+    FLIP = 'flip', 'Flip'
+
+
 class Card(Playable, PreSaveModelMixin, ScryfallLinkMixin):
     id: int
     oracle_id = models.UUIDField(unique=True, blank=True, null=True, verbose_name='Scryfall Oracle ID of card')
@@ -50,6 +56,7 @@ class Card(Playable, PreSaveModelMixin, ScryfallLinkMixin):
             'image_uri_front_normal',
             'image_uri_front_small',
             'image_uri_front_art_crop',
+            'layout_rotation_front',
             'image_uri_back_png',
             'image_uri_back_large',
             'image_uri_back_normal',
@@ -71,6 +78,7 @@ class Card(Playable, PreSaveModelMixin, ScryfallLinkMixin):
     image_uri_front_normal = models.URLField(blank=True, null=True, verbose_name='image URI of the front of the card in normal format')
     image_uri_front_small = models.URLField(blank=True, null=True, verbose_name='image URI of the front of the card in small format')
     image_uri_front_art_crop = models.URLField(blank=True, null=True, verbose_name='image URI of the card art crop')
+    layout_rotation_front = models.CharField(max_length=20, choices=LayoutRotation.choices, blank=True, null=True, verbose_name='layout rotation of the front of the card')
     image_uri_back_png = models.URLField(blank=True, null=True, verbose_name='image URI of the back of the card in PNG format')
     image_uri_back_large = models.URLField(blank=True, null=True, verbose_name='image URI of the back of the card in large format')
     image_uri_back_normal = models.URLField(blank=True, null=True, verbose_name='image URI of the back of the card in normal format')

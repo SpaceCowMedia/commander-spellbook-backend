@@ -8,7 +8,7 @@ from urllib.request import Request, urlopen
 from urllib.parse import quote_plus, urlencode
 from django.utils import timezone
 from django.db.models import Q
-from spellbook.models import Card, merge_color_identities
+from spellbook.models import Card, merge_color_identities, LayoutRotation
 from django.conf import settings
 
 
@@ -287,6 +287,11 @@ def update_cards(cards: list[Card], scryfall: Scryfall, counts: dict[int, int], 
                 card.image_uri_back_normal = None
                 card.image_uri_back_small = None
                 card.image_uri_back_art_crop = None
+            match card_in_db['layout']:
+                case 'split':
+                    card.layout_rotation_front = LayoutRotation.COUNTERCLOCKWISE if 'Aftermath' in card_in_db['keywords'] else LayoutRotation.CLOCKWISE
+                case 'flip':
+                    card.layout_rotation_front = LayoutRotation.FLIP
             fields_after = card_fields(card)
             if fields_before != fields_after:
                 updated = True

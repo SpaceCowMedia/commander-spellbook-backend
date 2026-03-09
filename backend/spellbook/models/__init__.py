@@ -1,6 +1,6 @@
 from .playable import Playable
 from .feature import Feature
-from .card import Card, FeatureOfCard
+from .card import Card, FeatureOfCard, LayoutRotation
 from .template import Template, TemplateReplacement
 from .recipe import Recipe
 from .ingredient import IngredientInCombination, Ingredient, ZoneLocation

@@ -255,6 +255,7 @@ SPECTACULAR_SETTINGS = {
     'ENUM_NAME_OVERRIDES': {
         'SuggestionStatusEnum': 'spellbook.models.suggestion.Suggestion.Status',
         'ColorEnum': [(c, c) for c in SORTED_COLORS.values()],
+        'LayoutRotationEnum': 'spellbook.models.card.LayoutRotation',
     },
 }
 

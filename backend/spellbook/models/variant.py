@@ -467,11 +467,7 @@ def estimate_bracket(cards: Sequence[Card], templates: Sequence[Template], inclu
             )
             relevant = any(feature.status in (Feature.Status.STANDALONE,) for _, feature in recipe.features)
             borderline_relevant = any(feature.status in (Feature.Status.STANDALONE, Feature.Status.CONTEXTUAL) for _, feature in recipe.features)
-            arguable_cards = int(bool(variant.notable_prerequisites)) + int(not borderline_relevant) + sum(
-                card.quantity
-                for card, _ in chain(recipe.cards, recipe.templates)
-                if ZoneLocation.LIBRARY not in card.zone_locations and ZoneLocation.COMMAND_ZONE in card.zone_locations
-            )
+            arguable_cards = int(bool(variant.notable_prerequisites)) + int(not borderline_relevant)
             definitely_two_card = normal_cards + arguable_cards <= 2
             arguably_two_card = normal_cards <= 2 and arguable_cards > 0
             if variant.mana_value_needed == 0:

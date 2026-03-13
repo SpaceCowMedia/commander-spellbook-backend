@@ -1,3 +1,7 @@
 .ui-tooltip {
     white-space: pre-line;
 }
+
+.ui-progressbar .ui-widget-header {
+    background: lightgreen;
+}

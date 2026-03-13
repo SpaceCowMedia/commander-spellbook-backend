@@ -1,6 +1,6 @@
 services:
   nginx:
-    image: nginx:1.23-alpine
+    image: nginx:1.29-alpine
     ports:
       - ${PORT:-80}:80
     depends_on:

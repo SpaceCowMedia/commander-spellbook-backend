@@ -449,9 +449,8 @@ class BracketEstimateData:
 
 
 @dataclass(frozen=True)
-class BracketEstimate:
+class BracketEstimate(BracketEstimateData):
     bracket_tag: Variant.BracketTag
-    data: BracketEstimateData
 
 
 def estimate_bracket(cards: Sequence[Card], templates: Sequence[Template], included_variants: Sequence[tuple[Variant, Variant.Recipe]]) -> BracketEstimate:
@@ -469,7 +468,7 @@ def estimate_bracket(cards: Sequence[Card], templates: Sequence[Template], inclu
             borderline_relevant = any(feature.status in (Feature.Status.STANDALONE, Feature.Status.CONTEXTUAL) for _, feature in recipe.features)
             arguable_cards = int(bool(variant.notable_prerequisites)) + int(not borderline_relevant)
             definitely_two_card = normal_cards + arguable_cards <= 2
-            arguably_two_card = normal_cards <= 2 and arguable_cards > 0
+            arguably_two_card = normal_cards <= 2 and normal_cards + arguable_cards <= 3
             if variant.mana_value_needed == 0:
                 speed = 5
             elif variant.mana_value_needed <= 4:
@@ -592,5 +591,5 @@ def estimate_bracket(cards: Sequence[Card], templates: Sequence[Template], inclu
 
     return BracketEstimate(
         bracket_tag=bracket,
-        data=data,
+        **data.__dict__,
     )

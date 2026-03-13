@@ -1,6 +1,7 @@
 import logging
 from django.db.models import Q, Count
 from django.tasks import task
+from django_tasks import TaskContext
 from spellbook.models import Card, DEFAULT_BATCH_SIZE
 from spellbook.models.variant import Variant
 from .scryfall import scryfall, update_cards
@@ -9,13 +10,40 @@ from .scryfall import scryfall, update_cards
 logger = logging.getLogger(__name__)
 
 
-@task
-def update_cards_task():
+@task(takes_context=True)
+def update_cards_task(context: TaskContext):
     '''Updates cards using Scryfall/EDHREC bulk data'''
-    logger.info('Fetching Scryfall and EDHREC datasets...')
+    if hasattr(context, 'metadata'):
+        context.metadata['log'] = ''
+        context.save_metadata()
+
+        def log(message: str):
+            logger.info(message)
+            context.metadata['log'] = message
+            context.save_metadata()
+
+        def log_warning(message: str):
+            logger.warning(message)
+            context.metadata['log'] = message
+            context.save_metadata()
+
+        def log_error(message: str):
+            logger.error(message)
+            context.metadata['log'] = message
+            context.save_metadata()
+    else:
+        def log(message: str):
+            logger.info(message)
+
+        def log_warning(message: str):
+            logger.warning(message)
+
+        def log_error(message: str):
+            logger.error(message)
+    log('Fetching Scryfall and EDHREC datasets...')
     scryfall_name_db = scryfall()
-    logger.info('Fetching Scryfall and EDHREC datasets...done')
-    logger.info('Updating cards...')
+    log('Fetching Scryfall and EDHREC datasets...done')
+    log('Updating cards...')
     cards_to_update = list(Card.objects.all())
     cards_count: dict[int, int] = {
         i: c
@@ -31,9 +59,9 @@ def update_cards_task():
         cards_to_update,
         scryfall_name_db,
         cards_count,
-        log=logger.info,
-        log_warning=logger.warning,
-        log_error=logger.error,
+        log=log,
+        log_warning=log_warning,
+        log_error=log_error,
     )
     updated_card_count = len(cards_to_save)
     Card.objects.bulk_update(
@@ -46,8 +74,8 @@ def update_cards_task():
         ] + Card.scryfall_fields() + Card.playable_fields(),
         batch_size=DEFAULT_BATCH_SIZE,
     )
-    logger.info('Updating cards...done')
+    log('Updating cards...done')
     if updated_card_count > 0:
-        logger.info(f'Successfully updated {updated_card_count} cards')
+        log(f'Successfully updated {updated_card_count} cards')
     else:
-        logger.info('No cards to update')
+        log('No cards to update')

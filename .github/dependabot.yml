@@ -19,6 +19,12 @@ updates:
       - bot/discord/
       - bot/telegram/
       - bot/reddit/
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker-compose
+    labels:
+      - dependencies
+    directories:
       - /
     schedule:
       interval: weekly

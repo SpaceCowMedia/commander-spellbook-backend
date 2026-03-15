@@ -1,23 +1,22 @@
-import itertools
+from itertools import chain
 from types import FunctionType
 from djangorestframework_camel_case.util import underscoreize
 from types import SimpleNamespace
 
 
-def listMethods(cls):
-    return set(x for x, y in cls.__dict__.items() if isinstance(y, (FunctionType, classmethod, staticmethod)))
+def list_methods(cls):
+    return set(x for x, y in cls.__dict__.items() if isinstance(y, (FunctionType, classmethod, staticmethod)) and x not in ('__init__', '__annotate_func__'))
 
 
-def listParentMethods(cls):
-    return set(itertools.chain.from_iterable(
-        listMethods(c).union(listParentMethods(c)) for c in cls.__bases__))
+def list_parent_methods(cls):
+    return set(chain.from_iterable(list_methods(c).union(list_parent_methods(c)) for c in cls.__bases__))
 
 
 def list_subclass_methods(cls, is_narrow):
-    methods = listMethods(cls)
+    methods = list_methods(cls)
     if is_narrow:
-        parentMethods = listParentMethods(cls)
-        return set(cls for cls in methods if not (cls in parentMethods))
+        parentMethods = list_parent_methods(cls)
+        return methods.difference(parentMethods)
     else:
         return methods
 

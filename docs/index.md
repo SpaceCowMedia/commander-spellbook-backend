@@ -22,7 +22,8 @@ You need:
   - In the client folder:
     - Generate the OpenAPI doc using the `generate-openapi.sh` script
     - [Optional] Generate the TypeScript/JavaScript client using the `generate-client-typescript.sh` script
-    - Generate the python client using the `generate-client-python.sh` script
+    - Generate the python client using the `generate-client-python.sh` script:
+      - Ensure you have Docker running, as the script uses Docker to generate the client
     - Inside the client/python folder:
         - Install the python client dependencies using `pip install -r requirements.txt`
 - `flake8` for linting the code, which is mandatory for contributing otherwise the CI will fail

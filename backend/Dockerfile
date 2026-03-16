@@ -1,7 +1,7 @@
 ##########
 # PYTHON #
 ##########
-FROM python:3.12-alpine AS python
+FROM python:3.14-alpine AS python
 
 # set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1

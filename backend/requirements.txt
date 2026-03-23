@@ -57,7 +57,7 @@ django-stubs-ext==5.2.9
     # via django-tasks
 django-tasks==0.11.0
     # via -r requirements.in
-djangorestframework==3.16.1
+djangorestframework==3.17.0
     # via
     #   -r requirements.in
     #   djangorestframework-simplejwt

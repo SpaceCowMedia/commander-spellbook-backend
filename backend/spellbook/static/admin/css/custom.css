@@ -36,6 +36,7 @@ div.inline-related {
     vertical-align: top;
 }
 .object-tools form>* {
+    color: var(--object-tools-fg);
     border-radius: inherit;
     background: var(--object-tools-bg);
     border-width: 0px;

@@ -242,14 +242,17 @@ def replace_feature_references(instance: Feature, old_name: str):
             ingredient.exile_card_state = replace_feature_reference(old_name, new_name, ingredient.exile_card_state)
             ingredient.graveyard_card_state = replace_feature_reference(old_name, new_name, ingredient.graveyard_card_state)
             ingredient.library_card_state = replace_feature_reference(old_name, new_name, ingredient.library_card_state)
-        combo_fields = ['easy_prerequisites', 'notable_prerequisites', 'description', 'notes', 'comment']
-        combos = list(Combo.objects.filter(needs=instance).only(*combo_fields).distinct())
+        combo_fields = ['easy_prerequisites', 'notable_prerequisites', 'description', 'notes', 'comment', *Combo.recipe_fields()]
+        combos = set[Combo](Combo.recipes_prefetched.filter(needs=instance).only(*combo_fields).distinct()).union(
+            Combo.recipes_prefetched.filter(produces=instance).only(*combo_fields).distinct(),
+        )
         for combo in combos:
             combo.easy_prerequisites = replace_feature_reference(old_name, new_name, combo.easy_prerequisites)
             combo.notable_prerequisites = replace_feature_reference(old_name, new_name, combo.notable_prerequisites)
             combo.description = replace_feature_reference(old_name, new_name, combo.description)
             combo.notes = replace_feature_reference(old_name, new_name, combo.notes)
             combo.comment = replace_feature_reference(old_name, new_name, combo.comment)
+            combo.update_recipe_from_data()
         Combo.objects.bulk_update(combos, combo_fields, batch_size=DEFAULT_BATCH_SIZE)
         CardInCombo.objects.bulk_update(cards_in_combos, ingredient_fields, batch_size=DEFAULT_BATCH_SIZE)
         TemplateInCombo.objects.bulk_update(templates_in_combos, ingredient_fields, batch_size=DEFAULT_BATCH_SIZE)

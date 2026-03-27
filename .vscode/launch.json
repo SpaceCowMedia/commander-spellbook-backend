@@ -121,6 +121,27 @@
             }
         },
         {
+            "name": "Start Django Shell",
+            "type": "debugpy",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/backend",
+            "program": "manage.py",
+            "args": [
+                "shell"
+            ],
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}${/}common",
+            },
+            "preLaunchTask": "Prelaunch",
+            "django": true,
+            "justMyCode": false,
+            "presentation": {
+                "hidden": false,
+                "group": "Django",
+                "order": 4
+            }
+        },
+        {
             "name": "Test",
             "type": "debugpy",
             "request": "launch",

@@ -408,7 +408,7 @@ jobs:
         run: aws eks --region ${{ secrets.AWS_REGION }} update-kubeconfig --name spellbook-prod-cluster --kubeconfig spellbookkubeconfig.yaml
 
       - name: Install and configure kubectl 🐙
-        uses: azure/setup-kubectl@v4
+        uses: azure/setup-kubectl@v5
 
       - name: Setup Kustomize 🛠
         uses: imranismail/setup-kustomize@v2

@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.request import Request
 from drf_spectacular.utils import extend_schema
 from spellbook.models import Card, Template, Variant, estimate_bracket
-from spellbook.serializers import CardSerializer, TemplateSerializer, VariantSerializer, BracketTagSerializer
+from spellbook.serializers import CardSerializer, VariantSerializer, BracketTagSerializer
 from website.views import PlainTextDeckListParser
 from .utils import DecklistAPIView, find_variants
 
@@ -21,10 +21,8 @@ class EstimateBracketResultSerializer(serializers.Serializer):
     banned_cards = serializers.ListField(child=CardSerializer())
     game_changer_cards = serializers.ListField(child=CardSerializer())
     mass_land_denial_cards = serializers.ListField(child=CardSerializer())
-    mass_land_denial_templates = serializers.ListField(child=TemplateSerializer())
     mass_land_denial_combos = serializers.ListField(child=VariantSerializer())
     extra_turn_cards = serializers.ListField(child=CardSerializer())
-    extra_turn_templates = serializers.ListField(child=TemplateSerializer())
     extra_turns_combos = serializers.ListField(child=VariantSerializer())
     lock_combos = serializers.ListField(child=VariantSerializer())
     control_all_opponents_combos = serializers.ListField(child=VariantSerializer())

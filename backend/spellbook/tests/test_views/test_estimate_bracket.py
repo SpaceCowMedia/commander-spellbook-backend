@@ -110,5 +110,4 @@ class EstimateBracketViewTests(SpellbookTestCaseWithSeeding):
                 self.assertEqual(response.get('Content-Type'), 'application/json')
                 result = json.loads(response.content, object_hook=json_to_python_lambda)
                 self.assertEqual(result.bracket_tag, Variant.BracketTag.RUTHLESS)
-                self.assertGreaterEqual(len(result.extra_turn_templates), 1)
                 self._check_result(result, legal_cards, set())

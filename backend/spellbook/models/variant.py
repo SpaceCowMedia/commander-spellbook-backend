@@ -265,7 +265,7 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
             and (
                 battlefield_mana_value <= 4 or all(name.split(',', 1)[0] not in self.notable_prerequisites for _, card in recipe.cards for name in card.name.split(' // '))
             )
-        self.bracket_tag = estimate_bracket([card for _, card in recipe.cards], [template for _, template in recipe.templates], included_variants=[(self, recipe)]).bracket_tag
+        self.bracket_tag = estimate_bracket({card: c.quantity for c, card in recipe.cards}, {template: t.quantity for t, template in recipe.templates}, included_variants=[(self, recipe)]).bracket_tag
         new_values = {field: getattr(self, field) for field in self.computed_fields()}
         return previous_values != new_values
 
@@ -432,6 +432,14 @@ class ClassifiedCombo:
 
 
 @dataclass(frozen=True)
+class ClassifiedTemplate:
+    template: Template
+    mass_land_denial: bool
+    extra_turn: bool
+    quantity: int
+
+
+@dataclass(frozen=True)
 class BracketEstimateData:
     banned_cards: list[Card]
     game_changer_cards: list[Card]
@@ -444,6 +452,7 @@ class BracketEstimateData:
     control_some_opponents_combos: list[Variant]
     skip_turns_combos: list[Variant]
     two_card_combos: list[ClassifiedCombo]
+    templates: list[ClassifiedTemplate]
 
 
 @dataclass(frozen=True)
@@ -451,7 +460,7 @@ class BracketEstimate(BracketEstimateData):
     bracket_tag: Variant.BracketTag
 
 
-def estimate_bracket(cards: Sequence[Card], templates: Sequence[Template], included_variants: Sequence[tuple[Variant, Variant.Recipe]]) -> BracketEstimate:
+def estimate_bracket(cards: dict[Card, int], templates: dict[Template, int], included_variants: Sequence[tuple[Variant, Variant.Recipe]]) -> BracketEstimate:
 
     def _data() -> BracketEstimateData:
         two_card_combos: list[ClassifiedCombo] = []
@@ -551,14 +560,23 @@ def estimate_bracket(cards: Sequence[Card], templates: Sequence[Template], inclu
             banned_cards=[c for c in cards if not c.legal_commander],
             game_changer_cards=[c for c in cards if c.game_changer],
             mass_land_denial_cards=[c for c in cards if c.mass_land_denial],
-            extra_turn_cards=[c for c in cards if c.extra_turn],
             mass_land_denial_combos=mass_land_denial_combos,
+            extra_turn_cards=[c for c in cards if c.extra_turn],
             extra_turns_combos=extra_turns_combos,
             lock_combos=lock_combos,
-            skip_turns_combos=skip_turns_combos,
-            two_card_combos=two_card_combos,
             control_all_opponents_combos=all_opponents_control_combos,
             control_some_opponents_combos=some_opponents_control_combos,
+            skip_turns_combos=skip_turns_combos,
+            two_card_combos=two_card_combos,
+            templates=[
+                ClassifiedTemplate(
+                    template=template,
+                    mass_land_denial=any(term in template.name.lower() for term in ('mass land destruction', 'mass land denial')),
+                    extra_turn=any(term in template.name.lower() for term in ('extra turn',)),
+                    quantity=quantity,
+                )
+                for template, quantity in templates.items()
+            ],
         )
 
     data = _data()
@@ -567,8 +585,10 @@ def estimate_bracket(cards: Sequence[Card], templates: Sequence[Template], inclu
         bracket = Variant.BracketTag.BANNED
     elif len(data.game_changer_cards) > 3 \
             or len(data.extra_turn_cards) >= 2 \
+            or sum(template.quantity for template in data.templates if template.extra_turn) >= 2 \
             or data.extra_turns_combos \
             or data.mass_land_denial_cards \
+            or any(template.mass_land_denial for template in data.templates) \
             or data.mass_land_denial_combos \
             or data.control_all_opponents_combos \
             or any(v.speed >= 4 and v.relevant and v.definitely_two_card for v in data.two_card_combos):

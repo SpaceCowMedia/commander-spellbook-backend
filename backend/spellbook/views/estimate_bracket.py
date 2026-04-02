@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.request import Request
 from drf_spectacular.utils import extend_schema
 from spellbook.models import Card, Template, Variant, estimate_bracket
-from spellbook.serializers import CardSerializer, VariantSerializer, BracketTagSerializer
+from spellbook.serializers import CardSerializer, TemplateSerializer, VariantSerializer, BracketTagSerializer
 from website.views import PlainTextDeckListParser
 from .utils import DecklistAPIView, find_variants
 
@@ -14,6 +14,13 @@ class ClassifiedVariantSerializer(serializers.Serializer):
     borderline_relevant = serializers.BooleanField()
     definitely_two_card = serializers.BooleanField()
     speed = serializers.IntegerField()
+
+
+class ClassifiedTemplateSerializer(serializers.Serializer):
+    template = TemplateSerializer()
+    mass_land_denial = serializers.BooleanField()
+    extra_turn = serializers.BooleanField()
+    quantity = serializers.IntegerField()
 
 
 class EstimateBracketResultSerializer(serializers.Serializer):
@@ -29,6 +36,7 @@ class EstimateBracketResultSerializer(serializers.Serializer):
     control_some_opponents_combos = serializers.ListField(child=VariantSerializer())
     skip_turns_combos = serializers.ListField(child=VariantSerializer())
     two_card_combos = serializers.ListField(child=ClassifiedVariantSerializer())
+    templates = serializers.ListField(child=ClassifiedTemplateSerializer())
 
 
 class EstimateBracketView(DecklistAPIView):
@@ -40,17 +48,21 @@ class EstimateBracketView(DecklistAPIView):
     def get(self, request: Request) -> Response:
         deck = self.parse(request)
 
-        cards = list(
+        cards = {
+            c: deck.cards[c.pk]
+            for c in
             Card
             .objects
             .filter(pk__in=deck.cards.distinct_elements())
-        )
-        templates = list(
+        }
+        templates = {
+            t: deck.templates[t.pk]
+            for t in
             Template
             .objects
             .filter(pk__in=deck.templates.distinct_elements())
             .exclude(scryfall_query__isnull=False)
-        )
+        }
 
         variant_id_list = find_variants(deck, missing=0)
         variants_query = Variant.recipes_prefetched \

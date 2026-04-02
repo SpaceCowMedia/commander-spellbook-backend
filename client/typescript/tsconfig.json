@@ -1,5 +1,6 @@
 {
     "compilerOptions": {
+        "rootDir": "spellbook-client",
         "module": "NodeNext",
         "esModuleInterop": true,
         "target": "es6",

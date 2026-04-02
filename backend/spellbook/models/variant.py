@@ -578,7 +578,7 @@ def estimate_bracket(cards: dict[Card, int], templates: dict[Template, int], inc
             or any(card.mass_land_denial for card in data.cards) \
             or any(template.mass_land_denial for template in data.templates) \
             or any(combo.mass_land_denial for combo in data.combos) \
-            or any(combo.lock for combo in data.combos) \
+            or any(combo.control_all_opponents for combo in data.combos) \
             or any(v.speed >= 4 and v.relevant and v.definitely_two_card for v in data.combos):
         bracket = Variant.BracketTag.RUTHLESS
     elif any(combo.speed >= 4 and (combo.relevant and combo.arguably_two_card or combo.borderline_relevant and combo.definitely_two_card) for combo in data.combos) \

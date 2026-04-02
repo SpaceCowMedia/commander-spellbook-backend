@@ -423,36 +423,44 @@ def combo_delete(sender, instance: Combo, **kwargs):
 
 
 @dataclass(frozen=True)
-class ClassifiedCombo:
-    combo: Variant
-    relevant: bool
-    borderline_relevant: bool
-    definitely_two_card: bool
-    speed: int
+class ClassifiedCard:
+    card: Card
+    quantity: int
+    banned: bool
+    game_changer: bool
+    mass_land_denial: bool
+    extra_turn: bool
 
 
 @dataclass(frozen=True)
 class ClassifiedTemplate:
     template: Template
+    quantity: int
     mass_land_denial: bool
     extra_turn: bool
-    quantity: int
+
+
+@dataclass(frozen=True)
+class ClassifiedCombo:
+    combo: Variant
+    relevant: bool
+    borderline_relevant: bool
+    arguably_two_card: bool
+    definitely_two_card: bool
+    speed: int
+    mass_land_denial: bool
+    extra_turn: bool
+    lock: bool
+    skip_turns: bool
+    control_all_opponents: bool
+    control_some_opponents: bool
 
 
 @dataclass(frozen=True)
 class BracketEstimateData:
-    banned_cards: list[Card]
-    game_changer_cards: list[Card]
-    mass_land_denial_cards: list[Card]
-    mass_land_denial_combos: list[Variant]
-    extra_turn_cards: list[Card]
-    extra_turns_combos: list[Variant]
-    lock_combos: list[Variant]
-    control_all_opponents_combos: list[Variant]
-    control_some_opponents_combos: list[Variant]
-    skip_turns_combos: list[Variant]
-    two_card_combos: list[ClassifiedCombo]
+    cards: list[ClassifiedCard]
     templates: list[ClassifiedTemplate]
+    combos: list[ClassifiedCombo]
 
 
 @dataclass(frozen=True)
@@ -463,7 +471,7 @@ class BracketEstimate(BracketEstimateData):
 def estimate_bracket(cards: dict[Card, int], templates: dict[Template, int], included_variants: Sequence[tuple[Variant, Variant.Recipe]]) -> BracketEstimate:
 
     def _data() -> BracketEstimateData:
-        two_card_combos: list[ClassifiedCombo] = []
+        combos: list[ClassifiedCombo] = []
 
         for variant, recipe in included_variants:
             sure_cards = sum(
@@ -489,21 +497,11 @@ def estimate_bracket(cards: dict[Card, int], templates: dict[Template, int], inc
             speed_confidence = variant.is_mana_needed_an_accurate_minimum
             if not speed_confidence:
                 speed += 1
-            if definitely_two_card or arguably_two_card:
-                two_card_combos.append(
-                    ClassifiedCombo(
-                        combo=variant,
-                        relevant=relevant,
-                        borderline_relevant=borderline_relevant,
-                        definitely_two_card=definitely_two_card,
-                        speed=speed,
-                    )
-                )
-
-        extra_turns_combos = [
-            v
-            for v, recipe in included_variants
-            if any(
+            mass_land_denial = any(
+                re.search(r'mass land (?:destruction|denial|removal)', feature.name, re.IGNORECASE)
+                for _, feature in recipe.features
+            )
+            extra_turn = any(
                 re.search(
                     r'(?:near-)?infinite (?:extra )?turns?',
                     feature.name,
@@ -515,59 +513,48 @@ def estimate_bracket(cards: dict[Card, int], templates: dict[Template, int], inc
                 )
                 for _, feature in recipe.features
             )
-        ]
-        mass_land_denial_combos = [
-            v
-            for v, recipe in included_variants
-            if any(
-                re.search(r'mass land (?:destruction|denial|removal)', feature.name, re.IGNORECASE)
-                for _, feature in recipe.features
-            )
-        ]
-        lock_combos = [
-            v
-            for v, recipe in included_variants
-            if any(
+            lock = any(
                 'lock' in feature.name.lower()
                 for _, feature in recipe.features
             )
-        ]
-        skip_turns_combos = [
-            v
-            for v, recipe in included_variants
-            if any(
+            skip_turns = any(
                 re.search(r'(?:infinite(?:ly)? )?skip (?:(?:all )?(?:your |their )|infinite )?(?:future )?turns?', feature.name, re.IGNORECASE)
                 for _, feature in recipe.features
             )
-        ]
-        all_opponents_control_combos = [
-            v
-            for v, recipe in included_variants
-            if any(
+            control_all_opponents = any(
                 re.search(r'you control (?:your|(up to )?three) opponents', feature.name, re.IGNORECASE)
                 for _, feature in recipe.features
             )
-        ]
-        some_opponents_control_combos = [
-            v
-            for v, recipe in included_variants
-            if any(
+            control_some_opponents = any(
                 re.search(r'you control (?:one|an|(?:up to )?two) opponents', feature.name, re.IGNORECASE)
                 for _, feature in recipe.features
             )
-        ]
+            combos.append(ClassifiedCombo(
+                combo=variant,
+                relevant=relevant,
+                borderline_relevant=borderline_relevant,
+                arguably_two_card=arguably_two_card,
+                definitely_two_card=definitely_two_card,
+                speed=speed,
+                mass_land_denial=mass_land_denial,
+                extra_turn=extra_turn,
+                lock=lock,
+                skip_turns=skip_turns,
+                control_all_opponents=control_all_opponents,
+                control_some_opponents=control_some_opponents,
+            ))
         return BracketEstimateData(
-            banned_cards=[c for c in cards if not c.legal_commander],
-            game_changer_cards=[c for c in cards if c.game_changer],
-            mass_land_denial_cards=[c for c in cards if c.mass_land_denial],
-            mass_land_denial_combos=mass_land_denial_combos,
-            extra_turn_cards=[c for c in cards if c.extra_turn],
-            extra_turns_combos=extra_turns_combos,
-            lock_combos=lock_combos,
-            control_all_opponents_combos=all_opponents_control_combos,
-            control_some_opponents_combos=some_opponents_control_combos,
-            skip_turns_combos=skip_turns_combos,
-            two_card_combos=two_card_combos,
+            cards=[
+                ClassifiedCard(
+                    card=card,
+                    quantity=quantity,
+                    banned=not card.legal_commander,
+                    game_changer=card.game_changer,
+                    mass_land_denial=card.mass_land_denial,
+                    extra_turn=card.extra_turn,
+                )
+                for card, quantity in cards.items()
+            ],
             templates=[
                 ClassifiedTemplate(
                     template=template,
@@ -577,29 +564,35 @@ def estimate_bracket(cards: dict[Card, int], templates: dict[Template, int], inc
                 )
                 for template, quantity in templates.items()
             ],
+            combos=combos,
         )
 
     data = _data()
 
-    if data.banned_cards:
+    if any(card.banned for card in data.cards):
         bracket = Variant.BracketTag.BANNED
-    elif len(data.game_changer_cards) > 3 \
-            or len(data.extra_turn_cards) >= 2 \
+    elif sum(card.quantity for card in data.cards if card.game_changer) > 3 \
+            or sum(card.quantity for card in data.cards if card.extra_turn) >= 2 \
             or sum(template.quantity for template in data.templates if template.extra_turn) >= 2 \
-            or data.extra_turns_combos \
-            or data.mass_land_denial_cards \
+            or any(combo.extra_turn for combo in data.combos) \
+            or any(card.mass_land_denial for card in data.cards) \
             or any(template.mass_land_denial for template in data.templates) \
-            or data.mass_land_denial_combos \
-            or data.control_all_opponents_combos \
-            or any(v.speed >= 4 and v.relevant and v.definitely_two_card for v in data.two_card_combos):
+            or any(combo.mass_land_denial for combo in data.combos) \
+            or any(combo.lock for combo in data.combos) \
+            or any(v.speed >= 4 and v.relevant and v.definitely_two_card for v in data.combos):
         bracket = Variant.BracketTag.RUTHLESS
-    elif any(v.speed >= 4 and (v.relevant or v.borderline_relevant and v.definitely_two_card) for v in data.two_card_combos) or data.lock_combos or data.skip_turns_combos or data.control_some_opponents_combos:
+    elif any(combo.speed >= 4 and (combo.relevant and combo.arguably_two_card or combo.borderline_relevant and combo.definitely_two_card) for combo in data.combos) \
+            or any(combo.lock for combo in data.combos) \
+            or any(combo.skip_turns for combo in data.combos) \
+            or any(combo.control_some_opponents for combo in data.combos):
         bracket = Variant.BracketTag.SPICY
-    elif any(v.speed >= 3 and v.relevant and v.definitely_two_card for v in data.two_card_combos) or data.game_changer_cards:
+    elif any(combo.speed >= 3 and combo.relevant and combo.definitely_two_card for combo in data.combos) \
+            or any(card.game_changer for card in data.cards):
         bracket = Variant.BracketTag.POWERFUL
-    elif any(v.speed >= 3 and v.borderline_relevant for v in data.two_card_combos):
+    elif any(combo.speed >= 3 and combo.borderline_relevant and combo.arguably_two_card for combo in data.combos):
         bracket = Variant.BracketTag.ODDBALL
-    elif data.extra_turn_cards or any(v.speed >= 2 and v.relevant and v.definitely_two_card for v in data.two_card_combos):
+    elif any(card.extra_turn for card in data.cards) \
+            or any(combo.speed >= 2 and combo.relevant and combo.definitely_two_card for combo in data.combos):
         bracket = Variant.BracketTag.CORE
     else:
         bracket = Variant.BracketTag.EXHIBITION

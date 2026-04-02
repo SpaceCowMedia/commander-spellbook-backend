@@ -37,16 +37,8 @@ class EstimateBracketViewTests(SpellbookTestCaseWithSeeding):
             self.assertEqual(result.bracket_tag, Variant.BracketTag.BANNED)
         elif any(c.game_changer or c.extra_turn or c.mass_land_denial for c in cards_in_db):
             self.assertNotIn(result.bracket_tag, [Variant.BracketTag.EXHIBITION, Variant.BracketTag.CORE])
-        for combo in chain(
-            result.mass_land_denial_combos,
-            result.extra_turns_combos,
-            result.lock_combos,
-            result.skip_turns_combos,
-            result.control_all_opponents_combos,
-            result.control_some_opponents_combos,
-            result.skip_turns_combos,
-            (c.combo for c in result.two_card_combos),
-        ):
+        for classified_combo in result.combos:
+            combo = classified_combo.combo
             for card in combo.uses:
                 name = card.card.name
                 self.assertIn(name, cards or commanders)
@@ -83,7 +75,7 @@ class EstimateBracketViewTests(SpellbookTestCaseWithSeeding):
                 self.assertEqual(response.get('Content-Type'), 'application/json')
                 result = json.loads(response.content, object_hook=json_to_python_lambda)
                 self.assertEqual(result.bracket_tag, Variant.BracketTag.BANNED)
-                self.assertGreater(len(result.banned_cards), 0)
+                self.assertTrue(any(c.banned for c in result.cards))
                 self._check_result(result, cards, set())
             for card_set in powerset(legal_cards):
                 with self.subTest('legal cards', cards=card_set):
@@ -95,7 +87,7 @@ class EstimateBracketViewTests(SpellbookTestCaseWithSeeding):
                     self.assertEqual(response.status_code, status.HTTP_200_OK)
                     self.assertEqual(response.get('Content-Type'), 'application/json')
                     result = json.loads(response.content, object_hook=json_to_python_lambda)
-                    self.assertEqual(len(result.banned_cards), 0)
+                    self.assertFalse(any(c.banned for c in result.cards))
                     self._check_result(result, card_set, set())
             with self.subTest('template as extra turns'):
                 t = Template.objects.get(pk=self.t2_id)

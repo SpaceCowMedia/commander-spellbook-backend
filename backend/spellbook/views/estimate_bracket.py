@@ -8,35 +8,42 @@ from website.views import PlainTextDeckListParser
 from .utils import DecklistAPIView, find_variants
 
 
-class ClassifiedVariantSerializer(serializers.Serializer):
-    combo = VariantSerializer()
-    relevant = serializers.BooleanField()
-    borderline_relevant = serializers.BooleanField()
-    definitely_two_card = serializers.BooleanField()
-    speed = serializers.IntegerField()
+class ClassifiedCardSerializer(serializers.Serializer):
+    card = CardSerializer()
+    quantity = serializers.IntegerField()
+    banned = serializers.BooleanField()
+    game_changer = serializers.BooleanField()
+    mass_land_denial = serializers.BooleanField()
+    extra_turn = serializers.BooleanField()
 
 
 class ClassifiedTemplateSerializer(serializers.Serializer):
     template = TemplateSerializer()
+    quantity = serializers.IntegerField()
     mass_land_denial = serializers.BooleanField()
     extra_turn = serializers.BooleanField()
-    quantity = serializers.IntegerField()
+
+
+class ClassifiedVariantSerializer(serializers.Serializer):
+    combo = VariantSerializer()
+    relevant = serializers.BooleanField()
+    borderline_relevant = serializers.BooleanField()
+    arguably_two_card = serializers.BooleanField()
+    definitely_two_card = serializers.BooleanField()
+    speed = serializers.IntegerField()
+    mass_land_denial = serializers.BooleanField()
+    extra_turn = serializers.BooleanField()
+    lock = serializers.BooleanField()
+    skip_turns = serializers.BooleanField()
+    control_all_opponents = serializers.BooleanField()
+    control_some_opponents = serializers.BooleanField()
 
 
 class EstimateBracketResultSerializer(serializers.Serializer):
     bracket_tag = BracketTagSerializer()
-    banned_cards = serializers.ListField(child=CardSerializer())
-    game_changer_cards = serializers.ListField(child=CardSerializer())
-    mass_land_denial_cards = serializers.ListField(child=CardSerializer())
-    mass_land_denial_combos = serializers.ListField(child=VariantSerializer())
-    extra_turn_cards = serializers.ListField(child=CardSerializer())
-    extra_turns_combos = serializers.ListField(child=VariantSerializer())
-    lock_combos = serializers.ListField(child=VariantSerializer())
-    control_all_opponents_combos = serializers.ListField(child=VariantSerializer())
-    control_some_opponents_combos = serializers.ListField(child=VariantSerializer())
-    skip_turns_combos = serializers.ListField(child=VariantSerializer())
-    two_card_combos = serializers.ListField(child=ClassifiedVariantSerializer())
+    cards = serializers.ListField(child=ClassifiedCardSerializer())
     templates = serializers.ListField(child=ClassifiedTemplateSerializer())
+    combos = serializers.ListField(child=ClassifiedVariantSerializer())
 
 
 class EstimateBracketView(DecklistAPIView):

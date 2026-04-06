@@ -14,9 +14,9 @@ attrs==25.3.0
     # via
     #   jsonschema
     #   referencing
-boto3==1.42.78
+boto3==1.42.83
     # via -r requirements.in
-botocore==1.42.78
+botocore==1.42.83
     # via
     #   boto3
     #   s3transfer
@@ -129,8 +129,6 @@ typing-extensions==4.15.0
     # via
     #   django-stubs-ext
     #   django-tasks
-tzdata==2025.3
-    # via django
 uritemplate==4.2.0
     # via drf-spectacular
 urllib3==2.6.3

@@ -68,7 +68,7 @@ djangorestframework-simplejwt==5.5.1
     # via -r requirements.in
 drf-spectacular==0.29.0
     # via -r requirements.in
-drf-spectacular-sidecar==2026.3.1
+drf-spectacular-sidecar==2026.4.1
     # via -r requirements.in
 idna==3.7
     # via requests
@@ -129,8 +129,6 @@ typing-extensions==4.15.0
     # via
     #   django-stubs-ext
     #   django-tasks
-tzdata==2025.3
-    # via django
 uritemplate==4.2.0
     # via drf-spectacular
 urllib3==2.6.3

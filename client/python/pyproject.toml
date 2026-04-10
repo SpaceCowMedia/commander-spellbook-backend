@@ -21,3 +21,6 @@ path = "spellbook_client/__init__.py"
 
 [tool.hatch.metadata.hooks.requirements_txt]
 files = ["requirements.in"]
+
+[tool.uv]
+exclude-newer = "24 hours"

@@ -12,6 +12,7 @@ updates:
     schedule:
       interval: weekly
     cooldown:
+      # Supply chain attack defense - don't use packages published within 1 day
       default-days: 1
   - package-ecosystem: docker
     labels:
@@ -24,6 +25,7 @@ updates:
     schedule:
       interval: weekly
     cooldown:
+      # Supply chain attack defense - don't use packages published within 1 day
       default-days: 1
   - package-ecosystem: docker-compose
     labels:
@@ -33,6 +35,7 @@ updates:
     schedule:
       interval: weekly
     cooldown:
+      # Supply chain attack defense - don't use packages published within 1 day
       default-days: 1
   - package-ecosystem: github-actions
     labels:
@@ -42,6 +45,7 @@ updates:
     schedule:
       interval: weekly
     cooldown:
+      # Supply chain attack defense - don't use packages published within 1 day
       default-days: 1
   - package-ecosystem: npm
     labels:
@@ -50,5 +54,6 @@ updates:
     schedule:
       interval: weekly
     cooldown:
+      # Supply chain attack defense - don't use packages published within 1 day
       default-days: 1
       

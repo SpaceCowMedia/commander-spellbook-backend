@@ -23,4 +23,5 @@ path = "spellbook_client/__init__.py"
 files = ["requirements.in"]
 
 [tool.uv]
+# Supply chain attack defense - don't use packages published within 1 day
 exclude-newer = "24 hours"

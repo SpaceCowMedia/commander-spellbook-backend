@@ -11,6 +11,8 @@ updates:
       - bot/reddit/
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 1
   - package-ecosystem: docker
     labels:
       - dependencies
@@ -21,6 +23,8 @@ updates:
       - bot/reddit/
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 1
   - package-ecosystem: docker-compose
     labels:
       - dependencies
@@ -28,6 +32,8 @@ updates:
       - /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 1
   - package-ecosystem: github-actions
     labels:
       - CI/CD
@@ -35,9 +41,14 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 1
   - package-ecosystem: npm
     labels:
       - dependencies
     directory: /client/typescript/
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 1
+      

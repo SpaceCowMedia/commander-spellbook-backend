@@ -90,7 +90,7 @@ oauthlib==3.3.1
     #   social-auth-core
 pycparser==2.21
     # via cffi
-pyjwt[crypto]==2.10.1
+pyjwt[crypto]==2.12.0
     # via
     #   djangorestframework-simplejwt
     #   social-auth-core

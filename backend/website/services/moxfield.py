@@ -1,3 +1,4 @@
+from itertools import chain
 import re
 from urllib.parse import urlparse
 from .json_api import get
@@ -24,7 +25,7 @@ def moxfield(url: str) -> Deck | None:
     try:
         main = [
             CardInDeck(card=card, quantity=int(item['quantity']))
-            for card, item in result['mainboard'].items()
+            for card, item in chain(result['mainboard'].items(), result['companions'].items())
         ]
         commanders = [
             CardInDeck(card=card, quantity=int(item['quantity']))

@@ -161,6 +161,8 @@ metadata:
     alb.ingress.kubernetes.io/target-type: ip
     alb.ingress.kubernetes.io/tags: project=commanderspellbook,environment=prod
     alb.ingress.kubernetes.io/target-group-attributes: deregistration_delay.timeout_seconds=60,load_balancing.algorithm.type=least_outstanding_requests
+    # Defined in scm-infra/templates/commander-spellbook.yaml
+    alb.ingress.kubernetes.io/wafv2-acl-arn: arn:aws:wafv2:us-east-2:083767677168:regional/webacl/spellbook-prod/e4b7a54e-82ee-4b77-9fa4-518cf8cbd859
     ## SSL Settings
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}, {"HTTP":80}]'
     alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-2:083767677168:certificate/e6f5834f-bd9a-4333-962a-8fe0857e84ea

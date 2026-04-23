@@ -1,0 +1,79 @@
+#!/bin/sh
+
+set -e
+
+if [[ $# != 1 && $# != 2 ]] ; then
+    >&2 echo "Usage: git release <version-to-increment> [<remote>]"
+    exit 1
+fi
+
+if [[ $# == 2 ]] ; then
+    REMOTE=$2
+else
+    REMOTE=origin
+fi
+
+echo "Pulling changes"
+git pull "$REMOTE"
+
+echo "Updating tags from remote $REMOTE"
+git fetch "$REMOTE" --tags --force
+
+UNCOMMITTED_CHANGES=`git status -s | wc -l`
+if [[ $UNCOMMITTED_CHANGES != 0 ]] ; then
+    read -p "There are uncommitted changes. Do you wish to continue anyway? (y/n) " ANSWER
+    if [[ $ANSWER != "y" ]] ; then
+        exit 1
+    fi
+fi
+
+set +e
+CURRENT_VERSION=`git describe --abbrev=0 --match 'v[0-9]*.[0-9]*.[0-9]*' 2> /dev/null`
+if [[ $? != 0 ]] ; then
+    CURRENT_VERSION="v0.1.0"
+fi
+set -e
+
+SEMVER_REGEX='^v([1-9][0-9]*|0)\.([1-9][0-9]*|0)\.([1-9][0-9]*|0)$'
+if [[ ! "$CURRENT_VERSION" =~ $SEMVER_REGEX ]] ; then
+    >&2 echo "The current version ($CURRENT_VERSION) is not semver compatible"
+    exit 1
+fi
+
+MAJOR=${BASH_REMATCH[1]}
+MINOR=${BASH_REMATCH[2]}
+PATCH=${BASH_REMATCH[3]}
+
+MAJOR_NAME="major"
+MINOR_NAME="minor"
+PATCH_NAME="patch"
+
+if [[ $1 == "$MAJOR_NAME" ]] ; then
+    MAJOR=$((MAJOR + 1))
+    MINOR=0
+    PATCH=0
+elif [[ $1 == "$MINOR_NAME" ]] ; then
+    MINOR=$((MINOR + 1))
+    PATCH=0
+elif [[ $1 == "$PATCH_NAME" ]] ; then
+    PATCH=$((PATCH + 1))
+else
+    >&2 echo "Invalid version value: supported values are '$MAJOR_NAME' '$MINOR_NAME' '$PATCH_NAME'"
+    exit
+fi
+
+NEW_VERSION="v$MAJOR.$MINOR.$PATCH"
+read -p "New version will be '$NEW_VERSION'. Are you sure? (y/n) " ANSWER
+
+if [[ $ANSWER != "y" ]] ; then
+    exit 1
+fi
+
+echo "Pushing any local commits"
+git push "$REMOTE"
+
+echo "Tagging current commit with version $NEW_VERSION"
+git tag -a "$NEW_VERSION" -m "$NEW_VERSION"
+
+echo "Pushing tag $NEW_VERSION to $REMOTE"
+git push "$REMOTE" "$NEW_VERSION"

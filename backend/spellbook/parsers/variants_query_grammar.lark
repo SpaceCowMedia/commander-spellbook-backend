@@ -94,7 +94,7 @@ RPAREN: ")"
 
 LONG_LITERAL.10: /"(?:[^"\\]|\\\")+"/
 
-SHORT_LITERAL.-1: /[a-zA-Z0-9\u00C0-\u00FF_\-',+!\.]+/
+SHORT_LITERAL.-1: /[a-zA-Z0-9\u00C0-\u00FF_\-',+!\.\?]+/
 
 MATCHES_OPERATOR: ":"
 

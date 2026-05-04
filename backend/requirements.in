@@ -1,5 +1,5 @@
 anytree==2.13.0
-boto3==1.42.96
+boto3==1.43.2
 Django==6.0.4
 django-filter==25.2
 django-cors-headers==4.9.0

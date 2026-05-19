@@ -1,10 +1,10 @@
 {
     "compilerOptions": {
         "rootDir": "spellbook-client",
-        "module": "NodeNext",
+        "module": "nodenext",
         "esModuleInterop": true,
         "target": "es6",
-        "moduleResolution": "NodeNext",
+        "moduleResolution": "nodenext",
         "outDir": "dist",
         "declaration": true,
         "strict": true,

@@ -6,4 +6,4 @@ MSYS_NO_PATHCONV=1 docker run --rm --pull=always \
   -i /local/openapi.yaml \
   -g typescript-fetch \
   -o /local/typescript/spellbook-client \
-  --additional-properties=fileNaming=camelCase,stringEnums=true
+  --additional-properties=stringEnums=true,importFileExtension=.js

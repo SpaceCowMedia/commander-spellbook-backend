@@ -1,5 +1,6 @@
 {
     "name": "@space-cow-media/spellbook-client",
+    "type": "module",
     "repository": {
         "type": "git",
         "url": "git+https://github.com/SpaceCowMedia/commander-spellbook-backend.git"

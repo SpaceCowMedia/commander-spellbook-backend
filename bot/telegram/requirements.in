@@ -1,4 +1,4 @@
-python-telegram-bot[http2]==22.7
+python-telegram-bot[http2]==22.8
 # client
 urllib3==2.7.0
 python-dateutil==2.9.0.post0

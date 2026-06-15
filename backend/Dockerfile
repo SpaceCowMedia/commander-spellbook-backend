@@ -16,7 +16,7 @@ FROM python AS builder
 WORKDIR /usr/src/app
 
 # install dependencies
-RUN apk --update add postgresql-dev libffi-dev --no-cache
+RUN apk --update add build-base postgresql-dev libffi-dev --no-cache
 
 # install dependencies
 COPY backend/requirements.txt .

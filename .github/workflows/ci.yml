@@ -89,7 +89,7 @@ jobs:
     steps:
 
       - name: Checkout 🛎️
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Python 🐍
         uses: actions/setup-python@v6
@@ -133,7 +133,7 @@ jobs:
     steps:
 
       - name: Checkout 🛎️
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Python 🐍
         uses: actions/setup-python@v6
@@ -174,7 +174,7 @@ jobs:
     steps:
 
       - name: Checkout 🛎️
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Docker Buildx 🐳
         uses: docker/setup-buildx-action@v4
@@ -506,7 +506,7 @@ jobs:
     steps:
 
       - name: Checkout 🛎️
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Python 🐍
         uses: actions/setup-python@v6
@@ -544,7 +544,7 @@ jobs:
     steps:
 
       - name: Checkout 🛎️
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Python 🐍
         uses: actions/setup-python@v6
@@ -594,7 +594,7 @@ jobs:
     steps:
 
       - name: Checkout 🛎️
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Chmod scripts 👑
         run: chmod +x *.sh
@@ -627,7 +627,7 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Checkout 🛎️
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Download client artifact ⬇
         uses: actions/download-artifact@v8
@@ -664,7 +664,7 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Checkout 🛎️
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Download client artifact ⬇
         uses: actions/download-artifact@v8
@@ -701,7 +701,7 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Checkout 🛎️
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Download client artifact ⬇
         uses: actions/download-artifact@v8

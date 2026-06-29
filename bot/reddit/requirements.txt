@@ -21,7 +21,7 @@ aiosignal==1.4.0
     # via aiohttp
 annotated-types==0.7.0
     # via pydantic
-asyncpraw==8.0.1
+asyncpraw==8.0.2
     # via -r requirements.in
 asyncprawcore==4.0.0
     # via asyncpraw

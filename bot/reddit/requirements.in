@@ -1,4 +1,4 @@
-asyncpraw==8.0.1
+asyncpraw==8.0.2
 # client
 urllib3==2.7.0
 python-dateutil==2.9.0.post0

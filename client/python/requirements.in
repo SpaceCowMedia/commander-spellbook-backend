@@ -3,4 +3,4 @@ python-dateutil==2.9.0.post0
 aiohttp==3.13.5
 aiohttp-retry==2.9.1
 pydantic==2.13.4
-lazy-imports==1.1.0
+lazy-imports==1.2.0

@@ -6,7 +6,7 @@
 #
 aiohappyeyeballs==2.6.1
     # via aiohttp
-aiohttp==3.13.5
+aiohttp==3.14.1
     # via
     #   -r requirements.in
     #   aiohttp-retry
@@ -46,13 +46,14 @@ six==1.16.0
     # via python-dateutil
 typing-extensions==4.15.0
     # via
+    #   aiohttp
     #   aiosignal
     #   pydantic
     #   pydantic-core
     #   typing-inspection
 typing-inspection==0.4.2
     # via pydantic
-urllib3==2.6.3
+urllib3==2.7.0
     # via -r requirements.in
 yarl==1.17.2
     # via aiohttp

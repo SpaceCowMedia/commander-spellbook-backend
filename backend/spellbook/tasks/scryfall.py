@@ -59,7 +59,7 @@ def scryfall(bulk_collection: str | None = None) -> Scryfall:
                         face['released_at'] = released_at
                         name = standardize_name(face['name'])
                         other_reprint = card_db.get(name, None)
-                        if other_reprint is None or released_at < other_reprint['released_at']:
+                        if other_reprint is None or released_at < other_reprint['released_at'] and len(card_and_faces) == 1:
                             card_db[name] = card
 
     # EDHREC card database fetching

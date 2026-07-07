@@ -12,6 +12,7 @@ class VariantUpdateSuggestion(Suggestion):
         INCORRECT_INFO = 'II'
         WRONG_CARD = 'WC'
         VARIANT_GROUPING = 'VG'
+        BRACKET_CLASSIFICATION = 'BC'
         OTHER = 'O'
     kind = models.CharField(choices=Kind.choices, help_text='Type of suggestion', max_length=2)
     issue = models.TextField(blank=False, help_text='Description of the problem', validators=TEXT_VALIDATORS)

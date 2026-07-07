@@ -1,3 +1,5 @@
+from unittest import TestCase
+
 from spellbook.tests.testing import SpellbookTestCaseWithSeeding
 from common.inspection import count_methods
 from spellbook.models import Combo, ZoneLocation
@@ -68,3 +70,7 @@ class ComboTests(SpellbookTestCaseWithSeeding):
 
     def test_method_count(self):
         self.assertEqual(count_methods(Combo), 6)
+
+    def test_special_characters_in_description(self):
+        c = Combo.objects.create(description='Ratonhnhaké:ton', is_mana_needed_an_accurate_minimum=True)
+        c.full_clean()

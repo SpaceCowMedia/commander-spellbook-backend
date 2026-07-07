@@ -20,6 +20,8 @@
     "python.analysis.exclude": [
         "backend/*/migrations",
         "client/python",
+        "docs/.venv-manim",
+        "docs/.manim-venv",
         "**/venv",
         "**/node_modules",
         "**/__pycache__",

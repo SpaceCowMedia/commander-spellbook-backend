@@ -1,0 +1,11 @@
+# Manim render output
+media/
+
+# Virtual environment
+.venv-manim/
+__pycache__/
+*.pyc
+
+# Downloaded card assets
+animation_assets/raw/
+animation_assets/built/

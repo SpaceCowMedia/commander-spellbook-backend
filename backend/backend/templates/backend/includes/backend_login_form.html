@@ -1,0 +1,5 @@
+<form class="backend-login" method="post" action="{% url 'social:begin' backend %}">
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ next_url }}">
+    <button{% if button_class %} class="{{ button_class }}"{% endif %} type="submit">{{ backend|title }}{{ label_suffix }}</button>
+</form>

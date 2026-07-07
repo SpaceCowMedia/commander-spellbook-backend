@@ -4,31 +4,49 @@
     {{ block.super }}
     <style>
         hr {
-            margin: 20px;
+            margin: 12px 20px;
         }
-        a.button {
-            margin: 40px 0;
+        form.backend-login {
+            flex: 1 1 10rem;
+            max-width: 12rem;
+        }
+        button.button {
             padding: 10px;
             vertical-align: middle;
             font-family: var(--font-family-primary);
             font-weight: normal;
             font-size: 0.8125rem;
+            width: 100%;
         }
         #footer.buttons {
-            margin: 0 0;
             text-align: center;
-            min-height: 80px;
+            min-height: auto;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: stretch;
+            gap: 8px;
+            padding: 0 20px 12px;
+            width: min(100%, 36rem);
+            box-sizing: border-box;
+            margin-inline: auto;
+        }
+        #footer.buttons hr {
+            flex: 0 0 100%;
         }
     </style>
 {% endblock %}
 
 {% block footer %}
-    {% if 'discord' in backends.backends %}
     <div id="footer" class="buttons">
         <hr>
-        <a class="button" href="{% url 'social:begin' 'discord' %}?next={{ request.path }}">Discord</a>
+        {% if backends.backends %}
+            {% for backend in backends.backends %}
+                {% include 'backend/includes/backend_login_form.html' with backend=backend next_url=request.path button_class='button' label_suffix='' %}
+            {% endfor %}
+        {% endif %}
     </div>
-    {% else %}
+    {% if not backends.backends %}
         {{ block.super }}
     {% endif %}
 {% endblock %}

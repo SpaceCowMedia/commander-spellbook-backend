@@ -8,7 +8,10 @@ class LegalitiesSerializer(serializers.ModelSerializer):
     pauper_commander = serializers.BooleanField(source='legal_pauper_commander')
     oathbreaker = serializers.BooleanField(source='legal_oathbreaker')
     predh = serializers.BooleanField(source='legal_predh')
+    standard_brawl = serializers.BooleanField(source='legal_standard_brawl')
     brawl = serializers.BooleanField(source='legal_brawl')
+    competitive_brawl = serializers.BooleanField(source='legal_competitive_brawl')
+    alchemy = serializers.BooleanField(source='legal_alchemy')
     vintage = serializers.BooleanField(source='legal_vintage')
     legacy = serializers.BooleanField(source='legal_legacy')
     premodern = serializers.BooleanField(source='legal_premodern')
@@ -26,7 +29,10 @@ class LegalitiesSerializer(serializers.ModelSerializer):
             'pauper_commander',
             'oathbreaker',
             'predh',
+            'standard_brawl',
             'brawl',
+            'competitive_brawl',
+            'alchemy',
             'vintage',
             'legacy',
             'premodern',

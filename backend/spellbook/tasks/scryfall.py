@@ -220,7 +220,10 @@ def update_cards(cards: list[Card], scryfall: Scryfall, counts: dict[int, int], 
             card.legal_pauper_commander = card_legalities['paupercommander_c'] == 'legal' or card.legal_pauper_commander_main
             card.legal_oathbreaker = card_legalities['oathbreaker'] == 'legal'
             card.legal_predh = card_legalities['predh'] == 'legal'
+            card.legal_standard_brawl = card_legalities['standardbrawl'] == 'legal'
             card.legal_brawl = card_legalities['brawl'] == 'legal'
+            card.legal_competitive_brawl = card_legalities['competitivebrawl'] == 'legal'
+            card.legal_alchemy = card_legalities['alchemy'] == 'legal'
             card.legal_vintage = card_legalities['vintage'] in ('legal', 'restricted')
             card.legal_legacy = card_legalities['legacy'] == 'legal'
             card.legal_premodern = card_legalities['premodern'] == 'legal'
@@ -230,29 +233,37 @@ def update_cards(cards: list[Card], scryfall: Scryfall, counts: dict[int, int], 
             card.legal_pauper = card_legalities['pauper'] == 'legal'
             # Adjust legalities for spoiled cards
             if card.spoiler:
-                future_standard = card_legalities['future'] == 'legal'
-                future_commander = card_in_db['border_color'] != 'silver' and card_in_db.get('security_stamp', None) != 'acorn'
-                future_pauper = future_commander and card_in_db['rarity'] == 'common'
-                future_pauper_commander = future_commander and (
+                future_paper = 'paper' in card_in_db['games']
+                future_arena = 'arena' in card_in_db['games']
+                future_standard = card_legalities['future'] == 'legal' and future_paper
+                future_alchemy = card_legalities['future'] == 'legal' and future_arena
+                future_vintage = card_in_db['border_color'] != 'silver' and card_in_db.get('security_stamp', None) != 'acorn' and future_paper
+                future_pauper = future_vintage and card_in_db['rarity'] == 'common'
+                future_pauper_commander = future_vintage and (
                     card_in_db['rarity'] == 'common' or card_in_db['rarity'] == 'uncommon' and (
                         'Legendary' in card_in_db['type_line'] or 'can be your commander' in card.oracle_text
                     )
                 )
-                if future_commander:
-                    card.legal_commander = True
-                    card.legal_vintage = True
-                    card.legal_legacy = True
-                    card.legal_oathbreaker = True
+                if future_vintage:
+                    card.legal_commander = card_legalities['commander'] != 'banned'
+                    card.legal_vintage = card_legalities['vintage'] != 'banned'
+                    card.legal_legacy = card_legalities['legacy'] != 'banned'
+                    card.legal_oathbreaker = card_legalities['oathbreaker'] != 'banned'
                 if future_pauper_commander:
-                    card.legal_pauper_commander = True
+                    card.legal_pauper_commander = card_legalities['paupercommander_c'] != 'banned'
                 if future_pauper:
-                    card.legal_pauper = True
-                    card.legal_pauper_commander_main = True
+                    card.legal_pauper = card_legalities['pauper'] != 'banned'
+                    card.legal_pauper_commander_main = card_legalities['paupercommander'] != 'banned'
                 if future_standard:
-                    card.legal_standard = True
-                    card.legal_pioneer = True
-                    card.legal_modern = True
-                    card.legal_brawl = True
+                    card.legal_standard = card_legalities['standard'] != 'banned'
+                    card.legal_pioneer = card_legalities['pioneer'] != 'banned'
+                    card.legal_modern = card_legalities['modern'] != 'banned'
+                if future_alchemy:
+                    card.legal_alchemy = card_legalities['alchemy'] != 'banned'
+                if future_standard or future_alchemy:
+                    card.legal_brawl = card_legalities['brawl'] != 'banned'
+                    card.legal_standard_brawl = card_legalities['standard_brawl'] != 'banned'
+                    card.legal_competitive_brawl = card_legalities['competitive_brawl'] != 'banned'
             if 'prices' in card_in_db:
                 card_prices = card_in_db['prices']
                 p = card_prices['tcgplayer']['price'] if card_prices['tcgplayer'] is not None and card_prices['tcgplayer'].get('price') else 0.0

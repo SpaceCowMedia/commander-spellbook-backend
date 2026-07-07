@@ -1,5 +1,3 @@
-from unittest import TestCase
-
 from spellbook.tests.testing import SpellbookTestCaseWithSeeding
 from common.inspection import count_methods
 from spellbook.models import Combo, ZoneLocation

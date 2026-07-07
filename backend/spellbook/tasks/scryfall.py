@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import json
+import gzip
 from urllib.error import HTTPError
 import uuid
 import datetime
@@ -42,12 +43,12 @@ def scryfall(bulk_collection: str | None = None) -> Scryfall:
     with urlopen(req) as response:
         data = json.loads(response.read().decode())
         req = Request(
-            data['download_uri'],  # type: ignore
+            data['jsonl_download_uri'],
             headers=HEADERS,
         )
         with urlopen(req) as response:
-            data = json.loads(response.read().decode())
-            for card in data:
+            for card_raw in gzip.decompress(response.read()).decode().splitlines():
+                card = json.loads(card_raw)
                 if (any(game in card['games'] for game in ['paper', 'arena', 'mtgo']) or not card['games']) and card['layout'] not in {'art_series', 'vanguard', 'scheme', 'token'}:
                     card_and_faces = [card]
                     faces = card.get('card_faces', [])

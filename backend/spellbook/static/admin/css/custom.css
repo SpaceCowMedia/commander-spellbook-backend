@@ -7,14 +7,34 @@
 }
 
 /* Default Django admin styles overrides/patches */
-.inline-related fieldset {
-    width: fit-content;
-    min-width: 100%;
+div.inline-related {
+    overflow-y: hidden;
 }
 
-div.inline-related {
+div.inline-related fieldset div.wrapper table {
     overflow-x: auto;
-    overflow-y: hidden;
+}
+
+div.inline-related fieldset div.wrapper table tr > th:not(.original):first-child,
+div.inline-related fieldset div.wrapper table tr > th.original + th,
+div.inline-related fieldset div.wrapper table tr > td:not(.original):first-child,
+div.inline-related fieldset div.wrapper table tr > td.original + td {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    box-shadow: 1px 0 0 var(--hairline-color);
+}
+
+div.inline-related fieldset div.wrapper table tbody tr > th:not(.original):first-child,
+div.inline-related fieldset div.wrapper table tbody tr > th.original + th,
+div.inline-related fieldset div.wrapper table tbody tr > td:not(.original):first-child,
+div.inline-related fieldset div.wrapper table tbody tr > td.original + td {
+    background: inherit;
+}
+
+div.inline-related fieldset div.wrapper table tr > th.original p,
+div.inline-related fieldset div.wrapper table tr > td.original p {
+    z-index: 3;
 }
 
 .floating-inline-scrollbar {

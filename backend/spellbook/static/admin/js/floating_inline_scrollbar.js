@@ -200,6 +200,7 @@
         function bindInlineScrollHandlers() {
             $(INLINE_SELECTOR).each((_, element) => {
                 const scrollElement = getScrollableElement(element);
+
                 if (!scrollElement || boundScrollableElements.has(scrollElement)) {
                     return;
                 }

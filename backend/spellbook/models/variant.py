@@ -265,7 +265,11 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
             and (
                 battlefield_mana_value <= 4 or all(name.split(',', 1)[0] not in self.notable_prerequisites for _, card in recipe.cards for name in card.name.split(' // '))
             )
-        self.bracket_tag = estimate_bracket({card: c.quantity for c, card in recipe.cards}, {template: t.quantity for t, template in recipe.templates}, included_variants=[(self, recipe)]).bracket_tag
+        self.bracket_tag = estimate_bracket(
+            cards={card: c.quantity for c, card in recipe.cards},
+            templates={template: t.quantity for t, template in recipe.templates},
+            included_variants=[(self, recipe)],
+        ).bracket_tag
         new_values = {field: getattr(self, field) for field in self.computed_fields()}
         return previous_values != new_values
 
@@ -471,17 +475,22 @@ class BracketEstimate(BracketEstimateData):
     bracket_tag: Variant.BracketTag
 
 
-def estimate_bracket(cards: dict[Card, int], templates: dict[Template, int], included_variants: Sequence[tuple[Variant, Variant.Recipe]]) -> BracketEstimate:
+def estimate_bracket(cards: dict[Card, int], templates: dict[Template, int], included_variants: Sequence[tuple[Variant, Variant.Recipe]], commanders: set[Card | Template] | None = None) -> BracketEstimate:
 
     def _data() -> BracketEstimateData:
         combos: list[ClassifiedCombo] = []
 
         for variant, recipe in included_variants:
-            sure_cards = sum(
-                card.quantity
-                for card, _ in chain(recipe.cards, recipe.templates)
-                if ZoneLocation.LIBRARY not in card.zone_locations and ZoneLocation.COMMAND_ZONE not in card.zone_locations
-            )
+            sure_cards = 0
+            for card_in_variant, card in chain(recipe.cards, recipe.templates):
+                if ZoneLocation.LIBRARY in card_in_variant.zone_locations:
+                    continue
+                if ZoneLocation.COMMAND_ZONE in card_in_variant.zone_locations:
+                    if commanders is None:
+                        continue
+                    if card in commanders:
+                        continue
+                sure_cards += card_in_variant.quantity
             relevant = any(feature.status in (Feature.Status.STANDALONE,) for _, feature in recipe.features)
             borderline_relevant = any(feature.status in (Feature.Status.STANDALONE, Feature.Status.CONTEXTUAL) for _, feature in recipe.features)
             arguable_cards = int(bool(variant.notable_prerequisites)) + int(not borderline_relevant)

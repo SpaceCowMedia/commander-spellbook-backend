@@ -55,21 +55,15 @@ class EstimateBracketView(DecklistAPIView):
     def get(self, request: Request) -> Response:
         deck = self.parse(request)
 
-        cards = {
-            c: deck.cards[c.pk]
-            for c in
-            Card
-            .objects
-            .filter(pk__in=deck.cards.distinct_elements())
-        }
-        templates = {
-            t: deck.templates[t.pk]
-            for t in
-            Template
-            .objects
-            .filter(pk__in=deck.templates.distinct_elements())
-            .exclude(scryfall_query__isnull=False)
-        }
+        commanders: set[Card | Template] = set()
+        cards: dict[Card, int] = {}
+        for c in Card.objects.filter(pk__in=deck.cards.distinct_elements()):
+            cards[c] = deck.cards[c.pk]
+            if c.pk in deck.commanders:
+                commanders.add(c)
+        templates: dict[Template, int] = {}
+        for t in Template.objects.filter(pk__in=deck.templates.distinct_elements()).exclude(scryfall_query__isnull=False):
+            templates[t] = deck.templates[t.pk]
 
         variant_id_list = find_variants(deck, missing=0)
         variants_query = Variant.recipes_prefetched \
@@ -77,7 +71,12 @@ class EstimateBracketView(DecklistAPIView):
             .filter(id__in=variant_id_list)
         variants = list(variants_query)
 
-        result = estimate_bracket(cards, templates, tuple((v, v.get_recipe()) for v in variants))
+        result = estimate_bracket(
+            cards=cards,
+            templates=templates,
+            included_variants=tuple((v, v.get_recipe()) for v in variants),
+            commanders=commanders,
+        )
         serializer = self.response(result)
         return Response(serializer.data)
 

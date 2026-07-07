@@ -17,6 +17,30 @@ div.inline-related {
     overflow-y: hidden;
 }
 
+.floating-inline-scrollbar {
+    position: fixed;
+    bottom: 0;
+    height: 16px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    z-index: 1200;
+    display: none;
+    border-top: 1px solid var(--hairline-color);
+    background: rgba(255, 255, 255, 0.92);
+}
+
+.floating-inline-scrollbar.is-visible {
+    display: block;
+}
+
+.floating-inline-scrollbar__content {
+    height: 1px;
+}
+
+body.has-floating-inline-scrollbar #content {
+    padding-bottom: 20px;
+}
+
 /* POST form buttons in object tools */
 .object-tools form {
     position: relative;

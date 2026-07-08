@@ -1,3 +1,334 @@
-{% extends "rest_framework/login.html" %}
+{% extends "rest_framework/login_base.html" %}
+{% load rest_framework static %}
 
-{% block branding %}<h3 style="margin: 0 0 20px;">Commander Spellbook {{ spellbook_version }}</h3>{% endblock %}
+{% block title %}Log In – Commander Spellbook {{ spellbook_version }}{% endblock %}
+
+{% block meta %}
+    {{ block.super }}
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+{% endblock %}
+
+{% block style %}
+    <link rel="icon" type="image/x-icon" href="{% static 'spellbook/favicon.ico' %}">
+    <style>
+        :root {
+            --csb-primary: #c18aff;
+            --csb-secondary: #ff9595;
+            --csb-link: #5b2499;
+            --csb-dark: #222222;
+            --csb-light: #dfdfdf;
+            --csb-danger: #c54329;
+            --csb-bg: #0e0e11;
+            --csb-panel: #1a1a1f;
+            --csb-panel-2: #232329;
+            --csb-border: #33333c;
+            --csb-muted: #9a9aa8;
+            --csb-font-title: 'Josefin Sans', system-ui, sans-serif;
+            --csb-font-body: 'Roboto', system-ui, sans-serif;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; }
+
+        body.csb-login {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 32px 16px;
+            font-family: var(--csb-font-body);
+            color: var(--csb-light);
+            background:
+                radial-gradient(1100px 600px at 15% -10%, rgba(193, 138, 255, 0.20), transparent 55%),
+                radial-gradient(900px 600px at 110% 115%, rgba(255, 149, 149, 0.16), transparent 50%),
+                var(--csb-bg);
+        }
+
+        .csb-card {
+            width: 100%;
+            max-width: 400px;
+            background: var(--csb-panel);
+            border: 1px solid var(--csb-border);
+            border-radius: 18px;
+            padding: 36px 32px 28px;
+            box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.75);
+            position: relative;
+            overflow: hidden;
+        }
+        .csb-card::before {
+            content: "";
+            position: absolute;
+            inset: 0 0 auto 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--csb-primary), var(--csb-secondary));
+        }
+
+        .csb-header { text-align: center; margin-bottom: 28px; }
+        .csb-title {
+            margin: 0;
+            font-family: var(--csb-font-title);
+            font-weight: 700;
+            font-size: 1.85rem;
+            line-height: 1.1;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            background: linear-gradient(120deg, var(--csb-primary), var(--csb-secondary));
+            background-size: 200% 200%;
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            animation: csb-gradient 10s ease infinite;
+        }
+        @keyframes csb-gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        .csb-subtitle {
+            margin: 10px 0 0;
+            color: var(--csb-muted);
+            font-size: 0.9rem;
+        }
+        .csb-version {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 2px 10px;
+            font-size: 0.7rem;
+            letter-spacing: 0.04em;
+            color: var(--csb-primary);
+            border: 1px solid rgba(193, 138, 255, 0.35);
+            border-radius: 999px;
+        }
+
+        /* Social login — the main attraction */
+        .csb-social { display: flex; flex-direction: column; gap: 12px; }
+        .csb-social form { margin: 0; }
+        .csb-social-btn {
+            position: relative;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 13px 44px;
+            font-family: var(--csb-font-body);
+            font-size: 0.98rem;
+            font-weight: 500;
+            color: var(--csb-light);
+            background: var(--csb-panel-2);
+            border: 1px solid var(--csb-border);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+        }
+        .csb-social-btn:hover,
+        .csb-social-btn:focus-visible {
+            transform: translateY(-1px);
+            border-color: var(--csb-primary);
+            background: #26262d;
+            box-shadow: 0 8px 22px -10px rgba(193, 138, 255, 0.65);
+            outline: none;
+        }
+        .csb-social-btn:active { transform: translateY(0); }
+        .csb-social-btn__icon {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 22px;
+            height: 22px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .csb-social-btn__icon svg { width: 100%; height: 100%; display: block; }
+        .csb-social-btn__label { text-align: center; }
+        .csb-social-btn--discord .csb-social-btn__icon { color: #5865f2; }
+
+        /* Divider */
+        .csb-divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 22px 0;
+            color: var(--csb-muted);
+            font-size: 0.72rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+        .csb-divider::before,
+        .csb-divider::after {
+            content: "";
+            flex: 1 1 auto;
+            height: 1px;
+            background: var(--csb-border);
+        }
+
+        /* Credentials disclosure ("dropdown") */
+        .csb-credentials { border: 1px solid var(--csb-border); border-radius: 12px; background: rgba(255, 255, 255, 0.015); }
+        .csb-credentials[open] { border-color: rgba(193, 138, 255, 0.35); }
+        .csb-credentials > summary {
+            list-style: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 13px 16px;
+            font-family: var(--csb-font-body);
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--csb-light);
+            user-select: none;
+        }
+        .csb-credentials > summary::-webkit-details-marker { display: none; }
+        .csb-credentials > summary:hover { color: var(--csb-primary); }
+        .csb-chevron { transition: transform 0.18s ease; color: var(--csb-muted); }
+        .csb-credentials[open] > summary .csb-chevron { transform: rotate(180deg); }
+
+        .csb-form { padding: 4px 16px 18px; }
+        .csb-field { margin-bottom: 14px; }
+        .csb-field label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.78rem;
+            font-weight: 500;
+            color: var(--csb-muted);
+        }
+        .csb-field input {
+            width: 100%;
+            padding: 11px 12px;
+            font-family: var(--csb-font-body);
+            font-size: 0.95rem;
+            color: var(--csb-light);
+            background: var(--csb-dark);
+            border: 1px solid var(--csb-border);
+            border-radius: 9px;
+            transition: border-color 0.12s ease, box-shadow 0.12s ease;
+        }
+        .csb-field input:focus {
+            outline: none;
+            border-color: var(--csb-primary);
+            box-shadow: 0 0 0 3px rgba(193, 138, 255, 0.18);
+        }
+        .csb-field--error input { border-color: var(--csb-danger); }
+        .csb-field__error { margin: 6px 0 0; font-size: 0.78rem; color: var(--csb-secondary); }
+
+        .csb-nonfield {
+            margin: 0 0 14px;
+            padding: 10px 12px;
+            font-size: 0.85rem;
+            color: var(--csb-secondary);
+            background: rgba(197, 67, 41, 0.12);
+            border: 1px solid rgba(197, 67, 41, 0.4);
+            border-radius: 9px;
+        }
+
+        .csb-submit {
+            width: 100%;
+            padding: 12px 16px;
+            font-family: var(--csb-font-title);
+            font-size: 0.95rem;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #14060f;
+            background: linear-gradient(120deg, var(--csb-primary), var(--csb-secondary));
+            border: 0;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: filter 0.12s ease, transform 0.12s ease;
+        }
+        .csb-submit:hover { filter: brightness(1.06); transform: translateY(-1px); }
+        .csb-submit:active { transform: translateY(0); }
+
+        .csb-footer { margin-top: 24px; text-align: center; }
+        .csb-back {
+            appearance: none;
+            background: none;
+            border: 0;
+            padding: 4px;
+            font-family: var(--csb-font-body);
+            font-size: 0.8rem;
+            color: var(--csb-muted);
+            cursor: pointer;
+            transition: color 0.12s ease;
+        }
+        .csb-back:hover { color: var(--csb-primary); }
+    </style>
+{% endblock %}
+
+{% block body %}
+<body class="csb-login">
+    <main class="csb-card">
+        <header class="csb-header">
+            {% block branding %}<h1 class="csb-title">Commander Spellbook</h1>{% endblock %}
+            <p class="csb-subtitle">Sign in to continue</p>
+            {% if spellbook_version %}<span class="csb-version">{{ spellbook_version }}</span>{% endif %}
+        </header>
+
+        {% if backends.backends %}
+            <div class="csb-social">
+                {% for backend in backends.backends %}
+                    <form method="post" action="{% url 'social:begin' backend %}">
+                        {% csrf_token %}
+                        {% for key, value in request.GET.items %}
+                            <input type="hidden" name="{{ key }}" value="{{ value }}">
+                        {% endfor %}
+                        <button type="submit" class="csb-social-btn csb-social-btn--{{ backend }}">
+                            <span class="csb-social-btn__icon">
+                                {% if backend == 'discord' %}
+                                    <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515a.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0a12.64 12.64 0 0 0-.617-1.25a.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057a19.9 19.9 0 0 0 5.993 3.03a.078.078 0 0 0 .084-.028a14.09 14.09 0 0 0 1.226-1.994a.076.076 0 0 0-.041-.106a13.107 13.107 0 0 1-1.872-.892a.077.077 0 0 1-.008-.128a10.2 10.2 0 0 0 .372-.292a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127a12.299 12.299 0 0 1-1.873.892a.077.077 0 0 0-.041.107a15.75 15.75 0 0 0 1.225 1.993a.076.076 0 0 0 .084.028a19.839 19.839 0 0 0 6.002-3.03a.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.331c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.956-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.955-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.946 2.418-2.157 2.418z"/></svg>
+                                {% elif backend == 'google-oauth2' or backend == 'google' %}
+                                    <svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+                                {% else %}
+                                    <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12c5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
+                                {% endif %}
+                            </span>
+                            <span class="csb-social-btn__label">{% if backend == 'google-oauth2' %}Google{% else %}{{ backend|title }}{% endif %}</span>
+                        </button>
+                    </form>
+                {% endfor %}
+            </div>
+
+            <div class="csb-divider">or</div>
+        {% endif %}
+
+        <details class="csb-credentials"{% if form.username.errors or form.password.errors or form.non_field_errors %} open{% endif %}>
+            <summary>
+                <span>Sign in with a username and password</span>
+                <svg class="csb-chevron" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6"/></svg>
+            </summary>
+
+            <form class="csb-form" action="{% url 'rest_framework:login' %}" role="form" method="post">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ next }}">
+
+                {% if form.non_field_errors %}
+                    {% for error in form.non_field_errors %}
+                        <div class="csb-nonfield">{{ error }}</div>
+                    {% endfor %}
+                {% endif %}
+
+                <div class="csb-field {% if form.username.errors %}csb-field--error{% endif %}">
+                    <label for="id_username">{{ form.username.label }}</label>
+                    <input type="text" name="username" maxlength="100" autocapitalize="off" autocorrect="off"
+                        id="id_username" required {% if form.username.value %}value="{{ form.username.value }}"{% endif %}>
+                    {% if form.username.errors %}<p class="csb-field__error">{{ form.username.errors|striptags }}</p>{% endif %}
+                </div>
+
+                <div class="csb-field {% if form.password.errors %}csb-field--error{% endif %}">
+                    <label for="id_password">{{ form.password.label }}</label>
+                    <input type="password" name="password" maxlength="100" autocapitalize="off" autocorrect="off" id="id_password" required>
+                    {% if form.password.errors %}<p class="csb-field__error">{{ form.password.errors|striptags }}</p>{% endif %}
+                </div>
+
+                <button type="submit" name="submit" class="csb-submit">Log in</button>
+            </form>
+        </details>
+
+        <div class="csb-footer">
+            <button type="button" class="csb-back" onclick="history.back()">← Go back</button>
+        </div>
+    </main>
+</body>
+{% endblock %}

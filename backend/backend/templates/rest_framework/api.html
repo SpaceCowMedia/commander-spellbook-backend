@@ -7,39 +7,6 @@
 {% block style %}
     {{ block.super }}
     <link rel="icon" type="image/x-icon" href="{% static 'spellbook/favicon.ico' %}">
-    <style>
-        li form.backend-login {
-            display: block;
-            margin: 0;
-        }
-
-        li form.backend-login button.backend-login-link {
-            appearance: none;
-            -webkit-appearance: none;
-            background: none;
-            border: 0;
-            color: inherit;
-            cursor: pointer;
-            display: block;
-            font: inherit;
-            line-height: 20px;
-            margin: 0;
-            padding: 10px 15px;
-            text-decoration: none;
-        }
-
-        li form.backend-login button.backend-login-link:hover,
-        li form.backend-login button.backend-login-link:focus {
-            text-decoration: none;
-        }
-
-        @media (min-width: 768px) {
-            li form.backend-login button.backend-login-link {
-                padding-top: 15px;
-                padding-bottom: 15px;
-            }
-        }
-    </style>
 {% endblock %}
 
 {% block branding %}
@@ -53,11 +20,6 @@
     {% if request.user.is_authenticated %}
         <li><a href="{% url 'admin:index' %}">Admin Dashboard</a></li>
     {% else %}
-        {% for backend in backends.backends %}
-            <li>
-                {% include 'backend/includes/backend_login_form.html' with backend=backend next_url=request.path button_class='backend-login-link' label_suffix=' Login' %}
-            </li>
-        {% endfor %}
         <li><a href="{% url 'admin:login' %}">Admin Login</a></li>
     {% endif %}
 {% endblock %}

@@ -1,7 +1,7 @@
 from unittest import TestCase
 from django.core.exceptions import ValidationError
 from spellbook.regexs import DOUBLE_SQUARE_BRACKET_TEXT_REGEX, MANA_REGEX, ORACLE_SYMBOL, SYMBOLS_TEXT_REGEX
-from spellbook.regexs import MANA_SYMBOL, URL_REGEX
+from spellbook.regexs import MANA_SYMBOL, ORDINARY_CHARACTERS_REGEX, URL_REGEX
 from spellbook.models.validators import SCRYFALL_QUERY_VALIDATOR
 
 
@@ -169,6 +169,18 @@ class TestValidators(TestCase):
         self.assertRegex('{W/U/P} {W/B/P} {U/B/P} {U/R/P} {B/R/P} {B/G/P} {R/G/P} {R/G/P}{W}', SYMBOLS_TEXT_REGEX)
         self.assertNotRegex('{W/U/P/}', SYMBOLS_TEXT_REGEX)
         self.assertNotRegex('{W/U/P{}', SYMBOLS_TEXT_REGEX)
+
+    def test_ordinary_characters(self):
+        self.assertRegex('Lightning Bolt', ORDINARY_CHARACTERS_REGEX)
+        self.assertRegex('Lim-Dûl the Necromancer', ORDINARY_CHARACTERS_REGEX)
+        self.assertRegex('Ghazbán Ogre', ORDINARY_CHARACTERS_REGEX)
+        self.assertRegex('{T}: Add {W}{U}{B}{R}{G}.', ORDINARY_CHARACTERS_REGEX)
+        # Card names relying on the extra allowed ranges (see regexs/__init__.py)
+        self.assertRegex('Human—Time Lord Meta-Crisis', ORDINARY_CHARACTERS_REGEX)  # em dash U+2014
+        self.assertRegex('Ratonhnhaké꞉ton', ORDINARY_CHARACTERS_REGEX)  # modifier letter colon U+A789 (Latin Extended-D)
+        # Characters that are still not allowed
+        self.assertNotRegex('a…b', ORDINARY_CHARACTERS_REGEX)  # ellipsis U+2026, General Punctuation not added
+        self.assertNotRegex('emoji 🔥', ORDINARY_CHARACTERS_REGEX)
 
     def test_scryfall_query(self):
         SCRYFALL_QUERY_VALIDATOR('c:rg')

@@ -1,6 +1,8 @@
 # Git Flow and Versioning
 
 This page describes the branching model used for the Commander Spellbook Backend project, based on Git.
+Before contributing, also read [Getting Started](getting-started.md) (setup, tests, linting) and
+[`CONTRIBUTING.md`](https://github.com/SpaceCowMedia/commander-spellbook-backend/blob/master/CONTRIBUTING.md).
 
 ## Trunk based development
 
@@ -26,6 +28,10 @@ For example, `v1.0.0` is a valid tag name.
 ### Continuous delivery
 
 Whenever a new annotated tag is pushed to the remote repository, the continuous delivery pipeline will be triggered.
+The pipeline is defined in [`.github/workflows/ci.yml`](https://github.com/SpaceCowMedia/commander-spellbook-backend/blob/master/.github/workflows/ci.yml):
+it builds and tests the backend, worker, and bot images, generates and publishes the [API clients](api.md#generated-clients),
+and deploys to the production Kubernetes cluster. Pull requests run the same build, lint, and test jobs without releasing.
+These developer docs deploy separately via [`.github/workflows/docs.yml`](https://github.com/SpaceCowMedia/commander-spellbook-backend/blob/master/.github/workflows/docs.yml) on any change under `docs/`.
 
 ### Helper scripts
 

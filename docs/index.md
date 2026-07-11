@@ -1,32 +1,66 @@
-# Commander Spellbook Backend Development Docs
+# Commander Spellbook Backend — Developer Docs
 
-This is the home page of the developer documentation for the Commander Spellbook Backend project.
+Welcome. This is the developer documentation for the **Commander Spellbook Backend**,
+the engine and REST API behind [commanderspellbook.com](https://commanderspellbook.com/) —
+a combo database, wiki, and search engine for
+[Magic: The Gathering](https://magic.wizards.com/en).
 
-## Architecture
+These pages are for **contributors**. If you read them top to bottom you should be
+able to set up the project, understand how it fits together, and open your first
+pull request. They complement (not replace) the
+[root README](https://github.com/SpaceCowMedia/commander-spellbook-backend/blob/master/README.md)
+and [`CONTRIBUTING.md`](https://github.com/SpaceCowMedia/commander-spellbook-backend/blob/master/CONTRIBUTING.md).
 
-Commander Spellbook consists of three main components:
+## What this project does
 
-- the database, which by default is a PostgreSQL instance
-- the backend, which is a single, self-contained Django project with multiple apps and dependencies
-- the frontend, which is a separate React project that consumes the backend API
+Editors describe *combos* (small interactions between Magic cards that produce an
+effect). The backend then **automatically generates every concrete card
+combination — a _variant_ — that achieves a result**, by walking a graph of cards,
+features, and combos. Those variants are served through a REST API that the
+[React frontend](https://github.com/SpaceCowMedia/commander-spellbook-site), the
+chat bots, and third-party tools consume.
 
-## Environment Setup for the Backend
+The heart of the project is therefore not CRUD — it is the
+[variant generation engine](variant-generation.md).
 
-You need:
+## The stack at a glance
 
-- Python 3.14 or higher
-- Docker and Docker Compose, for running the entire stack locally and for running some scripts
-- To install the dependencies:
-  - In the root of the repository, install the dependencies for local development using `pip install -r requirements.txt`
-  - In the backend folder, install the dependencies using `pip install -r requirements.txt`
-  - In the client folder:
-    - Generate the OpenAPI doc using the `generate-openapi.sh` script
-    - [Optional] Generate the TypeScript/JavaScript client using the `generate-client-typescript.sh` script
-    - Generate the python client using the `generate-client-python.sh` script:
-      - Ensure you have Docker running, as the script uses Docker to generate the client
-    - Inside the client/python folder:
-        - Install the python client dependencies using `pip install -r requirements.txt`
-- `flake8` for linting the code, which is mandatory for contributing otherwise the CI will fail
-- [Optional] VS Code with the Python extension, for development and debugging exploiting the `launch.json` configuration
-    - `pytest` to run the unit tests in VS Code
-- [Optional] Cython for running long tasks faster (especially the variant generation code)
+| Component  | Technology | Role |
+|------------|------------|------|
+| Database   | PostgreSQL | Stores cards, combos, features, generated variants |
+| Backend    | Django + Django REST Framework | Domain model, admin panel, REST API, variant engine |
+| Worker     | `django-tasks` (`db_worker`) | Runs long jobs: variant generation, Scryfall card sync |
+| Clients    | Generated from OpenAPI | Python & TypeScript SDKs published to PyPI / npm |
+| Bots       | Discord, Reddit, Telegram | Standalone services that consume the API via the Python client |
+| Frontend   | React (separate repo) | The website; not in this repository |
+
+## Documentation map
+
+Start here and follow the order:
+
+1. **[Getting Started](getting-started.md)** — install dependencies, run the stack,
+   run the tests and the linter.
+2. **[Architecture](architecture.md)** — the repository layout and how the pieces
+   (backend project, `spellbook` app, `website` app, `common`, clients, bots) connect.
+3. **[Domain Model](domain-model.md)** — Cards, Features, Combos, Templates,
+   Variants, and Suggestions: the vocabulary everything else is built on.
+4. **[Variant Generation](variant-generation.md)** — the combo graph and the
+   algorithm that turns editor-authored combos into concrete variants.
+5. **[API & Clients](api.md)** — the REST endpoints, authentication, the OpenAPI
+   schema, and the generated SDKs.
+6. **[Git Flow & Versioning](git-flow.md)** — branching, semantic versioning, and
+   how a release ships.
+
+Reference material:
+
+- **[The Minimal Set of Multisets ADT](minimal-set-of-multisets.md)** — the data
+  structure behind the engine's minimality pruning.
+- **[Combo-graph animation workflow](animation_workflow.md)** — how the explainer
+  video for the engine is rendered and iterated on.
+
+## Getting help
+
+Ask on the Commander Spellbook Discord — the
+[#website](https://discord.com/channels/673601282946236417/728339448558911508)
+channel is the best place for backend questions. Maintainers are happy to help you
+get started.

@@ -1,0 +1,27 @@
+[flake8]
+# The files under docs/ are illustrative animation / rendering scripts, not
+# shipped application code. Real problems (unused imports/variables, undefined
+# names, syntax errors) are fixed in the sources; this config only tolerates the
+# *intentional* house style of these scripts:
+#
+#   E221      aligned assignment tables — coordinate blocks read better aligned
+#   E231      terse comma-separated node lists  ([nA,nB,nC,...])
+#   E127/E128 continuation-line indentation of those aligned tables
+#   E701      one-line legacy alias classes     (class Foo(Bar): pass)
+#   E702      paired teardown calls             (unfocus(...); pop_call())
+#   W503/W504 line breaks around binary operators
+#
+# Note: CI only lints backend/, common/ and bot/ (see .github/workflows/ci.yml);
+# this config keeps local and editor runs quiet for the docs scripts.
+max-line-length = 300
+extend-ignore =
+    E221, E231, E127, E128,
+    E701, E702,
+    W503, W504
+# Never descend into the Manim virtualenv or generated output — otherwise
+# `flake8 .` from docs/ would try to lint the whole dependency tree.
+exclude =
+    .venv-manim,
+    __pycache__,
+    media,
+    animation_assets

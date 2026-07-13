@@ -1,8 +1,6 @@
 # API & Clients
 
-The backend exposes a REST API built with
-[Django REST Framework](https://www.django-rest-framework.org/). This page covers
-the endpoints, authentication, the OpenAPI schema, and the generated SDKs.
+The backend exposes a REST API built with [Django REST Framework](https://www.django-rest-framework.org/). This page covers the endpoints, authentication, the OpenAPI schema, and the generated SDKs.
 
 ## Exploring the API
 
@@ -13,15 +11,11 @@ With the server running (see [Getting Started](getting-started.md)):
 - `http://localhost:8000/schema/redoc/` — ReDoc
 - `http://localhost:8000/schema/` — the raw OpenAPI document
 
-Responses use **camelCase** keys (a middleware converts Django's snake_case), which
-is what the generated clients and the frontend expect.
+Responses use **camelCase** keys (a middleware converts Django's snake_case), which is what the generated clients and the frontend expect.
 
 ## Endpoints
 
-Routes are wired in
-[`backend/spellbook/urls.py`](https://github.com/SpaceCowMedia/commander-spellbook-backend/blob/master/backend/spellbook/urls.py),
-[`backend/website/urls.py`](https://github.com/SpaceCowMedia/commander-spellbook-backend/blob/master/backend/website/urls.py),
-and the project [`urls.py`](https://github.com/SpaceCowMedia/commander-spellbook-backend/blob/master/backend/backend/urls.py).
+Routes are wired in [`backend/spellbook/urls.py`](https://github.com/SpaceCowMedia/commander-spellbook-backend/blob/master/backend/spellbook/urls.py), [`backend/website/urls.py`](https://github.com/SpaceCowMedia/commander-spellbook-backend/blob/master/backend/website/urls.py), and the project [`urls.py`](https://github.com/SpaceCowMedia/commander-spellbook-backend/blob/master/backend/backend/urls.py).
 
 ### Core (`spellbook`)
 
@@ -51,8 +45,7 @@ and the project [`urls.py`](https://github.com/SpaceCowMedia/commander-spellbook
 
 ## Authentication
 
-Two mechanisms, both configured in the project
-[`urls.py`](https://github.com/SpaceCowMedia/commander-spellbook-backend/blob/master/backend/backend/urls.py):
+Two mechanisms, both configured in the project [`urls.py`](https://github.com/SpaceCowMedia/commander-spellbook-backend/blob/master/backend/backend/urls.py):
 
 - **JWT** ([`simplejwt`](https://django-rest-framework-simplejwt.readthedocs.io/)):
   - `POST /token/` — obtain an access/refresh pair
@@ -60,31 +53,17 @@ Two mechanisms, both configured in the project
   - `POST /token/verify/` — verify a token
 
   Send the access token as `Authorization: Bearer <token>`.
-- **Social login** (`social-auth`) — Discord OAuth, enabled when
-  `DISCORD_CLIENTID` / `DISCORD_CLIENTSECRET` are set.
+- **Social login** (`social-auth`) — Discord OAuth, enabled when `DISCORD_CLIENTID` / `DISCORD_CLIENTSECRET` are set.
 
-Most read endpoints are public; writing and reviewing require authentication and the
-appropriate permissions. Editors work primarily through the **admin panel**
-(`/admin`), not the API.
+Most read endpoints are public; writing and reviewing require authentication and the appropriate permissions. Editors work primarily through the **admin panel** (`/admin`), not the API.
 
 ## The search query language
 
-`variants` (and template matching) accept a **Scryfall-style search query** — e.g.
-`ci:temur mana result:"infinite mana"`. The grammar is defined with
-[Lark](https://github.com/lark-parser/lark) in
-[`spellbook/parsers/`](https://github.com/SpaceCowMedia/commander-spellbook-backend/tree/master/backend/spellbook/parsers)
-and turned into ORM filters by the transformers in
-[`spellbook/transformers/`](https://github.com/SpaceCowMedia/commander-spellbook-backend/tree/master/backend/spellbook/transformers).
-Extend the query language by editing the `.lark` grammar and its transformer
-together.
+`variants` (and template matching) accept a **Scryfall-style search query** — e.g. `ci:temur mana result:"infinite mana"`. The grammar is defined with [Lark](https://github.com/lark-parser/lark) in [`spellbook/parsers/`](https://github.com/SpaceCowMedia/commander-spellbook-backend/tree/master/backend/spellbook/parsers) and turned into ORM filters by the transformers in [`spellbook/transformers/`](https://github.com/SpaceCowMedia/commander-spellbook-backend/tree/master/backend/spellbook/transformers). Extend the query language by editing the `.lark` grammar and its transformer together.
 
 ## OpenAPI schema
 
-The schema is generated from the code by
-[`drf-spectacular`](https://drf-spectacular.readthedocs.io/). It is the **contract**
-the clients and frontend depend on, so keep it accurate: add
-[serializer](https://github.com/SpaceCowMedia/commander-spellbook-backend/tree/master/backend/spellbook/serializers)
-annotations and `@extend_schema` hints when you add or change an endpoint.
+The schema is generated from the code by [`drf-spectacular`](https://drf-spectacular.readthedocs.io/). It is the **contract** the clients and frontend depend on, so keep it accurate: add [serializer](https://github.com/SpaceCowMedia/commander-spellbook-backend/tree/master/backend/spellbook/serializers) annotations and `@extend_schema` hints when you add or change an endpoint.
 
 Regenerate the committed schema with:
 
@@ -93,14 +72,11 @@ cd client
 ./generate-openapi.sh   # writes client/openapi.yaml
 ```
 
-The script runs `manage.py spectacular … --fail-on-warn --validate`, so a schema
-warning is treated as an error — the CI does the same.
+The script runs `manage.py spectacular … --fail-on-warn --validate`, so a schema warning is treated as an error — the CI does the same.
 
 ## Generated clients
 
-The SDKs are generated from `openapi.yaml` with
-[openapi-generator](https://openapi-generator.tech/) (run via Docker, so Docker must
-be running):
+The SDKs are generated from `openapi.yaml` with [openapi-generator](https://openapi-generator.tech/) (run via Docker, so Docker must be running):
 
 ```bash
 cd client
@@ -109,11 +85,7 @@ cd client
 ./generate-client-typescript.sh    # 2b. TypeScript client -> client/typescript/
 ```
 
-- **Python** — package `spellbook_client` (async, `asyncio` library). Used by the
-  [bots](architecture.md#repository-layout) and the Python integration tests.
-- **TypeScript** — published to npm as
-  [`@space-cow-media/spellbook-client`](https://www.npmjs.com/package/@space-cow-media/spellbook-client)
-  and consumed by the [React frontend](https://github.com/SpaceCowMedia/commander-spellbook-site).
+- **Python** — package `spellbook_client` (async, `asyncio` library). Used by the [bots](architecture.md#repository-layout) and the Python integration tests.
+- **TypeScript** — published to npm as [`@space-cow-media/spellbook-client`](https://www.npmjs.com/package/@space-cow-media/spellbook-client) and consumed by the [React frontend](https://github.com/SpaceCowMedia/commander-spellbook-site).
 
-The CI regenerates and publishes both on release; you only need to run these locally
-when changing the API and testing a client against it.
+The CI regenerates and publishes both on release; you only need to run these locally when changing the API and testing a client against it.

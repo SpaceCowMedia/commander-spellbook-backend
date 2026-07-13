@@ -1,37 +1,48 @@
 # Architecture
 
-Commander Spellbook is a monorepo. This page explains the moving parts and how they
-depend on one another, so you know where a change belongs.
+Commander Spellbook is a monorepo. This page explains the moving parts and how they depend on one another, so you know where a change belongs.
 
 ## The big picture
 
-```
-        editors (admin panel)                        players (website / bots)
-                 │                                              ▲
-                 ▼                                              │
-        ┌──────────────────────────────────────────────────────────────┐
-        │                     Django backend project                    │
-        │  ┌────────────┐   ┌────────────┐   ┌───────────────────────┐  │
-        │  │  spellbook │   │  website   │   │   backend (project)   │  │
-        │  │    app     │   │    app     │   │ settings/urls/admin/  │  │
-        │  │ domain +   │   │ extra API  │   │ auth/OpenAPI          │  │
-        │  │ engine+API │   │ endpoints  │   └───────────────────────┘  │
-        │  └─────┬──────┘   └────────────┘                              │
-        └────────┼──────────────────────────────────────────────────────┘
-                 │ reads/writes                    ▲ long jobs
-                 ▼                                 │ (django-tasks)
-          ┌────────────┐                    ┌──────────────┐
-          │ PostgreSQL │◀───────────────────│    worker    │
-          └────────────┘                    └──────────────┘
+```plantuml
+@startuml
+skinparam shadowing false
+skinparam componentStyle rectangle
+skinparam defaultTextAlignment center
 
-        OpenAPI schema ──▶ generated Python client ──▶ Discord / Reddit / Telegram bots
-                       └─▶ generated TypeScript client ──▶ React frontend (separate repo)
+actor Editors
+actor Players
+
+package "Django backend project" {
+  component "spellbook app\ndomain + engine + API" as spellbook
+  component "website app\nextra API endpoints" as website
+  component "backend project\nsettings · urls · admin · auth · OpenAPI" as project
+}
+
+database "PostgreSQL\n(SQLite in local dev)" as db
+component "worker\ndjango-tasks" as worker
+
+Editors --> project : author combos\n(admin panel)
+project --> Players : REST API
+website --> Players
+
+spellbook --> db : reads / writes
+worker --> db : long jobs
+project ..> worker : enqueue
+
+package "Generated from OpenAPI" {
+  component "Python client" as py
+  component "TypeScript client" as ts
+}
+
+project --> py
+project --> ts
+py --> "Discord / Reddit / Telegram bots"
+ts --> "React frontend (separate repo)"
+@enduml
 ```
 
-The **backend** exposes a REST API and an admin panel. Editors author combos in the
-admin; the **worker** runs the [variant generation engine](variant-generation.md)
-to derive concrete variants; players read the results through the API — directly,
-through the website, or through the bots.
+The **backend** exposes a REST API and an admin panel. Editors author combos in the admin; the **worker** runs the [variant generation engine](variant-generation.md) to derive concrete variants; players read the results through the API — directly, through the website, or through the bots.
 
 ## Repository layout
 
@@ -51,15 +62,12 @@ Everything under `backend/` is one self-contained Django project made of three a
 
 ### `backend` — the project package
 
-The Django project itself: settings, root URL configuration, authentication, the
-admin site chrome, and the OpenAPI wiring.
+The Django project itself: settings, root URL configuration, authentication, the admin site chrome, and the OpenAPI wiring.
 
-- `settings.py` — local/dev settings (SQLite, `DEBUG=True`).
+- `settings.py` — local/dev settings (SQLite, `DEBUG=True`), so a clone runs with no external database.
 - `production_settings.py` — Postgres via `SQL_*` env vars, used in Docker/prod.
-- `worker_settings.py` — production settings plus a DB statement timeout, used by
-  the background worker.
-- `urls.py` — mounts the app routers, JWT and social auth, the admin, and the
-  `drf-spectacular` schema/Swagger/Redoc endpoints.
+- `worker_settings.py` — production settings plus a DB statement timeout, used by the background worker.
+- `urls.py` — mounts the app routers, JWT and social auth, the admin, and the `drf-spectacular` schema/Swagger/Redoc endpoints.
 
 ### `spellbook` — the core app
 
@@ -78,26 +86,17 @@ The domain model, the variant engine, and the primary REST API. Notable subpacka
 
 ### `website` — site-support API
 
-Extra endpoints that back the website but are not part of the core combo model —
-site `properties`, and card-list parsing helpers (`card-list-from-url`,
-`card-list-from-text`).
+Extra endpoints that back the website but are not part of the core combo model — site `properties`, and card-list parsing helpers (`card-list-from-url`, `card-list-from-text`).
 
 ## Background work
 
-Long-running operations do not block API requests; they are enqueued as
-[`django-tasks`](https://github.com/RealOrangeOne/django-tasks) jobs and executed by
-a separate worker process (`python manage.py db_worker`, the `worker` Docker
-target). The heavy jobs are variant generation and the periodic Scryfall card sync.
-Task results are visible in the admin panel.
+Long-running operations do not block API requests; they are enqueued as [`django-tasks`](https://github.com/RealOrangeOne/django-tasks) jobs and executed by a separate worker process (`python manage.py db_worker`, the `worker` Docker target). The heavy jobs are variant generation and the periodic Scryfall card sync. Task results are visible in the admin panel.
 
 ## Data flow: from combo to variant
 
-1. An editor creates **Cards**, **Features**, **Templates**, and **Combos** in the
-   admin panel.
-2. `update_variants` enqueues a generation job. The worker builds the
-   [combo graph](variant-generation.md) and derives every valid **Variant**.
+1. An editor creates **Cards**, **Features**, **Templates**, and **Combos** in the admin panel.
+2. `update_variants` enqueues a generation job. The worker builds the [combo graph](variant-generation.md) and derives every valid **Variant**.
 3. Variants are denormalized/pre-serialized and stored for fast reads.
 4. The API serves variants; the website and bots consume them.
 
-Read the [Domain Model](domain-model.md) next for the vocabulary, then
-[Variant Generation](variant-generation.md) for step 2 in depth.
+Read the [Domain Model](domain-model.md) next for the vocabulary, then [Variant Generation](variant-generation.md) for step 2 in depth.

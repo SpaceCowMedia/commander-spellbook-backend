@@ -2,14 +2,10 @@
 
 ## Introduction
 
-The Minimal Set of Multisets (MSM) is a data structure that represents a set of multisets.
-No multiset in a MSM is a subset of another multiset in the MSM.
-When you add a new multiset to a MSM, one of two things happens:
+The Minimal Set of Multisets (MSM) is a data structure that represents a set of multisets. No multiset in a MSM is a subset of another multiset in the MSM. It is the antichain that backs the minimality pruning of the [variant generation engine](variant-generation.md). When you add a new multiset to a MSM, one of two things happens:
 
 1. If the new multiset is a superset of an existing multiset, nothing happens and the MSM remains unchanged.
-2. Otherwise, if the new multiset is not a superset of any existing multiset, it is added to the MSM.
-   Then, any multiset that is a superset of the added multiset is removed from the MSM.
-
+2. Otherwise, if the new multiset is not a superset of any existing multiset, it is added to the MSM. Then, any multiset that is a superset of the added multiset is removed from the MSM.
 
 ## Example
 

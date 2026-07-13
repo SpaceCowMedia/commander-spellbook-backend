@@ -69,7 +69,7 @@ djangorestframework-camel-case==1.4.2
     # via -r requirements.in
 djangorestframework-simplejwt==5.5.1
     # via -r requirements.in
-drf-spectacular==0.29.0
+drf-spectacular==0.30.0
     # via -r requirements.in
 drf-spectacular-sidecar==2026.7.1
     # via -r requirements.in

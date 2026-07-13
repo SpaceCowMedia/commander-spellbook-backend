@@ -7,7 +7,8 @@ from dataclasses import dataclass
 from django.utils.functional import cached_property
 from django.db import transaction
 from .variant_data import Data
-from .combo_graph import FeatureWithAttributes, Graph, VariantSet, cardid, templateid, featureid
+from .variant_set import VariantSet
+from .combo_graph import FeatureWithAttributes, Graph, GraphError, cardid, templateid, featureid
 from spellbook.models import Combo, FeatureNeededInCombo, Variant, CardInVariant, TemplateInVariant, ZoneLocation, CardType
 from spellbook.models import Card, Template, VariantAlias, Ingredient, FeatureProducedByVariant, VariantOfCombo, VariantIncludesCombo
 from spellbook.models import id_from_cards_and_templates_ids, merge_mana_costs, DEFAULT_BATCH_SIZE
@@ -72,7 +73,7 @@ def get_variants_from_graph(
         for combo in combos:
             try:
                 variant_set = graph.variants(combo.id)
-            except Graph.GraphError:
+            except GraphError:
                 log_error(f'Error while computing all variants for generator combo {combo} with ID {combo.id}')
                 raise
             variant_sets.append((combo, variant_set))
@@ -88,7 +89,7 @@ def get_variants_from_graph(
                 log(f'About to process results for combo {combo.id} ({index + 1}/{total}) with {len(variant_set)} variants...')
             try:
                 variants = graph.results(variant_set)
-            except Graph.GraphError:
+            except GraphError:
                 log_error(f'Error while computing all results for generator combo {combo} with ID {combo.id}')
                 raise
             for variant in variants:
@@ -201,6 +202,7 @@ def update_state(dst: Ingredient, src: Ingredient, overwrite=False):
 
 
 FEATURE_REPLACEMENT_REGEX = r'\[\[(?P<key>.+?)(?:\|(?P<alias>[^$|]+?))?(?:\$(?P<selector>[1-9]\d*)(?:\|(?P<postfix_alias>[^$|]+?))?)?\]\]'
+_FEATURE_REPLACEMENT_PATTERN = re.compile(FEATURE_REPLACEMENT_REGEX, re.IGNORECASE)
 
 
 def apply_replacements(
@@ -247,11 +249,9 @@ def apply_replacements(
             replacements_strings.setdefault(postfix_alias, []).append(result)
         return result
 
-    return re.sub(
-        FEATURE_REPLACEMENT_REGEX,
+    return _FEATURE_REPLACEMENT_PATTERN.sub(
         lambda m: replacement_with_fallback(m.group('key'), m.group('alias'), m.group('selector'), m.group('postfix_alias'), m.group(0)),
         text,
-        flags=re.IGNORECASE,
     )
 
 

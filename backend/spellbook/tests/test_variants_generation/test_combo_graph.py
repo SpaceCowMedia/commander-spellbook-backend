@@ -2,7 +2,8 @@ from spellbook.models import Card, Combo, FeatureAttribute
 from spellbook.models.feature import Feature
 from spellbook.variants.multiset import FrozenMultiset
 from spellbook.variants.variant_data import Data
-from spellbook.variants.combo_graph import FeatureWithAttributes, Graph, VariantIngredients, VariantSet, VariantRecipe
+from spellbook.variants.combo_graph import FeatureWithAttributes, Graph, GraphError, VariantIngredients, VariantRecipe
+from spellbook.variants.variant_set import VariantSet
 from spellbook.tests.testing import SpellbookTestCaseWithSeeding, SpellbookTestCase
 
 
@@ -43,10 +44,10 @@ class ComboGraphTest(SpellbookTestCaseWithSeeding):
     def test_variant_limit(self):
         combo_graph = Graph(Data(), variant_limit=0)
         with self.assertNumQueries(0):
-            self.assertRaises(Graph.GraphError, lambda: combo_graph.variants(self.b2_id))
+            self.assertRaises(GraphError, lambda: combo_graph.variants(self.b2_id))
         combo_graph = Graph(Data(), variant_limit=1)
         with self.assertNumQueries(0):
-            self.assertRaises(Graph.GraphError, lambda: combo_graph.variants(self.b2_id))
+            self.assertRaises(GraphError, lambda: combo_graph.variants(self.b2_id))
         combo_graph = Graph(Data(), variant_limit=20)
         with self.assertNumQueries(0):
             self.assertEqual(len(list(combo_graph.results(combo_graph.variants(self.b2_id)))), 3)
@@ -1098,3 +1099,40 @@ class ComboGraphTestGeneration(SpellbookTestCase):
             FeatureWithAttributes(Feature.objects.get(id=2), frozenset()): [VariantIngredients(FrozenMultiset({2: 1}), FrozenMultiset())],
             FeatureWithAttributes(Feature.objects.get(id=3), frozenset()): [VariantIngredients(FrozenMultiset({1: 1, 2: 1}), FrozenMultiset())],
         })
+
+    def test_subgraph_states_are_reset_between_graph_walks(self):
+        '''
+        Regression test: subgraph visit states must be reset between walks of the same Graph.
+
+        During results(), combo 4's subgraph walk reaches combo 5 while the matcher of
+        feature "f" is being visited; since combo 5 both needs and produces "f", the cycle
+        guard abandons it, leaving it in the VISITING state. In the first run "h" is not
+        available, so combo 5 is never processed again and keeps that state. If the state
+        is not reset, in the second run combo 6 silently skips combo 5 as a provider of
+        "g", losing the {B, D, E} alternative for feature "k".
+        '''
+        self.setup_combo_graph({
+            'A': ('g',),
+            'E': ('h',),
+            ('A', 'B'): ('m1',),            # combo 1
+            ('A', 'B', 'D', 'E'): ('m2',),  # combo 2
+            ('B',): ('f',),                 # combo 3
+            ('f',): ('r',),                 # combo 4
+            ('f', 'h'): ('f', 'g'),         # combo 5
+            ('D', 'g'): ('k',),             # combo 6
+        })
+        data = Data()
+        fresh_graph = Graph(data)
+        expected = list(fresh_graph.results(fresh_graph.variants(2)))
+        reused_graph = Graph(data)
+        reused_graph.results(reused_graph.variants(1))
+        actual = list(reused_graph.results(reused_graph.variants(2)))
+        self.assertEqual(actual, expected)
+        self.assertEqual(len(actual), 1)
+        k_id = Feature.objects.get(name='k').id
+        self.assertEqual(actual[0].features[k_id], 2)
+        k_replacements = actual[0].replacements[FeatureWithAttributes(Feature.objects.get(pk=k_id), frozenset())]
+        self.assertCountEqual(k_replacements, [
+            VariantIngredients(FrozenMultiset({1: 1, 4: 1}), FrozenMultiset()),
+            VariantIngredients(FrozenMultiset({2: 1, 3: 1, 4: 1}), FrozenMultiset()),
+        ])

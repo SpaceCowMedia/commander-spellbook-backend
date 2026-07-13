@@ -1,16 +1,18 @@
-from typing import MutableMapping, Generic, TypeVar, Hashable, Mapping as MappingType, Union, Optional, Iterable as IterableType, \
+from types import GenericAlias
+from typing import MutableMapping, Mapping as MappingType, Union, Optional, Iterable as IterableType, \
     ItemsView, KeysView, ValuesView
-from collections import Counter
 from collections.abc import Mapping
 
-_T = TypeVar('_T', bound=Hashable)
-_Other = Union['BaseMultiset[_T]', IterableType[_T], MappingType[_T, int]]
+_Other = Union['BaseMultiset', IterableType, MappingType]
 
 # Sentinel value for count_contains when no minimum has been found yet
 _COUNT_NOT_SET = -1
 
+# Sentinel value for the lazily computed hash, equal to the zero-initialized value of compiled class attributes
+_HASH_NOT_COMPUTED = 0
 
-class BaseMultiset(Generic[_T]):
+
+class BaseMultiset:
     '''
     A multiset implementation.
 
@@ -21,26 +23,39 @@ class BaseMultiset(Generic[_T]):
     '''
 
     __slots__ = ('_elements', '_total')
-    _elements: Counter[_T]
+    _elements: dict
     _total: int
 
-    def __init__(self, iterable: Optional[_Other] = None, _internal: Optional[Counter[_T]] = None):
+    __class_getitem__ = classmethod(GenericAlias)
+
+    def __init__(self, iterable: Optional[_Other] = None, _internal: Optional[dict] = None):
         assert iterable is None or _internal is None, 'Either "iterable" or "_internal" must be provided, not both.'
         if isinstance(iterable, BaseMultiset):
             self._elements = iterable._elements.copy()
             self._total = iterable._total
         elif _internal is not None:
             self._elements = _internal
-            self._total = self._elements.total()
+            self._total = sum(_internal.values())
+        elif iterable is None:
+            self._elements = {}
+            self._total = 0
+        elif isinstance(iterable, Mapping):
+            elements = dict(iterable)
+            self._elements = elements
+            self._total = sum(elements.values())
         else:
-            self._elements = Counter[_T](iterable)
-            self._total = self._elements.total()
+            elements = {}
+            elements_get = elements.get
+            for element in iterable:
+                elements[element] = elements_get(element, 0) + 1
+            self._elements = elements
+            self._total = sum(elements.values())
 
     def __contains__(self, element: object) -> bool:
         return element in self._elements
 
-    def __getitem__(self, element: _T) -> int:
-        return self._elements[element]
+    def __getitem__(self, element) -> int:
+        return self._elements.get(element, 0)
 
     def __str__(self) -> str:
         items = ', '.join('%r: %r' % item for item in self._elements.items())
@@ -52,20 +67,43 @@ class BaseMultiset(Generic[_T]):
     def __len__(self) -> int:
         return self._total
 
-    def isdisjoint(self, other: 'BaseMultiset[_T]') -> bool:
+    def isdisjoint(self, other: 'BaseMultiset') -> bool:
         return self._elements.keys().isdisjoint(other._elements.keys())
 
-    def difference(self, other: 'BaseMultiset[_T]'):
-        return self.__class__(_internal=self._elements - other._elements)
+    def difference(self, other: 'BaseMultiset'):
+        result = {}
+        other_get = other._elements.get
+        for element, count in self._elements.items():
+            new_count = count - other_get(element, 0)
+            if new_count > 0:
+                result[element] = new_count
+        return self.__class__(_internal=result)
 
-    def union(self, other: 'BaseMultiset[_T]'):
-        return self.__class__(_internal=self._elements | other._elements)
+    def union(self, other: 'BaseMultiset'):
+        result = self._elements.copy()
+        result_get = result.get
+        for element, count in other._elements.items():
+            if count > result_get(element, 0):
+                result[element] = count
+        return self.__class__(_internal=result)
 
-    def combine(self, other: 'BaseMultiset[_T]'):
-        return self.__class__(_internal=self._elements + other._elements)
+    def combine(self, other: 'BaseMultiset'):
+        result = self._elements.copy()
+        result_get = result.get
+        for element, count in other._elements.items():
+            result[element] = count + result_get(element, 0)
+        return self.__class__(_internal=result)
 
-    def intersection(self, other: 'BaseMultiset[_T]'):
-        return self.__class__(_internal=self._elements & other._elements)
+    def intersection(self, other: 'BaseMultiset'):
+        result = {}
+        other_get = other._elements.get
+        for element, count in self._elements.items():
+            other_count = other_get(element, 0)
+            if other_count < count:
+                count = other_count
+            if count > 0:
+                result[element] = count
+        return self.__class__(_internal=result)
 
     def times(self, factor: int):
         if factor == 0:
@@ -77,32 +115,36 @@ class BaseMultiset(Generic[_T]):
             _elements[element] *= factor
         return self.__class__(_internal=_elements)
 
-    def count_contains(self, other: 'BaseMultiset[_T]') -> int:
-        if len(other) == 0:
+    def count_contains(self, other: 'BaseMultiset') -> int:
+        if other._total == 0:
             raise ZeroDivisionError('Cannot count the number of times an empty multiset is contained in another multiset')
         if other._total > self._total:
             return 0
+        self_get = self._elements.get
         m: int = _COUNT_NOT_SET
-        for k, v in other.items():
+        for k, v in other._elements.items():
             if v > 0:
-                x: int = self[k] // v
+                x: int = self_get(k, 0) // v
+                if x == 0:
+                    return 0
                 if m == _COUNT_NOT_SET or x < m:
                     m = x
         return m if m != _COUNT_NOT_SET else 0
 
-    def issubset(self, other: 'BaseMultiset[_T]') -> bool:
+    def issubset(self, other: 'BaseMultiset') -> bool:
         self_len: int = self._total
         if self_len == 0:
             return True
         other_len: int = other._total
         if self_len > other_len:
             return False
+        other_get = other._elements.get
         for element, q in self._elements.items():
-            if q > other[element]:
+            if q > other_get(element, 0):
                 return False
         return True
 
-    def issuperset(self, other: 'BaseMultiset[_T]') -> bool:
+    def issuperset(self, other: 'BaseMultiset') -> bool:
         return other.issubset(self)
 
     def __eq__(self, other: object) -> bool:
@@ -110,7 +152,7 @@ class BaseMultiset(Generic[_T]):
             return self._total == other._total and self._elements == other._elements
         return False
 
-    def get(self, element: _T, default: int) -> int:
+    def get(self, element, default: int) -> int:
         return self._elements.get(element, default)
 
     def copy(self):
@@ -118,31 +160,31 @@ class BaseMultiset(Generic[_T]):
 
     __copy__ = copy
 
-    def items(self) -> ItemsView[_T, int]:
+    def items(self) -> ItemsView:
         return self._elements.items()
 
-    def distinct_elements(self) -> KeysView[_T]:
+    def distinct_elements(self) -> KeysView:
         return self._elements.keys()
 
     def multiplicities(self) -> ValuesView[int]:
         return self._elements.values()
 
-    def __le__(self, other: 'BaseMultiset[_T]') -> bool:
+    def __le__(self, other: 'BaseMultiset') -> bool:
         return self.issubset(other)
 
-    def __lt__(self, other: 'BaseMultiset[_T]') -> bool:
+    def __lt__(self, other: 'BaseMultiset') -> bool:
         return self._total < other._total and self.issubset(other)
 
-    def __ge__(self, other: 'BaseMultiset[_T]') -> bool:
+    def __ge__(self, other: 'BaseMultiset') -> bool:
         return self.issuperset(other)
 
-    def __gt__(self, other: 'BaseMultiset[_T]') -> bool:
+    def __gt__(self, other: 'BaseMultiset') -> bool:
         return self._total > other._total and self.issuperset(other)
 
-    def __add__(self, other: 'BaseMultiset[_T]'):
+    def __add__(self, other: 'BaseMultiset'):
         return self.combine(other)
 
-    def __sub__(self, other: 'BaseMultiset[_T]'):
+    def __sub__(self, other: 'BaseMultiset'):
         return self.difference(other)
 
     def __mul__(self, factor: int):
@@ -151,45 +193,59 @@ class BaseMultiset(Generic[_T]):
     def __rmul__(self, factor: int):
         return self.times(factor)
 
-    def __or__(self, other: 'BaseMultiset[_T]'):
+    def __or__(self, other: 'BaseMultiset'):
         return self.union(other)
 
-    def __and__(self, other: 'BaseMultiset[_T]'):
+    def __and__(self, other: 'BaseMultiset'):
         return self.intersection(other)
 
-    def __floordiv__(self, other: 'BaseMultiset[_T]') -> int:
+    def __floordiv__(self, other: 'BaseMultiset') -> int:
         return self.count_contains(other)
 
-    __iter__ = None
+    def __iter__(self):
+        raise TypeError(f'{self.__class__.__name__!r} object is not iterable')
 
 
-class Multiset(Generic[_T], BaseMultiset[_T]):
-    def __setitem__(self, element: _T, quantity: int):
+class Multiset(BaseMultiset):
+    def __setitem__(self, element, quantity: int):
         if quantity < 0:
             raise ValueError('The quantity must not be negative.')
         elif quantity == 0:
             del self[element]
             return
-        current_quantity = self._elements[element]
+        current_quantity = self._elements.get(element, 0)
         self._elements[element] = quantity
         self._total += quantity - current_quantity
 
-    def __delitem__(self, element: _T):
+    def __delitem__(self, element):
         current_quantity = self._elements.get(element, 0)
         if current_quantity:
             del self._elements[element]
             self._total -= current_quantity
 
-    def add(self, element: _T, quantity: int = 1):
+    def add(self, element, quantity: int = 1):
         if quantity < 0:
             raise ValueError('The quantity must not be negative.')
-        self._elements[element] += quantity
+        self._elements[element] = self._elements.get(element, 0) + quantity
         self._total += quantity
 
 
-class FrozenMultiset(Generic[_T], BaseMultiset[_T]):
+class FrozenMultiset(BaseMultiset):
+    __slots__ = ('_hash',)
+    _hash: int
+
     def __hash__(self):
-        return hash(frozenset(self._elements.items()))
+        try:
+            h = self._hash
+        except AttributeError:
+            h = _HASH_NOT_COMPUTED
+        if h == _HASH_NOT_COMPUTED:
+            h = hash(frozenset(self._elements.items()))
+            self._hash = h
+        return h
+
+    def __eq__(self, other: object) -> bool:
+        return super().__eq__(other)
 
 
 Mapping.register(FrozenMultiset)  # type: ignore

@@ -1,6 +1,7 @@
 from typing import Iterable, Callable, Self
 from itertools import product, chain
 from functools import reduce
+from operator import add
 from dataclasses import dataclass
 from .multiset import FrozenMultiset
 from .minimal_set_of_multisets import MinimalSetOfMultisets
@@ -85,22 +86,28 @@ class VariantSet:
 
     def __and__(self, other: Self):
         assert self.parameters == other.parameters, 'Cannot intersect VariantSets with different parameters'
-        result = MinimalSetOfMultisets[int]()
+        parameters = self.__parameters
+        result: MinimalSetOfMultisets = MinimalSetOfMultisets[int]()
+        left_entry: FrozenMultiset
+        right_entry: FrozenMultiset
+        entry: FrozenMultiset
         for left_entry, right_entry in product(self.entries(), other.entries()):
             entry = left_entry | right_entry
-            if not self.parameters._check_entry(entry):
-                continue
-            result.add(entry)
+            if parameters._check_entry(entry):
+                result.add(entry)
         return self.__class__(parameters=self.parameters, _internal=result)
 
     def __add__(self, other: Self):
         assert self.parameters == other.parameters, 'Cannot sum VariantSets with different parameters'
-        result = MinimalSetOfMultisets[int]()
+        parameters = self.__parameters
+        result: MinimalSetOfMultisets = MinimalSetOfMultisets[int]()
+        left_key: FrozenMultiset
+        right_key: FrozenMultiset
+        entry: FrozenMultiset
         for left_key, right_key in product(self.entries(), other.entries()):
             entry = left_key + right_key
-            if not self.parameters._check_entry(entry):
-                continue
-            result.add(entry)
+            if parameters._check_entry(entry):
+                result.add(entry)
         return self.__class__(parameters=self.parameters, _internal=result)
 
     def variants(self) -> list[tuple[FrozenMultiset[cardid], FrozenMultiset[templateid]]]:
@@ -112,7 +119,7 @@ class VariantSet:
 
     @classmethod
     def and_sets(cls, sets: list[Self], parameters: VariantSetParameters | None = None):
-        return cls.aggregate_sets(sets, strategy=lambda x, y: x & y, parameters=parameters)
+        return cls.aggregate_sets(sorted(sets, key=len), strategy=lambda x, y: x & y, parameters=parameters)
 
     @classmethod
     def sum_sets(cls, sets: list[Self], parameters: VariantSetParameters | None = None):
@@ -129,21 +136,25 @@ class VariantSet:
         parameters = parameters if parameters is not None else VariantSetParameters()
         if parameters.allow_multiple_copies:
             return cls.sum_sets(sets, parameters=parameters)
-        result = MinimalSetOfMultisets[int]()
+        if len(sets) == 0:
+            return cls(parameters=parameters)
+        result: MinimalSetOfMultisets = MinimalSetOfMultisets[int]()
+        entry: FrozenMultiset
         for key_combination in product(*(s.entries() for s in sets)):
-            # Optimized: build cards_sets with explicit loop for better Cython compilation
-            cards_sets = []
+            cards_sets = set()
+            duplicated = False
             for entry in key_combination:
                 card_set = frozenset(c for c in entry.distinct_elements() if c > 0)
-                if len(card_set) > 0:
-                    cards_sets.append(card_set)
-            # Check for duplicate card sets
-            if len(cards_sets) != len(set(cards_sets)):
+                if card_set:
+                    if card_set in cards_sets:
+                        duplicated = True
+                        break
+                    cards_sets.add(card_set)
+            if duplicated:
                 continue
-            entry = sum(key_combination, Entry())
-            if not parameters._check_entry(entry):
-                continue
-            result.add(entry)
+            entry = reduce(add, key_combination)
+            if parameters._check_entry(entry):
+                result.add(entry)
         return cls(parameters=parameters, _internal=result)
 
     def __eq__(self, other: object) -> bool:

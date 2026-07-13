@@ -10,3 +10,13 @@
 # cython: overflowcheck=False
 # cython: profile=False
 # cython: annotation_typing=True
+
+cimport cython
+
+from spellbook.variants.multiset cimport FrozenMultiset
+from spellbook.variants.variant_set cimport VariantSet
+from spellbook.variants.variant_data cimport Data
+from spellbook.variants.combo_graph cimport Graph
+
+
+cpdef FrozenMultiset subtract_features(Data data, set includes, FrozenMultiset features)

@@ -1,5 +1,4 @@
-from typing import Mapping, Iterable, Generic, TypeVar
-from math import prod
+from typing import Mapping, Iterable
 from collections import deque, defaultdict, Counter
 from .multiset import FrozenMultiset, Multiset
 from itertools import chain
@@ -16,11 +15,8 @@ class NodeState(Enum):
     VISITED = 2
 
 
-T = TypeVar('T')
-
-
-class Node(Generic[T]):
-    def __init__(self, graph: 'Graph', item: T):
+class Node:
+    def __init__(self, graph: 'Graph', item):
         self._variant_set: VariantSet | None = None
         self._filtered_variant_set: VariantSet | None = None
         self._graph = graph
@@ -54,7 +50,7 @@ class Node(Generic[T]):
         self._state = NodeState.NOT_VISITED
 
     def _reset_subgraph_state(self):
-        self._filtered_state = NodeState.NOT_VISITED
+        self._subgraph_state = NodeState.NOT_VISITED
 
     def _reset_filtered_variant_set(self):
         self._filtered_variant_set = None
@@ -63,8 +59,8 @@ class Node(Generic[T]):
         return self._hash
 
 
-class NodeWithState(Node[T]):
-    def __init__(self, graph: 'Graph', item: T):
+class NodeWithState(Node):
+    def __init__(self, graph: 'Graph', item):
         super().__init__(graph, item)
         self._state = NodeState.NOT_VISITED
         self._subgraph_state = NodeState.NOT_VISITED
@@ -83,8 +79,8 @@ class NodeWithState(Node[T]):
             self._graph._to_reset_nodes_state.add(self)
 
 
-class NodeWithoutState(Node[T]):
-    def __init__(self, graph: 'Graph', item: T, variant_set: VariantSet):
+class NodeWithoutState(Node):
+    def __init__(self, graph: 'Graph', item, variant_set: VariantSet):
         super().__init__(graph, item)
         self._variant_set = variant_set
 
@@ -93,7 +89,7 @@ class NodeWithoutState(Node[T]):
         return super().variant_set  # type: ignore
 
 
-class CardNode(NodeWithoutState[Card]):
+class CardNode(NodeWithoutState):
     def __init__(
             self,
             graph: 'Graph',
@@ -107,10 +103,10 @@ class CardNode(NodeWithoutState[Card]):
         )
         super().__init__(graph, card, variant_set)
         self.features = list(features)
-        self.combos = Counter(combos)
+        self.combos = dict(combos)
 
 
-class TemplateNode(NodeWithoutState[Template]):
+class TemplateNode(NodeWithoutState):
     def __init__(
             self,
             graph: 'Graph',
@@ -122,10 +118,10 @@ class TemplateNode(NodeWithoutState[Template]):
             entries=(VariantSet.ingredients_to_entry(FrozenMultiset(), FrozenMultiset({template.id: 1})),),
         )
         super().__init__(graph, template, variant_set)
-        self.combos = Counter(combos)
+        self.combos = dict(combos)
 
 
-class FeatureOfCardNode(NodeWithoutState[FeatureOfCard]):
+class FeatureOfCardNode(NodeWithoutState):
     def __init__(
         self,
         graph: 'Graph',
@@ -150,7 +146,7 @@ class FeatureWithAttributes:
     attributes: frozenset[int]
 
 
-class FeatureWithAttributesNode(NodeWithState[FeatureWithAttributes]):
+class FeatureWithAttributesNode(NodeWithState):
     def __init__(
         self,
         graph: 'Graph',
@@ -171,7 +167,7 @@ class FeatureWithAttributesMatcher:
     matcher: AttributesMatcher
 
 
-class FeatureWithAttributesMatcherNode(NodeWithState[FeatureWithAttributesMatcher]):
+class FeatureWithAttributesMatcherNode(NodeWithState):
     def __init__(
         self,
         graph: 'Graph',
@@ -180,11 +176,11 @@ class FeatureWithAttributesMatcherNode(NodeWithState[FeatureWithAttributesMatche
         matches: Iterable[FeatureWithAttributesNode] = [],
     ):
         super().__init__(graph, feature)
-        self.needed_by_combos = Counter['ComboNode'](needed_by_combos)
+        self.needed_by_combos = dict(needed_by_combos)
         self.matches = set(matches)
 
 
-class ComboNode(NodeWithState[Combo]):
+class ComboNode(NodeWithState):
     def __init__(
         self,
         graph: 'Graph',
@@ -238,10 +234,11 @@ def satisfies(produced: Iterable[FeatureWithAttributes], needed: Iterable[Featur
     return True
 
 
-class Graph:
-    class GraphError(Exception):
-        pass
+class GraphError(Exception):
+    pass
 
+
+class Graph:
     def __init__(self,
             data: Data,
             card_limit=5,
@@ -370,6 +367,7 @@ class Graph:
         raise Exception(msg)
 
     def _reset(self):
+        node: Node
         for node in self._to_reset_nodes_subgraph_state:
             node._reset_subgraph_state()
         self._to_reset_nodes_subgraph_state.clear()
@@ -424,13 +422,15 @@ class Graph:
         for feature, features_needed in combo.features_needed.items():
             variant_sets = list[VariantSet]()
             for f, q in features_needed.items():
-                if f.state == NodeState.VISITING:
+                if f.state is NodeState.VISITING:
                     return VariantSet(parameters=self.variant_set_parameters)
                 variant_set = self._feature_with_attribute_matchers_nodes_down(f)
                 variant_sets.extend([variant_set] * q)
-            variant_count_estimate = sum(len(vs) for vs in variant_sets)
+            variant_count_estimate = 0
+            for vs in variant_sets:
+                variant_count_estimate += len(vs)
             if variant_count_estimate > self.variant_limit:
-                raise Graph.GraphError(f'{len(variant_sets)} x Feature "{feature}" has too many variants, approx. {variant_count_estimate}')
+                raise GraphError(f'{len(variant_sets)} x Feature "{feature}" has too many variants, approx. {variant_count_estimate}')
             variant_set = VariantSet.product_sets(variant_sets, parameters=self.variant_set_parameters)
             if not variant_set:
                 combo.state = NodeState.VISITED
@@ -438,9 +438,11 @@ class Graph:
                 return combo.variant_set
             needed_features_variant_sets.append(variant_set)
         variant_sets: list[VariantSet] = card_variant_sets + template_variant_sets + needed_features_variant_sets
-        variant_count_estimate = prod(len(vs) for vs in variant_sets)
+        variant_count_estimate = 1
+        for vs in variant_sets:
+            variant_count_estimate *= len(vs)
         if variant_count_estimate > self.variant_limit:
-            raise Graph.GraphError(f'Combo {combo.item} has too many variants, approx. {variant_count_estimate}')
+            raise GraphError(f'Combo {combo.item} has too many variants, approx. {variant_count_estimate}')
         combo.variant_set = VariantSet.and_sets(variant_sets, parameters=self.variant_set_parameters)
         combo.state = NodeState.VISITED
         return combo.variant_set
@@ -452,7 +454,7 @@ class Graph:
         feature.state = NodeState.VISITING
         variant_sets: list[VariantSet] = []
         for m in feature.matches:
-            if m.state == NodeState.VISITING:
+            if m.state is NodeState.VISITING:
                 continue
             variant_set = self._feature_with_attributes_nodes_down(m)
             if variant_set:
@@ -469,15 +471,17 @@ class Graph:
         card_variant_sets: list[VariantSet] = [f.variant_set for f in feature.produced_by_cards]
         produced_combos_variant_sets: list[VariantSet] = []
         for c in feature.produced_by_combos:
-            if c.state == NodeState.VISITING:
+            if c.state is NodeState.VISITING:
                 continue
             variant_set = self._combo_nodes_down(c)
             if variant_set:
                 produced_combos_variant_sets.append(variant_set)
         variant_sets = card_variant_sets + produced_combos_variant_sets
-        variant_count_estimate = sum(len(vs) for vs in variant_sets)
+        variant_count_estimate = 0
+        for vs in variant_sets:
+            variant_count_estimate += len(vs)
         if variant_count_estimate > self.variant_limit:
-            raise Graph.GraphError(f'Feature "{feature.item}" has too many variants, approx. {variant_count_estimate}')
+            raise GraphError(f'Feature "{feature.item}" has too many variants, approx. {variant_count_estimate}')
         feature.variant_set = VariantSet.or_sets(variant_sets, parameters=self.variant_set_parameters)
         feature.state = NodeState.VISITED
         return feature.variant_set
@@ -503,7 +507,7 @@ class Graph:
         # Process initial ingredients and build initial queue
         for ingredient, quantity in chain(cards.items(), templates.items()):
             for combo in ingredient.combos:
-                if combo.state == NodeState.NOT_VISITED:
+                if combo.state is NodeState.NOT_VISITED:
                     if combo.variant_set or cards.issuperset(combo.cards) and templates.issuperset(combo.templates):
                         combo.state = NodeState.VISITING
                         combo_nodes_to_visit.append(combo)
@@ -528,12 +532,12 @@ class Graph:
                         templates=FrozenMultiset()
                     )
                 )
-                if feature.state == NodeState.VISITED:
+                if feature.state is NodeState.VISITED:
                     continue
                 feature.state = NodeState.VISITED
                 for matching_feature in feature.matches:
                     for feature_combo in matching_feature.needed_by_combos:
-                        if feature_combo.state == NodeState.NOT_VISITED:
+                        if feature_combo.state is NodeState.NOT_VISITED:
                             if feature_combo.variant_set or cards.issuperset(feature_combo.cards) and templates.issuperset(feature_combo.templates):
                                 feature_combo.state = NodeState.VISITING
                                 combo_nodes_to_visit.append(feature_combo)
@@ -573,12 +577,10 @@ class Graph:
             combo_nodes.add(combo)
             if variant_set is not None:
                 variants_list = variant_set.variants()
-                replacements_for_combo = [
-                    VariantIngredients(cards_satisfying, templates_satisfying)
-                    for cards_satisfying, templates_satisfying in variants_list
-                ]
+                replacements_for_combo = []
                 quantity: int = 0
                 for cards_satisfying, templates_satisfying in variants_list:
+                    replacements_for_combo.append(VariantIngredients(cards_satisfying, templates_satisfying))
                     count_for_cards: int | None = ingredients.cards // cards_satisfying if cards_satisfying else None
                     count_for_templates: int | None = ingredients.templates // templates_satisfying if templates_satisfying else None
                     if count_for_cards is not None:
@@ -599,11 +601,11 @@ class Graph:
                     uncountable_feature_nodes.add(feature)
                     combo_nodes_to_visit.extend(combo_nodes_to_visit_with_new_uncountable_features)
                     combo_nodes_to_visit_with_new_uncountable_features.clear()
-                if feature.state == NodeState.NOT_VISITED:
+                if feature.state is NodeState.NOT_VISITED:
                     feature.state = NodeState.VISITED
                     for matching_feature in feature.matches:
                         for feature_combo in matching_feature.needed_by_combos:
-                            if feature_combo.state == NodeState.NOT_VISITED:
+                            if feature_combo.state is NodeState.NOT_VISITED:
                                 if feature_combo.variant_set or cards.issuperset(feature_combo.cards) and templates.issuperset(feature_combo.templates):
                                     feature_combo.state = NodeState.VISITING
                                     combo_nodes_to_visit.append(feature_combo)
@@ -695,19 +697,25 @@ class Graph:
         for feature, group in combo.features_needed.items():
             if not feature.uncountable:
                 for matcher, required_quantity in group.items():
-                    available_quantity = sum(
-                        q
-                        for f, q in available.items()
-                        if f in matcher.matches
-                    )
+                    matches = matcher.matches
+                    available_quantity = 0
+                    for f, q in available.items():
+                        if f in matches:
+                            available_quantity += q
+                            if available_quantity >= required_quantity:
+                                break
                     if available_quantity < required_quantity:
                         return False
                 required_total_quantity = sum(group.values())
-                available_total_quantity = sum(
-                    q
-                    for f, q in available.items()
-                    if f.item.feature == feature and any(f in matcher.matches for matcher in group)
-                )
+                available_total_quantity = 0
+                for f, q in available.items():
+                    if f.item.feature == feature:
+                        for matcher in group:
+                            if f in matcher.matches:
+                                available_total_quantity += q
+                                break
+                        if available_total_quantity >= required_total_quantity:
+                            break
                 if available_total_quantity < required_total_quantity:
                     return False
         return True

@@ -2,6 +2,66 @@
     "version": "2.0.0",
     "tasks": [
         {
+            "label": "manage.py: run command…",
+            "detail": "Prompt for any manage.py subcommand and arguments",
+            "type": "shell",
+            "command": "${PYTHON} manage.py ${input:managePyCommand}",
+            "group": "none",
+            "problemMatcher": [],
+            "options": {
+                "cwd": "${workspaceFolder}/backend",
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}${/}common",
+                    "PYTHON": "${command:python.interpreterPath}",
+                },
+            }
+        },
+        {
+            "label": "manage.py: check",
+            "detail": "python manage.py check",
+            "type": "shell",
+            "command": "${PYTHON} manage.py check",
+            "group": "none",
+            "problemMatcher": [],
+            "options": {
+                "cwd": "${workspaceFolder}/backend",
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}${/}common",
+                    "PYTHON": "${command:python.interpreterPath}",
+                },
+            }
+        },
+        {
+            "label": "manage.py: makemigrations",
+            "detail": "python manage.py makemigrations",
+            "type": "shell",
+            "command": "${PYTHON} manage.py makemigrations",
+            "group": "none",
+            "problemMatcher": [],
+            "options": {
+                "cwd": "${workspaceFolder}/backend",
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}${/}common",
+                    "PYTHON": "${command:python.interpreterPath}",
+                },
+            }
+        },
+        {
+            "label": "manage.py: showmigrations",
+            "detail": "python manage.py showmigrations",
+            "type": "shell",
+            "command": "${PYTHON} manage.py showmigrations",
+            "group": "none",
+            "problemMatcher": [],
+            "options": {
+                "cwd": "${workspaceFolder}/backend",
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}${/}common",
+                    "PYTHON": "${command:python.interpreterPath}",
+                },
+            }
+        },
+        {
             "label": "Apply migrations",
             "type": "shell",
             "command": "${PYTHON} manage.py migrate",
@@ -133,6 +193,13 @@
                 "Upkeep with production settings",
                 "Seed Website Properties with production settings",
             ],
+        }
+    ],
+    "inputs": [
+        {
+            "id": "managePyCommand",
+            "type": "promptString",
+            "description": "manage.py subcommand and arguments (e.g. 'makemigrations spellbook')"
         }
     ]
 }

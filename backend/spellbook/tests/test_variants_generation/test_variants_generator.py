@@ -91,7 +91,6 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
                 self.assertEqual(sut.zone_locations, IngredientInCombination._meta.get_field('zone_locations').get_default())
 
     def test_update_state(self):
-        data = Data()
         civs = list(CardInVariant(card=c) for c in Card.objects.all())
         tivs = list(TemplateInVariant(template=t) for t in Template.objects.all())
         for sut1, sut2 in zip(chain(civs, tivs), chain(reversed(civs), reversed(tivs))):  # type: ignore
@@ -101,37 +100,40 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
             sut1.library_card_state = 'library_card_state'
             sut1.must_be_commander = True
             sut1.zone_locations = ZoneLocation.COMMAND_ZONE + ZoneLocation.BATTLEFIELD
-            update_state_with_default(data, sut2)
-            update_state(dst=sut2, src=sut1, overwrite=True)
+            update_state(dst=sut2, initial_states=[sut1])
             self.assertEqual(sut2.battlefield_card_state, sut1.battlefield_card_state)
             self.assertEqual(sut2.exile_card_state, sut1.exile_card_state)
             self.assertEqual(sut2.graveyard_card_state, sut1.graveyard_card_state)
             self.assertEqual(sut2.library_card_state, sut1.library_card_state)
             self.assertEqual(sut2.must_be_commander, sut1.must_be_commander)
             self.assertEqual(sut2.zone_locations, sut1.zone_locations)
-            sut2.battlefield_card_state = 'battlefield_card_state2'
-            sut2.exile_card_state = 'exile_card_state2'
-            sut2.graveyard_card_state = 'graveyard_card_state2'
-            sut2.library_card_state = 'library_card_state2'
-            sut2.must_be_commander = False
-            sut2.zone_locations = ZoneLocation.BATTLEFIELD + ZoneLocation.EXILE
-            update_state(dst=sut2, src=sut1, overwrite=False)
-            self.assertIn(sut1.battlefield_card_state, sut2.battlefield_card_state)
-            self.assertIn('battlefield_card_state2', sut2.battlefield_card_state)
-            self.assertIn(sut1.exile_card_state, sut2.exile_card_state)
-            self.assertIn('exile_card_state2', sut2.exile_card_state)
-            self.assertIn(sut1.graveyard_card_state, sut2.graveyard_card_state)
-            self.assertIn('graveyard_card_state2', sut2.graveyard_card_state)
-            self.assertIn(sut1.library_card_state, sut2.library_card_state)
-            self.assertIn('library_card_state2', sut2.library_card_state)
+            other = CardInVariant(
+                battlefield_card_state='battlefield_card_state2',
+                exile_card_state='exile_card_state2',
+                graveyard_card_state='graveyard_card_state2',
+                library_card_state='library_card_state2',
+                must_be_commander=False,
+                zone_locations=ZoneLocation.BATTLEFIELD + ZoneLocation.EXILE,
+            )
+            update_state(dst=sut2, initial_states=[sut1, other])
+            self.assertEqual(sut2.battlefield_card_state, 'battlefield_card_state and battlefield_card_state2')
+            self.assertEqual(sut2.exile_card_state, 'exile_card_state and exile_card_state2')
+            self.assertEqual(sut2.graveyard_card_state, 'graveyard_card_state and graveyard_card_state2')
+            self.assertEqual(sut2.library_card_state, 'library_card_state and library_card_state2')
             self.assertEqual(sut2.must_be_commander, True)
             self.assertEqual(sut2.zone_locations, ZoneLocation.BATTLEFIELD)
-            sut2.zone_locations = ZoneLocation.HAND
-            update_state(dst=sut2, src=sut1, overwrite=False)
-            self.assertEqual(sut2.zone_locations, ZoneLocation.HAND)
-            sut2.zone_locations = ''
-            update_state(dst=sut2, src=sut1, overwrite=False)
+            third = CardInVariant(
+                battlefield_card_state='battlefield_card_state3',
+                zone_locations=ZoneLocation.HAND,
+            )
+            update_state(dst=sut2, initial_states=[sut1, other, third])
+            self.assertEqual(sut2.battlefield_card_state, 'battlefield_card_state, battlefield_card_state2 and battlefield_card_state3')
+            self.assertEqual(sut2.exile_card_state, 'exile_card_state and exile_card_state2')
+            self.assertEqual(sut2.zone_locations, ZoneLocation.BATTLEFIELD)
+            empty_zones = CardInVariant(zone_locations='')
+            update_state(dst=sut2, initial_states=[empty_zones, sut1])
             self.assertEqual(sut2.zone_locations, sut1.zone_locations)
+            self.assertEqual(sut2.battlefield_card_state, sut1.battlefield_card_state)
 
     def test_apply_replacements(self):
         legendary_card = Card.objects.create(

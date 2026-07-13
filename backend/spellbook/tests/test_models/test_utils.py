@@ -1,6 +1,6 @@
 from unittest import TestCase
 from spellbook.models.utils import merge_color_identities, auto_fix_missing_braces_to_oracle_symbols, merge_mana_costs, \
-    upper_oracle_symbols, sanitize_mana, sanitize_scryfall_query, auto_fix_missing_slashes_in_hybrid_mana
+    upper_oracle_symbols, sanitize_mana, sanitize_scryfall_query, auto_fix_missing_slashes_in_hybrid_mana, join_with_conjunction
 
 
 class TestAutoFixMissingBracesToOracleSymbols(TestCase):
@@ -177,6 +177,37 @@ class TestSanitizeScryfallQuery(TestCase):
     def test_combined_transform(self):
         self.assertEqual(sanitize_scryfall_query('mana={WP} b mana={WP} c format:modern'), 'mana={W/P} b mana={W/P} c')
         self.assertEqual(sanitize_scryfall_query('mana={WP} b mana={WP} c format:modern f:edh'), 'mana={W/P} b mana={W/P} c')
+
+
+class TestJoinWithConjunction(TestCase):
+    def test_empty(self):
+        self.assertEqual(join_with_conjunction([]), '')
+
+    def test_one(self):
+        self.assertEqual(join_with_conjunction(['a']), 'a')
+
+    def test_two(self):
+        self.assertEqual(join_with_conjunction(['a', 'b']), 'a and b')
+
+    def test_three(self):
+        self.assertEqual(join_with_conjunction(['a', 'b', 'c']), 'a, b and c')
+
+    def test_four(self):
+        self.assertEqual(join_with_conjunction(['a', 'b', 'c', 'd']), 'a, b, c and d')
+
+    def test_custom_conjunction(self):
+        self.assertEqual(join_with_conjunction(['a', 'b'], conjunction='plus'), 'a plus b')
+        self.assertEqual(join_with_conjunction(['a', 'b', 'c'], conjunction='plus'), 'a, b plus c')
+
+    def test_empty_strings_are_filtered_out(self):
+        self.assertEqual(join_with_conjunction(['', '']), '')
+        self.assertEqual(join_with_conjunction(['a', '']), 'a')
+        self.assertEqual(join_with_conjunction(['', 'a', '']), 'a')
+        self.assertEqual(join_with_conjunction(['a', '', 'b']), 'a and b')
+        self.assertEqual(join_with_conjunction(['a', '', 'b', '', 'c']), 'a, b and c')
+
+    def test_accepts_generator(self):
+        self.assertEqual(join_with_conjunction(s for s in ['a', 'b', 'c']), 'a, b and c')
 
 
 class TestMergeManaCosts(TestCase):

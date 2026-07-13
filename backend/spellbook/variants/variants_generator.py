@@ -2,6 +2,7 @@ from itertools import chain
 import logging
 import re
 from collections import defaultdict
+from typing import Sequence
 from .multiset import FrozenMultiset
 from dataclasses import dataclass
 from django.utils.functional import cached_property
@@ -11,7 +12,7 @@ from .variant_set import VariantSet
 from .combo_graph import FeatureWithAttributes, Graph, GraphError, cardid, templateid, featureid
 from spellbook.models import Combo, FeatureNeededInCombo, Variant, CardInVariant, TemplateInVariant, ZoneLocation, CardType
 from spellbook.models import Card, Template, VariantAlias, Ingredient, FeatureProducedByVariant, VariantOfCombo, VariantIncludesCombo
-from spellbook.models import id_from_cards_and_templates_ids, merge_mana_costs, DEFAULT_BATCH_SIZE
+from spellbook.models import id_from_cards_and_templates_ids, merge_mana_costs, join_with_conjunction, DEFAULT_BATCH_SIZE
 from spellbook.models.constants import DEFAULT_CARD_LIMIT, DEFAULT_VARIANT_LIMIT, HIGHER_CARD_LIMIT, LOWER_VARIANT_LIMIT
 
 
@@ -172,33 +173,20 @@ def update_state_with_default(data: Data, dst: Ingredient):
     dst.must_be_commander = False
 
 
-def update_state(dst: Ingredient, src: Ingredient, overwrite=False):
-    if overwrite:
-        dst.zone_locations = src.zone_locations
-        dst.battlefield_card_state = src.battlefield_card_state
-        dst.exile_card_state = src.exile_card_state
-        dst.graveyard_card_state = src.graveyard_card_state
-        dst.library_card_state = src.library_card_state
-        dst.must_be_commander = src.must_be_commander
-    else:
-        dst.zone_locations = ''.join(
+def update_state(dst: Ingredient, initial_states: Sequence[Ingredient]):
+    zone_locations = initial_states[0].zone_locations
+    for src in initial_states[1:]:
+        zone_locations = ''.join(
             location
-            for location in dst.zone_locations
+            for location in zone_locations
             if location in src.zone_locations
-        ) or dst.zone_locations or src.zone_locations
-        if len(dst.battlefield_card_state) > 0:
-            dst.battlefield_card_state += ' '
-        dst.battlefield_card_state += src.battlefield_card_state
-        if len(dst.exile_card_state) > 0:
-            dst.exile_card_state += ' '
-        dst.exile_card_state += src.exile_card_state
-        if len(dst.graveyard_card_state) > 0:
-            dst.graveyard_card_state += ' '
-        dst.graveyard_card_state += src.graveyard_card_state
-        if len(dst.library_card_state) > 0:
-            dst.library_card_state += ' '
-        dst.library_card_state += src.library_card_state
-        dst.must_be_commander = dst.must_be_commander or src.must_be_commander
+        ) or zone_locations or src.zone_locations
+    dst.zone_locations = zone_locations
+    dst.battlefield_card_state = join_with_conjunction(s.battlefield_card_state for s in initial_states)
+    dst.exile_card_state = join_with_conjunction(s.exile_card_state for s in initial_states)
+    dst.graveyard_card_state = join_with_conjunction(s.graveyard_card_state for s in initial_states)
+    dst.library_card_state = join_with_conjunction(s.library_card_state for s in initial_states)
+    dst.must_be_commander = any(s.must_be_commander for s in initial_states)
 
 
 FEATURE_REPLACEMENT_REGEX = r'\[\[(?P<key>.+?)(?:\|(?P<alias>[^$|]+?))?(?:\$(?P<selector>[1-9]\d*)(?:\|(?P<postfix_alias>[^$|]+?))?)?\]\]'
@@ -316,19 +304,10 @@ def restore_variant(
         easy_prerequisites_list = [c.easy_prerequisites for c in needed_combos if c.easy_prerequisites]
         notable_prerequisites_list = [c.notable_prerequisites for c in needed_combos if c.notable_prerequisites]
 
-        for card_in_variant in used_cards:
-            update_state_with_default(data, card_in_variant)
-        for template_in_variant in required_templates:
-            update_state_with_default(data, template_in_variant)
-        uses_updated = set[int]()
-        requires_updated = set[int]()
+        card_initial_states = defaultdict[int, list[Ingredient]](list)
+        template_initial_states = defaultdict[int, list[Ingredient]](list)
         for feature_of_card in needed_feature_of_cards:
-            to_edit = uses[feature_of_card.card_id]
-            if to_edit.card_id not in uses_updated:
-                update_state(to_edit, feature_of_card, overwrite=True)
-                uses_updated.add(to_edit.card_id)
-            else:
-                update_state(to_edit, feature_of_card)
+            card_initial_states[feature_of_card.card_id].append(feature_of_card)
             if feature_of_card.mana_needed:
                 mana_needed_list.append(feature_of_card.mana_needed)
             if feature_of_card.easy_prerequisites:
@@ -355,21 +334,11 @@ def restore_variant(
             # Computing used cards initial state
             for card_in_combo in data.combo_to_cards[combo.id]:
                 if card_in_combo.card_id in uses:
-                    to_edit = uses[card_in_combo.card_id]
-                    if to_edit.card_id not in uses_updated:
-                        update_state(to_edit, card_in_combo, overwrite=True)
-                        uses_updated.add(to_edit.card_id)
-                    else:
-                        update_state(to_edit, card_in_combo)
+                    card_initial_states[card_in_combo.card_id].append(card_in_combo)
             # Computing required templates initial state
             for template_in_combo in data.combo_to_templates[combo.id]:
                 if template_in_combo.template_id in requires:
-                    to_edit = requires[template_in_combo.template_id]
-                    if to_edit.template_id not in requires_updated:
-                        update_state(to_edit, template_in_combo, overwrite=True)
-                        requires_updated.add(to_edit.template_id)
-                    else:
-                        update_state(to_edit, template_in_combo)
+                    template_initial_states[template_in_combo.template_id].append(template_in_combo)
             # Applying zone locations overrides
             for feature_in_combo in data.combo_to_needed_features[combo.id]:
                 if feature_in_combo.zone_locations:
@@ -386,6 +355,17 @@ def restore_variant(
                                     template_features_for_override[template].add(feature_in_combo)
                                     for location in feature_in_combo.zone_locations:
                                         template_zone_locations_overrides[template][location] += 1
+        # Merging the initial states collected for each ingredient
+        for card_in_variant in used_cards:
+            if card_initial_states[card_in_variant.card_id]:
+                update_state(card_in_variant, card_initial_states[card_in_variant.card_id])
+            else:
+                update_state_with_default(data, card_in_variant)
+        for template_in_variant in required_templates:
+            if template_initial_states[template_in_variant.template_id]:
+                update_state(template_in_variant, template_initial_states[template_in_variant.template_id])
+            else:
+                update_state_with_default(data, template_in_variant)
         for used_card in used_cards:
             override_score = max(card_zone_locations_overrides[used_card.card_id].values(), default=0)
             if override_score > 0:

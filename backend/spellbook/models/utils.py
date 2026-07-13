@@ -75,6 +75,18 @@ def sort_by_identity(sequence: Iterable[str], color: Callable[[str], str]) -> li
     return [s for s, _ in sorted(tuples, key=lambda t: -1 if t[1] == '' else identity.index(t[1]))]
 
 
+def join_with_conjunction(strings: Iterable[str], conjunction: str = 'and') -> str:
+    '''Joins non-empty strings into a sentence like "a, b and c", with the given conjunction before the last item.'''
+    strings = [s for s in strings if s]
+    match len(strings):
+        case 0:
+            return ''
+        case 1:
+            return strings[0]
+        case _:
+            return f'{', '.join(strings[:-1])} {conjunction} {strings[-1]}'
+
+
 def merge_mana_costs(mana_costs: Iterable[str]) -> str:
     costs = defaultdict[str, int](int)
     strings: list[str] = []
@@ -152,14 +164,10 @@ def merge_mana_costs(mana_costs: Iterable[str]) -> str:
         strings.insert(0, cost_string)
     strings = [s for s in strings if s]
     match len(strings):
-        case 0:
-            return ''
-        case 1:
-            return strings[0]
         case 2 if not any(' plus ' in s for s in strings):
-            return ' plus '.join(strings)
+            return join_with_conjunction(strings, conjunction='plus')
         case 2 if not any(' and ' in s for s in strings):
-            return ' and '.join(strings)
+            return join_with_conjunction(strings)
         case _:
             return ', '.join(strings)
 

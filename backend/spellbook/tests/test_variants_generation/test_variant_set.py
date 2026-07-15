@@ -2,6 +2,7 @@ from typing import Iterable
 from unittest import TestCase
 from spellbook.variants.variant_set import VariantSet, VariantSetParameters
 from spellbook.variants.multiset import FrozenMultiset, BaseMultiset
+from spellbook.variants.packed_entry import PackedEntry
 
 
 def use_hashable_dict(tuples: Iterable[tuple[BaseMultiset[int], BaseMultiset[int]]]) -> set[tuple[tuple[tuple[int, int], ...], ...]]:
@@ -28,10 +29,13 @@ class VariantSetTests(TestCase):
         self.assertEqual(VariantSet.entry_to_ingredients(VariantSet.ingredients_to_entry(FrozenMultiset({1: 1}), FrozenMultiset({1: 2}))), (FrozenMultiset({1: 1}), FrozenMultiset({1: 2})))
 
     def test_key_to_ingredients(self):
-        self.assertEqual(VariantSet.ingredients_to_entry(*VariantSet.entry_to_ingredients(FrozenMultiset())), FrozenMultiset())
-        self.assertEqual(VariantSet.ingredients_to_entry(*VariantSet.entry_to_ingredients(FrozenMultiset({1: 7, 2: 14, -1: 21}))), FrozenMultiset({1: 7, 2: 14, -1: 21}))
-        self.assertEqual(VariantSet.ingredients_to_entry(*VariantSet.entry_to_ingredients(FrozenMultiset({1: 1, 2: 2, -1: 1, -2: 1}))), FrozenMultiset({1: 1, 2: 2, -1: 1, -2: 1}))
-        self.assertEqual(VariantSet.ingredients_to_entry(*VariantSet.entry_to_ingredients(FrozenMultiset({1: 10, 2: 10, -1: 10, -3: 10}))), FrozenMultiset({1: 10, 2: 10, -1: 10, -3: 10}))
+        for entry in [
+            PackedEntry(),
+            PackedEntry.from_items([(1, 7), (2, 14), (-1, 21)]),
+            PackedEntry.from_items([(1, 1), (2, 2), (-1, 1), (-2, 1)]),
+            PackedEntry.from_items([(1, 10), (2, 10), (-1, 10), (-3, 10)]),
+        ]:
+            self.assertEqual(VariantSet.ingredients_to_entry(*VariantSet.entry_to_ingredients(entry)), entry)
 
     def test_variant_set_add(self):
         variant_set = VariantSet(entries=[

@@ -613,18 +613,23 @@ def _restore_variant(
             tiv.order = i
             yield tiv
 
+    # Materialize ingredients in their final display order before recomputing fields,
+    # so that order-dependent fields (e.g. name) match the persisted ingredient order
+    ordered_uses = list(uses_list())
+    ordered_requires = list(requires_list())
+
     # Recomputing some variant fields
     variant.update_variant_from_recipe(Variant.Recipe(
-        [(c, data.id_to_card[c.card_id]) for c in used_cards],
-        [(t, data.id_to_template[t.template_id]) for t in required_templates],
+        [(c, data.id_to_card[c.card_id]) for c in ordered_uses],
+        [(t, data.id_to_template[t.template_id]) for t in ordered_requires],
         [(f, data.id_to_feature[f.feature_id]) for f in produced_features],
     ))
 
     save_item = VariantBulkSaveItem(
         variant=variant,
         variant_changed=True,
-        uses=list(uses_list()),
-        requires=list(requires_list()),
+        uses=ordered_uses,
+        requires=ordered_requires,
         of=variant_def.of_ids,
         includes=variant_def.included_ids,
         produces=produced_features,

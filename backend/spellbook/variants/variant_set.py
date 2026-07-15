@@ -4,11 +4,12 @@ from functools import reduce
 from operator import add
 from dataclasses import dataclass
 from .multiset import FrozenMultiset
+from .packed_entry import PackedEntry
 from .minimal_set_of_multisets import MinimalSetOfMultisets
 
 cardid = int
 templateid = int
-Entry = FrozenMultiset[int]
+Entry = PackedEntry
 
 
 @dataclass(frozen=True)
@@ -20,13 +21,11 @@ class VariantSetParameters:
     def _check_entry(self, entry: Entry) -> bool:
         if not entry:
             return False
-        if len(entry.distinct_elements()) > self.max_depth:
+        if entry.distinct_count() > self.max_depth:
             return False
-        if not self.allow_multiple_copies:
-            for c, q in entry.items():
-                if c > 0 and q > 1:
-                    return False
-        if self.filter is not None and not self.filter.issuperset(entry):
+        if not self.allow_multiple_copies and entry.has_repeated_positive_elements():
+            return False
+        if self.filter is not None and not entry.issubset(self.filter):
             return False
         return True
 
@@ -34,21 +33,24 @@ class VariantSetParameters:
 class VariantSet:
     __slots__ = ('__parameters', '__sets')
 
-    def __init__(self, parameters: VariantSetParameters | None = None, entries: Iterable[Entry] = (), _internal: MinimalSetOfMultisets[int] | None = None):
+    def __init__(self, parameters: VariantSetParameters | None = None, entries: Iterable[Entry] = (), _internal: MinimalSetOfMultisets | None = None):
         self.__parameters = parameters if parameters is not None else VariantSetParameters()
-        self.__sets = _internal if _internal is not None else MinimalSetOfMultisets[int](e for e in entries if self.parameters._check_entry(e))
+        self.__sets = _internal if _internal is not None else MinimalSetOfMultisets(e for e in entries if self.parameters._check_entry(e))
 
     @property
     def parameters(self) -> VariantSetParameters:
         return self.__parameters
 
     @property
-    def sets(self) -> MinimalSetOfMultisets[int]:
+    def sets(self) -> MinimalSetOfMultisets:
         return self.__sets
 
     @classmethod
     def ingredients_to_entry(cls, cards: FrozenMultiset[cardid], templates: FrozenMultiset[templateid]) -> Entry:
-        return FrozenMultiset(dict(chain(((c_id, c_q) for c_id, c_q in cards.items()), ((-t_id, t_q) for t_id, t_q in templates.items()))))
+        return PackedEntry.from_items(chain(
+            cards.items(),
+            ((-template_id, quantity) for template_id, quantity in templates.items()),
+        ))
 
     @classmethod
     def entry_to_ingredients(cls, entry: Entry) -> tuple[FrozenMultiset[cardid], FrozenMultiset[templateid]]:
@@ -87,10 +89,10 @@ class VariantSet:
     def __and__(self, other: Self):
         assert self.parameters == other.parameters, 'Cannot intersect VariantSets with different parameters'
         parameters = self.__parameters
-        result: MinimalSetOfMultisets = MinimalSetOfMultisets[int]()
-        left_entry: FrozenMultiset
-        right_entry: FrozenMultiset
-        entry: FrozenMultiset
+        result: MinimalSetOfMultisets = MinimalSetOfMultisets()
+        left_entry: PackedEntry
+        right_entry: PackedEntry
+        entry: PackedEntry
         for left_entry, right_entry in product(self.entries(), other.entries()):
             entry = left_entry | right_entry
             if parameters._check_entry(entry):
@@ -100,10 +102,10 @@ class VariantSet:
     def __add__(self, other: Self):
         assert self.parameters == other.parameters, 'Cannot sum VariantSets with different parameters'
         parameters = self.__parameters
-        result: MinimalSetOfMultisets = MinimalSetOfMultisets[int]()
-        left_key: FrozenMultiset
-        right_key: FrozenMultiset
-        entry: FrozenMultiset
+        result: MinimalSetOfMultisets = MinimalSetOfMultisets()
+        left_key: PackedEntry
+        right_key: PackedEntry
+        entry: PackedEntry
         for left_key, right_key in product(self.entries(), other.entries()):
             entry = left_key + right_key
             if parameters._check_entry(entry):
@@ -138,8 +140,8 @@ class VariantSet:
             return cls.sum_sets(sets, parameters=parameters)
         if len(sets) == 0:
             return cls(parameters=parameters)
-        result: MinimalSetOfMultisets = MinimalSetOfMultisets[int]()
-        entry: FrozenMultiset
+        result: MinimalSetOfMultisets = MinimalSetOfMultisets()
+        entry: PackedEntry
         for key_combination in product(*(s.entries() for s in sets)):
             cards_sets = set()
             duplicated = False

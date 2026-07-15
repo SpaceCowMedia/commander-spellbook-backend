@@ -11,7 +11,11 @@
         gap: 5px;
         cursor: pointer;
         user-select: none;
-        padding: 6px 12px 6px 8px;
+        /* No vertical padding: as a direct flex child of the stretched
+           .object-tools form, the label already grows to the button's height,
+           which uses Django's default object-tools padding. Only the horizontal
+           padding is switch-specific. */
+        padding: 0 12px 0 8px;
         border-left: 1px solid rgba(255, 255, 255, 0.3);
     }
     .object-tools .full-generation-switch input {

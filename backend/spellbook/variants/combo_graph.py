@@ -499,16 +499,24 @@ class Graph:
         uncountable_feature_nodes = set[FeatureWithAttributesNode]()
         # BFS initialization
         combo_nodes_to_visit: deque[ComboNode] = deque()
-        combo_nodes_to_visit_with_new_countable_features: deque[ComboNode] = deque()
-        combo_nodes_to_visit_with_new_uncountable_features: deque[ComboNode] = deque()
+        parked_combo_nodes: set[ComboNode] = set()
+        parked_combo_nodes_by_blocking_feature = defaultdict[FeatureWithAttributesNode, list[ComboNode]](list)
         combo_nodes: set[ComboNode] = set()
         replacements = defaultdict[FeatureWithAttributes, list[VariantIngredients]](list)
+
+        def unpark_combo_nodes_blocked_on(feature: FeatureWithAttributesNode) -> None:
+            parked = parked_combo_nodes_by_blocking_feature.pop(feature, None)
+            if parked:
+                for parked_combo in parked:
+                    if parked_combo in parked_combo_nodes:
+                        parked_combo_nodes.remove(parked_combo)
+                        combo_nodes_to_visit.append(parked_combo)
 
         # Process initial ingredients and build initial queue
         for ingredient, quantity in chain(cards.items(), templates.items()):
             for combo in ingredient.combos:
                 if combo.state is NodeState.NOT_VISITED:
-                    if combo.variant_set or cards.issuperset(combo.cards) and templates.issuperset(combo.templates):
+                    if cards.issuperset(combo.cards) and templates.issuperset(combo.templates) or combo.variant_set:
                         combo.state = NodeState.VISITING
                         combo_nodes_to_visit.append(combo)
                     else:
@@ -538,7 +546,7 @@ class Graph:
                 for matching_feature in feature.matches:
                     for feature_combo in matching_feature.needed_by_combos:
                         if feature_combo.state is NodeState.NOT_VISITED:
-                            if feature_combo.variant_set or cards.issuperset(feature_combo.cards) and templates.issuperset(feature_combo.templates):
+                            if cards.issuperset(feature_combo.cards) and templates.issuperset(feature_combo.templates) or feature_combo.variant_set:
                                 feature_combo.state = NodeState.VISITING
                                 combo_nodes_to_visit.append(feature_combo)
                             else:
@@ -554,17 +562,13 @@ class Graph:
                     combo.state = NodeState.VISITED
                     continue
             else:
-                if not self._check_satisfiability_of_uncountable_features(
-                    combo,
-                    uncountable_feature_nodes,
-                ):
-                    combo_nodes_to_visit_with_new_uncountable_features.append(combo)
-                    continue
-                if not self._check_satisfiability_of_countable_features(
-                    combo,
-                    countable_feature_nodes,
-                ):
-                    combo_nodes_to_visit_with_new_countable_features.append(combo)
+                blocking_features = self._uncountable_feature_blockers(combo, uncountable_feature_nodes)
+                if blocking_features is None:
+                    blocking_features = self._countable_feature_blockers(combo, countable_feature_nodes)
+                if blocking_features is not None:
+                    parked_combo_nodes.add(combo)
+                    for blocking_feature in blocking_features:
+                        parked_combo_nodes_by_blocking_feature[blocking_feature].append(combo)
                     continue
                 if not all(f.item.feature.uncountable for f in combo.features_produced):
                     # it makes sense to compute the variant set only if the combo produces countable features
@@ -594,19 +598,17 @@ class Graph:
                     if not feature.item.feature.uncountable:
                         replacements[feature.item].extend(replacements_for_combo)
                         countable_feature_nodes[feature] = countable_feature_nodes.get(feature, 0) + quantity
-                        combo_nodes_to_visit.extend(combo_nodes_to_visit_with_new_countable_features)
-                        combo_nodes_to_visit_with_new_countable_features.clear()
+                        unpark_combo_nodes_blocked_on(feature)
             for feature in combo.features_produced:
                 if feature.item.feature.uncountable and feature not in uncountable_feature_nodes:
                     uncountable_feature_nodes.add(feature)
-                    combo_nodes_to_visit.extend(combo_nodes_to_visit_with_new_uncountable_features)
-                    combo_nodes_to_visit_with_new_uncountable_features.clear()
+                    unpark_combo_nodes_blocked_on(feature)
                 if feature.state is NodeState.NOT_VISITED:
                     feature.state = NodeState.VISITED
                     for matching_feature in feature.matches:
                         for feature_combo in matching_feature.needed_by_combos:
                             if feature_combo.state is NodeState.NOT_VISITED:
-                                if feature_combo.variant_set or cards.issuperset(feature_combo.cards) and templates.issuperset(feature_combo.templates):
+                                if cards.issuperset(feature_combo.cards) and templates.issuperset(feature_combo.templates) or feature_combo.variant_set:
                                     feature_combo.state = NodeState.VISITING
                                     combo_nodes_to_visit.append(feature_combo)
                                 else:
@@ -685,15 +687,17 @@ class Graph:
             needed_combos={cn.item.id for cn in needed_combo_nodes},
         )
 
-    def _check_satisfiability_of_uncountable_features(self, combo: ComboNode, available: set[FeatureWithAttributesNode]) -> bool:
+    def _uncountable_feature_blockers(self, combo: ComboNode, available: set[FeatureWithAttributesNode]) -> set[FeatureWithAttributesNode] | None:
+        '''Returns the feature nodes whose availability could unblock the combo, or None if it is not blocked.'''
         for feature, group in combo.features_needed.items():
             if feature.uncountable:
                 for matcher in group:
                     if matcher.matches.isdisjoint(available):
-                        return False
-        return True
+                        return matcher.matches
+        return None
 
-    def _check_satisfiability_of_countable_features(self, combo: ComboNode, available: dict[FeatureWithAttributesNode, int]) -> bool:
+    def _countable_feature_blockers(self, combo: ComboNode, available: dict[FeatureWithAttributesNode, int]) -> set[FeatureWithAttributesNode] | None:
+        '''Returns the feature nodes whose quantity increase could unblock the combo, or None if it is not blocked.'''
         for feature, group in combo.features_needed.items():
             if not feature.uncountable:
                 for matcher, required_quantity in group.items():
@@ -705,7 +709,7 @@ class Graph:
                             if available_quantity >= required_quantity:
                                 break
                     if available_quantity < required_quantity:
-                        return False
+                        return matches
                 required_total_quantity = sum(group.values())
                 available_total_quantity = 0
                 for f, q in available.items():
@@ -717,5 +721,8 @@ class Graph:
                         if available_total_quantity >= required_total_quantity:
                             break
                 if available_total_quantity < required_total_quantity:
-                    return False
-        return True
+                    blockers = set[FeatureWithAttributesNode]()
+                    for matcher in group:
+                        blockers.update(matcher.matches)
+                    return blockers
+        return None

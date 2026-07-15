@@ -93,5 +93,5 @@ cdef class Graph:
     cpdef VariantSet _combo_nodes_down(self, ComboNode combo)
     cpdef VariantSet _feature_with_attribute_matchers_nodes_down(self, FeatureWithAttributesMatcherNode feature)
     cpdef VariantSet _feature_with_attributes_nodes_down(self, FeatureWithAttributesNode feature)
-    cpdef bint _check_satisfiability_of_uncountable_features(self, ComboNode combo, set available)
-    cpdef bint _check_satisfiability_of_countable_features(self, ComboNode combo, dict available)
+    cpdef set _uncountable_feature_blockers(self, ComboNode combo, set available)
+    cpdef set _countable_feature_blockers(self, ComboNode combo, dict available)

@@ -61,6 +61,30 @@ body.has-floating-inline-scrollbar #content {
     padding-bottom: 20px;
 }
 
+/* Equalize the height of every object tool (plain links and POST-form buttons
+   alike): make the list a flex row whose items all stretch to the tallest one,
+   then vertically center each item's content within that shared height. */
+.object-tools {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    justify-content: flex-end;
+}
+.object-tools > li {
+    display: flex;
+    align-items: stretch;
+    height: auto;
+    float: none;
+}
+.object-tools > li > a {
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+}
+.object-tools > li > form {
+    box-sizing: border-box;
+}
+
 /* POST form buttons in object tools */
 .object-tools form {
     position: relative;
@@ -89,7 +113,9 @@ body.has-floating-inline-scrollbar #content {
 }
 .object-tools form button {
     cursor: pointer;
-    padding: 6px 12px;
+    /* Match Django's default .object-tools a:link padding so buttons and plain
+       links line up. */
+    padding: 3px 12px;
 }
 .object-tools form button:hover {
     background: var(--object-tools-hover-bg);

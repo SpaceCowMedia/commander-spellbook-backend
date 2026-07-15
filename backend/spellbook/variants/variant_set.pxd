@@ -13,16 +13,16 @@
 
 cimport cython
 
-from spellbook.variants.multiset cimport FrozenMultiset
+from spellbook.variants.packed_entry cimport PackedEntry
 from spellbook.variants.minimal_set_of_multisets cimport MinimalSetOfMultisets
 
 
 cdef class VariantSetParameters:
     cdef readonly object max_depth
     cdef readonly bint allow_multiple_copies
-    cdef readonly FrozenMultiset filter
+    cdef readonly PackedEntry filter
 
-    cpdef bint _check_entry(self, FrozenMultiset entry)
+    cpdef bint _check_entry(self, PackedEntry entry)
 
 
 cdef class VariantSet:
@@ -30,5 +30,5 @@ cdef class VariantSet:
     cdef MinimalSetOfMultisets __sets
 
     cpdef MinimalSetOfMultisets entries(self)
-    cpdef VariantSet filter(self, FrozenMultiset entry)
+    cpdef VariantSet filter(self, PackedEntry entry)
     cpdef list variants(self)

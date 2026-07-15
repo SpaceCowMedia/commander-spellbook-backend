@@ -13,13 +13,17 @@
 
 cimport cython
 
-from spellbook.variants.multiset cimport FrozenMultiset
+from spellbook.variants.packed_entry cimport PackedEntry
 
 
 cdef class MinimalSetOfMultisets:
     cdef readonly set __sets
+    cdef dict __element_to_entries
 
-    cpdef MinimalSetOfMultisets subtree(self, FrozenMultiset under)
-    cpdef add(self, FrozenMultiset aset)
+    cpdef _index_add(self, PackedEntry entry)
+    cpdef _index_remove(self, PackedEntry entry)
+    cpdef set _candidates_sharing_elements(self, PackedEntry entry)
+    cpdef MinimalSetOfMultisets subtree(self, PackedEntry under)
+    cpdef add(self, PackedEntry aset)
     cpdef extend(self, object sets)
     cpdef MinimalSetOfMultisets copy(self)

@@ -1,9 +1,9 @@
 from django.db import models
 from django.core.exceptions import ValidationError
-from django.core.validators import MinValueValidator
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.forms import MultipleChoiceField, ValidationError as FormValidationError, CheckboxSelectMultiple
 from .validators import TEXT_VALIDATORS
-from .constants import MAX_LOCATION_STATE_LENGTH
+from .constants import MAX_LOCATION_STATE_LENGTH, MAX_INGREDIENT_QUANTITY
 
 
 class CheckboxSelectMultipleAsCharField(CheckboxSelectMultiple):
@@ -51,7 +51,7 @@ class ZoneLocationsField(models.CharField):
 
 
 class Ingredient(models.Model):
-    quantity = models.PositiveSmallIntegerField(default=1, blank=False, help_text='Quantity of the card in the combo.', verbose_name='quantity', validators=[MinValueValidator(1)])
+    quantity = models.PositiveSmallIntegerField(default=1, blank=False, help_text='Quantity of the card in the combo.', verbose_name='quantity', validators=[MinValueValidator(1), MaxValueValidator(MAX_INGREDIENT_QUANTITY)])
     zone_locations = ZoneLocationsField(blank=False)
     battlefield_card_state = models.CharField(max_length=MAX_LOCATION_STATE_LENGTH, blank=True, help_text='State of the card on the battlefield, if present.', validators=TEXT_VALIDATORS, verbose_name='battlefield starting card state')
     exile_card_state = models.CharField(max_length=MAX_LOCATION_STATE_LENGTH, blank=True, help_text='State of the card in exile, if present.', validators=TEXT_VALIDATORS, verbose_name='exile starting card state')

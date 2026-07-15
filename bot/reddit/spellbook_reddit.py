@@ -19,6 +19,9 @@ from bot_utils import compute_variant_name, compute_variant_results, parse_queri
 REDDIT_USERNAME = os.getenv('REDDIT_USERNAME')
 MAIN_SUBREDDIT = 'CommanderSpellbook'
 
+GOOD_BOT_GREETING_PATTERN = re.compile(r'^(?:(?:good|amazing|great) (?:bot|job)|gj)', re.IGNORECASE)
+THANKS_GREETING_PATTERN = re.compile(r'^(?:thanks|thank you).{0,20}$', re.IGNORECASE)
+
 MAX_SEARCH_RESULTS = 2
 logging.basicConfig(level=logging.INFO)
 LOGGER = logging.getLogger(__file__)
@@ -141,12 +144,12 @@ async def answer_greeting(comment: asyncpraw.models.reddit.comment.Comment):
     if author is None:
         return
     answer = None
-    if author.name == REDDIT_USERNAME and re.match(r'^(?:(?:good|amazing|great) (?:bot|job)|gj)', formatted_input, re.IGNORECASE):
+    if author.name == REDDIT_USERNAME and GOOD_BOT_GREETING_PATTERN.match(formatted_input):
         if getattr(parent, 'body', None) in GOOD_BOT_RESPONSES + THANKS_RESPONSES:
             answer = '👍'
         else:
             answer = random.choice(GOOD_BOT_RESPONSES)
-    elif author.name == REDDIT_USERNAME and re.match(r'^(?:thanks|thank you).{0,20}$', formatted_input, re.IGNORECASE):
+    elif author.name == REDDIT_USERNAME and THANKS_GREETING_PATTERN.match(formatted_input):
         if getattr(parent, 'body', None) in GOOD_BOT_RESPONSES + THANKS_RESPONSES:
             answer = '👍'
         else:

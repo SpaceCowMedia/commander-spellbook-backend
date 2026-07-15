@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from spellbook.models.card import Card, FeatureOfCard
 from spellbook.models.feature import Feature
 from spellbook.models.combo import Combo, CardInCombo, TemplateInCombo, FeatureNeededInCombo, FeatureProducedInCombo, FeatureRemovedInCombo
@@ -25,6 +25,75 @@ class AttributesMatcher:
         return True
 
 
+# Lightweight read-only rows for the variant relation tables.
+# These tables dominate memory usage during generation, so they are loaded
+# with values_list() instead of being materialized as Django model instances.
+
+@dataclass(frozen=True, slots=True)
+class VariantRow:
+    id: str
+    status: str
+    name: str
+
+
+@dataclass(frozen=True, slots=True)
+class CardInVariantRow:
+    id: int
+    card_id: int
+    variant_id: str
+    zone_locations: str
+    battlefield_card_state: str
+    exile_card_state: str
+    graveyard_card_state: str
+    library_card_state: str
+    must_be_commander: bool
+    order: int
+    quantity: int
+
+
+@dataclass(frozen=True, slots=True)
+class TemplateInVariantRow:
+    id: int
+    template_id: int
+    variant_id: str
+    zone_locations: str
+    battlefield_card_state: str
+    exile_card_state: str
+    graveyard_card_state: str
+    library_card_state: str
+    must_be_commander: bool
+    order: int
+    quantity: int
+
+
+@dataclass(frozen=True, slots=True)
+class FeatureProducedByVariantRow:
+    id: int
+    feature_id: int
+    variant_id: str
+    quantity: int
+
+
+@dataclass(frozen=True, slots=True)
+class VariantOfComboRow:
+    id: int
+    combo_id: int
+    variant_id: str
+
+
+@dataclass(frozen=True, slots=True)
+class VariantIncludesComboRow:
+    id: int
+    combo_id: int
+    variant_id: str
+
+
+def _load_rows(row_class, queryset):
+    '''Loads lightweight rows via values_list, using the row dataclass field names as the model field names.'''
+    field_names = [field.name for field in fields(row_class)]
+    return [row_class(*row) for row in queryset.order_by().values_list(*field_names)]
+
+
 class Data:
     def __init__(self):
         # Features
@@ -46,13 +115,13 @@ class Data:
         featureneededincombo_allofattributes = list(FeatureNeededInCombo.all_of_attributes.through.objects.filter(featureneededincombo__combo__status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY)).order_by())
         featureneededincombo_noneofattributes = list(FeatureNeededInCombo.none_of_attributes.through.objects.filter(featureneededincombo__combo__status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY)).order_by())
         featureproducedincombo_attributes = list(FeatureProducedInCombo.attributes.through.objects.filter(featureproducedincombo__combo__status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY)).order_by())
-        # Variants
-        variants = list[Variant](Variant.objects.order_by())
-        cardinvariants = list(CardInVariant.objects.order_by())
-        templateinvariants = list(TemplateInVariant.objects.order_by())
-        variantofcombos = list(VariantOfCombo.objects.order_by())
-        variantincludescombos = list(VariantIncludesCombo.objects.order_by())
-        featureproducedbyvariants = list(FeatureProducedByVariant.objects.order_by())
+        # Variants, loaded as lightweight rows instead of model instances
+        variants = _load_rows(VariantRow, Variant.objects)
+        cardinvariants = _load_rows(CardInVariantRow, CardInVariant.objects)
+        templateinvariants = _load_rows(TemplateInVariantRow, TemplateInVariant.objects)
+        variantofcombos = _load_rows(VariantOfComboRow, VariantOfCombo.objects)
+        variantincludescombos = _load_rows(VariantIncludesComboRow, VariantIncludesCombo.objects)
+        featureproducedbyvariants = _load_rows(FeatureProducedByVariantRow, FeatureProducedByVariant.objects)
         # Data
         self.id_to_card = {c.id: c for c in cards}
         self.id_to_template = {t.id: t for t in templates}
@@ -132,38 +201,48 @@ class Data:
             if x is not None:
                 x.add(i.featureattribute_id)
 
-        self.variant_to_cards = {v.id: set[CardInVariant]() for v in variants}
+        self.variant_to_cards = {v.id: set[CardInVariantRow]() for v in variants}
         for i in cardinvariants:
             x = self.variant_to_cards.get(i.variant_id)
             if x is not None:
                 x.add(i)
         self.variant_uses_card_dict = {(c.card_id, c.variant_id): c for c in cardinvariants if c.card_id in self.id_to_card and c.variant_id in self.id_to_variant}
 
-        self.variant_to_templates = {v.id: set[TemplateInVariant]() for v in variants}
+        self.variant_to_templates = {v.id: set[TemplateInVariantRow]() for v in variants}
         for i in templateinvariants:
             x = self.variant_to_templates.get(i.variant_id)
             if x is not None:
                 x.add(i)
         self.variant_requires_template_dict = {(t.template_id, t.variant_id): t for t in templateinvariants if t.template_id in self.id_to_template and t.variant_id in self.id_to_variant}
 
-        self.variant_to_of_sets = {v.id: set[VariantOfCombo]() for v in variants}
+        self.variant_to_of_sets = {v.id: set[VariantOfComboRow]() for v in variants}
         for i in variantofcombos:
             x = self.variant_to_of_sets.get(i.variant_id)
             if x is not None:
                 x.add(i)
         self.variant_of_combo_dict = {(v.combo_id, v.variant_id): v for v in variantofcombos if v.combo_id in self.id_to_combo and v.variant_id in self.id_to_variant}
 
-        self.variant_to_includes_sets = {v.id: set[VariantIncludesCombo]() for v in variants}
+        self.variant_to_includes_sets = {v.id: set[VariantIncludesComboRow]() for v in variants}
         for i in variantincludescombos:
             x = self.variant_to_includes_sets.get(i.variant_id)
             if x is not None:
                 x.add(i)
         self.variant_includes_combo_dict = {(v.combo_id, v.variant_id): v for v in variantincludescombos if v.combo_id in self.id_to_combo and v.variant_id in self.id_to_variant}
 
-        self.variant_to_produces = {v.id: set[FeatureProducedByVariant]() for v in variants}
+        self.variant_to_produces = {v.id: set[FeatureProducedByVariantRow]() for v in variants}
         for i in featureproducedbyvariants:
             x = self.variant_to_produces.get(i.variant_id)
             if x is not None:
                 x.add(i)
         self.variant_produces_feature_dict = {(f.feature_id, f.variant_id): f for f in featureproducedbyvariants if f.feature_id in self.id_to_feature and f.variant_id in self.id_to_variant}
         self.utility_features_ids = frozenset(f.id for f in self.id_to_feature.values() if f.is_utility)
+
+    def fetch_variants(self, ids) -> dict[str, Variant]:
+        '''Hydrates full Variant model instances for the given ids, in chunks.'''
+        result = dict[str, Variant]()
+        ids = list(ids)
+        chunk_size = 900  # keeps the number of query parameters below common database limits
+        for i in range(0, len(ids), chunk_size):
+            for v in Variant.objects.order_by().filter(pk__in=ids[i:i + chunk_size]):
+                result[v.id] = v
+        return result

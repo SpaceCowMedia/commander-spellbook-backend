@@ -1,4 +1,3 @@
-import re
 from itertools import chain
 from django.contrib import admin, messages
 from django.db.models import QuerySet, Count, Q
@@ -10,7 +9,7 @@ from django.urls import reverse, path
 from django.shortcuts import redirect
 from spellbook.models import CardInCombo, Feature, Combo, TemplateInCombo, DEFAULT_BATCH_SIZE, FeatureOfCard, FeatureNeededInCombo, FeatureProducedInCombo, FeatureRemovedInCombo, FeatureProducedByVariant
 from spellbook.models.scryfall import scryfall_link_for_query, scryfall_query_string_for_card_names, SCRYFALL_MAX_QUERY_LENGTH
-from spellbook.variants.variants_generator import FEATURE_REPLACEMENT_REGEX
+from spellbook.variants.variants_generator import FEATURE_REPLACEMENT_PATTERN
 from .utils import SpellbookModelAdmin, SpellbookAdminForm, CustomFilter
 from .ingredient_admin import FeatureOfCardAdmin
 
@@ -271,9 +270,7 @@ def replace_feature_reference(old_name: str, new_name: str, text: str) -> str:
             if postfix_alias is not None:
                 result += f'|{postfix_alias}'
         return f'[[{result}]]'
-    return re.sub(
-        FEATURE_REPLACEMENT_REGEX,
+    return FEATURE_REPLACEMENT_PATTERN.sub(
         lambda m: replacement_with_fallback(m.group('key'), m.group('alias'), m.group('selector'), m.group('postfix_alias'), m.group(0)),
         text,
-        flags=re.IGNORECASE,
     )

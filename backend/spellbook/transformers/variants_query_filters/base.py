@@ -4,6 +4,11 @@ from django.core.exceptions import ValidationError
 from django.db.models import Q
 
 
+_QUOTED_OR_SHORT_VALUE_REGEX = r'"(?P<long_value>(?:[^"\\]|\\")+)"|(?P<short_value>.+)'
+QUERY_VALUE_PATTERN = re.compile(r'(?P<prefix>all-|@)?(?P<key>[a-zA-Z_]+)(?P<operator><=|>=|:|=|<|>)(?:' + _QUOTED_OR_SHORT_VALUE_REGEX + r')', re.IGNORECASE)
+SHORT_QUERY_VALUE_PATTERN = re.compile(_QUOTED_OR_SHORT_VALUE_REGEX, re.IGNORECASE)
+
+
 @dataclass(frozen=True)
 class QueryValue:
     prefix: str
@@ -23,7 +28,7 @@ class QueryValue:
 
     @classmethod
     def from_string(cls, string: str) -> 'QueryValue':
-        match re.fullmatch(r'(?P<prefix>all-|@)?(?P<key>[a-zA-Z_]+)(?P<operator><=|>=|:|=|<|>)(?:"(?P<long_value>(?:[^"\\]|\\")+)"|(?P<short_value>.+))', string, re.IGNORECASE):
+        match QUERY_VALUE_PATTERN.fullmatch(string):
             case None:
                 raise ValidationError(f'Invalid query value: {string}')
             case match:
@@ -32,7 +37,7 @@ class QueryValue:
 
     @classmethod
     def from_short_string(cls, string: str, key: str, operator: str) -> 'QueryValue':
-        match re.fullmatch(r'"(?P<long_value>(?:[^"\\]|\\")+)"|(?P<short_value>.+)', string, re.IGNORECASE):
+        match SHORT_QUERY_VALUE_PATTERN.fullmatch(string):
             case None:
                 raise ValidationError(f'Invalid query value: {string}')
             case match:

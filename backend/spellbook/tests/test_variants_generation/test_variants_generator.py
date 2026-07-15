@@ -1,20 +1,24 @@
 from itertools import chain
+from unittest import mock, skipUnless
 from django.db.models import Count
-from spellbook.models.combo import FeatureNeededInCombo
+from spellbook.models.combo import CardInCombo, FeatureNeededInCombo
 from spellbook.models.feature_attribute import FeatureAttribute
 from spellbook.tests.testing import SpellbookTestCaseWithSeeding
 from spellbook.models import Variant, Card, IngredientInCombination, CardInVariant, TemplateInVariant, Template, Combo, Feature, VariantAlias, FeatureOfCard, ZoneLocation
+from spellbook.models import VariantGenerationFingerprints
 from spellbook.variants.combo_graph import FeatureWithAttributes
 from spellbook.variants.multiset import FrozenMultiset
 from spellbook.variants.variant_data import Data
+from spellbook.variants import variants_generator
 from spellbook.variants.variants_generator import get_variants_from_graph, get_default_zone_location_for_card, update_state_with_default
 from spellbook.variants.variants_generator import generate_variants, apply_replacements, subtract_features, update_state
-from spellbook.variants.variants_generator import sync_variant_aliases
+from spellbook.variants.variants_generator import sync_variant_aliases, restore_variants
+from multiprocessing_utils import fork_is_available
 
 
 class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
     def test_get_variants_from_graph(self):
-        result = get_variants_from_graph(data=Data(), single_combo=None)
+        result = get_variants_from_graph(data=Data())
         self.assertIsInstance(result, dict)
         self.assertEqual(len(result), self.expected_variant_count)
         self.generate_variants()
@@ -100,7 +104,7 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
             sut1.library_card_state = 'library_card_state'
             sut1.must_be_commander = True
             sut1.zone_locations = ZoneLocation.COMMAND_ZONE + ZoneLocation.BATTLEFIELD
-            update_state(dst=sut2, initial_states=[sut1])
+            update_state(destination=sut2, initial_states=[sut1])
             self.assertEqual(sut2.battlefield_card_state, sut1.battlefield_card_state)
             self.assertEqual(sut2.exile_card_state, sut1.exile_card_state)
             self.assertEqual(sut2.graveyard_card_state, sut1.graveyard_card_state)
@@ -115,7 +119,7 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
                 must_be_commander=False,
                 zone_locations=ZoneLocation.BATTLEFIELD + ZoneLocation.EXILE,
             )
-            update_state(dst=sut2, initial_states=[sut1, other])
+            update_state(destination=sut2, initial_states=[sut1, other])
             self.assertEqual(sut2.battlefield_card_state, 'battlefield_card_state and battlefield_card_state2')
             self.assertEqual(sut2.exile_card_state, 'exile_card_state and exile_card_state2')
             self.assertEqual(sut2.graveyard_card_state, 'graveyard_card_state and graveyard_card_state2')
@@ -126,12 +130,12 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
                 battlefield_card_state='battlefield_card_state3',
                 zone_locations=ZoneLocation.HAND,
             )
-            update_state(dst=sut2, initial_states=[sut1, other, third])
+            update_state(destination=sut2, initial_states=[sut1, other, third])
             self.assertEqual(sut2.battlefield_card_state, 'battlefield_card_state, battlefield_card_state2 and battlefield_card_state3')
             self.assertEqual(sut2.exile_card_state, 'exile_card_state and exile_card_state2')
             self.assertEqual(sut2.zone_locations, ZoneLocation.BATTLEFIELD)
             empty_zones = CardInVariant(zone_locations='')
-            update_state(dst=sut2, initial_states=[empty_zones, sut1])
+            update_state(destination=sut2, initial_states=[empty_zones, sut1])
             self.assertEqual(sut2.zone_locations, sut1.zone_locations)
             self.assertEqual(sut2.battlefield_card_state, sut1.battlefield_card_state)
 
@@ -479,3 +483,183 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
         self.assertEqual(v.mana_needed, '{X}{4}{U}{U}{U}{U}')
         self.assertEqual(v.easy_prerequisites, 'A\nB\nC')
         self.assertEqual(v.notable_prerequisites, 'A\nB\nC')
+
+
+class DeltaWritesTests(SpellbookTestCaseWithSeeding):
+    def test_unchanged_variants_produce_no_writes(self):
+        generate_variants()
+        data = Data()
+        variants = get_variants_from_graph(data)
+        variant_instances = data.fetch_variants(variants.keys())
+        to_update, to_create = restore_variants(
+            data=data,
+            variants=variants,
+            variant_instances=variant_instances,
+            to_restore=set(),
+            job=None,
+        )
+        self.assertEqual(len(to_create), 0)
+        self.assertEqual(len(to_update), self.expected_variant_count)
+        for item in to_update:
+            self.assertFalse(item.variant_changed, f'variant {item.variant.id} was detected as changed')
+            self.assertFalse(item.uses_to_create)
+            self.assertFalse(item.uses_to_update)
+            self.assertFalse(item.requires_to_create)
+            self.assertFalse(item.requires_to_update)
+            self.assertFalse(item.produces_to_create)
+            self.assertFalse(item.produces_to_update)
+
+    def test_stale_line_counts_are_healed(self):
+        generate_variants()
+        v: Variant = Variant.objects.exclude(description='').first()  # type: ignore
+        correct_count = v.description_line_count
+        Variant.objects.filter(pk=v.pk).update(description_line_count=correct_count + 5, prerequisites_line_count=42)
+        generate_variants()
+        v.refresh_from_db()
+        self.assertEqual(v.description_line_count, correct_count)
+        self.assertEqual(
+            v.prerequisites_line_count,
+            (v.easy_prerequisites.count('\n') + 1 if v.easy_prerequisites else 0) + (v.notable_prerequisites.count('\n') + 1 if v.notable_prerequisites else 0),
+        )
+
+    def test_restored_variants_are_detected_as_changed(self):
+        generate_variants()
+        Variant.objects.update(status=Variant.Status.OK)
+        data = Data()
+        variants = get_variants_from_graph(data)
+        variant_instances = data.fetch_variants(variants.keys())
+        to_update, _ = restore_variants(
+            data=data,
+            variants=variants,
+            variant_instances=variant_instances,
+            to_restore=set(variants.keys()),
+            job='test-job',
+        )
+        for item in to_update:
+            self.assertTrue(item.variant_changed, f'variant {item.variant.id} was not detected as changed')
+
+
+class IncrementalGenerationTests(SpellbookTestCaseWithSeeding):
+    def assert_full_generation_is_noop(self):
+        added, restored, deleted = generate_variants()
+        self.assertEqual((added, restored, deleted), (0, 0, 0), 'incremental generation left the database in a state that differs from a full generation')
+
+    def test_first_incremental_run_falls_back_to_full(self):
+        added, restored, deleted = generate_variants(incremental=True)
+        self.assertEqual(added, self.expected_variant_count)
+        self.assertEqual(Variant.objects.count(), self.expected_variant_count)
+        self.assertGreater(VariantGenerationFingerprints.objects.count(), 0)
+
+    def test_incremental_run_without_changes_is_noop(self):
+        generate_variants()
+        added, restored, deleted = generate_variants(incremental=True)
+        self.assertEqual((added, restored, deleted), (0, 0, 0))
+        self.assertEqual(Variant.objects.count(), self.expected_variant_count)
+
+    def test_incremental_after_combo_text_edit(self):
+        generate_variants()
+        Variant.objects.update(status=Variant.Status.OK)
+        combo = Combo.objects.filter(status=Combo.Status.GENERATOR).first()
+        combo.description += ' edited'
+        combo.save()
+        added, restored, deleted = generate_variants(incremental=True)
+        self.assertEqual((added, restored, deleted), (0, 0, 0))
+        self.assert_full_generation_is_noop()
+
+    def test_incremental_restores_flagged_variants(self):
+        generate_variants()
+        Variant.objects.update(status=Variant.Status.OK)
+        combo: Combo = Combo.objects.filter(status=Combo.Status.GENERATOR).first()  # type: ignore
+        combo.description = 'A new description'
+        combo.save()
+        flagged = list(combo.variants.values_list('id', flat=True))
+        Variant.objects.filter(id__in=flagged).update(status=Variant.Status.RESTORE)
+        added, restored, deleted = generate_variants(incremental=True)
+        self.assertEqual(added, 0)
+        self.assertEqual(restored, len(flagged))
+        self.assertEqual(deleted, 0)
+        for variant in Variant.objects.filter(id__in=flagged):
+            self.assertEqual(variant.status, Variant.Status.NEW)
+            self.assertIn(combo.description, variant.description)
+        self.assert_full_generation_is_noop()
+
+    def test_incremental_after_generator_demotion(self):
+        generate_variants()
+        combo: Combo = Combo.objects.filter(status=Combo.Status.GENERATOR).first()  # type: ignore
+        combo.status = Combo.Status.DRAFT
+        combo.save()
+        generate_variants(incremental=True)
+        self.assertFalse(Variant.objects.filter(of=combo).exists())
+        self.assert_full_generation_is_noop()
+        combo.status = Combo.Status.GENERATOR
+        combo.save()
+        added, restored, deleted = generate_variants(incremental=True)
+        self.assertGreaterEqual(added, 1)
+        self.assertEqual(Variant.objects.count(), self.expected_variant_count)
+        self.assert_full_generation_is_noop()
+
+    def test_incremental_after_new_combo(self):
+        generate_variants()
+        new_combo = Combo.objects.create(mana_needed='{W}', is_mana_needed_an_accurate_minimum=True, description='new combo', status=Combo.Status.GENERATOR)
+        new_combo.cardincombo_set.create(card_id=self.c7_id, order=1, zone_locations=ZoneLocation.BATTLEFIELD)
+        new_combo.produces.add(self.f4_id)
+        added, restored, deleted = generate_variants(incremental=True)
+        self.assertEqual(added, 1)
+        self.assertEqual(deleted, 0)
+        self.assertTrue(Variant.objects.filter(of=new_combo).exists())
+        self.assert_full_generation_is_noop()
+
+    def test_incremental_after_feature_status_change(self):
+        generate_variants()
+        feature = Feature.objects.get(pk=self.f3_id)
+        feature.status = Feature.Status.HIDDEN_UTILITY
+        feature.save()
+        generate_variants(incremental=True)
+        self.assert_full_generation_is_noop()
+        feature.status = Feature.Status.STANDALONE
+        feature.save()
+        generate_variants(incremental=True)
+        self.assert_full_generation_is_noop()
+
+    def test_incremental_after_card_feature_change(self):
+        generate_variants()
+        feature_of_card = FeatureOfCard.objects.create(card_id=self.c2_id, feature_id=self.f1_id, zone_locations=ZoneLocation.BATTLEFIELD)
+        generate_variants(incremental=True)
+        self.assert_full_generation_is_noop()
+        feature_of_card.delete()
+        generate_variants(incremental=True)
+        self.assert_full_generation_is_noop()
+
+    def test_incremental_after_combo_requirement_change(self):
+        generate_variants()
+        combo: Combo = Combo.objects.filter(status=Combo.Status.GENERATOR, cardincombo__isnull=False).first()  # type: ignore
+        card_in_combo: CardInCombo = combo.cardincombo_set.first()  # type: ignore
+        card_in_combo.quantity += 1
+        card_in_combo.save()
+        generate_variants(incremental=True)
+        self.assert_full_generation_is_noop()
+
+    def test_incremental_after_combo_deletion_falls_back_to_full(self):
+        generate_variants()
+        combo: Combo = Combo.objects.filter(status=Combo.Status.GENERATOR).first()  # type: ignore
+        combo.delete()
+        generate_variants(incremental=True)
+        self.assert_full_generation_is_noop()
+
+    def test_single_combo_generation_does_not_store_fingerprints(self):
+        combo: Combo = Combo.objects.filter(status=Combo.Status.GENERATOR).first()  # type: ignore
+        generate_variants(combo.id)
+        self.assertEqual(VariantGenerationFingerprints.objects.count(), 0)
+
+
+class ParallelGenerationTests(SpellbookTestCaseWithSeeding):
+    @skipUnless(fork_is_available(), 'parallel generation requires the fork start method')
+    def test_parallel_generation_matches_serial(self):
+        with mock.patch.object(variants_generator, 'MIN_COMBOS_FOR_PARALLELISM', 1), \
+                mock.patch.object(variants_generator, 'MIN_VARIANTS_FOR_PARALLELISM', 1):
+            added, restored, deleted = generate_variants(workers=2)
+        self.assertEqual(added, self.expected_variant_count)
+        self.assertEqual(Variant.objects.count(), self.expected_variant_count)
+        # A serial full generation over the parallel result must be a no-op
+        added, restored, deleted = generate_variants(workers=1)
+        self.assertEqual((added, restored, deleted), (0, 0, 0))

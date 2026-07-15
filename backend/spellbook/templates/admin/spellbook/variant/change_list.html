@@ -1,12 +1,72 @@
 {% extends "admin/change_list.html" %}
 
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    /* The switch is a segment inside the object-tools pill-shaped form,
+       so it only uses the object-tools color pair to stay visible in both themes */
+    .object-tools .full-generation-switch {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        cursor: pointer;
+        user-select: none;
+        padding: 6px 12px 6px 8px;
+        border-left: 1px solid rgba(255, 255, 255, 0.3);
+    }
+    .object-tools .full-generation-switch input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+    }
+    .object-tools .full-generation-switch .switch-track {
+        box-sizing: border-box;
+        width: 28px;
+        height: 16px;
+        border-radius: 8px;
+        border: 1px solid var(--object-tools-fg);
+        background: transparent;
+        position: relative;
+        transition: background 0.15s ease-in-out;
+        flex: none;
+    }
+    .object-tools .full-generation-switch .switch-track::after {
+        content: '';
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--object-tools-fg);
+        transition: left 0.15s ease-in-out, background 0.15s ease-in-out;
+    }
+    .object-tools .full-generation-switch input:checked + .switch-track {
+        background: var(--object-tools-fg);
+    }
+    .object-tools .full-generation-switch input:checked + .switch-track::after {
+        left: 14px;
+        background: var(--object-tools-bg);
+    }
+    .object-tools .full-generation-switch input:focus-visible + .switch-track {
+        outline: 2px solid var(--object-tools-fg);
+        outline-offset: 1px;
+    }
+</style>
+{% endblock %}
+
 {% block object-tools-items %}
 <li>
     <form method="post" action="{% url 'admin:spellbook_variant_generate' %}" class="inline" novalidate>
         {% csrf_token %}
-        <button type="submit" class="default" onclick="this.classList.toggle('button--loading'); this.disabled=true; this.parentNode.submit();">
+        <button type="submit" class="default" title="Regenerates variants. By default the generation is incremental: only the variants affected by combos, cards, templates or features that changed since the last generation are recomputed, which is much faster and produces the same result. It automatically falls back to a full generation when a safe incremental run is not possible (e.g. first run, or after something was deleted)." onclick="this.classList.toggle('button--loading'); this.disabled=true; this.parentNode.submit();">
             <span class="button__text">Generate variants</span>
         </button>
+        <label class="full-generation-switch" title="Force a full generation: recomputes every variant from every generator combo, ignoring what changed since the last generation. Slower, but makes no assumptions about the previous state. Turn this on if an incremental run seems to have produced wrong or incomplete results.">
+            <input type="checkbox" name="full">
+            <span class="switch-track"></span>
+            <span>Full</span>
+        </label>
     </form>
 </li>
 <li>

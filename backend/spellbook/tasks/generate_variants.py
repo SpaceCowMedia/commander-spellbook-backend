@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 @task(takes_context=True)
-def generate_variants_task(context: TaskContext, combo: int | None = None, started_by_user_id: int | None = None) -> str:
+def generate_variants_task(context: TaskContext, combo: int | None = None, started_by_user_id: int | None = None, incremental: bool = False) -> str:
     job_id = task_result_identifier(context.task_result)  # type: ignore
     if hasattr(context, 'metadata'):
         context.metadata['generation_id'] = job_id
@@ -48,6 +48,7 @@ def generate_variants_task(context: TaskContext, combo: int | None = None, start
         log=log,
         log_error=log_error,
         progress=progress,
+        incremental=incremental,
     )
     if added == 0 and removed == 0 and restored == 0:
         message = 'Variants are already synced with'

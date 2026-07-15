@@ -208,8 +208,13 @@ class VariantAdmin(SpellbookModelAdmin):
 
     def generate(self, request: HttpRequest):
         if request.method == 'POST' and request.user.is_authenticated:
-            result: TaskResult = generate_variants_task.enqueue(started_by_user_id=request.user.pk)
-            messages.info(request, 'Enqueued variant generation task for all combos.')
+            # Unchecked checkboxes are not posted at all, so presence means enabled
+            full = bool(request.POST.get('full'))
+            result: TaskResult = generate_variants_task.enqueue(started_by_user_id=request.user.pk, incremental=not full)
+            if full:
+                messages.info(request, 'Enqueued full variant generation task for all combos.')
+            else:
+                messages.info(request, 'Enqueued incremental variant generation task.')
             return redirect('admin:django_tasks_database_dbtaskresult_change', result.id)
         return redirect('admin:spellbook_variant_changelist')
 

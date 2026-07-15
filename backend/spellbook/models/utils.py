@@ -11,15 +11,23 @@ from django.db.models.functions import Replace, Trim
 from constants import SORTED_COLORS, COLORS
 
 
-COMPARISON_OPERATOR = rf'(?:{'|'.join(COMPARISON_OPERATORS)})'
 MANA_SEARCH_REGEX = r'\{(' + MANA_SYMBOL + r')\}'
-MANA_PREFIX_REGEX = r'(^(?:\s*' + MANA_SEARCH_REGEX + r')*)'
-MANA_COMPARABLE_VARIABLE = rf'(?:{'|'.join(MANA_COMPARABLE_VARIABLES)})'
 SANITIZATION_REPLACEMENTS = {
     'ʹʻʼʾˈ՚′＇ꞌ': '\'',  # apostrophes
     'ʻʼ‘’❛❜': '\'',  # quotes
     '“”″❞〝〞ˮ': '"',  # double quotes
 }
+
+MANA_COST_PATTERN = re.compile(r'^(?:\s*' + MANA_SEARCH_REGEX + r')*\s*$', re.IGNORECASE)
+MANA_SEARCH_PATTERN = re.compile(MANA_SEARCH_REGEX, re.IGNORECASE)
+MANA_PREFIX_PATTERN = re.compile(r'(^(?:\s*' + MANA_SEARCH_REGEX + r')*)', re.IGNORECASE)
+ORACLE_SYMBOL_PATTERN = re.compile(r'\{' + ORACLE_SYMBOL + r'\}', re.IGNORECASE)
+ORACLE_SYMBOL_EXTENDED_FULL_PATTERN = re.compile(r'^' + ORACLE_SYMBOL_EXTENDED + r'+$', re.IGNORECASE)
+ORACLE_SYMBOL_EXTENDED_BRACES_PATTERN = re.compile(r'\{?(' + ORACLE_SYMBOL_EXTENDED + r')\}?', re.IGNORECASE)
+HYBRID_MANA_TWO_SYMBOL_PATTERN = re.compile(r'\{([WUBRGCP2])([WUBRGCP2])\}', re.IGNORECASE)
+HYBRID_MANA_THREE_SYMBOL_PATTERN = re.compile(r'\{([WUBRGCP2])([WUBRGCP2])([WUBRGCP2])\}', re.IGNORECASE)
+SCRYFALL_FORMAT_FILTER_PATTERN = re.compile(r'(?:^|\s+)-?(?:f|format|legal):[^\s]+(?=\s|$)', re.IGNORECASE)
+MANA_COMPARABLE_FILTER_PATTERN = re.compile(rf'(^|\s+)(-?(?:{'|'.join(MANA_COMPARABLE_VARIABLES)}))((?:{'|'.join(COMPARISON_OPERATORS)}))([^\s]+)(?=\s|$)', re.IGNORECASE)
 
 
 class CardType(TextChoices):
@@ -92,8 +100,8 @@ def merge_mana_costs(mana_costs: Iterable[str]) -> str:
     strings: list[str] = []
     for mana_cost in mana_costs:
         mana_cost = sanitize_mana(mana_cost.strip().removesuffix('.').strip())
-        if re.fullmatch(r'^(?:\s*' + MANA_SEARCH_REGEX + r')*\s*$', mana_cost):
-            for matching_symbol in re.findall(MANA_SEARCH_REGEX, mana_cost):
+        if MANA_COST_PATTERN.fullmatch(mana_cost):
+            for matching_symbol in MANA_SEARCH_PATTERN.findall(mana_cost):
                 match matching_symbol:
                     case n if matching_symbol.isdigit():
                         costs['1'] += int(n)
@@ -174,10 +182,10 @@ def merge_mana_costs(mana_costs: Iterable[str]) -> str:
 
 def mana_value(mana: str) -> int:
     value = 0
-    mana_cut_match = re.search(MANA_PREFIX_REGEX, mana, flags=re.IGNORECASE)
+    mana_cut_match = MANA_PREFIX_PATTERN.search(mana)
     if mana_cut_match:
         mana_cut = mana_cut_match.group(0)
-        for mana in re.findall(MANA_SEARCH_REGEX, mana_cut, flags=re.IGNORECASE):
+        for mana in MANA_SEARCH_PATTERN.findall(mana_cut):
             match mana:
                 case n if mana.isdigit():
                     value += int(n)
@@ -191,7 +199,7 @@ def mana_value(mana: str) -> int:
 
 
 def upper_oracle_symbols(text: str):
-    return re.sub(r'\{' + ORACLE_SYMBOL + r'\}', lambda m: m.group(0).upper(), text, flags=re.IGNORECASE)
+    return ORACLE_SYMBOL_PATTERN.sub(lambda m: m.group(0).upper(), text)
 
 
 def auto_fix_reverse_hybrid_mana(text: str):
@@ -209,14 +217,14 @@ def auto_fix_reverse_hybrid_mana(text: str):
 
 
 def auto_fix_missing_braces_to_oracle_symbols(text: str):
-    if re.compile(r'^' + ORACLE_SYMBOL_EXTENDED + r'+$', flags=re.IGNORECASE).match(text):
-        return re.sub(r'\{?(' + ORACLE_SYMBOL_EXTENDED + r')\}?', r'{\1}', text, flags=re.IGNORECASE)
+    if ORACLE_SYMBOL_EXTENDED_FULL_PATTERN.match(text):
+        return ORACLE_SYMBOL_EXTENDED_BRACES_PATTERN.sub(r'{\1}', text)
     return text
 
 
 def auto_fix_missing_slashes_in_hybrid_mana(text: str):
-    text = re.sub(r'\{([WUBRGCP2])([WUBRGCP2])\}', r'{\1/\2}', text, flags=re.IGNORECASE)
-    text = re.sub(r'\{([WUBRGCP2])([WUBRGCP2])([WUBRGCP2])\}', r'{\1/\2/\3}', text, flags=re.IGNORECASE)
+    text = HYBRID_MANA_TWO_SYMBOL_PATTERN.sub(r'{\1/\2}', text)
+    text = HYBRID_MANA_THREE_SYMBOL_PATTERN.sub(r'{\1/\2/\3}', text)
     return text
 
 
@@ -229,9 +237,9 @@ def sanitize_mana(mana: str) -> str:
 
 
 def sanitize_scryfall_query(text: str):
-    text = re.sub(r'(?:^|\s+)-?(?:f|format|legal):[^\s]+(?=\s|$)', '', text, flags=re.IGNORECASE)
+    text = SCRYFALL_FORMAT_FILTER_PATTERN.sub('', text)
     text = text.strip()
-    text = re.sub(rf'(^|\s+)(-?{MANA_COMPARABLE_VARIABLE})({COMPARISON_OPERATOR})([^\s]+)(?=\s|$)', lambda m: f'{m[1]}{m[2]}{m[3]}{sanitize_mana(m[4])}', text, flags=re.IGNORECASE)
+    text = MANA_COMPARABLE_FILTER_PATTERN.sub(lambda m: f'{m[1]}{m[2]}{m[3]}{sanitize_mana(m[4])}', text)
     text = text.strip()
     return text
 

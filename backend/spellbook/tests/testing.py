@@ -17,6 +17,9 @@ from spellbook.models import FeatureOfCard, FeatureNeededInCombo, FeatureProduce
 from spellbook.serializers import VariantSerializer
 
 
+FEATURE_WITH_ATTRIBUTES_PATTERN = re.compile(r'([^?!-]+)(\?[^?!-]+)?(![^?!-]+)?(-[^?!-]+)?')
+
+
 class SpellbookTestCase(BaseTestCase):
     def assertMultisetEqual(self, a, b):
         if isinstance(a, FrozenMultiset):
@@ -148,7 +151,7 @@ class SpellbookTestCase(BaseTestCase):
                     t, _ = Template.objects.get_or_create(pk=template_id, name=template, scryfall_query='o:test', description='Test Template')
                     TemplateInCombo.objects.create(template=t, combo=combo, order=i, zone_locations=ZoneLocation.BATTLEFIELD, quantity=quantity)
                 for r, quantity in features:
-                    r = re.match(r'([^?!-]+)(\?[^?!-]+)?(![^?!-]+)?(-[^?!-]+)?', r)
+                    r = FEATURE_WITH_ATTRIBUTES_PATTERN.match(r)
                     assert r is not None
                     feature, any_of_attributes, all_of_attributes, none_of_attributes = r.groups()
                     feature_id = feature_ids_by_name.setdefault(feature, reduce(lambda x, y: max(x, y), feature_ids_by_name.values(), 0) + 1)

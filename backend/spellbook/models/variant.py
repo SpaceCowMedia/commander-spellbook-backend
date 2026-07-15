@@ -23,6 +23,15 @@ from .utils import CardType, mana_value, merge_color_identities
 from .constants import MAX_MANA_NEEDED_LENGTH
 
 
+_INFINITE_TURNS_REGEX = r'(?:near-)?infinite (?:extra )?turns?'
+MASS_LAND_DENIAL_PATTERN = re.compile(r'mass land (?:destruction|denial|removal)', re.IGNORECASE)
+EXTRA_TURN_PATTERN = re.compile(_INFINITE_TURNS_REGEX, re.IGNORECASE)
+EXTRA_TURN_FOR_OPPONENT_PATTERN = re.compile(_INFINITE_TURNS_REGEX + r' for .* opponent', re.IGNORECASE)
+SKIP_TURNS_PATTERN = re.compile(r'(?:infinite(?:ly)? )?skip (?:(?:all )?(?:your |their )|infinite )?(?:future )?turns?', re.IGNORECASE)
+CONTROL_ALL_OPPONENTS_PATTERN = re.compile(r'you control (?:your|(up to )?three) opponents', re.IGNORECASE)
+CONTROL_SOME_OPPONENTS_PATTERN = re.compile(r'you control (?:one|an|(?:up to )?two) opponents', re.IGNORECASE)
+
+
 class RecipePrefetchedManager(PreSaveSerializedManager):
     def get_queryset(self):
         return super().get_queryset().prefetch_related(
@@ -151,12 +160,14 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
     @classmethod
     def computed_fields(cls):
         '''
-        Returns the fields that are computed from related models.
+        Returns the fields that are computed from other fields and related models.
         '''
         return cls.recipe_fields() + cls.playable_fields() + [
             'hulkline',
             'bracket_tag',
             'mana_value_needed',
+            'description_line_count',
+            'prerequisites_line_count',
         ]
 
     class Meta:
@@ -510,19 +521,11 @@ def estimate_bracket(cards: dict[Card, int], templates: dict[Template, int], inc
             if not speed_confidence:
                 speed += 1
             mass_land_denial = any(
-                re.search(r'mass land (?:destruction|denial|removal)', feature.name, re.IGNORECASE)
+                MASS_LAND_DENIAL_PATTERN.search(feature.name)
                 for _, feature in recipe.features
             )
             extra_turn = any(
-                re.search(
-                    r'(?:near-)?infinite (?:extra )?turns?',
-                    feature.name,
-                    re.IGNORECASE,
-                ) and not re.search(
-                    r'(?:near-)?infinite (?:extra )?turns? for .* opponent',
-                    feature.name,
-                    re.IGNORECASE,
-                )
+                EXTRA_TURN_PATTERN.search(feature.name) and not EXTRA_TURN_FOR_OPPONENT_PATTERN.search(feature.name)
                 for _, feature in recipe.features
             )
             lock = any(
@@ -530,15 +533,15 @@ def estimate_bracket(cards: dict[Card, int], templates: dict[Template, int], inc
                 for _, feature in recipe.features
             )
             skip_turns = any(
-                re.search(r'(?:infinite(?:ly)? )?skip (?:(?:all )?(?:your |their )|infinite )?(?:future )?turns?', feature.name, re.IGNORECASE)
+                SKIP_TURNS_PATTERN.search(feature.name)
                 for _, feature in recipe.features
             )
             control_all_opponents = any(
-                re.search(r'you control (?:your|(up to )?three) opponents', feature.name, re.IGNORECASE)
+                CONTROL_ALL_OPPONENTS_PATTERN.search(feature.name)
                 for _, feature in recipe.features
             )
             control_some_opponents = any(
-                re.search(r'you control (?:one|an|(?:up to )?two) opponents', feature.name, re.IGNORECASE)
+                CONTROL_SOME_OPPONENTS_PATTERN.search(feature.name)
                 for _, feature in recipe.features
             )
             combos.append(ClassifiedCombo(

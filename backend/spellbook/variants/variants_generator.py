@@ -1,23 +1,63 @@
-from itertools import chain
+import gc
 import logging
+import multiprocessing
 import re
 from collections import defaultdict
-from typing import Sequence
-from .multiset import FrozenMultiset
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from itertools import chain
+from typing import Callable, Sequence
 from django.utils.functional import cached_property
 from django.db import transaction
-from .variant_data import Data
+from multiprocessing_utils import fork_is_available, resolve_workers, split_into_chunks
+from .multiset import FrozenMultiset
+from .variant_data import Data, CardInVariantRow, TemplateInVariantRow, FeatureProducedByVariantRow
 from .variant_set import VariantSet
 from .combo_graph import FeatureWithAttributes, Graph, GraphError, cardid, templateid, featureid
+from .generation_tracking import (
+    GenerationPlan, GenerationScope, plan_full_generation, plan_incremental_generation,
+    compute_fingerprints, load_stored_fingerprints, store_fingerprints,
+)
 from spellbook.models import Combo, FeatureNeededInCombo, Variant, CardInVariant, TemplateInVariant, ZoneLocation, CardType
 from spellbook.models import Card, Template, VariantAlias, Ingredient, FeatureProducedByVariant, VariantOfCombo, VariantIncludesCombo
 from spellbook.models import id_from_cards_and_templates_ids, merge_mana_costs, join_with_conjunction, DEFAULT_BATCH_SIZE
 from spellbook.models.constants import DEFAULT_CARD_LIMIT, DEFAULT_VARIANT_LIMIT, HIGHER_CARD_LIMIT, LOWER_VARIANT_LIMIT
 
 
-VARIANTS_TO_TRIGGER_LOG = 200
+# ---------------------------------------------------------------------------
+# Constants and type aliases
+# ---------------------------------------------------------------------------
 
+_VARIANTS_TO_TRIGGER_LOG = 200
+
+LogFunction = Callable[[str], None]
+ProgressFunction = Callable[[int, int], None]
+
+# Fields of a Variant row that generation may modify on existing variants
+_VARIANT_UPDATE_FIELDS = [
+    'status',
+    'mana_needed',
+    'is_mana_needed_an_accurate_minimum',
+    'easy_prerequisites',
+    'notable_prerequisites',
+    'description',
+    'notes',
+    'comment',
+    'generated_by',
+] + Variant.computed_fields()
+
+_INGREDIENT_UPDATE_FIELDS = ('zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'must_be_commander', 'order', 'quantity')
+
+# Parallelism is only worth its overhead above these workload sizes;
+# it also requires the fork start method, so it is disabled on other platforms.
+MIN_COMBOS_FOR_PARALLELISM = 64
+MIN_VARIANTS_FOR_PARALLELISM = 2048
+
+FEATURE_REPLACEMENT_PATTERN = re.compile(r'\[\[(?P<key>.+?)(?:\|(?P<alias>[^$|]+?))?(?:\$(?P<selector>[1-9]\d*)(?:\|(?P<postfix_alias>[^$|]+?))?)?\]\]', re.IGNORECASE)
+
+
+# ---------------------------------------------------------------------------
+# Data classes
+# ---------------------------------------------------------------------------
 
 @dataclass
 class VariantRecipeDefinition:
@@ -35,15 +75,109 @@ class VariantDefinition(VariantRecipeDefinition):
     needed_features_of_cards: set[int]
 
 
+@dataclass
+class VariantBulkSaveItem:
+    # Data fields
+    variant: Variant
+    variant_changed: bool
+    # Relationships fields
+    uses: list[CardInVariant]
+    requires: list[TemplateInVariant]
+    produces: list[FeatureProducedByVariant]
+    # Rows that have to be inserted or updated in the database
+    uses_to_create: list[CardInVariant] = field(default_factory=list)
+    uses_to_update: list[CardInVariant] = field(default_factory=list)
+    requires_to_create: list[TemplateInVariant] = field(default_factory=list)
+    requires_to_update: list[TemplateInVariant] = field(default_factory=list)
+    produces_to_create: list[FeatureProducedByVariant] = field(default_factory=list)
+    produces_to_update: list[FeatureProducedByVariant] = field(default_factory=list)
+    of: set[int] = field(default_factory=set)
+    includes: set[int] = field(default_factory=set)
+
+    @cached_property
+    def produces_ids(self) -> set[int]:
+        return {p.feature_id for p in self.produces}
+
+
+# ---------------------------------------------------------------------------
+# Graph phase: computing the variant definitions from the combo graph
+# ---------------------------------------------------------------------------
+
+def _build_definitions_from_variant_set(
+    graph: Graph,
+    combo: Combo,
+    variant_set: VariantSet,
+    result: dict[str, VariantDefinition],
+) -> None:
+    variants = graph.results(variant_set)
+    for variant in variants:
+        id = id_from_cards_and_templates_ids(variant.cards.distinct_elements(), variant.templates.distinct_elements())
+        if id in result:
+            result[id].of_ids.add(combo.id)
+            continue
+        needed_combo_ids = variant.needed_combos.copy()
+        # Adding the current combo to the needed combos in case it is not already there
+        # Which can happen if the combo does not produce useful features
+        needed_combo_ids.add(combo.id)
+        feature_replacements = {
+            feature: [
+                VariantRecipeDefinition(
+                    card_ids=ingredients.cards,
+                    template_ids=ingredients.templates,
+                ) for ingredients in replacements
+            ]
+            for feature, replacements in variant.replacements.items()
+        }
+        logging.debug(f'Found new variant for combo {combo.id}: {id}')
+        result[id] = VariantDefinition(
+            card_ids=variant.cards,
+            template_ids=variant.templates,
+            feature_ids=variant.features,
+            included_ids=variant.combos,
+            of_ids={combo.id},
+            feature_replacements=feature_replacements,
+            needed_combos=needed_combo_ids,
+            needed_features_of_cards=variant.needed_feature_of_cards,
+        )
+
+
+def _merge_variant_definitions(target: dict[str, VariantDefinition], source: dict[str, VariantDefinition]) -> None:
+    for id, variant_definition in source.items():
+        existing = target.get(id)
+        if existing is None:
+            target[id] = variant_definition
+        else:
+            existing.of_ids.update(variant_definition.of_ids)
+
+
+# State inherited by forked worker processes for the graph phase
+_GRAPH_WORKER_STATE: Graph | None = None
+
+
+def _graph_phase_worker(combos: list[Combo]) -> dict[str, VariantDefinition]:
+    assert _GRAPH_WORKER_STATE is not None
+    graph = _GRAPH_WORKER_STATE
+    result = dict[str, VariantDefinition]()
+    for combo in combos:
+        try:
+            variant_set = graph.variants(combo.id)
+            _build_definitions_from_variant_set(graph, combo, variant_set, result)
+        except GraphError as e:
+            raise GraphError(f'Error while computing variants for generator combo {combo} with ID {combo.id}: {e}')
+    return result
+
+
 def get_variants_from_graph(
     data: Data,
-    single_combo: int | None,
-    log=lambda _: None,
-    log_error=lambda _: None,
-    progress=lambda x, t: None,
+    combos: Sequence[Combo] | None = None,
+    log: LogFunction = lambda _: None,
+    log_error: LogFunction = lambda _: None,
+    progress: ProgressFunction = lambda x, t: None,
+    workers: int = 1,
 ) -> dict[str, VariantDefinition]:
+    global _GRAPH_WORKER_STATE
     combos_by_status = dict[tuple[bool, bool], list[Combo]]()
-    generator_combos = (data.id_to_combo[single_combo],) if single_combo is not None else data.generator_combos
+    generator_combos = list(combos) if combos is not None else data.generator_combos
     results_progress_multiplier = 10
     progress_total = len(generator_combos) * (1 + results_progress_multiplier)
     progress_current = 0
@@ -52,7 +186,7 @@ def get_variants_from_graph(
         allows_multiple_copies = combo.allow_multiple_copies
         combos_by_status.setdefault((allows_many_cards, allows_multiple_copies), []).append(combo)
     result = dict[str, VariantDefinition]()
-    for (allows_many_cards, allows_multiple_copies), combos in combos_by_status.items():
+    for (allows_many_cards, allows_multiple_copies), combos_of_group in combos_by_status.items():
         conditions = ([f'at most {HIGHER_CARD_LIMIT} cards'] if allows_many_cards else [f'at most {DEFAULT_CARD_LIMIT} cards']) + \
             (['multiple copies'] if allows_multiple_copies else ['only singleton copies'])
         log('Processing combos that allow ' + ' and '.join(conditions) + '...')
@@ -67,11 +201,27 @@ def get_variants_from_graph(
             variant_limit=variant_limit,
             allow_multiple_copies=allows_multiple_copies,
         )
+        if workers > 1 and fork_is_available() and len(combos_of_group) >= MIN_COMBOS_FOR_PARALLELISM:
+            log(f'Computing all variants for {len(combos_of_group)} combos with {workers} workers...')
+            chunks = split_into_chunks(combos_of_group, workers)
+            # The forked workers never touch the inherited database connections,
+            # so they can be safely left open in the parent process
+            _GRAPH_WORKER_STATE = graph
+            try:
+                context = multiprocessing.get_context('fork')
+                with context.Pool(processes=min(workers, len(chunks))) as pool:
+                    for group_result in pool.imap(_graph_phase_worker, chunks):
+                        _merge_variant_definitions(result, group_result)
+                        progress_current += (1 + results_progress_multiplier) * sum(map(len, chunks)) // len(chunks)
+                        progress(min(progress_current, progress_total), progress_total)
+            finally:
+                _GRAPH_WORKER_STATE = None
+            continue
         log('Computing all variants recipes, following combos\' requirements graphs...')
-        total = len(combos)
+        total = len(combos_of_group)
         index = 0
         variant_sets: list[tuple[Combo, VariantSet]] = []
-        for combo in combos:
+        for combo in combos_of_group:
             try:
                 variant_set = graph.variants(combo.id)
             except GraphError:
@@ -79,80 +229,35 @@ def get_variants_from_graph(
                 raise
             variant_sets.append((combo, variant_set))
             progress_current += 1
-            if len(variant_set) > VARIANTS_TO_TRIGGER_LOG or index % VARIANTS_TO_TRIGGER_LOG == 0 or index == total - 1:
+            if len(variant_set) > _VARIANTS_TO_TRIGGER_LOG or index % _VARIANTS_TO_TRIGGER_LOG == 0 or index == total - 1:
                 log(f'{index + 1}/{total} combos processed (just processed combo {combo.id})')
                 progress(progress_current, progress_total)
             index += 1
         log('Processing all recipes to find all the produced results and more...')
         index = 0
         for combo, variant_set in variant_sets:
-            if len(variant_set) > VARIANTS_TO_TRIGGER_LOG:
+            if len(variant_set) > _VARIANTS_TO_TRIGGER_LOG:
                 log(f'About to process results for combo {combo.id} ({index + 1}/{total}) with {len(variant_set)} variants...')
             try:
-                variants = graph.results(variant_set)
+                _build_definitions_from_variant_set(graph, combo, variant_set, result)
             except GraphError:
                 log_error(f'Error while computing all results for generator combo {combo} with ID {combo.id}')
                 raise
-            for variant in variants:
-                id = id_from_cards_and_templates_ids(variant.cards.distinct_elements(), variant.templates.distinct_elements())
-                needed_combo_ids = variant.needed_combos.copy()
-                # Adding the current combo to the needed combos in case it is not already there
-                # Which can happen if the combo does not produce useful features
-                needed_combo_ids.add(combo.id)
-                feature_replacements = {
-                    feature: [
-                        VariantRecipeDefinition(
-                            card_ids=ingredients.cards,
-                            template_ids=ingredients.templates,
-                        ) for ingredients in replacements
-                    ]
-                    for feature, replacements in variant.replacements.items()
-                }
-                if id in result:
-                    x = result[id]
-                    x.of_ids.add(combo.id)
-                else:
-                    logging.debug(f'Found new variant for combo {combo.id} ({index + 1}/{total}): {id}')
-                    result[id] = VariantDefinition(
-                        card_ids=variant.cards,
-                        template_ids=variant.templates,
-                        feature_ids=variant.features,
-                        included_ids=variant.combos,
-                        of_ids={combo.id},
-                        feature_replacements=feature_replacements,
-                        needed_combos=needed_combo_ids,
-                        needed_features_of_cards=variant.needed_feature_of_cards,
-                    )
-                    if single_combo is not None:
-                        # avoid removing all previous generator combos when generating for a single combo
-                        result[id].of_ids.update(of.combo_id for of in data.variant_to_of_sets.get(id, []))
             progress_current += results_progress_multiplier
-            if len(variant_set) > VARIANTS_TO_TRIGGER_LOG or index % VARIANTS_TO_TRIGGER_LOG == 0 or index == total - 1:
+            if len(variant_set) > _VARIANTS_TO_TRIGGER_LOG or index % _VARIANTS_TO_TRIGGER_LOG == 0 or index == total - 1:
                 log(f'{index + 1}/{total} combos processed (just processed combo {combo.id})')
                 progress(progress_current, progress_total)
             index += 1
     return result
 
 
+# ---------------------------------------------------------------------------
+# Restore phase: building the Django objects from the variant definitions
+# ---------------------------------------------------------------------------
+
 def subtract_features(data: Data, includes: set[int], features: FrozenMultiset[featureid]) -> FrozenMultiset[featureid]:
     to_remove = {r.feature_id for c in includes for r in data.combo_to_removed_features[c]}
     return FrozenMultiset({f: c for f, c in features.items() if f not in data.utility_features_ids and f not in to_remove})
-
-
-@dataclass
-class VariantBulkSaveItem:
-    # Data fields
-    variant: Variant
-    # Relationships fields
-    uses: list[CardInVariant]
-    requires: list[TemplateInVariant]
-    produces: list[FeatureProducedByVariant]
-    of: set[int]
-    includes: set[int]
-
-    @cached_property
-    def produces_ids(self) -> set[int]:
-        return {p.feature_id for p in self.produces}
 
 
 def get_default_zone_location_for_card(card: Card) -> ZoneLocation:
@@ -161,36 +266,49 @@ def get_default_zone_location_for_card(card: Card) -> ZoneLocation:
     return ZoneLocation.BATTLEFIELD
 
 
-def update_state_with_default(data: Data, dst: Ingredient):
-    if isinstance(dst, CardInVariant):
-        dst.zone_locations = get_default_zone_location_for_card(data.id_to_card[dst.card_id])
+def update_state_with_default(data: Data, destination: Ingredient) -> None:
+    if isinstance(destination, CardInVariant):
+        destination.zone_locations = get_default_zone_location_for_card(data.id_to_card[destination.card_id])
     else:
-        dst.zone_locations = Ingredient._meta.get_field('zone_locations').get_default()
-    dst.battlefield_card_state = ''
-    dst.exile_card_state = ''
-    dst.graveyard_card_state = ''
-    dst.library_card_state = ''
-    dst.must_be_commander = False
+        destination.zone_locations = Ingredient._meta.get_field('zone_locations').get_default()
+    destination.battlefield_card_state = ''
+    destination.exile_card_state = ''
+    destination.graveyard_card_state = ''
+    destination.library_card_state = ''
+    destination.must_be_commander = False
 
 
-def update_state(dst: Ingredient, initial_states: Sequence[Ingredient]):
+def update_state(destination: Ingredient, initial_states: Sequence[Ingredient]) -> None:
     zone_locations = initial_states[0].zone_locations
-    for src in initial_states[1:]:
+    for initial_state in initial_states[1:]:
         zone_locations = ''.join(
             location
             for location in zone_locations
-            if location in src.zone_locations
-        ) or zone_locations or src.zone_locations
-    dst.zone_locations = zone_locations
-    dst.battlefield_card_state = join_with_conjunction(s.battlefield_card_state for s in initial_states)
-    dst.exile_card_state = join_with_conjunction(s.exile_card_state for s in initial_states)
-    dst.graveyard_card_state = join_with_conjunction(s.graveyard_card_state for s in initial_states)
-    dst.library_card_state = join_with_conjunction(s.library_card_state for s in initial_states)
-    dst.must_be_commander = any(s.must_be_commander for s in initial_states)
+            if location in initial_state.zone_locations
+        ) or zone_locations or initial_state.zone_locations
+    destination.zone_locations = zone_locations
+    destination.battlefield_card_state = join_with_conjunction(state.battlefield_card_state for state in initial_states)
+    destination.exile_card_state = join_with_conjunction(state.exile_card_state for state in initial_states)
+    destination.graveyard_card_state = join_with_conjunction(state.graveyard_card_state for state in initial_states)
+    destination.library_card_state = join_with_conjunction(state.library_card_state for state in initial_states)
+    destination.must_be_commander = any(state.must_be_commander for state in initial_states)
 
 
-FEATURE_REPLACEMENT_REGEX = r'\[\[(?P<key>.+?)(?:\|(?P<alias>[^$|]+?))?(?:\$(?P<selector>[1-9]\d*)(?:\|(?P<postfix_alias>[^$|]+?))?)?\]\]'
-_FEATURE_REPLACEMENT_PATTERN = re.compile(FEATURE_REPLACEMENT_REGEX, re.IGNORECASE)
+def _copy_state_from_row(destination: CardInVariant | TemplateInVariant, row: CardInVariantRow | TemplateInVariantRow) -> None:
+    destination.zone_locations = row.zone_locations
+    destination.battlefield_card_state = row.battlefield_card_state
+    destination.exile_card_state = row.exile_card_state
+    destination.graveyard_card_state = row.graveyard_card_state
+    destination.library_card_state = row.library_card_state
+    destination.must_be_commander = row.must_be_commander
+    destination.order = row.order
+
+
+def _ingredient_changed(ingredient: CardInVariant | TemplateInVariant, row: CardInVariantRow | TemplateInVariantRow) -> bool:
+    for field_name in _INGREDIENT_UPDATE_FIELDS:
+        if getattr(ingredient, field_name) != getattr(row, field_name):
+            return True
+    return False
 
 
 def apply_replacements(
@@ -237,13 +355,13 @@ def apply_replacements(
             replacements_strings.setdefault(postfix_alias, []).append(result)
         return result
 
-    return _FEATURE_REPLACEMENT_PATTERN.sub(
+    return FEATURE_REPLACEMENT_PATTERN.sub(
         lambda m: replacement_with_fallback(m.group('key'), m.group('alias'), m.group('selector'), m.group('postfix_alias'), m.group(0)),
         text,
     )
 
 
-def restore_variant(
+def _restore_variant(
         data: Data,
         variant: Variant,
         variant_def: VariantDefinition,
@@ -251,43 +369,49 @@ def restore_variant(
 ) -> VariantBulkSaveItem:
     # Prepare related objects collections
     used_cards: list[CardInVariant] = []
-    for c_id, quantity in variant_def.card_ids.items():
-        if (c_id, variant.id) in data.variant_uses_card_dict:
-            civ = data.variant_uses_card_dict[(c_id, variant.id)]
-            civ.quantity = quantity
-        else:
-            civ = CardInVariant(card=data.id_to_card[c_id], variant=variant, quantity=quantity)
-        used_cards.append(civ)
+    old_uses_rows: dict[int, CardInVariantRow] = {}
+    for card_id, quantity in variant_def.card_ids.items():
+        card_in_variant = CardInVariant(card_id=card_id, variant=variant, quantity=quantity)
+        old_row = data.variant_uses_card_dict.get((card_id, variant.id))
+        if old_row is not None:
+            card_in_variant.id = old_row.id
+            old_uses_rows[card_id] = old_row
+            _copy_state_from_row(card_in_variant, old_row)
+        used_cards.append(card_in_variant)
     required_templates: list[TemplateInVariant] = []
-    for t_id, quantity in variant_def.template_ids.items():
-        if (t_id, variant.id) in data.variant_requires_template_dict:
-            tiv = data.variant_requires_template_dict[(t_id, variant.id)]
-            tiv.quantity = quantity
-        else:
-            tiv = TemplateInVariant(template=data.id_to_template[t_id], variant=variant, quantity=quantity)
-        required_templates.append(tiv)
+    old_requires_rows: dict[int, TemplateInVariantRow] = {}
+    for template_id, quantity in variant_def.template_ids.items():
+        template_in_variant = TemplateInVariant(template_id=template_id, variant=variant, quantity=quantity)
+        old_row = data.variant_requires_template_dict.get((template_id, variant.id))
+        if old_row is not None:
+            template_in_variant.id = old_row.id
+            old_requires_rows[template_id] = old_row
+            _copy_state_from_row(template_in_variant, old_row)
+        required_templates.append(template_in_variant)
     generator_combos = [data.id_to_combo[c_id] for c_id in sorted(variant_def.of_ids)]
     other_combos = [data.id_to_combo[c_id] for c_id in sorted(variant_def.included_ids - variant_def.of_ids)]
     needed_combos = [*generator_combos, *(c for c in other_combos if c.id in variant_def.needed_combos)]
     needed_feature_of_cards = [data.id_to_feature_of_card[f_id] for f_id in sorted(variant_def.needed_features_of_cards)]
     produces_ids = subtract_features(data, variant_def.included_ids, variant_def.feature_ids)
     produced_features = list[FeatureProducedByVariant]()
-    for f_id, quantity in produces_ids.items():
-        if (f_id, variant.id) in data.variant_produces_feature_dict:
-            fiv = data.variant_produces_feature_dict[(f_id, variant.id)]
-            fiv.feature = data.id_to_feature[f_id]
-            fiv.quantity = quantity
-        else:
-            fiv = FeatureProducedByVariant(feature=data.id_to_feature[f_id], variant=variant, quantity=quantity)
-        produced_features.append(fiv)
+    old_produces_rows: dict[int, FeatureProducedByVariantRow] = {}
+    for feature_id, quantity in produces_ids.items():
+        produced_feature = FeatureProducedByVariant(feature=data.id_to_feature[feature_id], variant=variant, quantity=quantity)
+        old_row = data.variant_produces_feature_dict.get((feature_id, variant.id))
+        if old_row is not None:
+            produced_feature.id = old_row.id
+            old_produces_rows[feature_id] = old_row
+        produced_features.append(produced_feature)
     produced_features.sort(key=lambda f: f.feature.name)
     uses = dict[int, CardInVariant]()
     for card_in_variant in used_cards:
-        card_in_variant.order = 0  # will be updated later
+        if card_in_variant.card_id not in old_uses_rows:
+            card_in_variant.order = 0  # will be updated later
         uses[card_in_variant.card_id] = card_in_variant
     requires = dict[int, TemplateInVariant]()
     for template_in_variant in required_templates:
-        template_in_variant.order = 0  # will be updated later
+        if template_in_variant.template_id not in old_requires_rows:
+            template_in_variant.order = 0  # will be updated later
         requires[template_in_variant.template_id] = template_in_variant
     if restore_fields:
         # update the variant status
@@ -496,25 +620,46 @@ def restore_variant(
         [(f, data.id_to_feature[f.feature_id]) for f in produced_features],
     ))
 
-    # Return the final object
-    return VariantBulkSaveItem(
+    save_item = VariantBulkSaveItem(
         variant=variant,
+        variant_changed=True,
         uses=list(uses_list()),
         requires=list(requires_list()),
         of=variant_def.of_ids,
         includes=variant_def.included_ids,
         produces=produced_features,
     )
+    # Compute which relationship rows are new and which existing ones have changed
+    for card_in_variant in save_item.uses:
+        old_row = old_uses_rows.get(card_in_variant.card_id)
+        if old_row is None:
+            save_item.uses_to_create.append(card_in_variant)
+        elif _ingredient_changed(card_in_variant, old_row):
+            save_item.uses_to_update.append(card_in_variant)
+    for template_in_variant in save_item.requires:
+        old_row = old_requires_rows.get(template_in_variant.template_id)
+        if old_row is None:
+            save_item.requires_to_create.append(template_in_variant)
+        elif _ingredient_changed(template_in_variant, old_row):
+            save_item.requires_to_update.append(template_in_variant)
+    for feature_produced in save_item.produces:
+        old_row = old_produces_rows.get(feature_produced.feature_id)
+        if old_row is None:
+            save_item.produces_to_create.append(feature_produced)
+        elif feature_produced.quantity != old_row.quantity:
+            save_item.produces_to_update.append(feature_produced)
+    return save_item
 
 
-def update_variant(
+def _update_variant(
         data: Data,
         id: str,
         variant_def: VariantDefinition,
+        variant: Variant,
         restore: bool,
-        job: str | None):
-    variant = data.id_to_variant[id]
-    save_item = restore_variant(
+        job: str | None) -> VariantBulkSaveItem:
+    old_values = [getattr(variant, field_name) for field_name in _VARIANT_UPDATE_FIELDS]
+    save_item = _restore_variant(
         data=data,
         variant=variant,
         variant_def=variant_def,
@@ -522,54 +667,132 @@ def update_variant(
     )
     if restore:
         variant.generated_by = job
+    # perform pre_save early, outside of the save transaction, to also include
+    # its effects in the change detection
+    variant.pre_save()
+    save_item.variant_changed = any(
+        getattr(variant, field_name) != old_value
+        for field_name, old_value in zip(_VARIANT_UPDATE_FIELDS, old_values)
+    )
     return save_item
 
 
-def create_variant(
+def _create_variant(
         data: Data,
         id: str,
         variant_def: VariantDefinition,
-        job: str | None):
+        job: str | None) -> VariantBulkSaveItem:
     variant = Variant(
         id=id,
         generated_by=job,
     )
-    save_item = restore_variant(
+    save_item = _restore_variant(
         data=data,
         variant=variant,
         variant_def=variant_def,
         restore_fields=True,
     )
+    variant.pre_save()
     return save_item
 
 
-def perform_bulk_saves(
+# State inherited by forked worker processes for the restore phase
+_RESTORE_WORKER_STATE: tuple[Data, dict[str, VariantDefinition], dict[str, Variant], set[str], str | None] | None = None
+
+
+def _restore_phase_worker(ids: list[str]) -> tuple[list[VariantBulkSaveItem], list[VariantBulkSaveItem]]:
+    assert _RESTORE_WORKER_STATE is not None
+    data, variants, variant_instances, to_restore, job = _RESTORE_WORKER_STATE
+    return _restore_variants_chunk(data, variants, variant_instances, to_restore, job, ids)
+
+
+def _restore_variants_chunk(
+    data: Data,
+    variants: dict[str, VariantDefinition],
+    variant_instances: dict[str, Variant],
+    to_restore: set[str],
+    job: str | None,
+    ids: list[str],
+) -> tuple[list[VariantBulkSaveItem], list[VariantBulkSaveItem]]:
+    to_bulk_update = list[VariantBulkSaveItem]()
+    to_bulk_create = list[VariantBulkSaveItem]()
+    for id in ids:
+        variant_def = variants[id]
+        variant = variant_instances.get(id)
+        if variant is not None:
+            to_bulk_update.append(_update_variant(
+                data=data,
+                id=id,
+                variant_def=variant_def,
+                variant=variant,
+                restore=id in to_restore,
+                job=job,
+            ))
+        else:
+            to_bulk_create.append(_create_variant(
+                data=data,
+                id=id,
+                variant_def=variant_def,
+                job=job,
+            ))
+    return to_bulk_update, to_bulk_create
+
+
+def restore_variants(
+    data: Data,
+    variants: dict[str, VariantDefinition],
+    variant_instances: dict[str, Variant],
+    to_restore: set[str],
+    job: str | None,
+    workers: int = 1,
+) -> tuple[list[VariantBulkSaveItem], list[VariantBulkSaveItem]]:
+    global _RESTORE_WORKER_STATE
+    ids = list(variants.keys())
+    if workers > 1 and fork_is_available() and len(ids) >= MIN_VARIANTS_FOR_PARALLELISM:
+        chunks = split_into_chunks(ids, workers)
+        # The forked workers never touch the inherited database connections,
+        # so they can be safely left open in the parent process
+        _RESTORE_WORKER_STATE = (data, variants, variant_instances, to_restore, job)
+        try:
+            context = multiprocessing.get_context('fork')
+            with context.Pool(processes=min(workers, len(chunks))) as pool:
+                to_bulk_update = list[VariantBulkSaveItem]()
+                to_bulk_create = list[VariantBulkSaveItem]()
+                for chunk_updates, chunk_creates in pool.imap(_restore_phase_worker, chunks):
+                    to_bulk_update.extend(chunk_updates)
+                    to_bulk_create.extend(chunk_creates)
+                return to_bulk_update, to_bulk_create
+        finally:
+            _RESTORE_WORKER_STATE = None
+    return _restore_variants_chunk(data, variants, variant_instances, to_restore, job, ids)
+
+
+# ---------------------------------------------------------------------------
+# Save phase: writing the changes to the database
+# ---------------------------------------------------------------------------
+
+def _perform_bulk_saves(
     data: Data,
     to_create: list[VariantBulkSaveItem],
     to_update: list[VariantBulkSaveItem],
-    log=lambda _: None,
-    progress=lambda x, t: None,
-):
-    step_count = 8
+    log: LogFunction = lambda _: None,
+    progress: ProgressFunction = lambda x, t: None,
+) -> None:
+    step_count = 7
     log('Prepare variants...')
     variant_bulk_create = tuple(v.variant for v in to_create)
-    variant_bulk_update = tuple(v.variant for v in to_update)
+    variant_bulk_update = tuple(v.variant for v in to_update if v.variant_changed)
+    variant_bulk_update_fields = _VARIANT_UPDATE_FIELDS
     progress(1, step_count)
-    # perform pre_save outside the transaction to reduce lock time
-    log('Preprocess variants...')
-    for variant in chain(variant_bulk_create, variant_bulk_update):
-        variant.pre_save()
-    variant_bulk_update_fields = ['status', 'mana_needed', 'is_mana_needed_an_accurate_minimum', 'easy_prerequisites', 'notable_prerequisites', 'description', 'notes', 'comment', 'generated_by'] + Variant.computed_fields()
-    progress(2, step_count)
     log('Prepare variant related entities...')
-    cardinvariant_bulk_create = tuple(c for v in to_create for c in v.uses)
-    cardinvariant_bulk_update = tuple(c for v in to_update for c in v.uses)
+    cardinvariant_bulk_create = tuple(c for v in chain(to_create, to_update) for c in v.uses_to_create)
+    cardinvariant_bulk_update = tuple(c for v in to_update for c in v.uses_to_update)
     cardinvariant_bulk_update_fields = ['zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'must_be_commander', 'order', 'quantity']
-    progress(3, step_count)
-    templateinvariant_bulk_create = tuple(t for v in to_create for t in v.requires)
-    templateinvariant_bulk_update = tuple(t for v in to_update for t in v.requires)
+    progress(2, step_count)
+    templateinvariant_bulk_create = tuple(t for v in chain(to_create, to_update) for t in v.requires_to_create)
+    templateinvariant_bulk_update = tuple(t for v in to_update for t in v.requires_to_update)
     templateinvariant_bulk_update_fields = ['zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'must_be_commander', 'order', 'quantity']
-    progress(4, step_count)
+    progress(3, step_count)
     of_bulk_delete = tuple(
         of.id
         for v in to_update
@@ -586,7 +809,7 @@ def perform_bulk_saves(
         for combo_id in v.of
         if (combo_id, v.variant.id) not in data.variant_of_combo_dict
     )
-    progress(5, step_count)
+    progress(4, step_count)
     includes_bulk_delete = tuple(
         includes.id
         for v in to_update
@@ -603,7 +826,7 @@ def perform_bulk_saves(
         for combo_id in v.includes
         if (combo_id, v.variant.id) not in data.variant_includes_combo_dict
     )
-    progress(6, step_count)
+    progress(5, step_count)
     produces_bulk_delete = tuple(
         produces.id
         for v in to_update
@@ -612,22 +835,16 @@ def perform_bulk_saves(
     )
     produces_bulk_create = tuple(
         i
-        for v in to_create
-        for i in v.produces
-    ) + tuple(
-        i
-        for v in to_update
-        for i in v.produces
-        if (i.feature_id, v.variant.id) not in data.variant_produces_feature_dict
+        for v in chain(to_create, to_update)
+        for i in v.produces_to_create
     )
     produces_bulk_update = tuple(
         p
         for v in to_update
-        for p in v.produces
-        if (p.feature_id, v.variant.id) in data.variant_produces_feature_dict
+        for p in v.produces_to_update
     )
     produces_bulk_update_fields = ['quantity']
-    progress(7, step_count)
+    progress(6, step_count)
     log('Perform bulk updates...')
     with transaction.atomic():
         # delete
@@ -666,13 +883,20 @@ def sync_variant_aliases(data: Data, added_variants_ids: set[str], deleted_varia
     return added_count, deleted_count
 
 
+# ---------------------------------------------------------------------------
+# Entry point: orchestrating the whole generation
+# ---------------------------------------------------------------------------
+
 def generate_variants(
     combo: int | None = None,
     job: str | None = None,
-    log=lambda _: None,
-    log_error=lambda _: None,
-    progress=lambda x, t: None
-):
+    log: LogFunction = lambda _: None,
+    log_error: LogFunction = lambda _: None,
+    progress: ProgressFunction = lambda x, t: None,
+    incremental: bool = False,
+    workers: int | None = None,
+) -> tuple[int, int, int]:
+    workers = resolve_workers(workers)
     progress(0, 100)
     if combo is not None:
         log(f'Variant generation started for combo {combo}.')
@@ -680,35 +904,76 @@ def generate_variants(
         log('Variant generation started for all combos.')
     log('Fetching data...')
     data = Data()
+    progress(8, 100)
+    # The loaded dataset is read-only reference data from here on: freezing it
+    # exempts it from garbage collector scans for the rest of the generation
+    gc.collect()
+    gc.freeze()
+    try:
+        return _generate_variants(data, combo, job, log, log_error, progress, incremental, workers)
+    finally:
+        gc.unfreeze()
+
+
+def _generate_variants(
+    data: Data,
+    combo: int | None,
+    job: str | None,
+    log: LogFunction,
+    log_error: LogFunction,
+    progress: ProgressFunction,
+    incremental: bool,
+    workers: int,
+) -> tuple[int, int, int]:
+    log('Computing entity fingerprints...')
+    current_fingerprints = compute_fingerprints(data)
+    if combo is not None:
+        plan = GenerationPlan(
+            scope=GenerationScope.SINGLE,
+            combos_to_generate=[data.id_to_combo[combo]],
+            regenerated_combo_ids={combo},
+        )
+    elif incremental:
+        plan = plan_incremental_generation(data, current_fingerprints, load_stored_fingerprints())
+        if plan.fallback_reason is not None:
+            log(f'Falling back to full generation: {plan.fallback_reason}')
+        else:
+            log(f'Incremental generation: {len(plan.combos_to_generate)} of {len(data.generator_combos)} generator combos have to be regenerated.')
+    else:
+        plan = plan_full_generation(data)
     progress(10, 100)
     to_restore = set(k for k, v in data.id_to_variant.items() if v.status == Variant.Status.RESTORE or len(data.variant_to_of_sets[k]) == 0)
     log('Fetching all variant unique ids...')
     old_id_set = set(data.id_to_variant.keys())
     progress(12, 100)
     log('Computing combos graph representation...')
-    variants = get_variants_from_graph(data, combo, log, log_error, progress=lambda x, t: progress(12 + int(x / t * 70), 100))
+    variants = get_variants_from_graph(
+        data,
+        plan.combos_to_generate,
+        log,
+        log_error,
+        progress=lambda x, t: progress(12 + int(x / t * 70), 100),
+        workers=workers,
+    )
+    if plan.scope is not GenerationScope.FULL:
+        # Preserve the relationships with generator combos outside of the regeneration scope
+        for id, variant_def in variants.items():
+            of_rows = data.variant_to_of_sets.get(id)
+            if of_rows:
+                variant_def.of_ids.update(of_row.combo_id for of_row in of_rows if of_row.combo_id not in plan.regenerated_combo_ids)
     log(f'Processing {len(variants)} variants...')
-    to_bulk_update = list[VariantBulkSaveItem]()
-    to_bulk_create = list[VariantBulkSaveItem]()
-    for id, variant_def in variants.items():
-        if id in old_id_set:
-            variant_to_update = update_variant(
-                data=data,
-                id=id,
-                variant_def=variant_def,
-                restore=id in to_restore,
-                job=job)
-            to_bulk_update.append(variant_to_update)
-        else:
-            variant_to_save = create_variant(
-                data=data,
-                id=id,
-                variant_def=variant_def,
-                job=job)
-            to_bulk_create.append(variant_to_save)
+    variant_instances = data.fetch_variants(id for id in variants if id in old_id_set)
+    to_bulk_update, to_bulk_create = restore_variants(
+        data=data,
+        variants=variants,
+        variant_instances=variant_instances,
+        to_restore=to_restore,
+        job=job,
+        workers=workers,
+    )
     progress(85, 100)
     log(f'Saving {len(variants)} variants...')
-    perform_bulk_saves(data, to_bulk_create, to_bulk_update, log, progress=lambda x, t: progress(85 + int(x / t * 10), 100))
+    _perform_bulk_saves(data, to_bulk_create, to_bulk_update, log, progress=lambda x, t: progress(85 + int(x / t * 10), 100))
     progress(95, 100)
     log(f'Saved {len(variants)} variants.')
     new_id_set = set(variants.keys())
@@ -716,8 +981,19 @@ def generate_variants(
     restored = new_id_set & to_restore
     log(f'Added {len(added)} new variants.')
     log(f'Updated {len(restored)} variants.')
-    if combo is None:
+    if plan.scope is GenerationScope.FULL:
         to_delete = old_id_set - new_id_set
+    elif plan.scope is GenerationScope.INCREMENTAL:
+        # An existing variant is deleted only when all of its generator combos
+        # were regenerated and none of them produces it anymore
+        to_delete = {
+            id
+            for id in old_id_set - new_id_set
+            if data.variant_to_of_sets[id] and all(
+                of_row.combo_id in plan.regenerated_combo_ids
+                for of_row in data.variant_to_of_sets[id]
+            )
+        }
     else:
         to_delete = set[str]()
     delete_query = Variant.objects.filter(id__in=to_delete)
@@ -727,6 +1003,10 @@ def generate_variants(
     log(f'Deleted {deleted_count} variants.')
     added_aliases, deleted_aliases = sync_variant_aliases(data, added, to_delete)
     log(f'Added {added_aliases} new aliases, deleted {deleted_aliases} aliases.')
+    if plan.scope is not GenerationScope.SINGLE:
+        # Only a full or incremental generation leaves the database in a state
+        # that is consistent with the computed fingerprints
+        store_fingerprints(current_fingerprints)
     progress(100, 100)
     log('Done.')
     return len(added), len(restored), deleted_count

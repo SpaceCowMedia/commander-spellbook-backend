@@ -8,7 +8,7 @@ from itertools import chain
 from typing import Callable, Sequence
 from django.utils.functional import cached_property
 from django.db import transaction
-from multiprocessing_utils import fork_is_available, resolve_workers, split_into_chunks
+from multiprocessing_utils import parallelism_is_available, resolve_workers, split_into_chunks
 from .multiset import FrozenMultiset
 from .variant_data import Data, CardInVariantRow, TemplateInVariantRow, FeatureProducedByVariantRow
 from .variant_set import VariantSet
@@ -201,7 +201,7 @@ def get_variants_from_graph(
             variant_limit=variant_limit,
             allow_multiple_copies=allows_multiple_copies,
         )
-        if workers > 1 and fork_is_available() and len(combos_of_group) >= MIN_COMBOS_FOR_PARALLELISM:
+        if workers > 1 and parallelism_is_available() and len(combos_of_group) >= MIN_COMBOS_FOR_PARALLELISM:
             log(f'Computing all variants for {len(combos_of_group)} combos with {workers} workers...')
             chunks = split_into_chunks(combos_of_group, workers)
             # The forked workers never touch the inherited database connections,
@@ -311,12 +311,16 @@ def _ingredient_changed(ingredient: CardInVariant | TemplateInVariant, row: Card
     return False
 
 
-def apply_replacements(
+def build_replacement_strings(
     data: Data,
-    text: str,
     replacements: dict[FeatureWithAttributes, list[tuple[list[Card], list[Template]]]],
     included_combos: set[int],
-) -> str:
+) -> defaultdict[str, list[str]]:
+    '''
+    Builds the mapping of feature name to its replacement strings for a variant.
+    This depends only on the variant's replacements and included combos, so it is
+    computed once and reused across every text field the variant regenerates.
+    '''
     replacements_strings = defaultdict[str, list[str]](list)
     features_needed_by_included_combos = [feature_needed for included_combo_id in included_combos for feature_needed in data.combo_to_needed_features[included_combo_id]]
     for feature, replacement_list in replacements.items():
@@ -336,6 +340,16 @@ def apply_replacements(
             ]
             replacement = ' + '.join(names)
             replacements_strings[feature.feature.name].append(replacement)
+    return replacements_strings
+
+
+def apply_replacements(
+    text: str,
+    replacement_strings: defaultdict[str, list[str]],
+) -> str:
+    # Work on a private copy: substituting a text field can register aliases into the
+    # mapping, and those must not leak into the other text fields sharing the base.
+    replacements_strings = defaultdict[str, list[str]](list, {key: list(values) for key, values in replacement_strings.items()})
 
     def replacement_with_fallback(key: str, alias: str | None, selector: str | None, postfix_alias: str | None, otherwise: str) -> str:
         selector_index = 0
@@ -439,16 +453,17 @@ def _restore_variant(
             if feature_of_card.notable_prerequisites:
                 notable_prerequisites_list.append(feature_of_card.notable_prerequisites)
 
-        variant.easy_prerequisites = apply_replacements(data, '\n'.join(easy_prerequisites_list), replacements, variant_def.needed_combos)
-        variant.notable_prerequisites = apply_replacements(data, '\n'.join(notable_prerequisites_list), replacements, variant_def.needed_combos)
-        variant.mana_needed = apply_replacements(data, merge_mana_costs(mana_needed_list), replacements, variant_def.needed_combos)
+        replacement_strings = build_replacement_strings(data, replacements, variant_def.needed_combos)
+        variant.easy_prerequisites = apply_replacements('\n'.join(easy_prerequisites_list), replacement_strings)
+        variant.notable_prerequisites = apply_replacements('\n'.join(notable_prerequisites_list), replacement_strings)
+        variant.mana_needed = apply_replacements(merge_mana_costs(mana_needed_list), replacement_strings)
         variant.is_mana_needed_an_accurate_minimum = not variant.mana_needed or all(
             c.is_mana_needed_an_accurate_minimum
             for c in needed_combos
         )
-        variant.description = apply_replacements(data, '\n'.join(c.description for c in needed_combos if len(c.description) > 0), replacements, variant_def.needed_combos)
-        variant.notes = apply_replacements(data, '\n'.join(c.notes for c in needed_combos if len(c.notes) > 0), replacements, variant_def.needed_combos)
-        variant.comment = apply_replacements(data, '\n'.join(c.comment for c in needed_combos if len(c.comment) > 0), replacements, variant_def.needed_combos)
+        variant.description = apply_replacements('\n'.join(c.description for c in needed_combos if len(c.description) > 0), replacement_strings)
+        variant.notes = apply_replacements('\n'.join(c.notes for c in needed_combos if len(c.notes) > 0), replacement_strings)
+        variant.comment = apply_replacements('\n'.join(c.comment for c in needed_combos if len(c.comment) > 0), replacement_strings)
 
         card_zone_locations_overrides = defaultdict[int, defaultdict[str, int]](lambda: defaultdict(int))
         template_zone_locations_overrides = defaultdict[int, defaultdict[str, int]](lambda: defaultdict(int))
@@ -499,44 +514,36 @@ def _restore_variant(
                     if count == override_score
                 )
             used_card.battlefield_card_state = apply_replacements(
-                data,
                 '\n'.join(
                     f.battlefield_card_state
                     for f in card_features_for_override[used_card.card_id]
                     if ZoneLocation.BATTLEFIELD in f.zone_locations and f.battlefield_card_state
                 ) or used_card.battlefield_card_state if ZoneLocation.BATTLEFIELD in used_card.zone_locations else '',
-                replacements,
-                variant_def.needed_combos,
+                replacement_strings,
             )
             used_card.exile_card_state = apply_replacements(
-                data,
                 '\n'.join(
                     f.exile_card_state
                     for f in card_features_for_override[used_card.card_id]
                     if ZoneLocation.EXILE in f.zone_locations and f.exile_card_state
                 ) or used_card.exile_card_state if ZoneLocation.EXILE in used_card.zone_locations else '',
-                replacements,
-                variant_def.needed_combos,
+                replacement_strings,
             )
             used_card.graveyard_card_state = apply_replacements(
-                data,
                 '\n'.join(
                     f.graveyard_card_state
                     for f in card_features_for_override[used_card.card_id]
                     if ZoneLocation.GRAVEYARD in f.zone_locations and f.graveyard_card_state
                 ) or used_card.graveyard_card_state if ZoneLocation.GRAVEYARD in used_card.zone_locations else '',
-                replacements,
-                variant_def.needed_combos,
+                replacement_strings,
             )
             used_card.library_card_state = apply_replacements(
-                data,
                 '\n'.join(
                     f.library_card_state
                     for f in card_features_for_override[used_card.card_id]
                     if ZoneLocation.LIBRARY in f.zone_locations and f.library_card_state
                 ) or used_card.library_card_state if ZoneLocation.LIBRARY in used_card.zone_locations else '',
-                replacements,
-                variant_def.needed_combos,
+                replacement_strings,
             )
         for required_template in required_templates:
             override_score = max(template_zone_locations_overrides[required_template.template_id].values(), default=0)
@@ -547,44 +554,36 @@ def _restore_variant(
                     if count == override_score
                 )
             required_template.battlefield_card_state = apply_replacements(
-                data,
                 '\n'.join(
                     f.battlefield_card_state
                     for f in template_features_for_override[required_template.template_id]
                     if ZoneLocation.BATTLEFIELD in f.zone_locations and f.battlefield_card_state
                 ) or required_template.battlefield_card_state if ZoneLocation.BATTLEFIELD in required_template.zone_locations else '',
-                replacements,
-                variant_def.needed_combos,
+                replacement_strings,
             )
             required_template.exile_card_state = apply_replacements(
-                data,
                 '\n'.join(
                     f.exile_card_state
                     for f in template_features_for_override[required_template.template_id]
                     if ZoneLocation.EXILE in f.zone_locations and f.exile_card_state
                 ) or required_template.exile_card_state if ZoneLocation.EXILE in required_template.zone_locations else '',
-                replacements,
-                variant_def.needed_combos,
+                replacement_strings,
             )
             required_template.graveyard_card_state = apply_replacements(
-                data,
                 '\n'.join(
                     f.graveyard_card_state
                     for f in template_features_for_override[required_template.template_id]
                     if ZoneLocation.GRAVEYARD in f.zone_locations and f.graveyard_card_state
                 ) or required_template.graveyard_card_state if ZoneLocation.GRAVEYARD in required_template.zone_locations else '',
-                replacements,
-                variant_def.needed_combos,
+                replacement_strings,
             )
             required_template.library_card_state = apply_replacements(
-                data,
                 '\n'.join(
                     f.library_card_state
                     for f in template_features_for_override[required_template.template_id]
                     if ZoneLocation.LIBRARY in f.zone_locations and f.library_card_state
                 ) or required_template.library_card_state if ZoneLocation.LIBRARY in required_template.zone_locations else '',
-                replacements,
-                variant_def.needed_combos,
+                replacement_strings,
             )
 
     # Ordering ingredients by ascending replaceability and ascending order in combos
@@ -753,7 +752,7 @@ def restore_variants(
 ) -> tuple[list[VariantBulkSaveItem], list[VariantBulkSaveItem]]:
     global _RESTORE_WORKER_STATE
     ids = list(variants.keys())
-    if workers > 1 and fork_is_available() and len(ids) >= MIN_VARIANTS_FOR_PARALLELISM:
+    if workers > 1 and parallelism_is_available() and len(ids) >= MIN_VARIANTS_FOR_PARALLELISM:
         chunks = split_into_chunks(ids, workers)
         # The forked workers never touch the inherited database connections,
         # so they can be safely left open in the parent process

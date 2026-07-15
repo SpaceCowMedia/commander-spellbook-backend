@@ -11,9 +11,9 @@ from spellbook.variants.multiset import FrozenMultiset
 from spellbook.variants.variant_data import Data
 from spellbook.variants import variants_generator
 from spellbook.variants.variants_generator import get_variants_from_graph, get_default_zone_location_for_card, update_state_with_default
-from spellbook.variants.variants_generator import generate_variants, apply_replacements, subtract_features, update_state
+from spellbook.variants.variants_generator import generate_variants, apply_replacements, build_replacement_strings, subtract_features, update_state
 from spellbook.variants.variants_generator import sync_variant_aliases, restore_variants
-from multiprocessing_utils import fork_is_available
+from multiprocessing_utils import parallelism_is_available
 
 
 class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
@@ -196,8 +196,9 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
             ('Multiple replacements: [[FW]]', 'Multiple replacements: The Name + The Name, different Title + The Name, the Title  // Another Name, Another Title + Normal Card'),
         ]
         data = Data()
+        replacement_strings = build_replacement_strings(data, replacements, {combo.id})
         for test in tests:
-            self.assertEqual(apply_replacements(data, test[0], replacements, {combo.id}), test[1])
+            self.assertEqual(apply_replacements(test[0], replacement_strings), test[1])
 
     def test_restore_variant(self):
         # TODO: Implement
@@ -653,7 +654,7 @@ class IncrementalGenerationTests(SpellbookTestCaseWithSeeding):
 
 
 class ParallelGenerationTests(SpellbookTestCaseWithSeeding):
-    @skipUnless(fork_is_available(), 'parallel generation requires the fork start method')
+    @skipUnless(parallelism_is_available(), 'parallel generation requires the fork start method and a non-daemonic process')
     def test_parallel_generation_matches_serial(self):
         with mock.patch.object(variants_generator, 'MIN_COMBOS_FOR_PARALLELISM', 1), \
                 mock.patch.object(variants_generator, 'MIN_VARIANTS_FOR_PARALLELISM', 1):

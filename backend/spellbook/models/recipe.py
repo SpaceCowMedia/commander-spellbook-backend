@@ -1,3 +1,4 @@
+from functools import cache
 from django.db import models
 from .constants import MAX_CARD_NAME_LENGTH, MAX_FEATURE_NAME_LENGTH
 from .utils import recipe
@@ -26,6 +27,7 @@ class Recipe(models.Model):
         return {}
 
     @classmethod
+    @cache
     def recipe_fields(cls) -> list[str]:
         return [
             'name',

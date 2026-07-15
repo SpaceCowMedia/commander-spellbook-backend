@@ -17,6 +17,17 @@ def fork_is_available() -> bool:
     return 'fork' in multiprocessing.get_all_start_methods()
 
 
+def parallelism_is_available() -> bool:
+    '''Whether the current process can fork child worker processes.
+
+    Besides requiring platform support for the fork start method, the current
+    process must be allowed to have children: a daemonic process (e.g. a
+    parallel test-runner worker or a Celery worker with daemon processes)
+    cannot spawn children, so parallelism must degrade to serial there.
+    '''
+    return fork_is_available() and not multiprocessing.current_process().daemon
+
+
 def split_into_chunks(items: list[T], workers: int) -> list[list[T]]:
     '''Splits the items into evenly sized chunks, about four per worker, preserving order.'''
     chunk_count = min(len(items), workers * 4)

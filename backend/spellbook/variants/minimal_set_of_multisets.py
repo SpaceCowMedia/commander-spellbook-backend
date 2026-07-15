@@ -141,7 +141,7 @@ class MinimalSetOfMultisets:
         return False
 
     def __copy__(self):
-        result = self.__class__()
+        result = MinimalSetOfMultisets()
         result.__sets = self.__sets.copy()
         result.__element_to_entries = {element: bucket.copy() for element, bucket in self.__element_to_entries.items()}
         return result

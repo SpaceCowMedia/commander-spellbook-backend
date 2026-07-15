@@ -1,4 +1,5 @@
 from decimal import Decimal
+from functools import cache
 from django.db import models
 from django.db.models.functions import Length, StrIndex
 from django.db.models.lookups import GreaterThan
@@ -7,6 +8,7 @@ from constants import SORTED_COLORS
 
 class Playable(models.Model):
     @classmethod
+    @cache
     def playable_fields(cls):
         return ['identity', 'color', 'spoiler', 'mana_value'] + cls.legalities_fields() + cls.prices_fields()
     identity = models.CharField(max_length=5, blank=False, null=False, default='C', verbose_name='color identity', choices=[(c, c) for c in SORTED_COLORS.values()])
@@ -76,6 +78,7 @@ class Playable(models.Model):
 
     # Legalities
     @classmethod
+    @cache
     def legalities_fields(cls):
         return [field for field in dir(cls) if field.startswith('legal_')]
     legal_commander = models.BooleanField(default=True, help_text='Is this legal in Commander?', verbose_name='is legal in Commander')
@@ -97,6 +100,7 @@ class Playable(models.Model):
 
     # Prices
     @classmethod
+    @cache
     def prices_fields(cls):
         return [field for field in dir(cls) if field.startswith('price_')]
     price_tcgplayer = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal(0), help_text='Price on TCGPlayer', verbose_name='TCGPlayer price (USD)')

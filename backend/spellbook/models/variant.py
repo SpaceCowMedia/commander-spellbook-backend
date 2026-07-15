@@ -1,5 +1,6 @@
 import re
 from dataclasses import dataclass
+from functools import cache
 from itertools import chain
 from typing import Iterable, Sequence
 from django.db import models, connection
@@ -158,6 +159,7 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
     )
 
     @classmethod
+    @cache
     def computed_fields(cls):
         '''
         Returns the fields that are computed from other fields and related models.

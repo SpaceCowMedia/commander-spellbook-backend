@@ -5,14 +5,13 @@
             "label": "manage.py: run command…",
             "detail": "Prompt for any manage.py subcommand and arguments",
             "type": "shell",
-            "command": "${PYTHON} manage.py ${input:managePyCommand}",
+            "command": "uv run manage.py ${input:managePyCommand}",
             "group": "none",
             "problemMatcher": [],
             "options": {
                 "cwd": "${workspaceFolder}/backend",
                 "env": {
                     "PYTHONPATH": "${workspaceFolder}${/}common",
-                    "PYTHON": "${command:python.interpreterPath}",
                 },
             }
         },
@@ -20,14 +19,13 @@
             "label": "manage.py: check",
             "detail": "python manage.py check",
             "type": "shell",
-            "command": "${PYTHON} manage.py check",
+            "command": "uv run manage.py check",
             "group": "none",
             "problemMatcher": [],
             "options": {
                 "cwd": "${workspaceFolder}/backend",
                 "env": {
                     "PYTHONPATH": "${workspaceFolder}${/}common",
-                    "PYTHON": "${command:python.interpreterPath}",
                 },
             }
         },
@@ -35,14 +33,13 @@
             "label": "manage.py: makemigrations",
             "detail": "python manage.py makemigrations",
             "type": "shell",
-            "command": "${PYTHON} manage.py makemigrations",
+            "command": "uv run manage.py makemigrations",
             "group": "none",
             "problemMatcher": [],
             "options": {
                 "cwd": "${workspaceFolder}/backend",
                 "env": {
                     "PYTHONPATH": "${workspaceFolder}${/}common",
-                    "PYTHON": "${command:python.interpreterPath}",
                 },
             }
         },
@@ -50,34 +47,32 @@
             "label": "manage.py: showmigrations",
             "detail": "python manage.py showmigrations",
             "type": "shell",
-            "command": "${PYTHON} manage.py showmigrations",
+            "command": "uv run manage.py showmigrations",
             "group": "none",
             "problemMatcher": [],
             "options": {
                 "cwd": "${workspaceFolder}/backend",
                 "env": {
                     "PYTHONPATH": "${workspaceFolder}${/}common",
-                    "PYTHON": "${command:python.interpreterPath}",
                 },
             }
         },
         {
             "label": "Apply migrations",
             "type": "shell",
-            "command": "${PYTHON} manage.py migrate",
+            "command": "uv run manage.py migrate",
             "group": "none",
             "options": {
                 "cwd": "${workspaceFolder}/backend",
                 "env": {
                     "PYTHONPATH": "${workspaceFolder}${/}common",
-                    "PYTHON": "${command:python.interpreterPath}",
                 },
             }
         },
         {
             "label": "Seed Website Properties",
             "type": "shell",
-            "command": "${PYTHON} manage.py seed_website_properties",
+            "command": "uv run manage.py seed_website_properties",
             "group": "none",
             "dependsOn": [
                 "Apply migrations"
@@ -86,7 +81,6 @@
                 "cwd": "${workspaceFolder}/backend",
                 "env": {
                     "PYTHONPATH": "${workspaceFolder}${/}common",
-                    "PYTHON": "${command:python.interpreterPath}",
                 },
             }
         },
@@ -113,7 +107,7 @@
         {
             "label": "Upkeep",
             "type": "shell",
-            "command": "${PYTHON} manage.py upkeep",
+            "command": "uv run manage.py upkeep",
             "group": "none",
             "dependsOn": [
                 "Apply migrations"
@@ -122,7 +116,6 @@
                 "cwd": "${workspaceFolder}/backend",
                 "env": {
                     "PYTHONPATH": "${workspaceFolder}${/}common",
-                    "PYTHON": "${command:python.interpreterPath}",
                 },
             }
         },
@@ -143,35 +136,33 @@
         {
             "label": "Apply migrations with production settings",
             "type": "shell",
-            "command": "set -a; . \"$ENV_FILE\"; ${PYTHON} manage.py migrate --settings=backend.production_settings",
+            "command": "set -a; . \"$ENV_FILE\"; uv run manage.py migrate --settings=backend.production_settings",
             "group": "none",
             "options": {
                 "cwd": "${workspaceFolder}/backend",
                 "env": {
                     "PYTHONPATH": "${workspaceFolder}${/}common",
                     "ENV_FILE": "${workspaceFolder}/backend/secrets.env",
-                    "PYTHON": "${command:python.interpreterPath}",
                 },
             },
         },
         {
             "label": "Seed Website Properties with production settings",
             "type": "shell",
-            "command": "set -a; . \"$ENV_FILE\"; ${PYTHON} manage.py seed_website_properties --settings=backend.production_settings",
+            "command": "set -a; . \"$ENV_FILE\"; uv run manage.py seed_website_properties --settings=backend.production_settings",
             "group": "none",
             "options": {
                 "cwd": "${workspaceFolder}/backend",
                 "env": {
                     "PYTHONPATH": "${workspaceFolder}${/}common",
                     "ENV_FILE": "${workspaceFolder}/backend/secrets.env",
-                    "PYTHON": "${command:python.interpreterPath}",
                 },
             }
         },
         {
             "label": "Upkeep with production settings",
             "type": "shell",
-            "command": "set -a; . \"$ENV_FILE\"; ${PYTHON} manage.py upkeep --settings=backend.production_settings",
+            "command": "set -a; . \"$ENV_FILE\"; uv run manage.py upkeep --settings=backend.production_settings",
             "group": "none",
             "dependsOn": [
                 "Apply migrations"
@@ -181,7 +172,6 @@
                 "env": {
                     "PYTHONPATH": "${workspaceFolder}${/}common",
                     "ENV_FILE": "${workspaceFolder}/backend/secrets.env",
-                    "PYTHON": "${command:python.interpreterPath}",
                 },
             }
         },

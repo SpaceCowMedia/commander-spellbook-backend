@@ -1,6 +1,6 @@
 version: 2
 updates:
-  - package-ecosystem: pip
+  - package-ecosystem: uv
     labels:
       - dependencies
     directories:
@@ -35,6 +35,16 @@ updates:
           - "typing-inspection"
           - "urllib3"
           - "yarl"
+  # Root requirements.txt holds dev/test tooling, including uv itself.
+  - package-ecosystem: pip
+    labels:
+      - dependencies
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      # Supply chain attack defense - don't use packages published within 1 day
+      default-days: 1
   - package-ecosystem: docker
     labels:
       - dependencies

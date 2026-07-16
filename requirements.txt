@@ -1,7 +1,9 @@
-# Requirements for local development and testing
+# Requirements for local development and testing.
+# CI and the Dockerfiles bootstrap uv from this file (`pip install uv -c requirements.txt`),
+# so any constraint on uv belongs here rather than being hardcoded elsewhere.
+uv
 flake8
 pydantic
 pytest-django
-pip-tools
 django-debug-toolbar
 psycopg2

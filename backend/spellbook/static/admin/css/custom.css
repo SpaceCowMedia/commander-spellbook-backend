@@ -109,16 +109,31 @@ body.has-floating-inline-scrollbar #content {
     background: var(--object-tools-bg);
     border-width: 0px;
     margin: 0;
-    padding-top: 4px;
 }
 .object-tools form button {
     cursor: pointer;
-    /* Match Django's default .object-tools a:link padding so buttons and plain
-       links line up. */
+    /* Give buttons the same box as Django's .object-tools a:link, so they are
+       the standard height on their own, instead of only when a plain link on
+       the same row happens to stretch them. Buttons inherit neither the font
+       family nor the line height, so both have to be restated. */
     padding: 3px 12px;
+    font-family: inherit;
+    line-height: inherit;
 }
 .object-tools form button:hover {
     background: var(--object-tools-hover-bg);
+}
+
+/* Duplicate combo confirmation page: both answers are plain submit buttons, so
+   they share the same box, and only the color tells the secondary one apart. */
+.duplicate-confirmation form input.cancel-duplicate {
+    background: var(--close-button-bg);
+    margin-left: 10px;
+}
+.duplicate-confirmation form input.cancel-duplicate:active,
+.duplicate-confirmation form input.cancel-duplicate:focus,
+.duplicate-confirmation form input.cancel-duplicate:hover {
+    background: var(--close-button-hover-bg);
 }
 
 .button__text {

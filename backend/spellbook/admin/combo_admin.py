@@ -5,9 +5,12 @@ from django.contrib.admin.options import InlineModelAdmin
 from django.db.models import Case, Sum, When, Count, Q
 from django.contrib import admin, messages
 from django.db.models.functions import Coalesce
+from django.forms.models import BaseModelFormSet
 from django.http.request import HttpRequest
 from django.forms import Textarea
-from django.utils.safestring import mark_safe
+from django.template.response import TemplateResponse
+from django.utils.html import format_html, format_html_join
+from django.utils.safestring import SafeString, mark_safe
 from django.urls import reverse, path
 from django.shortcuts import redirect
 from django.utils import timezone
@@ -18,8 +21,73 @@ from .utils import SpellbookModelAdmin, SpellbookAdminForm, CustomFilter, Ingred
 from .ingredient_admin import IngredientAdmin, IngredientInCombinationAdmin
 
 
+DUPLICATE_CONFIRMATION_INPUT_NAME = '_confirm_duplicate'
+DUPLICATE_CANCELLATION_INPUT_NAME = '_cancel_duplicate'
+DUPLICATE_COMBOS_DISPLAY_LIMIT = 10
+
+
 def create_missing_object_message(url: str) -> str:
     return f'<a href="{url}" target="_blank"><u>Click here to add it</u></a>. Remember to refresh this page after adding the missing item.'
+
+
+def find_duplicate_combos(
+    cards: dict[int, int],
+    templates: dict[int, int],
+    features_needed: dict[int, int],
+    excluded_combo_id: int | None = None,
+) -> list[int]:
+    '''Find the ids of the combos requiring exactly the given cards, templates and features, in the given quantities.'''
+    duplicate_combos_query = Combo.objects.all()
+    cards_query = Combo.objects.all()
+    for card_id, quantity in cards.items():
+        cards_query = cards_query.alias(cards=Sum('cardincombo__quantity', filter=Q(cardincombo__card_id=card_id))).filter(cards=quantity)
+    duplicate_combos_query = duplicate_combos_query.filter(pk__in=cards_query)
+    templates_query = Combo.objects.all()
+    for template_id, quantity in templates.items():
+        templates_query = templates_query.alias(templates=Sum('templateincombo__quantity', filter=Q(templateincombo__template_id=template_id))).filter(templates=quantity)
+    duplicate_combos_query = duplicate_combos_query.filter(pk__in=templates_query)
+    features_query = Combo.objects.all()
+    for feature_id, quantity in features_needed.items():
+        features_query = features_query.alias(features=Sum('featureneededincombo__quantity', filter=Q(featureneededincombo__feature_id=feature_id))).filter(features=quantity)
+    duplicate_combos_query = duplicate_combos_query.filter(pk__in=features_query)
+    for quantity_field, expected_total in (
+        ('cardincombo__quantity', sum(cards.values())),
+        ('templateincombo__quantity', sum(templates.values())),
+        ('featureneededincombo__quantity', sum(features_needed.values())),
+    ):
+        duplicate_combos_query = duplicate_combos_query.filter(pk__in=duplicate_combos_query.alias(total=Coalesce(Sum(quantity_field), 0)).filter(total=expected_total))
+    if excluded_combo_id is not None:
+        duplicate_combos_query = duplicate_combos_query.exclude(pk=excluded_combo_id)
+    return list(duplicate_combos_query.values_list('id', flat=True))
+
+
+def submitted_quantities(formset: BaseModelFormSet | None, related_field_name: str) -> dict[int, int] | None:
+    '''Sum the submitted quantities by related object id, or None if the submitted data can't be interpreted.'''
+    if formset is None or not formset.is_valid():
+        return None
+    quantity_by_id = defaultdict[int, int](int)
+    for form_data in formset.cleaned_data:
+        if not form_data or form_data.get('DELETE'):
+            continue
+        related_object = form_data.get(related_field_name)
+        if related_object is None:
+            continue
+        quantity_by_id[related_object.pk] += form_data.get('quantity') or 1
+    return quantity_by_id
+
+
+def duplicate_combos_links(duplicate_combo_ids: list[int]) -> SafeString:
+    links = format_html_join(
+        ', ',
+        '<a href="{}" target="_blank">{}</a>',
+        (
+            (reverse('admin:spellbook_combo_change', args=[combo_id]), combo_id)
+            for combo_id in duplicate_combo_ids[:DUPLICATE_COMBOS_DISPLAY_LIMIT]
+        ),
+    )
+    if len(duplicate_combo_ids) > DUPLICATE_COMBOS_DISPLAY_LIMIT:
+        links += mark_safe('...')
+    return links
 
 
 class ComboForm(SpellbookAdminForm):
@@ -387,39 +455,74 @@ class ComboAdmin(SpellbookModelAdmin):
             return True
         return super().lookup_allowed(lookup, value, request)  # type: ignore for deprecated typing
 
+    def _create_formsets(self, request: HttpRequest, obj, change: bool):
+        formsets, inline_instances = super()._create_formsets(request, obj, change)  # type: ignore for private method
+        if request.method == 'POST' and DUPLICATE_CONFIRMATION_INPUT_NAME not in request.POST:
+            self.reject_duplicate_combo(request, obj, formsets)
+        return formsets, inline_instances
+
+    def reject_duplicate_combo(self, request: HttpRequest, obj: Combo | None, formsets: list[BaseModelFormSet]):
+        '''
+        Look for combos with the same requirements as the submitted one, before it gets saved.
+        When some are found the submitted data is rejected, so that the editor can either confirm
+        the duplicate on the confirmation page, or go back to the form and change the combo.
+        '''
+        formsets_by_model = {formset.model: formset for formset in formsets}
+        cards = submitted_quantities(formsets_by_model.get(CardInCombo), 'card')
+        templates = submitted_quantities(formsets_by_model.get(TemplateInCombo), 'template')
+        features_needed = submitted_quantities(formsets_by_model.get(FeatureNeededInCombo), 'feature')
+        if cards is None or templates is None or features_needed is None:
+            return  # the submitted data has errors of its own, and is going to be shown back to the editor anyway
+        duplicate_combos = find_duplicate_combos(
+            cards=cards,
+            templates=templates,
+            features_needed=features_needed,
+            excluded_combo_id=obj.pk if obj is not None else None,
+        )
+        if not duplicate_combos:
+            return
+        formsets_by_model[CardInCombo].non_form_errors().append(format_html(
+            'This combo was not saved, because it has the same used cards, required templates and needed features as {} other {}, with ids: {}.'
+            ' Change them to make this combo unique, or save it again and confirm to have a duplicate anyway.',
+            len(duplicate_combos),
+            'combo' if len(duplicate_combos) == 1 else 'combos',
+            duplicate_combos_links(duplicate_combos),
+        ))
+        if DUPLICATE_CANCELLATION_INPUT_NAME not in request.POST:
+            request.duplicate_combos_to_confirm = duplicate_combos  # type: ignore
+
+    def _changeform_view(self, request: HttpRequest, object_id, form_url, extra_context):
+        response = super()._changeform_view(request, object_id, form_url, extra_context)  # type: ignore for private method
+        duplicate_combos: list[int] | None = getattr(request, 'duplicate_combos_to_confirm', None)
+        if duplicate_combos:
+            if request.method == 'POST' and '_saveasnew' in request.POST:
+                object_id = None  # saving as new adds a combo, like the add form does
+            return self.render_duplicate_confirmation(request, object_id, duplicate_combos)
+        return response
+
+    def render_duplicate_confirmation(self, request: HttpRequest, object_id, duplicate_combos: list[int]) -> TemplateResponse:
+        opts = self.model._meta
+        return TemplateResponse(request, 'admin/spellbook/combo/duplicate_confirmation.html', {
+            **self.admin_site.each_context(request),
+            'title': 'Are you sure?',
+            'subtitle': None,
+            'opts': opts,
+            'object_id': object_id,
+            'add': object_id is None,
+            'duplicate_combos': Combo.objects.filter(pk__in=duplicate_combos[:DUPLICATE_COMBOS_DISPLAY_LIMIT]),
+            'duplicate_combo_count': len(duplicate_combos),
+            'preserved_form_data': [
+                (name, value)
+                for name, values in request.POST.lists()
+                for value in values
+                if name != 'csrfmiddlewaretoken'
+            ],
+            'confirmation_input_name': DUPLICATE_CONFIRMATION_INPUT_NAME,
+            'cancellation_input_name': DUPLICATE_CANCELLATION_INPUT_NAME,
+        })
+
     def after_save_related(self, request, form, formsets, change):
         instance: Combo = form.instance
-        duplicate_combos_query = Combo.objects.all()
-        cards = defaultdict[int, int](int)
-        for card_id, q in instance.cardincombo_set.values_list('card_id', 'quantity'):
-            cards[card_id] += q
-        templates = defaultdict[int, int](int)
-        for template_id, q in instance.templateincombo_set.values_list('template_id', 'quantity'):
-            templates[template_id] += q
-        features = defaultdict[int, int](int)
-        for feature_id, q in instance.featureneededincombo_set.values_list('feature_id', 'quantity'):
-            features[feature_id] += q
-        cards_query = Combo.objects.all()
-        for card_id, q in cards.items():
-            cards_query = cards_query.alias(cards=Sum('cardincombo__quantity', filter=Q(cardincombo__card_id=card_id))).filter(cards=q)
-        duplicate_combos_query = duplicate_combos_query.filter(pk__in=cards_query)
-        templates_query = Combo.objects.all()
-        for template_id, q in templates.items():
-            templates_query = templates_query.alias(templates=Sum('templateincombo__quantity', filter=Q(templateincombo__template_id=template_id))).filter(templates=q)
-        duplicate_combos_query = duplicate_combos_query.filter(pk__in=templates_query)
-        features_query = Combo.objects.all()
-        for feature_id, q in features.items():
-            features_query = features_query.alias(features=Sum('featureneededincombo__quantity', filter=Q(featureneededincombo__feature_id=feature_id))).filter(features=q)
-        duplicate_combos_query = duplicate_combos_query.filter(pk__in=features_query)
-        for total, eq in (('cardincombo__quantity', sum(cards.values())), ('templateincombo__quantity', sum(templates.values())), ('featureneededincombo__quantity', sum(features.values()))):
-            duplicate_combos_query = duplicate_combos_query.filter(pk__in=duplicate_combos_query.alias(total=Coalesce(Sum(total), 0)).filter(total=eq))
-        duplicate_combos = list(duplicate_combos_query.exclude(pk=instance.pk).values_list('id', flat=True))
-        if duplicate_combos:
-            message = f'This combo is a duplicate of {len(duplicate_combos)} other combos, with ids: '
-            message += ', '.join(str(c) for c in duplicate_combos[:10])
-            if len(duplicate_combos) > 10:
-                message += '...'
-            messages.warning(request, message)
         if change:
             # Set all new variants to restore
             updated = Variant.objects.filter(

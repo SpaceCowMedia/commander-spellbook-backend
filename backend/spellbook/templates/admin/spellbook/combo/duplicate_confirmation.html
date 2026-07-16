@@ -1,0 +1,36 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls %}
+
+{% block bodyclass %}{{ block.super }} app-{{ opts.app_label }} model-{{ opts.model_name }} duplicate-confirmation{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+<a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+&rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+&rsaquo; <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+&rsaquo; {% if add %}{% translate 'Add' %} {{ opts.verbose_name }}{% else %}<a href="{% url opts|admin_urlname:'change' object_id %}">{{ object_id }}</a>{% endif %}
+&rsaquo; {% translate 'Are you sure?' %}
+</div>
+{% endblock %}
+
+{% block content %}
+<p>
+    The combo you are trying to {% if add %}add{% else %}save{% endif %} is a duplicate of
+    {% if duplicate_combo_count == 1 %}the following combo{% else %}the following {{ duplicate_combo_count }} combos{% endif %},
+    because it has the same used cards, required templates and needed features:
+</p>
+<ul>
+    {% for combo in duplicate_combos %}
+        <li><a href="{% url 'admin:spellbook_combo_change' combo.pk %}" target="_blank">{{ combo.pk }}: {{ combo }}</a></li>
+    {% endfor %}
+    {% if duplicate_combo_count > duplicate_combos|length %}<li>...</li>{% endif %}
+</ul>
+<p>Would you still like to {% if add %}add{% else %}save{% endif %} this combo?</p>
+<form method="post">{% csrf_token %}
+<div>
+{% for name, value in preserved_form_data %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+<input type="submit" name="{{ confirmation_input_name }}" value="{% translate 'Yes, I’m sure' %}">
+<input type="submit" name="{{ cancellation_input_name }}" value="{% translate 'No, take me back' %}" class="cancel-duplicate">
+</div>
+</form>
+{% endblock %}

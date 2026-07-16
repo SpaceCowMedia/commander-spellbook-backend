@@ -69,6 +69,7 @@
 {% endblock %}
 
 {% block object-tools-items %}
+{% if original %}
 <li>
     <form method="post" action="{% url 'admin:spellbook_combo_generate_variants' original.id %}" class="inline" novalidate>
         {% csrf_token %}
@@ -77,6 +78,7 @@
         </button>
     </form>
 </li>
+{% endif %}
 {{ block.super }}
 {% endblock %}
 

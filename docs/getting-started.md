@@ -4,7 +4,8 @@ This page gets a contributor from a fresh clone to a running backend, a passing 
 
 ## Prerequisites
 
-- **Python 3.14+** (the CI matrix pins 3.14; see [`.python-version`](https://github.com/SpaceCowMedia/commander-spellbook-backend/blob/master/.python-version)).
+- **Python 3.14+** — each project declares its own floor via `requires-python` in its `pyproject.toml`. You do not need to install Python yourself: `uv` downloads and manages a matching interpreter for you.
+- **[uv](https://docs.astral.sh/uv/)** — the Python package & environment manager used throughout the repo. Install it with `pip install uv`, or get it together with the shared dev tooling by running `pip install -r requirements.txt` from the repository root. See the [uv Vademecum](uv.md) for the full workflow.
 - **Docker + Docker Compose** — required to run the full stack and to generate the API clients. Not needed for the SQLite-only inner loop below.
 - **Git**.
 - *(Optional)* **VS Code** with the Python extension — the repo ships a `.vscode/launch.json` with run/debug and `pytest` configurations.
@@ -34,13 +35,13 @@ Fastest inner loop for backend work. **Local development uses a file-based SQLit
 
 ```bash
 cd backend
-pip install -r requirements.txt
-python manage.py migrate
-python manage.py createsuperuser
-python manage.py runserver
+uv sync                       # create .venv and install the locked dependencies
+uv run manage.py migrate
+uv run manage.py createsuperuser
+uv run manage.py runserver
 ```
 
-Then open:
+`uv run` keeps the project environment locked and synced automatically before each command, so there is no separate "activate the virtualenv" step. Then open:
 
 - `http://localhost:8000/` — the browsable REST API and OpenAPI docs
 - `http://localhost:8000/admin` — the Django admin panel (where editors author combos)
@@ -49,17 +50,21 @@ Then open:
 
 ## Installing dependencies
 
-The repository is a monorepo with several dependency sets. Install what you need:
+The repository is a monorepo with several **independent [uv](https://docs.astral.sh/uv/) projects** — `backend/`, `client/python/`, and the three `bot/*` — each with its own `pyproject.toml` and a committed, platform-independent `uv.lock`. Install the one you are working on with `uv sync` from its folder:
 
 ```bash
-# From the repository root — dev & test tooling (flake8, pytest-django, ...)
-pip install -r requirements.txt
+# The Django backend
+cd backend && uv sync
 
-# From backend/ — the Django backend itself
-pip install -r backend/requirements.txt
+# A bot (installs its own dependency set)
+cd bot/discord && uv sync
 ```
 
-`requirements.txt` files are compiled from `requirements.in` with [`pip-tools`](https://github.com/jazzband/pip-tools); edit the `.in` file and recompile rather than editing the pinned file by hand.
+Dependencies are declared in each project's `pyproject.toml` and pinned in `uv.lock`. Add or change one with `uv add <package>` / `uv remove <package>` — these update `pyproject.toml` and `uv.lock` together. **Never edit `uv.lock` by hand**; the lockfiles are verified in CI with `uv lock --check`. The [uv Vademecum](uv.md) covers dependency groups, versioning, and the rest of the workflow.
+
+The repository root keeps a plain `requirements.txt` for shared dev/test tooling (including uv itself); install it with `pip install -r requirements.txt`.
+
+> **Interpreter selection (VS Code):** each project has its own `.venv`, and the backend one is the default. When working on a different project (a bot, the client), run **Python: Select Interpreter** and pick that project's `*/.venv`.
 
 ## Running the tests
 
@@ -67,13 +72,13 @@ Tests are standard Django tests. Run them from the `backend` folder; `common` mu
 
 ```bash
 cd backend
-python -Wd manage.py test --no-input --parallel auto --pythonpath ../common
+uv run python -Wd manage.py test --no-input --parallel auto --pythonpath ../common
 ```
 
-`pytest` also works from the repository root (configuration lives in [`pytest.ini`](https://github.com/SpaceCowMedia/commander-spellbook-backend/blob/master/pytest.ini)):
+`pytest` also works (configuration lives in [`pytest.ini`](https://github.com/SpaceCowMedia/commander-spellbook-backend/blob/master/pytest.ini)); run it inside the backend environment, whose `dev` group also carries what the client tests need:
 
 ```bash
-pytest
+uv run --project backend pytest backend client/python common
 ```
 
 Every code change **must** ship with tests — the CI enforces the suite across Linux, Windows, and macOS.
@@ -83,9 +88,9 @@ Every code change **must** ship with tests — the CI enforces the suite across 
 The project follows [PEP 8](https://pep8.org/), enforced by `flake8`. The CI lints three folders; run the same locally before pushing:
 
 ```bash
-flake8 backend
-flake8 common
-flake8 bot
+uvx flake8 backend
+uvx flake8 common
+uvx flake8 bot
 ```
 
 A failing lint fails the build.
@@ -96,8 +101,8 @@ The [variant generation](variant-generation.md) code ships with `.pxd` type stub
 
 ```bash
 cd backend
-pip install --upgrade cython setuptools
-cythonize -i 'spellbook/variants/*.py'
+uv sync --group cython
+uv run cythonize -i 'spellbook/variants/*.py'
 ```
 
 The CI runs the test suite both with and without Cython to guarantee behaviour is identical.

@@ -34,6 +34,7 @@ Start here and follow the order:
 
 Reference material:
 
+- **[uv Vademecum](uv.md)** — the dependency and environment workflow: the projects, lockfiles, dependency groups, and how versions are derived.
 - **[The Minimal Set of Multisets ADT](minimal-set-of-multisets.md)** — the data structure behind the engine's minimality pruning.
 
 ## Getting help

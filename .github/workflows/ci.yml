@@ -36,6 +36,17 @@ jobs:
         name: Checkout 🛎️
         uses: EasyDesk/action-semver-checkout@v1
 
+      - name: Install uv 🚀
+        run: pip install --break-system-packages uv -c requirements.txt
+
+      - name: Check lockfiles are up to date 🔒
+        run: |
+          for project in backend client/python bot/discord bot/reddit bot/telegram; do
+            echo "::group::uv lock --check $project"
+            uv lock --check --directory "$project"
+            echo "::endgroup::"
+          done
+
       - name: Build and export backend image 🏗️
         uses: docker/build-push-action@v7
         with:
@@ -97,20 +108,20 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
 
-      - name: Install Linter 🧴
-        run: pip install flake8
+      - name: Install uv 🚀
+        run: pip install uv -c requirements.txt
 
       - name: Lint backend 🧹
         working-directory: backend
-        run: flake8 .
+        run: uvx flake8 .
 
       - name: Lint common 🧹
         working-directory: common
-        run: flake8 .
+        run: uvx flake8 .
 
       - name: Lint bots 🧹
         working-directory: bot
-        run: flake8 .
+        run: uvx flake8 .
 
 
   test:
@@ -141,30 +152,29 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
 
+      - name: Install uv 🚀
+        run: pip install uv -c requirements.txt
+
       - name: Install dependencies 🧶
-        run: pip install --no-deps tblib $(grep -ivE "#|cryptography|cffi" requirements.txt)
+        run: uv sync --locked --no-install-project
         working-directory: backend
 
-      - name: Install missing windows dependencies 🟦
-        if: contains(matrix.os, 'windows')
-        run: |
-          pip install pytz tzdata --upgrade
-
       - name: Print Django version 🐍
-        run: python manage.py version
+        run: uv run --no-sync python manage.py version
         working-directory: backend
 
       - name: Install Cython dependencies 🚛
         if: matrix.cython
-        run: pip install --upgrade cython setuptools
+        run: uv sync --locked --no-install-project --group cython
+        working-directory: backend
 
       - name: Cythonize 🏎
         if: matrix.cython
-        run: cythonize -i 'spellbook/variants/*.py'
+        run: uv run --no-sync cythonize -i 'spellbook/variants/*.py'
         working-directory: backend
 
       - name: Unit Test 🧪
-        run: python -Wd manage.py test --no-input --parallel auto --pythonpath ../common
+        run: uv run --no-sync python -Wd manage.py test --no-input --parallel auto --pythonpath ../common
         working-directory: backend
 
 
@@ -513,9 +523,8 @@ jobs:
           python-version: '3.14'
           cache: pip
 
-      - name: Install spectacular dependencies 🧶
-        run: pip install --no-cache-dir --no-deps -r requirements.txt
-        working-directory: backend
+      - name: Install uv 🚀
+        run: pip install uv -c "$GITHUB_WORKSPACE/requirements.txt"
 
       - name: Chmod scripts 👑
         run: chmod +x *.sh
@@ -569,17 +578,15 @@ jobs:
           name: spellbook-client-python
           path: client/python/spellbook_client
 
-      - name: Install client dependencies 🧶
-        # It is important to not use --no-deps here, otherwise httpcore will raise an error during the tests
-        run: pip install --no-cache-dir -r requirements.txt
-        working-directory: client/python
+      - name: Install uv 🚀
+        run: pip install uv -c "$GITHUB_WORKSPACE/requirements.txt"
 
-      - name: Install test dependencies 🧶
-        run: pip install --no-cache-dir --no-deps tblib $(grep -ivE "#|cryptography|cffi" requirements.txt)
+      - name: Install dependencies 🧶
+        run: uv sync --locked --no-install-project
         working-directory: backend
 
       - name: Run python tests 🧪
-        run: python backend/manage.py test client/python/tests/ common/ --no-input --parallel auto --pythonpath common
+        run: backend/.venv/bin/python backend/manage.py test client/python/tests/ common/ --no-input --parallel auto --pythonpath common
         working-directory: .
 
 

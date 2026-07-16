@@ -7,6 +7,11 @@
         "statusBarItem.remoteForeground": "#e7e7e7"
     },
     "peacock.color": "#ab47bd",
+    // Each project has its own uv-managed .venv; the backend one runs the whole pytest suite.
+    "python.defaultInterpreterPath": "${workspaceFolder}/backend/.venv/Scripts/python.exe",
+    "python.venvFolders": [
+        ".venv"
+    ],
     "python.testing.pytestArgs": [
         "backend",
         "client/python",
@@ -23,6 +28,7 @@
         "docs/.venv-manim",
         "docs/.manim-venv",
         "**/venv",
+        "**/.venv",
         "**/node_modules",
         "**/__pycache__",
         ".git",

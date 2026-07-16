@@ -5,3 +5,4 @@ per-file-ignores =
 ignore = E501,E128,W601
 exclude =
     typings
+    .venv

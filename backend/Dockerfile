@@ -3,8 +3,9 @@
 ##########
 FROM python:3.14-alpine AS python
 
-# set environment variables
-ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+# set environment variables; the uv environment lives at a fixed path so that it stays
+# valid when copied between stages
+ENV PYTHONUNBUFFERED=1 PATH="/opt/venv/bin:$PATH"
 
 
 ###########
@@ -15,12 +16,22 @@ FROM python AS builder
 # set work directory
 WORKDIR /usr/src/app
 
-# install dependencies
+# uv build-time configuration
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    UV_PYTHON_DOWNLOADS=0 \
+    UV_PROJECT_ENVIRONMENT=/opt/venv
+
+# install build dependencies, for packages lacking musl wheels
 RUN apk --update add build-base postgresql-dev libffi-dev --no-cache
 
-# install dependencies
-COPY backend/requirements.txt .
-RUN pip wheel --no-cache-dir --no-deps --wheel-dir /usr/src/app/python/wheels -r requirements.txt
+# install uv
+COPY requirements.txt /tmp/requirements.txt
+RUN pip install uv -c /tmp/requirements.txt
+
+# install dependencies; the project itself runs from source, so it is not installed
+COPY backend/pyproject.toml backend/uv.lock ./
+RUN uv sync --locked --no-install-project --no-dev --group prod
 
 
 #########
@@ -38,10 +49,7 @@ WORKDIR $APP_HOME
 
 # install dependencies
 RUN apk --update add --no-cache libpq
-COPY --from=builder /usr/src/app/python/wheels /python-wheels
-COPY --from=builder /usr/src/app/requirements.txt .
-RUN pip install --no-cache-dir /python-wheels/* --no-deps && rm -rf /python-wheels
-RUN pip install --no-cache-dir psycopg[binary] gunicorn
+COPY --from=builder /opt/venv /opt/venv
 
 # copy project
 COPY --chown=app:app backend/ common/ $APP_HOME
@@ -67,7 +75,7 @@ ENTRYPOINT ["/bin/sh", "entrypoint.prod.sh"]
 ##########
 FROM builder AS cython
 
-RUN pip install --upgrade cython setuptools
+RUN uv sync --locked --no-install-project --group cython
 
 
 ##################

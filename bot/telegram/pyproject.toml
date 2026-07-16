@@ -1,25 +1,18 @@
 [project]
-name = "spellbook_client"
-description = "An Open Api generated client for the Commander Spellbook backend REST API."
-# aiohttp requires >=3.10, so this SDK cannot support 3.9.
-requires-python = ">=3.10"
-classifiers = [
-    "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
-]
+name = "spellbook-telegram-bot"
+description = "Commander Spellbook Telegram bot."
+requires-python = ">=3.14"
 dynamic = ["version"]
 dependencies = [
+    "python-telegram-bot[http2]==22.8",
+    # spellbook_client is provided on PYTHONPATH rather than installed, so its runtime
+    # dependencies are listed here.
     "urllib3==2.7.0",
     "python-dateutil==2.9.0.post0",
     "aiohttp==3.14.1",
     "aiohttp-retry==2.9.1",
     "pydantic==2.13.4",
-    "lazy-imports==1.2.0",
 ]
-
-[project.urls]
-homepage = "https://github.com/SpaceCowMedia/commander-spellbook-backend"
 
 [build-system]
 requires = ["hatchling", "uv-dynamic-versioning"]
@@ -32,7 +25,7 @@ source = "uv-dynamic-versioning"
 fallback-version = "0.0.0"
 
 [tool.hatch.build.targets.wheel]
-packages = ["spellbook_client"]
+only-include = ["spellbook_telegram.py"]
 
 [tool.uv]
 # Supply chain attack defense - don't use packages published within 1 day

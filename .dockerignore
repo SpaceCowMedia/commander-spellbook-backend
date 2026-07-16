@@ -8,6 +8,7 @@
 **/Dockerfile.*
 **/*.md
 **/__pycache__
+**/.venv
 **/temp
 **/*_data.json
 **/.*_cache

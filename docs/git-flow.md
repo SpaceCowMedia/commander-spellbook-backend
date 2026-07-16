@@ -14,6 +14,8 @@ Versioning is done using [semantic versioning](https://semver.org/). Release bra
 
 When a new version tag is added, it must represent a higher version than any previous tag. The version must be updated according to semantic versioning rules. The tag name must be prefixed with `v`, and it must be followed by the version number. For example, `v1.0.0` is a valid tag name.
 
+These tags are the single source of the Python packages' versions: no version number is written down in the repository, it is computed from the tags at build time. See [uv Vademecum](uv.md#versioning) for the details.
+
 ### Continuous delivery
 
 Whenever a new annotated tag is pushed to the remote repository, the continuous delivery pipeline will be triggered. The pipeline is defined in [`.github/workflows/ci.yml`](https://github.com/SpaceCowMedia/commander-spellbook-backend/blob/master/.github/workflows/ci.yml): it builds and tests the backend, worker, and bot images, generates and publishes the [API clients](api.md#generated-clients), and deploys to the production Kubernetes cluster. Pull requests run the same build, lint, and test jobs without releasing. These developer docs deploy separately via [`.github/workflows/docs.yml`](https://github.com/SpaceCowMedia/commander-spellbook-backend/blob/master/.github/workflows/docs.yml) on any change under `docs/`.

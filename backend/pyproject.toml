@@ -5,7 +5,7 @@ requires-python = ">=3.14"
 dynamic = ["version"]
 dependencies = [
     "anytree==2.13.0",
-    "boto3==1.43.46",
+    "boto3==1.43.48",
     "Django==6.0.7",
     "django-filter==26.1",
     "django-cors-headers==4.9.0",

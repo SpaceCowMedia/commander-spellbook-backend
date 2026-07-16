@@ -36,6 +36,17 @@ jobs:
         name: Checkout 🛎️
         uses: EasyDesk/action-semver-checkout@v1
 
+      - name: Install uv 🚀
+        run: pip install --break-system-packages uv -c requirements.txt
+
+      - name: Check lockfiles are up to date 🔒
+        run: |
+          for project in backend client/python bot/discord bot/reddit bot/telegram; do
+            echo "::group::uv lock --check $project"
+            uv lock --check --directory "$project"
+            echo "::endgroup::"
+          done
+
       - name: Build and export backend image 🏗️
         uses: docker/build-push-action@v7
         with:
@@ -77,30 +88,6 @@ jobs:
         with:
           name: spellbook-backend-migrations
           path: backend/.kubernetes/migration/prod
-
-
-  lockfile:
-    runs-on: ubuntu-latest
-    steps:
-
-      - name: Checkout 🛎️
-        uses: actions/checkout@v7
-
-      - name: Setup Python 🐍
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.14'
-
-      - name: Install uv 🚀
-        run: pip install uv -c requirements.txt
-
-      - name: Check lockfiles are up to date 🔒
-        run: |
-          for project in backend client/python bot/discord bot/reddit bot/telegram; do
-            echo "::group::uv lock --check $project"
-            uv lock --check --directory "$project"
-            echo "::endgroup::"
-          done
 
 
   lint:

@@ -4,7 +4,7 @@ This page gets a contributor from a fresh clone to a running backend, a passing 
 
 ## Prerequisites
 
-- **Python 3.14+** (the CI matrix pins 3.14; see [`.python-version`](https://github.com/SpaceCowMedia/commander-spellbook-backend/blob/master/.python-version)).
+- **Python 3.14+** — each project declares its own floor via `requires-python` in its `pyproject.toml`. You do not need to install Python yourself: `uv` downloads and manages a matching interpreter for you.
 - **[uv](https://docs.astral.sh/uv/)** — the Python package & environment manager used throughout the repo. Install it with `pip install uv`, or get it together with the shared dev tooling by running `pip install -r requirements.txt` from the repository root. See the [uv Vademecum](uv.md) for the full workflow.
 - **Docker + Docker Compose** — required to run the full stack and to generate the API clients. Not needed for the SQLite-only inner loop below.
 - **Git**.

@@ -86,9 +86,7 @@ FROM cython AS cython-builder
 
 COPY backend/ common/ /usr/src/app/
 WORKDIR /usr/src/app/
-# Cython shells out to setuptools, which would try to auto-discover packages from
-# pyproject.toml and fail on this multi-package flat layout; only the .so files leave this stage.
-RUN rm -f pyproject.toml uv.lock && cythonize -i 'spellbook/variants/*.py'
+RUN cythonize -i 'spellbook/variants/*.py'
 
 
 ###############

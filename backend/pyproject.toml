@@ -41,6 +41,12 @@ fallback-version = "0.0.0"
 packages = ["backend", "common", "spellbook", "website"]
 force-include = { "manage.py" = "manage.py" }
 
+# Cython shells out to setuptools, whose package auto-discovery fails on this multi-package
+# flat layout. Declaring the module list explicitly disables that discovery. The real build
+# backend is hatchling, which ignores this table.
+[tool.setuptools]
+py-modules = []
+
 [dependency-groups]
 prod = ["gunicorn", "psycopg[binary]"]
 cython = ["cython", "setuptools"]

@@ -150,8 +150,20 @@ into a virtualenv at the fixed path `/opt/venv` (fixed so it stays valid when co
 stages), which is then put on `PATH`:
 
 ```dockerfile
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    UV_PYTHON_DOWNLOADS=0 \
+    UV_PROJECT_ENVIRONMENT=/opt/venv
+
 RUN uv sync --locked --no-install-project --no-dev --group prod
 ```
+
+| Variable | Why |
+|---|---|
+| `UV_COMPILE_BYTECODE=1` | Write `.pyc` files at build time, so the first request does not pay for compilation. Worth it in an image, which is built once and started many times. |
+| `UV_LINK_MODE=copy` | Copy files out of uv's cache instead of hardlinking. The cache and `/opt/venv` are on different layers, where hardlinks cannot be made; without this uv warns and falls back anyway. |
+| `UV_PYTHON_DOWNLOADS=0` | Never fetch a managed interpreter — the image must use the `python:3.14-alpine` one it is built on. |
+| `UV_PROJECT_ENVIRONMENT` | See the fixed-path note above. |
 
 The applications run **from source** (`manage.py`, `spellbook_<bot>.py`), so the project itself is
 never installed into the image, and `.git` is never needed at build time.

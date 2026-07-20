@@ -310,7 +310,7 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
         self.legal_standard_brawl = all(playable.legal_standard_brawl for playable in cards)
         self.legal_brawl = all(playable.legal_brawl for playable in cards)
         self.legal_competitive_brawl = all(playable.legal_competitive_brawl for playable in cards)
-        self.legal_alchemy = all(playable.legal_alchemy for playable in cards)
+        self.legal_alchemy = not requires_commander and all(playable.legal_alchemy for playable in cards)
         self.legal_vintage = not requires_commander and all(playable.legal_vintage for playable in cards)
         self.legal_legacy = not requires_commander and all(playable.legal_legacy for playable in cards)
         self.legal_premodern = not requires_commander and all(playable.legal_premodern for playable in cards)
@@ -499,9 +499,7 @@ def estimate_bracket(cards: dict[Card, int], templates: dict[Template, int], inc
                 if ZoneLocation.LIBRARY in card_in_variant.zone_locations:
                     continue
                 if ZoneLocation.COMMAND_ZONE in card_in_variant.zone_locations:
-                    if commanders is None:
-                        continue
-                    if card in commanders:
+                    if commanders is None or card in commanders:
                         continue
                 sure_cards += card_in_variant.quantity
             relevant = any(feature.status in (Feature.Status.STANDALONE,) for _, feature in recipe.features)

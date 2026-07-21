@@ -107,6 +107,68 @@ class CardTests(SpellbookTestCaseWithSeeding):
         self.assertEqual(c.name_unaccented, 'aaaeeeiiiooouuu')
 
 
+class IsCommanderTests(TestCase):
+    def test_special_named_cards_are_always_commanders(self):
+        for name in (
+            'Asmoranomardicadaistinaculdacar',
+            'Grist, the Hunger Tide',
+            'The Grand Calcutron',
+            'The Eternity Elevator',
+            'Enolc, Perfect Clone',
+            'The Faction Dragon',
+            'The Magical City, New',
+            'The Waffle Restaurant',
+            'The Mystery Raceway',
+            'The Goblin Sparring Grounds',
+        ):
+            c = Card(name=name, mana_value=0, legal_commander=False, type_line='Instant', oracle_text='')
+            self.assertTrue(c.is_commander)
+
+    def test_card_without_mana_value_is_not_a_commander(self):
+        c = Card(name='Random Card', mana_value=0, legal_commander=True, type_line='Legendary Creature - Human', oracle_text='')
+        self.assertFalse(c.is_commander)
+
+    def test_card_not_legal_in_commander_is_not_a_commander(self):
+        c = Card(name='Random Card', mana_value=3, legal_commander=False, type_line='Legendary Creature - Human', oracle_text='')
+        self.assertFalse(c.is_commander)
+
+    def test_legendary_creature_is_a_commander(self):
+        c = Card(name='Random Card', mana_value=3, legal_commander=True, type_line='Legendary Creature - Human', oracle_text='')
+        self.assertTrue(c.is_commander)
+
+    def test_legendary_non_creature_is_not_a_commander(self):
+        c = Card(name='Random Card', mana_value=3, legal_commander=True, type_line='Legendary Sorcery', oracle_text='')
+        self.assertFalse(c.is_commander)
+
+    def test_legendary_spacecraft_is_a_commander(self):
+        c = Card(name='Random Card', mana_value=3, legal_commander=True, type_line='Legendary Spacecraft', oracle_text='')
+        self.assertTrue(c.is_commander)
+
+    def test_legendary_vehicle_is_a_commander(self):
+        c = Card(name='Random Card', mana_value=3, legal_commander=True, type_line='Legendary Vehicle', oracle_text='')
+        self.assertTrue(c.is_commander)
+
+    def test_non_legendary_vehicle_is_not_a_commander(self):
+        c = Card(name='Random Card', mana_value=3, legal_commander=True, type_line='Vehicle', oracle_text='')
+        self.assertFalse(c.is_commander)
+
+    def test_background_is_a_commander(self):
+        c = Card(name='Random Card', mana_value=3, legal_commander=True, type_line='Background', oracle_text='')
+        self.assertTrue(c.is_commander)
+
+    def test_second_face_legendary_creature_is_a_commander(self):
+        c = Card(name='Random Card', mana_value=3, legal_commander=True, type_line='Instant // Legendary Creature - Human', oracle_text='')
+        self.assertTrue(c.is_commander)
+
+    def test_oracle_text_granting_commander_status_is_a_commander(self):
+        c = Card(name='Random Card', mana_value=3, legal_commander=True, type_line='Creature - Human', oracle_text='This creature can be your commander.')
+        self.assertTrue(c.is_commander)
+
+    def test_plain_creature_is_not_a_commander(self):
+        c = Card(name='Random Card', mana_value=3, legal_commander=True, type_line='Creature - Human', oracle_text='')
+        self.assertFalse(c.is_commander)
+
+
 class KeywordsFieldTests(TestCase):
     def test_new_card_with_empty_keywords(self):
         c = Card(name='A', oracle_id='00000000-0000-0000-0000-000000000001')

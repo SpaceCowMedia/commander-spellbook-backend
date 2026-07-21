@@ -494,17 +494,19 @@ def estimate_bracket(cards: dict[Card, int], templates: dict[Template, int], inc
         combos: list[ClassifiedCombo] = []
 
         for variant, recipe in included_variants:
+            relevant = any(feature.status in (Feature.Status.STANDALONE,) for _, feature in recipe.features)
+            borderline_relevant = any(feature.status in (Feature.Status.STANDALONE, Feature.Status.CONTEXTUAL) for _, feature in recipe.features)
             sure_cards = 0
+            arguable_cards = int(bool(variant.notable_prerequisites)) + int(not borderline_relevant)
             for card_in_variant, card in chain(recipe.cards, recipe.templates):
                 if ZoneLocation.LIBRARY in card_in_variant.zone_locations:
                     continue
-                if ZoneLocation.COMMAND_ZONE in card_in_variant.zone_locations:
-                    if commanders is None or card in commanders:
-                        continue
-                sure_cards += card_in_variant.quantity
-            relevant = any(feature.status in (Feature.Status.STANDALONE,) for _, feature in recipe.features)
-            borderline_relevant = any(feature.status in (Feature.Status.STANDALONE, Feature.Status.CONTEXTUAL) for _, feature in recipe.features)
-            arguable_cards = int(bool(variant.notable_prerequisites)) + int(not borderline_relevant)
+                if commanders is not None and card in commanders:
+                    continue
+                if isinstance(card, Card) and card.is_commander or isinstance(card, Template) and (ZoneLocation.COMMAND_ZONE in card_in_variant.zone_locations or card_in_variant.must_be_commander):
+                    arguable_cards += card_in_variant.quantity
+                else:
+                    sure_cards += card_in_variant.quantity
             definitely_two_card = sure_cards + arguable_cards <= 2
             arguably_two_card = sure_cards <= 2 and sure_cards + arguable_cards <= 3
             if variant.mana_value_needed == 0:

@@ -1,3 +1,4 @@
+from functools import cached_property
 from django.db import models, connection
 from django.dispatch import receiver
 from django.db.models.signals import post_save
@@ -122,8 +123,45 @@ class Card(Playable, PreSaveModelMixin, ScryfallLinkMixin):
     def pre_save(self):
         self.name_unaccented = strip_accents(self.name)
 
+    @cached_property
+    def card_types(self):
+        return [face_type_line.replace('Time Lord', 'TimeLord').split() for face_type_line in self.type_line.split(' // ')]
+
     def is_of_type(self, card_type: CardType) -> bool:
         return card_type.value in self.type_line
+
+    @cached_property
+    def is_commander(self) -> bool:
+        if self.name in (
+                'Asmoranomardicadaistinaculdacar',
+                'Grist, the Hunger Tide',
+                'The Grand Calcutron',
+                'The Eternity Elevator',
+                'Enolc, Perfect Clone',
+                'The Faction Dragon',
+                'The Magical City, New',
+                'The Waffle Restaurant',
+                'The Mystery Raceway',
+                'The Goblin Sparring Grounds',
+        ):
+            return True
+        if not self.mana_value:
+            return False
+        if not self.legal_commander:
+            return False
+        for face_type_line in self.card_types:
+            face_types = set(face_type_line)
+            if face_types.issuperset({CardType.LEGENDARY, CardType.CREATURE}):
+                return True
+            if face_types.issuperset({CardType.LEGENDARY, 'Spacecraft'}):
+                return True
+            if face_types.issuperset({CardType.LEGENDARY, 'Vehicle'}):
+                return True
+            if 'Background' in face_types:
+                return True
+        if 'can be your commander' in self.oracle_text:
+            return True
+        return False
 
 
 @receiver(post_save, sender=Card, dispatch_uid='update_variant_fields')

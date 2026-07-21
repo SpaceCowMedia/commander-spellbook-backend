@@ -1,6 +1,7 @@
+from django.test import TestCase
 from spellbook.tests.testing import SpellbookTestCaseWithSeeding
 from common.inspection import count_methods
-from spellbook.models import Card, PreSerializedSerializer, Template, Variant, id_from_cards_and_templates_ids
+from spellbook.models import Card, PreSerializedSerializer, Template, Variant, CardInVariant, TemplateInVariant, FeatureProducedByVariant, Feature, ZoneLocation, estimate_bracket, id_from_cards_and_templates_ids
 from spellbook.serializers import VariantSerializer
 from decimal import Decimal
 from urllib.parse import quote_plus
@@ -140,3 +141,79 @@ class VariantTests(SpellbookTestCaseWithSeeding):
         self.assertIn('id', v.serialized)  # type: ignore
         r = PreSerializedSerializer(v).data
         self.assertEqual(r, v.serialized)
+
+
+class EstimateBracketTests(TestCase):
+    def _make_recipe(self, cards=(), templates=(), notable_prerequisites=''):
+        variant = Variant(notable_prerequisites=notable_prerequisites, mana_value_needed=0, is_mana_needed_an_accurate_minimum=True)
+        civs = [
+            (CardInVariant(card=card, quantity=quantity, zone_locations=ZoneLocation.BATTLEFIELD, must_be_commander=must_be_commander), card)
+            for card, quantity, must_be_commander in cards
+        ]
+        tivs = [
+            (TemplateInVariant(template=template, quantity=quantity, zone_locations=zone_locations, must_be_commander=must_be_commander), template)
+            for template, quantity, zone_locations, must_be_commander in templates
+        ]
+        feature = Feature(name='Test Feature', status=Feature.Status.STANDALONE)
+        fpbv = FeatureProducedByVariant(feature=feature, quantity=1)
+        recipe = Variant.Recipe(cards=civs, templates=tivs, features=[(fpbv, feature)])
+        return variant, recipe
+
+    def test_commander_card_is_classified_as_arguable_not_sure(self):
+        sure1 = Card(pk=1, name='Sure One', mana_value=1, legal_commander=True, type_line='Creature', oracle_text='')
+        sure2 = Card(pk=2, name='Sure Two', mana_value=1, legal_commander=True, type_line='Creature', oracle_text='')
+        commander = Card(pk=3, name='Commander Card', mana_value=3, legal_commander=True, type_line='Legendary Creature - Human', oracle_text='')
+        variant, recipe = self._make_recipe(cards=[(sure1, 1, False), (sure2, 1, False), (commander, 1, False)])
+        result = estimate_bracket(
+            cards={sure1: 1, sure2: 1, commander: 1},
+            templates={},
+            included_variants=[(variant, recipe)],
+        )
+        combo = result.combos[0]
+        self.assertFalse(combo.definitely_two_card)
+        self.assertTrue(combo.arguably_two_card)
+
+    def test_must_be_commander_template_is_classified_as_arguable_not_sure(self):
+        sure1 = Card(pk=1, name='Sure One', mana_value=1, legal_commander=True, type_line='Creature', oracle_text='')
+        sure2 = Card(pk=2, name='Sure Two', mana_value=1, legal_commander=True, type_line='Creature', oracle_text='')
+        template = Template(pk=1, name='Commander Template', scryfall_query='o:test')
+        variant, recipe = self._make_recipe(
+            cards=[(sure1, 1, False), (sure2, 1, False)],
+            templates=[(template, 1, ZoneLocation.COMMAND_ZONE, True)],
+        )
+        result = estimate_bracket(
+            cards={sure1: 1, sure2: 1},
+            templates={template: 1},
+            included_variants=[(variant, recipe)],
+        )
+        combo = result.combos[0]
+        self.assertFalse(combo.definitely_two_card)
+        self.assertTrue(combo.arguably_two_card)
+
+    def test_plain_template_is_classified_as_sure(self):
+        sure1 = Card(pk=1, name='Sure One', mana_value=1, legal_commander=True, type_line='Creature', oracle_text='')
+        template = Template(pk=1, name='Regular Template', scryfall_query='o:test')
+        variant, recipe = self._make_recipe(
+            cards=[(sure1, 1, False)],
+            templates=[(template, 1, ZoneLocation.BATTLEFIELD, False)],
+        )
+        result = estimate_bracket(
+            cards={sure1: 1},
+            templates={template: 1},
+            included_variants=[(variant, recipe)],
+        )
+        combo = result.combos[0]
+        self.assertTrue(combo.definitely_two_card)
+
+    def test_commander_in_provided_commanders_set_is_excluded_entirely(self):
+        sure1 = Card(pk=1, name='Sure One', mana_value=1, legal_commander=True, type_line='Creature', oracle_text='')
+        commander = Card(pk=2, name='Commander Card', mana_value=3, legal_commander=True, type_line='Legendary Creature - Human', oracle_text='')
+        variant, recipe = self._make_recipe(cards=[(sure1, 1, False), (commander, 1, False)])
+        result = estimate_bracket(
+            cards={sure1: 1, commander: 1},
+            templates={},
+            included_variants=[(variant, recipe)],
+            commanders={commander},
+        )
+        combo = result.combos[0]
+        self.assertTrue(combo.definitely_two_card)

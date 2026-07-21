@@ -33,6 +33,10 @@ def generate_variants_task(context: TaskContext, combo: int | None = None, start
         def progress(current: int, total: int):
             context.metadata['progress'] = f'{current}/{total}'
             context.save_metadata()
+
+        def metadata(key: str, value: object):
+            context.metadata[key] = value
+            context.save_metadata()
     else:
         def log(message: str):
             logger.info(message)
@@ -42,12 +46,16 @@ def generate_variants_task(context: TaskContext, combo: int | None = None, start
 
         def progress(current: int, total: int):
             pass
+
+        def metadata(key: str, value: object):
+            pass
     added, restored, removed = generate_variants(
         combo=combo,
         job=job_id,
         log=log,
         log_error=log_error,
         progress=progress,
+        metadata=metadata,
         incremental=incremental,
     )
     if added == 0 and removed == 0 and restored == 0:

@@ -652,6 +652,37 @@ class IncrementalGenerationTests(SpellbookTestCaseWithSeeding):
         generate_variants(combo.id)
         self.assertEqual(VariantGenerationFingerprints.objects.count(), 0)
 
+    def _generate_capturing_metadata(self, **kwargs) -> dict[str, object]:
+        captured = dict[str, object]()
+        generate_variants(metadata=lambda key, value: captured.__setitem__(key, value), **kwargs)
+        return captured
+
+    def test_metadata_reports_not_incremental_on_fallback_to_full(self):
+        captured = self._generate_capturing_metadata(incremental=True)
+        self.assertIs(captured['incremental'], False)
+
+    def test_metadata_reports_incremental_when_nothing_changed(self):
+        generate_variants()
+        captured = self._generate_capturing_metadata(incremental=True)
+        self.assertIs(captured['incremental'], True)
+
+    def test_metadata_reports_incremental_on_partial_regeneration(self):
+        generate_variants()
+        combo: Combo = Combo.objects.filter(status=Combo.Status.GENERATOR).first()  # type: ignore
+        combo.description += ' edited'
+        combo.save()
+        captured = self._generate_capturing_metadata(incremental=True)
+        self.assertIs(captured['incremental'], True)
+
+    def test_metadata_reports_not_incremental_on_full_generation(self):
+        captured = self._generate_capturing_metadata()
+        self.assertIs(captured['incremental'], False)
+
+    def test_metadata_reports_not_incremental_on_single_combo(self):
+        combo: Combo = Combo.objects.filter(status=Combo.Status.GENERATOR).first()  # type: ignore
+        captured = self._generate_capturing_metadata(combo=combo.id)
+        self.assertIs(captured['incremental'], False)
+
 
 class ParallelGenerationTests(SpellbookTestCaseWithSeeding):
     @skipUnless(parallelism_is_available(), 'parallel generation requires the fork start method and a non-daemonic process')

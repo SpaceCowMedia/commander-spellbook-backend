@@ -31,6 +31,7 @@ _VARIANTS_TO_TRIGGER_LOG = 200
 
 LogFunction = Callable[[str], None]
 ProgressFunction = Callable[[int, int], None]
+MetadataFunction = Callable[[str, object], None]
 
 # Fields of a Variant row that generation may modify on existing variants
 _VARIANT_UPDATE_FIELDS = [
@@ -897,6 +898,7 @@ def generate_variants(
     log: LogFunction = lambda _: None,
     log_error: LogFunction = lambda _: None,
     progress: ProgressFunction = lambda x, t: None,
+    metadata: MetadataFunction = lambda key, value: None,
     incremental: bool = False,
     workers: int | None = None,
 ) -> tuple[int, int, int]:
@@ -914,7 +916,7 @@ def generate_variants(
     gc.collect()
     gc.freeze()
     try:
-        return _generate_variants(data, combo, job, log, log_error, progress, incremental, workers)
+        return _generate_variants(data, combo, job, log, log_error, progress, metadata, incremental, workers)
     finally:
         gc.unfreeze()
 
@@ -926,6 +928,7 @@ def _generate_variants(
     log: LogFunction,
     log_error: LogFunction,
     progress: ProgressFunction,
+    metadata: MetadataFunction,
     incremental: bool,
     workers: int,
 ) -> tuple[int, int, int]:
@@ -945,6 +948,10 @@ def _generate_variants(
             log(f'Incremental generation: {len(plan.combos_to_generate)} of {len(data.generator_combos)} generator combos have to be regenerated.')
     else:
         plan = plan_full_generation(data)
+    # The graph exploration is actually incremental only when it pruned work,
+    # i.e. it regenerated a strict subset of all the generator combos
+    actually_incremental = plan.scope is GenerationScope.INCREMENTAL and len(plan.combos_to_generate) < len(data.generator_combos)
+    metadata('incremental', actually_incremental)
     progress(10, 100)
     to_restore = set(k for k, v in data.id_to_variant.items() if v.status == Variant.Status.RESTORE or len(data.variant_to_of_sets[k]) == 0)
     log('Fetching all variant unique ids...')

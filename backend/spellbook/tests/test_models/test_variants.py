@@ -217,3 +217,22 @@ class EstimateBracketTests(TestCase):
         )
         combo = result.combos[0]
         self.assertTrue(combo.definitely_two_card)
+
+    def test_commander_eligible_card_not_in_commanders_set_is_classified_as_sure(self):
+        sure1 = Card(pk=1, name='Sure One', mana_value=1, legal_commander=True, type_line='Creature', oracle_text='')
+        sure2 = Card(pk=2, name='Sure Two', mana_value=1, legal_commander=True, type_line='Creature', oracle_text='')
+        real_commander = Card(pk=3, name='Real Commander', mana_value=3, legal_commander=True, type_line='Legendary Creature - Human', oracle_text='')
+        commander_eligible = Card(pk=4, name='Commander Eligible', mana_value=3, legal_commander=True, type_line='Legendary Creature - Human', oracle_text='')
+        variant, recipe = self._make_recipe(cards=[(sure1, 1, False), (sure2, 1, False), (real_commander, 1, False), (commander_eligible, 1, False)])
+        result = estimate_bracket(
+            cards={sure1: 1, sure2: 1, real_commander: 1, commander_eligible: 1},
+            templates={},
+            included_variants=[(variant, recipe)],
+            commanders={real_commander},
+        )
+        combo = result.combos[0]
+        # With an explicit commanders set, the is_commander heuristic is disabled:
+        # commander_eligible (not in the set) counts as a sure card, so the three
+        # remaining sure cards make this neither a definite nor an arguable two-card combo.
+        self.assertFalse(combo.definitely_two_card)
+        self.assertFalse(combo.arguably_two_card)

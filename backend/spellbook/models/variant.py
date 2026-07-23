@@ -503,7 +503,7 @@ def estimate_bracket(cards: dict[Card, int], templates: dict[Template, int], inc
                     continue
                 if commanders is not None and card in commanders:
                     continue
-                if isinstance(card, Card) and card.is_commander or isinstance(card, Template) and (ZoneLocation.COMMAND_ZONE in card_in_variant.zone_locations or card_in_variant.must_be_commander):
+                if commanders is None and isinstance(card, Card) and card.is_commander or isinstance(card, Template) and (ZoneLocation.COMMAND_ZONE in card_in_variant.zone_locations or card_in_variant.must_be_commander):
                     arguable_cards += card_in_variant.quantity
                 else:
                     sure_cards += card_in_variant.quantity

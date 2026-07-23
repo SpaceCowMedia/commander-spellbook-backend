@@ -164,12 +164,14 @@ def fuzzy_restore_card(scryfall: dict, name: str):
             raise Exception(f'Card {name} not found in scryfall dataset, even after fuzzy search')
 
 
-def update_cards(cards: list[Card], scryfall: Scryfall, counts: dict[int, int], log=lambda t: print(t), log_warning=lambda t: print(t), log_error=lambda t: print(t)):
+def update_cards(cards: list[Card], scryfall: Scryfall, counts: dict[int, int], log=lambda t: print(t), log_warning=lambda t: print(t), log_error=lambda t: print(t), progress=lambda fraction: None):
     oracle_db = {card_object['oracle_id']: card_object for card_object in scryfall.cards.values()}
     existing_names = {card.name: card for card in cards}
     existing_oracle_ids = {card.oracle_id: card for card in cards if card.oracle_id is not None}
     cards_to_save: list[Card] = []
-    for card in cards:
+    card_count = len(cards)
+    for i, card in enumerate(cards):
+        progress(i / card_count)
         updated = False
         if card.oracle_id is None:
             log(f'Card {card.name} lacks an oracle_id: attempting to find it by name...')

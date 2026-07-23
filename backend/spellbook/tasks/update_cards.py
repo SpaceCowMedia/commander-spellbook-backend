@@ -17,6 +17,10 @@ def update_cards_task(context: TaskContext):
         context.metadata['log'] = ''
         context.save_metadata()
 
+        def progress(fraction: float):
+            context.metadata['progress'] = f'{int(fraction * 100)}/100'
+            context.save_metadata()
+
         def log(message: str):
             logger.info(message)
             context.metadata['log'] = message
@@ -32,6 +36,9 @@ def update_cards_task(context: TaskContext):
             context.metadata['log'] = message
             context.save_metadata()
     else:
+        def progress(fraction: float):
+            pass
+
         def log(message: str):
             logger.info(message)
 
@@ -40,9 +47,11 @@ def update_cards_task(context: TaskContext):
 
         def log_error(message: str):
             logger.error(message)
+    progress(0)
     log('Fetching Scryfall and EDHREC datasets...')
     scryfall_name_db = scryfall()
     log('Fetching Scryfall and EDHREC datasets...done')
+    progress(0.2)
     log('Updating cards...')
     cards_to_update = list(Card.objects.all())
     cards_count: dict[int, int] = {
@@ -62,7 +71,9 @@ def update_cards_task(context: TaskContext):
         log=log,
         log_warning=log_warning,
         log_error=log_error,
+        progress=lambda fraction: progress(0.2 + fraction * 0.7),
     )
+    progress(0.9)
     updated_card_count = len(cards_to_save)
     Card.objects.bulk_update(
         cards_to_save,
@@ -75,6 +86,7 @@ def update_cards_task(context: TaskContext):
         batch_size=DEFAULT_BATCH_SIZE,
     )
     log('Updating cards...done')
+    progress(1)
     if updated_card_count > 0:
         log(f'Successfully updated {updated_card_count} cards')
     else:

@@ -122,11 +122,12 @@ def merge_mana_costs(mana_costs: Iterable[str]) -> str:
         # Variable generic mana symbols
         for symbol in 'XYZ':
             process_symbol(symbol)
-        # Numbered generic mana symbols
+        # Numbered generic mana symbols, merged into a single symbol; {0} contributes nothing
         if '1' in costs:
             count = costs['1']
             del costs['1']
-            cost_string += f'{{{count}}}'
+            if count > 0:
+                cost_string += f'{{{count}}}'
         # Group symbols by their leftmost half
         grouped_symbols = defaultdict[str, list[str]](list)
         for symbol in costs.keys():

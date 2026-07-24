@@ -226,6 +226,14 @@ class TestMergeManaCosts(TestCase):
         self.assertEqual(merge_mana_costs(['{w}{u}{b}{r}{g}{b/p}']), '{W}{U}{B}{B/P}{R}{G}')
         self.assertEqual(merge_mana_costs(['{C}{S}{10}']), '{10}{C}{S}')
 
+    def test_zero_mana(self):
+        self.assertEqual(merge_mana_costs(['{0}']), '')
+        self.assertEqual(merge_mana_costs(['{0}', '{0}']), '')
+        self.assertEqual(merge_mana_costs(['{0}', '{W}']), '{W}')
+        self.assertEqual(merge_mana_costs(['{0}', '{2}']), '{2}')
+        self.assertEqual(merge_mana_costs(['{0}', '{2}', '{W}']), '{2}{W}')
+        self.assertEqual(merge_mana_costs(['{0}', '{1}', '{1}']), '{2}')
+
     def test_multiple_costs(self):
         self.assertEqual(merge_mana_costs(['{w}', '{u}', '{b}', '{r}', '{g}', '{b/p}']), '{W}{U}{B}{B/P}{R}{G}')
         self.assertEqual(merge_mana_costs(['{b}{r}', '{w}{u}', '{b/p}{g}']), '{W}{U}{B}{B/P}{R}{G}')

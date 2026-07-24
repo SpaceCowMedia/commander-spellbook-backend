@@ -79,7 +79,7 @@ def deck_from_raw(raw_deck: RawDeck, cards_id_dict: dict[str, int], identity_dic
 
 
 class DecklistAPIView(APIView):
-    permission_classes = []
+    permission_classes: list = []
     parser_classes = [PlainTextDeckListParser, parsers.JSONParser]
     request = {
         'application/json': RawDeckSerializer,

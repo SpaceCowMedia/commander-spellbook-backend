@@ -25,10 +25,10 @@ class CardInVariantAdminInline(IngredientAdmin):
     verbose_name_plural = 'Cards'
     can_delete = False
 
-    def has_add_permission(self, request, obj) -> bool:
+    def has_add_permission(self, request, obj: Variant | None = None) -> bool:
         return False
 
-    def has_delete_permission(self, request, obj) -> bool:
+    def has_delete_permission(self, request, obj: Variant | None = None) -> bool:
         return False
 
     def card_name(self, instance):
@@ -45,10 +45,10 @@ class TemplateInVariantAdminInline(IngredientAdmin):
     verbose_name_plural = 'Templates'
     can_delete = False
 
-    def has_add_permission(self, request, obj) -> bool:
+    def has_add_permission(self, request, obj: Variant | None = None) -> bool:
         return False
 
-    def has_delete_permission(self, request, obj) -> bool:
+    def has_delete_permission(self, request, obj: Variant | None = None) -> bool:
         return False
 
 
@@ -141,7 +141,7 @@ class VariantAdmin(SpellbookModelAdmin):
     ]
     readonly_fields = generated_readonly_fields + Variant.computed_fields()
     fieldsets = [
-        ('Generated', {'fields': generated_readonly_fields}),
+        ('Generated', {'fields': generated_readonly_fields}),  # type: ignore[typeddict-item]
         ('Editable', {'fields': [
             'status',
             ('mana_needed', 'is_mana_needed_an_accurate_minimum'),
@@ -198,8 +198,8 @@ class VariantAdmin(SpellbookModelAdmin):
         html = f'<a href="{{}}">{format_for_each * len(combos)}</a>'
         return format_html(html, reverse('admin:spellbook_combo_changelist') + '?' + urlencode({'included_in_variants__id': str(obj.id)}), *combos)
 
-    def get_inlines(self, request, obj: Variant):
-        inlines = []
+    def get_inlines(self, request, obj: Variant | None = None):
+        inlines: list = []
         if obj is None or obj.id is None or obj.uses.exists():
             inlines.append(CardInVariantAdminInline)
         if obj is None or obj.id is None or obj.requires.exists():
@@ -231,12 +231,12 @@ class VariantAdmin(SpellbookModelAdmin):
         return [
             path(
                 'generate/',
-                self.admin_site.admin_view(view=self.generate, cacheable=False),
+                self.admin_site.admin_view(view=self.generate, cacheable=False),  # pyright: ignore[reportArgumentType]
                 name='spellbook_variant_generate',
             ),
             path(
                 'export/',
-                self.admin_site.admin_view(view=self.export, cacheable=False),
+                self.admin_site.admin_view(view=self.export, cacheable=False),  # pyright: ignore[reportArgumentType]
                 name='spellbook_variant_export',
             ),
         ] + super().get_urls()
@@ -247,7 +247,7 @@ class VariantAdmin(SpellbookModelAdmin):
     def has_delete_permission(self, request, obj=None):
         return False
 
-    def get_search_results(self, request: HttpRequest, queryset, search_term: str) -> tuple[object, bool]:
+    def get_search_results(self, request: HttpRequest, queryset, search_term: str) -> tuple[QuerySet, bool]:
         try:
             result = variants_query_parser(queryset, search_term)
             return result, False
@@ -283,4 +283,4 @@ class VariantAdmin(SpellbookModelAdmin):
             'includes__id',
         ):
             return True
-        return super().lookup_allowed(lookup, value, request)  # type: ignore for deprecated typing
+        return super().lookup_allowed(lookup, value, request)  # type: ignore  # deprecated typing

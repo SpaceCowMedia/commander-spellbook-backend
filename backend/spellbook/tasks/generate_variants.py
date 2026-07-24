@@ -11,7 +11,7 @@ from spellbook.variants.variants_generator import generate_variants
 logger = logging.getLogger(__name__)
 
 
-@task(takes_context=True)
+@task(takes_context=True)  # type: ignore[arg-type]
 def generate_variants_task(context: TaskContext, combo: int | None = None, started_by_user_id: int | None = None, incremental: bool = False) -> str:
     job_id = task_result_identifier(context.task_result)  # type: ignore
     if hasattr(context, 'metadata'):

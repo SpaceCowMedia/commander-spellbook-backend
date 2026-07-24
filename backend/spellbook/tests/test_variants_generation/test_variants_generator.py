@@ -10,7 +10,7 @@ from spellbook.variants.combo_graph import FeatureWithAttributes
 from spellbook.variants.multiset import FrozenMultiset
 from spellbook.variants.variant_data import Data
 from spellbook.variants import variants_generator
-from spellbook.variants.variants_generator import get_variants_from_graph, get_default_zone_location_for_card, update_state_with_default
+from spellbook.variants.variants_generator import get_variants_from_graph, get_default_zone_location_for_card, update_state_with_default, merge_used_faces
 from spellbook.variants.variants_generator import generate_variants, apply_replacements, build_replacement_strings, subtract_features, update_state
 from spellbook.variants.variants_generator import sync_variant_aliases, restore_variants
 from multiprocessing_utils import parallelism_is_available
@@ -92,7 +92,7 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
             if isinstance(sut, CardInVariant):
                 self.assertEqual(sut.zone_locations, get_default_zone_location_for_card(sut.card))
             else:
-                self.assertEqual(sut.zone_locations, IngredientInCombination._meta.get_field('zone_locations').get_default())
+                self.assertEqual(sut.zone_locations, IngredientInCombination._meta.get_field('zone_locations').get_default())  # pyright: ignore[reportAttributeAccessIssue]
 
     def test_update_state(self):
         civs = list(CardInVariant(card=c) for c in Card.objects.all())
@@ -139,6 +139,16 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
             self.assertEqual(sut2.zone_locations, sut1.zone_locations)
             self.assertEqual(sut2.battlefield_card_state, sut1.battlefield_card_state)
 
+    def test_merge_used_faces(self):
+        # No contributor specifies a face -> blank
+        self.assertIsNone(merge_used_faces([CardInVariant(), CardInVariant()]))
+        # A single specified face among blanks is kept (blanks are ignored)
+        self.assertEqual(merge_used_faces([CardInVariant(used_face=2), CardInVariant()]), 2)
+        # All specified faces agree -> that face
+        self.assertEqual(merge_used_faces([CardInVariant(used_face=1), CardInVariant(used_face=1)]), 1)
+        # Conflicting specified faces -> blank
+        self.assertIsNone(merge_used_faces([CardInVariant(used_face=1), CardInVariant(used_face=2)]))
+
     def test_apply_replacements(self):
         legendary_card = Card.objects.create(
             name='The Name, the Title',
@@ -156,10 +166,16 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
             name='Normal Card',
             type_line='Instant',
         )
+        dfc_card = Card.objects.create(
+            name='Front Face // Back Face',
+            type_line='Creature - Human // Creature - Zombie',
+            faces=2,
+        )
         fx = Feature.objects.create(name='FX')
         fy = Feature.objects.create(name='FY')
         fz = Feature.objects.create(name='FZ')
         fw = Feature.objects.create(name='FW')
+        fd = Feature.objects.create(name='FDFC')
         fattr = FeatureAttribute.objects.create(name='FAttr')
         combo = Combo.objects.create(status=Combo.Status.UTILITY)
         fn = FeatureNeededInCombo.objects.create(combo=combo, feature=fx)
@@ -174,6 +190,7 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
             FeatureWithAttributes(fy, frozenset({fattr.id})): [([normal_card], [])],  # Test for multiple valid entries with different attributes
             FeatureWithAttributes(fz, frozenset()): [([legendary_modal_card], [])],
             FeatureWithAttributes(fw, frozenset()): [([legendary_card, non_legendary_card, legendary_modal_card, normal_card], [])],
+            FeatureWithAttributes(fd, frozenset()): [([dfc_card], [])],
         }
         tests = [
             ('', ''),
@@ -194,11 +211,27 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
             ('Test replacement selector postfix alias: [[FY|X$1|Y]] - [[X]] - [[X$2]] - [[Y]] - [[Y$2]]', 'Test replacement selector postfix alias: The Name, different Title - The Name, different Title - Normal Card - The Name, different Title - [[Y$2]]'),
             ('Legendary modal name never cut: [[FZ]]', 'Legendary modal name never cut: The Name, the Title  // Another Name, Another Title'),
             ('Multiple replacements: [[FW]]', 'Multiple replacements: The Name + The Name, different Title + The Name, the Title  // Another Name, Another Title + Normal Card'),
+            # Face selector in the text: whole name by default, a specific half when a valid face is given
+            ('Whole multi-faced card by default: [[FDFC]]', 'Whole multi-faced card by default: Front Face // Back Face'),
+            ('Face selector front: [[FDFC#1]]', 'Face selector front: Front Face'),
+            ('Face selector back: [[FDFC#2]]', 'Face selector back: Back Face'),
+            ('Out of range face falls back to default: [[FDFC#3]]', 'Out of range face falls back to default: Front Face // Back Face'),
+            ('Face selector alias saves the face name: [[FDFC#1|f]] then [[f]]', 'Face selector alias saves the face name: Front Face then Front Face'),
+            ('Face selector ignored on single-faced card: [[FA#2]]', 'Face selector ignored on single-faced card: A A'),
         ]
         data = Data()
-        replacement_strings = build_replacement_strings(data, replacements, {combo.id})
+        replacement_strings = build_replacement_strings(data, replacements, {combo.id}, {})
         for test in tests:
             self.assertEqual(apply_replacements(test[0], replacement_strings), test[1])
+        # When the used_face field is specified, the placeholder defaults to that half of the name,
+        # while a face selector in the text still overrides it
+        replacement_strings_with_face = build_replacement_strings(data, replacements, {combo.id}, {dfc_card.id: 2})
+        face_tests = [
+            ('Used face defaults to that half: [[FDFC]]', 'Used face defaults to that half: Back Face'),
+            ('Text face still overrides the used face: [[FDFC#1]]', 'Text face still overrides the used face: Front Face'),
+        ]
+        for test in face_tests:
+            self.assertEqual(apply_replacements(test[0], replacement_strings_with_face), test[1])
 
     def test_restore_variant(self):
         # TODO: Implement
@@ -560,7 +593,7 @@ class IncrementalGenerationTests(SpellbookTestCaseWithSeeding):
     def test_incremental_after_combo_text_edit(self):
         generate_variants()
         Variant.objects.update(status=Variant.Status.OK)
-        combo = Combo.objects.filter(status=Combo.Status.GENERATOR).first()
+        combo: Combo = Combo.objects.filter(status=Combo.Status.GENERATOR).first()  # type: ignore
         combo.description += ' edited'
         combo.save()
         added, restored, deleted = generate_variants(incremental=True)
@@ -573,7 +606,7 @@ class IncrementalGenerationTests(SpellbookTestCaseWithSeeding):
         combo: Combo = Combo.objects.filter(status=Combo.Status.GENERATOR).first()  # type: ignore
         combo.description = 'A new description'
         combo.save()
-        flagged = list(combo.variants.values_list('id', flat=True))
+        flagged = list(combo.variants.values_list('id', flat=True))  # pyright: ignore[reportAttributeAccessIssue]
         Variant.objects.filter(id__in=flagged).update(status=Variant.Status.RESTORE)
         added, restored, deleted = generate_variants(incremental=True)
         self.assertEqual(added, 0)

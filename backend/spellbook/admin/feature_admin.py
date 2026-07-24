@@ -129,7 +129,7 @@ class FeatureAdmin(SpellbookModelAdmin):
             'produced_by_variants__id',
         ):
             return True
-        return super().lookup_allowed(lookup, value, request)  # type: ignore for deprecated typing
+        return super().lookup_allowed(lookup, value, request)  # type: ignore  # deprecated typing
 
     @admin.display(description='Scryfall link')
     def scryfall_link(self, obj: Feature):
@@ -259,10 +259,12 @@ def replace_feature_references(instance: Feature, old_name: str):
 
 
 def replace_feature_reference(old_name: str, new_name: str, text: str) -> str:
-    def replacement_with_fallback(key: str, alias: str | None, selector: str | None, postfix_alias: str | None, otherwise: str) -> str:
+    def replacement_with_fallback(key: str, face: str | None, alias: str | None, selector: str | None, postfix_alias: str | None, otherwise: str) -> str:
         if key.lower() != old_name.lower():
             return otherwise
         result = new_name
+        if face is not None:
+            result += f'#{face}'
         if alias is not None:
             result += f'|{alias}'
         if selector is not None:
@@ -271,6 +273,6 @@ def replace_feature_reference(old_name: str, new_name: str, text: str) -> str:
                 result += f'|{postfix_alias}'
         return f'[[{result}]]'
     return FEATURE_REPLACEMENT_PATTERN.sub(
-        lambda m: replacement_with_fallback(m.group('key'), m.group('alias'), m.group('selector'), m.group('postfix_alias'), m.group(0)),
+        lambda m: replacement_with_fallback(m.group('key'), m.group('face'), m.group('alias'), m.group('selector'), m.group('postfix_alias'), m.group(0)),
         text,
     )

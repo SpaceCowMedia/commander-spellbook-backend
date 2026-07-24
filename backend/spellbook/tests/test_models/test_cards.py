@@ -89,7 +89,18 @@ class CardTests(SpellbookTestCaseWithSeeding):
         self.assertFalse(c.is_of_type(CardType.SORCERY))
 
     def test_method_count(self):
-        self.assertEqual(count_methods(Card), 5)
+        self.assertEqual(count_methods(Card), 6)
+
+    def test_face_name(self):
+        single = Card.objects.create(name='Single Card', type_line='Instant')
+        self.assertEqual(single.face_name(None), 'Single Card')
+        self.assertEqual(single.face_name(1), 'Single Card')
+        self.assertEqual(single.face_name(2), 'Single Card')  # out of range falls back to the whole name
+        dfc = Card.objects.create(name='Front Face // Back Face', type_line='Creature // Creature', faces=2)
+        self.assertEqual(dfc.face_name(None), 'Front Face // Back Face')
+        self.assertEqual(dfc.face_name(1), 'Front Face')
+        self.assertEqual(dfc.face_name(2), 'Back Face')
+        self.assertEqual(dfc.face_name(3), 'Front Face // Back Face')  # out of range falls back to the whole name
 
     def test_name_unaccented(self):
         c = Card.objects.create(name='à, è, ì, ò, ù, y, À, È, Ì, Ò, Ù, Y, á, é, í, ó, ú, ý, Á, É, Í, Ó, Ú, Ý, â, ê, î, ô, û, y, Â, Ê, Î, Ô, Û, Y, ä, ë, ï, ö, ü, ÿ, Ä, Ë, Ï, Ö, Ü, Ÿ', oracle_id='47d6f04b-a6fe-4274-bd27-888475158e82')

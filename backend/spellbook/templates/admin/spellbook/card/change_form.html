@@ -65,6 +65,9 @@
 
                             django.jQuery('#id_type_line').val(data.type_line);
 
+                            const faces = Object.hasOwn(data, 'card_faces') && data.card_faces.length > 1 ? data.card_faces.length : 1;
+                            django.jQuery('#id_faces').val(faces);
+
                             if (Object.hasOwn(data, 'card_faces')) {
                                 oracle_text = '';
                                 for (const face of data.card_faces) {

@@ -1,6 +1,5 @@
 from itertools import zip_longest, chain
-from django.db.models import Model
-from django.db.models.manager import BaseManager
+from django.db.models import Model, Manager
 from django.db.models.signals import pre_save, post_save, pre_delete, post_delete
 from rest_framework import serializers, fields
 from spellbook.models import DEFAULT_BATCH_SIZE
@@ -38,7 +37,7 @@ class ModelSerializerWithRelatedModels:
     def _create_related_model(
         self,
         instance,
-        manager: BaseManager,
+        manager: Manager,
         related_field: str,
         data: list[dict],
         with_order: bool = True,
@@ -64,7 +63,7 @@ class ModelSerializerWithRelatedModels:
     def _update_related_model(
         self,
         instance,
-        manager: BaseManager,
+        manager: Manager,
         related_field: str,
         data: list[dict],
         serializer: serializers.ModelSerializer,
@@ -78,6 +77,7 @@ class ModelSerializerWithRelatedModels:
             if d is not None and with_order:
                 d['order'] = i
             if model is None:
+                assert d is not None  # zip_longest pads the shorter side, so a missing model implies data is present
                 to_create.append(manager.model(**{**d, related_field: instance}))
             elif d is None:
                 to_delete.append(model)

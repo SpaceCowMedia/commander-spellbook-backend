@@ -63,6 +63,7 @@ dev = [
     "pydantic==2.13.4",
     "python-dateutil==2.9.0.post0",
     "urllib3==2.7.0",
+    "django-stubs[compatible-mypy]>=6.0.7",
 ]
 
 [tool.uv]
@@ -70,3 +71,23 @@ dev = [
 # (matches the Dependabot cooldown).
 exclude-newer = "1 day"
 managed = true
+
+[tool.mypy]
+plugins = ["mypy_django_plugin.main"]
+# The importable roots mirror pytest's `pythonpath = backend common` (this file lives in backend/).
+mypy_path = ["$MYPY_CONFIG_FILE_DIR", "$MYPY_CONFIG_FILE_DIR/../common"]
+explicit_package_bases = true
+namespace_packages = true
+# Allow rebinding a local to a new type (e.g. `quantity = int(quantity)`), a common idiom here.
+allow_redefinition = true
+# Third-party packages without stubs (boto3, lark, social_django...) shouldn't fail the run.
+ignore_missing_imports = true
+# Pragmatic baseline for a codebase adopting mypy: type errors are reported, but unannotated
+# function bodies are not forced. Tighten these over time.
+check_untyped_defs = false
+# Silence the informational "body of untyped function not checked" notes that the above emits;
+# they are advisory, not errors. Drop this once check_untyped_defs is turned on.
+disable_error_code = ["annotation-unchecked"]
+
+[tool.django-stubs]
+django_settings_module = "backend.settings"

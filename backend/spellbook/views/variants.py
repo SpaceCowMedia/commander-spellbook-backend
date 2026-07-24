@@ -27,8 +27,8 @@ class VariantGroupedByComboFilter(filters.BaseFilterBackend):
         return queryset
 
     def _filter_queryset(self, queryset: QuerySet[Variant], view: 'VariantViewSet') -> QuerySet[Variant]:
-        order_by = queryset.query.order_by + DEFAULT_VIEW_ORDERING
-        order_by = list(remove_duplicates_in_order_by(remove_random_from_order_by(order_by)))
+        raw_order_by = list(queryset.query.order_by) + list(DEFAULT_VIEW_ORDERING)
+        order_by = list(remove_duplicates_in_order_by(remove_random_from_order_by(raw_order_by)))  # type: ignore[arg-type]
         top_variants_for_each_combo = queryset.alias(
             top_variant=Window(
                 expression=FirstValue('pk'),

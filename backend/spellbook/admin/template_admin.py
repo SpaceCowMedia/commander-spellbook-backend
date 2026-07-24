@@ -15,7 +15,7 @@ class TemplateReplacementAdminInline(admin.StackedInline):
 
 class TemplateAdminForm(SpellbookAdminForm):
     def clean(self) -> dict[str, Any]:
-        cleaned_data = super().clean()
+        cleaned_data = super().clean() or {}
         replacement_forms: str = self.data.get('templatereplacement_set-TOTAL_FORMS', '0')
         if cleaned_data.get('scryfall_query'):
             if replacement_forms.isdigit():
@@ -35,7 +35,7 @@ class TemplateReplacementsFilter(CustomFilter):
     def lookups(self, request, model_admin):
         return [(True, 'Yes'), (False, 'No')]
 
-    def filter(self, value: data_type):
+    def filter(self, value: bool):
         if value:
             return Q(replacements__isnull=False)
         else:

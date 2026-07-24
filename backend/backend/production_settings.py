@@ -48,7 +48,7 @@ CONN_MAX_AGE = 60 * 60
 
 # Database
 # https://docs.djangoproject.com/en/dev/ref/settings/#databases
-DATABASES = {
+DATABASES = {  # type: ignore[assignment]
     'default': {
         'ENGINE': os.getenv('SQL_ENGINE', 'django.db.backends.sqlite3'),
         'NAME': os.getenv('SQL_DATABASE', os.path.join(BASE_DIR, 'db.sqlite3')),

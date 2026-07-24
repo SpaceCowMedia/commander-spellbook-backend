@@ -11,6 +11,11 @@ from django.urls import reverse
 
 
 class FindMyCombosViewTests(SpellbookTestCaseWithSeeding):
+    variants_dict: dict[str, Variant]
+    variants_cards: dict[str, FrozenMultiset[str]]
+    variants_templates: dict[str, FrozenMultiset[str]]
+    variants_commanders: dict[str, FrozenMultiset[str]]
+
     @classmethod
     def setUpTestData(cls):
         super().setUpTestData()

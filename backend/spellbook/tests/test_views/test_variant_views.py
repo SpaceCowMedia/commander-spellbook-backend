@@ -14,6 +14,8 @@ from ..testing import SpellbookTestCaseWithSeeding
 
 
 class VariantViewsTests(SpellbookTestCaseWithSeeding):
+    public_variants: models.Manager[Variant]
+    ok_variants: models.QuerySet[Variant]
     operators = {
         '>': 'gt',
         '<': 'lt',
@@ -1051,7 +1053,7 @@ class VariantViewsTests(SpellbookTestCaseWithSeeding):
     def seed_popularity(self) -> list[Variant]:
         variants = list[Variant](Variant.objects.all())
         for popularity, variant in enumerate(variants):
-            variant.popularity = popularity if popularity > 0 else None
+            variant.popularity = popularity if popularity > 0 else None  # pyright: ignore[reportAttributeAccessIssue]
         self.bulk_serialize_variants(q=variants, extra_fields=['popularity'])
         return variants
 

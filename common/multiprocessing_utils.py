@@ -7,9 +7,9 @@ T = TypeVar('T')
 
 def resolve_workers(workers: int | None) -> int:
     '''Returns the given worker count, defaulting to the number of available processor cores.'''
-    if workers is None:
-        workers = getattr(os, 'process_cpu_count', os.cpu_count)() or 1
-    return max(1, workers)
+    if workers is not None:
+        return max(1, workers)
+    return max(1, getattr(os, 'process_cpu_count', os.cpu_count)() or 1)
 
 
 def fork_is_available() -> bool:

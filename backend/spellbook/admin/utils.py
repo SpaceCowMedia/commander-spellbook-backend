@@ -63,7 +63,7 @@ class SpellbookModelAdmin(SortableAdminBase, ModelAdmin):
         TextField: {'widget': NormalizedTextareaWidget},
     }
 
-    def __init__(self, model: type, admin_site: admin.AdminSite | None):
+    def __init__(self, model: type, admin_site: admin.AdminSite):
         super().__init__(model, admin_site)
         for field in self.readonly_fields:
             if isinstance(field, str):
@@ -78,10 +78,10 @@ class SpellbookModelAdmin(SortableAdminBase, ModelAdmin):
                                 return datetime_to_html(getattr(obj, f))
                             return None
                         setattr(self, field_alias, MethodType(get_local_datetime, self))
-                        self.readonly_fields = [field_alias if n == field else n for n in self.readonly_fields]
+                        self.readonly_fields = [field_alias if n == field else n for n in self.readonly_fields]  # type: ignore[misc]
                         self.list_display = [field_alias if n == field else n for n in self.list_display]
                         if self.fields:
-                            fields = []
+                            fields: list = []
                             for field_name in self.fields:
                                 if field_name == field:
                                     fields.append(field_alias)
@@ -89,7 +89,7 @@ class SpellbookModelAdmin(SortableAdminBase, ModelAdmin):
                                     fields.append(tuple(field_alias if n == field else n for n in field_name))
                                 else:
                                     fields.append(field_name)
-                            self.fields = fields
+                            self.fields = fields  # type: ignore[misc]
                         if self.fieldsets:
                             for _, field_options in self.fieldsets:
                                 fields = []
@@ -184,10 +184,10 @@ class SpellbookModelAdmin(SortableAdminBase, ModelAdmin):
 
 
 class CustomFilter(admin.SimpleListFilter):
-    data_type = str
+    data_type: type = str
 
     def queryset(self, request: Any, queryset: QuerySet[Any]) -> QuerySet[Any] | None:
-        value = self.value()
+        value: Any = self.value()
         allowed_values = {str(lookup) for lookup, _ in self.lookup_choices}
         if value is None or value not in allowed_values:
             return queryset
@@ -195,7 +195,7 @@ class CustomFilter(admin.SimpleListFilter):
             value = value == 'True'
         return queryset.filter(self.filter(self.data_type(value))).distinct()
 
-    def filter(self, value: data_type) -> Q:
+    def filter(self, value: Any) -> Q:
         raise NotImplementedError()
 
     def get_facet_counts(self, pk_attname, filtered_qs):
@@ -226,7 +226,7 @@ class AbstractCountFilter(CustomFilter):
     soft_max_count: int
     min_count: int = 0
 
-    def __init__(self, request, params: dict[str, str], model, model_admin):
+    def __init__(self, request, params: dict[str, list[str]], model, model_admin):
         self.one_more_than_max = self.soft_max_count + 1
         self.one_more_than_max_display = f'{self.one_more_than_max}+'
         if not self.parameter_name:

@@ -53,7 +53,12 @@ _INGREDIENT_UPDATE_FIELDS = ('zone_locations', 'battlefield_card_state', 'exile_
 MIN_COMBOS_FOR_PARALLELISM = 64
 MIN_VARIANTS_FOR_PARALLELISM = 2048
 
-FEATURE_REPLACEMENT_PATTERN = re.compile(r'\[\[(?P<key>.+?)(?:\|(?P<alias>[^$|]+?))?(?:\$(?P<selector>[1-9]\d*)(?:\|(?P<postfix_alias>[^$|]+?))?)?\]\]', re.IGNORECASE)
+# A feature replacement looks like [[key#face|alias$selector|postfix_alias]], where every part but the key is optional:
+# - #face selects which face of a multi-faced card to display (a symbol that cannot appear in a card name);
+# - |alias saves the replacement under an alias for later reuse;
+# - $selector picks one among the multiple replacements of the same feature;
+# - |postfix_alias saves the selected replacement under an alias.
+FEATURE_REPLACEMENT_PATTERN = re.compile(r'\[\[(?P<key>.+?)(?:#(?P<face>[1-9]\d*))?(?:\|(?P<alias>[^$|]+?))?(?:\$(?P<selector>[1-9]\d*)(?:\|(?P<postfix_alias>[^$|]+?))?)?\]\]', re.IGNORECASE)
 
 
 # ---------------------------------------------------------------------------
@@ -267,11 +272,20 @@ def get_default_zone_location_for_card(card: Card) -> ZoneLocation:
     return ZoneLocation.BATTLEFIELD
 
 
+def merge_used_faces(initial_states: Sequence[Ingredient]) -> int | None:
+    '''Merges the used faces of the ingredients contributing a card to a variant: a specified face is
+    kept only when every contributor that specifies one agrees on the same number (blanks are ignored).'''
+    faces = {getattr(state, 'used_face', None) for state in initial_states}
+    faces.discard(None)
+    return next(iter(faces)) if len(faces) == 1 else None
+
+
 def update_state_with_default(data: Data, destination: Ingredient) -> None:
     if isinstance(destination, CardInVariant):
         destination.zone_locations = get_default_zone_location_for_card(data.id_to_card[destination.card_id])
+        destination.used_face = None
     else:
-        destination.zone_locations = Ingredient._meta.get_field('zone_locations').get_default()
+        destination.zone_locations = Ingredient._meta.get_field('zone_locations').get_default()  # pyright: ignore[reportAttributeAccessIssue]
     destination.battlefield_card_state = ''
     destination.exile_card_state = ''
     destination.graveyard_card_state = ''
@@ -293,6 +307,8 @@ def update_state(destination: Ingredient, initial_states: Sequence[Ingredient]) 
     destination.graveyard_card_state = join_with_conjunction(state.graveyard_card_state for state in initial_states)
     destination.library_card_state = join_with_conjunction(state.library_card_state for state in initial_states)
     destination.must_be_commander = any(state.must_be_commander for state in initial_states)
+    if isinstance(destination, CardInVariant):
+        destination.used_face = merge_used_faces(initial_states)
 
 
 def _copy_state_from_row(destination: CardInVariant | TemplateInVariant, row: CardInVariantRow | TemplateInVariantRow) -> None:
@@ -303,26 +319,46 @@ def _copy_state_from_row(destination: CardInVariant | TemplateInVariant, row: Ca
     destination.library_card_state = row.library_card_state
     destination.must_be_commander = row.must_be_commander
     destination.order = row.order
+    if isinstance(destination, CardInVariant) and isinstance(row, CardInVariantRow):
+        destination.used_face = row.used_face
 
 
 def _ingredient_changed(ingredient: CardInVariant | TemplateInVariant, row: CardInVariantRow | TemplateInVariantRow) -> bool:
     for field_name in _INGREDIENT_UPDATE_FIELDS:
         if getattr(ingredient, field_name) != getattr(row, field_name):
             return True
+    if isinstance(ingredient, CardInVariant) and isinstance(row, CardInVariantRow) and ingredient.used_face != row.used_face:
+        return True
     return False
+
+
+@dataclass(frozen=True)
+class Replacement:
+    '''A single rendered replacement for a feature, keeping the backing card (when the replacement
+    is a lone card) so that a face override in the text can still resolve to a specific face name.'''
+    text: str
+    card: Card | None = None
+
+    def resolve(self, face: int | None) -> str:
+        if face is not None and self.card is not None and 1 <= face <= self.card.faces:
+            return self.card.face_name(face)
+        return self.text
 
 
 def build_replacement_strings(
     data: Data,
     replacements: dict[FeatureWithAttributes, list[tuple[list[Card], list[Template]]]],
     included_combos: set[int],
-) -> defaultdict[str, list[str]]:
+    used_faces: dict[int, int | None],
+) -> defaultdict[str, list[Replacement]]:
     '''
-    Builds the mapping of feature name to its replacement strings for a variant.
+    Builds the mapping of feature name to its replacements for a variant.
     This depends only on the variant's replacements and included combos, so it is
     computed once and reused across every text field the variant regenerates.
+    The used_faces mapping (card id -> used face) makes a card whose face is specified
+    display the corresponding half of its name instead of the whole name.
     '''
-    replacements_strings = defaultdict[str, list[str]](list)
+    replacements_strings = defaultdict[str, list[Replacement]](list)
     features_needed_by_included_combos = [feature_needed for included_combo_id in included_combos for feature_needed in data.combo_to_needed_features[included_combo_id]]
     for feature, replacement_list in replacements.items():
         corresponding_needed_features = [feature_needed for feature_needed in features_needed_by_included_combos if feature_needed.feature_id == feature.feature.id]
@@ -331,7 +367,9 @@ def build_replacement_strings(
             continue
         for cards, templates in replacement_list:
             names = [
-                c.name.split(',', 2)[0]
+                c.face_name(used_faces.get(c.id))
+                if used_faces.get(c.id) is not None
+                else c.name.split(',', 2)[0]
                 if ',' in c.name and ' // ' not in c.name and c.is_of_type(CardType.LEGENDARY) and c.is_of_type(CardType.CREATURE)
                 else c.name
                 for c in cards
@@ -340,38 +378,42 @@ def build_replacement_strings(
                 for t in templates
             ]
             replacement = ' + '.join(names)
-            replacements_strings[feature.feature.name].append(replacement)
+            backing_card = cards[0] if len(cards) == 1 and not templates else None
+            replacements_strings[feature.feature.name].append(Replacement(text=replacement, card=backing_card))
     return replacements_strings
 
 
 def apply_replacements(
     text: str,
-    replacement_strings: defaultdict[str, list[str]],
+    replacement_strings: defaultdict[str, list[Replacement]],
 ) -> str:
     # Work on a private copy: substituting a text field can register aliases into the
     # mapping, and those must not leak into the other text fields sharing the base.
-    replacements_strings = defaultdict[str, list[str]](list, {key: list(values) for key, values in replacement_strings.items()})
+    replacements_strings = defaultdict[str, list[Replacement]](list, {key: list(values) for key, values in replacement_strings.items()})
 
-    def replacement_with_fallback(key: str, alias: str | None, selector: str | None, postfix_alias: str | None, otherwise: str) -> str:
+    def replacement_with_fallback(key: str, face: str | None, alias: str | None, selector: str | None, postfix_alias: str | None, otherwise: str) -> str:
         selector_index = 0
         if selector:
             try:
                 selector_index = int(selector) - 1
             except ValueError:
                 return otherwise
+        face_index = int(face) if face else None
         strings = replacements_strings[key]
         try:
-            result = strings[selector_index]
+            replacement = strings[selector_index]
         except IndexError:
             return otherwise
+        result = replacement.resolve(face_index)
         if alias:
-            replacements_strings[alias] = strings
+            # when a face is selected, the alias saves the resolved face name; otherwise it aliases the whole feature
+            replacements_strings[alias] = [Replacement(text=result)] if face_index is not None else strings
         if postfix_alias:
-            replacements_strings.setdefault(postfix_alias, []).append(result)
+            replacements_strings.setdefault(postfix_alias, []).append(Replacement(text=result))
         return result
 
     return FEATURE_REPLACEMENT_PATTERN.sub(
-        lambda m: replacement_with_fallback(m.group('key'), m.group('alias'), m.group('selector'), m.group('postfix_alias'), m.group(0)),
+        lambda m: replacement_with_fallback(m.group('key'), m.group('face'), m.group('alias'), m.group('selector'), m.group('postfix_alias'), m.group(0)),
         text,
     )
 
@@ -454,7 +496,18 @@ def _restore_variant(
             if feature_of_card.notable_prerequisites:
                 notable_prerequisites_list.append(feature_of_card.notable_prerequisites)
 
-        replacement_strings = build_replacement_strings(data, replacements, variant_def.needed_combos)
+        # Collect used cards and required templates initial states from the combos before regenerating
+        # the text fields, so that the merged used faces are already known when replacing placeholders
+        for combo in needed_combos:
+            for card_in_combo in data.combo_to_cards[combo.id]:
+                if card_in_combo.card_id in uses:
+                    card_initial_states[card_in_combo.card_id].append(card_in_combo)
+            for template_in_combo in data.combo_to_templates[combo.id]:
+                if template_in_combo.template_id in requires:
+                    template_initial_states[template_in_combo.template_id].append(template_in_combo)
+        used_faces = {card_id: merge_used_faces(states) for card_id, states in card_initial_states.items()}
+
+        replacement_strings = build_replacement_strings(data, replacements, variant_def.needed_combos, used_faces)
         variant.easy_prerequisites = apply_replacements('\n'.join(easy_prerequisites_list), replacement_strings)
         variant.notable_prerequisites = apply_replacements('\n'.join(notable_prerequisites_list), replacement_strings)
         variant.mana_needed = apply_replacements(merge_mana_costs(mana_needed_list), replacement_strings)
@@ -471,14 +524,6 @@ def _restore_variant(
         card_features_for_override = defaultdict[int, set[FeatureNeededInCombo]](set)
         template_features_for_override = defaultdict[int, set[FeatureNeededInCombo]](set)
         for combo in needed_combos:
-            # Computing used cards initial state
-            for card_in_combo in data.combo_to_cards[combo.id]:
-                if card_in_combo.card_id in uses:
-                    card_initial_states[card_in_combo.card_id].append(card_in_combo)
-            # Computing required templates initial state
-            for template_in_combo in data.combo_to_templates[combo.id]:
-                if template_in_combo.template_id in requires:
-                    template_initial_states[template_in_combo.template_id].append(template_in_combo)
             # Applying zone locations overrides
             for feature_in_combo in data.combo_to_needed_features[combo.id]:
                 if feature_in_combo.zone_locations:
@@ -792,7 +837,7 @@ def _perform_bulk_saves(
     log('Prepare variant related entities...')
     cardinvariant_bulk_create = tuple(c for v in chain(to_create, to_update) for c in v.uses_to_create)
     cardinvariant_bulk_update = tuple(c for v in to_update for c in v.uses_to_update)
-    cardinvariant_bulk_update_fields = ['zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'must_be_commander', 'order', 'quantity']
+    cardinvariant_bulk_update_fields = ['zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'must_be_commander', 'order', 'quantity', 'used_face']
     progress(2, step_count)
     templateinvariant_bulk_create = tuple(t for v in chain(to_create, to_update) for t in v.requires_to_create)
     templateinvariant_bulk_update = tuple(t for v in to_update for t in v.requires_to_update)

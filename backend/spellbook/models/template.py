@@ -16,7 +16,7 @@ class Template(models.Model):
     description = models.TextField(blank=True, help_text='Long description of the template', verbose_name='description of the template')
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, editable=False)
-    replacements = models.ManyToManyField(
+    replacements: 'models.ManyToManyField[Card, TemplateReplacement]' = models.ManyToManyField(
         to=Card,
         through='TemplateReplacement',
         related_name='replaces',

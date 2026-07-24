@@ -7,11 +7,10 @@ def identity_filter(qv: QueryValue) -> VariantFilterCollection:
     identity = ''
     not_in_identity = ''
     if not value_is_digit:
-        identity = parse_color(qv.value)
-        if identity is None:
+        parsed_identity = parse_color(qv.value)
+        if parsed_identity is None:
             raise ValidationError(f'Invalid color identity: {qv.value}')
-        elif identity == 'C':
-            identity = ''
+        identity = '' if parsed_identity == 'C' else parsed_identity
         for color in 'WUBRG':
             if color not in identity:
                 not_in_identity += color

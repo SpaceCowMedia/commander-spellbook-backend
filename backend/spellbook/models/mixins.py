@@ -1,8 +1,10 @@
-from typing import Iterable, List, Sequence
+from typing import Iterable, List, Sequence, TypeVar
 from django.db.models import Model, Manager, QuerySet, JSONField
 from django.utils.html import format_html
 from rest_framework.serializers import ModelSerializer, BaseSerializer
 from .scryfall import scryfall_query_string_for_card_names, scryfall_link_for_query
+
+_T = TypeVar('_T', bound=Model)
 
 
 class ScryfallLinkMixin:
@@ -25,19 +27,19 @@ class ScryfallLinkMixin:
                 return format_html('<a href="{}" target="_blank">Show card{} on scryfall</a>', link, plural)
 
 
-class PreSaveManager(Manager):
+class PreSaveManager(Manager[_T]):
     use_in_migrations = True
 
-    def bulk_create(self, objs: Iterable['PreSaveModelMixin'], skip_pre_save=False, *args, **kwargs) -> List:
+    def bulk_create(self, objs: Iterable[_T], skip_pre_save=False, *args, **kwargs) -> List[_T]:  # type: ignore[override]
         if not skip_pre_save:
             for obj in objs:
-                obj.pre_save()
+                obj.pre_save()  # type: ignore[attr-defined]
         return super().bulk_create(objs, *args, **kwargs)
 
-    def bulk_update(self, objs: Iterable['PreSaveModelMixin'], fields: Sequence[str], skip_pre_save=False, *args, **kwargs) -> int:
+    def bulk_update(self, objs: Iterable[_T], fields: Sequence[str], skip_pre_save=False, *args, **kwargs) -> int:  # type: ignore[override]
         if not skip_pre_save:
             for obj in objs:
-                obj.pre_save()
+                obj.pre_save()  # type: ignore[attr-defined]
         return super().bulk_update(objs, fields, *args, **kwargs)
 
 
@@ -57,7 +59,7 @@ class PreSaveModelMixin(Model):
         base_manager_name = 'objects'
 
 
-class PreSaveSerializedManager(PreSaveManager):
+class PreSaveSerializedManager(PreSaveManager[_T]):
     def get_queryset(self) -> QuerySet:
         return super().get_queryset().defer('serialized')
 
@@ -68,7 +70,7 @@ class PreSaveSerializedManager(PreSaveManager):
         for obj in objs:
             obj.pre_save()
             obj.update_serialized(serializer)
-        return super(Manager, self).bulk_update(objs, *args, fields=fields, **kwargs)
+        return super(Manager, self).bulk_update(objs, *args, fields=fields, **kwargs)  # type: ignore[misc]
 
 
 class SerializedObjectsManager(Manager):
@@ -77,7 +79,7 @@ class SerializedObjectsManager(Manager):
 
 
 class PreSaveSerializedModelMixin(PreSaveModelMixin):
-    objects = PreSaveSerializedManager()
+    objects = PreSaveSerializedManager()  # type: ignore[misc]
     serialized_objects = SerializedObjectsManager()
     serialized = JSONField(null=True, blank=True, editable=False)
 

@@ -14,7 +14,7 @@ def bracket_filter(qv: QueryValue) -> VariantFilterCollection:
     else:
         bracket_tag = BRACKET_TAG_MAPPING.get(qv.value.lower())
         if not bracket_tag:
-            raise ValidationError(f'Value {qv.value} is not supported for bracket search. Choose one of the following: {", ".join(Variant.BracketTag.labels)}.')
+            raise ValidationError(f'Value {qv.value} is not supported for bracket search. Choose one of the following: {", ".join(map(str, Variant.BracketTag.labels))}.')
     match qv.operator:
         case ':' | '=' if value_is_digit:
             q = Q(bracket=qv.value)

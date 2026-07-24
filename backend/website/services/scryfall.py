@@ -21,8 +21,8 @@ def scryfall(url: str) -> Deck | None:
     if result is None:
         return None
     try:
-        main = []
-        commanders = []
+        main: list[CardInDeck] = []
+        commanders: list[CardInDeck] = []
         for key, entries in result['entries'].items():
             if 'commander' in key.lower():
                 bucket = commanders

@@ -4,5 +4,5 @@ from .suggestions import SuggestionViewSet
 
 
 class VariantSuggestionViewSet(SuggestionViewSet):
-    queryset = VariantSuggestionSerializer.prefetch_related(VariantSuggestion.objects)
+    queryset = VariantSuggestionSerializer.prefetch_related(VariantSuggestion.objects.all())
     serializer_class = VariantSuggestionSerializer

@@ -40,11 +40,11 @@ def find_duplicate_combos(
     duplicate_combos_query = Combo.objects.all()
     cards_query = Combo.objects.all()
     for card_id, quantity in cards.items():
-        cards_query = cards_query.alias(cards=Sum('cardincombo__quantity', filter=Q(cardincombo__card_id=card_id))).filter(cards=quantity)
+        cards_query = cards_query.alias(matched_cards=Sum('cardincombo__quantity', filter=Q(cardincombo__card_id=card_id))).filter(matched_cards=quantity)
     duplicate_combos_query = duplicate_combos_query.filter(pk__in=cards_query)
     templates_query = Combo.objects.all()
     for template_id, quantity in templates.items():
-        templates_query = templates_query.alias(templates=Sum('templateincombo__quantity', filter=Q(templateincombo__template_id=template_id))).filter(templates=quantity)
+        templates_query = templates_query.alias(matched_templates=Sum('templateincombo__quantity', filter=Q(templateincombo__template_id=template_id))).filter(matched_templates=quantity)
     duplicate_combos_query = duplicate_combos_query.filter(pk__in=templates_query)
     features_query = Combo.objects.all()
     for feature_id, quantity in features_needed.items():
@@ -119,13 +119,13 @@ class ComboForm(SpellbookAdminForm):
 
 
 class CardInComboAdminInline(IngredientInCombinationAdmin):
-    fields = ['card', *IngredientInCombinationAdmin.fields]
+    fields = ['card', 'used_face', *IngredientInCombinationAdmin.fields]
     model = CardInCombo
     verbose_name = 'Card'
     verbose_name_plural = 'Required Cards'
     autocomplete_fields = ['card']
 
-    def get_extra(self, request: HttpRequest, obj, **kwargs: Any) -> int:
+    def get_extra(self, request: HttpRequest, obj: Combo | None = None, **kwargs: Any) -> int:
         result = super().get_extra(request, obj, **kwargs)
         if hasattr(request, 'from_suggestion') and request.from_suggestion is not None:  # type: ignore
             result += len(request.from_suggestion.uses_dict)  # type: ignore
@@ -139,7 +139,7 @@ class TemplateInComboAdminInline(IngredientInCombinationAdmin):
     verbose_name_plural = 'Required Templates'
     autocomplete_fields = ['template']
 
-    def get_extra(self, request: HttpRequest, obj, **kwargs: Any) -> int:
+    def get_extra(self, request: HttpRequest, obj: Combo | None = None, **kwargs: Any) -> int:
         result = super().get_extra(request, obj, **kwargs)
         if hasattr(request, 'from_suggestion') and request.from_suggestion is not None:  # type: ignore
             result += len(request.from_suggestion.requires_dict)  # type: ignore
@@ -159,7 +159,7 @@ class FeatureNeededInComboAdminInline(IngredientAdmin):
     verbose_name_plural = 'Required Features'
     autocomplete_fields = ['feature', 'any_of_attributes', 'all_of_attributes', 'none_of_attributes']
 
-    def get_extra(self, request: HttpRequest, obj, **kwargs: Any) -> int:
+    def get_extra(self, request: HttpRequest, obj: Combo | None = None, **kwargs: Any) -> int:
         result = super().get_extra(request, obj, **kwargs)
         if hasattr(request, 'from_suggestion') and request.from_suggestion is not None:  # type: ignore
             result += len(request.from_suggestion.needs_dict)  # type: ignore
@@ -178,7 +178,7 @@ class FeatureProducedInComboAdminInline(admin.TabularInline):
     verbose_name_plural = 'Produced Features'
     autocomplete_fields = ['feature', 'attributes']
 
-    def get_extra(self, request: HttpRequest, obj, **kwargs: Any) -> int:
+    def get_extra(self, request: HttpRequest, obj: Combo | None = None, **kwargs: Any) -> int:
         result = super().get_extra(request, obj, **kwargs)
         if hasattr(request, 'from_suggestion') and request.from_suggestion is not None:  # type: ignore
             result += len(request.from_suggestion.produces_dict)  # type: ignore
@@ -206,7 +206,7 @@ class PayoffFilter(CustomFilter):
     def lookups(self, request, model_admin):
         return [(True, 'Yes'), (False, 'No')]
 
-    def filter(self, value: data_type) -> Q:
+    def filter(self, value: bool) -> Q:
         return Q(
             pk__in=Combo.objects.alias(
                 needs_utility_count=Count('needs', distinct=True, filter=Q(needs__status__in=(Feature.Status.HIDDEN_UTILITY, Feature.Status.PUBLIC_UTILITY))),
@@ -286,7 +286,7 @@ class ComboAdmin(SpellbookModelAdmin):
             fieldsets = fieldsets[1:]
         return fieldsets
 
-    def get_changeform_initial_data(self, request: HttpRequest) -> dict[str, str]:
+    def get_changeform_initial_data(self, request: HttpRequest) -> dict[str, str | list[str]]:
         initial_data = super().get_changeform_initial_data(request)
         from_suggestion_id = request.GET.get('from_variant_suggestion', None)
         parent_feature = request.GET.get('parent_feature', None)
@@ -302,14 +302,14 @@ class ComboAdmin(SpellbookModelAdmin):
                 # Handle suggested produced features
                 suggested_produced_features = list[str](from_suggestion.produces.values_list('feature', flat=True))
                 found_produced_features = {f.name: f for f in Feature.objects.filter(name__in=suggested_produced_features)}
-                for f in suggested_produced_features:
-                    if f not in found_produced_features:
+                for feature_name in suggested_produced_features:
+                    if feature_name not in found_produced_features:
                         add_feature_link = reverse('admin:spellbook_feature_add') + '?' + urlencode({
-                            'name': f,
+                            'name': feature_name,
                             'status': Feature.Status.HELPER,
                         })
                         messages.warning(request, mark_safe(
-                            f'Could not find produced feature "{f}" in database. {create_missing_object_message(add_feature_link)}'
+                            f'Could not find produced feature "{feature_name}" in database. {create_missing_object_message(add_feature_link)}'
                         ))
                 request.from_suggestion.suggested_produced_features = suggested_produced_features  # type: ignore
                 request.from_suggestion.produces_dict = found_produced_features  # type: ignore
@@ -432,12 +432,12 @@ class ComboAdmin(SpellbookModelAdmin):
                             'feature': suggestion_name_to_feature_id[suggested_feature],
                         })
         if not obj.id and hasattr(request, 'parent_feature') and request.parent_feature is not None and isinstance(inline, FeatureNeededInComboAdminInline):  # type: ignore
-            initial: list = formset_kwargs.setdefault('initial', [])
+            initial = formset_kwargs.setdefault('initial', [])
             initial.append({
                 'feature': request.parent_feature.pk,  # type: ignore
             })
         if not obj.id and hasattr(request, 'child_feature') and request.child_feature is not None and isinstance(inline, FeatureProducedInComboAdminInline):  # type: ignore
-            initial: list = formset_kwargs.setdefault('initial', [])
+            initial = formset_kwargs.setdefault('initial', [])
             initial.append({
                 'feature': request.child_feature.pk,  # type: ignore
             })
@@ -453,10 +453,10 @@ class ComboAdmin(SpellbookModelAdmin):
             'needs__id',
         ):
             return True
-        return super().lookup_allowed(lookup, value, request)  # type: ignore for deprecated typing
+        return super().lookup_allowed(lookup, value, request)  # type: ignore  # deprecated typing
 
     def _create_formsets(self, request: HttpRequest, obj, change: bool):
-        formsets, inline_instances = super()._create_formsets(request, obj, change)  # type: ignore for private method
+        formsets, inline_instances = super()._create_formsets(request, obj, change)  # type: ignore  # private method
         if request.method == 'POST' and DUPLICATE_CONFIRMATION_INPUT_NAME not in request.POST:
             self.reject_duplicate_combo(request, obj, formsets)
         return formsets, inline_instances
@@ -492,7 +492,7 @@ class ComboAdmin(SpellbookModelAdmin):
             request.duplicate_combos_to_confirm = duplicate_combos  # type: ignore
 
     def _changeform_view(self, request: HttpRequest, object_id, form_url, extra_context):
-        response = super()._changeform_view(request, object_id, form_url, extra_context)  # type: ignore for private method
+        response = super()._changeform_view(request, object_id, form_url, extra_context)  # type: ignore  # private method
         duplicate_combos: list[int] | None = getattr(request, 'duplicate_combos_to_confirm', None)
         if duplicate_combos:
             if request.method == 'POST' and '_saveasnew' in request.POST:

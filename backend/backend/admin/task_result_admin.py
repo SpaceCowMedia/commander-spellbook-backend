@@ -24,8 +24,8 @@ class TaskNameFilter(admin.SimpleListFilter):
 @admin.register(DBTaskResult)
 class TaskResultAdmin(DBTaskResultAdmin):
     date_hierarchy = 'enqueued_at'
-    list_filter = ('status', TaskNameFilter)
-    list_display = (
+    list_filter = ('status', TaskNameFilter)  # type: ignore[assignment]
+    list_display = (  # type: ignore[assignment]
         'task_name',
         'status',
         'progress',

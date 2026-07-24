@@ -98,7 +98,7 @@ class FindMyCombosResponseSerializerExtension(OpenApiSerializerExtension):
 
 class FindMyCombosView(DecklistAPIView):
     action = 'list'
-    permission_classes = []
+    permission_classes: list = []
     parser_classes = [PlainTextDeckListParser, parsers.JSONParser]
     pagination_class = settings.api_settings.DEFAULT_PAGINATION_CLASS
     response = FindMyCombosResponseSerializer

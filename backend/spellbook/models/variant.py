@@ -14,7 +14,7 @@ from django.core.exceptions import ValidationError
 from .playable import Playable
 from .recipe import Recipe
 from .mixins import ScryfallLinkMixin, PreSaveSerializedModelMixin, PreSaveSerializedManager
-from .card import Card
+from .card import Card, WithUsedFace
 from .template import Template
 from .feature import Feature
 from .ingredient import IngredientInCombination, ZoneLocation
@@ -54,7 +54,7 @@ DEFAULT_VIEW_ORDERING = (models.F('popularity').desc(nulls_last=True), models.F(
 
 
 class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
-    objects: PreSaveSerializedManager
+    objects: PreSaveSerializedManager  # type: ignore[misc]
     recipes_prefetched = RecipePrefetchedManager()
 
     class Status(models.TextChoices):
@@ -84,7 +84,7 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
         return (cls.Status.DRAFT, cls.Status.NEEDS_REVIEW)
 
     id = models.CharField(max_length=128, primary_key=True, help_text='Unique ID for this variant', verbose_name='ID')
-    uses = models.ManyToManyField(
+    uses: 'models.ManyToManyField[Card, CardInVariant]' = models.ManyToManyField(
         to=Card,
         through='CardInVariant',
         related_name='used_in_variants',
@@ -92,7 +92,7 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
         editable=False,
     )
     cardinvariant_set: models.Manager['CardInVariant']
-    requires = models.ManyToManyField(
+    requires: 'models.ManyToManyField[Template, TemplateInVariant]' = models.ManyToManyField(
         to=Template,
         through='TemplateInVariant',
         related_name='required_by_variants',
@@ -101,7 +101,7 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
         verbose_name='required templates',
     )
     templateinvariant_set: models.Manager['TemplateInVariant']
-    produces = models.ManyToManyField(
+    produces: 'models.ManyToManyField[Feature, FeatureProducedByVariant]' = models.ManyToManyField(
         to=Feature,
         through='FeatureProducedByVariant',
         related_name='produced_by_variants',
@@ -109,7 +109,7 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
         editable=False,
     )
     featureproducedbyvariant_set: models.Manager['FeatureProducedByVariant']
-    includes = models.ManyToManyField(
+    includes: 'models.ManyToManyField[Combo, VariantIncludesCombo]' = models.ManyToManyField(
         to=Combo,
         through='VariantIncludesCombo',
         related_name='included_in_variants',
@@ -117,7 +117,7 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
         editable=False,
     )
     variantincludescombo_set: models.Manager['VariantIncludesCombo']
-    of = models.ManyToManyField(
+    of: 'models.ManyToManyField[Combo, VariantOfCombo]' = models.ManyToManyField(
         to=Combo,
         through='VariantOfCombo',
         related_name='variants',
@@ -228,7 +228,7 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
     def clean(self):
         super().clean()
         if not self.mana_needed and not self.is_mana_needed_an_accurate_minimum:
-            raise ValidationError(f'If {self._meta.get_field('mana_needed').verbose_name} is empty, {self._meta.get_field('is_mana_needed_an_accurate_minimum').verbose_name} must be True.')
+            raise ValidationError(f'If {self._meta.get_field('mana_needed').verbose_name} is empty, {self._meta.get_field('is_mana_needed_an_accurate_minimum').verbose_name} must be True.')  # pyright: ignore[reportAttributeAccessIssue]
 
     @dataclass(frozen=True)
     class Recipe:
@@ -338,10 +338,8 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
         return format_html('<a href="{}" target="_blank">{}</a>', link, text)
 
 
-class CardInVariant(IngredientInCombination):
+class CardInVariant(IngredientInCombination, WithUsedFace):
     id: int
-    card = models.ForeignKey(to=Card, on_delete=models.CASCADE)
-    card_id: int
     variant = models.ForeignKey(to=Variant, on_delete=models.CASCADE)
     variant_id: str
 

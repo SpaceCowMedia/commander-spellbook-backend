@@ -10,6 +10,7 @@ class CardSerializer(serializers.ModelSerializer):
             'name',
             'oracle_id',
             'spoiler',
+            'faces',
             'type_line',
             'image_uri_front_png',
             'image_uri_front_large',

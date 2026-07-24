@@ -84,7 +84,7 @@ class NodeWithoutState(Node):
         super().__init__(graph, item)
         self._variant_set = variant_set
 
-    @property
+    @property  # type: ignore[misc]
     def variant_set(self) -> VariantSet:
         return super().variant_set  # type: ignore
 
@@ -349,7 +349,7 @@ class Graph:
                         combo_node.features_needed.setdefault(feature_with_attributes_matcher_node.item.feature, Counter())[feature_with_attributes_matcher_node] = 1
                         feature_with_attributes_matcher_node.needed_by_combos[combo_node] = 1
                     else:
-                        combo_node.features_needed.setdefault(feature_with_attributes_matcher_node.item.feature, Counter())[feature_with_attributes_matcher_node] = combo_node.features_needed.get(feature_with_attributes_matcher_node.item.feature, {}).get(feature_with_attributes_matcher_node, 0) + feature_needed_by_combo.quantity
+                        combo_node.features_needed.setdefault(feature_with_attributes_matcher_node.item.feature, Counter())[feature_with_attributes_matcher_node] = combo_node.features_needed.get(feature_with_attributes_matcher_node.item.feature, {}).get(feature_with_attributes_matcher_node, 0) + feature_needed_by_combo.quantity  # type: ignore[call-overload]
                         feature_with_attributes_matcher_node.needed_by_combos[combo_node] = feature_with_attributes_matcher_node.needed_by_combos.get(combo_node, 0) + feature_needed_by_combo.quantity
         # Find matching feature with attributes nodes
         for feature_id, d in feature_attributes_matcher_nodes.items():
@@ -437,7 +437,7 @@ class Graph:
                 combo.variant_set = VariantSet(parameters=self.variant_set_parameters)
                 return combo.variant_set
             needed_features_variant_sets.append(variant_set)
-        variant_sets: list[VariantSet] = card_variant_sets + template_variant_sets + needed_features_variant_sets
+        variant_sets = card_variant_sets + template_variant_sets + needed_features_variant_sets
         variant_count_estimate = 1
         for vs in variant_sets:
             variant_count_estimate *= len(vs)
@@ -514,7 +514,7 @@ class Graph:
 
         # Process initial ingredients and build initial queue
         for ingredient, quantity in chain(cards.items(), templates.items()):
-            for combo in ingredient.combos:
+            for combo in ingredient.combos:  # type: ignore[attr-defined]
                 if combo.state is NodeState.NOT_VISITED:
                     if cards.issuperset(combo.cards) and templates.issuperset(combo.templates) or combo.variant_set:
                         combo.state = NodeState.VISITING
@@ -532,7 +532,7 @@ class Graph:
                     feature_count: int = 1
                     uncountable_feature_nodes.add(feature)
                 else:
-                    feature_count: int = quantity // cards_needed
+                    feature_count = quantity // cards_needed
                     countable_feature_nodes[feature] = countable_feature_nodes.get(feature, 0) + feature_count
                 replacements[feature.item].append(
                     VariantIngredients(
@@ -582,7 +582,7 @@ class Graph:
             if variant_set is not None:
                 variants_list = variant_set.variants()
                 replacements_for_combo = []
-                quantity: int = 0
+                quantity = 0
                 for cards_satisfying, templates_satisfying in variants_list:
                     replacements_for_combo.append(VariantIngredients(cards_satisfying, templates_satisfying))
                     count_for_cards: int | None = ingredients.cards // cards_satisfying if cards_satisfying else None
@@ -615,30 +615,30 @@ class Graph:
                                     feature_combo.state = NodeState.VISITED
         # Compute needed features and combos
         interesting_features = set[FeatureWithAttributes]()
-        for f in chain(countable_feature_nodes.keys(), uncountable_feature_nodes):
-            if not f.item.feature.is_utility:
-                interesting_features.add(f.item)
+        for fa_node in chain(countable_feature_nodes.keys(), uncountable_feature_nodes):
+            if not fa_node.item.feature.is_utility:
+                interesting_features.add(fa_node.item)
 
         # Build needed combo nodes set
         needed_combo_nodes = set[ComboNode]()
-        for c in combo_nodes:
-            for f in c.features_produced:
-                if f.item in interesting_features:
-                    needed_combo_nodes.add(c)
+        for combo_node in combo_nodes:
+            for fa_node in combo_node.features_produced:
+                if fa_node.item in interesting_features:
+                    needed_combo_nodes.add(combo_node)
                     break
 
         # Build needed feature of card nodes set
         needed_feature_of_card_nodes = set[FeatureOfCardNode]()
-        for f in feature_of_card_nodes:
-            if f.feature.item in interesting_features:
-                needed_feature_of_card_nodes.add(f)
+        for foc_node in feature_of_card_nodes:
+            if foc_node.feature.item in interesting_features:
+                needed_feature_of_card_nodes.add(foc_node)
 
         # Collect features needed by needed combos
         new_features_needed_by_needed_combos = set[FeatureWithAttributesMatcher]()
-        for c in needed_combo_nodes:
-            for features_needed in c.features_needed.values():
-                for f in features_needed:
-                    new_features_needed_by_needed_combos.add(f.item)
+        for combo_node in needed_combo_nodes:
+            for features_needed in combo_node.features_needed.values():
+                for fam_node in features_needed:
+                    new_features_needed_by_needed_combos.add(fam_node.item)
 
         # Iteratively expand interesting features until all needed features are satisfied
         while not satisfies(interesting_features, new_features_needed_by_needed_combos):
@@ -654,24 +654,24 @@ class Graph:
 
             # Find combos that produce the new features
             new_needed_combos = set[ComboNode]()
-            for c in combo_nodes:
-                for f in c.features_produced:
-                    if f.item in new_features_produced_by_needed_combos:
-                        new_needed_combos.add(c)
+            for combo_node in combo_nodes:
+                for fa_node in combo_node.features_produced:
+                    if fa_node.item in new_features_produced_by_needed_combos:
+                        new_needed_combos.add(combo_node)
                         break
             needed_combo_nodes.update(new_needed_combos)
 
             # Find feature of cards that produce the new features
-            for f in feature_of_card_nodes:
-                if f.feature.item in new_features_produced_by_needed_combos:
-                    needed_feature_of_card_nodes.add(f)
+            for foc_node in feature_of_card_nodes:
+                if foc_node.feature.item in new_features_produced_by_needed_combos:
+                    needed_feature_of_card_nodes.add(foc_node)
 
             # Update needed features for next iteration
             new_features_needed_by_needed_combos.clear()
-            for c in new_needed_combos:
-                for features_needed in c.features_needed.values():
-                    for f in features_needed:
-                        new_features_needed_by_needed_combos.add(f.item)
+            for combo_node in new_needed_combos:
+                for features_needed in combo_node.features_needed.values():
+                    for fam_node in features_needed:
+                        new_features_needed_by_needed_combos.add(fam_node.item)
         self._reset()
         # Return the recipe
         return VariantRecipe(

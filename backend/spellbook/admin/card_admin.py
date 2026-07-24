@@ -13,7 +13,7 @@ class ManagedByScryfallFilter(CustomFilter):
     def lookups(self, request, model_admin):
         return [(True, 'Yes'), (False, 'No')]
 
-    def filter(self, value: data_type) -> Q:
+    def filter(self, value: bool) -> Q:
         return Q(oracle_id__isnull=not value)
 
 
@@ -25,7 +25,7 @@ class CardTypeFilter(CustomFilter):
     def lookups(self, request, model_admin):
         return CardType.choices
 
-    def filter(self, value: data_type) -> Q:
+    def filter(self, value: str) -> Q:
         return Q(type_line__icontains=value)
 
 
@@ -39,7 +39,7 @@ class FeatureOfCardAdminInline(FeatureOfCardAdmin):
 class CardAdmin(SpellbookModelAdmin):
     readonly_fields = ['id', 'scryfall_link']
     scryfall_fields = ['oracle_id'] + Card.scryfall_fields()
-    fieldsets = [
+    fieldsets = [  # pyright: ignore[reportAssignmentType]
         ('Spellbook', {'fields': [
             'name',
             'id',
@@ -89,7 +89,7 @@ class CardAdmin(SpellbookModelAdmin):
             'replaces__id',
         ):
             return False
-        return super().lookup_allowed(lookup, value, request)  # type: ignore for deprecated typing
+        return super().lookup_allowed(lookup, value, request)  # type: ignore  # deprecated typing
 
     def get_readonly_fields(self, request, obj):
         readonly_fields = list(super().get_readonly_fields(request, obj))

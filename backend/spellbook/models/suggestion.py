@@ -21,7 +21,6 @@ class Suggestion(models.Model):
 
     class Meta:
         abstract = True
-        default_manager_name = 'objects'
         ordering = [
             models.Case(
                 *(models.When(status=s, then=models.Value(i)) for i, s in enumerate(('N', 'PA', 'AD', 'A', 'R'))),

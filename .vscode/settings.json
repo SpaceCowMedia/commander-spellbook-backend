@@ -25,15 +25,14 @@
     "python.analysis.typeCheckingMode": "basic",
     "python.analysis.diagnosticMode": "workspace",
     "python.analysis.exclude": [
-        "backend/*/migrations",
-        "client/python",
-        "docs/.venv-manim",
-        "docs/.manim-venv",
-        "**/venv",
-        "**/.venv",
+        "**/.*",
         "**/node_modules",
         "**/__pycache__",
-        ".git",
+        "**/venv",
+        "backend/*/migrations",
+        "client/python",
+        "bot",
+        "docs",
         "hidden/"
     ],
     "python.analysis.extraPaths": [
@@ -42,6 +41,13 @@
         "client/python"
     ],
     "python.analysis.autoImportCompletions": true,
+    // django-stubs types many always-populated Django attributes (e.g. ModelAdmin.fields) as
+    // `X | None`, so these two rules fire almost exclusively as false positives here. mypy (the
+    // authoritative checker) still flags any genuine None iteration/subscription.
+    "python.analysis.diagnosticSeverityOverrides": {
+        "reportOptionalIterable": "none",
+        "reportOptionalSubscript": "none"
+    },
     "flake8.cwd": "${workspaceFolder}/backend",
     "mypy-type-checker.cwd": "${workspaceFolder}/backend",
     "todo-tree.tree.scanMode": "workspace only",

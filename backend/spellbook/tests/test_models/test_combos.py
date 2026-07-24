@@ -1,10 +1,28 @@
+from django.core.exceptions import ValidationError
 from spellbook.tests.testing import SpellbookTestCaseWithSeeding
 from common.inspection import count_methods
-from spellbook.models import Combo, ZoneLocation
+from spellbook.models import Card, Combo, CardInCombo, ZoneLocation
 from urllib.parse import quote_plus
 
 
 class ComboTests(SpellbookTestCaseWithSeeding):
+    def test_used_face_validation(self):
+        single = Card.objects.create(name='Single Face Card', type_line='Instant')
+        dfc = Card.objects.create(name='Front // Back', type_line='Creature // Creature', faces=2)
+        combo = Combo.objects.create(status=Combo.Status.UTILITY)
+        # A used face on a single-faced card is not allowed
+        cic_single = CardInCombo(card=single, combo=combo, order=1, zone_locations=ZoneLocation.HAND, used_face=1)
+        with self.assertRaises(ValidationError):
+            cic_single.clean()
+        # A used face beyond the number of faces is not allowed
+        cic_out_of_range = CardInCombo(card=dfc, combo=combo, order=2, zone_locations=ZoneLocation.BATTLEFIELD, used_face=3)
+        with self.assertRaises(ValidationError):
+            cic_out_of_range.clean()
+        # A valid used face on a multi-faced card, as well as a blank one, are allowed
+        CardInCombo(card=dfc, combo=combo, order=3, zone_locations=ZoneLocation.BATTLEFIELD, used_face=2).clean()
+        CardInCombo(card=dfc, combo=combo, order=4, zone_locations=ZoneLocation.BATTLEFIELD, used_face=None).clean()
+        CardInCombo(card=single, combo=combo, order=5, zone_locations=ZoneLocation.HAND, used_face=None).clean()
+
     def test_combo_fields(self):
         c = Combo.objects.get(id=self.b1_id)
         self.assertEqual(c.description, 'a1')

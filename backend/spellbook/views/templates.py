@@ -5,6 +5,6 @@ from .filters import NameAndScryfallAutocompleteQueryFilter
 
 
 class TemplateViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = TemplateSerializer.prefetch_related(Template.objects)
+    queryset = TemplateSerializer.prefetch_related(Template.objects.all())
     serializer_class = TemplateSerializer
     filter_backends = [NameAndScryfallAutocompleteQueryFilter]

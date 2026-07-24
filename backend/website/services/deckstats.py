@@ -35,8 +35,8 @@ def deckstats(url: str) -> Deck | None:
             else:
                 for card in section['cards']:
                     if card['valid']:
-                        name: str = card['name']
-                        quantity: int = int(card['amount'] or 1)
+                        name = card['name']
+                        quantity = int(card['amount'] or 1)
                         if 'isCommander' in card and card['isCommander']:
                             commanders.append(CardInDeck(card=name, quantity=quantity))
                         else:

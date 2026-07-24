@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_VARIANTS_FILE_NAME = 'variants.json'
 
 
-@task(takes_context=True)
+@task(takes_context=True)  # type: ignore[arg-type]
 def export_variants_task(context: TaskContext, file: bool = False, s3: bool = False):
     if hasattr(context, 'metadata'):
         def progress(fraction: float):
@@ -58,7 +58,6 @@ def export_variants_task(context: TaskContext, file: bool = False, s3: bool = Fa
         logger.info(f'  Processed {min(i + DEFAULT_BATCH_SIZE, preview_variants_count)} / {preview_variants_count} preview variants')
         progress(current_progress / total_progress * preprocess_multiplier)
     del preview_variants_query
-    variants: list[dict | None]
     logger.info('Fetching and processing public variants from db...')
     progress(current_progress / total_progress * preprocess_multiplier)
     variants: list[dict | None] = [None] * public_variants_count

@@ -98,7 +98,7 @@ def scryfall(bulk_collection: str | None = None) -> Scryfall:
     with urlopen(req) as response:
         data = json.loads(response.read().decode())
         for card in data:
-            name: str = card['name']
+            name = card['name']
             paupercommander_legality = 'legal' if card['legality'] == 'Legal' else 'not_legal'
             paupercommander_commander_legality = 'legal' if card['isPauperCommander'] else 'not_legal'
             card_and_faces = [name]
@@ -205,6 +205,7 @@ def update_cards(cards: list[Card], scryfall: Scryfall, counts: dict[int, int], 
             card.spoiler = not card_in_db['reprint'] \
                 and datetime.datetime.strptime(card_in_db['released_at'], '%Y-%m-%d').date() > timezone.now().date()
             card.type_line = card_in_db['type_line']
+            card.faces = len(card_in_db['card_faces']) if len(card_in_db.get('card_faces', [])) > 1 else 1
             if 'card_faces' in card_in_db:
                 card.oracle_text = '\n\n'.join(face['oracle_text'] for face in card_in_db['card_faces'])
             else:

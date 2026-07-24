@@ -150,8 +150,8 @@ def merge_mana_costs(mana_costs: Iterable[str]) -> str:
             non_hybrid = list[str]()
             # Separate hybrid and non-hybrid symbols
             for symbol in symbols:
-                identity = COLORS.intersection(symbol)
-                match len(identity):
+                symbol_colors = COLORS.intersection(symbol)
+                match len(symbol_colors):
                     case 1:
                         non_hybrid.append(symbol)
                     case _:
@@ -288,9 +288,9 @@ def remove_duplicates_in_order_by(order_by: Iterable[str | F | OrderBy]) -> Gene
             name = o.removeprefix('-')
             o = F(name)
         elif isinstance(o, F):
-            name = o.name.removeprefix('-')
+            name = o.name.removeprefix('-')  # type: ignore[attr-defined]
         elif isinstance(o, OrderBy) and isinstance(o.expression, F):
-            name = o.expression.name.removeprefix('-')
+            name = o.expression.name.removeprefix('-')  # type: ignore[attr-defined]
         else:
             raise ValueError(f'Unknown order by type: {o}')
         if name not in seen:
@@ -305,10 +305,10 @@ def remove_random_from_order_by(order_by: Iterable[str | F | OrderBy]) -> Genera
                 continue
             o = F(o)
         elif isinstance(o, F):
-            if o.name == '?':
+            if o.name == '?':  # type: ignore[attr-defined]
                 continue
         elif isinstance(o, OrderBy) and isinstance(o.expression, F):
-            if o.expression.name == '?':
+            if o.expression.name == '?':  # type: ignore[attr-defined]
                 continue
         else:
             raise ValueError(f'Unknown order by type: {o}')

@@ -49,6 +49,7 @@ class CardInVariantRow:
     must_be_commander: bool
     order: int
     quantity: int
+    used_face: int | None
 
 
 @dataclass(frozen=True, slots=True)

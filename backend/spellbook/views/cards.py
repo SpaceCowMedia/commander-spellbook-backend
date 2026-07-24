@@ -6,7 +6,7 @@ from .filters import NameAutocompleteQueryFilter, OrderingFilterWithNullsLast
 
 
 class CardViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = CardDetailSerializer.prefetch_related(Card.objects)
+    queryset = CardDetailSerializer.prefetch_related(Card.objects.all())
     serializer_class = CardDetailSerializer
     ordering_fields = ['variant_count', 'name']
     filter_backends = [DjangoFilterBackend, NameAutocompleteQueryFilter, OrderingFilterWithNullsLast]

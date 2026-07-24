@@ -60,6 +60,7 @@ class Ingredient(models.Model):
     must_be_commander = models.BooleanField(default=False, help_text='Does the card have to be a commander?', verbose_name='must be commander')
 
     def clean(self):
+        super().clean()
         self.clean_data(vars(self))
 
     @classmethod

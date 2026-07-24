@@ -47,7 +47,7 @@ class EstimateBracketResultSerializer(serializers.Serializer):
 
 
 class EstimateBracketView(DecklistAPIView):
-    permission_classes = []
+    permission_classes: list = []
     parser_classes = [PlainTextDeckListParser, parsers.JSONParser]
     response = EstimateBracketResultSerializer
 

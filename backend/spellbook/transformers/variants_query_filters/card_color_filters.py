@@ -7,11 +7,10 @@ def card_color_filter(qv: QueryValue) -> VariantFilterCollection:
     color = ''
     not_in_color = ''
     if not value_is_digit:
-        color = parse_color(qv.value)
-        if color is None:
+        parsed_color = parse_color(qv.value)
+        if parsed_color is None:
             raise ValidationError(f'Invalid color: {qv.value}')
-        elif color == 'C':
-            color = ''
+        color = '' if parsed_color == 'C' else parsed_color
         for c in 'WUBRG':
             if c not in color:
                 not_in_color += c

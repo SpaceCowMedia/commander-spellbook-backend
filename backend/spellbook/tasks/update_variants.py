@@ -12,7 +12,7 @@ from .edhrec import update_variants, edhrec
 logger = logging.getLogger(__name__)
 
 
-@task(takes_context=True)
+@task(takes_context=True)  # type: ignore[arg-type]
 def update_variants_task(context: TaskContext):
     '''Updates variants using cards and EDHREC data'''
     if hasattr(context, 'metadata'):

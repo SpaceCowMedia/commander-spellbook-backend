@@ -10,7 +10,7 @@ from .scryfall import scryfall, update_cards
 logger = logging.getLogger(__name__)
 
 
-@task(takes_context=True)
+@task(takes_context=True)  # type: ignore[arg-type]
 def update_cards_task(context: TaskContext):
     '''Updates cards using Scryfall/EDHREC bulk data'''
     if hasattr(context, 'metadata'):

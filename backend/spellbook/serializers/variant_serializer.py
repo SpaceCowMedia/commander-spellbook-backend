@@ -62,6 +62,7 @@ class CardInVariantSerializer(IngredientInVariantSerializer):
             'graveyard_card_state',
             'must_be_commander',
             'quantity',
+            'used_face',
         ]
 
 

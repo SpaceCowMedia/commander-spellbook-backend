@@ -3,6 +3,8 @@ from django.db import models, connection
 from django.dispatch import receiver
 from django.db.models.signals import post_save
 from django.db.models.functions import Upper
+from django.core.validators import MinValueValidator
+from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.contrib.postgres.indexes import GinIndex, OpClass
 from .constants import MAX_CARD_NAME_LENGTH, MAX_MANA_NEEDED_LENGTH
 from .validators import MANA_VALIDATOR, TEXT_VALIDATORS
@@ -41,6 +43,7 @@ class Card(Playable, PreSaveModelMixin, ScryfallLinkMixin):
             'identity',
             'color',
             'spoiler',
+            'faces',
             'type_line',
             'oracle_text',
             'keywords',
@@ -64,6 +67,7 @@ class Card(Playable, PreSaveModelMixin, ScryfallLinkMixin):
             'image_uri_back_small',
             'image_uri_back_art_crop',
         ]
+    faces = models.PositiveSmallIntegerField(default=1, validators=[MinValueValidator(1)], help_text='Number of faces (subcards) this card is split into, such as double-faced cards, adventures, split cards and so on. 1 for normal cards.', verbose_name='number of faces of card')
     type_line = models.CharField(max_length=MAX_CARD_NAME_LENGTH, blank=True, verbose_name='type line of card')
     oracle_text = models.TextField(blank=True, verbose_name='oracle text of card')
     keywords = KeywordsField(verbose_name='oracle keywords of card')
@@ -86,7 +90,7 @@ class Card(Playable, PreSaveModelMixin, ScryfallLinkMixin):
     image_uri_back_small = models.URLField(blank=True, null=True, verbose_name='image URI of the back of the card in small format')
     image_uri_back_art_crop = models.URLField(blank=True, null=True, verbose_name='image URI of the back of the card art crop')
 
-    features = models.ManyToManyField(
+    features: 'models.ManyToManyField[Feature, FeatureOfCard]' = models.ManyToManyField(
         to=Feature,
         through='FeatureOfCard',
         related_name='cards',
@@ -119,6 +123,15 @@ class Card(Playable, PreSaveModelMixin, ScryfallLinkMixin):
 
     def cards(self):
         return [self.name] if self.name else []
+
+    def face_name(self, face: int | None) -> str:
+        '''Returns the name of the given 1-based face index, or the whole card name if the index is blank or out of range.'''
+        if face is None:
+            return self.name
+        names = self.name.split(' // ')
+        if 1 <= face <= len(names):
+            return names[face - 1]
+        return self.name
 
     def pre_save(self):
         self.name_unaccented = strip_accents(self.name)
@@ -197,10 +210,39 @@ def update_combo_fields(sender, instance, created, raw, **kwargs):
     Combo.objects.bulk_update(combos_to_save, fields=['name'], batch_size=DEFAULT_BATCH_SIZE)
 
 
-class FeatureOfCard(Ingredient, WithFeatureAttributes):
-    id: int
+class WithUsedFace(models.Model):
+    '''Mixin for models pointing to a Card, that allows to specify which face of a multi-faced card is used.'''
     card = models.ForeignKey(to=Card, on_delete=models.CASCADE)
     card_id: int
+
+    used_face = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        default=None,
+        validators=[MinValueValidator(1)],
+        help_text='For multi-faced cards (double-faced, adventures, split cards...), the 1-based index of the face actually used. Leave blank to use the whole card.',
+        verbose_name='used face',
+    )
+
+    class Meta:
+        abstract = True
+
+    def clean(self):
+        super().clean()
+        if self.used_face is None:
+            return
+        try:
+            card = self.card
+        except ObjectDoesNotExist:
+            return
+        if card is None or card.faces <= 1:
+            raise ValidationError({'used_face': 'A used face can only be specified for cards with more than one face.'})
+        if self.used_face > card.faces:
+            raise ValidationError({'used_face': f'The used face must be a number between 1 and {card.faces}.'})
+
+
+class FeatureOfCard(Ingredient, WithFeatureAttributes, WithUsedFace):
+    id: int
     mana_needed = models.CharField(blank=True, max_length=MAX_MANA_NEEDED_LENGTH, help_text='Mana needed for this card feature. Use the {1}{W}{U}{B}{R}{G}{B/P}... format.', validators=[MANA_VALIDATOR, *TEXT_VALIDATORS])
     easy_prerequisites = models.TextField(blank=True, help_text='Easily achievable prerequisites for this card feature.', validators=TEXT_VALIDATORS)
     notable_prerequisites = models.TextField(blank=True, help_text='Notable prerequisites for this card feature.', validators=TEXT_VALIDATORS)

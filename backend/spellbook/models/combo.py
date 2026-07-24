@@ -4,7 +4,7 @@ from django.dispatch import receiver
 from django.core.exceptions import ValidationError
 from .mixins import ScryfallLinkMixin
 from .recipe import Recipe
-from .card import Card
+from .card import Card, WithUsedFace
 from .feature import Feature
 from .template import Template
 from .ingredient import Ingredient, IngredientInCombination, ZoneLocationsField
@@ -40,7 +40,7 @@ class Combo(Recipe, ScryfallLinkMixin):
         NEEDS_REVIEW = 'NR'
 
     id: int
-    uses = models.ManyToManyField(
+    uses: 'models.ManyToManyField[Card, CardInCombo]' = models.ManyToManyField(
         to=Card,
         through='CardInCombo',
         related_name='used_in_combos',
@@ -49,7 +49,7 @@ class Combo(Recipe, ScryfallLinkMixin):
         verbose_name='used cards',
     )
     cardincombo_set: models.Manager['CardInCombo']
-    needs = models.ManyToManyField(
+    needs: 'models.ManyToManyField[Feature, FeatureNeededInCombo]' = models.ManyToManyField(
         to=Feature,
         through='FeatureNeededInCombo',
         related_name='needed_by_combos',
@@ -58,7 +58,7 @@ class Combo(Recipe, ScryfallLinkMixin):
         verbose_name='needed features',
     )
     featureneededincombo_set: models.Manager['FeatureNeededInCombo']
-    requires = models.ManyToManyField(
+    requires: 'models.ManyToManyField[Template, TemplateInCombo]' = models.ManyToManyField(
         to=Template,
         through='TemplateInCombo',
         related_name='required_by_combos',
@@ -67,7 +67,7 @@ class Combo(Recipe, ScryfallLinkMixin):
         verbose_name='required templates',
     )
     templateincombo_set: models.Manager['TemplateInCombo']
-    produces = models.ManyToManyField(
+    produces: 'models.ManyToManyField[Feature, FeatureProducedInCombo]' = models.ManyToManyField(
         to=Feature,
         through='FeatureProducedInCombo',
         related_name='produced_by_combos',
@@ -75,7 +75,7 @@ class Combo(Recipe, ScryfallLinkMixin):
         verbose_name='produced features',
     )
     featureproducedincombo_set: models.Manager['FeatureProducedInCombo']
-    removes = models.ManyToManyField(
+    removes: 'models.ManyToManyField[Feature, FeatureRemovedInCombo]' = models.ManyToManyField(
         to=Feature,
         through='FeatureRemovedInCombo',
         related_name='removed_by_combos',
@@ -125,13 +125,11 @@ class Combo(Recipe, ScryfallLinkMixin):
     def clean(self):
         super().clean()
         if not self.mana_needed and not self.is_mana_needed_an_accurate_minimum:
-            raise ValidationError(f'If {self._meta.get_field('mana_needed').verbose_name} is empty, {self._meta.get_field('is_mana_needed_an_accurate_minimum').verbose_name} must be True.')
+            raise ValidationError(f'If {self._meta.get_field('mana_needed').verbose_name} is empty, {self._meta.get_field('is_mana_needed_an_accurate_minimum').verbose_name} must be True.')  # pyright: ignore[reportAttributeAccessIssue]
 
 
-class CardInCombo(IngredientInCombination):
+class CardInCombo(IngredientInCombination, WithUsedFace):
     id: int
-    card = models.ForeignKey(to=Card, on_delete=models.CASCADE)
-    card_id: int
     combo = models.ForeignKey(to=Combo, on_delete=models.CASCADE)
     combo_id: int
 

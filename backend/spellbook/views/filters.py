@@ -63,7 +63,7 @@ class SpellbookQueryFilter(AbstractQueryFilter):
 
 
 class AutocompleteQueryFilter(AbstractQueryFilter):
-    fields = []
+    fields: list[str] = []
 
     def query_parser(self, queryset, search_terms):
         if search_terms == '?':
@@ -100,25 +100,24 @@ class OrderingFilterWithNullsLast(filters.OrderingFilter):
         ordering = self.get_ordering(request, queryset, view)
 
         if ordering:
-            ordering_with_nulls = []
+            ordering_with_nulls: list = []
             for field in ordering:
                 if isinstance(field, str):
                     field_name = field.lstrip('-')
                     if field_name == '?':
                         ordering_with_nulls.append('?')
                         continue
-                    nulls_last = True
+                    nulls_last: bool | None = True
                     try:
                         if not queryset.model._meta.get_field(field_name).null:
                             nulls_last = None
                     except FieldDoesNotExist:
                         pass
-                    f = F(field_name)
+                    expression = F(field_name)
                     if field.startswith('-'):
-                        f = f.desc(nulls_last=nulls_last)
+                        ordering_with_nulls.append(expression.desc(nulls_last=nulls_last))
                     else:
-                        f = f.asc(nulls_last=nulls_last)
-                    ordering_with_nulls.append(f)
+                        ordering_with_nulls.append(expression.asc(nulls_last=nulls_last))
                 else:
                     ordering_with_nulls.append(field)
             return queryset.order_by(*ordering_with_nulls)

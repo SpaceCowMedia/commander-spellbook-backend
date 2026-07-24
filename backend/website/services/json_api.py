@@ -18,4 +18,4 @@ def get(url: str, user_agent: str | None = None) -> dict | None:
             return None
         raise ValidationError('Error response from the website')
     except json.JSONDecodeError:
-        ValidationError('Invalid response from the website')
+        raise ValidationError('Invalid response from the website')

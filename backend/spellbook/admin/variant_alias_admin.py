@@ -16,13 +16,13 @@ class VariantAliasAdmin(admin.ModelAdmin):
     ]
     raw_id_fields = ['variant']
     list_filter = [
-        ('variant', admin.EmptyFieldListFilter)  # type: ignore for deprecated typing
+        ('variant', admin.EmptyFieldListFilter)  # type: ignore  # deprecated typing
     ]
 
     def get_queryset(self, request: HttpRequest) -> QuerySet[VariantAlias]:
         return super().get_queryset(request).select_related('variant')
 
-    def get_readonly_fields(self, request: HttpRequest, obj: VariantAlias | None = None) -> list[str] | tuple[VariantAlias, ...]:
+    def get_readonly_fields(self, request: HttpRequest, obj: VariantAlias | None = None) -> list[str]:
         readonly_fields = list(super().get_readonly_fields(request, obj))
         if obj:
             readonly_fields.append('id')

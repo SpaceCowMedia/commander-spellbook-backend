@@ -11,7 +11,7 @@ def set_faces_from_name(apps, schema_editor):
     cards = list(Card.objects.filter(name__contains=separator).only('id', 'name'))
     for card in cards:
         card.faces = card.name.count(separator) + 1
-    Card.objects.bulk_update(cards, ['faces'], batch_size=1000)
+    Card.objects.bulk_update(cards, ['faces'], batch_size=1000, skip_pre_save=True)
 
 
 class Migration(migrations.Migration):
@@ -41,5 +41,13 @@ class Migration(migrations.Migration):
             model_name='featureofcard',
             name='used_face',
             field=models.PositiveSmallIntegerField(blank=True, default=None, help_text='For multi-faced cards (double-faced, adventures, split cards...), the 1-based index of the face actually used. Leave blank to use the whole card.', null=True, validators=[django.core.validators.MinValueValidator(1)], verbose_name='used face'),
+        ),
+        migrations.AlterModelOptions(
+            name='variantsuggestion',
+            options={'ordering': [models.Case(models.When(status='N', then=models.Value(0)), models.When(status='PA', then=models.Value(1)), models.When(status='AD', then=models.Value(2)), models.When(status='A', then=models.Value(3)), models.When(status='R', then=models.Value(4)), default=models.Value(10)), 'created'], 'verbose_name': 'variant suggestion', 'verbose_name_plural': 'variant suggestions'},
+        ),
+        migrations.AlterModelOptions(
+            name='variantupdatesuggestion',
+            options={'ordering': [models.Case(models.When(status='N', then=models.Value(0)), models.When(status='PA', then=models.Value(1)), models.When(status='AD', then=models.Value(2)), models.When(status='A', then=models.Value(3)), models.When(status='R', then=models.Value(4)), default=models.Value(10)), 'created'], 'verbose_name': 'variant update suggestion', 'verbose_name_plural': 'variant update suggestions'},
         ),
     ]

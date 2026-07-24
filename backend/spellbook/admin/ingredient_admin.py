@@ -52,9 +52,9 @@ class IngredientAdmin(TabularInline):
 class FeatureOfCardAdmin(IngredientAdmin):
     related_field: str
     fields = [
-        'used_face',
         'attributes',
         IngredientAdmin.fields[0],  # pyright: ignore[reportGeneralTypeIssues]
+        'used_face',
         'mana_needed',
         *IngredientAdmin.fields[1:],
         'easy_prerequisites',
@@ -66,14 +66,6 @@ class FeatureOfCardAdmin(IngredientAdmin):
         CharField: {'widget': TextInput(attrs={'size': '12'})},
         TextField: {'widget': _textarea()},
     }
-
-    def get_fields(self, request: HttpRequest, obj: FeatureOfCard | Card | None = None):
-        fields = [self.related_field, *self.fields]
-        # On a card's change page the parent object is the Card itself: hide the used-face
-        # selector for cards that are not multi-faced, since it would never be applicable.
-        if isinstance(obj, Card) and obj.faces <= 1 and 'used_face' in fields:
-            fields.remove('used_face')
-        return fields
 
     def get_autocomplete_fields(self, request: HttpRequest):
         return [self.related_field, *self.autocomplete_fields]

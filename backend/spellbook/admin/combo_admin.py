@@ -119,7 +119,7 @@ class ComboForm(SpellbookAdminForm):
 
 
 class CardInComboAdminInline(IngredientInCombinationAdmin):
-    fields = ['card', 'used_face', *IngredientInCombinationAdmin.fields]
+    fields = ['card', IngredientInCombinationAdmin.fields[0], 'used_face', *IngredientInCombinationAdmin.fields[1:]]  # pyright: ignore[reportGeneralTypeIssues]
     model = CardInCombo
     verbose_name = 'Card'
     verbose_name_plural = 'Required Cards'

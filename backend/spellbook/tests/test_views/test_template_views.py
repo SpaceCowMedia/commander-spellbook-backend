@@ -31,3 +31,11 @@ class TemplateViewsTests(SpellbookTestCaseWithSeeding):
         result = json.loads(response.content, object_hook=json_to_python_lambda)
         self.assertEqual(result.id, self.t1_id)
         self.template_assertions(result)
+
+    def test_templates_replacements_filter(self):
+        response = self.client.get(reverse('templates-list') + '?replacements=' + str(self.c3_id), follow=True)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.get('Content-Type'), 'application/json')
+        result = json.loads(response.content, object_hook=json_to_python_lambda)
+        self.assertEqual(len(result.results), 1)
+        self.template_assertions(result.results[0])

@@ -19,7 +19,7 @@ from .ingredient_admin import IngredientAdmin
 
 class CardInVariantAdminInline(IngredientAdmin):
     readonly_fields = ['card_name']
-    fields = ['card_name', *IngredientAdmin.fields]
+    fields = ['card_name', IngredientAdmin.fields[0], 'used_face', *IngredientAdmin.fields[1:]]  # pyright: ignore[reportGeneralTypeIssues]
     model = CardInVariant
     verbose_name = 'Card'
     verbose_name_plural = 'Cards'

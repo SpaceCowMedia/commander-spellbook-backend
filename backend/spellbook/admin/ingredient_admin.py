@@ -71,5 +71,5 @@ class FeatureOfCardAdmin(IngredientAdmin):
         return [self.related_field, *self.autocomplete_fields]
 
 
-class IngredientInCombinationAdmin(IngredientAdmin, SortableTabularInline):
+class SortableIngredientAdmin(IngredientAdmin, SortableTabularInline):
     pass

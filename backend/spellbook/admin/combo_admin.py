@@ -18,7 +18,7 @@ from django.tasks import TaskResult
 from spellbook.models import Card, FeatureNeededInCombo, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion
 from spellbook.tasks import generate_variants_task
 from .utils import SpellbookModelAdmin, SpellbookAdminForm, CustomFilter, IngredientCountListFilter
-from .ingredient_admin import IngredientAdmin, IngredientInCombinationAdmin
+from .ingredient_admin import IngredientAdmin, SortableIngredientAdmin
 
 
 DUPLICATE_CONFIRMATION_INPUT_NAME = '_confirm_duplicate'
@@ -118,8 +118,8 @@ class ComboForm(SpellbookAdminForm):
         }
 
 
-class CardInComboAdminInline(IngredientInCombinationAdmin):
-    fields = ['card', IngredientInCombinationAdmin.fields[0], 'used_face', *IngredientInCombinationAdmin.fields[1:]]  # pyright: ignore[reportGeneralTypeIssues]
+class CardInComboAdminInline(SortableIngredientAdmin):
+    fields = ['card', SortableIngredientAdmin.fields[0], 'used_face', *SortableIngredientAdmin.fields[1:]]  # pyright: ignore[reportGeneralTypeIssues]
     model = CardInCombo
     verbose_name = 'Card'
     verbose_name_plural = 'Required Cards'
@@ -132,8 +132,8 @@ class CardInComboAdminInline(IngredientInCombinationAdmin):
         return result
 
 
-class TemplateInComboAdminInline(IngredientInCombinationAdmin):
-    fields = ['template', *IngredientInCombinationAdmin.fields]
+class TemplateInComboAdminInline(SortableIngredientAdmin):
+    fields = ['template', *SortableIngredientAdmin.fields]
     model = TemplateInCombo
     verbose_name = 'Template'
     verbose_name_plural = 'Required Templates'

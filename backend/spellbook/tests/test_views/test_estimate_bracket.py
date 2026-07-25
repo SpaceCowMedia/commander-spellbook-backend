@@ -5,6 +5,7 @@ from django.urls import reverse
 from rest_framework import status
 from common.inspection import json_to_python_lambda
 from spellbook.models import Card, Template, Variant, CardInVariant, Feature
+from spellbook.views.estimate_bracket import UnknownCommandersFilter
 from ..testing import SpellbookTestCaseWithSeeding
 
 
@@ -167,3 +168,17 @@ class EstimateBracketUnknownCommandersViewTests(SpellbookTestCaseWithSeeding):
                 combo = self._estimate(content_type, commanders=[self.commander_card])
                 self.assertTrue(combo.definitely_two_card)
                 self.assertTrue(combo.arguably_two_card)
+
+    def test_unknown_commanders_filter_in_browsable_api(self):
+        param = UnknownCommandersFilter.query_param
+        response = self.client.get(reverse('estimate-bracket'), headers={'accept': 'text/html'}, follow=True)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.get('Content-Type'), 'text/html; charset=utf-8')
+        content = response.content.decode()
+        self.assertIn('Unknown commanders', content)
+        self.assertIn(f'{param}=true', content)
+        self.assertIn(f'{param}=false', content)
+        self.assertNotIn('list-group-item active', content)
+        response = self.client.get(reverse('estimate-bracket'), headers={'accept': 'text/html'}, follow=True, query_params={param: 'true'})  # type: ignore
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('list-group-item active', response.content.decode())

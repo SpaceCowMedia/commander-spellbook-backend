@@ -1,3 +1,4 @@
+from djangorestframework_camel_case.render import CamelCaseJSONRenderer
 from rest_framework import parsers, serializers
 from rest_framework.response import Response
 from rest_framework.request import Request
@@ -5,7 +6,8 @@ from drf_spectacular.utils import extend_schema, OpenApiParameter
 from spellbook.models import Card, Template, Variant, estimate_bracket
 from spellbook.serializers import CardSerializer, TemplateSerializer, VariantSerializer, BracketTagSerializer
 from website.views import PlainTextDeckListParser
-from .utils import DecklistAPIView, find_variants
+from .filters import AbstractBooleanFilter
+from .utils import DecklistAPIView, FilterFormBrowsableAPIRenderer, find_variants
 
 
 class ClassifiedCardSerializer(serializers.Serializer):
@@ -46,24 +48,33 @@ class EstimateBracketResultSerializer(serializers.Serializer):
     combos = serializers.ListField(child=ClassifiedVariantSerializer())
 
 
+class UnknownCommandersFilter(AbstractBooleanFilter):
+    query_param = 'unknown_commanders'
+    title = 'Unknown commanders'
+    description = 'When true, an empty commander list is treated as unknown commanders instead of no commanders.'
+    enabled_label = 'Treat missing commanders as unknown'
+    disabled_label = 'Treat missing commanders as absent'
+
+
 class EstimateBracketView(DecklistAPIView):
     permission_classes: list = []
     parser_classes = [PlainTextDeckListParser, parsers.JSONParser]
+    renderer_classes = [CamelCaseJSONRenderer, FilterFormBrowsableAPIRenderer]
+    filter_backends = [UnknownCommandersFilter]
     response = EstimateBracketResultSerializer
-    unknown_commanders_query_param = 'unknown_commanders'
     parameters = [
         OpenApiParameter(
-            name=unknown_commanders_query_param,
+            name=UnknownCommandersFilter.query_param,
             type=bool,
             required=False,
-            description='When true, an empty commander list is treated as unknown commanders instead of no commanders.',
+            description=UnknownCommandersFilter.description,
         ),
     ]
 
     @extend_schema(request=DecklistAPIView.request, parameters=parameters, responses=response)
     def get(self, request: Request) -> Response:
         deck = self.parse(request)
-        unknown_commanders = request.query_params.get(self.unknown_commanders_query_param, 'false').lower() == 'true'
+        unknown_commanders = UnknownCommandersFilter().is_enabled(request)
 
         commanders: set[Card | Template] = set()
         cards: dict[Card, int] = {}

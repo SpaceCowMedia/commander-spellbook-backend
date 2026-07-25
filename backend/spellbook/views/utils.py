@@ -5,6 +5,8 @@ from common.serializers import CardInDeck as RawCardInDeck
 from common.abstractions import Deck as RawDeck
 from django.db.models import F, Sum, Case, When, Count
 from django.db.models.functions import Coalesce, Greatest
+from django.template import loader
+from djangorestframework_camel_case.render import CamelCaseBrowsableAPIRenderer
 from rest_framework import parsers
 from rest_framework.views import APIView
 from rest_framework.request import Request
@@ -76,6 +78,24 @@ def deck_from_raw(raw_deck: RawDeck, cards_id_dict: dict[str, int], identity_dic
     cards = main.union(commanders)
     identity = merge_color_identities(identity_dict[id] for id in cards.distinct_elements() if id in identity_dict)
     return Deck(main=FrozenMultiset(main), commanders=FrozenMultiset(commanders), identity=identity)
+
+
+class FilterFormBrowsableAPIRenderer(CamelCaseBrowsableAPIRenderer):
+    '''
+    The default renderer only builds the filter form for list views backed by a queryset,
+    so plain API views need their filter backends to be rendered here instead.
+    '''
+
+    def get_filter_form(self, data, view, request):
+        elements = [
+            html
+            for backend in getattr(view, 'filter_backends', [])
+            if hasattr(backend, 'to_html') and (html := backend().to_html(request, None, view))
+        ]
+        if not elements:
+            return None
+        template = loader.get_template(self.filter_template)
+        return template.render({'elements': elements})
 
 
 class DecklistAPIView(APIView):

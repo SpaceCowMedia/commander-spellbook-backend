@@ -3,6 +3,7 @@ from django.core.exceptions import FieldDoesNotExist, ValidationError as DjangoV
 from django.template import loader
 from rest_framework import filters
 from rest_framework.exceptions import ValidationError
+from rest_framework.request import Request
 from django.utils.encoding import force_str
 from spellbook.transformers.variants_query_transformer import variants_query_parser
 
@@ -93,6 +94,55 @@ class NameAndDescriptionAutocompleteQueryFilter(AutocompleteQueryFilter):
 
 class NameAndScryfallAutocompleteQueryFilter(AutocompleteQueryFilter):
     fields = ['name', 'scryfall_query']
+
+
+class AbstractBooleanFilter(filters.BaseFilterBackend):
+    '''
+    A filter backend for a boolean query parameter that the view reads on its own,
+    leaving the queryset untouched.
+    '''
+    query_param = 'enabled'
+    template = 'spellbook/filters/boolean.html'
+    title = 'Enabled'
+    description = 'A boolean flag.'
+    enabled_label = 'Enabled'
+    disabled_label = 'Disabled'
+
+    def get_current_value(self, request: Request) -> str | None:
+        return request.query_params.get(self.query_param)
+
+    def is_enabled(self, request: Request) -> bool:
+        return (self.get_current_value(request) or '').lower() == 'true'
+
+    def filter_queryset(self, request, queryset, view):
+        return queryset
+
+    def to_html(self, request, queryset, view):
+        context = {
+            'request': request,
+            'title': force_str(self.title),
+            'current': self.get_current_value(request),
+            'param': self.query_param,
+            'options': [
+                ('true', force_str(self.enabled_label)),
+                ('false', force_str(self.disabled_label)),
+            ]
+        }
+        template = loader.get_template(self.template)
+        return template.render(context)
+
+    def get_schema_operation_parameters(self, view):
+        return [
+            {
+                'name': self.query_param,
+                'required': False,
+                'in': 'query',
+                'description': force_str(self.description),
+                'schema': {
+                    'type': 'boolean',
+                },
+            },
+        ]
 
 
 class OrderingFilterWithNullsLast(filters.OrderingFilter):

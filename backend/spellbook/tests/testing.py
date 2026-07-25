@@ -235,7 +235,7 @@ class SpellbookTestCaseWithSeeding(SpellbookTestCase):
         b1 = Combo.objects.create(mana_needed='{W}{W}', is_mana_needed_an_accurate_minimum=True, easy_prerequisites='Some easy requisites.', notable_prerequisites='Some notable requisites.', description='a1', status=Combo.Status.GENERATOR, notes='aa1', comment='***1')
         b2 = Combo.objects.create(mana_needed='{U}{U}', is_mana_needed_an_accurate_minimum=True, easy_prerequisites='Some easy requisites.', notable_prerequisites='Some notable requisites.', description='b2', status=Combo.Status.GENERATOR, notes='bb2', comment='***2')
         b3 = Combo.objects.create(mana_needed='{B}{B}', notable_prerequisites='Some requisites.', description='c3', status=Combo.Status.UTILITY, notes='cc3', comment='***3')
-        b4 = Combo.objects.create(mana_needed='{R}{R}', notable_prerequisites='Some requisites.', description='d4', status=Combo.Status.GENERATOR, notes='dd4', comment='***4')
+        b4 = Combo.objects.create(mana_needed='{R}{R}', is_mana_needed_an_accurate_minimum=False, notable_prerequisites='Some requisites.', description='d4', status=Combo.Status.GENERATOR, notes='dd4', comment='***4')
         b5 = Combo.objects.create(mana_needed='{G}{G}', notable_prerequisites='Some requisites.', description='e5', status=Combo.Status.UTILITY, notes='ee5', comment='***5')
         b6 = Combo.objects.create(mana_needed='{W}{U}{B}{R}{G}', notable_prerequisites='Some requisites.', description='f6', status=Combo.Status.GENERATOR, allow_many_cards=True, notes='ff6', comment='***6')
         b7 = Combo.objects.create(mana_needed='{W}{U}{B}{R}{G}', notable_prerequisites='Some requisites.', description='g7', status=Combo.Status.DRAFT, notes='gg7', comment='***7')

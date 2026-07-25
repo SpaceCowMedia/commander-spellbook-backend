@@ -85,7 +85,7 @@ class Combo(Recipe, ScryfallLinkMixin):
     )
     featureremovedincombo_set: models.Manager['FeatureRemovedInCombo']
     mana_needed = models.CharField(blank=True, max_length=MAX_MANA_NEEDED_LENGTH, help_text='Mana needed for this combo. Use the {1}{W}{U}{B}{R}{G}{B/P}... format.', validators=[MANA_VALIDATOR, *TEXT_VALIDATORS])
-    is_mana_needed_an_accurate_minimum = models.BooleanField(default=False, help_text='Does the first mana cost in this field represent the MINIMUM needed to start the combo, ignoring all other text?')
+    is_mana_needed_an_accurate_minimum = models.BooleanField(default=True, help_text='Does the first mana cost in this field represent the MINIMUM needed to start the combo, ignoring all other text?')
     easy_prerequisites = models.TextField(blank=True, help_text='Easily achievable prerequisites for this combo.', validators=TEXT_VALIDATORS)
     notable_prerequisites = models.TextField(blank=True, help_text='Notable prerequisites for this combo.', validators=TEXT_VALIDATORS)
     description = models.TextField(blank=True, help_text='Long description of the combo, in steps. Here and in every other text field you can reference feature replacements with the [[name]] syntax. Optionally, you can also give it an alias to use later with [[name|alias]] and/or select one of the multiple copies with [[name$number]].', validators=TEXT_VALIDATORS)

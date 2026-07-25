@@ -42,6 +42,16 @@ class Migration(migrations.Migration):
             name='used_face',
             field=models.PositiveSmallIntegerField(blank=True, default=None, help_text='For multi-faced cards (double-faced, adventures, split cards...), the 1-based index of the face actually used. Leave blank to use the whole card.', null=True, validators=[django.core.validators.MinValueValidator(1)], verbose_name='used face'),
         ),
+        migrations.AlterField(
+            model_name='combo',
+            name='is_mana_needed_an_accurate_minimum',
+            field=models.BooleanField(default=True, help_text='Does the first mana cost in this field represent the MINIMUM needed to start the combo, ignoring all other text?'),
+        ),
+        migrations.AlterField(
+            model_name='variant',
+            name='is_mana_needed_an_accurate_minimum',
+            field=models.BooleanField(default=True, help_text='Does the first mana cost in this field represent the MINIMUM needed to start the combo, ignoring all other text?'),
+        ),
         migrations.AlterModelOptions(
             name='variantsuggestion',
             options={'ordering': [models.Case(models.When(status='N', then=models.Value(0)), models.When(status='PA', then=models.Value(1)), models.When(status='AD', then=models.Value(2)), models.When(status='A', then=models.Value(3)), models.When(status='R', then=models.Value(4)), default=models.Value(10)), 'created'], 'verbose_name': 'variant suggestion', 'verbose_name_plural': 'variant suggestions'},

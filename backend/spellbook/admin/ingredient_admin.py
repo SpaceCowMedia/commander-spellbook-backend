@@ -3,7 +3,7 @@ from django.db.models import TextField, CharField
 from django.forms import TextInput, Textarea
 from adminsortable2.admin import SortableTabularInline
 from django.http import HttpRequest
-from spellbook.models import ZoneLocation, FeatureOfCard, Card
+from spellbook.models import ZoneLocation, FeatureOfCard
 from .utils import SpellbookAdminForm
 
 

@@ -67,6 +67,9 @@ class FeatureOfCardAdmin(IngredientAdmin):
         TextField: {'widget': _textarea()},
     }
 
+    def get_fields(self, request: HttpRequest, obj: FeatureOfCard | None = None):
+        return [self.related_field, *self.fields]
+
     def get_autocomplete_fields(self, request: HttpRequest):
         return [self.related_field, *self.autocomplete_fields]
 

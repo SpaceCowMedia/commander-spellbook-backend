@@ -1,11 +1,15 @@
 import json
+import gzip
 import datetime
+from unittest.mock import patch
 from django.utils import timezone
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.tasks import TaskResult, TaskResultStatus
-from spellbook.models import Variant
+from multiprocessing_utils import split_into_chunks
+from spellbook.models import Variant, VariantAlias
 from spellbook.tasks import combo_of_the_day_task, generate_variants_task, export_variants_task, DEFAULT_VARIANTS_FILE_NAME
+from spellbook.tasks.export_variants import build_document, export_variants_chunk, export_variant_aliases_chunk
 from website.models import COMBO_OF_THE_DAY_PROPERTY, WebsiteProperty
 from .testing import SpellbookTestCaseWithSeeding
 from spellbook.models import id_from_cards_and_templates_ids
@@ -61,6 +65,34 @@ class TasksTest(SpellbookTestCaseWithSeeding):
                     with open(file_path) as f:
                         data = json.load(f)
                     self.assertEqual(len(data['variants']), Variant.objects.count())
+
+    def test_export_variants_in_multiple_batches(self):
+        super().generate_and_publish_variants()
+        file_path = settings.STATIC_BULK_FOLDER / DEFAULT_VARIANTS_FILE_NAME
+        expected_ids = list(Variant.objects.filter(status__in=Variant.public_statuses()).values_list('id', flat=True))
+        self.assertGreater(len(expected_ids), 1)
+        with patch('spellbook.tasks.export_variants.DEFAULT_BATCH_SIZE', 1):
+            result: TaskResult = export_variants_task.enqueue(file=True, s3=False)
+        self.assertTrue(result.is_finished)
+        self.assertEqual(result.status, TaskResultStatus.SUCCESSFUL)
+        with open(file_path) as f:
+            data = json.load(f)
+        self.assertEqual([variant['id'] for variant in data['variants']], expected_ids)
+        with gzip.open(str(file_path) + '.gz', mode='rt', encoding='utf8') as fz:
+            self.assertEqual(json.load(fz), data)
+
+    def test_export_variants_chunks_assembly(self):
+        super().generate_and_publish_variants()
+        variants_ids = list(Variant.objects.filter(status__in=Variant.public_statuses()).values_list('id', flat=True))
+        aliases_ids = list(VariantAlias.objects.values_list('id', flat=True))
+        # Reassembles the document the very way the forked workers of a parallel export do
+        document = json.loads(''.join(build_document(
+            [export_variants_chunk(chunk) for chunk in split_into_chunks(variants_ids, 3)],
+            [export_variant_aliases_chunk(chunk) for chunk in split_into_chunks(aliases_ids, 3)],
+        )))
+        self.assertEqual([variant['id'] for variant in document['variants']], variants_ids)
+        self.assertEqual([alias['id'] for alias in document['aliases']], aliases_ids)
+        self.assertEqual(document['version'], settings.VERSION)
 
     def test_notify(self):
         # The only meaningful test is to check that discord utils are available

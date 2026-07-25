@@ -1,6 +1,4 @@
 import os
-import json
-import gzip
 import logging
 
 BUCKET = os.environ.get('AWS_S3_BUCKET', None)
@@ -18,7 +16,7 @@ def can_upload_to_s3() -> bool:
     return BUCKET is not None
 
 
-def upload_json_to_aws(data, s3_file_name: str):
+def _put_object(body: bytes, s3_file_name: str, **extra_args) -> None:
     try:
         import boto3
         from botocore.exceptions import NoCredentialsError
@@ -27,26 +25,13 @@ def upload_json_to_aws(data, s3_file_name: str):
         raise
     try:
         s3 = boto3.client('s3')
-
-        string_object = json.dumps(data)
-
         s3.put_object(
-            Body=string_object,
+            Body=body,
             Bucket=BUCKET,
             Key=s3_file_name,
             ACL='public-read',
-            ContentType='application/json'
-        )
-
-        gzip_object = gzip.compress(string_object.encode('utf-8'))
-
-        s3.put_object(
-            Body=gzip_object,
-            Bucket=BUCKET,
-            Key=s3_file_name + '.gz',
-            ACL='public-read',
-            ContentEncoding='gzip',
-            ContentType='application/json'
+            ContentType='application/json',
+            **extra_args,
         )
     except NoCredentialsError:
         logging.exception('Credentials not available', stack_info=True)
@@ -54,3 +39,13 @@ def upload_json_to_aws(data, s3_file_name: str):
     except Exception:
         logging.exception('Amazon S3 client raised an exception', stack_info=True)
         raise
+
+
+def upload_json_to_aws(json_string: str, s3_file_name: str) -> None:
+    '''Uploads an already encoded JSON document to the S3 bucket.'''
+    _put_object(json_string.encode('utf-8'), s3_file_name)
+
+
+def upload_gzipped_json_to_aws(gzipped_json: bytes, s3_file_name: str) -> None:
+    '''Uploads an already encoded and compressed JSON document to the S3 bucket.'''
+    _put_object(gzipped_json, s3_file_name, ContentEncoding='gzip')

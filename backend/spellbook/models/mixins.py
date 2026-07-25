@@ -69,7 +69,8 @@ class PreSaveSerializedManager(PreSaveManager[_T]):
             fields.append('serialized')
         for obj in objs:
             obj.pre_save()
-            obj.update_serialized(serializer)
+        for obj, data in zip(objs, serializer(objs, many=True).data):
+            obj.serialized = dict(data)
         return super(Manager, self).bulk_update(objs, *args, fields=fields, **kwargs)  # type: ignore[misc]
 
 

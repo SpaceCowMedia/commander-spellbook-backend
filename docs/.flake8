@@ -11,7 +11,7 @@
 #   E702      paired teardown calls             (unfocus(...); pop_call())
 #   W503/W504 line breaks around binary operators
 #
-# Note: CI only lints backend/, common/ and bot/ (see .github/workflows/ci.yml);
+# Note: only backend/, common/ and bot/ are linted (see .pre-commit-config.yaml);
 # this config keeps local and editor runs quiet for the docs scripts.
 max-line-length = 300
 extend-ignore =

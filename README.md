@@ -28,6 +28,25 @@ Anyone is welcome to contribute to Commander Spellbook. You can contribute in a 
 
 You can find the contribution guidelines for the backend [here](CONTRIBUTING.md).
 
+### Development setup
+
+Dependencies and environments are managed with [uv](https://docs.astral.sh/uv/); the repository root
+keeps a small `requirements.txt` holding the tooling that bootstraps everything else. From a fresh
+clone:
+
+```bash
+pip install -r requirements.txt   # uv + pre-commit
+pre-commit install                # git hooks: lint and type checks on commit, tests on push
+cd backend && uv sync             # create the backend .venv
+```
+
+The [pre-commit](https://pre-commit.com/) hooks run the same checks as the CI, so problems surface
+before you push rather than after a pipeline run. See
+[Git hooks](https://spacecowmedia.github.io/commander-spellbook-backend/getting-started/#git-hooks)
+for what runs when and how to skip a hook, and
+[Getting Started](https://spacecowmedia.github.io/commander-spellbook-backend/getting-started/) for
+the full walkthrough.
+
 ### Documentation
 
 You can read some Markdown documentation [here](https://spacecowmedia.github.io/commander-spellbook-backend/).

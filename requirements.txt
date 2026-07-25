@@ -1,9 +1,6 @@
 # Requirements for local development and testing.
 # CI and the Dockerfiles bootstrap uv from this file (`pip install uv -c requirements.txt`),
 # so any constraint on uv belongs here rather than being hardcoded elsewhere.
+# Everything else belongs in a project's pyproject.toml, installed with `uv sync`.
 uv
-flake8
-pydantic
-pytest-django
-django-debug-toolbar
-psycopg2
+pre-commit

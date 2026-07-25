@@ -42,8 +42,8 @@ rules:
   - apiGroups: ["batch"]
     resources: ["*"]
     verbs: ["*"]
-  - apiGroups: ["autoscaling"]              
-    resources: ["horizontalpodautoscalers"] 
+  - apiGroups: ["autoscaling"]
+    resources: ["horizontalpodautoscalers"]
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
 
 ---

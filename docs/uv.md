@@ -8,14 +8,18 @@ you need day to day, and the conventions the CI enforces. For a first-time setup
 ## Installing uv
 
 uv is installed **through pip**, and it is listed in the repository-root `requirements.txt` together
-with the shared dev tooling:
+with the repository-wide tooling:
 
 ```bash
-pip install -r requirements.txt   # uv + flake8, pytest-django, ...
+pip install -r requirements.txt   # uv + pre-commit
 ```
 
 CI and the Dockerfiles bootstrap it the same way (`pip install uv -c requirements.txt`), so if you
 ever need to constrain uv's version, do it in that one file rather than hardcoding it elsewhere.
+
+That file holds *only* what has to exist before uv does — uv itself and the
+[pre-commit](getting-started.md#git-hooks) runner. Every other dependency belongs to a project:
+declare it in that project's `pyproject.toml` and install it with `uv sync`.
 
 ## The layout
 
@@ -34,7 +38,8 @@ Two things are deliberately *not* uv projects:
 
 - **`common/`** — shared source with no third-party dependencies. It is put on `PYTHONPATH`
   (`--pythonpath ../common`), not installed.
-- **the repository root** — its `requirements.txt` is a plain pip file for dev tooling.
+- **the repository root** — its `requirements.txt` is a plain pip file holding the tooling that
+  bootstraps everything else (uv and pre-commit).
 
 `spellbook_client` is likewise consumed *from source* (via `PYTHONPATH`, and copied into the bot
 images), not installed as a package. That is why the bots — and the backend's `dev` group — repeat

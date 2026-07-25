@@ -5,6 +5,7 @@
     * The [README](README.md)
     * The [Developer Docs](https://spacecowmedia.github.io/commander-spellbook-backend/)
 * Follow the [PEP 8](https://pep8.org/) style guide, enforced by `flake8`
+* Run `pre-commit install` after cloning: it runs the same lint and type checks as the CI before each commit, and the test suite before each push (see [Git hooks](https://spacecowmedia.github.io/commander-spellbook-backend/getting-started/#git-hooks))
 * Write tests for your code
 
 # Suggestions

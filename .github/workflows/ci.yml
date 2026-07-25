@@ -36,17 +36,6 @@ jobs:
         name: Checkout 🛎️
         uses: EasyDesk/action-semver-checkout@v1
 
-      - name: Install uv 🚀
-        run: pip install --break-system-packages uv -c requirements.txt
-
-      - name: Check lockfiles are up to date 🔒
-        run: |
-          for project in backend client/python bot/discord bot/reddit bot/telegram; do
-            echo "::group::uv lock --check $project"
-            uv lock --check --directory "$project"
-            echo "::endgroup::"
-          done
-
       - name: Build and export backend image 🏗️
         uses: docker/build-push-action@v7
         with:
@@ -90,7 +79,7 @@ jobs:
           path: backend/.kubernetes/migration/prod
 
 
-  lint:
+  check:
     runs-on: ubuntu-latest
     strategy: &python-strategy
       fail-fast: false
@@ -108,20 +97,19 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
 
-      - name: Install uv 🚀
-        run: pip install uv -c requirements.txt
+      - name: Install tooling 🚀
+        run: pip install -r requirements.txt
 
-      - name: Lint backend 🧹
-        working-directory: backend
-        run: uvx flake8 .
+      - name: Cache pre-commit environments 💾
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ matrix.python-version }}-${{ hashFiles('.pre-commit-config.yaml') }}
 
-      - name: Lint common 🧹
-        working-directory: common
-        run: uvx flake8 .
-
-      - name: Lint bots 🧹
-        working-directory: bot
-        run: uvx flake8 .
+      - name: Run hooks 🪝
+        env:
+          SKIP: mypy-backend  # the type-check job runs it with a full `uv sync`
+        run: pre-commit run --all-files --show-diff-on-failure --color=always
 
 
   type-check:
@@ -267,7 +255,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - build
-      - lint
+      - check
       - type-check
       - test
       - integration-test
@@ -506,7 +494,7 @@ jobs:
         run: |
           docker tag spellbook-discord-bot:latest $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-      
+
       - name: Push Reddit bot image to Amazon ECR 📦
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}

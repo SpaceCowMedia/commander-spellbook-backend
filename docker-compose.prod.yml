@@ -12,7 +12,7 @@ services:
     volumes: !reset []
     ports:
       - 80:80
-  
+
   worker:
     extends:
       file: docker-compose.yml

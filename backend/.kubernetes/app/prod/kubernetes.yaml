@@ -35,7 +35,7 @@ spec:
             initialDelaySeconds: 30
             periodSeconds: 10
             timeoutSeconds: 10
-            
+
           livenessProbe:
             httpGet:
               path: /
@@ -237,4 +237,3 @@ spec:
     groupIds:
       - sg-010cc2542954759b3
       - sg-08c982cb0b6242f63
-

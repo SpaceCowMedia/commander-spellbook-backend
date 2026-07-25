@@ -29,7 +29,7 @@ django.jQuery.fn.select2CardsPreview = function() {
                 return elem;
             },
         }).on('select2:closing', function(e) {
-            django.jQuery('.tooltip-in-dropdown').tooltip('close');                        
+            django.jQuery('.tooltip-in-dropdown').tooltip('close');
         });
     });
     return this;

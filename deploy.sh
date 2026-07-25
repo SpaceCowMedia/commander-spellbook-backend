@@ -62,7 +62,7 @@ aws_setup_profile() {
     PARENT_AWS_PROFILE=$AWS_PROFILE
     export AWS_PROFILE="spellbook-deploy-sp"
     configure_profile_with_source_profile $PARENT_AWS_PROFILE
-    
+
     if aws_test_profile "$PARENT_AWS_PROFILE"; then
       return 0
     fi

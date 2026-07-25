@@ -5,7 +5,7 @@ This page gets a contributor from a fresh clone to a running backend, a passing 
 ## Prerequisites
 
 - **Python 3.14+** — each project declares its own floor via `requires-python` in its `pyproject.toml`. You do not need to install Python yourself: `uv` downloads and manages a matching interpreter for you.
-- **[uv](https://docs.astral.sh/uv/)** — the Python package & environment manager used throughout the repo. Install it with `pip install uv`, or get it together with the shared dev tooling by running `pip install -r requirements.txt` from the repository root. See the [uv Vademecum](uv.md) for the full workflow.
+- **[uv](https://docs.astral.sh/uv/)** — the Python package & environment manager used throughout the repo. Install it with `pip install uv`, or get it together with the `pre-commit` runner by running `pip install -r requirements.txt` from the repository root. See the [uv Vademecum](uv.md) for the full workflow.
 - **Docker + Docker Compose** — required to run the full stack and to generate the API clients. Not needed for the SQLite-only inner loop below.
 - **Git**.
 - *(Optional)* **VS Code** with the Python extension — the repo ships a `.vscode/launch.json` with run/debug and `pytest` configurations.
@@ -62,7 +62,7 @@ cd bot/discord && uv sync
 
 Dependencies are declared in each project's `pyproject.toml` and pinned in `uv.lock`. Add or change one with `uv add <package>` / `uv remove <package>` — these update `pyproject.toml` and `uv.lock` together. **Never edit `uv.lock` by hand**; the lockfiles are verified in CI with `uv lock --check`. The [uv Vademecum](uv.md) covers dependency groups, versioning, and the rest of the workflow.
 
-The repository root keeps a plain `requirements.txt` for shared dev/test tooling (including uv itself); install it with `pip install -r requirements.txt`.
+The repository root keeps a plain `requirements.txt` for the tooling that has to be present before uv is — uv itself and the [pre-commit](#git-hooks) runner. Install it with `pip install -r requirements.txt`. Everything else is a project dependency and belongs in that project's `pyproject.toml`.
 
 > **Interpreter selection (VS Code):** each project has its own `.venv`, and the backend one is the default. When working on a different project (a bot, the client), run **Python: Select Interpreter** and pick that project's `*/.venv`.
 
@@ -85,7 +85,7 @@ Every code change **must** ship with tests — the CI enforces the suite across 
 
 ## Linting
 
-The project follows [PEP 8](https://pep8.org/), enforced by `flake8`. The CI lints three folders; run the same locally before pushing:
+The project follows [PEP 8](https://pep8.org/), enforced by `flake8` over three folders, each with its own `.flake8`. To lint them by hand:
 
 ```bash
 uvx flake8 backend
@@ -93,7 +93,37 @@ uvx flake8 common
 uvx flake8 bot
 ```
 
-A failing lint fails the build.
+You rarely need to: the [git hooks](#git-hooks) below lint the files you staged on every commit, and the CI runs the same checks on every push. A failing lint fails the build.
+
+`docs/` is deliberately not linted — it holds illustrative animation scripts, and its `.flake8` exists only to keep editors quiet.
+
+## Git hooks
+
+The repository ships a [`pre-commit`](https://pre-commit.com/) configuration that runs the same checks as the CI, so you find problems before pushing rather than after a full pipeline run. Setting it up is a one-time step:
+
+```bash
+pip install -r requirements.txt   # installs pre-commit alongside uv
+pre-commit install                # installs both the pre-commit and pre-push hooks
+```
+
+Then, on every commit:
+
+- **Hygiene** — trailing whitespace, missing final newlines, merge-conflict markers, accidentally staged large files or private keys, leftover `breakpoint()` calls, and syntax errors in YAML/TOML/JSON.
+- **`flake8`** — on the staged files only, using the `.flake8` of the folder they belong to (`backend`, `common`, `bot`).
+- **`mypy`** — on the whole backend, matching the CI type check.
+- **`uv lock --check`** — for any project whose `pyproject.toml` or `uv.lock` you touched.
+
+The test suite is too slow for a commit gate, so it runs **on push** instead, with the same command as the [Running the tests](#running-the-tests) section above.
+
+To check the whole tree rather than just what you staged:
+
+```bash
+pre-commit run --all-files
+```
+
+Some hooks fix files in place; when that happens the commit is aborted, and you re-stage the changes and commit again. If you need to get past a hook, `SKIP=mypy-backend git commit ...` skips a single one by id and `git commit --no-verify` skips all of them — but the CI runs the same checks regardless, so it is a way to defer the work, not to avoid it.
+
+The hooks are a convenience: the CI remains the source of truth, and its `check` job enforces the same configuration on every push.
 
 ## Optional: Cython acceleration
 

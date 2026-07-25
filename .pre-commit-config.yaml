@@ -1,0 +1,110 @@
+default_install_hook_types: [pre-commit, pre-push]
+default_stages: [pre-commit]
+
+# Vendored, kept byte-identical to upstream.
+exclude: ^backend/spellbook/static/admin/(css|js)/jquery
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+      - id: end-of-file-fixer
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: check-added-large-files
+        args: [--maxkb=512]
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+        exclude: ^docker-compose\.prod\.yml$
+      - id: check-yaml
+        # Compose merge tags (`!reset`) are not resolvable YAML, so syntax only.
+        name: check yaml (docker compose overrides)
+        alias: check-yaml-unsafe
+        args: [--unsafe]
+        files: ^docker-compose\.prod\.yml$
+      - id: check-toml
+      - id: check-json
+        exclude: ^(\.vscode/|client/typescript/tsconfig\.json$)  # JSONC
+      - id: debug-statements
+      - id: detect-private-key
+
+  - repo: local
+    hooks:
+      - id: flake8-backend
+        name: flake8 (backend)
+        language: python
+        additional_dependencies: [flake8==7.3.0]  # matches backend/uv.lock
+        entry: flake8 --config backend/.flake8
+        types: [python]
+        files: ^backend/
+
+      - id: flake8-common
+        name: flake8 (common)
+        language: python
+        additional_dependencies: [flake8==7.3.0]
+        entry: flake8 --config common/.flake8
+        types: [python]
+        files: ^common/
+
+      - id: flake8-bot
+        name: flake8 (bot)
+        language: python
+        additional_dependencies: [flake8==7.3.0]
+        entry: flake8 --config bot/.flake8
+        types: [python]
+        files: ^bot/
+
+      # mypy_path and the django-stubs plugin need cwd=backend and the fixed
+      # target list, so this cannot be scoped to staged files.
+      - id: mypy-backend
+        name: mypy (backend)
+        language: system
+        entry: uv run --directory backend mypy spellbook website backend
+        pass_filenames: false
+        types_or: [python, pyi]
+        files: ^(backend|common)/
+
+      - id: uv-lock-backend
+        name: uv lock --check (backend)
+        language: system
+        entry: uv lock --check --directory backend
+        pass_filenames: false
+        files: ^backend/(pyproject\.toml|uv\.lock)$
+
+      - id: uv-lock-client-python
+        name: uv lock --check (client/python)
+        language: system
+        entry: uv lock --check --directory client/python
+        pass_filenames: false
+        files: ^client/python/(pyproject\.toml|uv\.lock)$
+
+      - id: uv-lock-bot-discord
+        name: uv lock --check (bot/discord)
+        language: system
+        entry: uv lock --check --directory bot/discord
+        pass_filenames: false
+        files: ^bot/discord/(pyproject\.toml|uv\.lock)$
+
+      - id: uv-lock-bot-reddit
+        name: uv lock --check (bot/reddit)
+        language: system
+        entry: uv lock --check --directory bot/reddit
+        pass_filenames: false
+        files: ^bot/reddit/(pyproject\.toml|uv\.lock)$
+
+      - id: uv-lock-bot-telegram
+        name: uv lock --check (bot/telegram)
+        language: system
+        entry: uv lock --check --directory bot/telegram
+        pass_filenames: false
+        files: ^bot/telegram/(pyproject\.toml|uv\.lock)$
+
+      - id: django-tests
+        name: Django test suite
+        language: system
+        entry: uv run --directory backend python -Wd manage.py test --no-input --parallel auto --pythonpath ../common
+        pass_filenames: false
+        types: [python]
+        stages: [pre-push]

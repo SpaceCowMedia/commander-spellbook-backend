@@ -12,6 +12,10 @@ class FeatureFilterSet(FilterSet):
         conjoined=False,
     )
 
+    class Meta:
+        model = Feature
+        fields = ['cards']
+
 
 class FeatureViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = FeatureSerializer.prefetch_related(Feature.objects.exclude(status=Feature.Status.HIDDEN_UTILITY))

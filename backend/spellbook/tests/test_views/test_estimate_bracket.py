@@ -104,3 +104,66 @@ class EstimateBracketViewTests(SpellbookTestCaseWithSeeding):
                 self.assertEqual(result.bracket_tag, Variant.BracketTag.RUTHLESS)
                 self.assertGreaterEqual(sum(t.quantity for t in result.templates if t.extra_turn), 1)
                 self._check_result(result, legal_cards, set())
+
+
+class EstimateBracketUnknownCommandersViewTests(SpellbookTestCaseWithSeeding):
+    variant_id = '1-2-3'
+    deck_cards = ['A A', 'B B', 'C C']
+    commander_card = 'C C'
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.generate_and_publish_variants()
+        # Make the deck's only commander-eligible card actually commander-eligible, and
+        # drop the notable prerequisites so that the sure/arguable card split is the only
+        # thing driving the two-card classification of variant 1-2-3.
+        Card.objects.filter(pk=cls.c3_id).update(type_line='Legendary Creature - Human', mana_value=3)
+        Variant.objects.update(notable_prerequisites='')
+        cls.bulk_serialize_variants()
+
+    def _estimate(self, content_type: str, unknown_commanders: str | None = None, commanders: Iterable[str] = ()):
+        commanders = list(commanders)
+        main = [card for card in self.deck_cards if card not in commanders]
+        if 'json' in content_type:
+            data = json.dumps({
+                'main': [{'card': card} for card in main],
+                'commanders': [{'card': card} for card in commanders],
+            })
+        else:
+            data = '\n'.join(main)
+            if commanders:
+                data += '\nCommanders\n' + '\n'.join(commanders)
+        query_params = {} if unknown_commanders is None else {'unknown_commanders': unknown_commanders}
+        response = self.client.post(reverse('estimate-bracket'), data, follow=True, content_type=content_type, query_params=query_params)  # type: ignore
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.get('Content-Type'), 'application/json')
+        result = json.loads(response.content, object_hook=json_to_python_lambda)
+        combos = [c for c in result.combos if c.combo.id == self.variant_id]
+        self.assertEqual(len(combos), 1)
+        return combos[0]
+
+    def test_unknown_commanders_query_parameter(self):
+        for content_type in ['text/plain', 'application/json']:
+            with self.subTest('omitted', content_type=content_type):
+                combo = self._estimate(content_type)
+                self.assertFalse(combo.definitely_two_card)
+                self.assertFalse(combo.arguably_two_card)
+            for value in ['false', 'False', 'anything else']:
+                with self.subTest('not enabled', content_type=content_type, value=value):
+                    combo = self._estimate(content_type, unknown_commanders=value)
+                    self.assertFalse(combo.definitely_two_card)
+                    self.assertFalse(combo.arguably_two_card)
+            for value in ['true', 'True', 'TRUE']:
+                with self.subTest('enabled', content_type=content_type, value=value):
+                    combo = self._estimate(content_type, unknown_commanders=value)
+                    self.assertFalse(combo.definitely_two_card)
+                    self.assertTrue(combo.arguably_two_card)
+            with self.subTest('enabled with commanders in the decklist', content_type=content_type):
+                combo = self._estimate(content_type, unknown_commanders='true', commanders=[self.commander_card])
+                self.assertTrue(combo.definitely_two_card)
+                self.assertTrue(combo.arguably_two_card)
+            with self.subTest('omitted with commanders in the decklist', content_type=content_type):
+                combo = self._estimate(content_type, commanders=[self.commander_card])
+                self.assertTrue(combo.definitely_two_card)
+                self.assertTrue(combo.arguably_two_card)

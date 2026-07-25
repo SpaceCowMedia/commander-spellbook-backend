@@ -50,7 +50,7 @@ class EstimateBracketView(DecklistAPIView):
     permission_classes: list = []
     parser_classes = [PlainTextDeckListParser, parsers.JSONParser]
     response = EstimateBracketResultSerializer
-    unknown_commanders_query_param = 'unknownCommanders'
+    unknown_commanders_query_param = 'unknown_commanders'
     parameters = [
         OpenApiParameter(
             name=unknown_commanders_query_param,

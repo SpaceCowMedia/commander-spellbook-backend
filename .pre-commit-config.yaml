@@ -61,7 +61,7 @@ repos:
       - id: mypy-backend
         name: mypy (backend)
         language: system
-        entry: uv run --directory backend mypy spellbook website backend
+        entry: uv run --frozen --directory backend mypy spellbook website backend
         pass_filenames: false
         types_or: [python, pyi]
         files: ^(backend|common)/

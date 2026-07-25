@@ -81,11 +81,13 @@ jobs:
 
   check:
     runs-on: ubuntu-latest
-    strategy: &python-strategy
+    strategy:
       fail-fast: false
       matrix:
         python-version:
           - '3.14'
+    env:
+      SECRET_KEY: ci_check_secret_key
     steps:
 
       - name: Checkout 🛎️
@@ -100,6 +102,11 @@ jobs:
       - name: Install tooling 🚀
         run: pip install -r requirements.txt
 
+      # The mypy hook needs the backend environment.
+      - name: Install dependencies 🧶
+        run: uv sync --locked --no-install-project
+        working-directory: backend
+
       - name: Cache pre-commit environments 💾
         uses: actions/cache@v6
         with:
@@ -107,37 +114,7 @@ jobs:
           key: pre-commit-${{ matrix.python-version }}-${{ hashFiles('.pre-commit-config.yaml') }}
 
       - name: Run hooks 🪝
-        env:
-          SKIP: mypy-backend  # the type-check job runs it with a full `uv sync`
         run: pre-commit run --all-files --show-diff-on-failure --color=always
-
-
-  type-check:
-    runs-on: ubuntu-latest
-    strategy: *python-strategy
-    env:
-      SECRET_KEY: ci_type_check_secret_key
-    steps:
-
-      - name: Checkout 🛎️
-        uses: actions/checkout@v7
-
-      - name: Setup Python 🐍
-        uses: actions/setup-python@v7
-        with:
-          python-version: ${{ matrix.python-version }}
-          cache: pip
-
-      - name: Install uv 🚀
-        run: pip install uv -c requirements.txt
-
-      - name: Install dependencies 🧶
-        run: uv sync --locked --no-install-project
-        working-directory: backend
-
-      - name: Type check backend 🔍
-        run: uv run --no-sync mypy spellbook website backend
-        working-directory: backend
 
 
   test:
@@ -256,7 +233,6 @@ jobs:
     needs:
       - build
       - check
-      - type-check
       - test
       - integration-test
       - client-python

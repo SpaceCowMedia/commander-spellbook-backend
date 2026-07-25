@@ -110,7 +110,7 @@ Then, on every commit:
 
 - **Hygiene** — trailing whitespace, missing final newlines, merge-conflict markers, accidentally staged large files or private keys, leftover `breakpoint()` calls, and syntax errors in YAML/TOML/JSON.
 - **`flake8`** — on the staged files only, using the `.flake8` of the folder they belong to (`backend`, `common`, `bot`).
-- **`mypy`** — on the whole backend, matching the CI type check.
+- **`mypy`** — on the whole backend, not just the staged files.
 - **`uv lock --check`** — for any project whose `pyproject.toml` or `uv.lock` you touched.
 
 The test suite is too slow for a commit gate, so it runs **on push** instead, with the same command as the [Running the tests](#running-the-tests) section above.

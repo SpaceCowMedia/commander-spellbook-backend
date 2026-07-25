@@ -1,7 +1,7 @@
 from rest_framework import parsers, serializers
 from rest_framework.response import Response
 from rest_framework.request import Request
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, OpenApiParameter
 from spellbook.models import Card, Template, Variant, estimate_bracket
 from spellbook.serializers import CardSerializer, TemplateSerializer, VariantSerializer, BracketTagSerializer
 from website.views import PlainTextDeckListParser
@@ -50,10 +50,20 @@ class EstimateBracketView(DecklistAPIView):
     permission_classes: list = []
     parser_classes = [PlainTextDeckListParser, parsers.JSONParser]
     response = EstimateBracketResultSerializer
+    unknown_commanders_query_param = 'unknownCommanders'
+    parameters = [
+        OpenApiParameter(
+            name=unknown_commanders_query_param,
+            type=bool,
+            required=False,
+            description='When true, an empty commander list is treated as unknown commanders instead of no commanders.',
+        ),
+    ]
 
-    @extend_schema(request=DecklistAPIView.request, responses=response)
+    @extend_schema(request=DecklistAPIView.request, parameters=parameters, responses=response)
     def get(self, request: Request) -> Response:
         deck = self.parse(request)
+        unknown_commanders = request.query_params.get(self.unknown_commanders_query_param, 'false').lower() == 'true'
 
         commanders: set[Card | Template] = set()
         cards: dict[Card, int] = {}
@@ -75,11 +85,11 @@ class EstimateBracketView(DecklistAPIView):
             cards=cards,
             templates=templates,
             included_variants=tuple((v, v.get_recipe()) for v in variants),
-            commanders=commanders,
+            commanders=None if unknown_commanders and not commanders else commanders,
         )
         serializer = self.response(result)
         return Response(serializer.data)
 
-    @extend_schema(request=DecklistAPIView.request, responses=response)
+    @extend_schema(request=DecklistAPIView.request, parameters=parameters, responses=response)
     def post(self, request: Request) -> Response:
         return self.get(request)

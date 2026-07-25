@@ -4,7 +4,7 @@ from typing import Iterable
 from django.urls import reverse
 from rest_framework import status
 from common.inspection import json_to_python_lambda
-from spellbook.models import Card, Template, Variant, CardInVariant, Feature
+from spellbook.models import Card, Template, Variant, CardInVariant, Feature, id_from_cards_and_templates_ids
 from spellbook.views.estimate_bracket import UnknownCommandersFilter
 from ..testing import SpellbookTestCaseWithSeeding
 
@@ -108,17 +108,18 @@ class EstimateBracketViewTests(SpellbookTestCaseWithSeeding):
 
 
 class EstimateBracketUnknownCommandersViewTests(SpellbookTestCaseWithSeeding):
-    variant_id = '1-2-3'
     deck_cards = ['A A', 'B B', 'C C']
     commander_card = 'C C'
+    variant_id: str
 
     @classmethod
     def setUpTestData(cls):
         super().setUpTestData()
         cls.generate_and_publish_variants()
+        cls.variant_id = id_from_cards_and_templates_ids([cls.c1_id, cls.c2_id, cls.c3_id], [])
         # Make the deck's only commander-eligible card actually commander-eligible, and
         # drop the notable prerequisites so that the sure/arguable card split is the only
-        # thing driving the two-card classification of variant 1-2-3.
+        # thing driving the two-card classification of that variant.
         Card.objects.filter(pk=cls.c3_id).update(type_line='Legendary Creature - Human', mana_value=3)
         Variant.objects.update(notable_prerequisites='')
         cls.bulk_serialize_variants()

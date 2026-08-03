@@ -573,14 +573,14 @@ wheels = [
 
 [[package]]
 name = "drf-spectacular-sidecar"
-version = "2026.7.1"
+version = "2026.8.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "django" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/7a/51/9e038d14bf51a0bd051e8bcb690287349c908fa7ba69021d9f3e5d5ac51f/drf_spectacular_sidecar-2026.7.1.tar.gz", hash = "sha256:40113c4066c7bc3ef15a7ce1c40cda227a907a9986748024a813a9e0595eba25", size = 2593211, upload-time = "2026-07-01T13:39:06.084Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/28/82/eb18e2108b8ceaa50a01d2cdb35ab5ce198c18f062448b2d29d6e89aabeb/drf_spectacular_sidecar-2026.8.1.tar.gz", hash = "sha256:9d9ee678e5ec70cdda2c7ed95cafcdb6141664dc3e11def8a8599c8ad36cf6f5", size = 2603635, upload-time = "2026-08-01T12:09:03.088Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/9d/76/d08f5c79f7643dbff4512605c28b75481966ed6c8cc9b397c9dd2ee91cd1/drf_spectacular_sidecar-2026.7.1-py3-none-any.whl", hash = "sha256:bc6d50c9b64660e45e09296d39553b3e759eedd825fc41d631ee5b3f88e0c5de", size = 2617384, upload-time = "2026-07-01T13:39:03.787Z" },
+    { url = "https://files.pythonhosted.org/packages/3e/5b/5ea443b8c24b4a4815a6467a158c4511dfe8bed83f8861a27bdb29c4fc47/drf_spectacular_sidecar-2026.8.1-py3-none-any.whl", hash = "sha256:6b8784d3e8c6bd9aa740b14e874640697ab1bc67f5232d74fdd9ef84eaea6bc3", size = 2626283, upload-time = "2026-08-01T12:09:01.705Z" },
 ]
 
 [[package]]
@@ -1385,7 +1385,7 @@ requires-dist = [
     { name = "djangorestframework-camel-case", specifier = "==1.4.2" },
     { name = "djangorestframework-simplejwt", specifier = "==5.5.1" },
     { name = "drf-spectacular", specifier = "==0.30.0" },
-    { name = "drf-spectacular-sidecar", specifier = "==2026.7.1" },
+    { name = "drf-spectacular-sidecar", specifier = "==2026.8.1" },
     { name = "lark", specifier = "==1.3.1" },
     { name = "social-auth-app-django", specifier = "==6.0.1" },
 ]

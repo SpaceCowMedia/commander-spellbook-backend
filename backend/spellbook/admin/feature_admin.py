@@ -7,9 +7,9 @@ from django.urls.resolvers import URLPattern
 from django.utils.html import format_html
 from django.urls import reverse, path
 from django.shortcuts import redirect
-from spellbook.models import CardInCombo, Feature, Combo, TemplateInCombo, DEFAULT_BATCH_SIZE, FeatureOfCard, FeatureNeededInCombo, FeatureProducedInCombo, FeatureRemovedInCombo, FeatureProducedByVariant
+from spellbook.models import CardInCombo, Feature, Combo, TemplateInCombo, DEFAULT_BATCH_SIZE, FeatureOfCard, FeatureNeededInCombo, FeatureProducedInCombo, FeatureRemovedInCombo, FeatureProducedByVariant, Ingredient
 from spellbook.models.scryfall import scryfall_link_for_query, scryfall_query_string_for_card_names, SCRYFALL_MAX_QUERY_LENGTH
-from spellbook.variants.variants_generator import FEATURE_REPLACEMENT_PATTERN
+from spellbook.variants.replacements import FEATURE_REPLACEMENT_PATTERN, format_feature_replacement
 from .utils import SpellbookModelAdmin, SpellbookAdminForm, CustomFilter
 from .ingredient_admin import FeatureOfCardAdmin
 
@@ -232,25 +232,21 @@ def merge_feature(from_obj: Feature, to_obj: Feature):
 def replace_feature_references(instance: Feature, old_name: str):
     new_name = instance.name
     if old_name and old_name != new_name:
-        ingredient_fields = ['battlefield_card_state', 'exile_card_state', 'graveyard_card_state', 'library_card_state']
+        ingredient_fields = Ingredient.text_fields_with_references()
         cards_in_combos = list(CardInCombo.objects.filter(combo__needs=instance).only(*ingredient_fields).distinct())
         templates_in_combos = list(TemplateInCombo.objects.filter(combo__needs=instance).only(*ingredient_fields).distinct())
         features_in_combos = list(FeatureNeededInCombo.objects.filter(combo__needs=instance).only(*ingredient_fields).distinct())
         for ingredient in chain(cards_in_combos, templates_in_combos, features_in_combos):
-            ingredient.battlefield_card_state = replace_feature_reference(old_name, new_name, ingredient.battlefield_card_state)
-            ingredient.exile_card_state = replace_feature_reference(old_name, new_name, ingredient.exile_card_state)
-            ingredient.graveyard_card_state = replace_feature_reference(old_name, new_name, ingredient.graveyard_card_state)
-            ingredient.library_card_state = replace_feature_reference(old_name, new_name, ingredient.library_card_state)
-        combo_fields = ['easy_prerequisites', 'notable_prerequisites', 'description', 'notes', 'comment', *Combo.recipe_fields()]
+            for field in ingredient_fields:
+                setattr(ingredient, field, replace_feature_reference(old_name, new_name, getattr(ingredient, field)))
+        combo_text_fields = Combo.text_fields_with_references()
+        combo_fields = [*combo_text_fields, *Combo.recipe_fields()]
         combos = set[Combo](Combo.recipes_prefetched.filter(needs=instance).only(*combo_fields).distinct()).union(
             Combo.recipes_prefetched.filter(produces=instance).only(*combo_fields).distinct(),
         )
         for combo in combos:
-            combo.easy_prerequisites = replace_feature_reference(old_name, new_name, combo.easy_prerequisites)
-            combo.notable_prerequisites = replace_feature_reference(old_name, new_name, combo.notable_prerequisites)
-            combo.description = replace_feature_reference(old_name, new_name, combo.description)
-            combo.notes = replace_feature_reference(old_name, new_name, combo.notes)
-            combo.comment = replace_feature_reference(old_name, new_name, combo.comment)
+            for field in combo_text_fields:
+                setattr(combo, field, replace_feature_reference(old_name, new_name, getattr(combo, field)))
             combo.update_recipe_from_data()
         Combo.objects.bulk_update(combos, combo_fields, batch_size=DEFAULT_BATCH_SIZE)
         CardInCombo.objects.bulk_update(cards_in_combos, ingredient_fields, batch_size=DEFAULT_BATCH_SIZE)
@@ -262,16 +258,7 @@ def replace_feature_reference(old_name: str, new_name: str, text: str) -> str:
     def replacement_with_fallback(key: str, face: str | None, alias: str | None, selector: str | None, postfix_alias: str | None, otherwise: str) -> str:
         if key.lower() != old_name.lower():
             return otherwise
-        result = new_name
-        if face is not None:
-            result += f'#{face}'
-        if alias is not None:
-            result += f'|{alias}'
-        if selector is not None:
-            result += f'${selector}'
-            if postfix_alias is not None:
-                result += f'|{postfix_alias}'
-        return f'[[{result}]]'
+        return format_feature_replacement(new_name, face, alias, selector, postfix_alias)
     return FEATURE_REPLACEMENT_PATTERN.sub(
         lambda m: replacement_with_fallback(m.group('key'), m.group('face'), m.group('alias'), m.group('selector'), m.group('postfix_alias'), m.group(0)),
         text,

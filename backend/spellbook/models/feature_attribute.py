@@ -1,11 +1,12 @@
 from django.db import models
 from .feature import Feature
 from .constants import MAX_FEATURE_NAME_LENGTH
+from .validators import NO_RESERVED_CHARACTERS_VALIDATOR
 
 
 class FeatureAttribute(models.Model):
     id: int
-    name = models.CharField(max_length=MAX_FEATURE_NAME_LENGTH, unique=True, blank=False)
+    name = models.CharField(max_length=MAX_FEATURE_NAME_LENGTH, unique=True, blank=False, help_text='Name of the attribute, usable to select a feature replacement with the [[feature$attribute]] syntax', validators=[NO_RESERVED_CHARACTERS_VALIDATOR])
     updated = models.DateTimeField(auto_now=True)
     created = models.DateTimeField(auto_now_add=True)
 

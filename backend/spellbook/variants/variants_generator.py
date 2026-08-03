@@ -1,11 +1,10 @@
 import gc
 import logging
 import multiprocessing
-import re
 from collections import defaultdict
 from dataclasses import dataclass, field
 from itertools import chain
-from typing import Callable, Sequence
+from typing import Callable, Iterable, Sequence, TypeVar
 from django.utils.functional import cached_property
 from django.db import transaction
 from multiprocessing_utils import parallelism_is_available, resolve_workers, split_into_chunks
@@ -13,12 +12,13 @@ from .multiset import FrozenMultiset
 from .variant_data import Data, CardInVariantRow, TemplateInVariantRow, FeatureProducedByVariantRow
 from .variant_set import VariantSet
 from .combo_graph import FeatureWithAttributes, Graph, GraphError, cardid, templateid, featureid
+from .replacements import ReplacementContext
 from .generation_tracking import (
     GenerationPlan, GenerationScope, plan_full_generation, plan_incremental_generation,
     compute_fingerprints, load_stored_fingerprints, store_fingerprints,
 )
 from spellbook.models import Combo, FeatureNeededInCombo, Variant, CardInVariant, TemplateInVariant, ZoneLocation, CardType
-from spellbook.models import Card, Template, VariantAlias, Ingredient, FeatureProducedByVariant, VariantOfCombo, VariantIncludesCombo
+from spellbook.models import Card, VariantAlias, Ingredient, OrderedIngredient, FeatureProducedByVariant, VariantOfCombo, VariantIncludesCombo
 from spellbook.models import id_from_cards_and_templates_ids, merge_mana_costs, join_with_conjunction, DEFAULT_BATCH_SIZE
 from spellbook.models.constants import DEFAULT_CARD_LIMIT, DEFAULT_VARIANT_LIMIT, HIGHER_CARD_LIMIT, LOWER_VARIANT_LIMIT
 
@@ -28,6 +28,8 @@ from spellbook.models.constants import DEFAULT_CARD_LIMIT, DEFAULT_VARIANT_LIMIT
 # ---------------------------------------------------------------------------
 
 _VARIANTS_TO_TRIGGER_LOG = 200
+
+_I = TypeVar('_I', bound=OrderedIngredient)
 
 LogFunction = Callable[[str], None]
 ProgressFunction = Callable[[int, int], None]
@@ -46,19 +48,12 @@ _VARIANT_UPDATE_FIELDS = [
     'generated_by',
 ] + Variant.computed_fields()
 
-_INGREDIENT_UPDATE_FIELDS = ('zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'must_be_commander', 'order', 'quantity')
+_INGREDIENT_UPDATE_FIELDS = ('zone_locations', *Ingredient.CARD_STATE_FIELDS.values(), 'must_be_commander', 'order', 'quantity')
 
 # Parallelism is only worth its overhead above these workload sizes;
 # it also requires the fork start method, so it is disabled on other platforms.
 MIN_COMBOS_FOR_PARALLELISM = 64
 MIN_VARIANTS_FOR_PARALLELISM = 2048
-
-# A feature replacement looks like [[key#face|alias$selector|postfix_alias]], where every part but the key is optional:
-# - #face selects which face of a multi-faced card to display (a symbol that cannot appear in a card name);
-# - |alias saves the replacement under an alias for later reuse;
-# - $selector picks one among the multiple replacements of the same feature;
-# - |postfix_alias saves the selected replacement under an alias.
-FEATURE_REPLACEMENT_PATTERN = re.compile(r'\[\[(?P<key>.+?)(?:#(?P<face>[1-9]\d*))?(?:\|(?P<alias>[^$|]+?))?(?:\$(?P<selector>[1-9]\d*)(?:\|(?P<postfix_alias>[^$|]+?))?)?\]\]', re.IGNORECASE)
 
 
 # ---------------------------------------------------------------------------
@@ -286,10 +281,8 @@ def update_state_with_default(data: Data, destination: Ingredient) -> None:
         destination.used_face = None
     else:
         destination.zone_locations = Ingredient._meta.get_field('zone_locations').get_default()  # pyright: ignore[reportAttributeAccessIssue]
-    destination.battlefield_card_state = ''
-    destination.exile_card_state = ''
-    destination.graveyard_card_state = ''
-    destination.library_card_state = ''
+    for state in Ingredient.CARD_STATE_FIELDS.values():
+        setattr(destination, state, '')
     destination.must_be_commander = False
 
 
@@ -302,21 +295,17 @@ def update_state(destination: Ingredient, initial_states: Sequence[Ingredient]) 
             if location in initial_state.zone_locations
         ) or zone_locations or initial_state.zone_locations
     destination.zone_locations = zone_locations
-    destination.battlefield_card_state = join_with_conjunction(state.battlefield_card_state for state in initial_states)
-    destination.exile_card_state = join_with_conjunction(state.exile_card_state for state in initial_states)
-    destination.graveyard_card_state = join_with_conjunction(state.graveyard_card_state for state in initial_states)
-    destination.library_card_state = join_with_conjunction(state.library_card_state for state in initial_states)
-    destination.must_be_commander = any(state.must_be_commander for state in initial_states)
+    for state in Ingredient.CARD_STATE_FIELDS.values():
+        setattr(destination, state, join_with_conjunction(getattr(initial_state, state) for initial_state in initial_states))
+    destination.must_be_commander = any(initial_state.must_be_commander for initial_state in initial_states)
     if isinstance(destination, CardInVariant):
         destination.used_face = merge_used_faces(initial_states)
 
 
 def _copy_state_from_row(destination: CardInVariant | TemplateInVariant, row: CardInVariantRow | TemplateInVariantRow) -> None:
     destination.zone_locations = row.zone_locations
-    destination.battlefield_card_state = row.battlefield_card_state
-    destination.exile_card_state = row.exile_card_state
-    destination.graveyard_card_state = row.graveyard_card_state
-    destination.library_card_state = row.library_card_state
+    for state in Ingredient.CARD_STATE_FIELDS.values():
+        setattr(destination, state, getattr(row, state))
     destination.must_be_commander = row.must_be_commander
     destination.order = row.order
     if isinstance(destination, CardInVariant) and isinstance(row, CardInVariantRow):
@@ -332,86 +321,11 @@ def _ingredient_changed(ingredient: CardInVariant | TemplateInVariant, row: Card
     return False
 
 
-@dataclass(frozen=True)
-class Replacement:
-    '''A single rendered replacement for a feature, keeping the backing card (when the replacement
-    is a lone card) so that a face override in the text can still resolve to a specific face name.'''
-    text: str
-    card: Card | None = None
-
-    def resolve(self, face: int | None) -> str:
-        if face is not None and self.card is not None and 1 <= face <= self.card.faces:
-            return self.card.face_name(face, short=True)
-        return self.text
-
-
-def build_replacement_strings(
-    data: Data,
-    replacements: dict[FeatureWithAttributes, list[tuple[list[Card], list[Template]]]],
-    included_combos: set[int],
-    used_faces: dict[int, int | None],
-) -> defaultdict[str, list[Replacement]]:
-    '''
-    Builds the mapping of feature name to its replacements for a variant.
-    This depends only on the variant's replacements and included combos, so it is
-    computed once and reused across every text field the variant regenerates.
-    The used_faces mapping (card id -> used face) makes a card whose face is specified
-    display the corresponding half of its name instead of the whole name.
-    '''
-    replacements_strings = defaultdict[str, list[Replacement]](list)
-    features_needed_by_included_combos = [feature_needed for included_combo_id in included_combos for feature_needed in data.combo_to_needed_features[included_combo_id]]
-    for feature, replacement_list in replacements.items():
-        corresponding_needed_features = [feature_needed for feature_needed in features_needed_by_included_combos if feature_needed.feature_id == feature.feature.id]
-        if corresponding_needed_features and not any(data.feature_needed_in_combo_to_attributes_matcher[corresponding_needed_feature.id].matches(feature.attributes) for corresponding_needed_feature in corresponding_needed_features):
-            # if all combos needing that feature don't find a match with attributes the replacement is not applied
-            continue
-        for cards, templates in replacement_list:
-            names = [
-                c.face_name(used_faces.get(c.id), short=True)
-                for c in cards
-            ] + [
-                t.name
-                for t in templates
-            ]
-            replacement = ' + '.join(names)
-            backing_card = cards[0] if len(cards) == 1 and not templates else None
-            replacements_strings[feature.feature.name].append(Replacement(text=replacement, card=backing_card))
-    return replacements_strings
-
-
-def apply_replacements(
-    text: str,
-    replacement_strings: defaultdict[str, list[Replacement]],
-) -> str:
-    # Work on a private copy: substituting a text field can register aliases into the
-    # mapping, and those must not leak into the other text fields sharing the base.
-    replacements_strings = defaultdict[str, list[Replacement]](list, {key: list(values) for key, values in replacement_strings.items()})
-
-    def replacement_with_fallback(key: str, face: str | None, alias: str | None, selector: str | None, postfix_alias: str | None, otherwise: str) -> str:
-        selector_index = 0
-        if selector:
-            try:
-                selector_index = int(selector) - 1
-            except ValueError:
-                return otherwise
-        face_index = int(face) if face else None
-        strings = replacements_strings[key]
-        try:
-            replacement = strings[selector_index]
-        except IndexError:
-            return otherwise
-        result = replacement.resolve(face_index)
-        if alias:
-            # when a face is selected, the alias saves the resolved face name; otherwise it aliases the whole feature
-            replacements_strings[alias] = [Replacement(text=result)] if face_index is not None else strings
-        if postfix_alias:
-            replacements_strings.setdefault(postfix_alias, []).append(Replacement(text=result))
-        return result
-
-    return FEATURE_REPLACEMENT_PATTERN.sub(
-        lambda m: replacement_with_fallback(m.group('key'), m.group('face'), m.group('alias'), m.group('selector'), m.group('postfix_alias'), m.group(0)),
-        text,
-    )
+def order_ingredients(ingredients: dict[int, _I], ordering: dict[int, tuple[int, int, int, int]]) -> list[_I]:
+    result = [ingredients[key] for key in sorted(ordering, key=lambda k: ordering[k], reverse=True)]
+    for i, ingredient in enumerate(result, start=1):
+        ingredient.order = i
+    return result
 
 
 def _restore_variant(
@@ -466,6 +380,28 @@ def _restore_variant(
         if template_in_variant.template_id not in old_requires_rows:
             template_in_variant.order = 0  # will be updated later
         requires[template_in_variant.template_id] = template_in_variant
+
+    # Ordering ingredients by ascending replaceability and ascending order in combos.
+    # This runs before the text fields are regenerated because the replacements of a feature
+    # are listed in the display order of the ingredients that provide them.
+    cards_ordering: dict[int, tuple[int, int, int, int]] = {c: (0, 0, 0, 0) for c in uses}
+    templates_ordering: dict[int, tuple[int, int, int, int]] = {t: (0, 0, 0, 0) for t in requires}
+    for combos, is_generator in ((generator_combos, True), (other_combos, False)):
+        for combo in combos:
+            for i, card_in_combo in enumerate(reversed(data.combo_to_cards[combo.id]), start=1):
+                if card_in_combo.card_id in cards_ordering:
+                    t = cards_ordering[card_in_combo.card_id]
+                    cards_ordering[card_in_combo.card_id] = (t[0] + 1, t[1] + i, t[2], t[3]) if is_generator else (t[0], t[1], t[2] + 1, t[3] + i)
+            for i, template_in_combo in enumerate(reversed(data.combo_to_templates[combo.id]), start=1):
+                if template_in_combo.template_id in templates_ordering:
+                    t = templates_ordering[template_in_combo.template_id]
+                    templates_ordering[template_in_combo.template_id] = (t[0] + 1, t[1] + i, t[2], t[3]) if is_generator else (t[0], t[1], t[2] + 1, t[3] + i)
+
+    # Materialize ingredients in their final display order before recomputing fields,
+    # so that order-dependent fields (e.g. name) match the persisted ingredient order
+    ordered_uses = order_ingredients(uses, cards_ordering)
+    ordered_requires = order_ingredients(requires, templates_ordering)
+
     if restore_fields:
         # update the variant status
         variant.status = Variant.Status.NEW
@@ -477,20 +413,22 @@ def _restore_variant(
             ]
             for feature_wth_attributes, recipes in variant_def.feature_replacements.items()
         }
-        mana_needed_list = [c.mana_needed for c in needed_combos if len(c.mana_needed) > 0]
-        easy_prerequisites_list = [c.easy_prerequisites for c in needed_combos if c.easy_prerequisites]
-        notable_prerequisites_list = [c.notable_prerequisites for c in needed_combos if c.notable_prerequisites]
+        # Each text is paired with the combo it comes from, because its placeholders are resolved
+        # against the needed features of that combo. Texts coming from a card have no combo.
+        mana_needed_list: list[tuple[str, int | None]] = [(c.mana_needed, c.id) for c in needed_combos if len(c.mana_needed) > 0]
+        easy_prerequisites_list: list[tuple[str, int | None]] = [(c.easy_prerequisites, c.id) for c in needed_combos if c.easy_prerequisites]
+        notable_prerequisites_list: list[tuple[str, int | None]] = [(c.notable_prerequisites, c.id) for c in needed_combos if c.notable_prerequisites]
 
         card_initial_states = defaultdict[int, list[Ingredient]](list)
         template_initial_states = defaultdict[int, list[Ingredient]](list)
         for feature_of_card in needed_feature_of_cards:
             card_initial_states[feature_of_card.card_id].append(feature_of_card)
             if feature_of_card.mana_needed:
-                mana_needed_list.append(feature_of_card.mana_needed)
+                mana_needed_list.append((feature_of_card.mana_needed, None))
             if feature_of_card.easy_prerequisites:
-                easy_prerequisites_list.append(feature_of_card.easy_prerequisites)
+                easy_prerequisites_list.append((feature_of_card.easy_prerequisites, None))
             if feature_of_card.notable_prerequisites:
-                notable_prerequisites_list.append(feature_of_card.notable_prerequisites)
+                notable_prerequisites_list.append((feature_of_card.notable_prerequisites, None))
 
         # Collect used cards and required templates initial states from the combos before regenerating
         # the text fields, so that the merged used faces are already known when replacing placeholders
@@ -503,17 +441,11 @@ def _restore_variant(
                     template_initial_states[template_in_combo.template_id].append(template_in_combo)
         used_faces = {card_id: merge_used_faces(states) for card_id, states in card_initial_states.items()}
 
-        replacement_strings = build_replacement_strings(data, replacements, variant_def.needed_combos, used_faces)
-        variant.easy_prerequisites = apply_replacements('\n'.join(easy_prerequisites_list), replacement_strings)
-        variant.notable_prerequisites = apply_replacements('\n'.join(notable_prerequisites_list), replacement_strings)
-        variant.mana_needed = apply_replacements(merge_mana_costs(mana_needed_list), replacement_strings)
-        variant.is_mana_needed_an_accurate_minimum = not variant.mana_needed or all(
-            c.is_mana_needed_an_accurate_minimum
-            for c in needed_combos
-        )
-        variant.description = apply_replacements('\n'.join(c.description for c in needed_combos if len(c.description) > 0), replacement_strings)
-        variant.notes = apply_replacements('\n'.join(c.notes for c in needed_combos if len(c.notes) > 0), replacement_strings)
-        variant.comment = apply_replacements('\n'.join(c.comment for c in needed_combos if len(c.comment) > 0), replacement_strings)
+        card_positions = {c.card_id: c.order for c in ordered_uses}
+        template_positions = {t.template_id: t.order for t in ordered_requires}
+        # One context for the whole variant: an alias registered by any text is visible to every text
+        # rendered after it, which is why the ingredients below are walked in their display order
+        context = ReplacementContext.build(data, replacements, needed_combos, used_faces, card_positions, template_positions)
 
         card_zone_locations_overrides = defaultdict[int, defaultdict[str, int]](lambda: defaultdict(int))
         template_zone_locations_overrides = defaultdict[int, defaultdict[str, int]](lambda: defaultdict(int))
@@ -547,7 +479,12 @@ def _restore_variant(
                 update_state(template_in_variant, template_initial_states[template_in_variant.template_id])
             else:
                 update_state_with_default(data, template_in_variant)
-        for used_card in used_cards:
+        combo_positions = {c.id: i for i, c in enumerate(needed_combos)}
+
+        def feature_override_key(feature: FeatureNeededInCombo) -> tuple[int, int, int]:
+            return (combo_positions.get(feature.combo_id, len(combo_positions)), feature.order, feature.id)
+
+        for used_card in ordered_uses:
             override_score = max(card_zone_locations_overrides[used_card.card_id].values(), default=0)
             if override_score > 0:
                 used_card.zone_locations = ''.join(
@@ -555,39 +492,8 @@ def _restore_variant(
                     for location, count in card_zone_locations_overrides[used_card.card_id].items()
                     if count == override_score
                 )
-            used_card.battlefield_card_state = apply_replacements(
-                '\n'.join(
-                    f.battlefield_card_state
-                    for f in card_features_for_override[used_card.card_id]
-                    if ZoneLocation.BATTLEFIELD in f.zone_locations and f.battlefield_card_state
-                ) or used_card.battlefield_card_state if ZoneLocation.BATTLEFIELD in used_card.zone_locations else '',
-                replacement_strings,
-            )
-            used_card.exile_card_state = apply_replacements(
-                '\n'.join(
-                    f.exile_card_state
-                    for f in card_features_for_override[used_card.card_id]
-                    if ZoneLocation.EXILE in f.zone_locations and f.exile_card_state
-                ) or used_card.exile_card_state if ZoneLocation.EXILE in used_card.zone_locations else '',
-                replacement_strings,
-            )
-            used_card.graveyard_card_state = apply_replacements(
-                '\n'.join(
-                    f.graveyard_card_state
-                    for f in card_features_for_override[used_card.card_id]
-                    if ZoneLocation.GRAVEYARD in f.zone_locations and f.graveyard_card_state
-                ) or used_card.graveyard_card_state if ZoneLocation.GRAVEYARD in used_card.zone_locations else '',
-                replacement_strings,
-            )
-            used_card.library_card_state = apply_replacements(
-                '\n'.join(
-                    f.library_card_state
-                    for f in card_features_for_override[used_card.card_id]
-                    if ZoneLocation.LIBRARY in f.zone_locations and f.library_card_state
-                ) or used_card.library_card_state if ZoneLocation.LIBRARY in used_card.zone_locations else '',
-                replacement_strings,
-            )
-        for required_template in required_templates:
+            context.render_ingredient_states(used_card, sorted(card_features_for_override[used_card.card_id], key=feature_override_key))
+        for required_template in ordered_requires:
             override_score = max(template_zone_locations_overrides[required_template.template_id].values(), default=0)
             if override_score > 0:
                 required_template.zone_locations = ''.join(
@@ -595,69 +501,22 @@ def _restore_variant(
                     for location, count in template_zone_locations_overrides[required_template.template_id].items()
                     if count == override_score
                 )
-            required_template.battlefield_card_state = apply_replacements(
-                '\n'.join(
-                    f.battlefield_card_state
-                    for f in template_features_for_override[required_template.template_id]
-                    if ZoneLocation.BATTLEFIELD in f.zone_locations and f.battlefield_card_state
-                ) or required_template.battlefield_card_state if ZoneLocation.BATTLEFIELD in required_template.zone_locations else '',
-                replacement_strings,
-            )
-            required_template.exile_card_state = apply_replacements(
-                '\n'.join(
-                    f.exile_card_state
-                    for f in template_features_for_override[required_template.template_id]
-                    if ZoneLocation.EXILE in f.zone_locations and f.exile_card_state
-                ) or required_template.exile_card_state if ZoneLocation.EXILE in required_template.zone_locations else '',
-                replacement_strings,
-            )
-            required_template.graveyard_card_state = apply_replacements(
-                '\n'.join(
-                    f.graveyard_card_state
-                    for f in template_features_for_override[required_template.template_id]
-                    if ZoneLocation.GRAVEYARD in f.zone_locations and f.graveyard_card_state
-                ) or required_template.graveyard_card_state if ZoneLocation.GRAVEYARD in required_template.zone_locations else '',
-                replacement_strings,
-            )
-            required_template.library_card_state = apply_replacements(
-                '\n'.join(
-                    f.library_card_state
-                    for f in template_features_for_override[required_template.template_id]
-                    if ZoneLocation.LIBRARY in f.zone_locations and f.library_card_state
-                ) or required_template.library_card_state if ZoneLocation.LIBRARY in required_template.zone_locations else '',
-                replacement_strings,
-            )
+            context.render_ingredient_states(required_template, sorted(template_features_for_override[required_template.template_id], key=feature_override_key))
 
-    # Ordering ingredients by ascending replaceability and ascending order in combos
-    cards_ordering: dict[int, tuple[int, int, int, int]] = {c: (0, 0, 0, 0) for c in uses}
-    templates_ordering: dict[int, tuple[int, int, int, int]] = {t: (0, 0, 0, 0) for t in requires}
-    for combos, is_generator in ((generator_combos, True), (other_combos, False)):
-        for combo in combos:
-            for i, card_in_combo in enumerate(reversed(data.combo_to_cards[combo.id]), start=1):
-                if card_in_combo.card_id in cards_ordering:
-                    t = cards_ordering[card_in_combo.card_id]
-                    cards_ordering[card_in_combo.card_id] = (t[0] + 1, t[1] + i, t[2], t[3]) if is_generator else (t[0], t[1], t[2] + 1, t[3] + i)
-            for i, template_in_combo in enumerate(reversed(data.combo_to_templates[combo.id]), start=1):
-                if template_in_combo.template_id in templates_ordering:
-                    t = templates_ordering[template_in_combo.template_id]
-                    templates_ordering[template_in_combo.template_id] = (t[0] + 1, t[1] + i, t[2], t[3]) if is_generator else (t[0], t[1], t[2] + 1, t[3] + i)
+        def render(texts: Iterable[tuple[str, int | None]]) -> list[str]:
+            return [context.apply(text, combo_id) for text, combo_id in texts]
 
-    def uses_list():
-        for i, v in enumerate(sorted(cards_ordering, key=lambda k: cards_ordering[k], reverse=True), start=1):
-            civ = uses[v]
-            civ.order = i
-            yield civ
-
-    def requires_list():
-        for i, v in enumerate(sorted(templates_ordering, key=lambda k: templates_ordering[k], reverse=True), start=1):
-            tiv = requires[v]
-            tiv.order = i
-            yield tiv
-
-    # Materialize ingredients in their final display order before recomputing fields,
-    # so that order-dependent fields (e.g. name) match the persisted ingredient order
-    ordered_uses = list(uses_list())
-    ordered_requires = list(requires_list())
+        # The variant text fields come last, in the order the combo admin form displays them
+        variant.mana_needed = merge_mana_costs(render(mana_needed_list))
+        variant.is_mana_needed_an_accurate_minimum = not variant.mana_needed or all(
+            c.is_mana_needed_an_accurate_minimum
+            for c in needed_combos
+        )
+        variant.easy_prerequisites = '\n'.join(render(easy_prerequisites_list))
+        variant.notable_prerequisites = '\n'.join(render(notable_prerequisites_list))
+        variant.description = '\n'.join(render((c.description, c.id) for c in needed_combos if len(c.description) > 0))
+        variant.notes = '\n'.join(render((c.notes, c.id) for c in needed_combos if len(c.notes) > 0))
+        variant.comment = '\n'.join(render((c.comment, c.id) for c in needed_combos if len(c.comment) > 0))
 
     # Recomputing some variant fields
     variant.update_variant_from_recipe(Variant.Recipe(
@@ -833,11 +692,11 @@ def _perform_bulk_saves(
     log('Prepare variant related entities...')
     cardinvariant_bulk_create = tuple(c for v in chain(to_create, to_update) for c in v.uses_to_create)
     cardinvariant_bulk_update = tuple(c for v in to_update for c in v.uses_to_update)
-    cardinvariant_bulk_update_fields = ['zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'must_be_commander', 'order', 'quantity', 'used_face']
+    cardinvariant_bulk_update_fields = [*_INGREDIENT_UPDATE_FIELDS, 'used_face']
     progress(2, step_count)
     templateinvariant_bulk_create = tuple(t for v in chain(to_create, to_update) for t in v.requires_to_create)
     templateinvariant_bulk_update = tuple(t for v in to_update for t in v.requires_to_update)
-    templateinvariant_bulk_update_fields = ['zone_locations', 'battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state', 'must_be_commander', 'order', 'quantity']
+    templateinvariant_bulk_update_fields = list(_INGREDIENT_UPDATE_FIELDS)
     progress(3, step_count)
     of_bulk_delete = tuple(
         of.id

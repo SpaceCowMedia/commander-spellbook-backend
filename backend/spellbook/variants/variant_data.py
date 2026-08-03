@@ -1,6 +1,7 @@
 from dataclasses import dataclass, fields
 from spellbook.models.card import Card, FeatureOfCard
 from spellbook.models.feature import Feature
+from spellbook.models.feature_attribute import FeatureAttribute
 from spellbook.models.combo import Combo, CardInCombo, TemplateInCombo, FeatureNeededInCombo, FeatureProducedInCombo, FeatureRemovedInCombo
 from spellbook.models.template import Template
 from spellbook.models.variant import Variant, CardInVariant, TemplateInVariant, FeatureProducedByVariant, VariantOfCombo, VariantIncludesCombo
@@ -99,6 +100,7 @@ class Data:
     def __init__(self):
         # Features
         features = list(Feature.objects.order_by())
+        feature_attributes = list(FeatureAttribute.objects.order_by())
         # Cards
         cards = list(Card.objects.order_by())
         featureofcards = list(FeatureOfCard.objects.order_by())
@@ -130,6 +132,7 @@ class Data:
         self.id_to_combo = {c.id: c for c in combos}
         self.id_to_variant = {v.id: v for v in variants}
         self.id_to_feature = {f.id: f for f in features}
+        self.id_to_feature_attribute = {a.id: a for a in feature_attributes}
         self.generator_combos = [c for c in combos if c.status == Combo.Status.GENERATOR]
         self.combo_to_cards = {c.id: list[CardInCombo]() for c in combos}
         for cardincombo in cardincombos:
@@ -155,6 +158,8 @@ class Data:
             x = self.combo_to_needed_features.get(i.combo_id)
             if x is not None:
                 x.append(i)
+        for i in self.combo_to_needed_features.values():
+            i.sort(key=lambda fnic: (fnic.order, fnic.id))
         self.combo_to_removed_features = {c.id: list[FeatureRemovedInCombo]() for c in combos}
         for i in featureremovedincombos:
             x = self.combo_to_removed_features.get(i.combo_id)

@@ -5,7 +5,7 @@ from spellbook.variants.variant_data import (
     Data, VariantRow, CardInVariantRow, TemplateInVariantRow,
     FeatureProducedByVariantRow, VariantOfComboRow, VariantIncludesComboRow,
 )
-from spellbook.models import CardInVariant, FeatureOfCard, TemplateInVariant, Variant, Combo, Feature, Card, Template
+from spellbook.models import CardInVariant, FeatureAttribute, FeatureOfCard, TemplateInVariant, Variant, Combo, Feature, Card, Template
 
 
 def row_from_instance(row_class, instance):
@@ -58,6 +58,16 @@ class VariantDataTests(SpellbookTestCaseWithSeeding):
         self.assertEqual(set(f.id for f in data.id_to_feature.values()), set(Feature.objects.values_list('id', flat=True)))
         self.assertEqual(data.id_to_feature, {f.id: f for f in Feature.objects.all()})
 
+    def test_feature_attributes(self):
+        data = Data()
+        self.assertEqual(data.id_to_feature_attribute, {a.id: a for a in FeatureAttribute.objects.all()})
+
+    def test_needed_features_are_ordered(self):
+        data = Data()
+        for combo in Combo.objects.filter(status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY)):
+            needed = data.combo_to_needed_features[combo.id]
+            self.assertEqual(needed, sorted(needed, key=lambda f: (f.order, f.id)))
+
     def test_utility_features_ids(self):
         data = Data()
         self.assertSetEqual(data.utility_features_ids, set(Feature.objects.filter(status__in=(Feature.Status.HIDDEN_UTILITY, Feature.Status.PUBLIC_UTILITY)).values_list('id', flat=True)))
@@ -95,5 +105,5 @@ class VariantDataTests(SpellbookTestCaseWithSeeding):
             self.assertEqual(instance.id, id)
 
     def test_number_of_queries(self):
-        with self.assertNumQueries(21):
+        with self.assertNumQueries(22):
             Data()

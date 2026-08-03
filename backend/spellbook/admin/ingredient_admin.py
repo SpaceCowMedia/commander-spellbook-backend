@@ -3,7 +3,7 @@ from django.db.models import TextField, CharField
 from django.forms import TextInput, Textarea
 from adminsortable2.admin import SortableTabularInline
 from django.http import HttpRequest
-from spellbook.models import ZoneLocation, FeatureOfCard
+from spellbook.models import FeatureOfCard, Ingredient
 from .utils import SpellbookAdminForm
 
 
@@ -11,40 +11,27 @@ def _textarea():
     return Textarea(attrs={'rows': 1, 'cols': 25, 'style': 'resize: vertical; min-height: 2em;'})
 
 
-class IngredientInCombinationForm(SpellbookAdminForm):
+class IngredientForm(SpellbookAdminForm):
     def clean(self):
         if 'zone_locations' in self.cleaned_data:
             locations = self.cleaned_data['zone_locations']
-            if ZoneLocation.BATTLEFIELD not in locations:
-                self.cleaned_data['battlefield_card_state'] = ''
-            if ZoneLocation.EXILE not in locations:
-                self.cleaned_data['exile_card_state'] = ''
-            if ZoneLocation.GRAVEYARD not in locations:
-                self.cleaned_data['graveyard_card_state'] = ''
-            if ZoneLocation.LIBRARY not in locations:
-                self.cleaned_data['library_card_state'] = ''
+            for location, state in Ingredient.CARD_STATE_FIELDS.items():
+                if location not in locations:
+                    self.cleaned_data[state] = ''
         return super().clean()
 
     class Meta:
-        widgets = {
-            'battlefield_card_state': _textarea(),
-            'exile_card_state': _textarea(),
-            'graveyard_card_state': _textarea(),
-            'library_card_state': _textarea(),
-        }
+        widgets = {state: _textarea() for state in Ingredient.CARD_STATE_FIELDS.values()}
 
 
 class IngredientAdmin(TabularInline):
-    form = IngredientInCombinationForm
+    form = IngredientForm
     extra = 0
     classes = ['ingredient']
     fields = [
         'quantity',
         'zone_locations',
-        'battlefield_card_state',
-        'exile_card_state',
-        'graveyard_card_state',
-        'library_card_state',
+        *Ingredient.CARD_STATE_FIELDS.values(),
         'must_be_commander',
     ]
 
@@ -74,5 +61,5 @@ class FeatureOfCardAdmin(IngredientAdmin):
         return [self.related_field, *self.autocomplete_fields]
 
 
-class SortableIngredientAdmin(IngredientAdmin, SortableTabularInline):
+class OrderedIngredientAdmin(IngredientAdmin, SortableTabularInline):
     pass

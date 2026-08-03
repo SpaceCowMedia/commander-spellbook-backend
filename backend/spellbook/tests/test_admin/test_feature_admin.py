@@ -19,6 +19,8 @@ class FeatureAdminTests(SpellbookTestCaseWithSeeding):
             ('[[A#2]]', '[[Z#2]]', 'A', 'Z'),
             ('[[A#2|alias]]', '[[Z#2|alias]]', 'A', 'Z'),
             ('[[A#1|alias$3|post]]', '[[Z#1|alias$3|post]]', 'A', 'Z'),
+            ('[[A$Attribute]]', '[[Z$Attribute]]', 'A', 'Z'),
+            ('[[A$Attribute|post]]', '[[Z$Attribute|post]]', 'A', 'Z'),
         ]:
             with self.subTest(test_text=test_text, old_name=old_name, new_name=new_name):
                 result = replace_feature_reference(old_name, new_name, test_text)

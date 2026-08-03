@@ -9,7 +9,7 @@ from .suggestion import Suggestion
 from .card import Card
 from .template import Template
 from .variant import Variant
-from .ingredient import IngredientInCombination
+from .ingredient import OrderedIngredient
 from .validators import TEXT_VALIDATORS, MANA_VALIDATOR, SCRYFALL_QUERY_HELP, SCRYFALL_QUERY_VALIDATOR, NAME_VALIDATORS, NOT_URL_VALIDATOR
 from .scryfall import SCRYFALL_MAX_QUERY_LENGTH
 from .utils import id_from_cards_and_templates_ids, simplify_card_name_on_database, simplify_card_name_with_spaces_on_database, strip_accents
@@ -95,7 +95,7 @@ class VariantSuggestion(Recipe, Suggestion):
             raise ValidationError('This combo suggestion is redundant. Another suggestion with the same cards and templates already exists.')
 
 
-class CardUsedInVariantSuggestion(PreSaveModelMixin, IngredientInCombination):
+class CardUsedInVariantSuggestion(PreSaveModelMixin, OrderedIngredient):
     card = models.CharField(max_length=MAX_CARD_NAME_LENGTH, blank=False, help_text='Card name', verbose_name='card name', validators=[NOT_URL_VALIDATOR])
     card_unaccented = models.CharField(max_length=MAX_CARD_NAME_LENGTH, blank=True, editable=False)
     card_unaccented_simplified = models.GeneratedField(
@@ -113,14 +113,14 @@ class CardUsedInVariantSuggestion(PreSaveModelMixin, IngredientInCombination):
     def __str__(self):
         return self.card
 
-    class Meta(IngredientInCombination.Meta):
+    class Meta(OrderedIngredient.Meta):
         pass
 
     def pre_save(self):
         self.card_unaccented = strip_accents(self.card)
 
 
-class TemplateRequiredInVariantSuggestion(IngredientInCombination):
+class TemplateRequiredInVariantSuggestion(OrderedIngredient):
     template = models.CharField(max_length=Template.MAX_TEMPLATE_NAME_LENGTH, blank=False, help_text='Template name', verbose_name='template name', validators=NAME_VALIDATORS)
     scryfall_query = models.CharField(max_length=SCRYFALL_MAX_QUERY_LENGTH, blank=True, null=True, verbose_name='Scryfall query', help_text=SCRYFALL_QUERY_HELP, validators=[SCRYFALL_QUERY_VALIDATOR])
     suggestion = models.ForeignKey(to=VariantSuggestion, on_delete=models.CASCADE, related_name='requires')
@@ -128,7 +128,7 @@ class TemplateRequiredInVariantSuggestion(IngredientInCombination):
     def __str__(self):
         return self.template
 
-    class Meta(IngredientInCombination.Meta):
+    class Meta(OrderedIngredient.Meta):
         pass
 
 

@@ -17,7 +17,7 @@ from .mixins import ScryfallLinkMixin, PreSaveSerializedModelMixin, PreSaveSeria
 from .card import Card, WithUsedFace
 from .template import Template
 from .feature import Feature
-from .ingredient import IngredientInCombination, ZoneLocation
+from .ingredient import OrderedIngredient, ZoneLocation
 from .combo import Combo
 from .validators import TEXT_VALIDATORS, MANA_VALIDATOR
 from .utils import CardType, mana_value, merge_color_identities
@@ -338,7 +338,7 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
         return format_html('<a href="{}" target="_blank">{}</a>', link, text)
 
 
-class CardInVariant(IngredientInCombination, WithUsedFace):
+class CardInVariant(OrderedIngredient, WithUsedFace):
     id: int
     variant = models.ForeignKey(to=Variant, on_delete=models.CASCADE)
     variant_id: str
@@ -346,14 +346,14 @@ class CardInVariant(IngredientInCombination, WithUsedFace):
     def __str__(self):
         return f'{self.card} in {self.variant.pk}'
 
-    class Meta(IngredientInCombination.Meta):
+    class Meta(OrderedIngredient.Meta):
         unique_together = [('card', 'variant')]
         indexes = [
             models.Index(fields=['variant_id'], include=['id', 'card_id', 'quantity'], name='cardinvariant_variant_idx'),
         ] if connection.vendor == 'postgresql' else []
 
 
-class TemplateInVariant(IngredientInCombination):
+class TemplateInVariant(OrderedIngredient):
     id: int
     template = models.ForeignKey(to=Template, on_delete=models.CASCADE)
     template_id: int
@@ -363,7 +363,7 @@ class TemplateInVariant(IngredientInCombination):
     def __str__(self):
         return f'{self.template} in {self.variant.pk}'
 
-    class Meta(IngredientInCombination.Meta):
+    class Meta(OrderedIngredient.Meta):
         unique_together = [('template', 'variant')]
         indexes = [
             models.Index(fields=['variant_id'], include=['id', 'template_id', 'quantity'], name='templateinvariant_variant_idx'),

@@ -19,7 +19,7 @@ from django.tasks import TaskResult
 from spellbook.models import Card, FeatureNeededInCombo, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, ZoneLocation
 from spellbook.tasks import generate_variants_task
 from .utils import SpellbookModelAdmin, SpellbookAdminForm, CustomFilter, IngredientCountListFilter
-from .ingredient_admin import IngredientAdmin, IngredientInCombinationForm, SortableIngredientAdmin
+from .ingredient_admin import IngredientForm, OrderedIngredientAdmin
 
 
 DUPLICATE_CONFIRMATION_INPUT_NAME = '_confirm_duplicate'
@@ -120,7 +120,7 @@ class ComboForm(SpellbookAdminForm):
         }
 
 
-class ComboIngredientForm(IngredientInCombinationForm):
+class ComboIngredientForm(IngredientForm):
     def clean(self):
         if not self.fields['zone_locations'].required and not self.cleaned_data.get('zone_locations'):
             self.cleaned_data['zone_locations'] = ALL_ZONE_LOCATIONS
@@ -138,7 +138,7 @@ class ComboIngredientInlineFormSet(CustomInlineFormSet):
             form.fields['zone_locations'].required = False
 
 
-class ComboIngredientAdminInline(SortableIngredientAdmin):
+class ComboIngredientAdminInline(OrderedIngredientAdmin):
     '''Inline of an ingredient of a combo. Starting locations are optional on utility combos, since they don't
     restrict what such a combo matches: leaving them blank saves the ingredient as starting in every zone.'''
     form = ComboIngredientForm
@@ -146,7 +146,7 @@ class ComboIngredientAdminInline(SortableIngredientAdmin):
 
 
 class CardInComboAdminInline(ComboIngredientAdminInline):
-    fields = ['card', SortableIngredientAdmin.fields[0], 'used_face', *SortableIngredientAdmin.fields[1:]]  # pyright: ignore[reportGeneralTypeIssues]
+    fields = ['card', OrderedIngredientAdmin.fields[0], 'used_face', *OrderedIngredientAdmin.fields[1:]]  # pyright: ignore[reportGeneralTypeIssues]
     model = CardInCombo
     verbose_name = 'Card'
     verbose_name_plural = 'Required Cards'
@@ -160,7 +160,7 @@ class CardInComboAdminInline(ComboIngredientAdminInline):
 
 
 class TemplateInComboAdminInline(ComboIngredientAdminInline):
-    fields = ['template', *SortableIngredientAdmin.fields]
+    fields = ['template', *OrderedIngredientAdmin.fields]
     model = TemplateInCombo
     verbose_name = 'Template'
     verbose_name_plural = 'Required Templates'
@@ -173,10 +173,10 @@ class TemplateInComboAdminInline(ComboIngredientAdminInline):
         return result
 
 
-class FeatureNeededInComboAdminInline(IngredientAdmin):
+class FeatureNeededInComboAdminInline(OrderedIngredientAdmin):
     fields = [
         'feature',
-        *IngredientAdmin.fields,
+        *OrderedIngredientAdmin.fields,
         'any_of_attributes',
         'all_of_attributes',
         'none_of_attributes',

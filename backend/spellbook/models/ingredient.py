@@ -51,6 +51,19 @@ class ZoneLocationsField(models.CharField):
 
 
 class Ingredient(models.Model):
+    CARD_STATE_FIELDS = {
+        ZoneLocation.BATTLEFIELD: 'battlefield_card_state',
+        ZoneLocation.EXILE: 'exile_card_state',
+        ZoneLocation.GRAVEYARD: 'graveyard_card_state',
+        ZoneLocation.LIBRARY: 'library_card_state',
+    }
+    CARD_STATE_ZONE_NAMES = {
+        ZoneLocation.BATTLEFIELD: 'on the battlefield',
+        ZoneLocation.EXILE: 'in exile',
+        ZoneLocation.GRAVEYARD: 'in the graveyard',
+        ZoneLocation.LIBRARY: 'in the library',
+    }
+
     quantity = models.PositiveSmallIntegerField(default=1, blank=False, help_text='Quantity of the card in the combo.', verbose_name='quantity', validators=[MinValueValidator(1), MaxValueValidator(MAX_INGREDIENT_QUANTITY)])
     zone_locations = ZoneLocationsField(blank=False)
     battlefield_card_state = models.CharField(max_length=MAX_LOCATION_STATE_LENGTH, blank=True, help_text='State of the card on the battlefield, if present.', validators=TEXT_VALIDATORS, verbose_name='battlefield starting card state')
@@ -58,6 +71,10 @@ class Ingredient(models.Model):
     graveyard_card_state = models.CharField(max_length=MAX_LOCATION_STATE_LENGTH, blank=True, help_text='State of the card in the graveyard, if present.', validators=TEXT_VALIDATORS, verbose_name='graveyard starting card state')
     library_card_state = models.CharField(max_length=MAX_LOCATION_STATE_LENGTH, blank=True, help_text='State of the card in the library, if present.', validators=TEXT_VALIDATORS, verbose_name='library starting card state')
     must_be_commander = models.BooleanField(default=False, help_text='Does the card have to be a commander?', verbose_name='must be commander')
+
+    @classmethod
+    def text_fields_with_references(cls) -> list[str]:
+        return list(cls.CARD_STATE_FIELDS.values())
 
     def clean(self):
         super().clean()
@@ -71,21 +88,16 @@ class Ingredient(models.Model):
         must_be_commander = data.get('must_be_commander', False)
         if zone_locations == ZoneLocation.COMMAND_ZONE and not must_be_commander:
             raise ValidationError('Any card that can only start in command zone must be a commander. Please check the "must be commander" checkbox.')
-        if ZoneLocation.BATTLEFIELD not in zone_locations and data.get('battlefield_card_state'):
-            raise ValidationError('Battlefield card state is only valid if the card starts on the battlefield.')
-        if ZoneLocation.EXILE not in zone_locations and data.get('exile_card_state'):
-            raise ValidationError('Exile card state is only valid if the card starts in exile.')
-        if ZoneLocation.GRAVEYARD not in zone_locations and data.get('graveyard_card_state'):
-            raise ValidationError('Graveyard card state is only valid if the card starts in the graveyard.')
-        if ZoneLocation.LIBRARY not in zone_locations and data.get('library_card_state'):
-            raise ValidationError('Library card state is only valid if the card starts in the library.')
+        for location, state in cls.CARD_STATE_FIELDS.items():
+            if location not in zone_locations and data.get(state):
+                raise ValidationError(f'{location.label} card state is only valid if the card starts {cls.CARD_STATE_ZONE_NAMES[location]}.')
 
     class Meta:
         abstract = True
         ordering = ['id']
 
 
-class IngredientInCombination(Ingredient):
+class OrderedIngredient(Ingredient):
     order = models.PositiveIntegerField(default=0, db_index=True, blank=False, help_text='Order of the card in the combo.', verbose_name='order')
 
     class Meta(Ingredient.Meta):

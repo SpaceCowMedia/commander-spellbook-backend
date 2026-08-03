@@ -85,7 +85,7 @@ class ComboTests(SpellbookTestCaseWithSeeding):
         self.assertTrue(c.query_string().startswith('q='))
 
     def test_method_count(self):
-        self.assertEqual(count_methods(Combo), 6)
+        self.assertEqual(count_methods(Combo), 7)
 
     def test_special_characters_in_description(self):
         c = Combo.objects.create(description='Ratonhnhaké:ton', is_mana_needed_an_accurate_minimum=True)

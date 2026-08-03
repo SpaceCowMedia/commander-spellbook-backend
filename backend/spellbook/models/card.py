@@ -252,5 +252,9 @@ class FeatureOfCard(Ingredient, WithFeatureAttributes, WithUsedFace):
     easy_prerequisites = models.TextField(blank=True, help_text='Easily achievable prerequisites for this card feature.', validators=TEXT_VALIDATORS)
     notable_prerequisites = models.TextField(blank=True, help_text='Notable prerequisites for this card feature.', validators=TEXT_VALIDATORS)
 
+    @classmethod
+    def text_fields_with_references(cls) -> list[str]:
+        return [*super().text_fields_with_references(), 'mana_needed', 'easy_prerequisites', 'notable_prerequisites']
+
     def __str__(self):
         return f'{self.feature} for card {self.card_id}'

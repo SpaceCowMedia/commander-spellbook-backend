@@ -29,6 +29,7 @@ cdef class Data:
     cdef public dict id_to_combo
     cdef public dict id_to_variant
     cdef public dict id_to_feature
+    cdef public dict id_to_feature_attribute
     cdef public list generator_combos
     cdef public dict combo_to_cards
     cdef public dict combo_to_templates

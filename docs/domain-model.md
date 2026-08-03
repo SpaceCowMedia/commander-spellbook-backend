@@ -83,11 +83,13 @@ A few abstract models and join tables recur throughout:
 
 - **`Recipe`** — the abstract `uses` / `requires` / `produces` structure and automatic name generation, shared by `Combo`, `Variant`, and `VariantSuggestion`.
 - **`Playable`** — Magic characteristics (color identity, mana value, type line, …) shared by `Card` and `Variant`.
-- **`Ingredient` / `IngredientInCombination`** — the through-model base that carries per-item data such as `quantity` and starting **zone locations** (hand, battlefield, graveyard, …).
+- **`Ingredient` / `OrderedIngredient`** — the through-model base that carries per-item data such as `quantity` and starting **zone locations** (hand, battlefield, graveyard, …).
 
 ## The `[[name]]` reference syntax
 
-Text fields (descriptions, prerequisites) can reference a feature by name with `[[name]]`. Two modifiers exist: `[[name|alias]]` gives it a reusable alias, and `[[name$number]]` selects one of several copies. This lets editorial prose refer to generated pieces without hardcoding card names.
+Text fields (descriptions, prerequisites) can reference a feature by name with `[[name]]`. Two modifiers exist: `[[name|alias]]` gives it a reusable alias, and `[[name$selector]]` selects one of several copies. This lets editorial prose refer to generated pieces without hardcoding card names.
+
+The selector is either a number or an attribute name. A number is the position of the **needed feature** row among the ones the combo owning the text needs for that feature, so `[[name$2]]` always means "whatever satisfies the second row", in every variant of that combo — the rows are drag-sortable in the admin. An attribute name, as in `[[name$Landfall]]`, picks the copy produced with that attribute regardless of any ordering. Copies the combo does not ask for stay reachable after the ones it does. Renaming a feature or a feature attribute in the admin rewrites the references to it across every text field, so neither kind of name may contain the `$` and `|` characters the syntax reserves.
 
 ## Where to go next
 

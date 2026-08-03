@@ -4,14 +4,15 @@ from django.db.models import Count
 from spellbook.models.combo import CardInCombo, FeatureNeededInCombo
 from spellbook.models.feature_attribute import FeatureAttribute
 from spellbook.tests.testing import SpellbookTestCaseWithSeeding
-from spellbook.models import Variant, Card, IngredientInCombination, CardInVariant, TemplateInVariant, Template, Combo, Feature, VariantAlias, FeatureOfCard, ZoneLocation
+from spellbook.models import Variant, Card, OrderedIngredient, CardInVariant, TemplateInVariant, Template, Combo, Feature, VariantAlias, FeatureOfCard, ZoneLocation
 from spellbook.models import VariantGenerationFingerprints
 from spellbook.variants.combo_graph import FeatureWithAttributes
 from spellbook.variants.multiset import FrozenMultiset
 from spellbook.variants.variant_data import Data
 from spellbook.variants import variants_generator
 from spellbook.variants.variants_generator import get_variants_from_graph, get_default_zone_location_for_card, update_state_with_default, merge_used_faces
-from spellbook.variants.variants_generator import generate_variants, apply_replacements, build_replacement_strings, subtract_features, update_state
+from spellbook.variants.replacements import ReplacementContext
+from spellbook.variants.variants_generator import generate_variants, subtract_features, update_state
 from spellbook.variants.variants_generator import sync_variant_aliases, restore_variants
 from multiprocessing_utils import parallelism_is_available
 
@@ -92,7 +93,7 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
             if isinstance(sut, CardInVariant):
                 self.assertEqual(sut.zone_locations, get_default_zone_location_for_card(sut.card))
             else:
-                self.assertEqual(sut.zone_locations, IngredientInCombination._meta.get_field('zone_locations').get_default())  # pyright: ignore[reportAttributeAccessIssue]
+                self.assertEqual(sut.zone_locations, OrderedIngredient._meta.get_field('zone_locations').get_default())  # pyright: ignore[reportAttributeAccessIssue]
 
     def test_update_state(self):
         civs = list(CardInVariant(card=c) for c in Card.objects.all())
@@ -183,6 +184,7 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
         fd = Feature.objects.create(name='FDFC')
         fl = Feature.objects.create(name='FLDFC')
         fattr = FeatureAttribute.objects.create(name='FAttr')
+        spaced_attr = FeatureAttribute.objects.create(name='Spaced Attr')
         combo = Combo.objects.create(status=Combo.Status.UTILITY)
         fn = FeatureNeededInCombo.objects.create(combo=combo, feature=fx)
         fn.none_of_attributes.add(fattr)
@@ -195,6 +197,7 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
             FeatureWithAttributes(fy, frozenset()): [([non_legendary_card], [])],
             FeatureWithAttributes(fy, frozenset({fattr.id})): [([normal_card], [])],  # Test for multiple valid entries with different attributes
             FeatureWithAttributes(fz, frozenset()): [([legendary_modal_card], [])],
+            FeatureWithAttributes(fz, frozenset({spaced_attr.id})): [([normal_card], [])],  # Test for an attribute name with spaces
             FeatureWithAttributes(fw, frozenset()): [([legendary_card, non_legendary_card, legendary_modal_card, normal_card], [])],
             FeatureWithAttributes(fd, frozenset()): [([dfc_card], [])],
             FeatureWithAttributes(fl, frozenset()): [([legendary_face_card], [])],
@@ -214,6 +217,11 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
             ('Legendary name cut before comma: [[FX]]', 'Legendary name cut before comma: The Name'),
             ('Non-legendary name not cut before comma: [[FY]]', 'Non-legendary name not cut before comma: The Name, different Title'),
             ('Test replacement selector: [[FY$1]] - [[FY$2]]', 'Test replacement selector: The Name, different Title - Normal Card'),
+            ('Test replacement attribute selector: [[FY$FAttr]]', 'Test replacement attribute selector: Normal Card'),
+            ('Test replacement attribute selector case insensitivity: [[FY$fattr]]', 'Test replacement attribute selector case insensitivity: Normal Card'),
+            ('Test unknown attribute selector: [[FY$Unknown]]', 'Test unknown attribute selector: [[FY$Unknown]]'),
+            ('Test attribute selector with spaces: [[FZ$Spaced Attr]]', 'Test attribute selector with spaces: Normal Card'),
+            ('Test attribute selector with spaces and alias: [[FZ|X$Spaced Attr|Y]] - [[Y]]', 'Test attribute selector with spaces and alias: Normal Card - Normal Card'),
             ('Test replacement selector alias: [[FY$1|X]] - [[FY$2|Y]] - [[X]] - [[Y]]', 'Test replacement selector alias: The Name, different Title - Normal Card - The Name, different Title - Normal Card'),
             ('Test replacement selector postfix alias: [[FY|X$1|Y]] - [[X]] - [[X$2]] - [[Y]] - [[Y$2]]', 'Test replacement selector postfix alias: The Name, different Title - The Name, different Title - Normal Card - The Name, different Title - [[Y$2]]'),
             ('Legendary modal name never cut: [[FZ]]', 'Legendary modal name never cut: The Name, the Title  // Another Name, Another Title'),
@@ -230,19 +238,60 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
             ('Non-legendary face not cut before comma: [[FLDFC#1]]', 'Non-legendary face not cut before comma: Enchanted Front, with Words'),
         ]
         data = Data()
-        replacement_strings = build_replacement_strings(data, replacements, {combo.id}, {})
+        # A context per case, so that the aliases registered by one do not leak into the next
         for test in tests:
-            self.assertEqual(apply_replacements(test[0], replacement_strings), test[1])
+            context = ReplacementContext.build(data, replacements, [combo], {})
+            self.assertEqual(context.apply(test[0]), test[1])
         # When the used_face field is specified, the placeholder defaults to that half of the name,
         # while a face selector in the text still overrides it
-        replacement_strings_with_face = build_replacement_strings(data, replacements, {combo.id}, {dfc_card.id: 2, legendary_face_card.id: 2})
         face_tests = [
             ('Used face defaults to that half: [[FDFC]]', 'Used face defaults to that half: Back Face'),
             ('Text face still overrides the used face: [[FDFC#1]]', 'Text face still overrides the used face: Front Face'),
             ('Used face is cut before comma as well: [[FLDFC]]', 'Used face is cut before comma as well: The Lord'),
         ]
         for test in face_tests:
-            self.assertEqual(apply_replacements(test[0], replacement_strings_with_face), test[1])
+            context = ReplacementContext.build(data, replacements, [combo], {dfc_card.id: 2, legendary_face_card.id: 2})
+            self.assertEqual(context.apply(test[0]), test[1])
+        # One context spans a whole variant, so an alias registered by one text is visible to the next
+        context = ReplacementContext.build(data, replacements, [combo], {})
+        self.assertEqual(context.apply('alias registered here: [[FA|XYZ]]'), 'alias registered here: A A')
+        self.assertEqual(context.apply('and used in another text: [[XYZ]]'), 'and used in another text: A A')
+        # while a newly built one starts over without it
+        self.assertEqual(ReplacementContext.build(data, replacements, [combo], {}).apply('unknown here: [[XYZ]]'), 'unknown here: [[XYZ]]')
+
+    def test_replacement_order_follows_needed_features(self):
+        landfall = FeatureAttribute.objects.create(name='Landfall')
+        untapper = FeatureAttribute.objects.create(name='Untapper Effect')
+        token_maker = Feature.objects.create(name='FToken')
+        landfall_card = Card.objects.create(name='Landfall Card', type_line='Creature - Elf')
+        untapper_card = Card.objects.create(name='Untapper Card', type_line='Creature - Elf')
+        combo = Combo.objects.create(status=Combo.Status.UTILITY)
+        needs_landfall_first = FeatureNeededInCombo.objects.create(combo=combo, feature=token_maker, order=1)
+        needs_landfall_first.any_of_attributes.add(landfall)
+        needs_untapper_second = FeatureNeededInCombo.objects.create(combo=combo, feature=token_maker, order=2)
+        needs_untapper_second.any_of_attributes.add(untapper)
+        other_combo = Combo.objects.create(status=Combo.Status.UTILITY)
+        needs_untapper_first = FeatureNeededInCombo.objects.create(combo=other_combo, feature=token_maker, order=1)
+        needs_untapper_first.any_of_attributes.add(untapper)
+        needs_landfall_second = FeatureNeededInCombo.objects.create(combo=other_combo, feature=token_maker, order=2)
+        needs_landfall_second.any_of_attributes.add(landfall)
+        landfall_replacement = (FeatureWithAttributes(token_maker, frozenset({landfall.id})), [([landfall_card], [])])
+        untapper_replacement = (FeatureWithAttributes(token_maker, frozenset({untapper.id})), [([untapper_card], [])])
+        text = '[[FToken$1]] then [[FToken$2]]'
+        data = Data()
+        # The order the replacements are discovered in is not stable across variants, so it must not matter
+        for replacements in (
+            dict([landfall_replacement, untapper_replacement]),
+            dict([untapper_replacement, landfall_replacement]),
+        ):
+            with self.subTest(replacements=list(replacements)):
+                context = ReplacementContext.build(data, replacements, [combo, other_combo], {})
+                self.assertEqual(context.apply(text, combo.id), 'Landfall Card then Untapper Card')
+                # The same text renders against the needed features of the combo it belongs to
+                self.assertEqual(context.apply(text, other_combo.id), 'Untapper Card then Landfall Card')
+                # The attribute selector does not depend on any ordering
+                self.assertEqual(context.apply('[[FToken$Landfall]]', other_combo.id), 'Landfall Card')
+                self.assertEqual(context.apply('[[FToken$Untapper Effect]]', combo.id), 'Untapper Card')
 
     def test_restore_variant(self):
         # TODO: Implement

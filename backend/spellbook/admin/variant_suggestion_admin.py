@@ -7,12 +7,12 @@ from django.http.request import HttpRequest
 from django.shortcuts import redirect
 from spellbook.models import VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, FeatureProducedInVariantSuggestion
 from spellbook.tasks import notify_task, EventNotification
-from .ingredient_admin import SortableIngredientAdmin
+from .ingredient_admin import OrderedIngredientAdmin
 from .utils import SpellbookModelAdmin, CardCountListFilter
 
 
-class CardUsedInVariantSuggestionAdminInline(SortableIngredientAdmin):
-    fields = ['card', *SortableIngredientAdmin.fields]
+class CardUsedInVariantSuggestionAdminInline(OrderedIngredientAdmin):
+    fields = ['card', *OrderedIngredientAdmin.fields]
     model = CardUsedInVariantSuggestion
     verbose_name = 'Card'
     verbose_name_plural = 'Cards'
@@ -20,8 +20,8 @@ class CardUsedInVariantSuggestionAdminInline(SortableIngredientAdmin):
     max_num = VariantSuggestion.max_cards
 
 
-class TemplateRequiredInVariantAdminInline(SortableIngredientAdmin):
-    fields = ['template', 'scryfall_query', *SortableIngredientAdmin.fields]
+class TemplateRequiredInVariantAdminInline(OrderedIngredientAdmin):
+    fields = ['template', 'scryfall_query', *OrderedIngredientAdmin.fields]
     model = TemplateRequiredInVariantSuggestion
     verbose_name = 'Template'
     verbose_name_plural = 'Templates'

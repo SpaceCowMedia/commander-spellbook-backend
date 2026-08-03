@@ -124,14 +124,19 @@ class Card(Playable, PreSaveModelMixin, ScryfallLinkMixin):
     def cards(self):
         return [self.name] if self.name else []
 
-    def face_name(self, face: int | None) -> str:
-        '''Returns the name of the given 1-based face index, or the whole card name if the index is blank or out of range.'''
-        if face is None:
-            return self.name
+    def face_name(self, face: int | None, short: bool = False) -> str:
+        '''Returns the name of the given 1-based face index, or the whole card name if the index is blank or out of range.
+        With short, the name of a legendary creature is cut before the comma, the way such a card is commonly called.'''
         names = self.name.split(' // ')
-        if 1 <= face <= len(names):
-            return names[face - 1]
-        return self.name
+        if face is not None and 1 <= face <= len(names):
+            name = names[face - 1]
+            face_types = self.card_types[face - 1] if face <= len(self.card_types) else []
+        else:
+            name = self.name
+            face_types = self.card_types[0] if len(names) == 1 and self.card_types else []
+        if short and ',' in name and set(face_types).issuperset({CardType.LEGENDARY, CardType.CREATURE}):
+            return name.split(',', 1)[0]
+        return name
 
     def pre_save(self):
         self.name_unaccented = strip_accents(self.name)

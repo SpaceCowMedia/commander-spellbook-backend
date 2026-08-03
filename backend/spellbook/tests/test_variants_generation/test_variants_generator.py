@@ -171,11 +171,17 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
             type_line='Creature - Human // Creature - Zombie',
             faces=2,
         )
+        legendary_face_card = Card.objects.create(
+            name='Enchanted Front, with Words // The Lord, the Legend',
+            type_line='Enchantment - Aura // Legendary Creature - Avatar',
+            faces=2,
+        )
         fx = Feature.objects.create(name='FX')
         fy = Feature.objects.create(name='FY')
         fz = Feature.objects.create(name='FZ')
         fw = Feature.objects.create(name='FW')
         fd = Feature.objects.create(name='FDFC')
+        fl = Feature.objects.create(name='FLDFC')
         fattr = FeatureAttribute.objects.create(name='FAttr')
         combo = Combo.objects.create(status=Combo.Status.UTILITY)
         fn = FeatureNeededInCombo.objects.create(combo=combo, feature=fx)
@@ -191,6 +197,7 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
             FeatureWithAttributes(fz, frozenset()): [([legendary_modal_card], [])],
             FeatureWithAttributes(fw, frozenset()): [([legendary_card, non_legendary_card, legendary_modal_card, normal_card], [])],
             FeatureWithAttributes(fd, frozenset()): [([dfc_card], [])],
+            FeatureWithAttributes(fl, frozenset()): [([legendary_face_card], [])],
         }
         tests = [
             ('', ''),
@@ -218,6 +225,9 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
             ('Out of range face falls back to default: [[FDFC#3]]', 'Out of range face falls back to default: Front Face // Back Face'),
             ('Face selector alias saves the face name: [[FDFC#1|f]] then [[f]]', 'Face selector alias saves the face name: Front Face then Front Face'),
             ('Face selector ignored on single-faced card: [[FA#2]]', 'Face selector ignored on single-faced card: A A'),
+            ('Whole modal name never cut: [[FLDFC]]', 'Whole modal name never cut: Enchanted Front, with Words // The Lord, the Legend'),
+            ('Legendary creature face cut before comma: [[FLDFC#2]]', 'Legendary creature face cut before comma: The Lord'),
+            ('Non-legendary face not cut before comma: [[FLDFC#1]]', 'Non-legendary face not cut before comma: Enchanted Front, with Words'),
         ]
         data = Data()
         replacement_strings = build_replacement_strings(data, replacements, {combo.id}, {})
@@ -225,10 +235,11 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
             self.assertEqual(apply_replacements(test[0], replacement_strings), test[1])
         # When the used_face field is specified, the placeholder defaults to that half of the name,
         # while a face selector in the text still overrides it
-        replacement_strings_with_face = build_replacement_strings(data, replacements, {combo.id}, {dfc_card.id: 2})
+        replacement_strings_with_face = build_replacement_strings(data, replacements, {combo.id}, {dfc_card.id: 2, legendary_face_card.id: 2})
         face_tests = [
             ('Used face defaults to that half: [[FDFC]]', 'Used face defaults to that half: Back Face'),
             ('Text face still overrides the used face: [[FDFC#1]]', 'Text face still overrides the used face: Front Face'),
+            ('Used face is cut before comma as well: [[FLDFC]]', 'Used face is cut before comma as well: The Lord'),
         ]
         for test in face_tests:
             self.assertEqual(apply_replacements(test[0], replacement_strings_with_face), test[1])

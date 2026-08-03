@@ -102,6 +102,25 @@ class CardTests(SpellbookTestCaseWithSeeding):
         self.assertEqual(dfc.face_name(2), 'Back Face')
         self.assertEqual(dfc.face_name(3), 'Front Face // Back Face')  # out of range falls back to the whole name
 
+    def test_short_face_name(self):
+        legendary = Card.objects.create(name='The Name, the Title', type_line='Legendary Creature - Human')
+        self.assertEqual(legendary.face_name(None), 'The Name, the Title')
+        self.assertEqual(legendary.face_name(None, short=True), 'The Name')
+        self.assertEqual(legendary.face_name(1, short=True), 'The Name')
+        non_legendary = Card.objects.create(name='The Name, different Title', type_line='Creature - Human')
+        self.assertEqual(non_legendary.face_name(None, short=True), 'The Name, different Title')
+        legendary_dfc = Card.objects.create(
+            name='Enchanted Front, with Words // The Lord, the Legend',
+            type_line='Enchantment - Aura // Legendary Creature - Avatar',
+            faces=2,
+        )
+        # The whole name of a multi-faced card is never cut, while each face follows its own type line
+        self.assertEqual(legendary_dfc.face_name(None, short=True), 'Enchanted Front, with Words // The Lord, the Legend')
+        self.assertEqual(legendary_dfc.face_name(1, short=True), 'Enchanted Front, with Words')
+        self.assertEqual(legendary_dfc.face_name(2, short=True), 'The Lord')
+        self.assertEqual(legendary_dfc.face_name(2), 'The Lord, the Legend')
+        self.assertEqual(legendary_dfc.face_name(3, short=True), 'Enchanted Front, with Words // The Lord, the Legend')
+
     def test_name_unaccented(self):
         c = Card.objects.create(name='à, è, ì, ò, ù, y, À, È, Ì, Ò, Ù, Y, á, é, í, ó, ú, ý, Á, É, Í, Ó, Ú, Ý, â, ê, î, ô, û, y, Â, Ê, Î, Ô, Û, Y, ä, ë, ï, ö, ü, ÿ, Ä, Ë, Ï, Ö, Ü, Ÿ', oracle_id='47d6f04b-a6fe-4274-bd27-888475158e82')
         self.assertEqual(c.name_unaccented, ', '.join('aeiouyAEIOUY' * 4))

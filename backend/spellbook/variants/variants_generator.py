@@ -341,7 +341,7 @@ class Replacement:
 
     def resolve(self, face: int | None) -> str:
         if face is not None and self.card is not None and 1 <= face <= self.card.faces:
-            return self.card.face_name(face)
+            return self.card.face_name(face, short=True)
         return self.text
 
 
@@ -367,11 +367,7 @@ def build_replacement_strings(
             continue
         for cards, templates in replacement_list:
             names = [
-                c.face_name(used_faces.get(c.id))
-                if used_faces.get(c.id) is not None
-                else c.name.split(',', 2)[0]
-                if ',' in c.name and ' // ' not in c.name and c.is_of_type(CardType.LEGENDARY) and c.is_of_type(CardType.CREATURE)
-                else c.name
+                c.face_name(used_faces.get(c.id), short=True)
                 for c in cards
             ] + [
                 t.name

@@ -1,6 +1,7 @@
 from collections import defaultdict
 from typing import Any
 from urllib.parse import urlencode
+from adminsortable2.admin import CustomInlineFormSet
 from django.contrib.admin.options import InlineModelAdmin
 from django.db.models import Case, Sum, When, Count, Q
 from django.contrib import admin, messages
@@ -15,15 +16,16 @@ from django.urls import reverse, path
 from django.shortcuts import redirect
 from django.utils import timezone
 from django.tasks import TaskResult
-from spellbook.models import Card, FeatureNeededInCombo, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion
+from spellbook.models import Card, FeatureNeededInCombo, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, ZoneLocation
 from spellbook.tasks import generate_variants_task
 from .utils import SpellbookModelAdmin, SpellbookAdminForm, CustomFilter, IngredientCountListFilter
-from .ingredient_admin import IngredientAdmin, SortableIngredientAdmin
+from .ingredient_admin import IngredientAdmin, IngredientInCombinationForm, SortableIngredientAdmin
 
 
 DUPLICATE_CONFIRMATION_INPUT_NAME = '_confirm_duplicate'
 DUPLICATE_CANCELLATION_INPUT_NAME = '_cancel_duplicate'
 DUPLICATE_COMBOS_DISPLAY_LIMIT = 10
+ALL_ZONE_LOCATIONS = ''.join(ZoneLocation.values)
 
 
 def create_missing_object_message(url: str) -> str:
@@ -118,7 +120,32 @@ class ComboForm(SpellbookAdminForm):
         }
 
 
-class CardInComboAdminInline(SortableIngredientAdmin):
+class ComboIngredientForm(IngredientInCombinationForm):
+    def clean(self):
+        if not self.fields['zone_locations'].required and not self.cleaned_data.get('zone_locations'):
+            self.cleaned_data['zone_locations'] = ALL_ZONE_LOCATIONS
+        return super().clean()
+
+
+class ComboIngredientInlineFormSet(CustomInlineFormSet):
+    def is_utility_combo(self) -> bool:
+        status = self.data.get('status') if self.is_bound else self.instance.status
+        return status == Combo.Status.UTILITY
+
+    def add_fields(self, form: ComboIngredientForm, index: int | None) -> None:
+        super().add_fields(form, index)  # type: ignore  # untyped third party method
+        if self.is_utility_combo():
+            form.fields['zone_locations'].required = False
+
+
+class ComboIngredientAdminInline(SortableIngredientAdmin):
+    '''Inline of an ingredient of a combo. Starting locations are optional on utility combos, since they don't
+    restrict what such a combo matches: leaving them blank saves the ingredient as starting in every zone.'''
+    form = ComboIngredientForm
+    formset = ComboIngredientInlineFormSet
+
+
+class CardInComboAdminInline(ComboIngredientAdminInline):
     fields = ['card', SortableIngredientAdmin.fields[0], 'used_face', *SortableIngredientAdmin.fields[1:]]  # pyright: ignore[reportGeneralTypeIssues]
     model = CardInCombo
     verbose_name = 'Card'
@@ -132,7 +159,7 @@ class CardInComboAdminInline(SortableIngredientAdmin):
         return result
 
 
-class TemplateInComboAdminInline(SortableIngredientAdmin):
+class TemplateInComboAdminInline(ComboIngredientAdminInline):
     fields = ['template', *SortableIngredientAdmin.fields]
     model = TemplateInCombo
     verbose_name = 'Template'

@@ -2,7 +2,8 @@ import re
 from collections import defaultdict
 from html import unescape
 from django.urls import reverse
-from spellbook.models import Combo, CardInCombo
+from spellbook.admin.combo_admin import ALL_ZONE_LOCATIONS
+from spellbook.models import Combo, CardInCombo, ZoneLocation
 from spellbook.models.utils import sanitize_newlines_apostrophes_and_quotes
 from ..testing import SpellbookTestCaseWithSeeding
 
@@ -16,14 +17,12 @@ INLINE_PREFIXES = [
 ]
 
 
-class ComboAdminDuplicateConfirmationTests(SpellbookTestCaseWithSeeding):
-    '''The seeded combo b4 requires the cards c8 and c1, while b5 requires c5 and c6.'''
-
+class ComboAdminTestCase(SpellbookTestCaseWithSeeding):
     def setUp(self):
         super().setUp()
         self.client.force_login(self.admin)
 
-    def combo_payload(self, cards: list[int], card_ids_to_update: list[int] = [], **overrides) -> dict:
+    def combo_payload(self, cards: list[int], card_ids_to_update: list[int] = [], zone_locations: str = ZoneLocation.BATTLEFIELD, **overrides) -> dict:
         '''Build the data of a submitted combo add/change form, requiring the given cards.'''
         payload: dict = {
             'mana_needed': '',
@@ -46,7 +45,7 @@ class ComboAdminDuplicateConfirmationTests(SpellbookTestCaseWithSeeding):
             payload.update({
                 f'cardincombo_set-{i}-card': str(card),
                 f'cardincombo_set-{i}-quantity': '1',
-                f'cardincombo_set-{i}-zone_locations': 'B',
+                f'cardincombo_set-{i}-zone_locations': zone_locations,
                 f'cardincombo_set-{i}-order': str(i + 1),
             })
             if i < len(card_ids_to_update):
@@ -61,6 +60,59 @@ class ComboAdminDuplicateConfirmationTests(SpellbookTestCaseWithSeeding):
 
     def change_url(self, combo_id: int) -> str:
         return reverse('admin:spellbook_combo_change', args=[combo_id])
+
+
+class ComboAdminUtilityComboTests(ComboAdminTestCase):
+    '''Utility combos don't restrict the zones their ingredients start in, so their starting locations can be left blank.'''
+
+    def test_blank_starting_locations_are_saved_as_every_zone(self):
+        response = self.client.post(self.add_url(), data=self.combo_payload(
+            cards=[self.c7_id],
+            zone_locations='',
+            status=Combo.Status.UTILITY,
+        ))
+        self.assertEqual(response.status_code, 302)
+        added_combo = Combo.objects.latest('created')
+        self.assertEqual(added_combo.cardincombo_set.get().zone_locations, ALL_ZONE_LOCATIONS)
+
+    def test_blank_starting_locations_are_rejected_on_other_combos(self):
+        combo_count = Combo.objects.count()
+        response = self.client.post(self.add_url(), data=self.combo_payload(
+            cards=[self.c7_id],
+            zone_locations='',
+        ))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('This field is required', response.content.decode())
+        self.assertEqual(Combo.objects.count(), combo_count)
+
+    def test_starting_locations_can_be_cleared_on_an_existing_utility_combo(self):
+        '''The seeded combo b5 is a utility combo requiring the cards c5 and c6.'''
+        card_ids = list(CardInCombo.objects.filter(combo_id=self.b5_id).order_by('order').values_list('id', flat=True))
+        response = self.client.post(self.change_url(self.b5_id), data=self.combo_payload(
+            cards=[self.c5_id, self.c6_id],
+            card_ids_to_update=card_ids,
+            zone_locations='',
+            status=Combo.Status.UTILITY,
+        ))
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            set(Combo.objects.get(id=self.b5_id).cardincombo_set.values_list('zone_locations', flat=True)),
+            {ALL_ZONE_LOCATIONS},
+        )
+
+    def test_chosen_starting_locations_are_left_alone(self):
+        response = self.client.post(self.add_url(), data=self.combo_payload(
+            cards=[self.c7_id],
+            zone_locations=ZoneLocation.GRAVEYARD,
+            status=Combo.Status.UTILITY,
+        ))
+        self.assertEqual(response.status_code, 302)
+        added_combo = Combo.objects.latest('created')
+        self.assertEqual(added_combo.cardincombo_set.get().zone_locations, ZoneLocation.GRAVEYARD)
+
+
+class ComboAdminDuplicateConfirmationTests(ComboAdminTestCase):
+    '''The seeded combo b4 requires the cards c8 and c1, while b5 requires c5 and c6.'''
 
     def test_adding_a_unique_combo_does_not_ask_for_confirmation(self):
         combo_count = Combo.objects.count()

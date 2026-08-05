@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/dev/ref/settings/
 import os
 from pathlib import Path
 from datetime import timedelta
+from typing import Any
 from constants import SORTED_COLORS
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -80,6 +81,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'backend.database.DatabaseSelectionMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'djangorestframework_camel_case.middleware.CamelCaseMiddleWare',
@@ -112,12 +114,17 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/dev/ref/settings/#databases
 
-DATABASES = {
+DATABASES: dict[str, dict[str, Any]] = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
     },
 }
+
+# The router falls back to the default alias when the admin one isn't configured, as is the case above.
+DATABASE_ROUTERS = ['backend.database.DatabaseRouter']
+
+TEST_RUNNER = 'backend.test_runner.TestRunner'
 
 # Social Auth PostgresSQL settings
 # https://python-social-auth.readthedocs.io/en/latest/configuration/django.html#database

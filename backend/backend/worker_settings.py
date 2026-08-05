@@ -3,5 +3,5 @@ from .production_settings import DATABASES
 
 if DATABASES['default']['ENGINE'] == 'django.db.backends.postgresql':
     DATABASES['default']['OPTIONS'] = {  # type: ignore
-        'options': '-c statement_timeout=120000'  # in milliseconds
+        'options': '-c statement_timeout=150000'  # in milliseconds
     }

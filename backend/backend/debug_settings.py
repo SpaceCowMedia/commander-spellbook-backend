@@ -1,6 +1,7 @@
 import os
 from .settings import *  # noqa: F403, F401
 from .settings import INSTALLED_APPS, TEMPLATES, MIDDLEWARE, DATABASES
+from .database import ADMIN_DATABASE
 
 assert 'django.contrib.admin' in INSTALLED_APPS, 'django.contrib.admin not in INSTALLED_APPS'
 assert any(t.get('BACKEND') == 'django.template.backends.django.DjangoTemplates' and t.get('APP_DIRS') for t in TEMPLATES), 'No DjangoTemplates backend in TEMPLATES'
@@ -26,3 +27,10 @@ if os.getenv('SQL_ENGINE', DATABASES['default']['ENGINE']) != DATABASES['default
 
 if DATABASES['default']['ENGINE'] == 'django.db.backends.postgresql':
     INSTALLED_APPS.append('django.contrib.postgres')
+    # Same database, reached through a connection that tolerates the slower queries of the admin interface.
+    DATABASES[ADMIN_DATABASE] = {
+        **DATABASES['default'],
+        'OPTIONS': {
+            'options': '-c statement_timeout=120000'  # in milliseconds
+        },
+    }

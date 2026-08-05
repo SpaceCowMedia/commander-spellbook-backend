@@ -1,6 +1,7 @@
 import os
 from .settings import *  # noqa: F403, F401
 from .settings import BASE_DIR, INSTALLED_APPS
+from .database import ADMIN_DATABASE
 from urllib.parse import urlparse
 
 # SECURITY WARNING: don't run with debug turned on in production!
@@ -44,11 +45,10 @@ if POD_IP is not None:
 # Production settings
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATIC_BULK_FOLDER = STATIC_ROOT / 'bulk'
-CONN_MAX_AGE = 60 * 60
 
 # Database
 # https://docs.djangoproject.com/en/dev/ref/settings/#databases
-DATABASES = {  # type: ignore[assignment]
+DATABASES = {
     'default': {
         'ENGINE': os.getenv('SQL_ENGINE', 'django.db.backends.sqlite3'),
         'NAME': os.getenv('SQL_DATABASE', os.path.join(BASE_DIR, 'db.sqlite3')),
@@ -56,13 +56,21 @@ DATABASES = {  # type: ignore[assignment]
         'PASSWORD': os.getenv('SQL_PASSWORD', 'password'),
         'HOST': os.getenv('SQL_HOST', 'localhost'),
         'PORT': os.getenv('SQL_PORT', '5432'),
+        'OPTIONS': {},
     }
 }
 
 if DATABASES['default']['ENGINE'] == 'django.db.backends.postgresql':
     INSTALLED_APPS.append('django.contrib.postgres')
-    DATABASES['default']['OPTIONS'] = {  # type: ignore
+    DATABASES['default']['OPTIONS'] = {
         'options': '-c statement_timeout=60000'  # in milliseconds
+    }
+    # Same database, reached through a connection that tolerates the slower queries of the admin interface.
+    DATABASES[ADMIN_DATABASE] = {
+        **DATABASES['default'],
+        'OPTIONS': {
+            'options': '-c statement_timeout=120000'  # in milliseconds
+        },
     }
 
 LOGGING = {

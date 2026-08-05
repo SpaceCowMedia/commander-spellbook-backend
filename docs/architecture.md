@@ -67,6 +67,7 @@ The Django project itself: settings, root URL configuration, authentication, the
 - `settings.py` — local/dev settings (SQLite, `DEBUG=True`), so a clone runs with no external database.
 - `production_settings.py` — Postgres via `SQL_*` env vars, used in Docker/prod.
 - `worker_settings.py` — production settings plus a DB statement timeout, used by the background worker.
+- `database.py` — sends each request to one of two connections to the same database: a 60 second statement timeout for the API and anonymous traffic, 2 minutes for authenticated requests to the admin interface. Anything running outside a request stays on the first one, which is what `migrate` needs.
 - `urls.py` — mounts the app routers, JWT and social auth, the admin, and the `drf-spectacular` schema/Swagger/Redoc endpoints.
 
 ### `spellbook` — the core app

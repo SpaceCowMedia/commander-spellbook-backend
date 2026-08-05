@@ -1,6 +1,6 @@
 from django.core.exceptions import ValidationError
-from spellbook.admin.feature_attribute_admin import replace_attribute_reference, replace_attribute_references
 from spellbook.models import CardInCombo, Combo, Feature, FeatureAttribute, FeatureNeededInCombo, FeatureOfCard, ZoneLocation
+from spellbook.models.references import replace_attribute_reference
 from ..testing import SpellbookTestCaseWithSeeding
 
 
@@ -70,7 +70,6 @@ class FeatureAttributeAdminTests(SpellbookTestCaseWithSeeding):
 
         attribute.name = 'New Attribute'
         attribute.save()
-        replace_attribute_references(attribute, 'Old Attribute')
 
         combo.refresh_from_db()
         self.assertEqual(combo.description, '[[Renaming Feature$New Attribute]] does something')
@@ -87,6 +86,37 @@ class FeatureAttributeAdminTests(SpellbookTestCaseWithSeeding):
         self.assertEqual(feature_of_card.notable_prerequisites, 'needs [[Renaming Feature$New Attribute]]')
         untouched.refresh_from_db()
         self.assertEqual(untouched.description, '[[Renaming Feature$Other Attribute]]')
+
+    def test_replace_attribute_references_ignores_relationships(self):
+        attribute = FeatureAttribute.objects.create(name='Old Attribute')
+        feature = Feature.objects.create(name='Some Feature')
+        unrelated_combo = Combo.objects.create(
+            status=Combo.Status.UTILITY,
+            description='[[Some Feature$Old Attribute]] is only mentioned here',
+        )
+        card_in_unrelated_combo = CardInCombo.objects.create(
+            combo=unrelated_combo,
+            card_id=self.c1_id,
+            order=1,
+            zone_locations=ZoneLocation.BATTLEFIELD,
+            battlefield_card_state='next to [[Some Feature$Old Attribute]]',
+        )
+        feature_of_card = FeatureOfCard.objects.create(
+            card_id=self.c2_id,
+            feature=feature,
+            zone_locations=ZoneLocation.BATTLEFIELD,
+            notable_prerequisites='needs [[Some Feature$Old Attribute]]',
+        )
+
+        attribute.name = 'New Attribute'
+        attribute.save()
+
+        unrelated_combo.refresh_from_db()
+        self.assertEqual(unrelated_combo.description, '[[Some Feature$New Attribute]] is only mentioned here')
+        card_in_unrelated_combo.refresh_from_db()
+        self.assertEqual(card_in_unrelated_combo.battlefield_card_state, 'next to [[Some Feature$New Attribute]]')
+        feature_of_card.refresh_from_db()
+        self.assertEqual(feature_of_card.notable_prerequisites, 'needs [[Some Feature$New Attribute]]')
 
     def test_rename_from_admin_updates_references(self):
         self.client.force_login(self.admin)

@@ -1,6 +1,6 @@
 from itertools import product
 from unittest import TestCase
-from spellbook.variants.replacements import FEATURE_REPLACEMENT_PATTERN, format_feature_replacement
+from spellbook.models.references import FEATURE_REPLACEMENT_PATTERN, format_feature_replacement
 
 KEYS = [
     'Feature',

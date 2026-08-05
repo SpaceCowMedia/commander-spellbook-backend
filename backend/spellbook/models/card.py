@@ -9,8 +9,9 @@ from django.contrib.postgres.indexes import GinIndex, OpClass
 from .constants import MAX_CARD_NAME_LENGTH, MAX_MANA_NEEDED_LENGTH
 from .validators import MANA_VALIDATOR, TEXT_VALIDATORS
 from .playable import Playable
-from .utils import strip_accents, simplify_card_name_on_database, simplify_card_name_with_spaces_on_database, DEFAULT_BATCH_SIZE, CardType
-from .mixins import ScryfallLinkMixin, PreSaveModelMixin
+from .utils import strip_accents, simplify_card_name_on_database, simplify_card_name_with_spaces_on_database, CardType
+from .recipe import update_variants, update_combo_names
+from .mixins import ScryfallLinkMixin, PreSaveModelMixin, NamedModel
 from .feature import Feature
 from .fields import KeywordsField
 from .ingredient import Ingredient
@@ -23,10 +24,10 @@ class LayoutRotation(models.TextChoices):
     FLIP = 'flip', 'Flip'
 
 
-class Card(Playable, PreSaveModelMixin, ScryfallLinkMixin):
+class Card(NamedModel, Playable, PreSaveModelMixin, ScryfallLinkMixin):
     id: int
     oracle_id = models.UUIDField(unique=True, blank=True, null=True, verbose_name='Scryfall Oracle ID of card')
-    name = models.CharField(max_length=MAX_CARD_NAME_LENGTH, unique=True, blank=False, verbose_name='name of card')
+    name = NamedModel.name_field(max_length=MAX_CARD_NAME_LENGTH, verbose_name='name of card')
     name_unaccented = models.CharField(max_length=MAX_CARD_NAME_LENGTH, unique=True, blank=False, verbose_name='name of card without accents', editable=False)
     name_unaccented_simplified = models.GeneratedField(
         db_persist=True,
@@ -183,36 +184,19 @@ class Card(Playable, PreSaveModelMixin, ScryfallLinkMixin):
 
 
 @receiver(post_save, sender=Card, dispatch_uid='update_variant_fields')
-def update_variant_fields(sender, instance, created, raw, **kwargs):
+def update_variant_fields(sender, instance: Card, created, raw, **kwargs):
+    # every field of a card takes part in the computed fields of its variants, the name included
     if raw or created:
         return
-    from .variant import Variant
-    variants = Variant.recipes_prefetched.filter(uses=instance)
-    variants_to_save = []
-    for variant in variants:
-        variant: Variant
-        if variant.update_variant():
-            variants_to_save.append(variant)
-        new_variant_name = variant._str()
-        if new_variant_name != variant.name:
-            variant.name = new_variant_name
-            variants_to_save.append(variant)
-    Variant.objects.bulk_update(variants_to_save, fields=Variant.playable_fields() + ['name'], batch_size=DEFAULT_BATCH_SIZE)
+    update_variants(uses=instance)
 
 
 @receiver(post_save, sender=Card, dispatch_uid='update_combo_fields')
-def update_combo_fields(sender, instance, created, raw, **kwargs):
-    if raw or created:
+def update_combo_fields(sender, instance: Card, created, raw, **kwargs):
+    # the name of a combo is the only thing a card contributes to it
+    if raw or created or not instance.renamed_from:
         return
-    from .combo import Combo
-    combos = Combo.recipes_prefetched.filter(uses=instance)
-    combos_to_save = []
-    for combo in combos:
-        new_combo_name = combo._str()
-        if new_combo_name != combo.name:
-            combo.name = new_combo_name
-            combos_to_save.append(combo)
-    Combo.objects.bulk_update(combos_to_save, fields=['name'], batch_size=DEFAULT_BATCH_SIZE)
+    update_combo_names(uses=instance)
 
 
 class WithUsedFace(models.Model):

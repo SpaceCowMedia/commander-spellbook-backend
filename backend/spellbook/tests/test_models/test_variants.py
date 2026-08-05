@@ -67,6 +67,19 @@ class VariantTests(SpellbookTestCaseWithSeeding):
     def test_method_count(self):
         self.assertEqual(count_methods(Variant), 13)
 
+    def test_features_produced_uses_the_quantity(self):
+        produced = FeatureProducedByVariant.objects.filter(variant_id=self.v1_id, feature__uncountable=False).first()
+        assert produced is not None
+        produced.quantity = 2
+        produced.save()
+
+        v = Variant.recipes_prefetched.get(id=self.v1_id)
+        self.assertEqual(v.features_produced()[produced.feature.name], 2)
+        self.assertIn(f'2 {produced.feature.name}', v._str())
+        # the name built from the recipe and the one built from the related rows must agree
+        v.update_variant()
+        self.assertEqual(v.name, v._str())
+
     def test_update_variant_from_cards(self):
         v: Variant = Variant.objects.get(id=self.v1_id)
         cards = list(v.uses.all())

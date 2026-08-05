@@ -1,17 +1,21 @@
 from urllib.parse import urlencode
 from django.contrib.postgres.indexes import GinIndex, OpClass
 from django.db import models, connection
+from django.dispatch import receiver
+from django.db.models.signals import post_save
 from django.db.models.functions import Upper
 from django.utils.html import format_html
 from spellbook.models import Card
+from .mixins import NamedModel
+from .recipe import update_variants, update_combo_names
 from .validators import SCRYFALL_QUERY_HELP, SCRYFALL_QUERY_VALIDATOR, NAME_VALIDATORS
 from .scryfall import scryfall_query_legal_in_commander, SCRYFALL_API_CARD_SEARCH, SCRYFALL_WEBSITE_CARD_SEARCH, SCRYFALL_MAX_QUERY_LENGTH
 
 
-class Template(models.Model):
+class Template(NamedModel):
     MAX_TEMPLATE_NAME_LENGTH = 255
     id: int
-    name = models.CharField(blank=False, max_length=MAX_TEMPLATE_NAME_LENGTH, unique=True, verbose_name='template name', help_text='short description of the template in natural language', validators=NAME_VALIDATORS)
+    name = NamedModel.name_field(max_length=MAX_TEMPLATE_NAME_LENGTH, verbose_name='template name', help_text='short description of the template in natural language', validators=NAME_VALIDATORS)
     scryfall_query = models.CharField(blank=True, null=True, max_length=SCRYFALL_MAX_QUERY_LENGTH, verbose_name='Scryfall query', help_text=SCRYFALL_QUERY_HELP, validators=[SCRYFALL_QUERY_VALIDATOR])
     description = models.TextField(blank=True, help_text='Long description of the template', verbose_name='description of the template')
     created = models.DateTimeField(auto_now_add=True, editable=False)
@@ -59,6 +63,21 @@ class Template(models.Model):
         if raw:
             return link
         return format_html('<a href="{}" target="_blank">{}</a>', link, link)
+
+
+@receiver(post_save, sender=Template, dispatch_uid='update_variant_fields')
+def update_variant_fields(sender, instance: Template, created, raw, **kwargs):
+    # the name of a template is the only thing it contributes to its variants, from their name to the fields deduced from it
+    if raw or created or not instance.renamed_from:
+        return
+    update_variants(requires=instance)
+
+
+@receiver(post_save, sender=Template, dispatch_uid='update_combo_fields')
+def update_combo_fields(sender, instance: Template, created, raw, **kwargs):
+    if raw or created or not instance.renamed_from:
+        return
+    update_combo_names(requires=instance)
 
 
 class TemplateReplacement(models.Model):

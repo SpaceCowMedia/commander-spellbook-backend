@@ -1,7 +1,7 @@
 from functools import cache
 from django.db import models
 from .constants import MAX_CARD_NAME_LENGTH, MAX_FEATURE_NAME_LENGTH
-from .utils import recipe
+from .utils import recipe, DEFAULT_BATCH_SIZE
 
 
 class Recipe(models.Model):
@@ -112,3 +112,33 @@ class Recipe(models.Model):
 
     class Meta:
         abstract = True
+
+
+def update_variants(**ingredient_filter) -> None:
+    '''Recomputes every field a variant derives from the ingredient matched by the filter.'''
+    from .variant import Variant
+    # the ids are taken upfront, unordered, to load the recipes themselves in bounded batches
+    variant_ids = list(Variant.objects.filter(**ingredient_filter).order_by().values_list('pk', flat=True))
+    for i in range(0, len(variant_ids), DEFAULT_BATCH_SIZE):
+        variants_to_save = []
+        variants: models.QuerySet[Variant] = Variant.recipes_prefetched.filter(pk__in=variant_ids[i:i + DEFAULT_BATCH_SIZE]).order_by()
+        for variant in variants:
+            if variant.update_variant():
+                variants_to_save.append(variant)
+        Variant.objects.bulk_update(variants_to_save, fields=Variant.computed_fields(), batch_size=DEFAULT_BATCH_SIZE)
+
+
+def update_combo_names(**ingredient_filter) -> None:
+    '''Recomputes the names of the combos using the ingredient matched by the filter, the only thing they derive from it.'''
+    from .combo import Combo
+    combo_ids = list(Combo.objects.filter(**ingredient_filter).order_by().values_list('pk', flat=True))
+    for i in range(0, len(combo_ids), DEFAULT_BATCH_SIZE):
+        combos_to_save = []
+        # only the name is read and written, the rest of the recipe comes from the prefetched rows
+        combos: models.QuerySet[Combo] = Combo.recipes_prefetched.filter(pk__in=combo_ids[i:i + DEFAULT_BATCH_SIZE]).order_by().only('name')
+        for combo in combos:
+            new_combo_name = combo._str()
+            if new_combo_name != combo.name:
+                combo.name = new_combo_name
+                combos_to_save.append(combo)
+        Combo.objects.bulk_update(combos_to_save, fields=['name'], batch_size=DEFAULT_BATCH_SIZE)

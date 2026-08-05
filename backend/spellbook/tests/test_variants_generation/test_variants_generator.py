@@ -293,6 +293,28 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
                 self.assertEqual(context.apply('[[FToken$Landfall]]', other_combo.id), 'Landfall Card')
                 self.assertEqual(context.apply('[[FToken$Untapper Effect]]', combo.id), 'Untapper Card')
 
+    def test_replacement_from_a_transitive_feature_dependency(self):
+        card1 = Card.objects.create(name='Transitive Card One', type_line='Creature - Elf')
+        card2 = Card.objects.create(name='Transitive Card Two', type_line='Creature - Elf')
+        feature_a = Feature.objects.create(name='TFA', status=Feature.Status.HIDDEN_UTILITY)
+        feature_b = Feature.objects.create(name='TFB', status=Feature.Status.STANDALONE)
+        feature_c = Feature.objects.create(name='TFC', status=Feature.Status.HIDDEN_UTILITY)
+        FeatureOfCard.objects.create(card=card2, feature=feature_c, zone_locations=ZoneLocation.BATTLEFIELD)
+        producing_a = Combo.objects.create(status=Combo.Status.UTILITY)
+        FeatureNeededInCombo.objects.create(combo=producing_a, feature=feature_c, order=1)
+        producing_a.produces.add(feature_a)
+        # TFC is never needed by this combo: it only reaches it through TFA, produced by the combo above
+        main = Combo.objects.create(status=Combo.Status.GENERATOR, description='a mention of [[TFC]] here')
+        CardInCombo.objects.create(combo=main, card=card1, order=1, zone_locations=ZoneLocation.BATTLEFIELD)
+        FeatureNeededInCombo.objects.create(combo=main, feature=feature_a, order=1)
+        main.produces.add(feature_b)
+
+        self.generate_variants()
+
+        variant = Variant.objects.get(of=main)
+        self.assertSetEqual({c.name for c in variant.uses.all()}, {'Transitive Card One', 'Transitive Card Two'})
+        self.assertEqual(variant.description, 'a mention of Transitive Card Two here')
+
     def test_restore_variant(self):
         # TODO: Implement
         # TODO: Regression test for restore_variant with a variant that includes a combo that contains a card missing from the variant

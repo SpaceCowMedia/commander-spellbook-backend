@@ -2,7 +2,7 @@ from django.test import TestCase
 from spellbook.tests.testing import SpellbookTestCaseWithSeeding
 from django.core.exceptions import ValidationError
 from common.inspection import count_methods
-from spellbook.models import Card, CardType
+from spellbook.models import Card, CardType, Combo, Variant
 from spellbook.models.scryfall import SCRYFALL_WEBSITE_CARD_SEARCH
 from urllib.parse import quote_plus
 
@@ -90,6 +90,38 @@ class CardTests(SpellbookTestCaseWithSeeding):
 
     def test_method_count(self):
         self.assertEqual(count_methods(Card), 6)
+
+    def test_saving_a_card_without_renaming_it_leaves_combo_names_alone(self):
+        card = Card.objects.get(id=self.c1_id)
+        combo = Combo.objects.filter(uses=card).first()
+        assert combo is not None
+        Combo.objects.filter(pk=combo.pk).update(name='stale name')
+
+        card.oracle_text = 'Another oracle text'
+        card.save()
+        combo.refresh_from_db()
+        self.assertEqual(combo.name, 'stale name')
+
+        card.name = 'Renamed Card'
+        card.save()
+        combo.refresh_from_db()
+        self.assertIn('Renamed Card', combo.name)
+
+    def test_saving_a_card_without_renaming_it_still_updates_variants(self):
+        self.generate_variants()
+        card = Card.objects.get(id=self.c1_id)
+        variant = Variant.objects.filter(uses=card).first()
+        assert variant is not None
+        hulkline = variant.hulkline
+        # a stale playable field and a stale computed one, both to be restored by the save
+        Variant.objects.filter(pk=variant.pk).update(mana_value=999, hulkline=not hulkline)
+
+        card.oracle_text = 'Another oracle text'
+        card.save()
+
+        variant.refresh_from_db()
+        self.assertNotEqual(variant.mana_value, 999)
+        self.assertEqual(variant.hulkline, hulkline)
 
     def test_face_name(self):
         single = Card.objects.create(name='Single Card', type_line='Instant')

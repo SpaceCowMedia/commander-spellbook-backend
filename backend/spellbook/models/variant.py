@@ -214,7 +214,7 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
         return {t.template.name: t.quantity for t in self.templateinvariant_set.all()}
 
     def features_produced(self) -> dict[str, int]:
-        return {f.feature.name: 1 for f in self.featureproducedbyvariant_set.all()}
+        return {f.feature.name: f.quantity for f in self.featureproducedbyvariant_set.all()}
 
     def pre_save(self):
         self.mana_value_needed = mana_value(self.mana_needed)

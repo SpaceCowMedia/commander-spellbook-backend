@@ -3,12 +3,12 @@ from django.dispatch import receiver
 from django.db.models.signals import post_save
 from django.db.models.functions import Lower, Upper
 from django.contrib.postgres.indexes import GinIndex, OpClass
-from .utils import DEFAULT_BATCH_SIZE
 from .constants import MAX_FEATURE_NAME_LENGTH
+from .mixins import NamedModel
 from .validators import NAME_VALIDATORS
 
 
-class Feature(models.Model):
+class Feature(NamedModel):
     class Status(models.TextChoices):
         HIDDEN_UTILITY = 'HU'
         PUBLIC_UTILITY = 'PU'
@@ -17,7 +17,7 @@ class Feature(models.Model):
         STANDALONE = 'S'
 
     id: int
-    name = models.CharField(max_length=MAX_FEATURE_NAME_LENGTH, unique=True, blank=False, help_text='Short name for a produced effect', verbose_name='name of feature', validators=NAME_VALIDATORS)
+    name = NamedModel.name_field(max_length=MAX_FEATURE_NAME_LENGTH, help_text='Short name for a produced effect', verbose_name='name of feature', validators=NAME_VALIDATORS)
     description = models.TextField(blank=True, help_text='Long description of a produced effect', verbose_name='description of the feature')
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, editable=False)
@@ -50,41 +50,9 @@ class Feature(models.Model):
         return self.name
 
 
-@receiver(post_save, sender=Feature, dispatch_uid='update_variant_fields')
-def update_variant_fields(sender, instance, created, raw, **kwargs):
-    if raw or created:
+@receiver(post_save, sender=Feature, dispatch_uid='update_feature_references')
+def update_feature_references(sender, instance: Feature, created, raw, **kwargs):
+    if raw or created or not instance.renamed_from:
         return
-    from .variant import Variant
-    variants_query = Variant.recipes_prefetched.filter(produces=instance)
-    variant_count = variants_query.count()
-    if not variant_count:
-        return
-    for i in range(0, variant_count, DEFAULT_BATCH_SIZE):
-        variants_to_save = []
-        variants = list[Variant](variants_query[i:i + DEFAULT_BATCH_SIZE])
-        for variant in variants:
-            new_variant_name = variant._str()
-            if new_variant_name != variant.name:
-                variant.name = new_variant_name
-                variants_to_save.append(variant)
-        Variant.objects.bulk_update(variants_to_save, ['name'])
-
-
-@receiver(post_save, sender=Feature, dispatch_uid='update_combo_fields')
-def update_combo_fields(sender, instance, created, raw, **kwargs):
-    if raw or created:
-        return
-    from .combo import Combo
-    combos = Combo.recipes_prefetched.filter(models.Q(produces=instance) | models.Q(needs=instance))
-    combo_count = combos.count()
-    if not combo_count:
-        return
-    for i in range(0, combo_count, DEFAULT_BATCH_SIZE):
-        combos_to_save = []
-        batch_combos = list[Combo](combos[i:i + DEFAULT_BATCH_SIZE])
-        for combo in batch_combos:
-            new_combo_name = combo._str()
-            if new_combo_name != combo.name:
-                combo.name = new_combo_name
-                combos_to_save.append(combo)
-        Combo.objects.bulk_update(combos_to_save, ['name'])
+    from .references import replace_feature_references
+    replace_feature_references(instance, instance.renamed_from)

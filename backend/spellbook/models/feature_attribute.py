@@ -1,12 +1,15 @@
 from django.db import models
+from django.dispatch import receiver
+from django.db.models.signals import post_save
 from .feature import Feature
 from .constants import MAX_FEATURE_NAME_LENGTH
+from .mixins import NamedModel
 from .validators import NO_RESERVED_CHARACTERS_VALIDATOR
 
 
-class FeatureAttribute(models.Model):
+class FeatureAttribute(NamedModel):
     id: int
-    name = models.CharField(max_length=MAX_FEATURE_NAME_LENGTH, unique=True, blank=False, help_text='Name of the attribute, usable to select a feature replacement with the [[feature$attribute]] syntax', validators=[NO_RESERVED_CHARACTERS_VALIDATOR])
+    name = NamedModel.name_field(max_length=MAX_FEATURE_NAME_LENGTH, help_text='Name of the attribute, usable to select a feature replacement with the [[feature$attribute]] syntax', validators=[NO_RESERVED_CHARACTERS_VALIDATOR])
     updated = models.DateTimeField(auto_now=True)
     created = models.DateTimeField(auto_now_add=True)
 
@@ -15,6 +18,14 @@ class FeatureAttribute(models.Model):
 
     class Meta:
         ordering = ['name']
+
+
+@receiver(post_save, sender=FeatureAttribute, dispatch_uid='update_feature_attribute_references')
+def update_feature_attribute_references(sender, instance: FeatureAttribute, created, raw, **kwargs):
+    if raw or created or not instance.renamed_from:
+        return
+    from .references import replace_attribute_references
+    replace_attribute_references(instance, instance.renamed_from)
 
 
 class WithFeatureAttributes(models.Model):

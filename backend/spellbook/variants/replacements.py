@@ -1,33 +1,10 @@
-import re
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import Sequence
 from .variant_data import Data
 from .combo_graph import FeatureWithAttributes
 from spellbook.models import Card, Combo, FeatureNeededInCombo, Ingredient, Template
-
-
-# A feature replacement looks like [[key#face|alias$selector|postfix_alias]], where every part but the key is optional:
-# - #face selects which face of a multi-faced card to display (a symbol that cannot appear in a card name);
-# - |alias saves the replacement under an alias for later reuse;
-# - $selector picks one among the multiple replacements of the same feature, either by position
-#   (the position of the needed feature row of the combo the text belongs to) or by attribute name;
-# - |postfix_alias saves the selected replacement under an alias.
-FEATURE_REPLACEMENT_PATTERN = re.compile(r'\[\[(?P<key>.+?)(?:#(?P<face>[1-9]\d*))?(?:\|(?P<alias>[^$|]+?))?(?:\$(?P<selector>[^$|\]]+)(?:\|(?P<postfix_alias>[^$|]+?))?)?\]\]', re.IGNORECASE)
-
-
-def format_feature_replacement(key: str, face: str | None, alias: str | None, selector: str | None, postfix_alias: str | None) -> str:
-    '''Rebuilds a feature replacement from its parts, the inverse of FEATURE_REPLACEMENT_PATTERN.'''
-    result = key
-    if face is not None:
-        result += f'#{face}'
-    if alias is not None:
-        result += f'|{alias}'
-    if selector is not None:
-        result += f'${selector}'
-        if postfix_alias is not None:
-            result += f'|{postfix_alias}'
-    return f'[[{result}]]'
+from spellbook.models.references import FEATURE_REPLACEMENT_PATTERN
 
 
 @dataclass(frozen=True)

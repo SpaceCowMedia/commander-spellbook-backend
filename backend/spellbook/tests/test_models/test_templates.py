@@ -1,6 +1,6 @@
 from spellbook.tests.testing import SpellbookTestCaseWithSeeding
 from common.inspection import count_methods
-from spellbook.models import Card, Template
+from spellbook.models import Card, Combo, Template, Variant
 from spellbook.models.scryfall import SCRYFALL_API_ROOT, SCRYFALL_WEBSITE_CARD_SEARCH
 
 
@@ -46,3 +46,32 @@ class TemplateTests(SpellbookTestCaseWithSeeding):
 
     def test_method_count(self):
         self.assertEqual(count_methods(Template), 4)
+
+    def test_renaming_a_template_updates_variant_and_combo_names(self):
+        self.generate_variants()
+        template = Template.objects.get(id=self.t1_id)
+        old_name = template.name
+        variant_ids = [variant.id for variant in Variant.objects.filter(requires=template)]
+        combo_ids = [combo.id for combo in Combo.objects.filter(requires=template)]
+        self.assertGreater(len(variant_ids), 0)
+        self.assertGreater(len(combo_ids), 0)
+
+        template.name = 'Renamed Template'
+        template.save()
+
+        for variant in Variant.objects.filter(id__in=variant_ids):
+            with self.subTest(variant=variant.pk):
+                self.assertIn('Renamed Template', variant.name)
+                self.assertNotIn(old_name, variant.name)
+        for combo in Combo.objects.filter(id__in=combo_ids):
+            with self.subTest(combo=combo.pk):
+                self.assertIn('Renamed Template', combo.name)
+                self.assertNotIn(old_name, combo.name)
+
+    def test_saving_a_template_without_renaming_it_skips_updates(self):
+        self.generate_variants()
+        template = Template.objects.get(id=self.t1_id)
+        template.description = 'Another description'
+        # only the update itself: the loaded name rules out a rename without any lookup
+        with self.assertNumQueries(1):
+            template.save()

@@ -2,7 +2,6 @@
 
 import django.db.models.functions.text
 from django.db import migrations, models
-import spellbook.models.mixins
 from spellbook.models.utils import strip_accents
 
 
@@ -11,7 +10,6 @@ def migrate_suggested_card_unaccented_names(apps, schema_editor):
     suggestions = list(CardUsedInVariantSuggestion.objects.all())
     for suggestion in suggestions:
         suggestion.card_unaccented = strip_accents(suggestion.card)
-        suggestion.pre_save = lambda: None
     CardUsedInVariantSuggestion.objects.bulk_update(suggestions, ['card_unaccented'])
 
 
@@ -36,12 +34,6 @@ class Migration(migrations.Migration):
             model_name='cardusedinvariantsuggestion',
             name='card_unaccented_simplified_with_spaces',
             field=models.GeneratedField(db_persist=True, expression=django.db.models.functions.text.Trim(django.db.models.functions.text.Replace(django.db.models.functions.text.Replace(models.F('card_unaccented'), models.Value('-'), models.Value(' ')), models.Value('_____'), models.Value('_'))), output_field=models.CharField(blank=True, editable=False, max_length=255)),
-        ),
-        migrations.AlterModelManagers(
-            name='cardusedinvariantsuggestion',
-            managers=[
-                ('objects', spellbook.models.mixins.PreSaveManager()),
-            ],
         ),
         migrations.RunPython(
             code=migrate_suggested_card_unaccented_names,

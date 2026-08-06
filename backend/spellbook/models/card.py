@@ -239,8 +239,8 @@ class FeatureOfCard(Ingredient, WithFeatureAttributes, WithUsedFace):
         return [*super().text_fields_with_references(), 'mana_needed', 'easy_prerequisites', 'notable_prerequisites']
 
     class Meta(Ingredient.Meta):
-        indexes = Ingredient.card_state_trigram_indexes('featureofcard') + case_insensitive_trigram_indexes(
-            'featureofcard',
+        indexes = Ingredient.card_state_trigram_indexes('foc') + case_insensitive_trigram_indexes(
+            'foc',
             'mana_needed',
             easy_prerequisites='easy_prereq',
             notable_prerequisites='notable_prereq',

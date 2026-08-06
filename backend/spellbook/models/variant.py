@@ -48,12 +48,24 @@ class RecipePrefetchedManager(PreSaveSerializedManager):
         )
 
 
+class RenamePrefetchedManager(PreSaveSerializedManager):
+    '''Prefetches only what recomputing the name of a variant reads, with the ingredients joined to
+    the names they display, so that a rename does not build the rest of the recipe.'''
+    def get_queryset(self):
+        return super().get_queryset().prefetch_related(
+            models.Prefetch('cardinvariant_set', queryset=CardInVariant.objects.select_related('card').only('variant_id', 'quantity', 'card__name')),
+            models.Prefetch('templateinvariant_set', queryset=TemplateInVariant.objects.select_related('template').only('variant_id', 'quantity', 'template__name')),
+            models.Prefetch('featureproducedbyvariant_set', queryset=FeatureProducedByVariant.objects.select_related('feature').only('variant_id', 'quantity', 'feature__name')),
+        )
+
+
 DEFAULT_VIEW_ORDERING = (models.F('popularity').desc(nulls_last=True), models.F('identity_count').asc(), models.F('card_count').asc(), models.F('created').desc(), models.F('id'))
 
 
 class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
     objects: PreSaveSerializedManager  # type: ignore[misc]
     recipes_prefetched = RecipePrefetchedManager()
+    rename_prefetched = RenamePrefetchedManager()
 
     class Status(models.TextChoices):
         NEW = 'N'

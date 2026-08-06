@@ -10,7 +10,6 @@ def set_order(apps, schema_editor):
     for combo in Combo.objects.prefetch_related('cardincombo_set').only('id'):
         for i, card in enumerate(combo.cardincombo_set.all()):
             card.order = i
-            card.pre_save = lambda: None
             save.append(card)
     CardInCombo = apps.get_model('spellbook', 'CardInCombo')
     CardInCombo.objects.bulk_update(save, ['order'])
@@ -18,7 +17,6 @@ def set_order(apps, schema_editor):
     for combo in Combo.objects.prefetch_related('templateincombo_set').only('id'):
         for i, template in enumerate(combo.templateincombo_set.all()):
             template.order = i
-            template.pre_save = lambda: None
             save.append(template)
     TemplateInCombo = apps.get_model('spellbook', 'TemplateInCombo')
     TemplateInCombo.objects.bulk_update(save, ['order'])
@@ -27,7 +25,6 @@ def set_order(apps, schema_editor):
     for variant in Variant.objects.prefetch_related('cardinvariant_set').only('id'):
         for i, card in enumerate(variant.cardinvariant_set.all()):
             card.order = i
-            card.pre_save = lambda: None
             save.append(card)
     CardInvariant = apps.get_model('spellbook', 'CardInvariant')
     CardInvariant.objects.bulk_update(save, ['order'])
@@ -35,7 +32,6 @@ def set_order(apps, schema_editor):
     for variant in Variant.objects.prefetch_related('templateinvariant_set').only('id'):
         for i, template in enumerate(variant.templateinvariant_set.all()):
             template.order = i
-            template.pre_save = lambda: None
             save.append(template)
     TemplateInvariant = apps.get_model('spellbook', 'TemplateInvariant')
     TemplateInvariant.objects.bulk_update(save, ['order'])
@@ -44,7 +40,6 @@ def set_order(apps, schema_editor):
     for variant_suggestion in VariantSuggestion.objects.prefetch_related('uses').only('id'):
         for i, card in enumerate(variant_suggestion.uses.all()):
             card.order = i
-            card.pre_save = lambda: None
             save.append(card)
     CardUsedInVariantSuggestion = apps.get_model('spellbook', 'CardUsedInVariantSuggestion')
     CardUsedInVariantSuggestion.objects.bulk_update(save, ['order'])
@@ -52,7 +47,6 @@ def set_order(apps, schema_editor):
     for variant_suggestion in VariantSuggestion.objects.prefetch_related('requires').only('id'):
         for i, template in enumerate(variant_suggestion.requires.all()):
             template.order = i
-            template.pre_save = lambda: None
             save.append(template)
     TemplateRequiredInvariantSuggestion = apps.get_model('spellbook', 'TemplateRequiredInvariantSuggestion')
     TemplateRequiredInvariantSuggestion.objects.bulk_update(save, ['order'])

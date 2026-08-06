@@ -10,7 +10,6 @@ def init_variant_counts(apps, schema_editor):
     ))
     for variant in variants:
         variant.variant_count = variant.variant_count_updated
-        variant.pre_save = lambda: None
     Variant.objects.bulk_update(variants, ['variant_count'])
 
 

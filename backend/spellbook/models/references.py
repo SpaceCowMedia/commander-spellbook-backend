@@ -84,16 +84,16 @@ def replace_feature_references_in_combos(instance: Feature, old_name: str):
     feature_of_card_fields = FeatureOfCard.text_fields_with_references()
     features_of_cards = list(FeatureOfCard.objects.filter(references_filter(FeatureOfCard, Feature, old_name)).order_by().only(*feature_of_card_fields))
     combo_text_fields = Combo.text_fields_with_references()
-    combo_fields = [*combo_text_fields, *Combo.recipe_fields()]
-    combos = list(Combo.recipes_prefetched.filter(
+    combo_recipe_fields = Combo.recipe_fields()
+    combos = list(Combo.rename_prefetched.filter(
         Q(needs=instance, name__contains=old_name) | Q(produces=instance, name__contains=old_name) | Q(removes=instance, name__contains=old_name) | references_filter(Combo, Feature, old_name),
-    ).order_by().distinct().only(*combo_fields))
-    combos_to_update = {combo.pk: combo for combo in replace_in_text_fields(combos, combo_text_fields, replacement)}
-    combo: Combo
-    for combo in combos:
-        if combo.update_recipe_from_data():
-            combos_to_update[combo.pk] = combo
-    Combo.objects.bulk_update(combos_to_update.values(), combo_fields, batch_size=DEFAULT_BATCH_SIZE)
+    ).order_by().distinct().only(*combo_text_fields, *combo_recipe_fields))
+    # the two groups barely overlap, so writing each one only the columns it changed keeps the
+    # updates from carrying the columns the other group needs
+    combos_with_changed_text = replace_in_text_fields(combos, combo_text_fields, replacement)
+    combos_with_changed_recipe = [combo for combo in combos if combo.update_recipe_from_data()]
+    Combo.objects.bulk_update(combos_with_changed_text, combo_text_fields, batch_size=DEFAULT_BATCH_SIZE)
+    Combo.objects.bulk_update(combos_with_changed_recipe, combo_recipe_fields, batch_size=DEFAULT_BATCH_SIZE)
     CardInCombo.objects.bulk_update(replace_in_text_fields(cards_in_combos, ingredient_fields, replacement), ingredient_fields, batch_size=DEFAULT_BATCH_SIZE)
     TemplateInCombo.objects.bulk_update(replace_in_text_fields(templates_in_combos, ingredient_fields, replacement), ingredient_fields, batch_size=DEFAULT_BATCH_SIZE)
     FeatureNeededInCombo.objects.bulk_update(replace_in_text_fields(features_in_combos, ingredient_fields, replacement), ingredient_fields, batch_size=DEFAULT_BATCH_SIZE)
@@ -109,7 +109,7 @@ def replace_feature_references_in_variants(instance: Feature, old_name: str):
     # only the name is loaded and written, so pre_save is skipped to keep the other fields deferred
     for i in range(0, len(variant_ids), DEFAULT_BATCH_SIZE):
         variants_to_save = []
-        for variant in Variant.recipes_prefetched.filter(pk__in=variant_ids[i:i + DEFAULT_BATCH_SIZE]).order_by().only('name'):
+        for variant in Variant.rename_prefetched.filter(pk__in=variant_ids[i:i + DEFAULT_BATCH_SIZE]).order_by().only('name'):
             new_variant_name = variant._str()
             if new_variant_name != variant.name:
                 variant.name = new_variant_name

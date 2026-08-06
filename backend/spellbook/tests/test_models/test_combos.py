@@ -2,6 +2,7 @@ from django.core.exceptions import ValidationError
 from spellbook.tests.testing import SpellbookTestCaseWithSeeding
 from common.inspection import count_methods
 from spellbook.models import Card, Combo, CardInCombo, ZoneLocation
+from spellbook.models.references import replace_in_text_fields
 from urllib.parse import quote_plus
 
 
@@ -22,6 +23,23 @@ class ComboTests(SpellbookTestCaseWithSeeding):
         CardInCombo(card=dfc, combo=combo, order=3, zone_locations=ZoneLocation.BATTLEFIELD, used_face=2).clean()
         CardInCombo(card=dfc, combo=combo, order=4, zone_locations=ZoneLocation.BATTLEFIELD, used_face=None).clean()
         CardInCombo(card=single, combo=combo, order=5, zone_locations=ZoneLocation.HAND, used_face=None).clean()
+
+    def test_rename_prefetched_is_enough_to_rebuild_the_name(self):
+        '''Pins what a feature rename relies on: the rows rename_prefetched caches, together with the
+        columns the rename loads, are enough to rewrite the texts and recompute a combo name.'''
+        text_fields = Combo.text_fields_with_references()
+        recipe_fields = Combo.recipe_fields()
+        expected = {c.pk: c._str() for c in Combo.recipes_prefetched.all()}
+        self.assertGreater(len(expected), 1)
+        self.assertTrue(any(' ➜ ' in name for name in expected.values()))
+        # loaded exactly like replace_feature_references_in_combos does
+        combos = list(Combo.rename_prefetched.all().order_by().distinct().only(*text_fields, *recipe_fields))
+        with self.assertNumQueries(0):
+            replace_in_text_fields(combos, text_fields, lambda text: text)
+            for combo in combos:
+                combo.update_recipe_from_data()
+            rebuilt = {combo.pk: combo.name for combo in combos}
+        self.assertEqual(rebuilt, expected)
 
     def test_combo_fields(self):
         c = Combo.objects.get(id=self.b1_id)

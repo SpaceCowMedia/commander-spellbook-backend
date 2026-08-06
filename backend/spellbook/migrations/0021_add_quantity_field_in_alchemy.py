@@ -9,7 +9,7 @@ def migrate_variant_produces_through(apps, schema_editor):
     FeatureProducedByVariant = apps.get_model('spellbook', 'FeatureProducedByVariant')
     Variant = apps.get_model('spellbook', 'Variant')
     to_create = []
-    for variant in Variant.objects.prefetch_related('produces'):
+    for variant in Variant.objects.defer('serialized').prefetch_related('produces'):
         for feature in variant.produces.all():
             to_create.append(
                 FeatureProducedByVariant(
@@ -97,7 +97,7 @@ def migrate_variant_includes_through(apps, schema_editor):
     VariantIncludesCombo = apps.get_model('spellbook', 'VariantIncludesCombo')
     Variant = apps.get_model('spellbook', 'Variant')
     to_create = []
-    for variant in Variant.objects.prefetch_related('includes'):
+    for variant in Variant.objects.defer('serialized').prefetch_related('includes'):
         for combo in variant.includes.all():
             to_create.append(
                 VariantIncludesCombo(
@@ -126,7 +126,7 @@ def migrate_variant_of_combo_through(apps, schema_editor):
     VariantOfCombo = apps.get_model('spellbook', 'VariantOfCombo')
     Variant = apps.get_model('spellbook', 'Variant')
     to_create = []
-    for variant in Variant.objects.prefetch_related('of'):
+    for variant in Variant.objects.defer('serialized').prefetch_related('of'):
         for combo in variant.of.all():
             to_create.append(
                 VariantOfCombo(

@@ -80,6 +80,20 @@ class VariantTests(SpellbookTestCaseWithSeeding):
         v.update_variant()
         self.assertEqual(v.name, v._str())
 
+    def test_rename_prefetched_is_enough_to_rebuild_the_name(self):
+        '''Pins what a feature rename relies on: the rows rename_prefetched caches are enough to
+        recompute a variant name, so narrowing them further would start costing a query per variant.'''
+        ids = [self.v1_id, self.v2_id, self.v3_id, self.v4_id]
+        expected = {v.pk: v._str() for v in Variant.recipes_prefetched.filter(pk__in=ids)}
+        self.assertEqual(len(expected), len(ids))
+        for name in expected.values():
+            self.assertIn(' ➜ ', name)
+        # loaded exactly like replace_feature_references_in_variants does
+        variants = list(Variant.rename_prefetched.filter(pk__in=ids).order_by().only('name'))
+        with self.assertNumQueries(0):
+            rebuilt = {v.pk: v._str() for v in variants}
+        self.assertEqual(rebuilt, expected)
+
     def test_update_variant_from_cards(self):
         v: Variant = Variant.objects.get(id=self.v1_id)
         cards = list(v.uses.all())

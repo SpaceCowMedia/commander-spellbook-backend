@@ -30,9 +30,23 @@ class RecipePrefetchedManager(models.Manager):
         )
 
 
+class RenamePrefetchedManager(models.Manager):
+    '''Prefetches only what recomputing the name of a combo reads, with the ingredients joined to the
+    names they display, so that a rename does not build the rest of the recipe.'''
+    def get_queryset(self):
+        return super().get_queryset().prefetch_related(
+            models.Prefetch('cardincombo_set', queryset=CardInCombo.objects.select_related('card').only('combo_id', 'quantity', 'card__name')),
+            models.Prefetch('templateincombo_set', queryset=TemplateInCombo.objects.select_related('template').only('combo_id', 'quantity', 'template__name')),
+            models.Prefetch('featureneededincombo_set', queryset=FeatureNeededInCombo.objects.select_related('feature').only('combo_id', 'quantity', 'feature__name')),
+            models.Prefetch('featureproducedincombo_set', queryset=FeatureProducedInCombo.objects.select_related('feature').only('combo_id', 'feature__name')),
+            models.Prefetch('featureremovedincombo_set', queryset=FeatureRemovedInCombo.objects.select_related('feature').only('combo_id', 'feature__name')),
+        )
+
+
 class Combo(Recipe, ScryfallLinkMixin):
     objects = models.Manager()
     recipes_prefetched = RecipePrefetchedManager()
+    rename_prefetched = RenamePrefetchedManager()
 
     class Status(models.TextChoices):
         GENERATOR = 'G'
@@ -152,7 +166,7 @@ class CardInCombo(OrderedIngredient, WithUsedFace):
 
     class Meta(OrderedIngredient.Meta):
         unique_together = [('card', 'combo')]
-        indexes = OrderedIngredient.card_state_trigram_indexes('cardincombo')
+        indexes = OrderedIngredient.card_state_trigram_indexes('cic')
 
 
 class TemplateInCombo(OrderedIngredient):
@@ -167,7 +181,7 @@ class TemplateInCombo(OrderedIngredient):
 
     class Meta(OrderedIngredient.Meta):
         unique_together = [('template', 'combo')]
-        indexes = OrderedIngredient.card_state_trigram_indexes('templateincombo')
+        indexes = OrderedIngredient.card_state_trigram_indexes('tic')
 
 
 class FeatureNeededInCombo(OrderedIngredient, WithFeatureAttributesMatcher):
@@ -185,7 +199,7 @@ class FeatureNeededInCombo(OrderedIngredient, WithFeatureAttributesMatcher):
             raise ValidationError('Uncountable features can only appear in one copy.')
 
     class Meta(OrderedIngredient.Meta):
-        indexes = OrderedIngredient.card_state_trigram_indexes('featureneeded')
+        indexes = OrderedIngredient.card_state_trigram_indexes('fnic')
 
 
 class FeatureProducedInCombo(WithFeatureAttributes):

@@ -7,10 +7,10 @@ from spellbook.models.utils import merge_color_identities as merge_identities
 def order_identities(apps, schema_editor):
     Card = apps.get_model('spellbook', 'Card')
     Variant = apps.get_model('spellbook', 'Variant')
-    for model in [Card, Variant]:
-        instances = model.objects.all()
+    # only a variant carries the serialized blob, which nothing here reads
+    for model, deferred in [(Card, []), (Variant, ['serialized'])]:
+        instances = model.objects.defer(*deferred)
         for instance in instances:
-            instance.pre_save = lambda: None
             instance.identity = merge_identities([instance.identity])
         model.objects.bulk_update(instances, ['identity'])
 
@@ -18,10 +18,9 @@ def order_identities(apps, schema_editor):
 def reverse_order_identities(apps, schema_editor):
     Card = apps.get_model('spellbook', 'Card')
     Variant = apps.get_model('spellbook', 'Variant')
-    for model in [Card, Variant]:
-        instances = model.objects.all()
+    for model, deferred in [(Card, []), (Variant, ['serialized'])]:
+        instances = model.objects.defer(*deferred)
         for instance in instances:
-            instance.pre_save = lambda: None
             instance.identity = ''.join(color for color in 'WUBRG' if color in instance.identity)
         model.objects.bulk_update(instances, ['identity'])
 

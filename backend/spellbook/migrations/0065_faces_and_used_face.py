@@ -11,7 +11,7 @@ def set_faces_from_name(apps, schema_editor):
     cards = list(Card.objects.filter(name__contains=separator).only('id', 'name'))
     for card in cards:
         card.faces = card.name.count(separator) + 1
-    Card.objects.bulk_update(cards, ['faces'], batch_size=1000, skip_pre_save=True)
+    Card.objects.bulk_update(cards, ['faces'], batch_size=1000)
 
 
 class Migration(migrations.Migration):

@@ -22,7 +22,6 @@ def populate_name_field(apps, schema_editor):
             features_produced={f.feature.name: f.quantity for f in obj.featureproducedbyvariant_set.all()},
             features_removed={},
         )
-        obj.pre_save = lambda: None
     Variant.objects.bulk_update(objs, ['name'], batch_size=5000)
     objs = list(Combo.objects.all().only('id', 'name').prefetch_related(
         'cardincombo_set',
@@ -44,7 +43,6 @@ def populate_name_field(apps, schema_editor):
             features_produced={f.feature.name: 1 for f in obj.featureproducedincombo_set.all()},
             features_removed={f.feature.name: 1 for f in obj.featureremovedincombo_set.all()},
         )
-        obj.pre_save = lambda: None
     Combo.objects.bulk_update(objs, ['name'], batch_size=5000)
     objs = list(VariantSuggestion.objects.all().only('id', 'name').prefetch_related(
         'uses',
@@ -59,7 +57,6 @@ def populate_name_field(apps, schema_editor):
             features_produced={f.feature: 1 for f in obj.produces.all()},
             features_removed={},
         )
-        obj.pre_save = lambda: None
     VariantSuggestion.objects.bulk_update(objs, ['name'], batch_size=5000)
 
 

@@ -86,9 +86,8 @@ def replace_feature_references_in_combos(instance: Feature, old_name: str):
     combo_text_fields = Combo.text_fields_with_references()
     combo_fields = [*combo_text_fields, *Combo.recipe_fields()]
     combos = list(Combo.recipes_prefetched.filter(
-        # the recipe of a combo can only change if its name displays the old one
-        Q(name__contains=old_name) | references_filter(Combo, Feature, old_name),
-    ).order_by().only(*combo_fields))
+        Q(needs=instance, name__contains=old_name) | Q(produces=instance, name__contains=old_name) | Q(removes=instance, name__contains=old_name) | references_filter(Combo, Feature, old_name),
+    ).order_by().distinct().only(*combo_fields))
     combos_to_update = {combo.pk: combo for combo in replace_in_text_fields(combos, combo_text_fields, replacement)}
     combo: Combo
     for combo in combos:
@@ -102,8 +101,8 @@ def replace_feature_references_in_combos(instance: Feature, old_name: str):
 
 
 def replace_feature_references_in_variants(instance: Feature, old_name: str):
-    '''Recomputes the names of the variants displaying the old name, which is the only part of a variant
-    a feature name can reach: variants hold no text of their own to reference it from.'''
+    '''Recomputes the names of the variants producing the feature, the only part of a variant a
+    feature name can reach: variants hold no text of their own to reference it from.'''
     # the ids are taken upfront because the update itself makes the rows stop matching that condition,
     # unordered because rewriting them all makes the order they come in irrelevant
     variant_ids = list(Variant.objects.filter(produces=instance, name__contains=old_name).order_by().values_list('pk', flat=True))

@@ -1,12 +1,11 @@
 from urllib.parse import urlencode
-from django.contrib.postgres.indexes import GinIndex, OpClass
-from django.db import models, connection
+from django.db import models
 from django.dispatch import receiver
 from django.db.models.signals import post_save
-from django.db.models.functions import Upper
 from django.utils.html import format_html
 from spellbook.models import Card
 from .mixins import NamedModel
+from .utils import case_insensitive_trigram_indexes
 from .recipe import update_variants, update_combo_names
 from .validators import SCRYFALL_QUERY_HELP, SCRYFALL_QUERY_VALIDATOR, NAME_VALIDATORS
 from .scryfall import scryfall_query_legal_in_commander, SCRYFALL_API_CARD_SEARCH, SCRYFALL_WEBSITE_CARD_SEARCH, SCRYFALL_MAX_QUERY_LENGTH
@@ -34,11 +33,7 @@ class Template(NamedModel):
         verbose_name_plural = 'templates'
         default_manager_name = 'objects'
         ordering = ['name']
-        indexes = [
-            models.Index(fields=['name'], name='card_template_name_index')
-        ] + [
-            GinIndex(OpClass(Upper('name'), name='gin_trgm_ops'), name='template_name_trgm_idx'),
-        ] if connection.vendor == 'postgresql' else []
+        indexes = case_insensitive_trigram_indexes('template', 'name')
 
     def __str__(self):
         return self.name

@@ -8,6 +8,7 @@ from .card import Card, WithUsedFace
 from .feature import Feature
 from .template import Template
 from .ingredient import OrderedIngredient, ZoneLocationsField
+from .utils import case_insensitive_trigram_indexes
 from .validators import MANA_VALIDATOR, TEXT_VALIDATORS
 from .constants import HIGHER_CARD_LIMIT, DEFAULT_CARD_LIMIT, LOWER_VARIANT_LIMIT, DEFAULT_VARIANT_LIMIT, MAX_MANA_NEEDED_LENGTH
 from .feature_attribute import WithFeatureAttributes, WithFeatureAttributesMatcher
@@ -125,6 +126,15 @@ class Combo(Recipe, ScryfallLinkMixin):
         verbose_name_plural = 'combos'
         default_manager_name = 'objects'
         ordering = ['created']
+        indexes = case_insensitive_trigram_indexes(
+            'combo',
+            'mana_needed',
+            'description',
+            'notes',
+            'comment',
+            easy_prerequisites='easy_prereq',
+            notable_prerequisites='notable_prereq',
+        )
 
     def clean(self):
         super().clean()
@@ -142,6 +152,7 @@ class CardInCombo(OrderedIngredient, WithUsedFace):
 
     class Meta(OrderedIngredient.Meta):
         unique_together = [('card', 'combo')]
+        indexes = OrderedIngredient.card_state_trigram_indexes('cardincombo')
 
 
 class TemplateInCombo(OrderedIngredient):
@@ -156,6 +167,7 @@ class TemplateInCombo(OrderedIngredient):
 
     class Meta(OrderedIngredient.Meta):
         unique_together = [('template', 'combo')]
+        indexes = OrderedIngredient.card_state_trigram_indexes('templateincombo')
 
 
 class FeatureNeededInCombo(OrderedIngredient, WithFeatureAttributesMatcher):
@@ -173,7 +185,7 @@ class FeatureNeededInCombo(OrderedIngredient, WithFeatureAttributesMatcher):
             raise ValidationError('Uncountable features can only appear in one copy.')
 
     class Meta(OrderedIngredient.Meta):
-        pass
+        indexes = OrderedIngredient.card_state_trigram_indexes('featureneeded')
 
 
 class FeatureProducedInCombo(WithFeatureAttributes):

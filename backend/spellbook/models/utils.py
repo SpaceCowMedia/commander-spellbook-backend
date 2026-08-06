@@ -6,8 +6,9 @@ from ..regexs import MANA_SYMBOL, ORACLE_SYMBOL, ORACLE_SYMBOL_EXTENDED
 from ..parsers.scryfall_query_grammar import COMPARISON_OPERATORS, MANA_COMPARABLE_VARIABLES
 from django.utils.text import normalize_newlines
 from django.db import connection
-from django.db.models import Expression, F, Value, TextChoices, OrderBy
-from django.db.models.functions import Replace, Trim
+from django.db.models import Expression, F, Index, TextField, Value, TextChoices, OrderBy
+from django.db.models.functions import Cast, Replace, Trim, Upper
+from django.contrib.postgres.indexes import GinIndex, OpClass
 from constants import SORTED_COLORS, COLORS
 
 
@@ -313,6 +314,30 @@ def remove_random_from_order_by(order_by: Iterable[str | F | OrderBy]) -> Genera
         else:
             raise ValueError(f'Unknown order by type: {o}')
         yield o
+
+
+def trigram_indexes(prefix: str, expression: Callable[[str], Expression], /, *fields: str, **labels: str) -> list[Index]:
+    '''GIN indexes over the indexed expression of each field, that only exist on PostgreSQL. They are
+    named after the field, unless a keyword argument abbreviates it to keep the name within the 30
+    character limit.'''
+    if connection.vendor != 'postgresql':
+        return []
+    return [
+        GinIndex(OpClass(expression(field), name='gin_trgm_ops'), name=f'{prefix}_{label}_trgm_idx')
+        for field, label in ({field: field for field in fields} | labels).items()
+    ]
+
+
+def case_insensitive_trigram_indexes(prefix: str, *fields: str, **labels: str) -> list[Index]:
+    '''Indexes supporting the icontains lookups on the given text fields, matching the UPPER(field)
+    expression Django generates for them.'''
+    return trigram_indexes(prefix, lambda field: Upper(field), *fields, **labels)
+
+
+def cast_case_insensitive_trigram_indexes(prefix: str, *fields: str, **labels: str) -> list[Index]:
+    '''The same, for the fields that are not text, whose icontains lookups Django compiles to
+    UPPER(field::text) instead.'''
+    return trigram_indexes(prefix, lambda field: Upper(Cast(field, TextField())), *fields, **labels)
 
 
 def __default_batch_size() -> int:

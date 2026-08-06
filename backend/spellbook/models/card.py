@@ -1,15 +1,13 @@
 from functools import cached_property
-from django.db import models, connection
+from django.db import models
 from django.dispatch import receiver
 from django.db.models.signals import post_save
-from django.db.models.functions import Upper
 from django.core.validators import MinValueValidator
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
-from django.contrib.postgres.indexes import GinIndex, OpClass
 from .constants import MAX_CARD_NAME_LENGTH, MAX_MANA_NEEDED_LENGTH
 from .validators import MANA_VALIDATOR, TEXT_VALIDATORS
 from .playable import Playable
-from .utils import strip_accents, simplify_card_name_on_database, simplify_card_name_with_spaces_on_database, CardType
+from .utils import strip_accents, simplify_card_name_on_database, simplify_card_name_with_spaces_on_database, cast_case_insensitive_trigram_indexes, case_insensitive_trigram_indexes, CardType
 from .recipe import update_variants, update_combo_names
 from .mixins import ScryfallLinkMixin, PreSaveModelMixin, NamedModel
 from .feature import Feature
@@ -109,15 +107,15 @@ class Card(NamedModel, Playable, PreSaveModelMixin, ScryfallLinkMixin):
         verbose_name_plural = 'cards'
         default_manager_name = 'objects'
         ordering = ['name']
-        indexes = [
-            GinIndex(OpClass(Upper('name'), name='gin_trgm_ops'), name='card_name_trgm_idx'),
-            GinIndex(OpClass(Upper('name_unaccented'), name='gin_trgm_ops'), name='card_name_unacc_trgm_idx'),
-            GinIndex(OpClass(Upper('name_unaccented_simplified'), name='gin_trgm_ops'), name='card_name_unac_sim_trgm_idx'),
-            GinIndex(OpClass(Upper('name_unaccented_simplified_with_spaces'), name='gin_trgm_ops'), name='card_name_unac_sim_sp_trgm_idx'),
-            GinIndex(OpClass(Upper('type_line'), name='gin_trgm_ops'), name='card_type_line_trgm_idx'),
-            GinIndex(OpClass(Upper('oracle_text'), name='gin_trgm_ops'), name='card_oracle_text_trgm_idx'),
-            GinIndex(fields=['keywords'], name='card_keywords_trgm_idx'),
-        ] if connection.vendor == 'postgresql' else []
+        indexes = case_insensitive_trigram_indexes(
+            'card',
+            'name',
+            'type_line',
+            'oracle_text',
+            name_unaccented='name_unacc',
+            name_unaccented_simplified='name_unac_sim',
+            name_unaccented_simplified_with_spaces='name_unac_sim_sp',
+        ) + cast_case_insensitive_trigram_indexes('card', 'keywords')
 
     def __str__(self):
         return self.name
@@ -239,6 +237,14 @@ class FeatureOfCard(Ingredient, WithFeatureAttributes, WithUsedFace):
     @classmethod
     def text_fields_with_references(cls) -> list[str]:
         return [*super().text_fields_with_references(), 'mana_needed', 'easy_prerequisites', 'notable_prerequisites']
+
+    class Meta(Ingredient.Meta):
+        indexes = Ingredient.card_state_trigram_indexes('featureofcard') + case_insensitive_trigram_indexes(
+            'featureofcard',
+            'mana_needed',
+            easy_prerequisites='easy_prereq',
+            notable_prerequisites='notable_prereq',
+        )
 
     def __str__(self):
         return f'{self.feature} for card {self.card_id}'

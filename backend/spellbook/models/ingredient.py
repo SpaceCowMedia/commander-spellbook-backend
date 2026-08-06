@@ -1,9 +1,11 @@
 from django.db import models
+from django.db.models import Index
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.forms import MultipleChoiceField, ValidationError as FormValidationError, CheckboxSelectMultiple
 from .validators import TEXT_VALIDATORS
 from .constants import MAX_LOCATION_STATE_LENGTH, MAX_INGREDIENT_QUANTITY
+from .utils import case_insensitive_trigram_indexes
 
 
 class CheckboxSelectMultipleAsCharField(CheckboxSelectMultiple):
@@ -75,6 +77,10 @@ class Ingredient(models.Model):
     @classmethod
     def text_fields_with_references(cls) -> list[str]:
         return list(cls.CARD_STATE_FIELDS.values())
+
+    @classmethod
+    def card_state_trigram_indexes(cls, prefix: str) -> list[Index]:
+        return case_insensitive_trigram_indexes(prefix, **{field: field.removesuffix('_card_state') for field in cls.CARD_STATE_FIELDS.values()})
 
     def clean(self):
         super().clean()

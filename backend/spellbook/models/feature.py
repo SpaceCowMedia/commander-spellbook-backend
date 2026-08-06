@@ -1,10 +1,10 @@
-from django.db import models, connection
+from django.db import models
 from django.dispatch import receiver
 from django.db.models.signals import post_save
-from django.db.models.functions import Lower, Upper
-from django.contrib.postgres.indexes import GinIndex, OpClass
+from django.db.models.functions import Lower
 from .constants import MAX_FEATURE_NAME_LENGTH
 from .mixins import NamedModel
+from .utils import case_insensitive_trigram_indexes
 from .validators import NAME_VALIDATORS
 
 
@@ -42,9 +42,7 @@ class Feature(NamedModel):
         ]
         indexes = [
             models.Index(fields=['status']),
-        ] + ([
-            GinIndex(OpClass(Upper('name'), name='gin_trgm_ops'), name='feature_name_trgm_idx'),
-        ] if connection.vendor == 'postgresql' else [])
+        ] + case_insensitive_trigram_indexes('feature', 'name')
 
     def __str__(self):
         return self.name

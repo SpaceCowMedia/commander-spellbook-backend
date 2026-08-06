@@ -7,8 +7,6 @@ from django.db import models, connection
 from django.dispatch import receiver
 from django.db.models.signals import post_save, pre_delete
 from django.utils.html import format_html
-from django.db.models.functions import Upper
-from django.contrib.postgres.indexes import GinIndex, OpClass
 from django.core.validators import MinValueValidator
 from django.core.exceptions import ValidationError
 from .playable import Playable
@@ -20,7 +18,7 @@ from .feature import Feature
 from .ingredient import OrderedIngredient, ZoneLocation
 from .combo import Combo
 from .validators import TEXT_VALIDATORS, MANA_VALIDATOR
-from .utils import CardType, mana_value, merge_color_identities
+from .utils import CardType, mana_value, merge_color_identities, case_insensitive_trigram_indexes
 from .constants import MAX_MANA_NEEDED_LENGTH
 
 
@@ -198,14 +196,17 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
             *(models.Index(fields=[field]) for field in Playable.playable_fields()),
             *(models.Index(fields=[f'identity_{color}']) for color in 'wubrg'),
         ] + ([
+            # SQLite rejects a NULLS LAST modifier inside an index, which the default ordering needs
             models.Index(*DEFAULT_VIEW_ORDERING, name='variant_view_ordering_idx'),
             models.Index(*('identity_count',) + DEFAULT_VIEW_ORDERING, name='variant_ic_view_ordering_idx'),
             models.Index(*('variant_count',) + DEFAULT_VIEW_ORDERING, name='variant_vc_view_ordering_idx'),
             models.Index(*('card_count',) + DEFAULT_VIEW_ORDERING, name='variant_cc_view_ordering_idx'),
-            GinIndex(OpClass(Upper('easy_prerequisites'), name='gin_trgm_ops'), name='variant_easy_prereq_trgm_idx'),
-            GinIndex(OpClass(Upper('notable_prerequisites'), name='gin_trgm_ops'), name='variant_notabl_prereq_trgm_idx'),
-            GinIndex(OpClass(Upper('description'), name='gin_trgm_ops'), name='variant_description_trgm_idx'),
-        ] if connection.vendor == 'postgresql' else [])
+        ] if connection.vendor == 'postgresql' else []) + case_insensitive_trigram_indexes(
+            'variant',
+            'description',
+            easy_prerequisites='easy_prereq',
+            notable_prerequisites='notabl_prereq',
+        )
 
     def cards(self) -> dict[str, int]:
         return {c.card.name: c.quantity for c in self.cardinvariant_set.all()}

@@ -76,7 +76,13 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: spellbook-backend-migrations
-          path: backend/.kubernetes/migration/prod
+          path: kubernetes/migration/prod
+
+      - name: Upload manifest artifacts 📦
+        uses: actions/upload-artifact@v7
+        with:
+          name: spellbook-backend-manifests
+          path: kubernetes
 
 
   check:
@@ -402,6 +408,13 @@ jobs:
           name: spellbook-backend-migrations
           path: /tmp/migrations
 
+      - name: Download manifest artifacts ⬇
+        id: manifest-artifacts
+        uses: actions/download-artifact@v8
+        with:
+          name: spellbook-backend-manifests
+          path: /tmp/manifests
+
       - name: Configure kubernetes 🐙
         working-directory: ${{ steps.migration-artifacts.outputs.download-path }}
         run: aws eks --region ${{ secrets.AWS_REGION }} update-kubeconfig --name spellbook-prod-cluster --kubeconfig spellbookkubeconfig.yaml
@@ -479,6 +492,12 @@ jobs:
         run: |
           docker tag spellbook-reddit-bot:latest $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+      - name: Apply manifests 🐙
+        working-directory: ${{ steps.migration-artifacts.outputs.download-path }}
+        run: |
+          export KUBECONFIG=spellbookkubeconfig.yaml
+          kubectl apply -k ${{ steps.manifest-artifacts.outputs.download-path }}/deploy/prod
 
       - name: Rollout pods 🚀
         working-directory: ${{ steps.migration-artifacts.outputs.download-path }}

@@ -119,7 +119,7 @@ fi
 aws eks --region $REGION update-kubeconfig --name $CLUSTER_NAME
 
 # Apply Kubernetes configuration
-kubectl apply -k backend/.kubernetes/app/$APP_ENVIRONMENT/
+kubectl apply -k kubernetes/deploy/$APP_ENVIRONMENT/
 
 # Rollout pods
 kubectl rollout restart deployment/spellbook-api -n spellbook-$APP_ENVIRONMENT

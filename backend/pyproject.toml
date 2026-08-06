@@ -48,7 +48,7 @@ force-include = { "manage.py" = "manage.py" }
 py-modules = []
 
 [dependency-groups]
-prod = ["gunicorn", "psycopg[binary]"]
+prod = ["gunicorn", "psycopg[binary,pool]"]
 cython = ["cython", "setuptools"]
 dev = [
     "tblib",

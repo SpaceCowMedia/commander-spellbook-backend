@@ -62,13 +62,17 @@ DATABASES = {
 
 if DATABASES['default']['ENGINE'] == 'django.db.backends.postgresql':
     INSTALLED_APPS.append('django.contrib.postgres')
+    # The pool is per process and shared by its threads, so the connections held stay tied to the
+    # number of workers rather than to the number of threads each one serves requests with.
     DATABASES['default']['OPTIONS'] = {
+        'pool': True,
         'options': '-c statement_timeout=60000'  # in milliseconds
     }
     # Same database, reached through a connection that tolerates the slower queries of the admin interface.
     DATABASES[ADMIN_DATABASE] = {
         **DATABASES['default'],
         'OPTIONS': {
+            'pool': True,
             'options': '-c statement_timeout=120000'  # in milliseconds
         },
     }

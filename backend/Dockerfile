@@ -126,7 +126,7 @@ ADD backend/nginx/production.conf /etc/nginx/nginx.conf
 
 RUN echo -e 'python manage.py collectstatic --no-input --clear\n\
 nginx\n\
-gunicorn backend.wsgi:application --bind 0.0.0.0:8000 --workers=3' > entrypoint.prod.sh
+gunicorn backend.wsgi:application --bind 0.0.0.0:8000 --workers=3 --worker-class=gthread --threads=4 --timeout=180' > entrypoint.prod.sh
 
 
 ##########

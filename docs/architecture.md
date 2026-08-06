@@ -54,6 +54,7 @@ The **backend** exposes a REST API and an admin panel. Editors author combos in 
 | [`bot/`](https://github.com/SpaceCowMedia/commander-spellbook-backend/tree/master/bot) | The `discord/`, `reddit/`, and `telegram/` bots — independent services that consume the API via the generated Python client. |
 | [`demo/`](https://github.com/SpaceCowMedia/commander-spellbook-backend/tree/master/demo) | Fixtures and sample data dumps for local experimentation. |
 | [`docs/`](https://github.com/SpaceCowMedia/commander-spellbook-backend/tree/master/docs) | These pages, plus the combo-graph explainer assets. |
+| [`kubernetes/`](https://github.com/SpaceCowMedia/commander-spellbook-backend/tree/master/kubernetes) | Cluster manifests, one directory per workload, each with a directory per environment. `deploy/prod/` aggregates the ones the pipeline applies on every release; `admin/` and `migration/` are applied on their own. |
 | Root | `docker-compose*.yml`, `deploy.sh`, `git-release`, CI workflows under `.github/`. |
 
 ## Backend internals

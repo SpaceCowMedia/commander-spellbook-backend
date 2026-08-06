@@ -1,0 +1,10 @@
+# Everything the pipeline applies on every deploy. `admin` is left out because it bootstraps the
+# namespace and the RBAC the pipeline itself authenticates with, and `migration` because the deploy
+# runs it as a one-shot job it has to delete and wait on.
+resources:
+- ../../app/prod
+- ../../app/jobs/prod
+- ../../worker/prod
+- ../../discord-bot
+- ../../reddit-bot
+- ../../reddit-bot/jobs

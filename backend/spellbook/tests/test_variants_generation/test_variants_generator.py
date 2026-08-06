@@ -5,7 +5,7 @@ from spellbook.models.combo import CardInCombo, FeatureNeededInCombo
 from spellbook.models.feature_attribute import FeatureAttribute
 from spellbook.tests.testing import SpellbookTestCaseWithSeeding
 from spellbook.models import Variant, Card, OrderedIngredient, CardInVariant, TemplateInVariant, Template, Combo, Feature, VariantAlias, FeatureOfCard, ZoneLocation
-from spellbook.models import VariantGenerationFingerprints
+from spellbook.models import VariantGenerationFingerprints, VariantOfCombo, FeatureProducedByVariant, id_from_cards_and_templates_ids
 from spellbook.variants.combo_graph import FeatureWithAttributes
 from spellbook.variants.multiset import FrozenMultiset
 from spellbook.variants.variant_data import Data
@@ -14,6 +14,7 @@ from spellbook.variants.variants_generator import get_variants_from_graph, get_d
 from spellbook.variants.replacements import ReplacementContext
 from spellbook.variants.variants_generator import generate_variants, subtract_features, update_state
 from spellbook.variants.variants_generator import sync_variant_aliases, restore_variants
+from spellbook.variants.variants_generator import VariantDefinition, _restore_variant, _update_variant, _create_variant, _perform_bulk_saves
 from multiprocessing_utils import parallelism_is_available
 
 
@@ -316,22 +317,167 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
         self.assertEqual(variant.description, 'a mention of Transitive Card Two here')
 
     def test_restore_variant(self):
-        # TODO: Implement
-        # TODO: Regression test for restore_variant with a variant that includes a combo that contains a card missing from the variant
-        # TODO: Test if restoring a variant with a Job updates the generated_by field
-        pass
+        data = Data()
+        variants = get_variants_from_graph(data)
+        for id, variant_def in variants.items():
+            with self.subTest(variant=id):
+                variant = Variant(id=id)
+                save_item = _restore_variant(data=data, variant=variant, variant_def=variant_def, restore_fields=True)
+                self.assertEqual(variant.status, Variant.Status.NEW)
+                self.assertGreater(len(variant.name), 0)
+                self.assertGreater(len(variant.description), 0)
+                self.assertSetEqual(save_item.of, variant_def.of_ids)
+                self.assertSetEqual(save_item.includes, variant_def.included_ids)
+                self.assertSetEqual({c.card_id for c in save_item.uses}, set(variant_def.card_ids.distinct_elements()))
+                self.assertSetEqual({t.template_id for t in save_item.requires}, set(variant_def.template_ids.distinct_elements()))
+                self.assertSetEqual(save_item.produces_ids, set(subtract_features(data, variant_def.included_ids, variant_def.feature_ids).distinct_elements()))
+                self.assertEqual([c.order for c in save_item.uses], list(range(1, len(save_item.uses) + 1)))
+                self.assertEqual([t.order for t in save_item.requires], list(range(1, len(save_item.requires) + 1)))
+                self.assertEqual(save_item.uses_to_create, save_item.uses)
+                self.assertEqual(save_item.requires_to_create, save_item.requires)
+                self.assertEqual(save_item.produces_to_create, save_item.produces)
+                self.assertFalse(save_item.uses_to_update)
+                self.assertFalse(save_item.requires_to_update)
+                self.assertFalse(save_item.produces_to_update)
+        self.assertEqual(Variant.objects.count(), 0)
+        # An included combo may contain cards that the variant does not use
+        variant_def = VariantDefinition(
+            card_ids=FrozenMultiset({self.c4_id: 1}),
+            template_ids=FrozenMultiset(),
+            of_ids={self.b3_id},
+            feature_ids=FrozenMultiset(),
+            included_ids={self.b3_id},
+            feature_replacements={},
+            needed_combos={self.b3_id},
+            needed_features_of_cards=set(),
+        )
+        variant = Variant(id=id_from_cards_and_templates_ids([self.c4_id], []))
+        save_item = _restore_variant(data=data, variant=variant, variant_def=variant_def, restore_fields=True)
+        self.assertEqual([c.card_id for c in save_item.uses], [self.c4_id])
+        self.assertEqual(save_item.uses[0].zone_locations, ZoneLocation.HAND)
+        self.assertEqual(variant.description, Combo.objects.get(pk=self.b3_id).description)
+
+        self.generate_variants()
+        Variant.objects.update(status=Variant.Status.OK, generated_by=None)
+        data = Data()
+        variants = get_variants_from_graph(data)
+        id = next(iter(variants))
+        variant = data.fetch_variants([id])[id]
+        variant.description = 'not restored'
+        save_item = _restore_variant(data=data, variant=variant, variant_def=variants[id], restore_fields=False)
+        self.assertEqual(variant.description, 'not restored')
+        self.assertEqual(variant.status, Variant.Status.OK)
+        self.assertFalse(save_item.uses_to_create)
+        self.assertFalse(save_item.uses_to_update)
+        self.assertFalse(save_item.requires_to_create)
+        self.assertFalse(save_item.requires_to_update)
+        self.assertFalse(save_item.produces_to_create)
+        self.assertFalse(save_item.produces_to_update)
+        to_update, to_create = restore_variants(
+            data=data,
+            variants=variants,
+            variant_instances=data.fetch_variants(variants.keys()),
+            to_restore={id},
+            job='a-job',
+        )
+        self.assertFalse(to_create)
+        for item in to_update:
+            if item.variant.id == id:
+                self.assertEqual(item.variant.generated_by, 'a-job')
+                self.assertEqual(item.variant.status, Variant.Status.NEW)
+            else:
+                self.assertIsNone(item.variant.generated_by)
+                self.assertEqual(item.variant.status, Variant.Status.OK)
 
     def test_update_variant(self):
-        # TODO: Implement
-        pass
+        self.generate_variants()
+        Variant.objects.update(status=Variant.Status.OK, generated_by=None)
+        data = Data()
+        variants = get_variants_from_graph(data)
+        id = next(iter(variants))
+        variant_def = variants[id]
+        variant = data.fetch_variants([id])[id]
+        save_item = _update_variant(data=data, id=id, variant_def=variant_def, variant=variant, restore=False, job='a-job')
+        self.assertFalse(save_item.variant_changed)
+        self.assertEqual(variant.status, Variant.Status.OK)
+        self.assertIsNone(variant.generated_by)
+        variant = data.fetch_variants([id])[id]
+        variant.description_line_count += 5
+        save_item = _update_variant(data=data, id=id, variant_def=variant_def, variant=variant, restore=False, job='a-job')
+        self.assertTrue(save_item.variant_changed)
+        self.assertEqual(variant.description_line_count, variant.description.count('\n') + 1 if variant.description else 0)
+        variant = data.fetch_variants([id])[id]
+        description = variant.description
+        variant.description = 'stale description'
+        save_item = _update_variant(data=data, id=id, variant_def=variant_def, variant=variant, restore=True, job='a-job')
+        self.assertTrue(save_item.variant_changed)
+        self.assertEqual(variant.description, description)
+        self.assertEqual(variant.status, Variant.Status.NEW)
+        self.assertEqual(variant.generated_by, 'a-job')
+        # Nothing is written to the database before the bulk save
+        self.assertEqual(Variant.objects.get(pk=id).status, Variant.Status.OK)
 
     def test_create_variant(self):
-        # TODO: Implement
-        pass
+        data = Data()
+        variants = get_variants_from_graph(data)
+        for id, variant_def in variants.items():
+            with self.subTest(variant=id):
+                save_item = _create_variant(data=data, id=id, variant_def=variant_def, job='a-job')
+                variant = save_item.variant
+                self.assertEqual(variant.id, id)
+                self.assertEqual(variant.generated_by, 'a-job')
+                self.assertEqual(variant.status, Variant.Status.NEW)
+                self.assertTrue(save_item.variant_changed)
+                self.assertEqual(save_item.uses_to_create, save_item.uses)
+                self.assertEqual(save_item.requires_to_create, save_item.requires)
+                self.assertEqual(save_item.produces_to_create, save_item.produces)
+                self.assertFalse(save_item.uses_to_update)
+                self.assertFalse(save_item.requires_to_update)
+                self.assertFalse(save_item.produces_to_update)
+                # pre_save already ran, so the computed fields are consistent with the text ones
+                self.assertEqual(variant.description_line_count, variant.description.count('\n') + 1 if variant.description else 0)
+        self.assertEqual(Variant.objects.count(), 0)
 
     def test_perform_bulk_save(self):
-        # TODO: Implement
-        pass
+        data = Data()
+        variants = get_variants_from_graph(data)
+        to_update, to_create = restore_variants(data=data, variants=variants, variant_instances={}, to_restore=set(), job='a-job')
+        self.assertFalse(to_update)
+        _perform_bulk_saves(data, to_create, [])
+        self.assertEqual(Variant.objects.count(), self.expected_variant_count)
+        for item in to_create:
+            variant = Variant.objects.get(pk=item.variant.id)
+            self.assertEqual(variant.generated_by, 'a-job')
+            self.assertSetEqual(set(variant.uses.values_list('id', flat=True)), {c.card_id for c in item.uses})
+            self.assertSetEqual(set(variant.requires.values_list('id', flat=True)), {t.template_id for t in item.requires})
+            self.assertSetEqual(set(variant.produces.values_list('id', flat=True)), item.produces_ids)
+            self.assertSetEqual(set(variant.of.values_list('id', flat=True)), item.of)
+            self.assertSetEqual(set(variant.includes.values_list('id', flat=True)), item.includes)
+        v: Variant = Variant.objects.first()  # type: ignore
+        stale_of = VariantOfCombo.objects.create(variant=v, combo_id=self.b7_id)
+        stale_produces = FeatureProducedByVariant.objects.create(variant=v, feature_id=self.f5_id, quantity=1)
+        stale_use: CardInVariant = v.cardinvariant_set.first()  # type: ignore
+        CardInVariant.objects.filter(pk=stale_use.pk).update(battlefield_card_state='stale state', order=99)
+        data = Data()
+        variants = get_variants_from_graph(data)
+        to_update, to_create = restore_variants(
+            data=data,
+            variants=variants,
+            variant_instances=data.fetch_variants(variants.keys()),
+            to_restore={v.id},
+            job='another-job',
+        )
+        self.assertFalse(to_create)
+        _perform_bulk_saves(data, [], to_update)
+        self.assertEqual(Variant.objects.count(), self.expected_variant_count)
+        self.assertFalse(VariantOfCombo.objects.filter(pk=stale_of.pk).exists())
+        self.assertFalse(FeatureProducedByVariant.objects.filter(pk=stale_produces.pk).exists())
+        stale_use.refresh_from_db()
+        self.assertNotEqual(stale_use.battlefield_card_state, 'stale state')
+        self.assertNotEqual(stale_use.order, 99)
+        v.refresh_from_db()
+        self.assertEqual(v.generated_by, 'another-job')
+        self.assertEqual(v.status, Variant.Status.NEW)
 
     def test_generate_variants(self):
         for _ in range(20):

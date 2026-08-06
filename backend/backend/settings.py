@@ -304,7 +304,7 @@ TASKS = {
     'default': {
         'BACKEND': 'django_tasks.backends.database.DatabaseBackend',
         'OPTIONS': {
-            'id_function': 'uuid.uuid4',  # TODO: move to uuid7 from Python 3.14
+            'id_function': 'uuid.uuid7',
         }
     }
 }

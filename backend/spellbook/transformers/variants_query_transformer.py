@@ -1,7 +1,7 @@
 from lark import Lark, Transformer, LarkError, UnexpectedToken, UnexpectedCharacters
-from django.db.models import Q, QuerySet
+from django.db.models import QuerySet
 from django.core.exceptions import ValidationError
-from spellbook.models import TemplateInVariant, Variant, FeatureProducedByVariant, CardInVariant, Card
+from spellbook.models import Variant
 from .variants_query_filters.template_search_filters import template_search_filter
 from .variants_query_filters.varant_variants_filters import variants_filter
 from .variants_query_filters.card_search_filters import card_search_filter
@@ -21,7 +21,7 @@ from .variants_query_filters.variant_legality_filters import legality_filter
 from .variants_query_filters.variant_price_filters import price_filter
 from .variants_query_filters.variant_popularity_filters import popularity_filter
 from .variants_query_filters.bracket_filters import bracket_filter
-from .variants_query_filters.base import QueryValue, VariantFilterCollection
+from .variants_query_filters.base import QueryValue, VariantQuery
 from ..parsers.variants_query_grammar import VARIANTS_QUERY_GRAMMAR
 
 
@@ -109,25 +109,22 @@ class VariantsQueryTransformer(Transformer):
     # endregion
 
     # region composition
-    def matcher(self, values):
+    def factor(self, values):
         match values[0]:
             case '-':
                 return ~values[1]
             case _:
-                return values[0]
-
-    def factor(self, values):
-        return values[1]
+                return values[1]
 
     def term(self, values):
         return values[0] & values[-1]
 
     def expression(self, values):
-        raise NotImplementedError('OR composition is not implemented.')
+        return values[0] | values[-1]
 
     def start(self, values):
         if not values:
-            return VariantFilterCollection()
+            return VariantQuery()
         return values[0]
     # endregion
 
@@ -142,55 +139,10 @@ def variants_query_parser(base: QuerySet[Variant], query_string: str) -> QuerySe
     if len(query_string) > MAX_QUERY_LENGTH:
         raise ValidationError('Search query is too long.')
     try:
-        filters: VariantFilterCollection = PARSER.parse(query_string)  # type: ignore
-        if len(filters) > MAX_QUERY_PARAMETERS:
+        query: VariantQuery = PARSER.parse(query_string)  # type: ignore
+        if query.leaves > MAX_QUERY_PARAMETERS:
             raise ValidationError('Too many search parameters.')
-        filtered_variants = base
-        for filter in filters.variants_filters:
-            filtered_variants = filtered_variants.exclude(filter.q) if filter.exclude else filtered_variants.filter(filter.q)
-            base = filtered_variants
-        for filter in filters.cardinvariants_filters:
-            matching_cardinvariants = CardInVariant.objects.filter(filter.q)
-            q = Q(pk__in=matching_cardinvariants.values('variant_id'))
-            filtered_variants = filtered_variants.exclude(q) if filter.exclude else filtered_variants.filter(q)
-        for filter in filters.templates_filters:
-            filtered_templates = TemplateInVariant.objects.filter(filter.q)
-            q = Q(pk__in=filtered_templates.values('variant_id'))
-            filtered_variants = filtered_variants.exclude(q) if filter.exclude else filtered_variants.filter(q)
-        for filter in filters.results_filters:
-            filtered_produces = FeatureProducedByVariant.objects.filter(filter.q)
-            q = Q(pk__in=filtered_produces.values('variant_id'))
-            filtered_variants = filtered_variants.exclude(q) if filter.exclude else filtered_variants.filter(q)
-        for filter in filters.cards_filters:
-            matching_cards = Card.objects.filter(filter.q)
-            if filter.exclude:
-                # templates_to_exclude = TemplateReplacement.objects \
-                #     .values('template') \
-                #     .exclude(card__in=Card.objects.exclude(filter.q))
-                filtered_variants = filtered_variants.exclude(
-                    Q(
-                        pk__in=CardInVariant.objects
-                        .values('variant_id')
-                        .filter(card__in=matching_cards),
-                    ) | Q(
-                        # pk__in=TemplateInVariant.objects
-                        # .values('variant_id')
-                        # .filter(template__in=templates_to_exclude),
-                    ),
-                )
-            else:
-                filtered_variants = filtered_variants.filter(
-                    Q(
-                        pk__in=CardInVariant.objects
-                        .values('variant_id')
-                        .filter(card__in=matching_cards),
-                    ) | Q(
-                        # pk__in=TemplateInVariant.objects
-                        # .values('variant_id')
-                        # .filter(template__replacements__in=matching_cards),
-                    ),
-                )
-        return filtered_variants
+        return base.filter(query.to_q())
     except UnexpectedToken as e:
         if e.token.type == '$END':
             raise ValidationError(f'Invalid search query: something is missing after character {e.column}.')

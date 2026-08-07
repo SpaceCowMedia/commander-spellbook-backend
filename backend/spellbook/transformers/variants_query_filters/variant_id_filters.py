@@ -1,10 +1,10 @@
-from .base import QueryValue, VariantFilterCollection, Q, ValidationError
+from spellbook.models import VariantAlias
+from .base import QueryValue, VariantQuery, Q, ValidationError
 
 
-def id_filter(qv: QueryValue) -> VariantFilterCollection:
+def id_filter(qv: QueryValue) -> VariantQuery:
     match qv.operator:
         case ':' | '=':
-            q = Q(id__iexact=qv.value) | Q(aliases__id__iexact=qv.value)
+            return qv.to_filter(Q(id__iexact=qv.value)) | qv.to_filter(Q(id__iexact=qv.value), VariantAlias)
         case _:
             raise ValidationError(f'Operator {qv.operator} is not supported for spellbook id search.')
-    return VariantFilterCollection(variants_filters=(qv.to_query_filter(q),))

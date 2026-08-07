@@ -1,7 +1,8 @@
-from .base import QueryValue, VariantFilterCollection, Q, ValidationError
+from spellbook.models import CardInVariant
+from .base import QueryValue, VariantQuery, Q, ValidationError
 
 
-def commander_filter(qv: QueryValue) -> VariantFilterCollection:
+def commander_filter(qv: QueryValue) -> VariantQuery:
     match qv.operator:
         case ':':
             q = Q(card__name__icontains=qv.value) \
@@ -17,4 +18,4 @@ def commander_filter(qv: QueryValue) -> VariantFilterCollection:
             q &= Q(must_be_commander=True)
         case _:
             raise ValidationError(f'Operator {qv.operator} is not supported for commander name search.')
-    return VariantFilterCollection(cardinvariants_filters=(qv.to_query_filter(q),))
+    return qv.to_filter(q, CardInVariant)

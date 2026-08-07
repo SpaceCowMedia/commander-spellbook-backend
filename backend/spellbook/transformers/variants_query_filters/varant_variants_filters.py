@@ -1,7 +1,7 @@
-from .base import QueryValue, VariantFilterCollection, Q, ValidationError
+from .base import QueryValue, VariantQuery, Q, ValidationError
 
 
-def variants_filter(qv: QueryValue) -> VariantFilterCollection:
+def variants_filter(qv: QueryValue) -> VariantQuery:
     if not qv.is_numeric():
         raise ValidationError(f'Value {qv.value} is not supported for variants search.')
     match qv.operator:
@@ -17,4 +17,4 @@ def variants_filter(qv: QueryValue) -> VariantFilterCollection:
             q = Q(variant_count__gte=qv.value)
         case _:
             raise ValidationError(f'Operator {qv.operator} is not supported for variants search.')
-    return VariantFilterCollection(variants_filters=(qv.to_query_filter(q),))
+    return qv.to_filter(q)

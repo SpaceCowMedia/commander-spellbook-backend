@@ -1,7 +1,8 @@
-from .base import QueryValue, VariantFilterCollection, Q, ValidationError
+from spellbook.models import Card
+from .base import QueryValue, VariantQuery, Q, ValidationError
 
 
-def card_mana_value_filter(qv: QueryValue) -> VariantFilterCollection:
+def card_mana_value_filter(qv: QueryValue) -> VariantQuery:
     if not qv.is_numeric():
         raise ValidationError(f'Value {qv.value} is not supported for card mana value search.')
     match qv.operator:
@@ -17,4 +18,4 @@ def card_mana_value_filter(qv: QueryValue) -> VariantFilterCollection:
             q = Q(mana_value__gte=qv.value)
         case _:
             raise ValidationError(f'Operator {qv.operator} is not supported for card mana value search.')
-    return VariantFilterCollection(cards_filters=(qv.to_query_filter(q),))
+    return qv.to_filter(q, Card)

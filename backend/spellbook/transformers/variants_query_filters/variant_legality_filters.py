@@ -1,8 +1,8 @@
-from .base import QueryValue, VariantFilterCollection, Q, ValidationError
+from .base import QueryValue, VariantQuery, Q, ValidationError
 from spellbook.models import Variant
 
 
-def legality_filter(qv: QueryValue) -> VariantFilterCollection:
+def legality_filter(qv: QueryValue) -> VariantQuery:
     if qv.operator != ':':
         raise ValidationError(f'Operator {qv.operator} is not supported for legality search.')
     format = qv.value.lower()
@@ -14,4 +14,4 @@ def legality_filter(qv: QueryValue) -> VariantFilterCollection:
         case 'banned':
             legal = False
     q = Q(**{f'legal_{format}': legal})
-    return VariantFilterCollection(variants_filters=(qv.to_query_filter(q),))
+    return qv.to_filter(q)

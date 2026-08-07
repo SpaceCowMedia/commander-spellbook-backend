@@ -1,8 +1,8 @@
-from .base import QueryValue, VariantFilterCollection, Q, ValidationError
+from .base import QueryValue, VariantQuery, Q, ValidationError
 from spellbook.parsers.variants_query_grammar import SUPPORTED_STORES
 
 
-def price_filter(qv: QueryValue) -> VariantFilterCollection:
+def price_filter(qv: QueryValue) -> VariantQuery:
     if not qv.is_numeric():
         raise ValidationError(f'Value {qv.value} is not supported for price search.')
     match qv.key.lower():
@@ -27,4 +27,4 @@ def price_filter(qv: QueryValue) -> VariantFilterCollection:
             q = Q(**{f'price_{store}__gte': qv.value})
         case _:
             raise ValidationError(f'Operator {qv.operator} is not supported for price search.')
-    return VariantFilterCollection(variants_filters=(qv.to_query_filter(q),))
+    return qv.to_filter(q)

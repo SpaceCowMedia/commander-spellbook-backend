@@ -1,11 +1,11 @@
 from spellbook.models import Variant
-from .base import QueryValue, VariantFilterCollection, Q, ValidationError
+from .base import QueryValue, VariantQuery, Q, ValidationError
 
 
 BRACKET_TAG_MAPPING = {label.lower(): value for value, label in Variant.BracketTag.choices}
 
 
-def bracket_filter(qv: QueryValue) -> VariantFilterCollection:
+def bracket_filter(qv: QueryValue) -> VariantQuery:
     value_is_digit = qv.is_numeric()
     bracket_tag = None
     if value_is_digit:
@@ -30,4 +30,4 @@ def bracket_filter(qv: QueryValue) -> VariantFilterCollection:
             q = Q(bracket_tag=bracket_tag)
         case _:
             raise ValidationError(f'Operator {qv.operator} is not supported for bracket search.')
-    return VariantFilterCollection(variants_filters=(qv.to_query_filter(q),))
+    return qv.to_filter(q)

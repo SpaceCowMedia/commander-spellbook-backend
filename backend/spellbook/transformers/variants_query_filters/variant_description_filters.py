@@ -1,8 +1,8 @@
-from .base import QueryFilter, QueryValue, VariantFilterCollection, Q, ValidationError
 from spellbook.models import Variant
+from .base import QueryValue, VariantQuery, Q, ValidationError, guard
 
 
-def description_filter(qv: QueryValue) -> VariantFilterCollection:
+def description_filter(qv: QueryValue) -> VariantQuery:
     value_is_digit = qv.is_numeric()
     match qv.operator:
         case ':' if not value_is_digit:
@@ -21,10 +21,4 @@ def description_filter(qv: QueryValue) -> VariantFilterCollection:
             q = Q(description_line_count=qv.value)
         case _:
             raise ValidationError(f'Operator {qv.operator} is not supported for prerequisites search.')
-    return VariantFilterCollection(variants_filters=(
-        qv.to_query_filter(q),
-        QueryFilter(
-            q=~Q(status=Variant.Status.EXAMPLE),
-            excludable=False,
-        )
-    ))
+    return qv.to_filter(q) & guard(~Q(status=Variant.Status.EXAMPLE))

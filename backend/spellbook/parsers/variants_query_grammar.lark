@@ -5,13 +5,13 @@
 
 start: expression?
 
-?expression: term //| expression OR term
+?expression: term | expression OR term
 
 ?term: factor | term AND? factor
 
-?factor: matcher | LPAREN expression RPAREN //| NOT factor
+?factor: matcher | NOT factor | LPAREN expression RPAREN
 
-?matcher: CARD_SEARCH_SHORTCUT -> card_search_shortcut | pair | NOT matcher
+?matcher: CARD_SEARCH_SHORTCUT -> card_search_shortcut | pair
 
 STRING: SHORT_LITERAL | LONG_LITERAL
 
@@ -82,9 +82,9 @@ VARIANTS_SEARCH: VARIANTS_SEARCH_KEY COMPARISON_OPERATOR NUMBER
 
 BRACKET_SEARCH: BRACKET_SEARCH_KEY COMPARISON_OPERATOR STRING_OR_NUMBER
 
-OR.5: "OR" | "||" | "|"
+OR.5: "OR"i | "||" | "|"
 
-AND.5: "AND" | "&&" | "&"
+AND.5: "AND"i | "&&" | "&"
 
 NOT: "-"
 

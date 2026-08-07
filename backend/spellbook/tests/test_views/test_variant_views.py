@@ -5,9 +5,10 @@ from django.urls import reverse
 from rest_framework import status
 from constants import SORTED_COLORS
 from common.inspection import json_to_python_lambda
-from spellbook.models import Card, Template, Feature, Variant, CardInVariant, TemplateInVariant, Combo
+from spellbook.models import Card, Template, Feature, Variant, CardInVariant, TemplateInVariant, Combo, VariantAlias
 from spellbook.views import VariantViewSet
 from spellbook.serializers import VariantSerializer
+from spellbook.transformers.variants_query_transformer import variants_query_parser
 from spellbook.views.variants import VariantGroupedByComboFilter
 from website.models import WebsiteProperty, FEATURED_SET_CODES_PROPERTIES
 from ..testing import SpellbookTestCaseWithSeeding
@@ -1049,6 +1050,298 @@ class VariantViewsTests(SpellbookTestCaseWithSeeding):
                 self.assertSetEqual({v.id for v in result.results}, set(variants))
                 for v in result.results:
                     self.variant_assertions(v)
+
+    def query_ids(self, q: str) -> set[str]:
+        response = self.client.get(reverse('variants-list'), query_params={'q': q}, follow=True)  # type: ignore
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.get('Content-Type'), 'application/json')
+        result = json.loads(response.content, object_hook=json_to_python_lambda)
+        for v in result.results:
+            self.variant_assertions(v)
+        return {v.id for v in result.results}
+
+    def variant_ids_using_card_named(self, term: str) -> set[str]:
+        matching_cards = Card.objects.filter(
+            models.Q(name__icontains=term) | models.Q(name_unaccented__icontains=term) | models.Q(name_unaccented_simplified__icontains=term) | models.Q(name_unaccented_simplified_with_spaces__icontains=term)
+        )
+        return {v.id for v in self.variants_matching_any_cards(matching_cards)}
+
+    def test_variants_list_view_query_by_or(self):
+        a, b, c, d = (self.variant_ids_using_card_named(t) for t in 'abcd')
+        everything = {v.id for v in self.public_variants.all()}
+        self.assertGreater(len(a), 0)
+        self.assertGreater(len(b), 0)
+        self.assertNotEqual(a, b)
+        queries = [
+            ('card:a OR card:b', a | b),
+            ('card:a or card:b', a | b),
+            ('card:a Or card:b', a | b),
+            ('card:a | card:b', a | b),
+            ('card:a || card:b', a | b),
+            ('card:a OR card:b OR card:c', a | b | c),
+            ('card:a and card:b', a & b),
+            ('card:a AND card:b', a & b),
+            ('card:a card:b', a & b),
+            ('(card:a card:b) OR (card:c card:d)', (a & b) | (c & d)),
+            ('(card:a OR card:b) card:c', (a | b) & c),
+            ('card:c (card:a OR card:b)', (a | b) & c),
+            ('-(card:a OR card:b)', everything - (a | b)),
+            ('-(card:a card:b)', everything - (a & b)),
+            ('-card:a OR card:b', (everything - a) | b),
+            ('card:a OR -card:b', a | (everything - b)),
+            ('(card:a OR card:b) (card:c OR card:d)', (a | b) & (c | d)),
+            ('((card:a OR card:b) card:c) OR card:d', ((a | b) & c) | d),
+        ]
+        for q, expected in queries:
+            with self.subTest(f'query with or: {q}'):
+                self.assertSetEqual(self.query_ids(q), expected)
+
+    def test_variants_list_view_query_by_or_binds_looser_than_and(self):
+        a, b, c = (self.variant_ids_using_card_named(t) for t in 'abc')
+        shared = (a & b) | (a & c)
+        # If OR bound tighter, `card:a card:b OR card:a card:c` would mean a AND (b OR a) AND c,
+        # which is just a AND c. The seed data has to tell the two readings apart.
+        self.assertNotEqual(shared, a & c, 'seed data cannot distinguish the two parses')
+        self.assertGreater(len(shared), 0)
+        queries = [
+            ('card:a card:b OR card:a card:c', shared),
+            ('card:a card:b or card:a card:c', shared),
+            ('card:a AND card:b OR card:a AND card:c', shared),
+            ('card:a card:b | card:a card:c', shared),
+            ('card:a card:b OR card:c', (a & b) | c),
+            ('card:a OR card:b card:c', a | (b & c)),
+            ('card:a card:b OR card:a card:c OR card:b card:c', (a & b) | (a & c) | (b & c)),
+        ]
+        for q, expected in queries:
+            with self.subTest(f'and binds tighter than or: {q}'):
+                self.assertSetEqual(self.query_ids(q), expected)
+        with self.subTest('the implicit grouping matches the explicit one'):
+            self.assertSetEqual(
+                self.query_ids('card:a card:b OR card:a card:c'),
+                self.query_ids('(card:a card:b) OR (card:a card:c)'),
+            )
+
+    def variant_ids_matching_any_card(self, card_q: models.Q) -> set[str]:
+        return {v.id for v in self.variants_matching_any_cards(Card.objects.filter(card_q))}
+
+    def variant_ids_matching_all_cards(self, card_q: models.Q) -> set[str]:
+        return {v.id for v in self.variants_matching_all_cards(Card.objects.filter(card_q))}
+
+    def test_variants_list_view_query_by_convoluted_expressions(self):
+        # `any_*` is "uses some card matching", `all_*` is the @ prefix, "every card matches".
+        # No card-name term gives a non-empty all-of set here, since every variant uses several
+        # differently named cards, so the all-of side is driven by oracle text instead.
+        any_a, any_b, any_c = (self.variant_ids_using_card_named(t) for t in 'abc')
+        oracle_x = models.Q(oracle_text__icontains='x')
+        any_x = self.variant_ids_matching_any_card(oracle_x)
+        all_x = self.variant_ids_matching_all_cards(oracle_x)
+        all_instant = self.variant_ids_matching_all_cards(models.Q(type_line__icontains='instant'))
+        everything = {v.id for v in self.public_variants.all()}
+        for name, subset in (('any_a', any_a), ('any_b', any_b), ('any_c', any_c), ('all_x', all_x)):
+            self.assertGreater(len(subset), 0, f'{name} must be non-empty for this test to mean anything')
+        self.assertNotEqual(all_x, any_x, 'the @ prefix must differ from a plain search here')
+        self.assertNotEqual(all_x, everything, 'the @ prefix must exclude something here')
+        queries = [
+            # the all-of operator against and/or
+            ('@o:x', all_x),
+            ('@o:x @t:instant', all_x & all_instant),
+            ('@o:x OR @t:instant', all_x | all_instant),
+            ('@o:x OR card:a', all_x | any_a),
+            ('@o:x card:a', all_x & any_a),
+            # negation against the all-of operator
+            ('-@o:x', everything - all_x),
+            ('-@o:x -@t:instant', everything - all_x - all_instant),
+            ('-@o:x OR -@t:instant', (everything - all_x) | (everything - all_instant)),
+            ('-(@o:x OR @t:instant)', everything - (all_x | all_instant)),
+            ('-(@o:x @t:instant)', everything - (all_x & all_instant)),
+            ('@o:x -card:a', all_x - any_a),
+            ('-@o:x card:a', (everything - all_x) & any_a),
+            # negation against and/or
+            ('-card:a -card:b', everything - any_a - any_b),
+            ('-card:a OR -card:b', (everything - any_a) | (everything - any_b)),
+            ('-(card:a OR card:b)', everything - (any_a | any_b)),
+            ('-(card:a card:b)', everything - (any_a & any_b)),
+            ('-(-card:a)', any_a),
+            ('-(-card:a OR -card:b)', any_a & any_b),
+            ('-(-card:a -card:b)', any_a | any_b),
+            # all three together
+            ('(@o:x OR -card:a) card:b', (all_x | (everything - any_a)) & any_b),
+            ('(card:a card:b) OR (@o:x -card:c)', (any_a & any_b) | (all_x - any_c)),
+            ('-((@o:x card:a) OR (-card:b card:c))', everything - ((all_x & any_a) | ((everything - any_b) & any_c))),
+            ('(-card:a OR @o:x) (card:b OR -card:c)', ((everything - any_a) | all_x) & (any_b | (everything - any_c))),
+            ('((card:a OR card:b) (card:c OR @o:x)) OR (-card:a -card:b)', ((any_a | any_b) & (any_c | all_x)) | (everything - any_a - any_b)),
+        ]
+        for q, expected in queries:
+            with self.subTest(f'convoluted query: {q}'):
+                self.assertSetEqual(self.query_ids(q), expected)
+
+    def test_variants_list_view_query_by_or_keeps_term_guards_local(self):
+        combo = Combo.objects.first()
+        prereq = (combo.notable_prerequisites + '\n' + combo.easy_prerequisites).split(maxsplit=2)[0]  # type: ignore
+        example = self.public_variants.filter(status=Variant.Status.EXAMPLE).first()
+        self.assertIsNotNone(example)
+        example_card: Card = example.uses.first()  # type: ignore
+        reachable_by_card = self.variant_ids_using_card_named(example_card.name)
+        self.assertIn(example.id, reachable_by_card)  # type: ignore
+        matching_prereq = {v.id for v in self.ok_variants.filter(
+            models.Q(easy_prerequisites__icontains=prereq) | models.Q(notable_prerequisites__icontains=prereq)
+        )}
+        with self.subTest('a prerequisites search never matches example variants'):
+            self.assertSetEqual(self.query_ids(f'pre:{prereq}'), matching_prereq)
+        with self.subTest('negating it still never matches example variants'):
+            not_matching_prereq = {v.id for v in self.ok_variants.exclude(
+                models.Q(easy_prerequisites__icontains=prereq) | models.Q(notable_prerequisites__icontains=prereq)
+            )}
+            self.assertSetEqual(self.query_ids(f'-pre:{prereq}'), not_matching_prereq)
+        with self.subTest('the guard does not leak onto the other side of an or'):
+            self.assertSetEqual(
+                self.query_ids(f'pre:{prereq} OR card:"{example_card.name}"'),
+                matching_prereq | reachable_by_card,
+            )
+
+    def test_variants_list_view_query_by_spellbook_id_with_multiple_aliases(self):
+        variant = self.public_variants.first()
+        for i in range(3):
+            VariantAlias.objects.create(id=f'alias-{i}', variant=variant)
+        with self.subTest('a variant with several aliases is returned once'):
+            self.assertSetEqual(self.query_ids(f'sid:{variant.id}'), {variant.id})  # type: ignore
+        with self.subTest('each alias resolves to the variant'):
+            for i in range(3):
+                self.assertSetEqual(self.query_ids(f'sid:alias-{i}'), {variant.id})  # type: ignore
+
+    def test_variants_list_view_query_with_invalid_or(self):
+        queries = [
+            'card:a OR',
+            '(card:a OR card:b',
+            'card:a OR card:b)',
+            'card:a OR |',
+        ]
+        for q in queries:
+            with self.subTest(f'invalid query: {q}'):
+                response = self.client.get(reverse('variants-list'), query_params={'q': q}, follow=True)  # type: ignore
+                self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_variants_list_view_query_with_or_where_an_operator_cannot_go(self):
+        # Where OR cannot be an operator the lexer falls back to a card name search, so a card
+        # actually named "or" stays reachable.
+        or_named = self.variant_ids_using_card_named('or')
+        a = self.variant_ids_using_card_named('a')
+        b = self.variant_ids_using_card_named('b')
+        with self.subTest('a lone OR searches for a card named or'):
+            self.assertSetEqual(self.query_ids('OR'), or_named)
+        with self.subTest('a doubled OR searches for a card named or'):
+            self.assertSetEqual(self.query_ids('card:a OR OR card:b'), a | (or_named & b))
+
+    def test_variants_list_view_query_with_too_many_or_terms(self):
+        q = ' OR '.join(f'card:{i}' for i in range(21))
+        response = self.client.get(reverse('variants-list'), query_params={'q': q}, follow=True)  # type: ignore
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('Too many search parameters.', json.loads(response.content)['q'])
+
+    def test_variants_query_fuses_subqueries_on_the_same_entity(self):
+        # A disjunction of conditions on one entity is a single EXISTS. Nothing in the results
+        # reveals this, but losing it costs two orders of magnitude once an OR sits under an AND.
+        queries = [
+            ('card:a', 1),
+            ('card:a OR card:b', 1),
+            ('card:a OR card:b OR card:c', 1),
+            ('t:x OR card:y', 1),
+            ('results:a OR results:b', 1),
+            ('template:a OR template:b', 1),
+            ('-(card:a OR card:b)', 1),
+            ('-card:a -card:b', 1),
+            ('ci:temur OR ci:mardu', 0),
+            ('card:a card:b', 2),
+            ('card:a OR -card:b', 2),
+            ('is:commander OR card:a', 2),
+            ('(card:a OR card:b) (card:c OR card:d)', 2),
+            ('(card:a card:b) OR (card:c card:d)', 4),
+        ]
+        for q, expected in queries:
+            with self.subTest(f'subqueries for: {q}'):
+                queryset = variants_query_parser(self.public_variants.all(), q)
+                sql, _ = queryset.query.get_compiler(using='default').as_sql()
+                self.assertEqual(sql.count('EXISTS'), expected)
+
+    def test_variants_query_factors_conditions_shared_by_every_branch(self):
+        # `(A B) OR (A C)` evaluates A once, and leaves B and C under one OR where they fuse.
+        # Only the compiled SQL shows this, so the counts are the assertion.
+        queries = [
+            ('card:a card:b OR card:a card:c', 2),
+            ('card:a card:b OR card:a card:c OR card:a card:d', 2),
+            ('desc:a card:b OR desc:a card:c', 1),
+            ('t:a o:b results:c OR t:a o:b results:d', 3),
+            ('ci:temur card:a OR ci:temur card:b', 1),
+            ('pre:x OR pre:y', 0),
+            # absorption: a branch left with nothing means the shared conditions imply the rest
+            ('card:a card:b OR card:a', 1),
+            ('card:a OR card:a card:b', 1),
+            # idempotence
+            ('card:a card:a', 1),
+            ('card:a OR card:a', 1),
+            ('(card:a OR card:b) (card:a OR card:b)', 1),
+            # nothing shared, so nothing to lift
+            ('(card:a card:b) OR (card:c card:d)', 4),
+        ]
+        for q, expected in queries:
+            with self.subTest(f'subqueries for: {q}'):
+                queryset = variants_query_parser(self.public_variants.all(), q)
+                sql, _ = queryset.query.get_compiler(using='default').as_sql()
+                self.assertEqual(sql.count('EXISTS'), expected)
+
+    def test_variants_query_rewrites_reach_spellbook_id_terms(self):
+        # The alias lookup is a node rather than a subquery hidden in a Q, so two identical `sid:`
+        # terms compare equal and the rewrites apply to them like any other condition.
+        variant = self.public_variants.first()
+        sid = f'sid:{variant.id}'  # type: ignore
+        queries = [
+            (sid, 1),
+            (f'{sid} OR {sid}', 1),
+            (f'{sid} {sid}', 1),
+            (f'{sid} card:a OR {sid} card:b', 2),
+            (f'{sid} OR card:a', 2),
+        ]
+        for q, expected in queries:
+            with self.subTest(f'subqueries for: {q}'):
+                queryset = variants_query_parser(self.public_variants.all(), q)
+                sql, _ = queryset.query.get_compiler(using='default').as_sql()
+                self.assertEqual(sql.count('EXISTS'), expected)
+        with self.subTest('results are unaffected'):
+            self.assertSetEqual(self.query_ids(sid), {variant.id})  # type: ignore
+            self.assertSetEqual(self.query_ids(f'{sid} OR {sid}'), {variant.id})  # type: ignore
+
+    def test_variants_query_rewrites_do_not_change_results(self):
+        a, b, c = (self.variant_ids_using_card_named(t) for t in 'abc')
+        self.assertGreater(len((a & b) | (a & c)), 0)
+        queries = [
+            ('card:a card:b OR card:a card:c', (a & b) | (a & c)),
+            ('card:a (card:b OR card:c)', (a & b) | (a & c)),
+            ('card:a card:b OR card:a card:c OR card:a', a),
+            ('card:a card:b OR card:a', a),
+            ('card:a OR card:a card:b', a),
+            ('card:a card:a', a),
+            ('card:a OR card:a', a),
+            ('(card:a OR card:b) (card:a OR card:b)', a | b),
+            ('card:a card:b card:c OR card:a card:b', a & b),
+        ]
+        for q, expected in queries:
+            with self.subTest(f'rewritten query still matches: {q}'):
+                self.assertSetEqual(self.query_ids(q), expected)
+
+    def test_variants_query_factoring_keeps_term_guards(self):
+        combo = Combo.objects.first()
+        prereqs = (combo.notable_prerequisites + '\n' + combo.easy_prerequisites).split()  # type: ignore
+        first, second = prereqs[0], prereqs[-1]
+        # Both branches carry the same "not an example variant" guard, so factoring lifts it out.
+        # It has to keep applying to both.
+        matches_first = models.Q(easy_prerequisites__icontains=first) | models.Q(notable_prerequisites__icontains=first)
+        matches_second = models.Q(easy_prerequisites__icontains=second) | models.Q(notable_prerequisites__icontains=second)
+        expected = {v.id for v in self.ok_variants.filter(matches_first | matches_second)}
+        self.assertSetEqual(self.query_ids(f'pre:{first} OR pre:{second}'), expected)
+        self.assertFalse(
+            expected & {v.id for v in self.public_variants.filter(status=Variant.Status.EXAMPLE)},
+            'a prerequisites search must never return example variants',
+        )
 
     def seed_popularity(self) -> list[Variant]:
         variants = list[Variant](Variant.objects.all())

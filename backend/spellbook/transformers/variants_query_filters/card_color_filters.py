@@ -1,8 +1,9 @@
-from .base import QueryValue, VariantFilterCollection, Q, ValidationError
+from spellbook.models import Card
 from spellbook.parsers.color_parser import parse_color
+from .base import QueryValue, VariantQuery, Q, ValidationError
 
 
-def card_color_filter(qv: QueryValue) -> VariantFilterCollection:
+def card_color_filter(qv: QueryValue) -> VariantQuery:
     value_is_digit = qv.is_numeric()
     color = ''
     not_in_color = ''
@@ -45,4 +46,4 @@ def card_color_filter(qv: QueryValue) -> VariantFilterCollection:
             q = Q(color_count__gte=qv.value)
         case _:
             raise ValidationError(f'Operator {qv.operator} is not supported for card color search with {'numbers' if value_is_digit else 'strings'}.')
-    return VariantFilterCollection(cards_filters=(qv.to_query_filter(q),))
+    return qv.to_filter(q, Card)

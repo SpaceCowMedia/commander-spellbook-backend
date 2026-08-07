@@ -1,8 +1,8 @@
-from .base import QueryValue, VariantFilterCollection, Q, ValidationError
+from .base import QueryValue, VariantQuery, Q, ValidationError
 from spellbook.parsers.color_parser import parse_color
 
 
-def identity_filter(qv: QueryValue) -> VariantFilterCollection:
+def identity_filter(qv: QueryValue) -> VariantQuery:
     value_is_digit = qv.is_numeric()
     identity = ''
     not_in_identity = ''
@@ -45,4 +45,4 @@ def identity_filter(qv: QueryValue) -> VariantFilterCollection:
             q = Q(identity_count__gte=qv.value)
         case _:
             raise ValidationError(f'Operator {qv.operator} is not supported for identity search with {'numbers' if value_is_digit else 'strings'}.')
-    return VariantFilterCollection(variants_filters=(qv.to_query_filter(q),))
+    return qv.to_filter(q)

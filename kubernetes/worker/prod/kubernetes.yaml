@@ -16,6 +16,10 @@ spec:
         app: spellbook-worker
     spec:
       serviceAccountName: worker-service-account
+      # A task the worker picked up runs to completion before it exits, so a graceful
+      # shutdown has to outlast the longest one: cut short, the task is left behind
+      # with no worker and no way to ever leave the RUNNING state.
+      terminationGracePeriodSeconds: 1800
       containers:
         - name: spellbook-worker-app
           image: 083767677168.dkr.ecr.us-east-2.amazonaws.com/spellbook-worker-prod-ecr
@@ -32,6 +36,10 @@ spec:
                 - "db_worker"
             initialDelaySeconds: 10
             periodSeconds: 30
+            # Spawning a process in a container this large, while its forked task
+            # workers saturate the cores it is only weighted for 200m of, takes far
+            # longer than the one second this probe would otherwise allow.
+            timeoutSeconds: 10
           env:
             - name: SECRET_KEY
               valueFrom:

@@ -13,7 +13,7 @@ from django.db import connection, connections, transaction
 from django.db.models import Model, QuerySet
 from django_tasks import TaskContext
 from djangorestframework_camel_case.util import camelize
-from multiprocessing_utils import parallelism_is_available, resolve_workers, split_into_chunks
+from multiprocessing_utils import fork_pool, parallelism_is_available, resolve_workers, split_into_chunks
 from spellbook.models import Variant, VariantAlias, DEFAULT_BATCH_SIZE
 from spellbook.serializers import VariantSerializer, VariantAliasSerializer
 from spellbook.views.variants import VariantViewSet
@@ -112,12 +112,15 @@ def map_chunks(
         # The forked workers query the database on their own, so the parent closes its
         # connections before forking: both sides transparently reconnect when needed
         connections.close_all()
-        context = multiprocessing.get_context('fork')
-        with context.Pool(processes=min(workers, len(chunks))) as pool:
+        with fork_pool(min(workers, len(chunks))) as pool:
             result = list[str]()
             for chunk, items in zip(chunks, pool.imap(worker, chunks)):
                 result.append(items)
                 progress(len(chunk))
+            # Retiring the workers through the queue sentinel spares them the SIGTERM
+            # that the pool would otherwise send them on its way out of this block
+            pool.close()
+            pool.join()
             return result
     return [worker(ids, progress)]
 
@@ -177,7 +180,7 @@ def fork_compression(workers: int) -> multiprocessing.pool.Pool | None:
     '''
     if workers <= 1 or not parallelism_is_available():
         return None
-    return multiprocessing.get_context('fork').Pool(processes=1)
+    return fork_pool(1)
 
 
 def export_to_file(parts: list[str], output: Path, workers: int) -> None:

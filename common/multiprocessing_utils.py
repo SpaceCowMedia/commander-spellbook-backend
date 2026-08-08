@@ -1,8 +1,16 @@
 import multiprocessing
+import multiprocessing.pool
 import os
+import signal
 from typing import TypeVar
 
 T = TypeVar('T')
+
+# The signals a long running parent process is likely to trap for a graceful shutdown
+SHUTDOWN_SIGNALS = tuple(
+    s for s in (getattr(signal, name, None) for name in ('SIGINT', 'SIGTERM', 'SIGQUIT'))
+    if s is not None
+)
 
 
 def resolve_workers(workers: int | None) -> int:
@@ -26,6 +34,29 @@ def parallelism_is_available() -> bool:
     cannot spawn children, so parallelism must degrade to serial there.
     '''
     return fork_is_available() and not multiprocessing.current_process().daemon
+
+
+def reset_inherited_signal_handlers() -> None:
+    '''Restores the default disposition of the shutdown signals in a forked worker.
+
+    A fork child inherits the signal handlers of its parent, and that parent may be a
+    task worker (django-tasks' `db_worker`) trapping SIGINT/SIGTERM/SIGQUIT to finish
+    the task it is running before exiting. Inherited by a pool worker, that handler both
+    logs a bogus "shutting down gracefully" line when `Pool.terminate()` signals the
+    worker at teardown, and - since it returns instead of exiting while a task is
+    running - lets the worker ignore the signal, hanging the parent in the unbounded
+    join that `Pool.terminate()` ends with.
+    '''
+    for sig in SHUTDOWN_SIGNALS:
+        signal.signal(sig, signal.SIG_DFL)
+
+
+def fork_pool(processes: int) -> multiprocessing.pool.Pool:
+    '''Creates a pool of forked workers that no longer trap the shutdown signals of the parent.'''
+    return multiprocessing.get_context('fork').Pool(
+        processes=processes,
+        initializer=reset_inherited_signal_handlers,
+    )
 
 
 def split_into_chunks(items: list[T], workers: int) -> list[list[T]]:

@@ -1,5 +1,7 @@
 import re
 from dataclasses import dataclass, field
+from functools import reduce
+from operator import and_
 from django.core.exceptions import ValidationError
 from django.db.models import Exists, Model, OuterRef, Q
 from spellbook.models import Card, CardInVariant, FeatureProducedByVariant, TemplateInVariant, Variant, VariantAlias
@@ -59,8 +61,8 @@ class QueryValue:
     def to_filter(self, q: Q, model: type[Model] = Variant) -> 'VariantQuery':
         if self.is_for_all_related():
             # "every related row matches" is "no related row fails to match"
-            return VariantQuery(node=VariantQueryFilter(~q, model, negated=True), leaves=1)
-        return VariantQuery(node=VariantQueryFilter(q, model), leaves=1)
+            return VariantQuery(node=VariantQueryFilter(~q, model, negated=True))
+        return VariantQuery(node=VariantQueryFilter(q, model))
 
     def is_numeric(self) -> bool:
         return not self.quotes and self.value.isdigit()
@@ -77,6 +79,10 @@ class VariantQueryFilter:
     predicate: Q
     model: type[Model] = Variant
     negated: bool = False
+
+    @property
+    def leaves(self) -> int:
+        return 1
 
     def negate(self) -> 'Node':
         return VariantQueryFilter(self.predicate, self.model, not self.negated)
@@ -118,6 +124,10 @@ def combine(operands: 'tuple[Node, ...]', conjunction: bool) -> Q:
 class Conjunction:
     operands: tuple['Node', ...] = ()
 
+    @property
+    def leaves(self) -> int:
+        return sum(operand.leaves for operand in self.operands)
+
     def negate(self) -> 'Node':
         return disjunction(tuple(operand.negate() for operand in self.operands))
 
@@ -128,6 +138,10 @@ class Conjunction:
 @dataclass(frozen=True)
 class Disjunction:
     operands: tuple['Node', ...] = ()
+
+    @property
+    def leaves(self) -> int:
+        return sum(operand.leaves for operand in self.operands)
 
     def negate(self) -> 'Node':
         return conjunction(tuple(operand.negate() for operand in self.operands))
@@ -200,37 +214,40 @@ class VariantQuery:
     `guards` holds the conditions that qualify the term that produced them and must survive negation
     instead of being flipped by it. They stay factored out while terms are combined with AND, and
     are folded into each side by OR so that one branch's guard cannot silently constrain another's.
+    Kept as a tuple, one per originating `guard()` call, so `leaves` can count them exactly instead
+    of the count drifting out of sync with the merged `Q` they fold into.
     '''
     node: Node = field(default_factory=Conjunction)
-    guards: Q = field(default_factory=Q)
-    leaves: int = 0
+    guards: tuple[Q, ...] = ()
+
+    @property
+    def leaves(self) -> int:
+        return self.node.leaves + len(self.guards)
 
     def guarded_node(self) -> Node:
         if not self.guards:
             return self.node
-        return conjunction((self.node, VariantQueryFilter(self.guards)))
+        return conjunction((self.node, VariantQueryFilter(reduce(and_, self.guards))))
 
     def __and__(self, other: 'VariantQuery') -> 'VariantQuery':
         return VariantQuery(
             node=conjunction((self.node, other.node)),
-            guards=self.guards & other.guards,
-            leaves=self.leaves + other.leaves,
+            guards=self.guards + other.guards,
         )
 
     def __or__(self, other: 'VariantQuery') -> 'VariantQuery':
         return VariantQuery(
             node=disjunction((self.guarded_node(), other.guarded_node())),
-            leaves=self.leaves + other.leaves,
         )
 
     def __invert__(self) -> 'VariantQuery':
-        return VariantQuery(node=self.node.negate(), guards=self.guards, leaves=self.leaves)
+        return VariantQuery(node=self.node.negate(), guards=self.guards)
 
     def to_q(self) -> Q:
-        return self.node.to_q() & self.guards
+        return self.node.to_q() & reduce(and_, self.guards, Q())
 
 
 def guard(q: Q) -> VariantQuery:
     '''A condition that qualifies the term it belongs to rather than being part of what the user
     asked for, so negating the term must not flip it.'''
-    return VariantQuery(guards=q, leaves=1)
+    return VariantQuery(guards=(q,))

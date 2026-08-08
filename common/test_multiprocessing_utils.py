@@ -1,5 +1,11 @@
+import signal
 from unittest import TestCase
-from multiprocessing_utils import resolve_workers, fork_is_available, split_into_chunks
+from multiprocessing_utils import SHUTDOWN_SIGNALS, fork_pool, resolve_workers, fork_is_available, split_into_chunks
+
+
+def _shutdown_signal_handlers() -> list[object]:
+    '''Reports how the worker process it runs in handles the shutdown signals.'''
+    return [signal.getsignal(sig) for sig in SHUTDOWN_SIGNALS]
 
 
 class TestMultiprocessingUtils(TestCase):
@@ -15,6 +21,24 @@ class TestMultiprocessingUtils(TestCase):
 
     def test_fork_is_available_returns_a_boolean(self):
         self.assertIsInstance(fork_is_available(), bool)
+
+    def test_fork_pool_workers_do_not_inherit_the_shutdown_handlers(self):
+        if not fork_is_available():
+            self.skipTest('the fork start method is unavailable on this platform')
+
+        def trap(signum, frame):
+            '''Stands in for the graceful shutdown handler of a task worker.'''
+
+        previous = [signal.signal(sig, trap) for sig in SHUTDOWN_SIGNALS]
+        try:
+            with fork_pool(1) as pool:
+                handlers = pool.apply(_shutdown_signal_handlers)
+            # The parent keeps its own graceful shutdown handlers
+            self.assertEqual([signal.getsignal(sig) for sig in SHUTDOWN_SIGNALS], [trap] * len(SHUTDOWN_SIGNALS))
+        finally:
+            for sig, handler in zip(SHUTDOWN_SIGNALS, previous):
+                signal.signal(sig, handler)
+        self.assertEqual(handlers, [signal.SIG_DFL] * len(SHUTDOWN_SIGNALS))
 
     def test_split_into_chunks_of_empty_list(self):
         self.assertEqual(split_into_chunks([], 4), [])

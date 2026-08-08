@@ -1,13 +1,12 @@
 import gc
 import logging
-import multiprocessing
 from collections import defaultdict
 from dataclasses import dataclass, field
 from itertools import chain
 from typing import Callable, Iterable, Sequence, TypeVar
 from django.utils.functional import cached_property
 from django.db import transaction
-from multiprocessing_utils import parallelism_is_available, resolve_workers, split_into_chunks
+from multiprocessing_utils import fork_pool, parallelism_is_available, resolve_workers, split_into_chunks
 from .multiset import FrozenMultiset
 from .variant_data import Data, CardInVariantRow, TemplateInVariantRow, FeatureProducedByVariantRow
 from .variant_set import VariantSet
@@ -209,12 +208,15 @@ def get_variants_from_graph(
             # so they can be safely left open in the parent process
             _GRAPH_WORKER_STATE = graph
             try:
-                context = multiprocessing.get_context('fork')
-                with context.Pool(processes=min(workers, len(chunks))) as pool:
+                with fork_pool(min(workers, len(chunks))) as pool:
                     for group_result in pool.imap(_graph_phase_worker, chunks):
                         _merge_variant_definitions(result, group_result)
                         progress_current += (1 + results_progress_multiplier) * sum(map(len, chunks)) // len(chunks)
                         progress(min(progress_current, progress_total), progress_total)
+                    # Retiring the workers through the queue sentinel spares them the SIGTERM
+                    # that the pool would otherwise send them on its way out of this block
+                    pool.close()
+                    pool.join()
             finally:
                 _GRAPH_WORKER_STATE = None
             continue
@@ -659,13 +661,16 @@ def restore_variants(
         # so they can be safely left open in the parent process
         _RESTORE_WORKER_STATE = (data, variants, variant_instances, to_restore, job)
         try:
-            context = multiprocessing.get_context('fork')
-            with context.Pool(processes=min(workers, len(chunks))) as pool:
+            with fork_pool(min(workers, len(chunks))) as pool:
                 to_bulk_update = list[VariantBulkSaveItem]()
                 to_bulk_create = list[VariantBulkSaveItem]()
                 for chunk_updates, chunk_creates in pool.imap(_restore_phase_worker, chunks):
                     to_bulk_update.extend(chunk_updates)
                     to_bulk_create.extend(chunk_creates)
+                # Retiring the workers through the queue sentinel spares them the SIGTERM
+                # that the pool would otherwise send them on its way out of this block
+                pool.close()
+                pool.join()
                 return to_bulk_update, to_bulk_create
         finally:
             _RESTORE_WORKER_STATE = None

@@ -1,7 +1,7 @@
-from lark import Lark, Transformer, LarkError, UnexpectedToken, UnexpectedCharacters
+from lark import Lark, Transformer
 from django.db.models import QuerySet
-from django.core.exceptions import ValidationError
 from spellbook.models import Variant
+from .query_parsing import parse_query
 from .variants_query_filters.template_search_filters import template_search_filter
 from .variants_query_filters.varant_variants_filters import variants_filter
 from .variants_query_filters.card_search_filters import card_search_filter
@@ -130,24 +130,8 @@ class VariantsQueryTransformer(Transformer):
 
 
 PARSER = Lark(VARIANTS_QUERY_GRAMMAR, parser='lalr', transformer=VariantsQueryTransformer())
-MAX_QUERY_LENGTH = 1024
-MAX_QUERY_PARAMETERS = 20
 
 
 def variants_query_parser(base: QuerySet[Variant], query_string: str) -> QuerySet:
-    query_string = query_string.strip()
-    if len(query_string) > MAX_QUERY_LENGTH:
-        raise ValidationError('Search query is too long.')
-    try:
-        query: VariantQuery = PARSER.parse(query_string)  # type: ignore
-        if query.leaves > MAX_QUERY_PARAMETERS:
-            raise ValidationError('Too many search parameters.')
-        return base.filter(query.to_q())
-    except UnexpectedToken as e:
-        if e.token.type == '$END':
-            raise ValidationError(f'Invalid search query: something is missing after character {e.column}.')
-        raise ValidationError(f'Invalid search query: something is wrong at character {e.column + 1}.')
-    except UnexpectedCharacters as e:
-        raise ValidationError(f'Invalid search query: unexpected character {query_string[e.column - 1]} at position {e.column}.')
-    except LarkError as e:
-        raise ValidationError(f'Invalid search query: {e}')
+    query: VariantQuery = parse_query(PARSER, query_string)
+    return base.filter(query.to_q())

@@ -7,3 +7,4 @@ from .variant_suggestions import VariantSuggestionViewSet
 from .variant_update_suggestions import VariantUpdateSuggestionViewSet
 from .variant_aliases import VariantAliasViewSet
 from .estimate_bracket import EstimateBracketView
+from .query_explanation import QueryExplanationView

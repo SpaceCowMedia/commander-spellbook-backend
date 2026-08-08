@@ -12,6 +12,7 @@ router.register(r'variant-update-suggestions', views.VariantUpdateSuggestionView
 router.register(r'variant-aliases', views.VariantAliasViewSet, basename='variant-aliases')
 router.add_api_view(r'find-my-combos', re_path(r'find-my-combos', views.FindMyCombosView.as_view(), name='find-my-combos'))
 router.add_api_view(r'estimate-bracket', re_path(r'estimate-bracket', views.EstimateBracketView.as_view(), name='estimate-bracket'))
+router.add_api_view(r'explain-query', re_path(r'explain-query', views.QueryExplanationView.as_view(), name='explain-query'))
 
 urlpatterns = [
     path('', include(router.urls))

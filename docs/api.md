@@ -27,6 +27,7 @@ Routes are wired in [`backend/spellbook/urls.py`](https://github.com/SpaceCowMed
 | `GET /templates/` | Templates. |
 | `GET`/`POST /find-my-combos` | Given a decklist, returns the combos it can assemble (the engine's [up phase](variant-generation.md#up-phase--find-combos-from-a-hand-bfs-from-cards)). |
 | `GET`/`POST /estimate-bracket` | Estimates the power bracket of a decklist. |
+| `GET /explain-query` | Explains a [search query](#the-search-query-language) in plain English, or reports why it is invalid. |
 | `… /variant-suggestions/` | Community-submitted combos awaiting review. |
 | `… /variant-update-suggestions/` | Suggested edits to existing variants. |
 | `… /variant-aliases/` | Redirects from alternative ids to canonical variants. |
@@ -60,6 +61,8 @@ Most read endpoints are public; writing and reviewing require authentication and
 ## The search query language
 
 `variants` (and template matching) accept a **Scryfall-style search query** — e.g. `ci:temur mana result:"infinite mana"`. The grammar is defined with [Lark](https://github.com/lark-parser/lark) in [`spellbook/parsers/`](https://github.com/SpaceCowMedia/commander-spellbook-backend/tree/master/backend/spellbook/parsers) and turned into ORM filters by the transformers in [`spellbook/transformers/`](https://github.com/SpaceCowMedia/commander-spellbook-backend/tree/master/backend/spellbook/transformers). Extend the query language by editing the `.lark` grammar and its transformer together.
+
+The same grammar drives a second transformer, which turns a query into an English sentence instead of a filter: `GET /explain-query?q=ci:temur mana` answers *"Combos that have a color identity within green, blue, and red and use a card whose name contains “mana”."* A new search term needs a phrase in [`variants_query_explanations/`](https://github.com/SpaceCowMedia/commander-spellbook-backend/tree/master/backend/spellbook/transformers/variants_query_explanations) alongside its filter, so that both endpoints accept and reject exactly the same queries.
 
 ## OpenAPI schema
 

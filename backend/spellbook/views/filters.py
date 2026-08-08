@@ -63,6 +63,17 @@ class SpellbookQueryFilter(AbstractQueryFilter):
         return variants_query_parser(queryset, search_terms)
 
 
+class SpellbookQueryExplanationFilter(AbstractQueryFilter):
+    '''
+    A filter backend for the search query of a view that explains it instead of filtering with it,
+    leaving the queryset untouched.
+    '''
+    search_description = 'A search query to explain in plain English.'
+
+    def query_parser(self, queryset, search_terms):
+        return queryset
+
+
 class AutocompleteQueryFilter(AbstractQueryFilter):
     fields: list[str] = []
 

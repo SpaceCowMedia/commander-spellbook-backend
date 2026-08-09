@@ -1,18 +1,19 @@
+import logging
 import multiprocessing
 import multiprocessing.pool
 import os
 import signal
 from contextlib import contextmanager
-from pathlib import Path
 from typing import Generator, TypeVar
+
+logger = logging.getLogger(__name__)
 
 T = TypeVar('T')
 
-# Where a container CFS quota is published, cgroup v2 first
-CGROUP_CPU_QUOTA_FILES = (
-    ('/sys/fs/cgroup/cpu.max',),
-    ('/sys/fs/cgroup/cpu/cpu.cfs_quota_us', '/sys/fs/cgroup/cpu/cpu.cfs_period_us'),
-)
+# Sizes the task worker pools. The work they fan out waits on the database far more than
+# on a core, so how wide it is worth spreading is a deployment decision rather than
+# something to read off the hardware.
+WORKERS_ENV_VAR = 'TASK_WORKERS'
 
 # Pool.terminate() retires its workers with SIGTERM, so it has to stay lethal for them
 WORKER_LETHAL_SIGNALS = (signal.SIGTERM,)
@@ -25,35 +26,25 @@ WORKER_IGNORED_SIGNALS = tuple(
 )
 
 
-def cgroup_cpu_quota() -> int | None:
-    '''Returns the cores the cgroup CPU quota allows, or None when it is uncapped.
-
-    A container CPU limit is enforced as a CFS quota and leaves the affinity mask that
-    `os.process_cpu_count()` reports untouched, so a pool that skips this sizes itself on
-    every core of the host instead of on the slice the container was actually given.
-    '''
-    for paths in CGROUP_CPU_QUOTA_FILES:
-        try:
-            quota, period = ' '.join(Path(p).read_text() for p in paths).split()
-        except (OSError, ValueError):
-            continue
-        try:
-            allowance, window = int(quota), int(period)
-        except ValueError:
-            return None
-        if allowance <= 0 or window <= 0:
-            return None
-        return max(1, allowance // window)
-    return None
-
-
 def resolve_workers(workers: int | None) -> int:
-    '''Returns the given worker count, defaulting to the cores this process may actually use.'''
+    '''Returns the given worker count, defaulting to `TASK_WORKERS` and then to the cores available.
+
+    Falling back on the cores is a guess: it is the count of a host the deployment never
+    sized the pool against, so it is worth a warning wherever it happens.
+    '''
     if workers is not None:
         return max(1, workers)
-    cores = getattr(os, 'process_cpu_count', os.cpu_count)() or 1
-    quota = cgroup_cpu_quota()
-    return max(1, cores if quota is None else min(cores, quota))
+    configured = os.environ.get(WORKERS_ENV_VAR, '').strip()
+    if configured:
+        try:
+            return max(1, int(configured))
+        except ValueError:
+            reason = f'{WORKERS_ENV_VAR} is set to {configured!r}, which is not a worker count'
+    else:
+        reason = f'{WORKERS_ENV_VAR} is unset'
+    cores = max(1, getattr(os, 'process_cpu_count', os.cpu_count)() or 1)
+    logger.warning('%s: sizing the worker pool on the %d cores available instead', reason, cores)
+    return cores
 
 
 def fork_is_available() -> bool:

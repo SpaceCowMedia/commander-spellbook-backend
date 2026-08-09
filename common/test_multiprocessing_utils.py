@@ -1,12 +1,10 @@
 import multiprocessing
-import multiprocessing_utils
+import os
 import signal
 import time
-from pathlib import Path
-from tempfile import TemporaryDirectory
 from unittest import TestCase
 from unittest.mock import patch
-from multiprocessing_utils import WORKER_IGNORED_SIGNALS, WORKER_LETHAL_SIGNALS, cgroup_cpu_quota, fork_pool, parallelism_is_available, resolve_workers, fork_is_available, split_into_chunks
+from multiprocessing_utils import WORKER_IGNORED_SIGNALS, WORKER_LETHAL_SIGNALS, WORKERS_ENV_VAR, fork_pool, parallelism_is_available, resolve_workers, fork_is_available, split_into_chunks
 
 
 def worker_signal_handlers(signals: tuple[signal.Signals, ...]) -> list[object]:
@@ -29,16 +27,6 @@ def block_until_retired() -> None:
 
 
 class TestMultiprocessingUtils(TestCase):
-    def cpu_quota_from(self, *contents: str) -> int | None:
-        with TemporaryDirectory() as directory:
-            paths = []
-            for index, content in enumerate(contents):
-                path = Path(directory) / f'cpu{index}'
-                path.write_text(content)
-                paths.append(str(path))
-            with patch.object(multiprocessing_utils, 'CGROUP_CPU_QUOTA_FILES', (tuple(paths),)):
-                return cgroup_cpu_quota()
-
     def trapping_shutdown_signals(self):
         signals = WORKER_LETHAL_SIGNALS + WORKER_IGNORED_SIGNALS
         previous = [signal.signal(sig, trap) for sig in signals]
@@ -49,9 +37,6 @@ class TestMultiprocessingUtils(TestCase):
         if not parallelism_is_available():
             self.skipTest('forking a pool requires the fork start method and a non-daemonic process')
 
-    def test_resolve_workers_defaults_to_cpu_count(self):
-        self.assertGreaterEqual(resolve_workers(None), 1)
-
     def test_resolve_workers_keeps_explicit_value(self):
         self.assertEqual(resolve_workers(3), 3)
 
@@ -59,30 +44,33 @@ class TestMultiprocessingUtils(TestCase):
         self.assertEqual(resolve_workers(0), 1)
         self.assertEqual(resolve_workers(-5), 1)
 
-    def test_resolve_workers_never_exceeds_the_cgroup_quota(self):
-        quota = cgroup_cpu_quota()
-        if quota is None:
-            self.skipTest('this process runs without a cgroup cpu quota')
-        self.assertLessEqual(resolve_workers(None), quota)
+    def test_resolve_workers_reads_the_environment(self):
+        with patch.dict(os.environ, {WORKERS_ENV_VAR: ' 6 '}):
+            self.assertEqual(resolve_workers(None), 6)
 
-    def test_cgroup_cpu_quota_reads_a_cgroup_v2_limit(self):
-        self.assertEqual(self.cpu_quota_from('200000 100000\n'), 2)
+    def test_resolve_workers_enforces_a_minimum_of_one_from_the_environment(self):
+        with patch.dict(os.environ, {WORKERS_ENV_VAR: '0'}):
+            self.assertEqual(resolve_workers(None), 1)
 
-    def test_cgroup_cpu_quota_rounds_a_fractional_limit_up_to_one_core(self):
-        self.assertEqual(self.cpu_quota_from('50000 100000\n'), 1)
+    def test_resolve_workers_prefers_an_explicit_value_over_the_environment(self):
+        with patch.dict(os.environ, {WORKERS_ENV_VAR: '6'}):
+            self.assertEqual(resolve_workers(2), 2)
 
-    def test_cgroup_cpu_quota_of_an_unlimited_cgroup_v2(self):
-        self.assertIsNone(self.cpu_quota_from('max 100000\n'))
+    def test_resolve_workers_warns_when_falling_back_on_the_cores(self):
+        cores = max(1, getattr(os, 'process_cpu_count', os.cpu_count)() or 1)
+        for value in ('', '   ', 'two'):
+            with self.subTest(value=value):
+                with patch.dict(os.environ, {WORKERS_ENV_VAR: value}):
+                    with self.assertLogs('multiprocessing_utils', level='WARNING') as logs:
+                        self.assertEqual(resolve_workers(None), cores)
+                self.assertIn(WORKERS_ENV_VAR, logs.output[0])
 
-    def test_cgroup_cpu_quota_reads_a_cgroup_v1_limit(self):
-        self.assertEqual(self.cpu_quota_from('400000\n', '100000\n'), 4)
-
-    def test_cgroup_cpu_quota_of_an_unlimited_cgroup_v1(self):
-        self.assertIsNone(self.cpu_quota_from('-1\n', '100000\n'))
-
-    def test_cgroup_cpu_quota_without_any_cgroup_file(self):
-        with patch.object(multiprocessing_utils, 'CGROUP_CPU_QUOTA_FILES', (('/nonexistent/cpu.max',),)):
-            self.assertIsNone(cgroup_cpu_quota())
+    def test_resolve_workers_warns_when_the_environment_is_unset(self):
+        cores = max(1, getattr(os, 'process_cpu_count', os.cpu_count)() or 1)
+        with patch.dict(os.environ):
+            os.environ.pop(WORKERS_ENV_VAR, None)
+            with self.assertLogs('multiprocessing_utils', level='WARNING'):
+                self.assertEqual(resolve_workers(None), cores)
 
     def test_fork_is_available_returns_a_boolean(self):
         self.assertIsInstance(fork_is_available(), bool)

@@ -19,23 +19,23 @@ spec:
         app: spellbook-worker
     spec:
       serviceAccountName: worker-service-account
-      # A task the worker picked up runs to completion before it exits, so a graceful
-      # shutdown has to outlast the longest one: cut short, the task is left behind
-      # with no worker and no way to ever leave the RUNNING state.
-      terminationGracePeriodSeconds: 1800
+      # A task the worker picked up runs to completion before it exits, so cutting the
+      # shutdown short leaves the task behind with no worker and no way to ever leave
+      # the RUNNING state.
+      terminationGracePeriodSeconds: 180
       containers:
         - name: spellbook-worker-app
           image: 083767677168.dkr.ecr.us-east-2.amazonaws.com/spellbook-worker-prod-ecr
           resources:
-            # The task pool sizes itself on the cpu limit, so the limit is what caps the
-            # fan-out of a task, and the request has to match it for those forked
-            # processes to get the cores they were spawned for on a contended node.
             requests:
-              cpu: 4
+              # Will consume upwards of 1 core during tasks
+              cpu: 200m
               memory: 8Gi
-            limits:
-              cpu: 4
           env:
+            # How wide a task forks its worker pool. The work waits on the database
+            # rather than on a core, so it is sized here instead of off the cpu request.
+            - name: TASK_WORKERS
+              value: "2"
             - name: SECRET_KEY
               valueFrom:
                 secretKeyRef:

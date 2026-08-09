@@ -610,7 +610,7 @@ jobs:
       # --parallel runs the cases in daemonic workers, which cannot fork: everything
       # that forks a pool is silently skipped there and needs its own serial run
       - name: Run forking python tests 🧪
-        run: backend/.venv/bin/python backend/manage.py test common/ --no-input --pythonpath common
+        run: backend/.venv/bin/python backend/manage.py test test_multiprocessing_utils --no-input --pythonpath common
         working-directory: .
 
 

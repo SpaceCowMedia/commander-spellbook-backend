@@ -1,3 +1,4 @@
+import multiprocessing
 import multiprocessing_utils
 import signal
 import time
@@ -15,6 +16,16 @@ def worker_signal_handlers(signals: tuple[signal.Signals, ...]) -> list[object]:
 
 def trap(signum, frame) -> None:
     '''Stands in for the graceful shutdown handler of a task worker.'''
+
+
+# Inherited by the forked worker, which reports through it that it has started working
+worker_started = multiprocessing.Event()
+
+
+def block_until_retired() -> None:
+    '''Occupies the worker it runs in until the pool retires it.'''
+    worker_started.set()
+    time.sleep(60)
 
 
 class TestMultiprocessingUtils(TestCase):
@@ -102,10 +113,13 @@ class TestMultiprocessingUtils(TestCase):
 
     def test_fork_pool_terminates_its_workers_when_the_body_fails(self):
         self.requires_forking()
+        worker_started.clear()
         with self.assertRaises(RuntimeError):
             with fork_pool(1) as pool:
                 workers = list(pool._pool)  # type: ignore[attr-defined]
-                pool.apply_async(time.sleep, (30,))
+                pool.apply_async(block_until_retired)
+                # An idle worker is retired by the queue sentinel instead, never signalled
+                self.assertTrue(worker_started.wait(30), 'the worker never started the task')
                 raise RuntimeError('the body of the pool failed')
         self.assertEqual([worker.exitcode for worker in workers], [-signal.SIGTERM])
 

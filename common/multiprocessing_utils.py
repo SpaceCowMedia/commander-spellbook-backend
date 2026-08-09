@@ -4,15 +4,17 @@ import multiprocessing.pool
 import os
 import signal
 from contextlib import contextmanager
+from functools import cache
 from typing import Generator, TypeVar
 
 logger = logging.getLogger(__name__)
 
 T = TypeVar('T')
 
-# Sizes the task worker pools. The work they fan out waits on the database far more than
-# on a core, so how wide it is worth spreading is a deployment decision rather than
-# something to read off the hardware.
+# Caps the task worker pools. How wide a task may fork is bounded by the memory and the
+# cpu share of the pod running it, not by the cores of whatever node it landed on, and a
+# container cpu limit is invisible to os.process_cpu_count() anyway: it is a deployment
+# decision rather than something to read off the hardware.
 WORKERS_ENV_VAR = 'TASK_WORKERS'
 
 # Pool.terminate() retires its workers with SIGTERM, so it has to stay lethal for them
@@ -26,14 +28,19 @@ WORKER_IGNORED_SIGNALS = tuple(
 )
 
 
-def resolve_workers(workers: int | None) -> int:
-    '''Returns the given worker count, defaulting to `TASK_WORKERS` and then to the cores available.
+@cache
+def resolve_workers() -> int:
+    '''Returns the ceiling on the workers a task pool may fan out to, read from `TASK_WORKERS`.
+
+    Nothing overrides it. It is the single number every pool is sized against, so no task
+    can fork wider than the deployment authorised.
+
+    The environment cannot change under a running process, so it is read once, which also
+    spares the log a repeat of the fallback warning for every phase of every task.
 
     Falling back on the cores is a guess: it is the count of a host the deployment never
     sized the pool against, so it is worth a warning wherever it happens.
     '''
-    if workers is not None:
-        return max(1, workers)
     configured = os.environ.get(WORKERS_ENV_VAR, '').strip()
     if configured:
         try:

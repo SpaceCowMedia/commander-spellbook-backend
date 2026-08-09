@@ -1,3 +1,4 @@
+import os
 from itertools import chain
 from unittest import mock, skipUnless
 from django.db.models import Count
@@ -15,7 +16,7 @@ from spellbook.variants.replacements import ReplacementContext
 from spellbook.variants.variants_generator import generate_variants, subtract_features, update_state
 from spellbook.variants.variants_generator import sync_variant_aliases, restore_variants
 from spellbook.variants.variants_generator import VariantDefinition, _restore_variant, _update_variant, _create_variant, _perform_bulk_saves
-from multiprocessing_utils import parallelism_is_available
+from multiprocessing_utils import WORKERS_ENV_VAR, parallelism_is_available, resolve_workers
 
 
 class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
@@ -946,13 +947,21 @@ class IncrementalGenerationTests(SpellbookTestCaseWithSeeding):
 
 
 class ParallelGenerationTests(SpellbookTestCaseWithSeeding):
+    def workers(self, count: int):
+        '''Sizes the pools the way the deployment does, through the environment.'''
+        resolve_workers.cache_clear()
+        self.addCleanup(resolve_workers.cache_clear)
+        return mock.patch.dict(os.environ, {WORKERS_ENV_VAR: str(count)})
+
     @skipUnless(parallelism_is_available(), 'parallel generation requires the fork start method and a non-daemonic process')
     def test_parallel_generation_matches_serial(self):
         with mock.patch.object(variants_generator, 'MIN_COMBOS_FOR_PARALLELISM', 1), \
-                mock.patch.object(variants_generator, 'MIN_VARIANTS_FOR_PARALLELISM', 1):
-            added, restored, deleted = generate_variants(workers=2)
+                mock.patch.object(variants_generator, 'MIN_VARIANTS_FOR_PARALLELISM', 1), \
+                self.workers(2):
+            added, restored, deleted = generate_variants()
         self.assertEqual(added, self.expected_variant_count)
         self.assertEqual(Variant.objects.count(), self.expected_variant_count)
         # A serial full generation over the parallel result must be a no-op
-        added, restored, deleted = generate_variants(workers=1)
+        with self.workers(1):
+            added, restored, deleted = generate_variants()
         self.assertEqual((added, restored, deleted), (0, 0, 0))

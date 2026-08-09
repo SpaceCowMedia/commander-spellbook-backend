@@ -797,9 +797,8 @@ def generate_variants(
     progress: ProgressFunction = lambda x, t: None,
     metadata: MetadataFunction = lambda key, value: None,
     incremental: bool = False,
-    workers: int | None = None,
 ) -> tuple[int, int, int]:
-    workers = resolve_workers(workers)
+    workers = resolve_workers()
     progress(0, 100)
     if combo is not None:
         log(f'Variant generation started for combo {combo}.')

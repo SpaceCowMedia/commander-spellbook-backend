@@ -27,6 +27,13 @@ def block_until_retired() -> None:
 
 
 class TestMultiprocessingUtils(TestCase):
+    def setUp(self):
+        super().setUp()
+        # resolve_workers reads the environment once, so a patched value only reaches it
+        # through a cleared cache, and the value it caches must not leak into other tests
+        resolve_workers.cache_clear()
+        self.addCleanup(resolve_workers.cache_clear)
+
     def trapping_shutdown_signals(self):
         signals = WORKER_LETHAL_SIGNALS + WORKER_IGNORED_SIGNALS
         previous = [signal.signal(sig, trap) for sig in signals]
@@ -37,32 +44,28 @@ class TestMultiprocessingUtils(TestCase):
         if not parallelism_is_available():
             self.skipTest('forking a pool requires the fork start method and a non-daemonic process')
 
-    def test_resolve_workers_keeps_explicit_value(self):
-        self.assertEqual(resolve_workers(3), 3)
-
-    def test_resolve_workers_enforces_a_minimum_of_one(self):
-        self.assertEqual(resolve_workers(0), 1)
-        self.assertEqual(resolve_workers(-5), 1)
-
     def test_resolve_workers_reads_the_environment(self):
         with patch.dict(os.environ, {WORKERS_ENV_VAR: ' 6 '}):
-            self.assertEqual(resolve_workers(None), 6)
+            self.assertEqual(resolve_workers(), 6)
 
     def test_resolve_workers_enforces_a_minimum_of_one_from_the_environment(self):
         with patch.dict(os.environ, {WORKERS_ENV_VAR: '0'}):
-            self.assertEqual(resolve_workers(None), 1)
+            self.assertEqual(resolve_workers(), 1)
 
-    def test_resolve_workers_prefers_an_explicit_value_over_the_environment(self):
+    def test_resolve_workers_reads_the_environment_only_once(self):
         with patch.dict(os.environ, {WORKERS_ENV_VAR: '6'}):
-            self.assertEqual(resolve_workers(2), 2)
+            self.assertEqual(resolve_workers(), 6)
+        with patch.dict(os.environ, {WORKERS_ENV_VAR: '2'}):
+            self.assertEqual(resolve_workers(), 6)
 
     def test_resolve_workers_warns_when_falling_back_on_the_cores(self):
         cores = max(1, getattr(os, 'process_cpu_count', os.cpu_count)() or 1)
         for value in ('', '   ', 'two'):
             with self.subTest(value=value):
+                resolve_workers.cache_clear()
                 with patch.dict(os.environ, {WORKERS_ENV_VAR: value}):
                     with self.assertLogs('multiprocessing_utils', level='WARNING') as logs:
-                        self.assertEqual(resolve_workers(None), cores)
+                        self.assertEqual(resolve_workers(), cores)
                 self.assertIn(WORKERS_ENV_VAR, logs.output[0])
 
     def test_resolve_workers_warns_when_the_environment_is_unset(self):
@@ -70,7 +73,15 @@ class TestMultiprocessingUtils(TestCase):
         with patch.dict(os.environ):
             os.environ.pop(WORKERS_ENV_VAR, None)
             with self.assertLogs('multiprocessing_utils', level='WARNING'):
-                self.assertEqual(resolve_workers(None), cores)
+                self.assertEqual(resolve_workers(), cores)
+
+    def test_resolve_workers_warns_only_once(self):
+        with patch.dict(os.environ):
+            os.environ.pop(WORKERS_ENV_VAR, None)
+            with self.assertLogs('multiprocessing_utils', level='WARNING') as logs:
+                for _ in range(3):
+                    resolve_workers()
+        self.assertEqual(len(logs.output), 1)
 
     def test_fork_is_available_returns_a_boolean(self):
         self.assertIsInstance(fork_is_available(), bool)

@@ -220,9 +220,8 @@ def export_variants(
     file: bool = False,
     s3: bool = False,
     progress: ProgressFunction = lambda fraction: None,
-    workers: int | None = None,
 ) -> int:
-    workers = resolve_workers(workers)
+    workers = resolve_workers()
     progress(0)
     preview_ids = list(Variant.objects.filter(status__in=Variant.preview_statuses()).values_list('id', flat=True))
     public_ids = list(Variant.objects.filter(status__in=Variant.public_statuses()).values_list('id', flat=True))

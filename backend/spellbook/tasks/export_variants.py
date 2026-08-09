@@ -2,8 +2,8 @@ import gzip
 import io
 import json
 import logging
-import multiprocessing
 import multiprocessing.pool
+from contextlib import AbstractContextManager
 from pathlib import Path
 from typing import Callable, Iterable, Sequence, TypeVar
 from django.utils import timezone
@@ -13,7 +13,7 @@ from django.db import connection, connections, transaction
 from django.db.models import Model, QuerySet
 from django_tasks import TaskContext
 from djangorestframework_camel_case.util import camelize
-from multiprocessing_utils import parallelism_is_available, resolve_workers, split_into_chunks
+from multiprocessing_utils import fork_pool, parallelism_is_available, resolve_workers, split_into_chunks
 from spellbook.models import Variant, VariantAlias, DEFAULT_BATCH_SIZE
 from spellbook.serializers import VariantSerializer, VariantAliasSerializer
 from spellbook.views.variants import VariantViewSet
@@ -112,8 +112,7 @@ def map_chunks(
         # The forked workers query the database on their own, so the parent closes its
         # connections before forking: both sides transparently reconnect when needed
         connections.close_all()
-        context = multiprocessing.get_context('fork')
-        with context.Pool(processes=min(workers, len(chunks))) as pool:
+        with fork_pool(min(workers, len(chunks))) as pool:
             result = list[str]()
             for chunk, items in zip(chunks, pool.imap(worker, chunks)):
                 result.append(items)
@@ -169,7 +168,7 @@ def write_document(parts: list[str], output: Path) -> None:
             f.write(part)
 
 
-def fork_compression(workers: int) -> multiprocessing.pool.Pool | None:
+def fork_compression(workers: int) -> AbstractContextManager[multiprocessing.pool.Pool] | None:
     '''Forks a single worker compressing the document, so that compression overlaps with writing or uploading it.
 
     The forked worker never touches the inherited database connections,
@@ -177,7 +176,7 @@ def fork_compression(workers: int) -> multiprocessing.pool.Pool | None:
     '''
     if workers <= 1 or not parallelism_is_available():
         return None
-    return multiprocessing.get_context('fork').Pool(processes=1)
+    return fork_pool(1)
 
 
 def export_to_file(parts: list[str], output: Path, workers: int) -> None:
@@ -186,12 +185,12 @@ def export_to_file(parts: list[str], output: Path, workers: int) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     compressed_output = str(output) + '.gz'
     try:
-        pool = fork_compression(workers)
-        if pool is None:
+        compressor = fork_compression(workers)
+        if compressor is None:
             write_document(parts, output)
             compress_document_to_file(compressed_output)
             return
-        with pool:
+        with compressor as pool:
             compression = pool.apply_async(compress_document_to_file, (compressed_output,))
             write_document(parts, output)
             compression.get()
@@ -203,13 +202,13 @@ def export_to_s3(parts: list[str], workers: int) -> None:
     global document_parts
     document_parts = parts
     try:
-        pool = fork_compression(workers)
-        if pool is None:
+        compressor = fork_compression(workers)
+        if compressor is None:
             document = ''.join(parts)
             upload_json_to_aws(document, DEFAULT_VARIANTS_FILE_NAME)
             upload_gzipped_json_to_aws(gzip.compress(document.encode('utf8')), DEFAULT_VARIANTS_FILE_NAME + '.gz')
             return
-        with pool:
+        with compressor as pool:
             compression = pool.apply_async(compress_document)
             upload_json_to_aws(''.join(parts), DEFAULT_VARIANTS_FILE_NAME)
             upload_gzipped_json_to_aws(compression.get(), DEFAULT_VARIANTS_FILE_NAME + '.gz')
@@ -221,9 +220,8 @@ def export_variants(
     file: bool = False,
     s3: bool = False,
     progress: ProgressFunction = lambda fraction: None,
-    workers: int | None = None,
 ) -> int:
-    workers = resolve_workers(workers)
+    workers = resolve_workers()
     progress(0)
     preview_ids = list(Variant.objects.filter(status__in=Variant.preview_statuses()).values_list('id', flat=True))
     public_ids = list(Variant.objects.filter(status__in=Variant.public_statuses()).values_list('id', flat=True))

@@ -176,6 +176,12 @@ jobs:
         run: uv run --no-sync python -Wd manage.py test --no-input --parallel auto --pythonpath ../common
         working-directory: backend
 
+      # --parallel runs the cases in daemonic workers, which cannot fork: everything
+      # that forks a task pool is silently skipped there and needs its own serial run
+      - name: Unit Test forked task pools 🧪
+        run: uv run --no-sync python -Wd manage.py test spellbook.tests.test_variants_generation.test_variants_generator.ParallelGenerationTests --no-input --pythonpath ../common
+        working-directory: backend
+
 
   integration-test:
     runs-on: ubuntu-latest
@@ -599,6 +605,12 @@ jobs:
 
       - name: Run python tests 🧪
         run: backend/.venv/bin/python backend/manage.py test client/python/tests/ common/ --no-input --parallel auto --pythonpath common
+        working-directory: .
+
+      # --parallel runs the cases in daemonic workers, which cannot fork: everything
+      # that forks a pool is silently skipped there and needs its own serial run
+      - name: Run forking python tests 🧪
+        run: backend/.venv/bin/python backend/manage.py test test_multiprocessing_utils --no-input --pythonpath common
         working-directory: .
 
 

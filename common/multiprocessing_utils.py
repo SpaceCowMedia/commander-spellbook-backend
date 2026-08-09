@@ -1,15 +1,57 @@
+import logging
 import multiprocessing
+import multiprocessing.pool
 import os
-from typing import TypeVar
+import signal
+from contextlib import contextmanager
+from functools import cache
+from typing import Generator, TypeVar
+
+logger = logging.getLogger(__name__)
 
 T = TypeVar('T')
 
+# Caps the task worker pools. How wide a task may fork is bounded by the memory and the
+# cpu share of the pod running it, not by the cores of whatever node it landed on, and a
+# container cpu limit is invisible to os.process_cpu_count() anyway: it is a deployment
+# decision rather than something to read off the hardware.
+WORKERS_ENV_VAR = 'TASK_WORKERS'
 
-def resolve_workers(workers: int | None) -> int:
-    '''Returns the given worker count, defaulting to the number of available processor cores.'''
-    if workers is not None:
-        return max(1, workers)
-    return max(1, getattr(os, 'process_cpu_count', os.cpu_count)() or 1)
+# Pool.terminate() retires its workers with SIGTERM, so it has to stay lethal for them
+WORKER_LETHAL_SIGNALS = (signal.SIGTERM,)
+
+# A terminal broadcasts these to the whole foreground process group, and a worker acting
+# on one dies holding a result its parent is still waiting for, so only the parent reacts
+WORKER_IGNORED_SIGNALS = tuple(
+    s for s in (getattr(signal, name, None) for name in ('SIGINT', 'SIGQUIT'))
+    if s is not None
+)
+
+
+@cache
+def resolve_workers() -> int:
+    '''Returns the ceiling on the workers a task pool may fan out to, read from `TASK_WORKERS`.
+
+    Nothing overrides it. It is the single number every pool is sized against, so no task
+    can fork wider than the deployment authorised.
+
+    The environment cannot change under a running process, so it is read once, which also
+    spares the log a repeat of the fallback warning for every phase of every task.
+
+    Falling back on the cores is a guess: it is the count of a host the deployment never
+    sized the pool against, so it is worth a warning wherever it happens.
+    '''
+    configured = os.environ.get(WORKERS_ENV_VAR, '').strip()
+    if configured:
+        try:
+            return max(1, int(configured))
+        except ValueError:
+            reason = f'{WORKERS_ENV_VAR} is set to {configured!r}, which is not a worker count'
+    else:
+        reason = f'{WORKERS_ENV_VAR} is unset'
+    cores = max(1, getattr(os, 'process_cpu_count', os.cpu_count)() or 1)
+    logger.warning('%s: sizing the worker pool on the %d cores available instead', reason, cores)
+    return cores
 
 
 def fork_is_available() -> bool:
@@ -26,6 +68,42 @@ def parallelism_is_available() -> bool:
     cannot spawn children, so parallelism must degrade to serial there.
     '''
     return fork_is_available() and not multiprocessing.current_process().daemon
+
+
+def reset_inherited_signal_handlers() -> None:
+    '''Drops the shutdown handlers a forked worker inherits from its parent.
+
+    django-tasks' `db_worker` traps SIGINT/SIGTERM/SIGQUIT to let the task in flight
+    finish before exiting. A pool worker inheriting that handler logs a bogus shutdown
+    line and, since the handler returns instead of exiting, sits deaf through the SIGTERM
+    of `Pool.terminate()`, hanging the parent in the unbounded join that follows it.
+    '''
+    for sig in WORKER_LETHAL_SIGNALS:
+        signal.signal(sig, signal.SIG_DFL)
+    for sig in WORKER_IGNORED_SIGNALS:
+        signal.signal(sig, signal.SIG_IGN)
+
+
+@contextmanager
+def fork_pool(processes: int) -> Generator[multiprocessing.pool.Pool]:
+    '''Runs a pool of forked workers, retiring them through the queue sentinel on success.
+
+    `Pool.__exit__` reaches for `terminate()` instead, whose SIGTERM is both noise in the
+    logs of a signal trapping parent and a way to lose a worker still writing a result.
+    '''
+    pool = multiprocessing.get_context('fork').Pool(
+        processes=processes,
+        initializer=reset_inherited_signal_handlers,
+    )
+    try:
+        yield pool
+    except BaseException:
+        pool.terminate()
+        raise
+    else:
+        pool.close()
+    finally:
+        pool.join()
 
 
 def split_into_chunks(items: list[T], workers: int) -> list[list[T]]:

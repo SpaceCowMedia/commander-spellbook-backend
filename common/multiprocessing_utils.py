@@ -2,22 +2,58 @@ import multiprocessing
 import multiprocessing.pool
 import os
 import signal
-from typing import TypeVar
+from contextlib import contextmanager
+from pathlib import Path
+from typing import Generator, TypeVar
 
 T = TypeVar('T')
 
-# The signals a long running parent process is likely to trap for a graceful shutdown
-SHUTDOWN_SIGNALS = tuple(
-    s for s in (getattr(signal, name, None) for name in ('SIGINT', 'SIGTERM', 'SIGQUIT'))
+# Where a container CFS quota is published, cgroup v2 first
+CGROUP_CPU_QUOTA_FILES = (
+    ('/sys/fs/cgroup/cpu.max',),
+    ('/sys/fs/cgroup/cpu/cpu.cfs_quota_us', '/sys/fs/cgroup/cpu/cpu.cfs_period_us'),
+)
+
+# Pool.terminate() retires its workers with SIGTERM, so it has to stay lethal for them
+WORKER_LETHAL_SIGNALS = (signal.SIGTERM,)
+
+# A terminal broadcasts these to the whole foreground process group, and a worker acting
+# on one dies holding a result its parent is still waiting for, so only the parent reacts
+WORKER_IGNORED_SIGNALS = tuple(
+    s for s in (getattr(signal, name, None) for name in ('SIGINT', 'SIGQUIT'))
     if s is not None
 )
 
 
+def cgroup_cpu_quota() -> int | None:
+    '''Returns the cores the cgroup CPU quota allows, or None when it is uncapped.
+
+    A container CPU limit is enforced as a CFS quota and leaves the affinity mask that
+    `os.process_cpu_count()` reports untouched, so a pool that skips this sizes itself on
+    every core of the host instead of on the slice the container was actually given.
+    '''
+    for paths in CGROUP_CPU_QUOTA_FILES:
+        try:
+            quota, period = ' '.join(Path(p).read_text() for p in paths).split()
+        except (OSError, ValueError):
+            continue
+        try:
+            allowance, window = int(quota), int(period)
+        except ValueError:
+            return None
+        if allowance <= 0 or window <= 0:
+            return None
+        return max(1, allowance // window)
+    return None
+
+
 def resolve_workers(workers: int | None) -> int:
-    '''Returns the given worker count, defaulting to the number of available processor cores.'''
+    '''Returns the given worker count, defaulting to the cores this process may actually use.'''
     if workers is not None:
         return max(1, workers)
-    return max(1, getattr(os, 'process_cpu_count', os.cpu_count)() or 1)
+    cores = getattr(os, 'process_cpu_count', os.cpu_count)() or 1
+    quota = cgroup_cpu_quota()
+    return max(1, cores if quota is None else min(cores, quota))
 
 
 def fork_is_available() -> bool:
@@ -37,26 +73,39 @@ def parallelism_is_available() -> bool:
 
 
 def reset_inherited_signal_handlers() -> None:
-    '''Restores the default disposition of the shutdown signals in a forked worker.
+    '''Drops the shutdown handlers a forked worker inherits from its parent.
 
-    A fork child inherits the signal handlers of its parent, and that parent may be a
-    task worker (django-tasks' `db_worker`) trapping SIGINT/SIGTERM/SIGQUIT to finish
-    the task it is running before exiting. Inherited by a pool worker, that handler both
-    logs a bogus "shutting down gracefully" line when `Pool.terminate()` signals the
-    worker at teardown, and - since it returns instead of exiting while a task is
-    running - lets the worker ignore the signal, hanging the parent in the unbounded
-    join that `Pool.terminate()` ends with.
+    django-tasks' `db_worker` traps SIGINT/SIGTERM/SIGQUIT to let the task in flight
+    finish before exiting. A pool worker inheriting that handler logs a bogus shutdown
+    line and, since the handler returns instead of exiting, sits deaf through the SIGTERM
+    of `Pool.terminate()`, hanging the parent in the unbounded join that follows it.
     '''
-    for sig in SHUTDOWN_SIGNALS:
+    for sig in WORKER_LETHAL_SIGNALS:
         signal.signal(sig, signal.SIG_DFL)
+    for sig in WORKER_IGNORED_SIGNALS:
+        signal.signal(sig, signal.SIG_IGN)
 
 
-def fork_pool(processes: int) -> multiprocessing.pool.Pool:
-    '''Creates a pool of forked workers that no longer trap the shutdown signals of the parent.'''
-    return multiprocessing.get_context('fork').Pool(
+@contextmanager
+def fork_pool(processes: int) -> Generator[multiprocessing.pool.Pool]:
+    '''Runs a pool of forked workers, retiring them through the queue sentinel on success.
+
+    `Pool.__exit__` reaches for `terminate()` instead, whose SIGTERM is both noise in the
+    logs of a signal trapping parent and a way to lose a worker still writing a result.
+    '''
+    pool = multiprocessing.get_context('fork').Pool(
         processes=processes,
         initializer=reset_inherited_signal_handlers,
     )
+    try:
+        yield pool
+    except BaseException:
+        pool.terminate()
+        raise
+    else:
+        pool.close()
+    finally:
+        pool.join()
 
 
 def split_into_chunks(items: list[T], workers: int) -> list[list[T]]:

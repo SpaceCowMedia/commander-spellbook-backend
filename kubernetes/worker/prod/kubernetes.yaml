@@ -7,6 +7,9 @@ metadata:
     app: spellbook-worker
 spec:
   replicas: 1
+  strategy:
+    # A surging replacement would have to fit a second 8Gi worker on the node
+    type: Recreate
   selector:
     matchLabels:
       app: spellbook-worker
@@ -24,22 +27,14 @@ spec:
         - name: spellbook-worker-app
           image: 083767677168.dkr.ecr.us-east-2.amazonaws.com/spellbook-worker-prod-ecr
           resources:
+            # The task pool sizes itself on the cpu limit, so the limit is what caps the
+            # fan-out of a task, and the request has to match it for those forked
+            # processes to get the cores they were spawned for on a contended node.
             requests:
-              # Will consume upwards of 1 core during tasks
-              cpu: 200m
+              cpu: 4
               memory: 8Gi
-          livenessProbe:
-            exec:
-              command:
-                - pgrep
-                - -f
-                - "db_worker"
-            initialDelaySeconds: 10
-            periodSeconds: 30
-            # Spawning a process in a container this large, while its forked task
-            # workers saturate the cores it is only weighted for 200m of, takes far
-            # longer than the one second this probe would otherwise allow.
-            timeoutSeconds: 10
+            limits:
+              cpu: 4
           env:
             - name: SECRET_KEY
               valueFrom:

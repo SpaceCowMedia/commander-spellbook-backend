@@ -2,8 +2,8 @@ import gzip
 import io
 import json
 import logging
-import multiprocessing
 import multiprocessing.pool
+from contextlib import AbstractContextManager
 from pathlib import Path
 from typing import Callable, Iterable, Sequence, TypeVar
 from django.utils import timezone
@@ -117,10 +117,6 @@ def map_chunks(
             for chunk, items in zip(chunks, pool.imap(worker, chunks)):
                 result.append(items)
                 progress(len(chunk))
-            # Retiring the workers through the queue sentinel spares them the SIGTERM
-            # that the pool would otherwise send them on its way out of this block
-            pool.close()
-            pool.join()
             return result
     return [worker(ids, progress)]
 
@@ -172,7 +168,7 @@ def write_document(parts: list[str], output: Path) -> None:
             f.write(part)
 
 
-def fork_compression(workers: int) -> multiprocessing.pool.Pool | None:
+def fork_compression(workers: int) -> AbstractContextManager[multiprocessing.pool.Pool] | None:
     '''Forks a single worker compressing the document, so that compression overlaps with writing or uploading it.
 
     The forked worker never touches the inherited database connections,
@@ -189,12 +185,12 @@ def export_to_file(parts: list[str], output: Path, workers: int) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     compressed_output = str(output) + '.gz'
     try:
-        pool = fork_compression(workers)
-        if pool is None:
+        compressor = fork_compression(workers)
+        if compressor is None:
             write_document(parts, output)
             compress_document_to_file(compressed_output)
             return
-        with pool:
+        with compressor as pool:
             compression = pool.apply_async(compress_document_to_file, (compressed_output,))
             write_document(parts, output)
             compression.get()
@@ -206,13 +202,13 @@ def export_to_s3(parts: list[str], workers: int) -> None:
     global document_parts
     document_parts = parts
     try:
-        pool = fork_compression(workers)
-        if pool is None:
+        compressor = fork_compression(workers)
+        if compressor is None:
             document = ''.join(parts)
             upload_json_to_aws(document, DEFAULT_VARIANTS_FILE_NAME)
             upload_gzipped_json_to_aws(gzip.compress(document.encode('utf8')), DEFAULT_VARIANTS_FILE_NAME + '.gz')
             return
-        with pool:
+        with compressor as pool:
             compression = pool.apply_async(compress_document)
             upload_json_to_aws(''.join(parts), DEFAULT_VARIANTS_FILE_NAME)
             upload_gzipped_json_to_aws(compression.get(), DEFAULT_VARIANTS_FILE_NAME + '.gz')

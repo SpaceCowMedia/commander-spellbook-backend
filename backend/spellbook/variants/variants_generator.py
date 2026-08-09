@@ -213,10 +213,6 @@ def get_variants_from_graph(
                         _merge_variant_definitions(result, group_result)
                         progress_current += (1 + results_progress_multiplier) * sum(map(len, chunks)) // len(chunks)
                         progress(min(progress_current, progress_total), progress_total)
-                    # Retiring the workers through the queue sentinel spares them the SIGTERM
-                    # that the pool would otherwise send them on its way out of this block
-                    pool.close()
-                    pool.join()
             finally:
                 _GRAPH_WORKER_STATE = None
             continue
@@ -667,10 +663,6 @@ def restore_variants(
                 for chunk_updates, chunk_creates in pool.imap(_restore_phase_worker, chunks):
                     to_bulk_update.extend(chunk_updates)
                     to_bulk_create.extend(chunk_creates)
-                # Retiring the workers through the queue sentinel spares them the SIGTERM
-                # that the pool would otherwise send them on its way out of this block
-                pool.close()
-                pool.join()
                 return to_bulk_update, to_bulk_create
         finally:
             _RESTORE_WORKER_STATE = None

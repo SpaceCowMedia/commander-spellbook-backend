@@ -10,7 +10,7 @@ from multiprocessing_utils import split_into_chunks
 from spellbook.models import Combo, Variant, VariantAlias
 from spellbook.tasks import combo_of_the_day_task, generate_variants_task, export_variants_task, DEFAULT_VARIANTS_FILE_NAME
 from spellbook.tasks.export_variants import build_document, export_variants_chunk, export_variant_aliases_chunk
-from spellbook.tasks.update_variants import update_combo_variant_counts
+from spellbook.tasks.generate_variants import update_combo_variant_counts
 from website.models import COMBO_OF_THE_DAY_PROPERTY, WebsiteProperty
 from .testing import SpellbookTestCaseWithSeeding
 from spellbook.models import id_from_cards_and_templates_ids

@@ -3,13 +3,38 @@ from django.tasks import task
 from django_tasks import TaskContext
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.admin.models import LogEntry, ADDITION
+from django.db.models import Subquery, OuterRef, Count
+from django.db.models.functions import Coalesce
 from spellbook.models import Variant
+from spellbook.models.combo import Combo
 from .utils import task_result_identifier
-from .update_variants import update_combo_variant_counts
 from spellbook.variants.variants_generator import generate_variants
 
 
 logger = logging.getLogger(__name__)
+
+
+def update_combo_variant_counts() -> int:
+    '''Refreshes Combo.variant_count with how many variants each combo generates.
+
+    Every variant is counted, whatever its status: the count is an editing aid telling how much
+    a combo expands into, so a combo whose variants have just been generated (and are therefore
+    all in the NEW status, awaiting review) has to show them right away.
+    '''
+    return Combo.objects.update(
+        variant_count=Coalesce(
+            Subquery(
+                Variant
+                .objects
+                .filter(of=OuterRef('pk'))
+                .order_by()
+                .values('of')
+                .annotate(total=Count('pk'))
+                .values('total'),
+            ),
+            0,
+        ),
+    )
 
 
 @task(takes_context=True)  # type: ignore[arg-type]
@@ -59,8 +84,6 @@ def generate_variants_task(context: TaskContext, combo: int | None = None, start
         metadata=metadata,
         incremental=incremental,
     )
-    # Generation is the only thing that changes how many variants a combo has, so the denormalized
-    # counts are refreshed here instead of waiting for the next run of the update variants task.
     log('Updating combo variant counts...')
     update_combo_variant_counts()
     if added == 0 and removed == 0 and restored == 0:

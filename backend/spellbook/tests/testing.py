@@ -8,7 +8,6 @@ from django.db.models import Q, Count, OuterRef, Subquery
 from django.db.models.functions import Coalesce
 from django.contrib.auth.models import User
 from spellbook.tasks.generate_variants import generate_variants_task
-from spellbook.tasks.update_variants import update_combo_variant_counts
 from website.tests.testing import BaseTestCase
 from spellbook.variants.multiset import FrozenMultiset
 from spellbook.models import Card, Feature, Combo, CardInCombo, Template, TemplateInCombo, DEFAULT_BATCH_SIZE
@@ -56,7 +55,6 @@ class SpellbookTestCase(BaseTestCase):
                 0,
             ),
         )
-        update_combo_variant_counts()
         variants = list(Variant.objects.only('id').annotate(
             variant_count_updated=Count('of__variants', distinct=True, filter=Q(of__variants__status__in=Variant.public_statuses()))
         ))

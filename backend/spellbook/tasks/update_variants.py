@@ -1,38 +1,13 @@
 import logging
 from django.tasks import task
 from django_tasks import TaskContext
-from django.db.models import Subquery, OuterRef, Count, Q
-from django.db.models.functions import Coalesce
+from django.db.models import Count, Q
 from django.db import transaction
 from spellbook.models import Variant, DEFAULT_BATCH_SIZE
-from spellbook.models.combo import Combo
 from .edhrec import update_variants, edhrec
 
 
 logger = logging.getLogger(__name__)
-
-
-def update_combo_variant_counts() -> int:
-    '''Refreshes Combo.variant_count with how many variants each combo generates.
-
-    Every variant is counted, whatever its status: the count is an editing aid telling how much
-    a combo expands into, so a combo whose variants have just been generated (and are therefore
-    all in the NEW status, awaiting review) has to show them right away.
-    '''
-    return Combo.objects.update(
-        variant_count=Coalesce(
-            Subquery(
-                Variant
-                .objects
-                .filter(of=OuterRef('pk'))
-                .order_by()
-                .values('of')
-                .annotate(total=Count('pk'))
-                .values('total'),
-            ),
-            0,
-        ),
-    )
 
 
 @task(takes_context=True)  # type: ignore[arg-type]
@@ -54,15 +29,10 @@ def update_variants_task(context: TaskContext):
         def log(message: str):
             logger.info(message)
     progress(0)
-    # Combos
-    log('Updating combos...')
-    update_combo_variant_counts()
-    log('Updating combos...done')
-    progress(0.1)
     # Variants
     log('Fetching EDHREC dataset...')
     edhrec_variant_db = edhrec()
-    progress(0.2)
+    progress(0.1)
     log('Fetching Commander Spellbook dataset...')
     variants_query = Variant.recipes_prefetched.all()
     variant_count = variants_query.count()
@@ -97,7 +67,7 @@ def update_variants_task(context: TaskContext):
         Variant.objects.bulk_update(variants_to_save, fields=Variant.computed_fields() + ['popularity', 'variant_count'])
         variant_processed += len(variants)
         log(f'  Processed {variant_processed} / {variant_count} variants')
-        progress(0.2 + variant_processed / variant_count * 0.8)
+        progress(0.1 + variant_processed / variant_count * 0.9)
         del variants, variants_counts, variants_to_save
     del variants_query
     log(f'Updating variants...done, updated {updated_variant_count} variants')

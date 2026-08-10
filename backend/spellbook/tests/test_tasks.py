@@ -7,15 +7,21 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.tasks import TaskResult, TaskResultStatus
 from multiprocessing_utils import split_into_chunks
-from spellbook.models import Variant, VariantAlias
+from spellbook.models import Combo, Variant, VariantAlias
 from spellbook.tasks import combo_of_the_day_task, generate_variants_task, export_variants_task, DEFAULT_VARIANTS_FILE_NAME
 from spellbook.tasks.export_variants import build_document, export_variants_chunk, export_variant_aliases_chunk
+from spellbook.tasks.update_variants import update_combo_variant_counts
 from website.models import COMBO_OF_THE_DAY_PROPERTY, WebsiteProperty
 from .testing import SpellbookTestCaseWithSeeding
 from spellbook.models import id_from_cards_and_templates_ids
 
 
 class TasksTest(SpellbookTestCaseWithSeeding):
+    def assertComboVariantCountsAreExact(self):
+        for combo in Combo.objects.all():
+            with self.subTest(combo=combo.id):
+                self.assertEqual(combo.variant_count, Variant.objects.filter(of=combo).count())
+
     def test_generate_variants(self):
         u = User.objects.create(username='test', password='test')
         result: TaskResult = generate_variants_task.enqueue(started_by_user_id=u.pk)
@@ -34,6 +40,8 @@ class TasksTest(SpellbookTestCaseWithSeeding):
             self.assertEqual(v.status, Variant.Status.NEW)
         variant_ids = {v.id for v in Variant.objects.all()}
         self.assertSetEqual(variant_ids, {v1_id, v2_id, v3_id, v4_id, v5_id, v6_id, v7_id, v8_id})
+        # Generation refreshes the denormalized counts on its own
+        self.assertComboVariantCountsAreExact()
         single_combo_generator = Variant.objects.get(id=v1_id).of.first()
         expected_variants_ids = set(single_combo_generator.variants.values_list('id', flat=True))
         Variant.objects.all().delete()
@@ -41,6 +49,25 @@ class TasksTest(SpellbookTestCaseWithSeeding):
         self.assertTrue(result.is_finished)
         self.assertEqual(result.status, TaskResultStatus.SUCCESSFUL)
         self.assertSetEqual(set(Variant.objects.values_list('id', flat=True)), expected_variants_ids)
+        # Combos that lost their variants to the deletion above are brought back down to zero
+        self.assertComboVariantCountsAreExact()
+
+    def test_update_combo_variant_counts(self):
+        super().generate_variants()
+        self.assertGreater(Combo.objects.filter(variants__isnull=False).distinct().count(), 0)
+        # Generation leaves every variant in the NEW status, and those still have to be counted
+        self.assertSetEqual({v.status for v in Variant.objects.all()}, {Variant.Status.NEW})
+        update_combo_variant_counts()
+        self.assertComboVariantCountsAreExact()
+        # The count doesn't change when variants move to a non public status
+        Variant.objects.update(status=Variant.Status.NOT_WORKING)
+        update_combo_variant_counts()
+        self.assertComboVariantCountsAreExact()
+        # Combos without variants are reset to zero
+        Combo.objects.update(variant_count=42)
+        Variant.objects.all().delete()
+        update_combo_variant_counts()
+        self.assertFalse(Combo.objects.exclude(variant_count=0).exists())
 
     def test_export_variants(self):
         super().generate_variants()

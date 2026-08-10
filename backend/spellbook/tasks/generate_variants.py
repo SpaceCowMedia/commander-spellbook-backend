@@ -5,6 +5,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.contrib.admin.models import LogEntry, ADDITION
 from spellbook.models import Variant
 from .utils import task_result_identifier
+from .update_variants import update_combo_variant_counts
 from spellbook.variants.variants_generator import generate_variants
 
 
@@ -58,6 +59,10 @@ def generate_variants_task(context: TaskContext, combo: int | None = None, start
         metadata=metadata,
         incremental=incremental,
     )
+    # Generation is the only thing that changes how many variants a combo has, so the denormalized
+    # counts are refreshed here instead of waiting for the next run of the update variants task.
+    log('Updating combo variant counts...')
+    update_combo_variant_counts()
     if added == 0 and removed == 0 and restored == 0:
         message = 'Variants are already synced with'
     else:

@@ -263,7 +263,8 @@ class VariantSuggestionsTests(SpellbookTestCaseWithSeeding):
         self.assertEqual(response.get('Content-Type'), 'application/json')
         result = json.loads(response.content, object_hook=json_to_python_lambda)
         self.assertTrue(hasattr(result, 'uses'))
-        self.assertGreaterEqual(len(result.uses), 2)
+        # Errors for a many=True field are keyed by the index of the offending item.
+        self.assertGreaterEqual(len(vars(result.uses)), 2)
 
     def test_validate_create_view(self):
         post_data = {
@@ -307,7 +308,8 @@ class VariantSuggestionsTests(SpellbookTestCaseWithSeeding):
         self.assertEqual(response.get('Content-Type'), 'application/json')
         result = json.loads(response.content, object_hook=json_to_python_lambda)
         self.assertTrue(hasattr(result, 'uses'))
-        self.assertGreaterEqual(len(result.uses), 2)
+        # Errors for a many=True field are keyed by the index of the offending item.
+        self.assertGreaterEqual(len(vars(result.uses)), 2)
         suggestion_count_before = VariantSuggestion.objects.count()
         response = self.client.post(reverse('variant-suggestions-validate-create'), self.post_data, content_type='application/json', follow=True)
         self.assertEqual(response.status_code, status.HTTP_200_OK)

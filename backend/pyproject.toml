@@ -63,7 +63,7 @@ dev = [
     "pydantic==2.13.4",
     "python-dateutil==2.9.0.post0",
     "urllib3==2.7.0",
-    "django-stubs[compatible-mypy]>=6.0.7",
+    "django-stubs[compatible-mypy]>=6.0.9",
 ]
 
 [tool.uv]

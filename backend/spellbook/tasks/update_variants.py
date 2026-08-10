@@ -12,6 +12,29 @@ from .edhrec import update_variants, edhrec
 logger = logging.getLogger(__name__)
 
 
+def update_combo_variant_counts() -> int:
+    '''Refreshes Combo.variant_count with how many variants each combo generates.
+
+    Every variant is counted, whatever its status: the count is an editing aid telling how much
+    a combo expands into, so a combo whose variants have just been generated (and are therefore
+    all in the NEW status, awaiting review) has to show them right away.
+    '''
+    return Combo.objects.update(
+        variant_count=Coalesce(
+            Subquery(
+                Variant
+                .objects
+                .filter(of=OuterRef('pk'))
+                .order_by()
+                .values('of')
+                .annotate(total=Count('pk'))
+                .values('total'),
+            ),
+            0,
+        ),
+    )
+
+
 @task(takes_context=True)  # type: ignore[arg-type]
 def update_variants_task(context: TaskContext):
     '''Updates variants using cards and EDHREC data'''
@@ -33,21 +56,7 @@ def update_variants_task(context: TaskContext):
     progress(0)
     # Combos
     log('Updating combos...')
-    Combo.objects.update(
-        variant_count=Coalesce(
-            Subquery(
-                Variant
-                .objects
-                .filter(status__in=Variant.public_statuses())
-                .filter(of=OuterRef('pk'))
-                .order_by()
-                .values('of')
-                .annotate(total=Count('pk'))
-                .values('total'),
-            ),
-            0,
-        ),
-    )
+    update_combo_variant_counts()
     log('Updating combos...done')
     progress(0.1)
     # Variants

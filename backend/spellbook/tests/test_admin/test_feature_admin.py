@@ -200,6 +200,23 @@ class FeatureAdminTests(SpellbookTestCaseWithSeeding):
         for combo in Combo.objects.filter(id__in=combo_ids):
             self.assertIn('Renamed Twice', combo.name)
 
+    def test_merge_from_admin_deletes_the_merged_feature(self):
+        self.client.force_login(self.admin)
+        source = Feature.objects.create(name='Source Feature')
+        target = Feature.objects.create(name='Target Feature')
+        combo = Combo.objects.create(status=Combo.Status.UTILITY, description='[[Source Feature]] does something')
+        FeatureNeededInCombo.objects.create(combo=combo, feature=source, order=1, zone_locations=ZoneLocation.BATTLEFIELD)
+
+        response = self.client.post(f'/admin/spellbook/feature/{source.id}/merge/', {'into': str(target.id)}, follow=True)
+        self.assertEqual(response.status_code, 200)
+        response = self.client.post(f'/admin/spellbook/feature/{source.id}/delete/?merge_into={target.id}', {'post': 'yes', 'merge_into': str(target.id)}, follow=True)
+        self.assertEqual(response.status_code, 200)
+
+        self.assertFalse(Feature.objects.filter(pk=source.pk).exists())
+        self.assertEqual(list(combo.needs.all()), [target])
+        combo.refresh_from_db()
+        self.assertEqual(combo.description, '[[Target Feature]] does something')
+
     def test_rename_from_admin_updates_references(self):
         self.client.force_login(self.admin)
         feature = Feature.objects.create(name='Old Feature')

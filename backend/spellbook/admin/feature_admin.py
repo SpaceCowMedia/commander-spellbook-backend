@@ -1,14 +1,10 @@
-from django.contrib import admin, messages
+from django.contrib import admin
 from django.db.models import QuerySet, Count, Q
 from django.http import HttpRequest
-from django.http.response import HttpResponse
-from django.urls.resolvers import URLPattern
 from django.utils.html import format_html
-from django.urls import reverse, path
-from django.shortcuts import redirect
 from spellbook.models import Feature, Combo, FeatureOfCard, FeatureNeededInCombo, FeatureProducedInCombo, FeatureRemovedInCombo, FeatureProducedByVariant, replace_feature_references
 from spellbook.models.scryfall import scryfall_link_for_query, scryfall_query_string_for_card_names, SCRYFALL_MAX_QUERY_LENGTH
-from .utils import SpellbookModelAdmin, SpellbookAdminForm, CustomFilter
+from .utils import MergeableModelAdmin, SpellbookAdminForm, CustomFilter
 from .ingredient_admin import FeatureOfCardAdmin
 
 
@@ -89,7 +85,7 @@ class ComboRelatedFilter(CustomFilter):
 
 
 @admin.register(Feature)
-class FeatureAdmin(SpellbookModelAdmin):
+class FeatureAdmin(MergeableModelAdmin):
     form = FeatureForm
     readonly_fields = [
         'id',
@@ -153,56 +149,8 @@ class FeatureAdmin(SpellbookModelAdmin):
             return 0
         return obj.produced_by_count  # type: ignore
 
-    def merge(self, request: HttpRequest, object_id: int):
-        if request.method == 'POST' and request.user.is_authenticated:
-            into_id = request.POST.get('into')
-            if into_id is not None:
-                if into_id == str(object_id):
-                    messages.error(request, 'Cannot merge a feature into itself.')
-                    return redirect('admin:spellbook_feature_change', object_id)
-                try:
-                    into_feature = Feature.objects.get(pk=into_id)
-                    feature_to_merge = Feature.objects.get(pk=object_id)
-                    return redirect(reverse('admin:spellbook_feature_delete', args=[feature_to_merge.pk]) + f'?merge_into={into_feature.pk}')
-                except (Feature.DoesNotExist, ValueError):
-                    messages.error(request, 'Invalid feature selected for merging.')
-            else:
-                messages.error(request, 'No feature selected for merging.')
-        return redirect('admin:spellbook_feature_change', object_id)
-
-    def delete_view(self, request: HttpRequest, object_id: str, extra_context=None) -> HttpResponse:
-        merge_into = request.GET.get('merge_into')
-        if merge_into is not None:
-            try:
-                into_feature = Feature.objects.get(pk=merge_into)
-                extra_context = extra_context or {}
-                extra_context['merge_into'] = into_feature  # type: ignore
-                extra_context['title'] = f'Merge feature {object_id} into {into_feature.pk}'
-            except (Feature.DoesNotExist, ValueError):
-                pass
-        return super().delete_view(request, object_id, extra_context)
-
-    def delete_model(self, request: HttpRequest, obj: Feature):
-        merge_into = request.POST.get('merge_into')
-        if merge_into is not None:
-            try:
-                into_feature = Feature.objects.get(pk=merge_into)
-                merge_feature(obj, into_feature)
-                messages.success(request, f'Feature "{obj.name}" merged into "{into_feature.name}" successfully.')
-            except (Feature.DoesNotExist, ValueError):
-                messages.error(request, 'Invalid feature selected for merging. Deletion aborted.')
-                return
-        super().delete_model(request, obj)
-
-    def get_urls(self) -> list[URLPattern]:
-        return [
-            path(
-                '<path:object_id>/merge/',
-                self.admin_site.admin_view(self.merge),
-                name='spellbook_feature_merge',
-            ),
-            *super().get_urls(),
-        ]
+    def merge_objects(self, from_obj: Feature, to_obj: Feature) -> None:
+        merge_feature(from_obj, to_obj)
 
 
 def merge_feature(from_obj: Feature, to_obj: Feature):

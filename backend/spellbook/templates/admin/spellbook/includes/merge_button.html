@@ -1,0 +1,9 @@
+<li>
+    <form method="post" action="{% url merge_url original.id %}" class="inline" novalidate>
+        {% csrf_token %}
+        <button type="submit" class="default">
+            <span class="button__text">Merge into</span>
+        </button>
+        <input type="text" name="into" placeholder="{{ merge_placeholder }}" style="width: 6em;" required>
+    </form>
+</li>

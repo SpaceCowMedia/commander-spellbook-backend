@@ -1,11 +1,15 @@
 from typing import Any
 from types import MethodType
 from datetime import datetime
-from django.db.models import TextField, DateTimeField, Count, Q, When, Case, Max
-from django.contrib import admin
+from django.db.models import Model, TextField, DateTimeField, Count, Q, When, Case, Max
+from django.contrib import admin, messages
 from django.db.models.query import QuerySet
 from django.http import HttpRequest
+from django.http.response import HttpResponse
 from django.forms import ModelForm
+from django.shortcuts import redirect
+from django.urls import reverse, path
+from django.urls.resolvers import URLPattern
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from django.utils.formats import localize
@@ -181,6 +185,67 @@ class SpellbookModelAdmin(SortableAdminBase, ModelAdmin):
 
     def get_changelist(self, request, **kwargs: Any) -> type[ChangeList]:
         return SpellbookAdminChangelist
+
+
+class MergeableModelAdmin(SpellbookModelAdmin):
+    '''Adds a "merge into" button that redirects to the deletion page of the object being merged,
+    where confirming moves every relationship and reference to the other object before deleting it.'''
+
+    def merge_objects(self, from_obj: Any, to_obj: Any) -> None:
+        raise NotImplementedError()
+
+    def admin_url_name(self, view: str) -> str:
+        return f'{self.opts.app_label}_{self.opts.model_name}_{view}'
+
+    def merge(self, request: HttpRequest, object_id: str) -> HttpResponse:
+        if request.method == 'POST' and request.user.is_authenticated:
+            into_id = request.POST.get('into')
+            if into_id is None:
+                messages.error(request, f'No {self.opts.verbose_name} selected for merging.')
+            elif into_id == str(object_id):
+                messages.error(request, f'Cannot merge a {self.opts.verbose_name} into itself.')
+            else:
+                try:
+                    into_obj = self.model.objects.get(pk=into_id)
+                    obj_to_merge = self.model.objects.get(pk=object_id)
+                    return redirect(reverse(f'admin:{self.admin_url_name("delete")}', args=[obj_to_merge.pk]) + f'?merge_into={into_obj.pk}')
+                except (self.model.DoesNotExist, ValueError):
+                    messages.error(request, f'Invalid {self.opts.verbose_name} selected for merging.')
+        return redirect(f'admin:{self.admin_url_name("change")}', object_id)
+
+    def delete_view(self, request: HttpRequest, object_id: str, extra_context=None) -> HttpResponse:
+        merge_into = request.GET.get('merge_into')
+        if merge_into is not None:
+            try:
+                into_obj = self.model.objects.get(pk=merge_into)
+                extra_context = extra_context or {}
+                extra_context['merge_into'] = into_obj
+                extra_context['title'] = f'Merge {self.opts.verbose_name} {object_id} into {into_obj.pk}'
+            except (self.model.DoesNotExist, ValueError):
+                pass
+        return super().delete_view(request, object_id, extra_context)
+
+    def delete_model(self, request: HttpRequest, obj: Model) -> None:
+        merge_into = request.POST.get('merge_into')
+        if merge_into is not None:
+            try:
+                into_obj = self.model.objects.get(pk=merge_into)
+                self.merge_objects(obj, into_obj)
+                messages.success(request, f'{str(self.opts.verbose_name).capitalize()} "{obj}" merged into "{into_obj}" successfully.')
+            except (self.model.DoesNotExist, ValueError):
+                messages.error(request, f'Invalid {self.opts.verbose_name} selected for merging. Deletion aborted.')
+                return
+        super().delete_model(request, obj)
+
+    def get_urls(self) -> list[URLPattern]:
+        return [
+            path(
+                '<path:object_id>/merge/',
+                self.admin_site.admin_view(self.merge),
+                name=self.admin_url_name('merge'),
+            ),
+            *super().get_urls(),
+        ]
 
 
 class CustomFilter(admin.SimpleListFilter):

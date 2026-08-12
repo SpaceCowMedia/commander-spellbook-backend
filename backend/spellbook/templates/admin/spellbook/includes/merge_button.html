@@ -4,6 +4,6 @@
         <button type="submit" class="default">
             <span class="button__text">Merge into</span>
         </button>
-        <input type="text" name="into" placeholder="{{ merge_placeholder }}" style="width: 6em;" required>
+        <input type="text" name="into" placeholder="{{ merge_placeholder }}" style="width: {{ merge_placeholder|length|add:1 }}ch;" required>
     </form>
 </li>

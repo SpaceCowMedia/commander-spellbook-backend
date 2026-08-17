@@ -1,4 +1,5 @@
 from collections import defaultdict
+from collections.abc import Mapping
 from typing import Any
 from urllib.parse import urlencode
 from adminsortable2.admin import CustomInlineFormSet
@@ -78,6 +79,18 @@ def submitted_quantities(formset: BaseModelFormSet | None, related_field_name: s
     return quantity_by_id
 
 
+def submitted_multiple_copies(data: Mapping[str, Any], prefix: str) -> bool:
+    '''Whether the submitted inline rows with the given prefix require more than one copy of something.'''
+    total_forms: str = data.get(f'{prefix}-TOTAL_FORMS', '0')
+    if not total_forms.isdigit():
+        return False
+    for i in range(int(total_forms)):
+        quantity: str = data.get(f'{prefix}-{i}-quantity', '1')
+        if quantity.isdigit() and int(quantity) > 1 and data.get(f'{prefix}-{i}-DELETE', 'off') != 'on':
+            return True
+    return False
+
+
 def duplicate_combos_links(duplicate_combo_ids: list[int]) -> SafeString:
     links = format_html_join(
         ', ',
@@ -93,6 +106,12 @@ def duplicate_combos_links(duplicate_combo_ids: list[int]) -> SafeString:
 
 
 class ComboForm(SpellbookAdminForm):
+    def clean(self) -> dict[str, Any]:
+        cleaned_data = super().clean() or {}
+        if not cleaned_data.get('allow_multiple_copies') and any(submitted_multiple_copies(self.data, prefix) for prefix in ('cardincombo_set', 'templateincombo_set')):
+            self.add_error('allow_multiple_copies', 'Cannot require more than one copy of the same card or template without allowing multiple copies')
+        return cleaned_data
+
     def variants_of_this(self):
         if self.instance.pk is None:
             return Variant.objects.none()
@@ -522,6 +541,16 @@ class ComboAdmin(SpellbookModelAdmin):
         response = super()._changeform_view(request, object_id, form_url, extra_context)  # type: ignore  # private method
         duplicate_combos: list[int] | None = getattr(request, 'duplicate_combos_to_confirm', None)
         if duplicate_combos:
+            if response.context_data['adminform'].form.errors:
+                # A combo with errors of its own is shown back to the editor with them, instead of the confirmation page
+                messages.warning(request, format_html(
+                    'This combo would still be a duplicate of {} other {}, with ids: {}, once the errors below are fixed.'
+                    ' Saving it again will then ask you to confirm the duplicate.',
+                    len(duplicate_combos),
+                    'combo' if len(duplicate_combos) == 1 else 'combos',
+                    duplicate_combos_links(duplicate_combos),
+                ))
+                return response
             if request.method == 'POST' and '_saveasnew' in request.POST:
                 object_id = None  # saving as new adds a combo, like the add form does
             return self.render_duplicate_confirmation(request, object_id, duplicate_combos)

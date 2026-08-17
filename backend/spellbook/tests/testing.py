@@ -187,6 +187,34 @@ class SpellbookTestCaseWithSeeding(SpellbookTestCase):
     expected_variant_count = 8
     admin: User
     user: User
+    # Ids of the seeded objects, assigned by setUpTestData
+    c1_id: int
+    c2_id: int
+    c3_id: int
+    c4_id: int
+    c5_id: int
+    c6_id: int
+    c7_id: int
+    c8_id: int
+    t1_id: int
+    t2_id: int
+    f1_id: int
+    f2_id: int
+    f3_id: int
+    f4_id: int
+    f5_id: int
+    f6_id: int
+    b1_id: int
+    b2_id: int
+    b3_id: int
+    b4_id: int
+    b5_id: int
+    b6_id: int
+    b7_id: int
+    b8_id: int
+    b9_id: int
+    s1_id: int
+    a1_id: str
 
     @classmethod
     def setUpTestData(cls):

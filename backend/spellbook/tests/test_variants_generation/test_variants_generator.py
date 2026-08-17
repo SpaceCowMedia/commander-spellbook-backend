@@ -4,7 +4,7 @@ from unittest import mock, skipUnless
 from django.db.models import Count
 from spellbook.models.combo import CardInCombo, FeatureNeededInCombo
 from spellbook.models.feature_attribute import FeatureAttribute
-from spellbook.tests.testing import SpellbookTestCaseWithSeeding
+from spellbook.tests.testing import SpellbookTestCase, SpellbookTestCaseWithSeeding
 from spellbook.models import Variant, Card, OrderedIngredient, CardInVariant, TemplateInVariant, Template, Combo, Feature, VariantAlias, FeatureOfCard, ZoneLocation
 from spellbook.models import VariantGenerationFingerprints, VariantOfCombo, FeatureProducedByVariant, id_from_cards_and_templates_ids
 from spellbook.variants.combo_graph import FeatureWithAttributes
@@ -1009,3 +1009,32 @@ class ParallelGenerationTests(SpellbookTestCaseWithSeeding):
         with self.workers(1):
             added, restored, deleted = generate_variants()
         self.assertEqual((added, restored, deleted), (0, 0, 0))
+
+
+class ParallelGenerationOverACycleTests(SpellbookTestCase):
+    '''One graph is shared by every generator combo of a group, and the two paths take its combos in a
+    different order: the workers chunk them, while the serial path walks them in sequence. Guards the two
+    from drifting apart over a graph with a cycle, which is where they would drift first.
+
+    It does not pin the cycle caching bug: merging the definitions of every combo recovers what an
+    individual walk loses, so this passes with that bug present. ComboGraphCycleCachingTest is what pins
+    it, one level down, where a walk's own result is visible.'''
+
+    def setUp(self):
+        super().setUp()
+        self.setup_combo_graph({
+            'A': ('f',),
+            'B': ('g',),
+            ('h', 'C'): ('f',),      # combo 1: needs h, produces f
+            ('f', 'D'): ('h',),      # combo 2: needs f, produces h
+            ('f', 'E'): ('k',),      # combo 3: needs f, produces k
+            ('g', 'h'): ('m',),      # combo 4: reaches combo 2 through h
+        })
+
+    @skipUnless(parallelism_is_available(), 'parallel generation requires the fork start method and a non-daemonic process')
+    def test_parallel_generation_matches_serial_over_a_cycle(self):
+        data = Data()
+        serial = get_variants_from_graph(data=data, workers=1)
+        with mock.patch.object(variants_generator, 'MIN_COMBOS_FOR_PARALLELISM', 1):
+            parallel = get_variants_from_graph(data=data, workers=2)
+        self.assertEqual(serial, parallel)

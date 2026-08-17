@@ -425,9 +425,19 @@ class Graph:
 
     @staticmethod
     def _cached_text_variant_set(node: Node, variant_set: VariantSet) -> VariantSet:
-        '''The text counterpart of an already computed variant set, which the two are stored together.'''
+        '''The text counterpart of an already computed variant set, the two being stored together.'''
         text_variant_set = node.text_variant_set
         return variant_set if text_variant_set is None else text_variant_set
+
+    @staticmethod
+    def _resolved(node: NodeWithState, variant_set: VariantSet, text_variant_set: VariantSet, complete: bool) -> tuple[VariantSet, VariantSet, bool]:
+        '''The single way out of a walk of a node. Only a complete result is stored, so that what is cached
+        can never be an under-approximation owed to the cycle the walk happened to be in the middle of.'''
+        if complete:
+            node.variant_set = variant_set
+            node.text_variant_set = text_variant_set
+        node.state = NodeState.VISITED
+        return variant_set, text_variant_set, complete
 
     def _error(self, msg: str):
         raise Exception(msg)
@@ -456,7 +466,7 @@ class Graph:
     def variants(self, combo_id: int) -> VariantSet:
         combo_node = self.combo_nodes[combo_id]
         self._reset()
-        variant_set, _ = self._combo_nodes_down(combo_node)
+        variant_set, _, _ = self._combo_nodes_down(combo_node)
         return variant_set
 
     def results(self, variant_set: VariantSet) -> list[VariantRecipe]:
@@ -467,14 +477,16 @@ class Graph:
             result.append(recipe)
         return result
 
-    def _combo_nodes_down(self, combo: ComboNode) -> tuple[VariantSet, VariantSet]:
-        '''The variant set of a combo and the one restricted to its ingredients in text substitutions,
-        the second being the first itself for the combos no opted out ingredient reaches.'''
+    def _combo_nodes_down(self, combo: ComboNode) -> tuple[VariantSet, VariantSet, bool]:
+        '''The variant set of a combo, the one restricted to its ingredients in text substitutions, and
+        whether the walk saw everything it depends on. The second is the first itself for the combos no
+        opted out ingredient reaches.'''
         cached = combo.variant_set
         if cached is not None:
             combo.state = NodeState.VISITED
-            return cached, self._cached_text_variant_set(combo, cached)
+            return cached, self._cached_text_variant_set(combo, cached), True
         combo.state = NodeState.VISITING
+        complete = True
         # The sets restricted to the ingredients in text substitutions are collected alongside the whole
         # ones, reusing the very same conjuncts: only the combos an opted out ingredient reaches fill them.
         card_variant_sets: list[VariantSet] = []
@@ -482,7 +494,7 @@ class Graph:
         for c, q in combo.cards.items():
             variant_set = VariantSet.product_sets([c.variant_set] * q, parameters=self.variant_set_parameters)
             if not variant_set:
-                return self._unsatisfiable(combo)
+                return self._resolved(combo, variant_set, variant_set, complete)
             card_variant_sets.append(variant_set)
             if combo.texts_differ and c in combo.cards_for_texts:
                 text_variant_sets_of_ingredients.append(variant_set)
@@ -490,7 +502,7 @@ class Graph:
         for t, q in combo.templates.items():
             variant_set = VariantSet.product_sets([t.variant_set] * q, parameters=self.variant_set_parameters)
             if not variant_set:
-                return self._unsatisfiable(combo)
+                return self._resolved(combo, variant_set, variant_set, complete)
             template_variant_sets.append(variant_set)
             if combo.texts_differ and t in combo.templates_for_texts:
                 text_variant_sets_of_ingredients.append(variant_set)
@@ -503,11 +515,13 @@ class Graph:
             features_needed_for_texts: Mapping[FeatureWithAttributesMatcherNode, int] = combo.features_needed_for_texts.get(feature, {}) if combo.texts_differ else {}
             for f, q in features_needed.items():
                 if f.state is NodeState.VISITING:
-                    # deliberately not cached: this emptiness only says that the walk is in the middle of
-                    # the cycle this combo belongs to, and the combo can be resolved for real later on
+                    # left uncached, and still visiting, on purpose: this emptiness only says that the
+                    # walk is in the middle of the cycle this combo belongs to, and the combo can be
+                    # resolved for real later on
                     empty = VariantSet(parameters=self.variant_set_parameters)
-                    return empty, empty
-                variant_set, text_variant_set = self._feature_with_attribute_matchers_nodes_down(f)
+                    return empty, empty, False
+                variant_set, text_variant_set, complete_below = self._feature_with_attribute_matchers_nodes_down(f)
+                complete = complete and complete_below
                 variant_sets.extend([variant_set] * q)
                 text_variant_sets.extend([text_variant_set] * features_needed_for_texts.get(f, 0))
             variant_count_estimate = 0
@@ -517,7 +531,7 @@ class Graph:
                 raise GraphError(f'{len(variant_sets)} x Feature "{feature}" has too many variants, approx. {variant_count_estimate}')
             variant_set = VariantSet.product_sets(variant_sets, parameters=self.variant_set_parameters)
             if not variant_set:
-                return self._unsatisfiable(combo)
+                return self._resolved(combo, variant_set, variant_set, complete)
             needed_features_variant_sets.append(variant_set)
             if text_variant_sets:
                 text_variant_sets_of_ingredients.append(VariantSet.product_sets(text_variant_sets, parameters=self.variant_set_parameters))
@@ -530,56 +544,48 @@ class Graph:
         variant_set = VariantSet.and_sets(variant_sets, parameters=self.variant_set_parameters)
         # the estimate above is not repeated because these sets are a subset of the ones it covered
         text_variant_set = VariantSet.and_sets(text_variant_sets_of_ingredients, parameters=self.variant_set_parameters) if combo.texts_differ else variant_set
-        combo.variant_set = variant_set
-        combo.text_variant_set = text_variant_set
-        combo.state = NodeState.VISITED
-        return variant_set, text_variant_set
+        return self._resolved(combo, variant_set, text_variant_set, complete)
 
-    def _unsatisfiable(self, combo: ComboNode) -> tuple[VariantSet, VariantSet]:
-        '''Nothing satisfies the combo, because one of the things it requires has no variants at all.'''
-        empty = VariantSet(parameters=self.variant_set_parameters)
-        combo.variant_set = empty
-        combo.text_variant_set = empty
-        combo.state = NodeState.VISITED
-        return empty, empty
-
-    def _feature_with_attribute_matchers_nodes_down(self, feature: FeatureWithAttributesMatcherNode) -> tuple[VariantSet, VariantSet]:
+    def _feature_with_attribute_matchers_nodes_down(self, feature: FeatureWithAttributesMatcherNode) -> tuple[VariantSet, VariantSet, bool]:
         cached = feature.variant_set
         if cached is not None:
             feature.state = NodeState.VISITED
-            return cached, self._cached_text_variant_set(feature, cached)
+            return cached, self._cached_text_variant_set(feature, cached), True
         feature.state = NodeState.VISITING
         variant_sets: list[VariantSet] = []
         text_variant_sets: list[VariantSet] = []
+        complete = True
         for m in feature.matches:
             if m.state is NodeState.VISITING:
+                complete = False
                 continue
             # an empty set is kept: joining it into the union below changes nothing
-            variant_set, text_variant_set = self._feature_with_attributes_nodes_down(m)
+            variant_set, text_variant_set, complete_below = self._feature_with_attributes_nodes_down(m)
+            complete = complete and complete_below
             variant_sets.append(variant_set)
             if feature.texts_differ:
                 text_variant_sets.append(text_variant_set)
         variant_set = VariantSet.or_sets(variant_sets, parameters=self.variant_set_parameters)
         text_variant_set = VariantSet.or_sets(text_variant_sets, parameters=self.variant_set_parameters) if feature.texts_differ else variant_set
-        feature.variant_set = variant_set
-        feature.text_variant_set = text_variant_set
-        feature.state = NodeState.VISITED
-        return variant_set, text_variant_set
+        return self._resolved(feature, variant_set, text_variant_set, complete)
 
-    def _feature_with_attributes_nodes_down(self, feature: FeatureWithAttributesNode) -> tuple[VariantSet, VariantSet]:
+    def _feature_with_attributes_nodes_down(self, feature: FeatureWithAttributesNode) -> tuple[VariantSet, VariantSet, bool]:
         cached = feature.variant_set
         if cached is not None:
             feature.state = NodeState.VISITED
-            return cached, self._cached_text_variant_set(feature, cached)
+            return cached, self._cached_text_variant_set(feature, cached), True
         feature.state = NodeState.VISITING
+        complete = True
         # a card producing a feature is always its own replacement, so it takes part in the texts as it is
         card_variant_sets: list[VariantSet] = [f.variant_set for f in feature.produced_by_cards]
         produced_combos_variant_sets: list[VariantSet] = []
         text_produced_combos_variant_sets: list[VariantSet] = []
         for c in feature.produced_by_combos:
             if c.state is NodeState.VISITING:
+                complete = False
                 continue
-            variant_set, text_variant_set = self._combo_nodes_down(c)
+            variant_set, text_variant_set, complete_below = self._combo_nodes_down(c)
+            complete = complete and complete_below
             produced_combos_variant_sets.append(variant_set)
             if feature.texts_differ:
                 text_produced_combos_variant_sets.append(text_variant_set)
@@ -591,10 +597,7 @@ class Graph:
             raise GraphError(f'Feature "{feature.item}" has too many variants, approx. {variant_count_estimate}')
         variant_set = VariantSet.or_sets(variant_sets, parameters=self.variant_set_parameters)
         text_variant_set = VariantSet.or_sets(card_variant_sets + text_produced_combos_variant_sets, parameters=self.variant_set_parameters) if feature.texts_differ else variant_set
-        feature.variant_set = variant_set
-        feature.text_variant_set = text_variant_set
-        feature.state = NodeState.VISITED
-        return variant_set, text_variant_set
+        return self._resolved(feature, variant_set, text_variant_set, complete)
 
     def _card_nodes_up(self, ingredients: VariantIngredients) -> VariantRecipe:
         self.variant_set_parameters = VariantSetParameters(
@@ -687,7 +690,7 @@ class Graph:
                     # variant set is only used to determine the amount of times the combo is used
                     self.subgraph = True
                     self._reset()
-                    variant_set, text_variant_set = self._combo_nodes_down(combo)
+                    variant_set, text_variant_set, _ = self._combo_nodes_down(combo)
                     self.subgraph = False
             combo.state = NodeState.VISITED
             combo_nodes.add(combo)

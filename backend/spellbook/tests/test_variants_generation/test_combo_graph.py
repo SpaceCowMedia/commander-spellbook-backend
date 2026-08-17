@@ -1138,6 +1138,39 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         ])
 
 
+class ComboGraphCycleCachingTest(SpellbookTestCase):
+    '''A variant set computed while a node it depends on was still being visited is an under-approximation
+    owed to the combo the walk started from. Caching it would let whichever combo a graph happened to walk
+    first decide what every later walk on that graph is allowed to find.'''
+
+    def assertAgreesWithFreshGraphs(self, combo_ids: tuple[int, ...]):
+        data = Data()
+        reused = Graph(data)
+        for combo_id in combo_ids:
+            with self.subTest(combo=combo_id):
+                fresh = Graph(data)
+                self.assertEqual(
+                    sorted(str(v.cards) for v in reused.results(reused.variants(combo_id))),
+                    sorted(str(v.cards) for v in fresh.results(fresh.variants(combo_id))),
+                )
+
+    def setup_cycle(self):
+        '''Walking combo 3 reaches combo 2 while the matcher of f is being visited, so the cycle guard
+        abandons it. Combo 2 is satisfiable on its own, and the walks after it have to see that.'''
+        self.setup_combo_graph({
+            'A': ('f',),
+            'B': ('g',),
+            ('h', 'C'): ('f',),      # combo 1: needs h, produces f
+            ('f', 'D'): ('h',),      # combo 2: needs f, produces h
+            ('f', 'E'): ('k',),      # combo 3: needs f, produces k
+            ('g', 'h'): ('m',),      # combo 4: reaches combo 2 through h
+        })
+
+    def test_a_combo_abandoned_by_the_cycle_guard_is_resolved_by_later_walks(self):
+        self.setup_cycle()
+        self.assertAgreesWithFreshGraphs((3, 4, 1, 2))
+
+
 class ComboGraphTextSubstitutionsTest(SpellbookTestCase):
     '''An ingredient not in text substitutions is left out of the replacements of the features its combo
     produces, while still taking part in matching the combo and in counting how many times it fires.'''

@@ -4,7 +4,7 @@ description = "Commander Spellbook Reddit bot."
 requires-python = ">=3.14"
 dynamic = ["version"]
 dependencies = [
-    "asyncpraw==8.0.2",
+    "asyncpraw==8.0.3",
     # spellbook_client is provided on PYTHONPATH rather than installed, so its runtime
     # dependencies are listed here.
     "urllib3==2.7.0",

@@ -117,7 +117,7 @@ wheels = [
 
 [[package]]
 name = "asyncpraw"
-version = "8.0.2"
+version = "8.0.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiofiles" },
@@ -126,9 +126,9 @@ dependencies = [
     { name = "defusedxml" },
     { name = "update-checker", extra = ["async"] },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/2f/80/18a6ff36987f18191287f30dc136d29e0c945bbea0145d5a85978fcefbb4/asyncpraw-8.0.2.tar.gz", hash = "sha256:a242b20505d65066f8bb63c6ae29a22dc1b070b13baf4e2303cd13d12103e977", size = 13683324, upload-time = "2026-06-24T00:06:06.29Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/64/0a/c9fcc85d6f11ec22718a7f840ed75eb9d4a4b57b337405f2eff596913cd6/asyncpraw-8.0.3.tar.gz", hash = "sha256:75cbde1113bbb0b6e66ece88108be98d78c8adc5432724336b3dcd10dfdc6075", size = 13685587, upload-time = "2026-08-12T16:56:59.922Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f3/6b/80d1d7cb839095cfa57a44f1f849f37081adf7262e8d7c8d08a0e09527ff/asyncpraw-8.0.2-py3-none-any.whl", hash = "sha256:ead582ef880f52b828e190707604778d372c7d54cdad8f44c4f969793b6108f0", size = 205273, upload-time = "2026-06-24T00:06:04.423Z" },
+    { url = "https://files.pythonhosted.org/packages/80/2c/002dc533e88a090e69a58cd367d4aa119f053ce02b8940b01e4ede3cddd3/asyncpraw-8.0.3-py3-none-any.whl", hash = "sha256:3eda9e3a75cb10e3857e58e1878ae3f93737bf40363857323ba47f94a9bbac30", size = 205860, upload-time = "2026-08-12T16:56:57.862Z" },
 ]
 
 [[package]]
@@ -393,7 +393,7 @@ dependencies = [
 requires-dist = [
     { name = "aiohttp", specifier = "==3.14.3" },
     { name = "aiohttp-retry", specifier = "==2.9.1" },
-    { name = "asyncpraw", specifier = "==8.0.2" },
+    { name = "asyncpraw", specifier = "==8.0.3" },
     { name = "pydantic", specifier = "==2.13.4" },
     { name = "python-dateutil", specifier = "==2.9.0.post0" },
     { name = "urllib3", specifier = "==2.7.0" },

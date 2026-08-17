@@ -317,6 +317,50 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
         self.assertSetEqual({c.name for c in variant.uses.all()}, {'Transitive Card One', 'Transitive Card Two'})
         self.assertEqual(variant.description, 'a mention of Transitive Card Two here')
 
+    def test_replacement_leaves_out_an_ingredient_not_in_text_substitutions(self):
+        '''The shape of issue #1213: a utility combo needs two cards to produce its feature, but only
+        one of them is worth naming in the texts referencing that feature.'''
+        named_card = Card.objects.create(name='Named Card', type_line='Instant')
+        unnamed_card = Card.objects.create(name='Unnamed Card', type_line='Creature - Elf')
+        utility_feature = Feature.objects.create(name='UF', status=Feature.Status.HIDDEN_UTILITY)
+        produced_feature = Feature.objects.create(name='PF', status=Feature.Status.STANDALONE)
+        utility = Combo.objects.create(status=Combo.Status.UTILITY)
+        CardInCombo.objects.create(combo=utility, card=named_card, order=1, zone_locations=ZoneLocation.HAND)
+        CardInCombo.objects.create(combo=utility, card=unnamed_card, order=2, zone_locations=ZoneLocation.BATTLEFIELD, in_text_substitutions=False)
+        utility.produces.add(utility_feature)
+        main = Combo.objects.create(status=Combo.Status.GENERATOR, description='Cast [[UF]] by paying its mana cost')
+        FeatureNeededInCombo.objects.create(combo=main, feature=utility_feature, order=1)
+        main.produces.add(produced_feature)
+
+        self.generate_variants()
+
+        variant = Variant.objects.get(of=main)
+        # the opted out card is still required by the variant, it is only left out of the text
+        self.assertSetEqual({c.name for c in variant.uses.all()}, {'Named Card', 'Unnamed Card'})
+        self.assertEqual(variant.description, 'Cast Named Card by paying its mana cost')
+
+    def test_a_needed_feature_override_skips_an_ingredient_not_in_text_substitutions(self):
+        '''Applying the restricted replacements everywhere means the zone override of a needed feature
+        row reaches only the cards that replace it in the texts.'''
+        named_card = Card.objects.create(name='Overridden Card', type_line='Instant')
+        unnamed_card = Card.objects.create(name='Untouched Card', type_line='Creature - Elf')
+        utility_feature = Feature.objects.create(name='UOF', status=Feature.Status.HIDDEN_UTILITY)
+        produced_feature = Feature.objects.create(name='POF', status=Feature.Status.STANDALONE)
+        utility = Combo.objects.create(status=Combo.Status.UTILITY)
+        CardInCombo.objects.create(combo=utility, card=named_card, order=1, zone_locations=ZoneLocation.HAND)
+        CardInCombo.objects.create(combo=utility, card=unnamed_card, order=2, zone_locations=ZoneLocation.BATTLEFIELD, in_text_substitutions=False)
+        utility.produces.add(utility_feature)
+        main = Combo.objects.create(status=Combo.Status.GENERATOR)
+        FeatureNeededInCombo.objects.create(combo=main, feature=utility_feature, order=1, zone_locations=ZoneLocation.GRAVEYARD)
+        main.produces.add(produced_feature)
+
+        self.generate_variants()
+
+        variant = Variant.objects.get(of=main)
+        zone_locations = {c.card.name: c.zone_locations for c in variant.cardinvariant_set.all()}
+        self.assertEqual(zone_locations['Overridden Card'], ZoneLocation.GRAVEYARD)
+        self.assertEqual(zone_locations['Untouched Card'], ZoneLocation.BATTLEFIELD)
+
     def test_restore_variant(self):
         data = Data()
         variants = get_variants_from_graph(data)

@@ -7,7 +7,7 @@ from .recipe import Recipe
 from .card import Card, WithUsedFace
 from .feature import Feature
 from .template import Template
-from .ingredient import OrderedIngredient, ZoneLocationsField
+from .ingredient import ComboIngredient, ZoneLocationsField
 from .utils import case_insensitive_trigram_indexes
 from .validators import MANA_VALIDATOR, TEXT_VALIDATORS
 from .constants import HIGHER_CARD_LIMIT, DEFAULT_CARD_LIMIT, LOWER_VARIANT_LIMIT, DEFAULT_VARIANT_LIMIT, MAX_MANA_NEEDED_LENGTH
@@ -103,7 +103,7 @@ class Combo(Recipe, ScryfallLinkMixin):
     is_mana_needed_an_accurate_minimum = models.BooleanField(default=True, help_text='Does the first mana cost in this field represent the MINIMUM needed to start the combo, ignoring all other text?')
     easy_prerequisites = models.TextField(blank=True, help_text='Easily achievable prerequisites for this combo.', validators=TEXT_VALIDATORS)
     notable_prerequisites = models.TextField(blank=True, help_text='Notable prerequisites for this combo.', validators=TEXT_VALIDATORS)
-    description = models.TextField(blank=True, help_text='Long description of the combo, in steps. Here and in every other text field you can reference feature replacements with the [[name]] syntax. Optionally, you can also give it an alias to use later with [[name|alias]] and/or select one of the multiple copies with [[name$number]], where the number is the position of the needed feature row among the ones this combo needs for that feature, or with [[name$attribute]], where the attribute is the name of one of the attributes the feature was produced with.', validators=TEXT_VALIDATORS)
+    description = models.TextField(blank=True, help_text='Long description of the combo, in steps. Here and in every other text field you can reference feature replacements with the [[name]] syntax. Optionally, you can also give it an alias to use later with [[name|alias]] and/or select one of the multiple copies with [[name$number]], where the number is the position of the needed feature row among the ones this combo needs for that feature, or with [[name$attribute]], where the attribute is the name of one of the attributes the feature was produced with. Uncheck "in text substitutions" on an ingredient to keep it out of the replacements of the features this combo produces.', validators=TEXT_VALIDATORS)
     notes = models.TextField(blank=True, help_text='Notes about the combo that will be displayed on the site', validators=TEXT_VALIDATORS)
     status = models.CharField(choices=Status.choices, default=Status.DRAFT, help_text='Is this combo a generator for variants?', verbose_name='status', max_length=2)
     allow_many_cards = models.BooleanField(default=False, help_text=f'Allow variants to have more cards ({HIGHER_CARD_LIMIT}) than the default limit ({DEFAULT_CARD_LIMIT}). On the other hand, with this option enabled, the limit on the number of allowed variants is lowered to {LOWER_VARIANT_LIMIT}, instead of the default {DEFAULT_VARIANT_LIMIT}.')
@@ -156,7 +156,7 @@ class Combo(Recipe, ScryfallLinkMixin):
             raise ValidationError(f'If {self._meta.get_field('mana_needed').verbose_name} is empty, {self._meta.get_field('is_mana_needed_an_accurate_minimum').verbose_name} must be True.')  # pyright: ignore[reportAttributeAccessIssue]
 
 
-class CardInCombo(OrderedIngredient, WithUsedFace):
+class CardInCombo(ComboIngredient, WithUsedFace):
     id: int
     combo = models.ForeignKey(to=Combo, on_delete=models.CASCADE)
     combo_id: int
@@ -164,12 +164,12 @@ class CardInCombo(OrderedIngredient, WithUsedFace):
     def __str__(self):
         return f'{self.card} in combo {self.combo_id}'
 
-    class Meta(OrderedIngredient.Meta):
+    class Meta(ComboIngredient.Meta):
         unique_together = [('card', 'combo')]
-        indexes = OrderedIngredient.card_state_trigram_indexes('cic')
+        indexes = ComboIngredient.card_state_trigram_indexes('cic')
 
 
-class TemplateInCombo(OrderedIngredient):
+class TemplateInCombo(ComboIngredient):
     id: int
     template = models.ForeignKey(to=Template, on_delete=models.CASCADE)
     template_id: int
@@ -179,12 +179,12 @@ class TemplateInCombo(OrderedIngredient):
     def __str__(self):
         return f'{self.template} in combo {self.combo_id}'
 
-    class Meta(OrderedIngredient.Meta):
+    class Meta(ComboIngredient.Meta):
         unique_together = [('template', 'combo')]
-        indexes = OrderedIngredient.card_state_trigram_indexes('tic')
+        indexes = ComboIngredient.card_state_trigram_indexes('tic')
 
 
-class FeatureNeededInCombo(OrderedIngredient, WithFeatureAttributesMatcher):
+class FeatureNeededInCombo(ComboIngredient, WithFeatureAttributesMatcher):
     id: int
     combo = models.ForeignKey(to=Combo, on_delete=models.CASCADE)
     combo_id: int
@@ -198,8 +198,8 @@ class FeatureNeededInCombo(OrderedIngredient, WithFeatureAttributesMatcher):
         if self.quantity > 1 and self.feature.uncountable:
             raise ValidationError('Uncountable features can only appear in one copy.')
 
-    class Meta(OrderedIngredient.Meta):
-        indexes = OrderedIngredient.card_state_trigram_indexes('fnic')
+    class Meta(ComboIngredient.Meta):
+        indexes = ComboIngredient.card_state_trigram_indexes('fnic')
 
 
 class FeatureProducedInCombo(WithFeatureAttributes):

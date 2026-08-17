@@ -109,3 +109,10 @@ class OrderedIngredient(Ingredient):
     class Meta(Ingredient.Meta):
         abstract = True
         ordering = ['order', 'id']
+
+
+class ComboIngredient(OrderedIngredient):
+    in_text_substitutions = models.BooleanField(default=True, help_text='Does this ingredient appear in the text that replaces the features this combo produces?', verbose_name='in text substitutions')
+
+    class Meta(OrderedIngredient.Meta):
+        abstract = True

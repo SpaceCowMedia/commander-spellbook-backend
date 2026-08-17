@@ -21,6 +21,9 @@ from spellbook.variants.variant_data cimport Data
 cdef class Node:
     cdef VariantSet _variant_set
     cdef VariantSet _filtered_variant_set
+    cdef VariantSet _text_variant_set
+    cdef VariantSet _filtered_text_variant_set
+    cdef public bint texts_differ
     cdef Graph _graph
     cdef readonly object item
     cdef Py_hash_t _hash
@@ -30,6 +33,7 @@ cdef class Node:
     cpdef _reset_state(self)
     cpdef _reset_subgraph_state(self)
     cpdef _reset_filtered_variant_set(self)
+    cpdef _reset_filtered_text_variant_set(self)
 
 
 cdef class NodeWithState(Node):
@@ -71,6 +75,9 @@ cdef class ComboNode(NodeWithState):
     cdef readonly Multiset templates
     cdef readonly dict features_needed
     cdef readonly list features_produced
+    cdef readonly Multiset cards_for_texts
+    cdef readonly Multiset templates_for_texts
+    cdef readonly dict features_needed_for_texts
 
 
 cpdef bint satisfies(object produced, object needed)
@@ -87,11 +94,13 @@ cdef class Graph:
     cdef set _to_reset_nodes_state
     cdef set _to_reset_nodes_subgraph_state
     cdef set _to_reset_nodes_filtered_variant_set
+    cdef set _to_reset_nodes_filtered_text_variant_set
 
+    cpdef _mark_nodes_with_differing_texts(self)
     cpdef _reset(self)
     cpdef list results(self, VariantSet variant_set)
-    cpdef VariantSet _combo_nodes_down(self, ComboNode combo)
-    cpdef VariantSet _feature_with_attribute_matchers_nodes_down(self, FeatureWithAttributesMatcherNode feature)
-    cpdef VariantSet _feature_with_attributes_nodes_down(self, FeatureWithAttributesNode feature)
+    cpdef tuple _combo_nodes_down(self, ComboNode combo)
+    cpdef tuple _feature_with_attribute_matchers_nodes_down(self, FeatureWithAttributesMatcherNode feature)
+    cpdef tuple _feature_with_attributes_nodes_down(self, FeatureWithAttributesNode feature)
     cpdef set _uncountable_feature_blockers(self, ComboNode combo, set available)
     cpdef set _countable_feature_blockers(self, ComboNode combo, dict available)

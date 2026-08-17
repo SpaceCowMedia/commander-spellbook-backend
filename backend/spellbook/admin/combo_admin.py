@@ -20,7 +20,7 @@ from django.tasks import TaskResult
 from spellbook.models import Card, FeatureNeededInCombo, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, ZoneLocation
 from spellbook.tasks import generate_variants_task
 from .utils import SpellbookModelAdmin, SpellbookAdminForm, CustomFilter, IngredientCountListFilter
-from .ingredient_admin import IngredientForm, OrderedIngredientAdmin
+from .ingredient_admin import ComboIngredientAdmin, IngredientForm
 
 
 DUPLICATE_CONFIRMATION_INPUT_NAME = '_confirm_duplicate'
@@ -157,7 +157,7 @@ class ComboIngredientInlineFormSet(CustomInlineFormSet):
             form.fields['zone_locations'].required = False
 
 
-class ComboIngredientAdminInline(OrderedIngredientAdmin):
+class ComboIngredientAdminInline(ComboIngredientAdmin):
     '''Inline of an ingredient of a combo. Starting locations are optional on utility combos, since they don't
     restrict what such a combo matches: leaving them blank saves the ingredient as starting in every zone.'''
     form = ComboIngredientForm
@@ -165,7 +165,7 @@ class ComboIngredientAdminInline(OrderedIngredientAdmin):
 
 
 class CardInComboAdminInline(ComboIngredientAdminInline):
-    fields = ['card', OrderedIngredientAdmin.fields[0], 'used_face', *OrderedIngredientAdmin.fields[1:]]  # pyright: ignore[reportGeneralTypeIssues]
+    fields = ['card', ComboIngredientAdmin.fields[0], 'used_face', *ComboIngredientAdmin.fields[1:]]  # pyright: ignore[reportGeneralTypeIssues]
     model = CardInCombo
     verbose_name = 'Card'
     verbose_name_plural = 'Required Cards'
@@ -179,7 +179,7 @@ class CardInComboAdminInline(ComboIngredientAdminInline):
 
 
 class TemplateInComboAdminInline(ComboIngredientAdminInline):
-    fields = ['template', *OrderedIngredientAdmin.fields]
+    fields = ['template', *ComboIngredientAdmin.fields]
     model = TemplateInCombo
     verbose_name = 'Template'
     verbose_name_plural = 'Required Templates'
@@ -192,10 +192,10 @@ class TemplateInComboAdminInline(ComboIngredientAdminInline):
         return result
 
 
-class FeatureNeededInComboAdminInline(OrderedIngredientAdmin):
+class FeatureNeededInComboAdminInline(ComboIngredientAdmin):
     fields = [
         'feature',
-        *OrderedIngredientAdmin.fields,
+        *ComboIngredientAdmin.fields,
         'any_of_attributes',
         'all_of_attributes',
         'none_of_attributes',
@@ -503,9 +503,29 @@ class ComboAdmin(SpellbookModelAdmin):
 
     def _create_formsets(self, request: HttpRequest, obj, change: bool):
         formsets, inline_instances = super()._create_formsets(request, obj, change)  # type: ignore  # private method
-        if request.method == 'POST' and DUPLICATE_CONFIRMATION_INPUT_NAME not in request.POST:
-            self.reject_duplicate_combo(request, obj, formsets)
+        if request.method == 'POST':
+            self.reject_combo_without_text_substitutions(formsets)
+            if DUPLICATE_CONFIRMATION_INPUT_NAME not in request.POST:
+                self.reject_duplicate_combo(request, obj, formsets)
         return formsets, inline_instances
+
+    def reject_combo_without_text_substitutions(self, formsets: list[BaseModelFormSet]):
+        '''
+        Reject a combo whose every ingredient opted out of text substitutions, because the features it
+        produces would then have nothing to be replaced with in the texts referencing them.
+        '''
+        formsets_by_model = {formset.model: formset for formset in formsets}
+        rows = list[dict[str, Any]]()
+        for model in (CardInCombo, TemplateInCombo, FeatureNeededInCombo):
+            formset = formsets_by_model.get(model)
+            if formset is None or not formset.is_valid():
+                return  # the submitted data has errors of its own, and is going to be shown back to the editor anyway
+            rows.extend(form_data for form_data in formset.cleaned_data if form_data and not form_data.get('DELETE'))
+        if rows and not any(form_data.get('in_text_substitutions') for form_data in rows):
+            formsets_by_model[CardInCombo].non_form_errors().append(
+                'This combo was not saved, because none of its ingredients is in text substitutions.'
+                ' Check that box on at least one of them, so that the features it produces have something to be replaced with.'
+            )
 
     def reject_duplicate_combo(self, request: HttpRequest, obj: Combo | None, formsets: list[BaseModelFormSet]):
         '''

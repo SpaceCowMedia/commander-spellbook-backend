@@ -37,6 +37,18 @@ div.inline-related fieldset div.wrapper table tr > td.original p {
     z-index: 3;
 }
 
+/* On narrow screens the frozen first column would eat most of the viewport,
+   so let it scroll away with the rest of the row. */
+@media (max-width: 767px) {
+    div.inline-related fieldset div.wrapper table tr > th:not(.original):first-child,
+    div.inline-related fieldset div.wrapper table tr > th.original + th,
+    div.inline-related fieldset div.wrapper table tr > td:not(.original):first-child,
+    div.inline-related fieldset div.wrapper table tr > td.original + td {
+        position: static;
+        box-shadow: none;
+    }
+}
+
 .floating-inline-scrollbar {
     position: fixed;
     bottom: 0;

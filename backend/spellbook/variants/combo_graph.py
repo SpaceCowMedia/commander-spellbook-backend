@@ -319,6 +319,7 @@ class Graph:
             allow_multiple_copies=False):
         self.variant_limit = variant_limit
         self.variant_set_parameters = VariantSetParameters(max_depth=card_limit, allow_multiple_copies=allow_multiple_copies)
+        self._empty_variant_set = VariantSet(parameters=self.variant_set_parameters)
         self.subgraph = False
         self.data = data
         # shared so that every producer and consumer of a feature gets the same node, and local because they die with the construction
@@ -401,9 +402,13 @@ class Graph:
         return node
 
     @staticmethod
-    def _cached(node: NodeWithState, variant_set: VariantSet) -> tuple[VariantSet, VariantSet, bool]:
-        '''The way out of a walk of a node an earlier one already resolved. The same _resolved call stored
-        its replacement counterpart, so that is there too, and both are complete.'''
+    def _cached(node: NodeWithState) -> tuple[VariantSet, VariantSet, bool] | None:
+        '''The way out of a walk of a node an earlier one already resolved, and None when there is nothing
+        to walk out of. The same _resolved call stored its replacement counterpart, so that is there too,
+        and both are complete.'''
+        variant_set = node.variant_set
+        if variant_set is None:
+            return None
         replacement_variant_set = node.replacement_variant_set
         assert replacement_variant_set is not None
         node.state = NodeState.VISITED
@@ -422,8 +427,11 @@ class Graph:
     def _unresolved(self) -> tuple[VariantSet, VariantSet, bool]:
         '''The way out of a walk that ran into the cycle the node belongs to. Nothing is cached and the node
         is left visiting on purpose: this emptiness only says the walk was in the middle of that cycle, and
-        the node can be resolved for real later on.'''
-        empty = VariantSet(parameters=self.variant_set_parameters)
+        the node can be resolved for real later on. The empty set is shared, being read only, and rebuilt
+        only when the parameters it was built for are replaced.'''
+        empty = self._empty_variant_set
+        if empty.parameters is not self.variant_set_parameters:
+            empty = self._empty_variant_set = VariantSet(parameters=self.variant_set_parameters)
         return empty, empty, False
 
     def _error(self, msg: str):
@@ -468,9 +476,8 @@ class Graph:
         '''The variant set of a combo, the one restricted to its ingredients in replacements, and
         whether the walk saw everything it depends on. The second is the first itself for the combos no
         opted out ingredient reaches.'''
-        cached = combo.variant_set
-        if cached is not None:
-            return self._cached(combo, cached)
+        if cached := self._cached(combo):
+            return cached
         combo.state = NodeState.VISITING
         complete = True
         card_variant_sets: list[VariantSet] = []
@@ -527,9 +534,8 @@ class Graph:
         return self._resolved(combo, variant_set, replacement_variant_set, complete)
 
     def _feature_with_attribute_matchers_nodes_down(self, feature: FeatureWithAttributesMatcherNode) -> tuple[VariantSet, VariantSet, bool]:
-        cached = feature.variant_set
-        if cached is not None:
-            return self._cached(feature, cached)
+        if cached := self._cached(feature):
+            return cached
         feature.state = NodeState.VISITING
         variant_sets: list[VariantSet] = []
         replacement_variant_sets: list[VariantSet] = []
@@ -548,9 +554,8 @@ class Graph:
         return self._resolved(feature, variant_set, replacement_variant_set, complete)
 
     def _feature_with_attributes_nodes_down(self, feature: FeatureWithAttributesNode) -> tuple[VariantSet, VariantSet, bool]:
-        cached = feature.variant_set
-        if cached is not None:
-            return self._cached(feature, cached)
+        if cached := self._cached(feature):
+            return cached
         feature.state = NodeState.VISITING
         complete = True
         card_variant_sets: list[VariantSet] = [f.variant_set for f in feature.produced_by_cards]

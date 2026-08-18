@@ -86,6 +86,7 @@ cpdef bint satisfies(object produced, object needed)
 cdef class Graph:
     cdef readonly Py_ssize_t variant_limit
     cdef public VariantSetParameters variant_set_parameters
+    cdef VariantSet _empty_variant_set
     cdef public bint subgraph
     cdef readonly Data data
     cdef readonly dict card_nodes

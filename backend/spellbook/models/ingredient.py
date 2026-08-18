@@ -112,7 +112,7 @@ class OrderedIngredient(Ingredient):
 
 
 class ComboIngredient(OrderedIngredient):
-    in_text_substitutions = models.BooleanField(default=True, help_text='Does this ingredient appear in the text that replaces the features this combo produces?', verbose_name='in text substitutions')
+    in_replacements = models.BooleanField(default=True, help_text='Does this ingredient take part in the replacements of the features this combo produces? Unchecking it leaves the ingredient out of the replacement texts, and out of the starting state and location overrides too.', verbose_name='in replacements')
 
     class Meta(OrderedIngredient.Meta):
         abstract = True

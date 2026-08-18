@@ -108,18 +108,18 @@ def compute_fingerprints(data: Data) -> Fingerprints:
     combo_fingerprints = dict[int, str]()
     for combo_id, combo in data.id_to_combo.items():
         card_in_combo_rows = [
-            (card_in_combo.card_id, card_in_combo.order, card_in_combo.used_face, card_in_combo.in_text_substitutions, *(getattr(card_in_combo, field) for field in _INGREDIENT_FINGERPRINT_FIELDS))
+            (card_in_combo.card_id, card_in_combo.order, card_in_combo.used_face, card_in_combo.in_replacements, *(getattr(card_in_combo, field) for field in _INGREDIENT_FINGERPRINT_FIELDS))
             for card_in_combo in data.combo_to_cards.get(combo_id, ())
         ]
         template_in_combo_rows = [
-            (template_in_combo.template_id, template_in_combo.order, template_in_combo.in_text_substitutions, *(getattr(template_in_combo, field) for field in _INGREDIENT_FINGERPRINT_FIELDS))
+            (template_in_combo.template_id, template_in_combo.order, template_in_combo.in_replacements, *(getattr(template_in_combo, field) for field in _INGREDIENT_FINGERPRINT_FIELDS))
             for template_in_combo in data.combo_to_templates.get(combo_id, ())
         ]
         feature_needed_in_combo_rows = sorted(
             (
                 feature_needed_in_combo.feature_id,
                 feature_needed_in_combo.quantity,
-                feature_needed_in_combo.in_text_substitutions,
+                feature_needed_in_combo.in_replacements,
                 feature_needed_in_combo.zone_locations,
                 tuple(sorted(data.feature_needed_in_combo_to_attributes_matcher[feature_needed_in_combo.id].any_of)),
                 tuple(sorted(data.feature_needed_in_combo_to_attributes_matcher[feature_needed_in_combo.id].all_of)),

@@ -504,14 +504,14 @@ class ComboAdmin(SpellbookModelAdmin):
     def _create_formsets(self, request: HttpRequest, obj, change: bool):
         formsets, inline_instances = super()._create_formsets(request, obj, change)  # type: ignore  # private method
         if request.method == 'POST':
-            self.reject_combo_without_text_substitutions(formsets)
+            self.reject_combo_without_replacements(formsets)
             if DUPLICATE_CONFIRMATION_INPUT_NAME not in request.POST:
                 self.reject_duplicate_combo(request, obj, formsets)
         return formsets, inline_instances
 
-    def reject_combo_without_text_substitutions(self, formsets: list[BaseModelFormSet]):
+    def reject_combo_without_replacements(self, formsets: list[BaseModelFormSet]):
         '''
-        Reject a combo whose every ingredient opted out of text substitutions, because the features it
+        Reject a combo whose every ingredient opted out of replacements, because the features it
         produces would then have nothing to be replaced with in the texts referencing them.
         '''
         formsets_by_model = {formset.model: formset for formset in formsets}
@@ -521,9 +521,9 @@ class ComboAdmin(SpellbookModelAdmin):
             if formset is None or not formset.is_valid():
                 return  # the submitted data has errors of its own, and is going to be shown back to the editor anyway
             rows.extend(form_data for form_data in formset.cleaned_data if form_data and not form_data.get('DELETE'))
-        if rows and not any(form_data.get('in_text_substitutions') for form_data in rows):
+        if rows and not any(form_data.get('in_replacements') for form_data in rows):
             formsets_by_model[CardInCombo].non_form_errors().append(
-                'This combo was not saved, because none of its ingredients is in text substitutions.'
+                'This combo was not saved, because none of its ingredients is in replacements.'
                 ' Check that box on at least one of them, so that the features it produces have something to be replaced with.'
             )
 

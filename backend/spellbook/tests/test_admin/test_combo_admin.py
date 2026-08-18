@@ -47,7 +47,7 @@ class ComboAdminTestCase(SpellbookTestCaseWithSeeding):
                 f'cardincombo_set-{i}-quantity': '1',
                 f'cardincombo_set-{i}-zone_locations': zone_locations,
                 f'cardincombo_set-{i}-order': str(i + 1),
-                f'cardincombo_set-{i}-in_text_substitutions': 'on',
+                f'cardincombo_set-{i}-in_replacements': 'on',
             })
             if i < len(card_ids_to_update):
                 payload[f'cardincombo_set-{i}-id'] = str(card_ids_to_update[i])
@@ -112,44 +112,44 @@ class ComboAdminUtilityComboTests(ComboAdminTestCase):
         self.assertEqual(added_combo.cardincombo_set.get().zone_locations, ZoneLocation.GRAVEYARD)
 
 
-class ComboAdminTextSubstitutionsTests(ComboAdminTestCase):
-    '''At least one ingredient has to be in text substitutions, or the features the combo produces would
+class ComboAdminReplacementsTests(ComboAdminTestCase):
+    '''At least one ingredient has to be in replacements, or the features the combo produces would
     have nothing to be replaced with in the texts referencing them.'''
-    rejection_message = 'none of its ingredients is in text substitutions'
+    rejection_message = 'none of its ingredients is in replacements'
 
-    def test_a_combo_with_one_ingredient_in_text_substitutions_is_saved(self):
+    def test_a_combo_with_one_ingredient_in_replacements_is_saved(self):
         payload = self.combo_payload(cards=[self.c7_id, self.c8_id])
-        payload['cardincombo_set-1-in_text_substitutions'] = ''
+        payload['cardincombo_set-1-in_replacements'] = ''
         response = self.client.post(self.add_url(), data=payload)
         self.assertEqual(response.status_code, 302)
         added_combo = Combo.objects.latest('created')
-        self.assertEqual({c.card_id: c.in_text_substitutions for c in added_combo.cardincombo_set.all()}, {self.c7_id: True, self.c8_id: False})
+        self.assertEqual({c.card_id: c.in_replacements for c in added_combo.cardincombo_set.all()}, {self.c7_id: True, self.c8_id: False})
 
-    def test_a_combo_with_no_ingredient_in_text_substitutions_is_rejected(self):
+    def test_a_combo_with_no_ingredient_in_replacements_is_rejected(self):
         combo_count = Combo.objects.count()
         payload = self.combo_payload(cards=[self.c7_id, self.c8_id])
-        payload['cardincombo_set-0-in_text_substitutions'] = ''
-        payload['cardincombo_set-1-in_text_substitutions'] = ''
+        payload['cardincombo_set-0-in_replacements'] = ''
+        payload['cardincombo_set-1-in_replacements'] = ''
         response = self.client.post(self.add_url(), data=payload)
         self.assertEqual(response.status_code, 200)
         self.assertIn(self.rejection_message, response.content.decode())
         self.assertEqual(Combo.objects.count(), combo_count)
 
-    def test_a_needed_feature_alone_in_text_substitutions_is_enough(self):
+    def test_a_needed_feature_alone_in_replacements_is_enough(self):
         payload = self.combo_payload(cards=[self.c7_id])
-        payload['cardincombo_set-0-in_text_substitutions'] = ''
+        payload['cardincombo_set-0-in_replacements'] = ''
         payload.update({
             'featureneededincombo_set-TOTAL_FORMS': '1',
             'featureneededincombo_set-0-feature': str(self.f2_id),
             'featureneededincombo_set-0-quantity': '1',
             'featureneededincombo_set-0-order': '1',
-            'featureneededincombo_set-0-in_text_substitutions': 'on',
+            'featureneededincombo_set-0-in_replacements': 'on',
         })
         response = self.client.post(self.add_url(), data=payload)
         self.assertEqual(response.status_code, 302)
         added_combo = Combo.objects.latest('created')
-        self.assertFalse(added_combo.cardincombo_set.get().in_text_substitutions)
-        self.assertTrue(added_combo.featureneededincombo_set.get().in_text_substitutions)
+        self.assertFalse(added_combo.cardincombo_set.get().in_replacements)
+        self.assertTrue(added_combo.featureneededincombo_set.get().in_replacements)
 
     def test_a_combo_without_ingredients_is_left_alone(self):
         '''Nothing to opt out of yet, so this check stays quiet.'''
@@ -189,7 +189,7 @@ class ComboAdminMultipleCopiesTests(ComboAdminTestCase):
             'templateincombo_set-0-quantity': quantity,
             'templateincombo_set-0-zone_locations': ZoneLocation.BATTLEFIELD,
             'templateincombo_set-0-order': '1',
-            'templateincombo_set-0-in_text_substitutions': 'on',
+            'templateincombo_set-0-in_replacements': 'on',
         })
         return payload
 

@@ -66,4 +66,4 @@ class OrderedIngredientAdmin(IngredientAdmin, SortableTabularInline):
 
 
 class ComboIngredientAdmin(OrderedIngredientAdmin):
-    fields = [*OrderedIngredientAdmin.fields, 'in_text_substitutions']
+    fields = [*OrderedIngredientAdmin.fields, 'in_replacements']

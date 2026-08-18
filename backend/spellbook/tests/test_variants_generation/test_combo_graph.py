@@ -8,6 +8,20 @@ from spellbook.tests.testing import SpellbookTestCaseWithSeeding, SpellbookTestC
 
 
 class ComboGraphTest(SpellbookTestCaseWithSeeding):
+    def test_construction_runs_no_queries(self):
+        '''Every node is built out of what Data already fetched, and registers itself on its related
+        nodes from there. A query here would be a node reaching back into the database while the graph
+        is built, which on the real dataset means one per row of a table.'''
+        data = Data()
+        with self.assertNumQueries(0):
+            combo_graph = Graph(data)
+        # a graph missing any kind of node would make the assertion above pass for the wrong reason
+        self.assertTrue(combo_graph.card_nodes)
+        self.assertTrue(combo_graph.template_nodes)
+        self.assertTrue(combo_graph.combo_nodes)
+        self.assertTrue(any(c.features_produced for c in combo_graph.combo_nodes.values()))
+        self.assertTrue(any(c.features_needed for c in combo_graph.combo_nodes.values()))
+
     def test_empty_graph(self):
         Combo.objects.exclude(id=self.b2_id).delete()
         combo_graph = Graph(Data())
@@ -1171,11 +1185,11 @@ class ComboGraphCycleCachingTest(SpellbookTestCase):
         self.assertAgreesWithFreshGraphs((3, 4, 1, 2))
 
 
-class ComboGraphTextSubstitutionsTest(SpellbookTestCase):
-    '''An ingredient not in text substitutions is left out of the replacements of the features its combo
-    produces, while still taking part in matching the combo and in counting how many times it fires.'''
+class ComboGraphReplacementsTest(SpellbookTestCase):
+    '''An ingredient not in replacements is left out of what the features its combo produces are
+    replaced with, while still taking part in matching the combo and in counting how many times it fires.'''
 
-    def test_card_not_in_text_substitutions(self):
+    def test_card_not_in_replacements(self):
         self.setup_combo_graph({
             ('A', '~B'): ('x',),
         })
@@ -1187,7 +1201,7 @@ class ComboGraphTextSubstitutionsTest(SpellbookTestCase):
             FeatureWithAttributes(Feature.objects.get(name='x'), frozenset()): [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset())],
         })
 
-    def test_template_not_in_text_substitutions(self):
+    def test_template_not_in_replacements(self):
         self.setup_combo_graph({
             ('A', '~TB'): ('x',),
         })
@@ -1199,7 +1213,7 @@ class ComboGraphTextSubstitutionsTest(SpellbookTestCase):
             FeatureWithAttributes(Feature.objects.get(name='x'), frozenset()): [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset())],
         })
 
-    def test_needed_feature_not_in_text_substitutions(self):
+    def test_needed_feature_not_in_replacements(self):
         '''The whole entry the opted out feature contributes is dropped, not just one of its cards.'''
         self.setup_combo_graph({
             'A': ('x',),
@@ -1243,7 +1257,7 @@ class ComboGraphTextSubstitutionsTest(SpellbookTestCase):
             ('A', '~B'): ('x',),
         })
         expected = Graph(Data()).results(Graph(Data()).variants(1))[0].features
-        CardInCombo.objects.filter(combo_id=1).update(in_text_substitutions=True)
+        CardInCombo.objects.filter(combo_id=1).update(in_replacements=True)
         combo_graph = Graph(Data())
         self.assertMultisetEqual(combo_graph.results(combo_graph.variants(1))[0].features, dict(expected.items()))
 

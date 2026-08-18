@@ -5,7 +5,7 @@ from ._utils import used_face_from_card_states
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('spellbook', '0068_cardincombo_in_text_substitutions_and_more'),
+        ('spellbook', '0068_cardincombo_in_replacements_and_more'),
     ]
 
     operations = [

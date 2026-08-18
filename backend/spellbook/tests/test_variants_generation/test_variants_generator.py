@@ -317,7 +317,7 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
         self.assertSetEqual({c.name for c in variant.uses.all()}, {'Transitive Card One', 'Transitive Card Two'})
         self.assertEqual(variant.description, 'a mention of Transitive Card Two here')
 
-    def test_replacement_leaves_out_an_ingredient_not_in_text_substitutions(self):
+    def test_replacement_leaves_out_an_ingredient_not_in_replacements(self):
         '''The shape of issue #1213: a utility combo needs two cards to produce its feature, but only
         one of them is worth naming in the texts referencing that feature.'''
         named_card = Card.objects.create(name='Named Card', type_line='Instant')
@@ -326,7 +326,7 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
         produced_feature = Feature.objects.create(name='PF', status=Feature.Status.STANDALONE)
         utility = Combo.objects.create(status=Combo.Status.UTILITY)
         CardInCombo.objects.create(combo=utility, card=named_card, order=1, zone_locations=ZoneLocation.HAND)
-        CardInCombo.objects.create(combo=utility, card=unnamed_card, order=2, zone_locations=ZoneLocation.BATTLEFIELD, in_text_substitutions=False)
+        CardInCombo.objects.create(combo=utility, card=unnamed_card, order=2, zone_locations=ZoneLocation.BATTLEFIELD, in_replacements=False)
         utility.produces.add(utility_feature)
         main = Combo.objects.create(status=Combo.Status.GENERATOR, description='Cast [[UF]] by paying its mana cost')
         FeatureNeededInCombo.objects.create(combo=main, feature=utility_feature, order=1)
@@ -339,7 +339,7 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
         self.assertSetEqual({c.name for c in variant.uses.all()}, {'Named Card', 'Unnamed Card'})
         self.assertEqual(variant.description, 'Cast Named Card by paying its mana cost')
 
-    def test_a_needed_feature_override_skips_an_ingredient_not_in_text_substitutions(self):
+    def test_a_needed_feature_override_skips_an_ingredient_not_in_replacements(self):
         '''Applying the restricted replacements everywhere means the zone override of a needed feature
         row reaches only the cards that replace it in the texts.'''
         named_card = Card.objects.create(name='Overridden Card', type_line='Instant')
@@ -348,7 +348,7 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
         produced_feature = Feature.objects.create(name='POF', status=Feature.Status.STANDALONE)
         utility = Combo.objects.create(status=Combo.Status.UTILITY)
         CardInCombo.objects.create(combo=utility, card=named_card, order=1, zone_locations=ZoneLocation.HAND)
-        CardInCombo.objects.create(combo=utility, card=unnamed_card, order=2, zone_locations=ZoneLocation.BATTLEFIELD, in_text_substitutions=False)
+        CardInCombo.objects.create(combo=utility, card=unnamed_card, order=2, zone_locations=ZoneLocation.BATTLEFIELD, in_replacements=False)
         utility.produces.add(utility_feature)
         main = Combo.objects.create(status=Combo.Status.GENERATOR)
         FeatureNeededInCombo.objects.create(combo=main, feature=utility_feature, order=1, zone_locations=ZoneLocation.GRAVEYARD)

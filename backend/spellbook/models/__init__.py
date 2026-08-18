@@ -3,7 +3,7 @@ from .feature import Feature
 from .card import Card, FeatureOfCard, LayoutRotation
 from .template import Template, TemplateReplacement
 from .recipe import Recipe
-from .ingredient import OrderedIngredient, Ingredient, ZoneLocation
+from .ingredient import ComboIngredient, OrderedIngredient, Ingredient, ZoneLocation
 from .feature_attribute import FeatureAttribute, WithFeatureAttributes, WithFeatureAttributesMatcher
 from .combo import Combo, CardInCombo, TemplateInCombo, FeatureNeededInCombo, FeatureProducedInCombo, FeatureRemovedInCombo
 from .variant import Variant, CardInVariant, TemplateInVariant, FeatureProducedByVariant, VariantIncludesCombo, VariantOfCombo, estimate_bracket

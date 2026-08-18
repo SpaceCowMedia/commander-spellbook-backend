@@ -216,25 +216,17 @@ def get_variants_from_graph(
             finally:
                 _GRAPH_WORKER_STATE = None
             continue
+        # Each combo is taken all the way through, the way the workers above already do it, so that the
+        # two paths process a graph identically and each variant set is freed as soon as it is consumed
         log('Computing all variants recipes, following combos\' requirements graphs...')
         total = len(combos_of_group)
-        index = 0
-        variant_sets: list[tuple[Combo, VariantSet]] = []
-        for combo in combos_of_group:
+        for index, combo in enumerate(combos_of_group):
             try:
                 variant_set = graph.variants(combo.id)
             except GraphError:
                 log_error(f'Error while computing all variants for generator combo {combo} with ID {combo.id}')
                 raise
-            variant_sets.append((combo, variant_set))
             progress_current += 1
-            if len(variant_set) > _VARIANTS_TO_TRIGGER_LOG or index % _VARIANTS_TO_TRIGGER_LOG == 0 or index == total - 1:
-                log(f'{index + 1}/{total} combos processed (just processed combo {combo.id})')
-                progress(progress_current, progress_total)
-            index += 1
-        log('Processing all recipes to find all the produced results and more...')
-        index = 0
-        for combo, variant_set in variant_sets:
             if len(variant_set) > _VARIANTS_TO_TRIGGER_LOG:
                 log(f'About to process results for combo {combo.id} ({index + 1}/{total}) with {len(variant_set)} variants...')
             try:
@@ -246,7 +238,6 @@ def get_variants_from_graph(
             if len(variant_set) > _VARIANTS_TO_TRIGGER_LOG or index % _VARIANTS_TO_TRIGGER_LOG == 0 or index == total - 1:
                 log(f'{index + 1}/{total} combos processed (just processed combo {combo.id})')
                 progress(progress_current, progress_total)
-            index += 1
     return result
 
 

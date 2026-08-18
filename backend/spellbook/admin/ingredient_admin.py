@@ -63,3 +63,7 @@ class FeatureOfCardAdmin(IngredientAdmin):
 
 class OrderedIngredientAdmin(IngredientAdmin, SortableTabularInline):
     pass
+
+
+class ComboIngredientAdmin(OrderedIngredientAdmin):
+    fields = [*OrderedIngredientAdmin.fields, 'in_replacements']

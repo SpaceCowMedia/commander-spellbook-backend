@@ -82,7 +82,9 @@ class SpellbookTestCase(BaseTestCase):
         for recipe, result in model.items():
             cards = defaultdict[str, int](int)
             templates = defaultdict[str, int](int)
-            features = list[tuple[str, int]]()
+            features = list[tuple[str, int, bool]]()
+            cards_in_replacements = dict[str, bool]()
+            templates_in_replacements = dict[str, bool]()
             if isinstance(recipe, str):
                 if '*' in recipe:
                     recipe, quantity = recipe.split('*')
@@ -112,6 +114,10 @@ class SpellbookTestCase(BaseTestCase):
                     feature_of_card_id += 1
             else:
                 for element in recipe:
+                    # a ~ prefix marks an ingredient that is not in replacements
+                    in_replacements = not element.strip().startswith('~')
+                    if not in_replacements:
+                        element = element.strip().removeprefix('~')
                     if '*' in element:
                         element, quantity = element.split('*')
                         quantity = quantity.strip()
@@ -123,27 +129,29 @@ class SpellbookTestCase(BaseTestCase):
                         quantity = 1
                     element = element.strip()
                     if element[0].islower():
-                        features.append((element, quantity))
+                        features.append((element, quantity, in_replacements))
                     elif element[0] == 'T':
                         templates[element] += quantity
+                        templates_in_replacements[element] = in_replacements
                     else:
                         cards[element] += quantity
+                        cards_in_replacements[element] = in_replacements
                 combo = Combo.objects.create(pk=combo_id, mana_needed='', is_mana_needed_an_accurate_minimum=True, easy_prerequisites='Test Easy Prerequisites', notable_prerequisites='Test Notable Prerequisites', description='Test Description', status=Combo.Status.GENERATOR)
                 for i, (card, quantity) in enumerate(cards.items(), start=1):
                     card_id = card_ids_by_name.setdefault(card, reduce(lambda x, y: max(x, y), card_ids_by_name.values(), 0) + 1)
                     c, _ = Card.objects.get_or_create(pk=card_id, name=card, identity='W', legal_commander=True, spoiler=False, type_line='Test Card')
-                    CardInCombo.objects.create(card=c, combo=combo, order=i, zone_locations=ZoneLocation.BATTLEFIELD, quantity=quantity)
+                    CardInCombo.objects.create(card=c, combo=combo, order=i, zone_locations=ZoneLocation.BATTLEFIELD, quantity=quantity, in_replacements=cards_in_replacements[card])
                 for i, (template, quantity) in enumerate(templates.items(), start=1):
                     template_id = template_ids_by_name.setdefault(template, reduce(lambda x, y: max(x, y), template_ids_by_name.values(), 0) + 1)
                     t, _ = Template.objects.get_or_create(pk=template_id, name=template, scryfall_query='o:test', description='Test Template')
-                    TemplateInCombo.objects.create(template=t, combo=combo, order=i, zone_locations=ZoneLocation.BATTLEFIELD, quantity=quantity)
-                for r, quantity in features:
+                    TemplateInCombo.objects.create(template=t, combo=combo, order=i, zone_locations=ZoneLocation.BATTLEFIELD, quantity=quantity, in_replacements=templates_in_replacements[template])
+                for r, quantity, in_replacements in features:
                     r = FEATURE_WITH_ATTRIBUTES_PATTERN.match(r)
                     assert r is not None
                     feature, any_of_attributes, all_of_attributes, none_of_attributes = r.groups()
                     feature_id = feature_ids_by_name.setdefault(feature, reduce(lambda x, y: max(x, y), feature_ids_by_name.values(), 0) + 1)
                     f, _ = Feature.objects.get_or_create(pk=feature_id, name=feature, description='Test Feature', status=Feature.Status.HIDDEN_UTILITY if feature.startswith('u') else Feature.Status.STANDALONE)
-                    fnc = FeatureNeededInCombo.objects.create(feature=f, combo=combo, quantity=quantity)
+                    fnc = FeatureNeededInCombo.objects.create(feature=f, combo=combo, quantity=quantity, in_replacements=in_replacements)
                     for attribute in (any_of_attributes or '').removeprefix('?').split(','):
                         attribute = attribute.strip()
                         if attribute:
@@ -187,6 +195,34 @@ class SpellbookTestCaseWithSeeding(SpellbookTestCase):
     expected_variant_count = 8
     admin: User
     user: User
+    # Ids of the seeded objects, assigned by setUpTestData
+    c1_id: int
+    c2_id: int
+    c3_id: int
+    c4_id: int
+    c5_id: int
+    c6_id: int
+    c7_id: int
+    c8_id: int
+    t1_id: int
+    t2_id: int
+    f1_id: int
+    f2_id: int
+    f3_id: int
+    f4_id: int
+    f5_id: int
+    f6_id: int
+    b1_id: int
+    b2_id: int
+    b3_id: int
+    b4_id: int
+    b5_id: int
+    b6_id: int
+    b7_id: int
+    b8_id: int
+    b9_id: int
+    s1_id: int
+    a1_id: str
 
     @classmethod
     def setUpTestData(cls):

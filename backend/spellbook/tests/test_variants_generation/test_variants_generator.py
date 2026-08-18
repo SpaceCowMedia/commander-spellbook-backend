@@ -4,7 +4,7 @@ from unittest import mock, skipUnless
 from django.db.models import Count
 from spellbook.models.combo import CardInCombo, FeatureNeededInCombo
 from spellbook.models.feature_attribute import FeatureAttribute
-from spellbook.tests.testing import SpellbookTestCaseWithSeeding
+from spellbook.tests.testing import SpellbookTestCase, SpellbookTestCaseWithSeeding
 from spellbook.models import Variant, Card, OrderedIngredient, CardInVariant, TemplateInVariant, Template, Combo, Feature, VariantAlias, FeatureOfCard, ZoneLocation
 from spellbook.models import VariantGenerationFingerprints, VariantOfCombo, FeatureProducedByVariant, id_from_cards_and_templates_ids
 from spellbook.variants.combo_graph import FeatureWithAttributes
@@ -316,6 +316,50 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
         variant = Variant.objects.get(of=main)
         self.assertSetEqual({c.name for c in variant.uses.all()}, {'Transitive Card One', 'Transitive Card Two'})
         self.assertEqual(variant.description, 'a mention of Transitive Card Two here')
+
+    def test_replacement_leaves_out_an_ingredient_not_in_replacements(self):
+        '''The shape of issue #1213: a utility combo needs two cards to produce its feature, but only
+        one of them is worth naming in the texts referencing that feature.'''
+        named_card = Card.objects.create(name='Named Card', type_line='Instant')
+        unnamed_card = Card.objects.create(name='Unnamed Card', type_line='Creature - Elf')
+        utility_feature = Feature.objects.create(name='UF', status=Feature.Status.HIDDEN_UTILITY)
+        produced_feature = Feature.objects.create(name='PF', status=Feature.Status.STANDALONE)
+        utility = Combo.objects.create(status=Combo.Status.UTILITY)
+        CardInCombo.objects.create(combo=utility, card=named_card, order=1, zone_locations=ZoneLocation.HAND)
+        CardInCombo.objects.create(combo=utility, card=unnamed_card, order=2, zone_locations=ZoneLocation.BATTLEFIELD, in_replacements=False)
+        utility.produces.add(utility_feature)
+        main = Combo.objects.create(status=Combo.Status.GENERATOR, description='Cast [[UF]] by paying its mana cost')
+        FeatureNeededInCombo.objects.create(combo=main, feature=utility_feature, order=1)
+        main.produces.add(produced_feature)
+
+        self.generate_variants()
+
+        variant = Variant.objects.get(of=main)
+        # the opted out card is still required by the variant, it is only left out of the text
+        self.assertSetEqual({c.name for c in variant.uses.all()}, {'Named Card', 'Unnamed Card'})
+        self.assertEqual(variant.description, 'Cast Named Card by paying its mana cost')
+
+    def test_a_needed_feature_override_skips_an_ingredient_not_in_replacements(self):
+        '''Applying the restricted replacements everywhere means the zone override of a needed feature
+        row reaches only the cards that replace it in the texts.'''
+        named_card = Card.objects.create(name='Overridden Card', type_line='Instant')
+        unnamed_card = Card.objects.create(name='Untouched Card', type_line='Creature - Elf')
+        utility_feature = Feature.objects.create(name='UOF', status=Feature.Status.HIDDEN_UTILITY)
+        produced_feature = Feature.objects.create(name='POF', status=Feature.Status.STANDALONE)
+        utility = Combo.objects.create(status=Combo.Status.UTILITY)
+        CardInCombo.objects.create(combo=utility, card=named_card, order=1, zone_locations=ZoneLocation.HAND)
+        CardInCombo.objects.create(combo=utility, card=unnamed_card, order=2, zone_locations=ZoneLocation.BATTLEFIELD, in_replacements=False)
+        utility.produces.add(utility_feature)
+        main = Combo.objects.create(status=Combo.Status.GENERATOR)
+        FeatureNeededInCombo.objects.create(combo=main, feature=utility_feature, order=1, zone_locations=ZoneLocation.GRAVEYARD)
+        main.produces.add(produced_feature)
+
+        self.generate_variants()
+
+        variant = Variant.objects.get(of=main)
+        zone_locations = {c.card.name: c.zone_locations for c in variant.cardinvariant_set.all()}
+        self.assertEqual(zone_locations['Overridden Card'], ZoneLocation.GRAVEYARD)
+        self.assertEqual(zone_locations['Untouched Card'], ZoneLocation.BATTLEFIELD)
 
     def test_restore_variant(self):
         data = Data()
@@ -965,3 +1009,32 @@ class ParallelGenerationTests(SpellbookTestCaseWithSeeding):
         with self.workers(1):
             added, restored, deleted = generate_variants()
         self.assertEqual((added, restored, deleted), (0, 0, 0))
+
+
+class ParallelGenerationOverACycleTests(SpellbookTestCase):
+    '''One graph is shared by every generator combo of a group, and the two paths take its combos in a
+    different order: the workers chunk them, while the serial path walks them in sequence. Guards the two
+    from drifting apart over a graph with a cycle, which is where they would drift first.
+
+    It does not pin the cycle caching bug: merging the definitions of every combo recovers what an
+    individual walk loses, so this passes with that bug present. ComboGraphCycleCachingTest is what pins
+    it, one level down, where a walk's own result is visible.'''
+
+    def setUp(self):
+        super().setUp()
+        self.setup_combo_graph({
+            'A': ('f',),
+            'B': ('g',),
+            ('h', 'C'): ('f',),      # combo 1: needs h, produces f
+            ('f', 'D'): ('h',),      # combo 2: needs f, produces h
+            ('f', 'E'): ('k',),      # combo 3: needs f, produces k
+            ('g', 'h'): ('m',),      # combo 4: reaches combo 2 through h
+        })
+
+    @skipUnless(parallelism_is_available(), 'parallel generation requires the fork start method and a non-daemonic process')
+    def test_parallel_generation_matches_serial_over_a_cycle(self):
+        data = Data()
+        serial = get_variants_from_graph(data=data, workers=1)
+        with mock.patch.object(variants_generator, 'MIN_COMBOS_FOR_PARALLELISM', 1):
+            parallel = get_variants_from_graph(data=data, workers=2)
+        self.assertEqual(serial, parallel)

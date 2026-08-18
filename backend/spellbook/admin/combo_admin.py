@@ -1,4 +1,5 @@
 from collections import defaultdict
+from collections.abc import Mapping
 from typing import Any
 from urllib.parse import urlencode
 from adminsortable2.admin import CustomInlineFormSet
@@ -19,7 +20,7 @@ from django.tasks import TaskResult
 from spellbook.models import Card, FeatureNeededInCombo, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, ZoneLocation
 from spellbook.tasks import generate_variants_task
 from .utils import SpellbookModelAdmin, SpellbookAdminForm, CustomFilter, IngredientCountListFilter
-from .ingredient_admin import IngredientForm, OrderedIngredientAdmin
+from .ingredient_admin import ComboIngredientAdmin, IngredientForm
 
 
 DUPLICATE_CONFIRMATION_INPUT_NAME = '_confirm_duplicate'
@@ -78,6 +79,18 @@ def submitted_quantities(formset: BaseModelFormSet | None, related_field_name: s
     return quantity_by_id
 
 
+def submitted_multiple_copies(data: Mapping[str, Any], prefix: str) -> bool:
+    '''Whether the submitted inline rows with the given prefix require more than one copy of something.'''
+    total_forms: str = data.get(f'{prefix}-TOTAL_FORMS', '0')
+    if not total_forms.isdigit():
+        return False
+    for i in range(int(total_forms)):
+        quantity: str = data.get(f'{prefix}-{i}-quantity', '1')
+        if quantity.isdigit() and int(quantity) > 1 and data.get(f'{prefix}-{i}-DELETE', 'off') != 'on':
+            return True
+    return False
+
+
 def duplicate_combos_links(duplicate_combo_ids: list[int]) -> SafeString:
     links = format_html_join(
         ', ',
@@ -93,6 +106,12 @@ def duplicate_combos_links(duplicate_combo_ids: list[int]) -> SafeString:
 
 
 class ComboForm(SpellbookAdminForm):
+    def clean(self) -> dict[str, Any]:
+        cleaned_data = super().clean() or {}
+        if not cleaned_data.get('allow_multiple_copies') and any(submitted_multiple_copies(self.data, prefix) for prefix in ('cardincombo_set', 'templateincombo_set')):
+            self.add_error('allow_multiple_copies', 'Cannot require more than one copy of the same card or template without allowing multiple copies')
+        return cleaned_data
+
     def variants_of_this(self):
         if self.instance.pk is None:
             return Variant.objects.none()
@@ -138,7 +157,7 @@ class ComboIngredientInlineFormSet(CustomInlineFormSet):
             form.fields['zone_locations'].required = False
 
 
-class ComboIngredientAdminInline(OrderedIngredientAdmin):
+class ComboIngredientAdminInline(ComboIngredientAdmin):
     '''Inline of an ingredient of a combo. Starting locations are optional on utility combos, since they don't
     restrict what such a combo matches: leaving them blank saves the ingredient as starting in every zone.'''
     form = ComboIngredientForm
@@ -146,7 +165,7 @@ class ComboIngredientAdminInline(OrderedIngredientAdmin):
 
 
 class CardInComboAdminInline(ComboIngredientAdminInline):
-    fields = ['card', OrderedIngredientAdmin.fields[0], 'used_face', *OrderedIngredientAdmin.fields[1:]]  # pyright: ignore[reportGeneralTypeIssues]
+    fields = ['card', ComboIngredientAdmin.fields[0], 'used_face', *ComboIngredientAdmin.fields[1:]]  # pyright: ignore[reportGeneralTypeIssues]
     model = CardInCombo
     verbose_name = 'Card'
     verbose_name_plural = 'Required Cards'
@@ -160,7 +179,7 @@ class CardInComboAdminInline(ComboIngredientAdminInline):
 
 
 class TemplateInComboAdminInline(ComboIngredientAdminInline):
-    fields = ['template', *OrderedIngredientAdmin.fields]
+    fields = ['template', *ComboIngredientAdmin.fields]
     model = TemplateInCombo
     verbose_name = 'Template'
     verbose_name_plural = 'Required Templates'
@@ -173,10 +192,10 @@ class TemplateInComboAdminInline(ComboIngredientAdminInline):
         return result
 
 
-class FeatureNeededInComboAdminInline(OrderedIngredientAdmin):
+class FeatureNeededInComboAdminInline(ComboIngredientAdmin):
     fields = [
         'feature',
-        *OrderedIngredientAdmin.fields,
+        *ComboIngredientAdmin.fields,
         'any_of_attributes',
         'all_of_attributes',
         'none_of_attributes',
@@ -484,9 +503,29 @@ class ComboAdmin(SpellbookModelAdmin):
 
     def _create_formsets(self, request: HttpRequest, obj, change: bool):
         formsets, inline_instances = super()._create_formsets(request, obj, change)  # type: ignore  # private method
-        if request.method == 'POST' and DUPLICATE_CONFIRMATION_INPUT_NAME not in request.POST:
-            self.reject_duplicate_combo(request, obj, formsets)
+        if request.method == 'POST':
+            self.reject_combo_without_replacements(formsets)
+            if DUPLICATE_CONFIRMATION_INPUT_NAME not in request.POST:
+                self.reject_duplicate_combo(request, obj, formsets)
         return formsets, inline_instances
+
+    def reject_combo_without_replacements(self, formsets: list[BaseModelFormSet]):
+        '''
+        Reject a combo whose every ingredient opted out of replacements, because the features it
+        produces would then have nothing to be replaced with in the texts referencing them.
+        '''
+        formsets_by_model = {formset.model: formset for formset in formsets}
+        rows = list[dict[str, Any]]()
+        for model in (CardInCombo, TemplateInCombo, FeatureNeededInCombo):
+            formset = formsets_by_model.get(model)
+            if formset is None or not formset.is_valid():
+                return  # the submitted data has errors of its own, and is going to be shown back to the editor anyway
+            rows.extend(form_data for form_data in formset.cleaned_data if form_data and not form_data.get('DELETE'))
+        if rows and not any(form_data.get('in_replacements') for form_data in rows):
+            formsets_by_model[CardInCombo].non_form_errors().append(
+                'This combo was not saved, because none of its ingredients is in replacements.'
+                ' Check that box on at least one of them, so that the features it produces have something to be replaced with.'
+            )
 
     def reject_duplicate_combo(self, request: HttpRequest, obj: Combo | None, formsets: list[BaseModelFormSet]):
         '''
@@ -522,6 +561,16 @@ class ComboAdmin(SpellbookModelAdmin):
         response = super()._changeform_view(request, object_id, form_url, extra_context)  # type: ignore  # private method
         duplicate_combos: list[int] | None = getattr(request, 'duplicate_combos_to_confirm', None)
         if duplicate_combos:
+            if response.context_data['adminform'].form.errors:
+                # A combo with errors of its own is shown back to the editor with them, instead of the confirmation page
+                messages.warning(request, format_html(
+                    'This combo would still be a duplicate of {} other {}, with ids: {}, once the errors below are fixed.'
+                    ' Saving it again will then ask you to confirm the duplicate.',
+                    len(duplicate_combos),
+                    'combo' if len(duplicate_combos) == 1 else 'combos',
+                    duplicate_combos_links(duplicate_combos),
+                ))
+                return response
             if request.method == 'POST' and '_saveasnew' in request.POST:
                 object_id = None  # saving as new adds a combo, like the add form does
             return self.render_duplicate_confirmation(request, object_id, duplicate_combos)

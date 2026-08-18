@@ -14,7 +14,7 @@ Fingerprints = dict[str, dict[int, str]]
 
 # Bump this version to force a full regeneration
 # whenever the generation algorithm changes in a way that affects its output.
-_FINGERPRINT_VERSION = 1
+_FINGERPRINT_VERSION = 2
 
 _META_KIND = 'meta'
 _ENTITY_KINDS = ('card', 'template', 'feature', 'combo')
@@ -84,6 +84,7 @@ def compute_fingerprints(data: Data) -> Fingerprints:
             (
                 feature_of_card.feature_id,
                 *(getattr(feature_of_card, field) for field in _INGREDIENT_FINGERPRINT_FIELDS),
+                feature_of_card.used_face,
                 feature_of_card.mana_needed,
                 feature_of_card.easy_prerequisites,
                 feature_of_card.notable_prerequisites,
@@ -107,17 +108,18 @@ def compute_fingerprints(data: Data) -> Fingerprints:
     combo_fingerprints = dict[int, str]()
     for combo_id, combo in data.id_to_combo.items():
         card_in_combo_rows = [
-            (card_in_combo.card_id, card_in_combo.order, *(getattr(card_in_combo, field) for field in _INGREDIENT_FINGERPRINT_FIELDS))
+            (card_in_combo.card_id, card_in_combo.order, card_in_combo.used_face, card_in_combo.in_replacements, *(getattr(card_in_combo, field) for field in _INGREDIENT_FINGERPRINT_FIELDS))
             for card_in_combo in data.combo_to_cards.get(combo_id, ())
         ]
         template_in_combo_rows = [
-            (template_in_combo.template_id, template_in_combo.order, *(getattr(template_in_combo, field) for field in _INGREDIENT_FINGERPRINT_FIELDS))
+            (template_in_combo.template_id, template_in_combo.order, template_in_combo.in_replacements, *(getattr(template_in_combo, field) for field in _INGREDIENT_FINGERPRINT_FIELDS))
             for template_in_combo in data.combo_to_templates.get(combo_id, ())
         ]
         feature_needed_in_combo_rows = sorted(
             (
                 feature_needed_in_combo.feature_id,
                 feature_needed_in_combo.quantity,
+                feature_needed_in_combo.in_replacements,
                 feature_needed_in_combo.zone_locations,
                 tuple(sorted(data.feature_needed_in_combo_to_attributes_matcher[feature_needed_in_combo.id].any_of)),
                 tuple(sorted(data.feature_needed_in_combo_to_attributes_matcher[feature_needed_in_combo.id].all_of)),

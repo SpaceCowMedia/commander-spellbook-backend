@@ -109,3 +109,10 @@ class OrderedIngredient(Ingredient):
     class Meta(Ingredient.Meta):
         abstract = True
         ordering = ['order', 'id']
+
+
+class ComboIngredient(OrderedIngredient):
+    in_replacements = models.BooleanField(default=True, help_text='Does this ingredient take part in the replacements of the features this combo produces? Unchecking it leaves the ingredient out of the replacement texts, and out of the starting state and location overrides too.', verbose_name='in replacements')
+
+    class Meta(OrderedIngredient.Meta):
+        abstract = True

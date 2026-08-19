@@ -1,8 +1,7 @@
 from datetime import timedelta
-from django.contrib import admin
 from django.contrib.admin.models import ADDITION, LogEntry
 from django.contrib.auth.models import User
-from django.test import RequestFactory, TestCase
+from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 from django_tasks.backends.database.models import DBTaskResult
@@ -63,10 +62,12 @@ class LocalDatetimeAdminTests(TestCase):
     def test_task_result_changelist_sorts_by_the_localized_column(self):
         older = task_result()
         DBTaskResult.objects.filter(pk=older.pk).update(enqueued_at=timezone.now() - timedelta(days=1))
-        column = admin.site.get_model_admin(DBTaskResult).get_list_display(RequestFactory().get('/')).index('enqueued_at_local') + 1
+        url = reverse('admin:django_tasks_database_dbtaskresult_changelist')
+        # the index the o parameter counts in, which includes the action checkbox when the admin has actions
+        column = self.client.get(url).context['cl'].list_display.index('enqueued_at_local')
         for ordering, expected in ((column, 'enqueued_at'), (-column, '-enqueued_at')):
             with self.subTest(ordering=ordering):
-                response = self.client.get(reverse('admin:django_tasks_database_dbtaskresult_changelist'), query_params={'o': str(ordering)})  # type: ignore
+                response = self.client.get(url, query_params={'o': str(ordering)})  # type: ignore
                 self.assertEqual(response.status_code, 200)
                 self.assertEqual(
                     [result.pk for result in response.context['cl'].result_list],

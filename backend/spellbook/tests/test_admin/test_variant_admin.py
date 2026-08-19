@@ -1,6 +1,4 @@
 from datetime import timedelta
-from django.contrib import admin
-from django.test import RequestFactory
 from django.urls import reverse
 from django.utils import timezone
 from spellbook.models import Variant
@@ -35,10 +33,12 @@ class VariantAdminTests(SpellbookTestCaseWithSeeding):
         for days, variant_id in enumerate(Variant.objects.order_by('pk').values_list('pk', flat=True)):
             Variant.objects.filter(pk=variant_id).update(created=now - timedelta(days=days))
         self.client.force_login(self.admin)
-        column = admin.site.get_model_admin(Variant).get_list_display(RequestFactory().get('/')).index('created_local') + 1
+        url = reverse('admin:spellbook_variant_changelist')
+        # the index the o parameter counts in, which includes the action checkbox when the admin has actions
+        column = self.client.get(url).context['cl'].list_display.index('created_local')
         for ordering, expected in ((column, 'created'), (-column, '-created')):
             with self.subTest(ordering=ordering):
-                response = self.client.get(reverse('admin:spellbook_variant_changelist'), query_params={'o': str(ordering)})  # type: ignore
+                response = self.client.get(url, query_params={'o': str(ordering)})  # type: ignore
                 self.assertEqual(response.status_code, 200)
                 self.assertEqual(
                     [variant.pk for variant in response.context['cl'].result_list],

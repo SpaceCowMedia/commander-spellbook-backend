@@ -60,6 +60,24 @@ class RenamePrefetchedManager(PreSaveSerializedManager):
 
 
 DEFAULT_VIEW_ORDERING = (models.F('popularity').desc(nulls_last=True), models.F('identity_count').asc(), models.F('card_count').asc(), models.F('created').desc(), models.F('id'))
+EXACT_SEARCH_FIELDS = Playable.legalities_fields() + ['identity', 'hulkline']
+
+
+def view_ordering_indexes(*fields: str, **labels: str) -> list[models.Index]:
+    '''One index per field the search filters variants by an exact value, carrying the leading key of
+    the default view ordering right after it, so that such a search reads its page of results straight
+    out of the index instead of sorting every variant the field matches or walking the view ordering
+    index past every variant it rejects. A field the search only compares by range gains nothing from
+    this, since a range over the leading column no longer leaves the rows in the ordering. Named after
+    the field, without the prefix a legality flag carries, unless a keyword argument abbreviates it to
+    keep the name within the 30 character limit. On SQLite, which rejects a NULLS LAST modifier inside
+    an index, each field keeps a plain index of its own instead.'''
+    if connection.vendor != 'postgresql':
+        return [models.Index(fields=[field]) for field in fields]
+    return [
+        models.Index(models.F(field), DEFAULT_VIEW_ORDERING[0], name=f'variant_{labels.get(field, field.removeprefix('legal_'))}_pop_idx')
+        for field in fields
+    ]
 
 
 class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
@@ -205,14 +223,20 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
             models.Index(fields=['-updated']),
             models.Index(fields=['prerequisites_line_count']),
             models.Index(fields=['description_line_count']),
-            *(models.Index(fields=[field]) for field in Playable.playable_fields()),
+            *(models.Index(fields=[field]) for field in Playable.playable_fields() if field not in EXACT_SEARCH_FIELDS),
             *(models.Index(fields=[f'identity_{color}']) for color in 'wubrg'),
-        ] + ([
+        ] + view_ordering_indexes(
+            *EXACT_SEARCH_FIELDS,
+            legal_pauper_commander_main='pdh_main',
+            legal_pauper_commander='pdh',
+            legal_competitive_brawl='comp_brawl',
+        ) + ([
             # SQLite rejects a NULLS LAST modifier inside an index, which the default ordering needs
             models.Index(*DEFAULT_VIEW_ORDERING, name='variant_view_ordering_idx'),
             models.Index(*('identity_count',) + DEFAULT_VIEW_ORDERING, name='variant_ic_view_ordering_idx'),
             models.Index(*('variant_count',) + DEFAULT_VIEW_ORDERING, name='variant_vc_view_ordering_idx'),
             models.Index(*('card_count',) + DEFAULT_VIEW_ORDERING, name='variant_cc_view_ordering_idx'),
+            models.Index(*('result_count',) + DEFAULT_VIEW_ORDERING, name='variant_rc_view_ordering_idx'),
         ] if connection.vendor == 'postgresql' else []) + case_insensitive_trigram_indexes(
             'variant',
             'description',

@@ -168,7 +168,7 @@ class VariantAdmin(SpellbookModelAdmin):
         }),
     ]
     list_filter = ['status', CardCountListFilter, IdentityFilter, 'legal_commander', 'spoiler']
-    list_display = ['name', 'id', 'status', 'identity', 'updated']
+    list_display = ['name', 'id', 'status', 'identity', 'updated', 'created']
     actions = [set_restore, set_draft, set_new, set_needs_review, set_not_working, set_example, set_ok]
     search_fields = ['id']
     search_help_text = 'You can search variants using the usual Commander Spellbook query syntax.'

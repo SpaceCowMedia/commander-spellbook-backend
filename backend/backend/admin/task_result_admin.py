@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.http import HttpRequest
 from django_tasks.backends.database.admin import DBTaskResultAdmin
 from django_tasks.backends.database.models import DBTaskResult
+from spellbook.admin.utils import LocalDatetimeAdminMixin
 
 admin.site.unregister(DBTaskResult)
 
@@ -22,7 +23,7 @@ class TaskNameFilter(admin.SimpleListFilter):
 
 
 @admin.register(DBTaskResult)
-class TaskResultAdmin(DBTaskResultAdmin):
+class TaskResultAdmin(LocalDatetimeAdminMixin, DBTaskResultAdmin):
     date_hierarchy = 'enqueued_at'
     list_filter = ('status', TaskNameFilter)  # type: ignore[assignment]
     list_display = (  # type: ignore[assignment]
@@ -44,5 +45,5 @@ class TaskResultAdmin(DBTaskResultAdmin):
 
     def get_fields(self, request: HttpRequest, obj: DBTaskResult | None = None):
         fields = super().get_fields(request, obj)
-        fields.remove('run_after')
+        fields.remove(self.local_datetime_alias('run_after'))
         return fields

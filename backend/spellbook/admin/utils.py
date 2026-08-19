@@ -1,5 +1,4 @@
 from typing import Any
-from types import MethodType
 from datetime import datetime
 from django.db.models import Model, TextField, DateTimeField, Count, Q, When, Case, Max
 from django.contrib import admin, messages
@@ -14,7 +13,6 @@ from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from django.utils.formats import localize
 from django.forms import Textarea
-from django.core.exceptions import FieldDoesNotExist
 from django.contrib.admin import ModelAdmin
 from django.contrib.admin.views.main import ORDER_VAR, ChangeList
 from django.utils.safestring import SafeText
@@ -55,7 +53,65 @@ class SpellbookAdminChangelist(ChangeList):
         return filters
 
 
-class SpellbookModelAdmin(SortableAdminBase, ModelAdmin):
+def local_datetime_display(field: DateTimeField):
+    @admin.display(description=field.verbose_name, ordering=field.name)
+    def display(obj=None):
+        if obj is None:
+            return None
+        return datetime_to_html(getattr(obj, field.name))
+    return display
+
+
+class LocalDatetimeAdminMixin(ModelAdmin):
+    '''Renders the datetime fields an admin shows as readonly through the script that rewrites them in the timezone of whoever reads the page.
+
+    The renderings are named once, at registration: a single ModelAdmin instance serves every request,
+    so naming them while answering one would race with the others.
+    '''
+
+    def __init__(self, model: type, admin_site: admin.AdminSite):
+        super().__init__(model, admin_site)
+        self.local_datetime_aliases: dict[str, str] = {}
+        for field in self.model._meta.fields:
+            if isinstance(field, DateTimeField):
+                alias = f'{field.name}_local'
+                self.local_datetime_aliases[field.name] = alias
+                setattr(self, alias, local_datetime_display(field))
+
+    def local_datetime_alias(self, name: str) -> str:
+        '''The name a datetime field is rendered under, for the admins listing their fields by hand.'''
+        return self.local_datetime_aliases.get(name, name)
+
+    def localize_datetimes(self, names, only=None) -> list:
+        def localized(name):
+            alias = self.local_datetime_aliases.get(name) if isinstance(name, str) else None
+            if alias is None or only is not None and name not in only and alias not in only:
+                return name
+            return alias
+        return [
+            tuple(localized(n) for n in name) if isinstance(name, tuple) else localized(name)
+            for name in names
+        ]
+
+    def get_list_display(self, request):
+        return self.localize_datetimes(super().get_list_display(request))
+
+    def get_readonly_fields(self, request, obj=None):
+        return self.localize_datetimes(super().get_readonly_fields(request, obj))
+
+    def get_fields(self, request, obj=None):
+        # an editable datetime has to keep its widget, so only the ones rendered as text are localized
+        return self.localize_datetimes(super().get_fields(request, obj), only=self.get_readonly_fields(request, obj))
+
+    def get_fieldsets(self, request, obj=None):
+        readonly_fields = self.get_readonly_fields(request, obj)
+        return [
+            (name, {**options, 'fields': self.localize_datetimes(options['fields'], only=readonly_fields)})
+            for name, options in super().get_fieldsets(request, obj)
+        ]
+
+
+class SpellbookModelAdmin(LocalDatetimeAdminMixin, SortableAdminBase, ModelAdmin):
     form = SpellbookAdminForm
     search_help_text = 'Type text to search for, using spaces to separate multiple terms.' \
         ' Wrap terms in quotes to search for exact phrases.' \
@@ -66,47 +122,6 @@ class SpellbookModelAdmin(SortableAdminBase, ModelAdmin):
     formfield_overrides = {
         TextField: {'widget': NormalizedTextareaWidget},
     }
-
-    def __init__(self, model: type, admin_site: admin.AdminSite):
-        super().__init__(model, admin_site)
-        for field in self.readonly_fields:
-            if isinstance(field, str):
-                try:
-                    f = self.model._meta.get_field(field)
-                    if isinstance(f, DateTimeField):
-                        field_alias = f'{field}_local'
-
-                        @admin.display(description=f.verbose_name, ordering=field)
-                        def get_local_datetime(self, obj=None, f=field):
-                            if obj is not None:
-                                return datetime_to_html(getattr(obj, f))
-                            return None
-                        setattr(self, field_alias, MethodType(get_local_datetime, self))
-                        self.readonly_fields = [field_alias if n == field else n for n in self.readonly_fields]  # type: ignore[misc]
-                        self.list_display = [field_alias if n == field else n for n in self.list_display]
-                        if self.fields:
-                            fields: list = []
-                            for field_name in self.fields:
-                                if field_name == field:
-                                    fields.append(field_alias)
-                                elif isinstance(field_name, tuple):
-                                    fields.append(tuple(field_alias if n == field else n for n in field_name))
-                                else:
-                                    fields.append(field_name)
-                            self.fields = fields  # type: ignore[misc]
-                        if self.fieldsets:
-                            for _, field_options in self.fieldsets:
-                                fields = []
-                                for field_name in field_options['fields']:
-                                    if field_name == field:
-                                        fields.append(field_alias)
-                                    elif isinstance(field_name, tuple):
-                                        fields.append(tuple(field_alias if n == field else n for n in field_name))
-                                    else:
-                                        fields.append(field_name)
-                                field_options['fields'] = fields
-                except FieldDoesNotExist:
-                    pass
 
     def get_search_results(self, request, queryset, search_term: str):
         result = queryset

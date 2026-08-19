@@ -1,10 +1,11 @@
 from django.utils.html import format_html
 from django.contrib import admin
 from django.contrib.admin.models import LogEntry, DELETION
+from spellbook.admin.utils import LocalDatetimeAdminMixin
 
 
 @admin.register(LogEntry)
-class LogEntryAdmin(admin.ModelAdmin):
+class LogEntryAdmin(LocalDatetimeAdminMixin, admin.ModelAdmin):
     date_hierarchy = 'action_time'
     readonly_fields = ['action_time']
     list_filter = ['content_type', 'action_flag']

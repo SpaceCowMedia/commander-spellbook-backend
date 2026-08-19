@@ -33,7 +33,7 @@ CONTROL_SOME_OPPONENTS_PATTERN = re.compile(r'you control (?:one|an|(?:up to )?t
 
 class RecipePrefetchedManager(PreSaveSerializedManager):
     def get_queryset(self):
-        return super().get_queryset().prefetch_related(
+        return super().get_queryset().order_by('pk').prefetch_related(
             'uses',
             'requires',
             'produces',
@@ -52,7 +52,7 @@ class RenamePrefetchedManager(PreSaveSerializedManager):
     '''Prefetches only what recomputing the name of a variant reads, with the ingredients joined to
     the names they display, so that a rename does not build the rest of the recipe.'''
     def get_queryset(self):
-        return super().get_queryset().prefetch_related(
+        return super().get_queryset().order_by('pk').prefetch_related(
             models.Prefetch('cardinvariant_set', queryset=CardInVariant.objects.select_related('card').only('variant_id', 'quantity', 'card__name')),
             models.Prefetch('templateinvariant_set', queryset=TemplateInVariant.objects.select_related('template').only('variant_id', 'quantity', 'template__name')),
             models.Prefetch('featureproducedbyvariant_set', queryset=FeatureProducedByVariant.objects.select_related('feature').only('variant_id', 'quantity', 'feature__name')),

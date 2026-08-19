@@ -16,7 +16,7 @@ from .feature_attribute import WithFeatureAttributes, WithFeatureAttributesMatch
 
 class RecipePrefetchedManager(models.Manager):
     def get_queryset(self):
-        return super().get_queryset().prefetch_related(
+        return super().get_queryset().order_by('pk').prefetch_related(
             'cardincombo_set',
             'cardincombo_set__card',
             'templateincombo_set',
@@ -34,7 +34,7 @@ class RenamePrefetchedManager(models.Manager):
     '''Prefetches only what recomputing the name of a combo reads, with the ingredients joined to the
     names they display, so that a rename does not build the rest of the recipe.'''
     def get_queryset(self):
-        return super().get_queryset().prefetch_related(
+        return super().get_queryset().order_by('pk').prefetch_related(
             models.Prefetch('cardincombo_set', queryset=CardInCombo.objects.select_related('card').only('combo_id', 'quantity', 'card__name')),
             models.Prefetch('templateincombo_set', queryset=TemplateInCombo.objects.select_related('template').only('combo_id', 'quantity', 'template__name')),
             models.Prefetch('featureneededincombo_set', queryset=FeatureNeededInCombo.objects.select_related('feature').only('combo_id', 'quantity', 'feature__name')),

@@ -109,7 +109,7 @@ class PreSaveSerializedManager(PreSaveManager[_T]):
 
 class SerializedObjectsManager(Manager):
     def get_queryset(self) -> QuerySet:
-        return super().get_queryset().filter(serialized__isnull=False).only('serialized')
+        return super().get_queryset().order_by('pk').filter(serialized__isnull=False).only('serialized')
 
 
 class PreSaveSerializedModelMixin(PreSaveModelMixin):

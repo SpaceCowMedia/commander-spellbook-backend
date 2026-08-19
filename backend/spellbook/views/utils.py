@@ -3,7 +3,7 @@ from functools import cached_property
 from typing import Sequence
 from common.serializers import CardInDeck as RawCardInDeck
 from common.abstractions import Deck as RawDeck
-from django.db.models import F, Sum, Case, When, Count
+from django.db.models import F, Sum, Case, When
 from django.db.models.functions import Coalesce, Greatest
 from django.template import loader
 from djangorestframework_camel_case.render import CamelCaseBrowsableAPIRenderer
@@ -11,7 +11,7 @@ from rest_framework import parsers
 from rest_framework.views import APIView
 from rest_framework.request import Request
 from common.serializers import DeckSerializer as RawDeckSerializer
-from spellbook.models import Card, Template, Variant, merge_color_identities
+from spellbook.models import Card, Template, TemplateInVariant, Variant, merge_color_identities
 from spellbook.variants.multiset import Multiset, FrozenMultiset
 from website.views import PlainTextDeckListParser
 
@@ -120,19 +120,26 @@ class DecklistAPIView(APIView):
 
 
 def find_variants(deck: Deck, missing=1) -> Sequence[str]:
+    '''The ids of the variants the deck is short of at most `missing` copies of an ingredient.
+
+    The card side counts from Variant, not from CardInVariant, so that a variant asking for templates
+    alone is still reached; the template side goes unnarrowed, so that too many missing templates stays
+    distinct from none at all. A list, because as a subquery PostgreSQL re-runs it once per worker.'''
     card_quantity_in_deck = Case(
         *(When(cardinvariant__card_id=card_id, then=quantity) for card_id, quantity in deck.cards.items()),
         default=0,
     )
 
     template_quantity_in_deck = Case(
-        *(When(templateinvariant__template_id=template_id, then=quantity) for template_id, quantity in deck.templates.items()),
+        *(When(template_id=template_id, then=quantity) for template_id, quantity in deck.templates.items()),
         default=0,
     )
 
-    variant_id_list = Variant.objects \
-        .values('pk') \
-        .alias(
+    missing_cards = dict[str, int](
+        Variant.objects
+        .values_list('pk')
+        .order_by()
+        .annotate(
             missing_count=Coalesce(
                 Sum(
                     Greatest(
@@ -141,18 +148,36 @@ def find_variants(deck: Deck, missing=1) -> Sequence[str]:
                     ),
                 ),
                 0,
-            ) / Greatest(Count('templateinvariant', distinct=True), 1) + Coalesce(
+            ),
+        )
+        .filter(
+            missing_count__lte=missing,
+        )
+        .values_list('pk', 'missing_count')
+    )
+    if not missing_cards:
+        return []
+
+    missing_templates = dict[str, int](
+        TemplateInVariant.objects
+        .values_list('variant_id')
+        .order_by()
+        .annotate(
+            missing_count=Coalesce(
                 Sum(
                     Greatest(
-                        F('templateinvariant__quantity') - template_quantity_in_deck,
+                        F('quantity') - template_quantity_in_deck,
                         0,
                     ),
                 ),
                 0,
-            ) / Greatest(Count('cardinvariant', distinct=True), 1),
-        ) \
-        .filter(
-            missing_count__lte=missing,
+            ),
         )
+        .values_list('variant_id', 'missing_count')
+    )
 
-    return variant_id_list  # type: ignore
+    return [
+        variant_id
+        for variant_id, missing_count in missing_cards.items()
+        if missing_count + missing_templates.get(variant_id, 0) <= missing
+    ]

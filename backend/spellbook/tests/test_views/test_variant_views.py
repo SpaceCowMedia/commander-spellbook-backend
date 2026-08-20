@@ -1,5 +1,6 @@
 import json
 import random
+from unittest.mock import patch
 from django.db import models
 from django.urls import reverse
 from rest_framework import status
@@ -1395,6 +1396,33 @@ class VariantViewsTests(SpellbookTestCaseWithSeeding):
             self.assertEqual(result.count, len(best_variants_ids))
             result_id_set = {v.id for v in result.results}
             self.assertSetEqual(result_id_set, best_variants_ids)
+
+    def test_variants_list_view_grouping_by_combo_windowing(self):
+        parameter = VariantGroupedByComboFilter.query_param
+        self.seed_popularity()
+
+        def paged_ids(query_params):
+            paged, offset = [], 0
+            while True:
+                response = self.client.get(reverse('variants-list'), query_params=query_params | {'limit': 2, 'offset': offset}, follow=True)  # type: ignore
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
+                page = [v.id for v in json.loads(response.content, object_hook=json_to_python_lambda).results]
+                paged.extend(page)
+                if len(page) < 2:
+                    return paged
+                offset += 2
+
+        for ordering in ('-popularity', 'card_count', '-created', 'variant_count'):
+            query_params = {parameter: 'true', 'ordering': ordering}
+            response = self.client.get(reverse('variants-list'), query_params=query_params | {'count': True}, follow=True)  # type: ignore
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            reference = [v.id for v in json.loads(response.content, object_hook=json_to_python_lambda).results]
+            self.assertGreater(len(reference), 2)
+            with self.subTest(f'ordering by {ordering} through computed windows'):
+                self.assertEqual(paged_ids(query_params), reference)
+            with self.subTest(f'ordering by {ordering} through windows too narrow to fill a page'):
+                with patch.object(VariantGroupedByComboFilter, 'window_size_for', lambda *_: 1):
+                    self.assertEqual(paged_ids(query_params), reference)
 
     def test_variants_list_view_variant_filter(self):
         for variant_id in Variant.objects.values_list('pk', flat=True):

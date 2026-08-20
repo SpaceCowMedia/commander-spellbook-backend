@@ -140,7 +140,9 @@ class Combo(Recipe, ScryfallLinkMixin):
         verbose_name_plural = 'combos'
         default_manager_name = 'objects'
         ordering = ['created']
-        indexes = case_insensitive_trigram_indexes(
+        indexes = [
+            models.Index(fields=['variant_count']),
+        ] + case_insensitive_trigram_indexes(
             'combo',
             'mana_needed',
             'description',

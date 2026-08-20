@@ -316,6 +316,11 @@ def remove_random_from_order_by(order_by: Iterable[str | F | OrderBy]) -> Genera
         yield o
 
 
+def has_random_in_order_by(order_by: Iterable[str | F | OrderBy]) -> bool:
+    order_by = list(order_by)
+    return len(list(remove_random_from_order_by(order_by))) != len(order_by)
+
+
 def trigram_indexes(prefix: str, expression: Callable[[str], Expression], /, *fields: str, **labels: str) -> list[Index]:
     '''GIN indexes over the indexed expression of each field, that only exist on PostgreSQL. They are
     named after the field, unless a keyword argument abbreviates it to keep the name within the 30

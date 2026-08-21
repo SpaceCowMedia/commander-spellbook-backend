@@ -1,9 +1,10 @@
+from collections import defaultdict
 from dataclasses import dataclass
 from functools import cached_property
-from typing import Sequence
+from typing import Iterable, Sequence
 from common.serializers import CardInDeck as RawCardInDeck
 from common.abstractions import Deck as RawDeck
-from django.db.models import F, Sum, Case, When
+from django.db.models import Case, F, Sum, When
 from django.db.models.functions import Coalesce, Greatest
 from django.template import loader
 from djangorestframework_camel_case.render import CamelCaseBrowsableAPIRenderer
@@ -14,6 +15,21 @@ from common.serializers import DeckSerializer as RawDeckSerializer
 from spellbook.models import Card, Template, TemplateInVariant, Variant, merge_color_identities
 from spellbook.variants.multiset import Multiset, FrozenMultiset
 from website.views import PlainTextDeckListParser
+
+
+def quantity_in_deck(ingredient: str, deck: Iterable[tuple[int, int]]) -> Case:
+    '''How many copies of the row's ingredient the deck holds, zero when it holds none.
+
+    The ingredients are grouped by that quantity, so that the expression carries one branch per distinct
+    quantity in the deck instead of one per ingredient, and every backend evaluates it as a handful of
+    set memberships rather than a comparison per card.'''
+    ids_by_quantity = defaultdict[int, list[int]](list)
+    for id, quantity in deck:
+        ids_by_quantity[quantity].append(id)
+    return Case(
+        *(When(**{f'{ingredient}__in': ids}, then=quantity) for quantity, ids in sorted(ids_by_quantity.items())),
+        default=0,
+    )
 
 
 @dataclass
@@ -34,16 +50,7 @@ class Deck:
                 quantity_in_deck=Case(
                     When(scryfall_query__isnull=False, then=1),
                     default=Coalesce(
-                        Sum(
-                            Case(
-                                *(
-                                    When(templatereplacement__card_id=card_id, then=quantity)
-                                    for card_id, quantity
-                                    in self.cards.items()
-                                ),
-                                default=0,
-                            ),
-                        ),
+                        Sum(quantity_in_deck('templatereplacement__card_id', self.cards.items())),
                         1,
                     ),
                 ),
@@ -125,16 +132,6 @@ def find_variants(deck: Deck, missing=1) -> Sequence[str]:
     The card side counts from Variant, not from CardInVariant, so that a variant asking for templates
     alone is still reached; the template side goes unnarrowed, so that too many missing templates stays
     distinct from none at all. A list, because as a subquery PostgreSQL re-runs it once per worker.'''
-    card_quantity_in_deck = Case(
-        *(When(cardinvariant__card_id=card_id, then=quantity) for card_id, quantity in deck.cards.items()),
-        default=0,
-    )
-
-    template_quantity_in_deck = Case(
-        *(When(template_id=template_id, then=quantity) for template_id, quantity in deck.templates.items()),
-        default=0,
-    )
-
     missing_cards = dict[str, int](
         Variant.objects
         .values_list('pk')
@@ -143,7 +140,7 @@ def find_variants(deck: Deck, missing=1) -> Sequence[str]:
             missing_count=Coalesce(
                 Sum(
                     Greatest(
-                        F('cardinvariant__quantity') - card_quantity_in_deck,
+                        F('cardinvariant__quantity') - quantity_in_deck('cardinvariant__card_id', deck.cards.items()),
                         0,
                     ),
                 ),
@@ -166,7 +163,7 @@ def find_variants(deck: Deck, missing=1) -> Sequence[str]:
             missing_count=Coalesce(
                 Sum(
                     Greatest(
-                        F('quantity') - template_quantity_in_deck,
+                        F('quantity') - quantity_in_deck('template_id', deck.templates.items()),
                         0,
                     ),
                 ),

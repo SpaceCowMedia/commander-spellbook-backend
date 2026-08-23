@@ -7,7 +7,9 @@ from .abstractions import Deck, CardInDeck
 
 MAX_CARD_NAME_LENGTH = 256
 MAX_DECKLIST_LINES = 600
-DECKLIST_LINE_REGEX = r'^(?:(?P<quantity>\d{1,20})x?\s{1,6})?(?P<card>.*?[^\s])(?:\s{1,6}(?:<\w{1,50}>|\[(?P<tags_1>[\w{},\s]{1,50})\]|\*\w{1,50}\*|\(\w{0,50}\)|\^[\w,#]{1,50}\^)(?:\s{1,6}(?:<\w{1,50}>|\[(?P<tags_2>[\w{},\s]{1,50})\]|\*\w{1,50}\*|\(\w{0,50}\)|\^[\w,#]{1,50}\^|[\w-]+))*)?(?P<tags_3>\s{1,6}#\s?!\s?Commander)?$'
+# The card name walks over whole tokens instead of being a lazy prefix: a lazy one lets the engine retry the annotations
+# at every character, which is quadratic. The annotations are the tokens left after the last one that cannot belong to them.
+DECKLIST_LINE_REGEX = r'^(?:(?P<quantity>\d{1,20})x?\s{1,6})?(?P<card>\s*(?:(?:<\w{1,50}>|\[[\w{},\s]{1,50}\]|\*\w{1,50}\*|\(\w{0,50}\)|\^[\w,#]{1,50}\^|[\w-]+)(?=\s|$)|(?!(?:<\w{1,50}>|\[[\w{},\s]{1,50}\]|\*\w{1,50}\*|\(\w{0,50}\)|\^[\w,#]{1,50}\^|[\w-]+)(?=\s|$))\S+)(?:(?:(?!\s{1,6}#\s?!\s?Commander$)\s{1,6}(?!\s)(?:<\w{1,50}>|\[[\w{},\s]{1,50}\]|\*\w{1,50}\*|\(\w{0,50}\)|\^[\w,#]{1,50}\^|[\w-]+)(?=\s|$))*(?:(?!\s{1,6}#\s?!\s?Commander$)\s{1,6}(?!\s)(?!(?:<\w{1,50}>|\[[\w{},\s]{1,50}\]|\*\w{1,50}\*|\(\w{0,50}\)|\^[\w,#]{1,50}\^|[\w-]+)(?=\s|$))\S+|(?!\s{1,6}#\s?!\s?Commander$)\s{7,}\S+))*(?:(?!\s{1,6}#\s?!\s?Commander$)\s{1,6}(?!\s)[\w-]+(?=\s|$))*)(?:\s{1,6}(?:<\w{1,50}>|\[(?P<tags_1>[\w{},\s]{1,50})\]|\*\w{1,50}\*|\(\w{0,50}\)|\^[\w,#]{1,50}\^)(?:\s{1,6}(?:<\w{1,50}>|\[(?P<tags_2>[\w{},\s]{1,50})\]|\*\w{1,50}\*|\(\w{0,50}\)|\^[\w,#]{1,50}\^|[\w-]+))*)?(?P<tags_3>\s{1,6}#\s?!\s?Commander)?$'
 DECKLIST_LINE_PARSER = re.compile(DECKLIST_LINE_REGEX)
 
 

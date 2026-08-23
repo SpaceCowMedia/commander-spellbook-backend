@@ -1,3 +1,4 @@
+import time
 from unittest import TestCase
 from rest_framework.serializers import ListSerializer
 from common.serializers import DeckSerializer
@@ -120,6 +121,12 @@ class TestDeckSerializer(TestCase):
         3x Swamp (M21) 190
         '''.replace('        ', ''))
         self.common_assertions(serializer)
+
+    def test_pathological_line(self):
+        start = time.perf_counter()
+        serializer = DeckSerializer(data='Nissa ' + '[a] a ' * 20000 + '!')
+        self.assertFalse(serializer.is_valid())
+        self.assertLess(time.perf_counter() - start, 10)
 
     def test_too_many_commanders(self):
         commanders = '\n'.join(f'1 Pinocchio #{i}' for i in range(DeckSerializer.MAX_COMMANDERS_LIST_LENGTH + 1))

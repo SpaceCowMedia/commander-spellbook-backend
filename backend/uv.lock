@@ -180,30 +180,30 @@ wheels = [
 
 [[package]]
 name = "boto3"
-version = "1.43.72"
+version = "1.43.78"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "botocore" },
     { name = "jmespath" },
     { name = "s3transfer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/96/cc/f22093524c3b38e94ba2d0e6743d7e264f7190d149c8dceaf9603822c595/boto3-1.43.72.tar.gz", hash = "sha256:6280ce03cc85e9110fd9fb7e2fbf11eae0b1177cb041a0d69aa88edc9d178cf9", size = 112688, upload-time = "2026-08-14T19:24:53.29Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/be/55/e026c943f7f1ed6d2f5e6035713f21233bbe9ee975008662dc64ca0d4ced/boto3-1.43.78.tar.gz", hash = "sha256:2fa59116e298171ef59e7600a8be6c01177faef8af4b9a4314b7a57a04009ada", size = 112679, upload-time = "2026-08-21T19:37:36.84Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c4/b7/fa7b827ce0fc9bd697381e40f59d69a74c6ab553e246271685ec0acc75b2/boto3-1.43.72-py3-none-any.whl", hash = "sha256:f1bbbad5ed8d8a8c64edb0cd092dc443c95a85623b2ac88b6f6d633717605f00", size = 140025, upload-time = "2026-08-14T19:24:52.013Z" },
+    { url = "https://files.pythonhosted.org/packages/e3/55/288b1f0d987e15db0417f5ea43da564bfa042063f508c259eec893134628/boto3-1.43.78-py3-none-any.whl", hash = "sha256:893f06a171469618e17de78dc927aca6e74fcf45a70d2c5918e9ac9919e96cc9", size = 140028, upload-time = "2026-08-21T19:37:35.358Z" },
 ]
 
 [[package]]
 name = "botocore"
-version = "1.43.72"
+version = "1.43.78"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "jmespath" },
     { name = "python-dateutil" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a1/99/a8cfeaea98d5085a493af909d09d174466482235a7fda291be18c9a5a76e/botocore-1.43.72.tar.gz", hash = "sha256:1b878c69081e8e9d55aa4c0d85683e7b07f0e274a5554662f9507a46641be3d2", size = 15949280, upload-time = "2026-08-14T19:24:48.841Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/67/71/490aaa384855bf3b69405ded52ae77a0e5f4eeb2165044fa65466c4d3a73/botocore-1.43.78.tar.gz", hash = "sha256:e8238d22c1e1342025d75d2e33d154a375e7caad0fc67f77d77faa2d82668b94", size = 15982895, upload-time = "2026-08-21T19:37:32.402Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f4/27/35814fd8701a6b8be0aa47a7fcbd1ea0706189410a47d71ff29ddcc3ad4d/botocore-1.43.72-py3-none-any.whl", hash = "sha256:de5a1bcf8d7602c6cefc15016f15dad82981e339192531f31fa9483e11feea47", size = 15641880, upload-time = "2026-08-14T19:24:45.882Z" },
+    { url = "https://files.pythonhosted.org/packages/c5/5b/b7c5c22767c0e8eb4bb2bd0a972d77bd0be3dd9908e15d4487094a31fa4b/botocore-1.43.78-py3-none-any.whl", hash = "sha256:ddd020493235e264b3bd12606f239a3d3b2dd7cfb1d25a0691061183c290c228", size = 15677214, upload-time = "2026-08-21T19:37:28.894Z" },
 ]
 
 [[package]]
@@ -1389,7 +1389,7 @@ prod = [
 [package.metadata]
 requires-dist = [
     { name = "anytree", specifier = "==2.13.0" },
-    { name = "boto3", specifier = "==1.43.72" },
+    { name = "boto3", specifier = "==1.43.78" },
     { name = "discord-webhook", specifier = "==1.4.1" },
     { name = "django", specifier = "==6.0.7" },
     { name = "django-admin-sortable2", specifier = "==2.3.1" },

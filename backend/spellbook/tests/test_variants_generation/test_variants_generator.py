@@ -11,8 +11,8 @@ from spellbook.variants.combo_graph import FeatureWithAttributes
 from spellbook.variants.multiset import FrozenMultiset
 from spellbook.variants.variant_data import Data
 from spellbook.variants import variants_generator
-from spellbook.variants.variants_generator import get_variants_from_graph, get_default_zone_location_for_card, update_state_with_default, merge_used_faces
-from spellbook.variants.replacements import ReplacementContext
+from spellbook.variants.variants_generator import get_variants_from_graph, get_default_zone_location_for_card, update_state_with_default
+from spellbook.variants.replacements import VariantContext, merge_used_faces
 from spellbook.variants.variants_generator import generate_variants, subtract_features, update_state
 from spellbook.variants.variants_generator import sync_variant_aliases, restore_variants
 from spellbook.variants.variants_generator import VariantDefinition, _restore_variant, _update_variant, _create_variant, _perform_bulk_saves
@@ -190,6 +190,10 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
         combo = Combo.objects.create(status=Combo.Status.UTILITY)
         fn = FeatureNeededInCombo.objects.create(combo=combo, feature=fx)
         fn.none_of_attributes.add(fattr)
+        # the face a card is used by is taken from the rows contributing it, so the two below are what
+        # the face tests at the end of this test read, once the ingredients are given a position
+        CardInCombo.objects.create(combo=combo, card=dfc_card, order=1, zone_locations=ZoneLocation.BATTLEFIELD, used_face=2)
+        CardInCombo.objects.create(combo=combo, card=legendary_face_card, order=2, zone_locations=ZoneLocation.BATTLEFIELD, used_face=2)
         replacements = {
             FeatureWithAttributes(Feature.objects.get(id=self.f1_id), frozenset()): [([Card.objects.get(id=self.c1_id)], []), ([Card.objects.get(id=self.c2_id)], [])],
             FeatureWithAttributes(Feature.objects.get(id=self.f2_id), frozenset()): [([], [Template.objects.get(id=self.t1_id)]), ([], [Template.objects.get(id=self.t2_id)])],
@@ -242,7 +246,7 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
         data = Data()
         # A context per case, so that the aliases registered by one do not leak into the next
         for test in tests:
-            context = ReplacementContext.build(data, replacements, [combo], {})
+            context = VariantContext.build(data, replacements, [combo], [], {})
             self.assertEqual(context.apply(test[0]), test[1])
         # When the used_face field is specified, the placeholder defaults to that half of the name,
         # while a face selector in the text still overrides it
@@ -252,14 +256,14 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
             ('Used face is cut before comma as well: [[FLDFC]]', 'Used face is cut before comma as well: The Lord'),
         ]
         for test in face_tests:
-            context = ReplacementContext.build(data, replacements, [combo], {dfc_card.id: 2, legendary_face_card.id: 2})
+            context = VariantContext.build(data, replacements, [combo], [], {dfc_card.id: 1, legendary_face_card.id: 2})
             self.assertEqual(context.apply(test[0]), test[1])
         # One context spans a whole variant, so an alias registered by one text is visible to the next
-        context = ReplacementContext.build(data, replacements, [combo], {})
+        context = VariantContext.build(data, replacements, [combo], [], {})
         self.assertEqual(context.apply('alias registered here: [[FA|XYZ]]'), 'alias registered here: A A')
         self.assertEqual(context.apply('and used in another text: [[XYZ]]'), 'and used in another text: A A')
         # while a newly built one starts over without it
-        self.assertEqual(ReplacementContext.build(data, replacements, [combo], {}).apply('unknown here: [[XYZ]]'), 'unknown here: [[XYZ]]')
+        self.assertEqual(VariantContext.build(data, replacements, [combo], [], {}).apply('unknown here: [[XYZ]]'), 'unknown here: [[XYZ]]')
 
     def test_replacement_order_follows_needed_features(self):
         landfall = FeatureAttribute.objects.create(name='Landfall')
@@ -287,7 +291,7 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
             dict([untapper_replacement, landfall_replacement]),
         ):
             with self.subTest(replacements=list(replacements)):
-                context = ReplacementContext.build(data, replacements, [combo, other_combo], {})
+                context = VariantContext.build(data, replacements, [combo, other_combo], [], {})
                 self.assertEqual(context.apply(text, combo.id), 'Landfall Card then Untapper Card')
                 # The same text renders against the needed features of the combo it belongs to
                 self.assertEqual(context.apply(text, other_combo.id), 'Untapper Card then Landfall Card')
@@ -1049,3 +1053,132 @@ class ParallelGenerationOverACycleTests(SpellbookTestCase):
         with mock.patch.object(variants_generator, 'MIN_COMBOS_FOR_PARALLELISM', 1):
             parallel = get_variants_from_graph(data=data, workers=2)
         self.assertEqual(serial, parallel)
+
+
+class FeatureInclusionTests(SpellbookTestCase):
+    '''End to end coverage of the {{name}} syntax, which writes the text box it appears in, taken from
+    the sources producing the mentioned feature, instead of leaving it to be appended.'''
+
+    def setUp(self):
+        super().setUp()
+        self.mana = Feature.objects.create(name='IFMana', status=Feature.Status.HIDDEN_UTILITY)
+        self.win = Feature.objects.create(name='IFWin', status=Feature.Status.STANDALONE)
+        self.main_card = Card.objects.create(name='Inclusion Main Card', type_line='Instant')
+
+    def make_producer(self, card_name: str, feature: Feature, **texts) -> Combo:
+        combo = Combo.objects.create(status=Combo.Status.UTILITY, **texts)
+        card = Card.objects.create(name=card_name, type_line='Creature - Elf')
+        CardInCombo.objects.create(combo=combo, card=card, order=1, zone_locations=ZoneLocation.BATTLEFIELD)
+        combo.produces.add(feature)
+        return combo
+
+    def make_main(self, feature: Feature, **texts) -> Combo:
+        combo = Combo.objects.create(status=Combo.Status.GENERATOR, **texts)
+        CardInCombo.objects.create(combo=combo, card=self.main_card, order=1, zone_locations=ZoneLocation.HAND)
+        FeatureNeededInCombo.objects.create(combo=combo, feature=feature, order=1)
+        combo.produces.add(self.win)
+        return combo
+
+    def test_inclusion_writes_the_producer_text_in_place_of_appending_it(self):
+        self.make_producer('Inclusion Mana Card', self.mana, description='make infinite mana', notes='a note of the producer')
+        main = self.make_main(self.mana, description='First, {{IFMana}}, then win.', notes='a note of the main combo')
+
+        self.generate_variants()
+
+        variant = Variant.objects.get(of=main)
+        self.assertEqual(variant.description, 'First, make infinite mana, then win.')
+        # the notes hold no inclusion, so they are appended the way they always were
+        self.assertEqual(variant.notes, 'a note of the main combo\na note of the producer')
+
+    def test_a_repeated_inclusion_repeats_the_text_and_consumes_the_producer_once(self):
+        self.make_producer('Inclusion Mana Card', self.mana, description='make infinite mana')
+        main = self.make_main(self.mana, description='{{IFMana}}, and again {{IFMana}}.')
+
+        self.generate_variants()
+
+        self.assertEqual(Variant.objects.get(of=main).description, 'make infinite mana, and again make infinite mana.')
+
+    def test_an_inclusion_inside_an_included_text_expands_in_turn(self):
+        top = Feature.objects.create(name='IFTop', status=Feature.Status.HIDDEN_UTILITY)
+        self.make_producer('Inclusion Mana Card', self.mana, description='make infinite mana')
+        middle = Combo.objects.create(status=Combo.Status.UTILITY, description='to get there, {{IFMana}}')
+        FeatureNeededInCombo.objects.create(combo=middle, feature=self.mana, order=1)
+        middle.produces.add(top)
+        main = self.make_main(top, description='First, {{IFTop}}, then win.')
+
+        self.generate_variants()
+
+        # neither the middle text nor the one it includes is appended
+        self.assertEqual(Variant.objects.get(of=main).description, 'First, to get there, make infinite mana, then win.')
+
+    def test_a_text_never_includes_itself(self):
+        producer = self.make_producer('Inclusion Mana Card', self.mana, description='a loop over {{IFMana}}')
+        main = self.make_main(self.mana, description='First, win.')
+
+        self.generate_variants()
+
+        # the only producer of the feature is the text itself, so the inclusion resolves to nothing
+        variant = Variant.objects.get(of=main)
+        self.assertEqual(variant.description, 'First, win.\na loop over {{IFMana}}')
+        self.assertEqual(Combo.objects.get(id=producer.id).description, 'a loop over {{IFMana}}')
+
+    def test_an_unresolvable_inclusion_stays_in_the_text(self):
+        self.make_producer('Inclusion Mana Card', self.mana, description='make infinite mana')
+        main = self.make_main(self.mana, description='{{IFUnknown}} and {{IFMana$9}} and {{IFMana$Unknown}}.')
+
+        self.generate_variants()
+
+        # nothing was selected, so the producer text is still appended
+        self.assertEqual(
+            Variant.objects.get(of=main).description,
+            '{{IFUnknown}} and {{IFMana$9}} and {{IFMana$Unknown}}.\nmake infinite mana',
+        )
+
+    def test_an_inclusion_resolves_the_replacements_of_the_text_it_comes_from(self):
+        self.make_producer('Inclusion Mana Card', self.mana, description='tap [[IFMana]] for infinite mana')
+        main = self.make_main(self.mana, description='First, {{IFMana}}, then win with [[IFMana]].')
+
+        self.generate_variants()
+
+        self.assertEqual(
+            Variant.objects.get(of=main).description,
+            'First, tap Inclusion Mana Card for infinite mana, then win with Inclusion Mana Card.',
+        )
+
+    def test_a_card_feature_is_a_producer_of_its_own(self):
+        card = Card.objects.create(name='Inclusion Feature Card', type_line='Creature - Elf')
+        FeatureOfCard.objects.create(card=card, feature=self.mana, zone_locations=ZoneLocation.BATTLEFIELD, easy_prerequisites='untap it first')
+        main = self.make_main(self.mana, easy_prerequisites='To start, {{IFMana}}.')
+
+        self.generate_variants()
+
+        self.assertEqual(Variant.objects.get(of=main).easy_prerequisites, 'To start, untap it first.')
+
+    def test_a_selector_leaves_the_producers_it_does_not_pick_appended(self):
+        landfall = FeatureAttribute.objects.create(name='Landfall')
+        untapper = FeatureAttribute.objects.create(name='Untapper Effect')
+        for card_name, attribute, description in (
+            ('Inclusion Landfall Card', landfall, 'play a land'),
+            ('Inclusion Untapper Card', untapper, 'untap it'),
+        ):
+            producer = self.make_producer(card_name, self.mana, description=description)
+            produced = producer.featureproducedincombo_set.get(feature=self.mana)
+            produced.attributes.add(attribute)
+        main = Combo.objects.create(status=Combo.Status.GENERATOR, description='First, {{IFMana$Landfall}}, then win.')
+        CardInCombo.objects.create(combo=main, card=self.main_card, order=1, zone_locations=ZoneLocation.HAND)
+        needs_landfall = FeatureNeededInCombo.objects.create(combo=main, feature=self.mana, order=1)
+        needs_landfall.any_of_attributes.add(landfall)
+        needs_untapper = FeatureNeededInCombo.objects.create(combo=main, feature=self.mana, order=2)
+        needs_untapper.any_of_attributes.add(untapper)
+        main.produces.add(self.win)
+
+        self.generate_variants()
+
+        variant = Variant.objects.get(of=main)
+        # the picked producer is written in place, the other one is still appended
+        self.assertEqual(variant.description, 'First, play a land, then win.\nuntap it')
+        # and the positional selector points at the same producer the replacement one does
+        main.description = 'First, {{IFMana$1}}, then win.'
+        main.save()
+        self.generate_variants()
+        self.assertEqual(Variant.objects.get(of=main).description, 'First, play a land, then win.\nuntap it')

@@ -1,6 +1,6 @@
 from itertools import product
 from unittest import TestCase
-from spellbook.models.references import FEATURE_REPLACEMENT_PATTERN, format_feature_replacement
+from spellbook.models.references import FEATURE_INCLUSION_PATTERN, FEATURE_REPLACEMENT_PATTERN, format_feature_inclusion, format_feature_replacement
 
 KEYS = [
     'Feature',
@@ -19,6 +19,10 @@ POSTFIX_ALIASES = [None, 'post', 'post alias']
 
 def all_parts():
     return product(KEYS, FACES, ALIASES, SELECTORS, POSTFIX_ALIASES)
+
+
+def all_inclusion_parts():
+    return product(KEYS, SELECTORS)
 
 
 class FeatureReplacementPatternTests(TestCase):
@@ -49,3 +53,33 @@ class FeatureReplacementPatternTests(TestCase):
                     result, count = FEATURE_REPLACEMENT_PATTERN.subn(lambda m: format_feature_replacement(*m.groups()), text)
                     self.assertGreater(count, 0)
                     self.assertEqual(result, text)
+
+
+class FeatureInclusionPatternTests(TestCase):
+    def test_pattern_matches_formatted_inclusion(self):
+        for key, selector in all_inclusion_parts():
+            with self.subTest(key=key, selector=selector):
+                text = format_feature_inclusion(key, selector)
+                self.assertIsNotNone(FEATURE_INCLUSION_PATTERN.fullmatch(text))
+
+    def test_pattern_recovers_the_formatted_parts(self):
+        for key, selector in all_inclusion_parts():
+            with self.subTest(key=key, selector=selector):
+                match = FEATURE_INCLUSION_PATTERN.fullmatch(format_feature_inclusion(key, selector))
+                assert match is not None
+                self.assertEqual(match.group('key'), key)
+                self.assertEqual(match.group('selector'), selector)
+
+    def test_formatting_back_a_match_leaves_the_text_untouched(self):
+        for key, selector in all_inclusion_parts():
+            with self.subTest(key=key, selector=selector):
+                inclusion = format_feature_inclusion(key, selector)
+                for text in (inclusion, f'before {inclusion} after', f'{inclusion}{inclusion}'):
+                    result, count = FEATURE_INCLUSION_PATTERN.subn(lambda m: format_feature_inclusion(*m.groups()), text)
+                    self.assertGreater(count, 0)
+                    self.assertEqual(result, text)
+
+    def test_pattern_ignores_the_syntaxes_it_is_not(self):
+        for text in ('{{}}', '{{unpaired}', '{W}', '[[Feature]]', '{{Feature|alias}}', '{{Feature$1$2}}'):
+            with self.subTest(text=text):
+                self.assertIsNone(FEATURE_INCLUSION_PATTERN.search(text))

@@ -3,7 +3,7 @@ import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
 from itertools import chain
-from typing import Callable, Iterable, Sequence, TypeVar
+from typing import Callable, Sequence, TypeVar
 from django.utils.functional import cached_property
 from django.db import transaction
 from multiprocessing_utils import fork_pool, parallelism_is_available, resolve_workers, split_into_chunks
@@ -11,7 +11,7 @@ from .multiset import FrozenMultiset
 from .variant_data import Data, CardInVariantRow, TemplateInVariantRow, FeatureProducedByVariantRow
 from .variant_set import VariantSet
 from .combo_graph import FeatureWithAttributes, Graph, GraphError, cardid, templateid, featureid
-from .replacements import ReplacementContext
+from .replacements import VariantContext, merge_used_faces
 from .generation_tracking import (
     GenerationPlan, GenerationScope, plan_full_generation, plan_incremental_generation,
     compute_fingerprints, load_stored_fingerprints, store_fingerprints,
@@ -257,14 +257,6 @@ def get_default_zone_location_for_card(card: Card) -> ZoneLocation:
     return ZoneLocation.BATTLEFIELD
 
 
-def merge_used_faces(initial_states: Sequence[Ingredient]) -> int | None:
-    '''Merges the used faces of the ingredients contributing a card to a variant: a specified face is
-    kept only when every contributor that specifies one agrees on the same number (blanks are ignored).'''
-    faces = {getattr(state, 'used_face', None) for state in initial_states}
-    faces.discard(None)
-    return next(iter(faces)) if len(faces) == 1 else None
-
-
 def update_state_with_default(data: Data, destination: Ingredient) -> None:
     if isinstance(destination, CardInVariant):
         destination.zone_locations = get_default_zone_location_for_card(data.id_to_card[destination.card_id])
@@ -403,39 +395,11 @@ def _restore_variant(
             ]
             for feature_wth_attributes, recipes in variant_def.feature_replacements.items()
         }
-        # Each text is paired with the combo it comes from, because its placeholders are resolved
-        # against the needed features of that combo. Texts coming from a card have no combo.
-        mana_needed_list: list[tuple[str, int | None]] = [(c.mana_needed, c.id) for c in needed_combos if len(c.mana_needed) > 0]
-        easy_prerequisites_list: list[tuple[str, int | None]] = [(c.easy_prerequisites, c.id) for c in needed_combos if c.easy_prerequisites]
-        notable_prerequisites_list: list[tuple[str, int | None]] = [(c.notable_prerequisites, c.id) for c in needed_combos if c.notable_prerequisites]
-
-        card_initial_states = defaultdict[int, list[Ingredient]](list)
-        template_initial_states = defaultdict[int, list[Ingredient]](list)
-        for feature_of_card in needed_feature_of_cards:
-            card_initial_states[feature_of_card.card_id].append(feature_of_card)
-            if feature_of_card.mana_needed:
-                mana_needed_list.append((feature_of_card.mana_needed, None))
-            if feature_of_card.easy_prerequisites:
-                easy_prerequisites_list.append((feature_of_card.easy_prerequisites, None))
-            if feature_of_card.notable_prerequisites:
-                notable_prerequisites_list.append((feature_of_card.notable_prerequisites, None))
-
-        # Collect used cards and required templates initial states from the combos before regenerating
-        # the text fields, so that the merged used faces are already known when replacing placeholders
-        for combo in needed_combos:
-            for card_in_combo in data.combo_to_cards[combo.id]:
-                if card_in_combo.card_id in uses:
-                    card_initial_states[card_in_combo.card_id].append(card_in_combo)
-            for template_in_combo in data.combo_to_templates[combo.id]:
-                if template_in_combo.template_id in requires:
-                    template_initial_states[template_in_combo.template_id].append(template_in_combo)
-        used_faces = {card_id: merge_used_faces(states) for card_id, states in card_initial_states.items()}
-
         card_positions = {c.card_id: c.order for c in ordered_uses}
         template_positions = {t.template_id: t.order for t in ordered_requires}
         # One context for the whole variant: an alias registered by any text is visible to every text
         # rendered after it, which is why the ingredients below are walked in their display order
-        context = ReplacementContext.build(data, replacements, needed_combos, used_faces, card_positions, template_positions)
+        context = VariantContext.build(data, replacements, needed_combos, needed_feature_of_cards, card_positions, template_positions)
 
         card_zone_locations_overrides = defaultdict[int, defaultdict[str, int]](lambda: defaultdict(int))
         template_zone_locations_overrides = defaultdict[int, defaultdict[str, int]](lambda: defaultdict(int))
@@ -458,15 +422,15 @@ def _restore_variant(
                                     template_features_for_override[template].add(feature_in_combo)
                                     for location in feature_in_combo.zone_locations:
                                         template_zone_locations_overrides[template][location] += 1
-        # Merging the initial states collected for each ingredient
+        # Merging the initial states the context collected for each ingredient
         for card_in_variant in used_cards:
-            if card_initial_states[card_in_variant.card_id]:
-                update_state(card_in_variant, card_initial_states[card_in_variant.card_id])
+            if context.card_initial_states[card_in_variant.card_id]:
+                update_state(card_in_variant, context.card_initial_states[card_in_variant.card_id])
             else:
                 update_state_with_default(data, card_in_variant)
         for template_in_variant in required_templates:
-            if template_initial_states[template_in_variant.template_id]:
-                update_state(template_in_variant, template_initial_states[template_in_variant.template_id])
+            if context.template_initial_states[template_in_variant.template_id]:
+                update_state(template_in_variant, context.template_initial_states[template_in_variant.template_id])
             else:
                 update_state_with_default(data, template_in_variant)
         combo_positions = {c.id: i for i, c in enumerate(needed_combos)}
@@ -493,20 +457,17 @@ def _restore_variant(
                 )
             context.render_ingredient_states(required_template, sorted(template_features_for_override[required_template.template_id], key=feature_override_key))
 
-        def render(texts: Iterable[tuple[str, int | None]]) -> list[str]:
-            return [context.apply(text, combo_id) for text, combo_id in texts]
-
         # The variant text fields come last, in the order the combo admin form displays them
-        variant.mana_needed = merge_mana_costs(render(mana_needed_list))
+        variant.mana_needed = context.render_field('mana_needed', merge_mana_costs)
         variant.is_mana_needed_an_accurate_minimum = not variant.mana_needed or all(
             c.is_mana_needed_an_accurate_minimum
             for c in needed_combos
         )
-        variant.easy_prerequisites = '\n'.join(render(easy_prerequisites_list))
-        variant.notable_prerequisites = '\n'.join(render(notable_prerequisites_list))
-        variant.description = '\n'.join(render((c.description, c.id) for c in needed_combos if len(c.description) > 0))
-        variant.notes = '\n'.join(render((c.notes, c.id) for c in needed_combos if len(c.notes) > 0))
-        variant.comment = '\n'.join(render((c.comment, c.id) for c in needed_combos if len(c.comment) > 0))
+        variant.easy_prerequisites = context.render_field('easy_prerequisites')
+        variant.notable_prerequisites = context.render_field('notable_prerequisites')
+        variant.description = context.render_field('description')
+        variant.notes = context.render_field('notes')
+        variant.comment = context.render_field('comment')
 
     # Recomputing some variant fields
     variant.update_variant_from_recipe(Variant.Recipe(

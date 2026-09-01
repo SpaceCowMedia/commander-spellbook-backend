@@ -23,6 +23,11 @@ class FeatureAdminTests(SpellbookTestCaseWithSeeding):
             ('[[A#1|alias$3|post]]', '[[Z#1|alias$3|post]]', 'A', 'Z'),
             ('[[A$Attribute]]', '[[Z$Attribute]]', 'A', 'Z'),
             ('[[A$Attribute|post]]', '[[Z$Attribute|post]]', 'A', 'Z'),
+            ('{{Feature1}}', '{{Feature2}}', 'Feature1', 'Feature2'),
+            ('{{fEature1}}', '{{Feature2}}', 'Feature1', 'Feature2'),
+            ('{{Feature1$2}}', '{{Feature2$2}}', 'Feature1', 'Feature2'),
+            ('{{Feature1$Attribute}} and [[Feature1]]', '{{Feature2$Attribute}} and [[Feature2]]', 'Feature1', 'Feature2'),
+            ('{{Feature1}} {{Other}} {Feature1}', '{{Feature2}} {{Other}} {Feature1}', 'Feature1', 'Feature2'),
         ]:
             with self.subTest(test_text=test_text, old_name=old_name, new_name=new_name):
                 result = replace_feature_reference(old_name, new_name, test_text)
@@ -33,7 +38,7 @@ class FeatureAdminTests(SpellbookTestCaseWithSeeding):
         combo = Combo.objects.create(
             status=Combo.Status.UTILITY,
             description='[[Old Feature]] does something',
-            notes='[[Old Feature]]',
+            notes='{{Old Feature}} was included',
             comment='[[Old Feature]]',
             easy_prerequisites='[[Old Feature]]',
             notable_prerequisites='[[Old Feature]]',
@@ -55,6 +60,7 @@ class FeatureAdminTests(SpellbookTestCaseWithSeeding):
         )
         removing_combo = Combo.objects.create(status=Combo.Status.UTILITY)
         FeatureRemovedInCombo.objects.create(combo=removing_combo, feature=feature)
+        only_included = Combo.objects.create(status=Combo.Status.UTILITY, description='{{Old Feature$Attribute}} only')
         untouched = Combo.objects.create(status=Combo.Status.UTILITY, description='[[Other Feature]]')
 
         feature = Feature.objects.get(pk=feature.pk)
@@ -63,7 +69,7 @@ class FeatureAdminTests(SpellbookTestCaseWithSeeding):
 
         combo.refresh_from_db()
         self.assertEqual(combo.description, '[[New Feature]] does something')
-        self.assertEqual(combo.notes, '[[New Feature]]')
+        self.assertEqual(combo.notes, '{{New Feature}} was included')
         self.assertEqual(combo.comment, '[[New Feature]]')
         self.assertEqual(combo.easy_prerequisites, '[[New Feature]]')
         self.assertEqual(combo.notable_prerequisites, '[[New Feature]]')
@@ -76,6 +82,8 @@ class FeatureAdminTests(SpellbookTestCaseWithSeeding):
         self.assertEqual(feature_in_combo.graveyard_card_state, 'below [[New Feature]]')
         removing_combo.refresh_from_db()
         self.assertIn('New Feature', removing_combo.name)
+        only_included.refresh_from_db()
+        self.assertEqual(only_included.description, '{{New Feature$Attribute}} only')
         untouched.refresh_from_db()
         self.assertEqual(untouched.description, '[[Other Feature]]')
 

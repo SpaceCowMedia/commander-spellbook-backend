@@ -1,6 +1,6 @@
 from unittest import TestCase
 from django.core.exceptions import ValidationError
-from spellbook.regexs import DOUBLE_SQUARE_BRACKET_TEXT_REGEX, MANA_REGEX, ORACLE_SYMBOL, SYMBOLS_TEXT_REGEX
+from spellbook.regexs import DOUBLE_CURLY_BRACKET_TEXT_REGEX, DOUBLE_SQUARE_BRACKET_TEXT_REGEX, MANA_REGEX, ORACLE_SYMBOL, SYMBOLS_TEXT_REGEX
 from spellbook.regexs import MANA_SYMBOL, ORDINARY_CHARACTERS_REGEX, URL_REGEX
 from spellbook.models.validators import SCRYFALL_QUERY_VALIDATOR
 
@@ -112,6 +112,16 @@ class TestValidators(TestCase):
         self.assertNotRegex('[[]]', DOUBLE_SQUARE_BRACKET_TEXT_REGEX)
         self.assertNotRegex('[[', DOUBLE_SQUARE_BRACKET_TEXT_REGEX)
 
+    def test_double_curly_bracket_text(self):
+        self.assertRegex('{{Infinite Mana}}', DOUBLE_CURLY_BRACKET_TEXT_REGEX)
+        self.assertRegex('{{random}} and {{stuff}}', DOUBLE_CURLY_BRACKET_TEXT_REGEX)
+        self.assertRegex('{{random$1}} and {{stuff$Some Attribute}}', DOUBLE_CURLY_BRACKET_TEXT_REGEX)
+        self.assertRegex('{T}: add {W}, the single brackets of a symbol are fine', DOUBLE_CURLY_BRACKET_TEXT_REGEX)
+        self.assertRegex('{{{ triple curly brackets are } fine too }}}', DOUBLE_CURLY_BRACKET_TEXT_REGEX)
+        self.assertNotRegex('{{}}', DOUBLE_CURLY_BRACKET_TEXT_REGEX)
+        self.assertNotRegex('{{', DOUBLE_CURLY_BRACKET_TEXT_REGEX)
+        self.assertNotRegex('{{unpaired}', DOUBLE_CURLY_BRACKET_TEXT_REGEX)
+
     def test_oracle_symbol(self):
         regex = f'^{ORACLE_SYMBOL}$'
         self.assertRegex('T', regex)
@@ -167,8 +177,11 @@ class TestValidators(TestCase):
         self.assertRegex('{C} {P} {X} anything {X}{Y}{Z}', SYMBOLS_TEXT_REGEX)
         self.assertRegex('{W/U} {W/B} {U/B} {U/R} {B/R/P} {B/G} {R/G} {R/G/P} {W/U/P}', SYMBOLS_TEXT_REGEX)
         self.assertRegex('{W/U/P} {W/B/P} {U/B/P} {U/R/P} {B/R/P} {B/G/P} {R/G/P} {R/G/P}{W}', SYMBOLS_TEXT_REGEX)
+        self.assertRegex('{{Infinite Mana}}', SYMBOLS_TEXT_REGEX)
+        self.assertRegex('{2}, then {{Infinite Mana$1}} and {{Infinite Colorless Mana}}', SYMBOLS_TEXT_REGEX)
         self.assertNotRegex('{W/U/P/}', SYMBOLS_TEXT_REGEX)
         self.assertNotRegex('{W/U/P{}', SYMBOLS_TEXT_REGEX)
+        self.assertNotRegex('{{Infinite Mana}', SYMBOLS_TEXT_REGEX)
 
     def test_ordinary_characters(self):
         self.assertRegex('Lightning Bolt', ORDINARY_CHARACTERS_REGEX)

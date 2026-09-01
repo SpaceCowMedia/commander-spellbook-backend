@@ -29,6 +29,11 @@ class FeatureAttributeAdminTests(SpellbookTestCaseWithSeeding):
             # a positional selector is never an attribute name
             ('[[Feature$2]]', '[[Feature$2]]', '2', 'Other'),
             ('[[Feature]]', '[[Feature]]', 'Attr', 'Other'),
+            ('{{Feature$Attr}}', '{{Feature$Other}}', 'Attr', 'Other'),
+            ('{{Feature$attr}} and [[Feature$Attr]]', '{{Feature$Other}} and [[Feature$Other]]', 'Attr', 'Other'),
+            ('{{Feature$Old Attribute}}', '{{Feature$New Attribute}}', 'Old Attribute', 'New Attribute'),
+            ('{{Feature$2}}', '{{Feature$2}}', '2', 'Other'),
+            ('{{Attr}}', '{{Attr}}', 'Attr', 'Other'),
         ]:
             with self.subTest(test_text=test_text, old_name=old_name, new_name=new_name):
                 self.assertEqual(replace_attribute_reference(old_name, new_name, test_text), verified_text)

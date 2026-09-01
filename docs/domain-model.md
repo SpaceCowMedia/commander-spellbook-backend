@@ -85,11 +85,13 @@ A few abstract models and join tables recur throughout:
 - **`Playable`** — Magic characteristics (color identity, mana value, type line, …) shared by `Card` and `Variant`.
 - **`Ingredient` / `OrderedIngredient`** — the through-model base that carries per-item data such as `quantity` and starting **zone locations** (hand, battlefield, graveyard, …).
 
-## The `[[name]]` reference syntax
+## The `[[name]]` and `{{name}}` reference syntaxes
 
 Text fields (descriptions, prerequisites) can reference a feature by name with `[[name]]`. Two modifiers exist: `[[name|alias]]` gives it a reusable alias, and `[[name$selector]]` selects one of several copies. This lets editorial prose refer to generated pieces without hardcoding card names.
 
 The selector is either a number or an attribute name. A number is the position of the **needed feature** row among the ones the combo owning the text needs for that feature, so `[[name$2]]` always means "whatever satisfies the second row", in every variant of that combo — the rows are drag-sortable in the admin. An attribute name, as in `[[name$Landfall]]`, picks the copy produced with that attribute regardless of any ordering. Copies the combo does not ask for stay reachable after the ones it does. Renaming a feature or a feature attribute in the admin rewrites the references to it across every text field, so neither kind of name may contain the `$` and `|` characters the syntax reserves.
+
+`{{name}}` references the same features, but replaces itself with the **text box it is written in** — the description with descriptions, the notes with notes — taken from every combo or card feature producing that feature. Those texts are then not appended to the variant's own, because they have already been written where they were mentioned; a field holding no `{{name}}` at all is assembled by appending, as it always was. Two identical `{{name}}` write the text twice, an inclusion inside an included text expands in turn, and a text including itself stops there. `{{name$selector}}` takes the same numbers and attribute names as `[[name$selector]]` and points at the same thing, filtering which producers are written — the ones it leaves out are still appended. An inclusion nobody produces, like an unresolvable replacement, stays in the text verbatim. It is available in `easy_prerequisites`, `notable_prerequisites`, `description`, `notes` and `comment`; `mana_needed` only takes mana symbols, and the starting card states are merged per card rather than per producer.
 
 ## Where to go next
 

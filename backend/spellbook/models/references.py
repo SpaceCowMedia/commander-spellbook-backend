@@ -22,6 +22,13 @@ _T = TypeVar('_T')
 FEATURE_REPLACEMENT_PATTERN = re.compile(r'\[\[(?P<key>.+?)(?:#(?P<face>[1-9]\d*))?(?:\|(?P<alias>[^$|]+?))?(?:\$(?P<selector>[^$|\]]+)(?:\|(?P<postfix_alias>[^$|]+?))?)?\]\]', re.IGNORECASE)
 
 
+# A feature inclusion looks like {{key$selector}}, where the selector is optional: it is replaced with
+# the text box it appears in, taken from every combo or card feature producing that feature, so that
+# those texts are written where they are mentioned instead of being appended. The optional selector
+# picks among the producers the same way the one of a replacement picks among the replacements.
+FEATURE_INCLUSION_PATTERN = re.compile(r'\{\{(?P<key>[^{}$|]+?)(?:\$(?P<selector>[^{}$|]+))?\}\}', re.IGNORECASE)
+
+
 def format_feature_replacement(key: str, face: str | None, alias: str | None, selector: str | None, postfix_alias: str | None) -> str:
     '''Rebuilds a feature replacement from its parts, the inverse of FEATURE_REPLACEMENT_PATTERN.'''
     result = key
@@ -36,15 +43,24 @@ def format_feature_replacement(key: str, face: str | None, alias: str | None, se
     return f'[[{result}]]'
 
 
+def format_feature_inclusion(key: str, selector: str | None) -> str:
+    '''Rebuilds a feature inclusion from its parts, the inverse of FEATURE_INCLUSION_PATTERN.'''
+    result = key
+    if selector is not None:
+        result += f'${selector}'
+    return '{{' + result + '}}'
+
+
 def references_filter(model: type[Combo] | type[Ingredient], referenced: type[Feature] | type[FeatureAttribute], name: str) -> Q:
     '''Matches the rows of the given model whose text could contain a reference to the given feature or
     attribute name, so that a rename only loads the rows that mention it, no matter how they relate to
-    it: a feature is referenced as the key of a replacement, while an attribute is only referenced as
-    its selector.'''
-    reference = f'[[{name}' if issubclass(referenced, Feature) else f'${name}'
+    it: a feature is referenced as the key of a replacement or of an inclusion, while an attribute is
+    only referenced as their selector.'''
+    references = [f'[[{name}', '{{' + name] if issubclass(referenced, Feature) else [f'${name}']
     query = Q()
     for field in model.text_fields_with_references():
-        query |= Q(**{f'{field}__icontains': reference})
+        for reference in references:
+            query |= Q(**{f'{field}__icontains': reference})
     return query
 
 
@@ -122,8 +138,17 @@ def replace_feature_reference(old_name: str, new_name: str, text: str) -> str:
         if key.lower() != old_name.lower():
             return otherwise
         return format_feature_replacement(new_name, face, alias, selector, postfix_alias)
-    return FEATURE_REPLACEMENT_PATTERN.sub(
+
+    def inclusion_with_fallback(key: str, selector: str | None, otherwise: str) -> str:
+        if key.lower() != old_name.lower():
+            return otherwise
+        return format_feature_inclusion(new_name, selector)
+    text = FEATURE_REPLACEMENT_PATTERN.sub(
         lambda m: replacement_with_fallback(m.group('key'), m.group('face'), m.group('alias'), m.group('selector'), m.group('postfix_alias'), m.group(0)),
+        text,
+    )
+    return FEATURE_INCLUSION_PATTERN.sub(
+        lambda m: inclusion_with_fallback(m.group('key'), m.group('selector'), m.group(0)),
         text,
     )
 
@@ -150,12 +175,24 @@ def replace_attribute_references(instance: FeatureAttribute, old_name: str):
 
 
 def replace_attribute_reference(old_name: str, new_name: str, text: str) -> str:
-    def replacement_with_fallback(key: str, face: str | None, alias: str | None, selector: str | None, postfix_alias: str | None, otherwise: str) -> str:
+    def selects_the_attribute(selector: str | None) -> bool:
         # a numeric selector is a position among the needed features, never an attribute name
-        if selector is None or selector.isdigit() or selector.lower() != old_name.lower():
+        return selector is not None and not selector.isdigit() and selector.lower() == old_name.lower()
+
+    def replacement_with_fallback(key: str, face: str | None, alias: str | None, selector: str | None, postfix_alias: str | None, otherwise: str) -> str:
+        if not selects_the_attribute(selector):
             return otherwise
         return format_feature_replacement(key, face, alias, new_name, postfix_alias)
-    return FEATURE_REPLACEMENT_PATTERN.sub(
+
+    def inclusion_with_fallback(key: str, selector: str | None, otherwise: str) -> str:
+        if not selects_the_attribute(selector):
+            return otherwise
+        return format_feature_inclusion(key, new_name)
+    text = FEATURE_REPLACEMENT_PATTERN.sub(
         lambda m: replacement_with_fallback(m.group('key'), m.group('face'), m.group('alias'), m.group('selector'), m.group('postfix_alias'), m.group(0)),
+        text,
+    )
+    return FEATURE_INCLUSION_PATTERN.sub(
+        lambda m: inclusion_with_fallback(m.group('key'), m.group('selector'), m.group(0)),
         text,
     )

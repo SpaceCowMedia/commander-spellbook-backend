@@ -11,7 +11,7 @@ from .multiset import FrozenMultiset
 from .variant_data import Data, CardInVariantRow, TemplateInVariantRow, FeatureProducedByVariantRow
 from .variant_set import VariantSet
 from .combo_graph import FeatureWithAttributes, Graph, GraphError, cardid, templateid, featureid
-from .replacements import VariantContext, merge_used_faces
+from .replacements import IngredientPositions, VariantContext, merge_used_faces
 from .generation_tracking import (
     GenerationPlan, GenerationScope, plan_full_generation, plan_incremental_generation,
     compute_fingerprints, load_stored_fingerprints, store_fingerprints,
@@ -395,11 +395,13 @@ def _restore_variant(
             ]
             for feature_wth_attributes, recipes in variant_def.feature_replacements.items()
         }
-        card_positions = {c.card_id: c.order for c in ordered_uses}
-        template_positions = {t.template_id: t.order for t in ordered_requires}
+        positions = IngredientPositions(
+            cards={c.card_id: c.order for c in ordered_uses},
+            templates={t.template_id: t.order for t in ordered_requires},
+        )
         # One context for the whole variant: an alias registered by any text is visible to every text
         # rendered after it, which is why the ingredients below are walked in their display order
-        context = VariantContext.build(data, replacements, needed_combos, needed_feature_of_cards, card_positions, template_positions)
+        context = VariantContext.build(data, replacements, needed_combos, needed_feature_of_cards, positions)
 
         card_zone_locations_overrides = defaultdict[int, defaultdict[str, int]](lambda: defaultdict(int))
         template_zone_locations_overrides = defaultdict[int, defaultdict[str, int]](lambda: defaultdict(int))
@@ -424,13 +426,15 @@ def _restore_variant(
                                         template_zone_locations_overrides[template][location] += 1
         # Merging the initial states the context collected for each ingredient
         for card_in_variant in used_cards:
-            if context.card_initial_states[card_in_variant.card_id]:
-                update_state(card_in_variant, context.card_initial_states[card_in_variant.card_id])
+            initial_states = context.initial_states.cards.get(card_in_variant.card_id)
+            if initial_states:
+                update_state(card_in_variant, initial_states)
             else:
                 update_state_with_default(data, card_in_variant)
         for template_in_variant in required_templates:
-            if context.template_initial_states[template_in_variant.template_id]:
-                update_state(template_in_variant, context.template_initial_states[template_in_variant.template_id])
+            initial_states = context.initial_states.templates.get(template_in_variant.template_id)
+            if initial_states:
+                update_state(template_in_variant, initial_states)
             else:
                 update_state_with_default(data, template_in_variant)
         combo_positions = {c.id: i for i, c in enumerate(needed_combos)}

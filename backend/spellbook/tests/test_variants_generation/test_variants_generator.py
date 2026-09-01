@@ -12,7 +12,7 @@ from spellbook.variants.multiset import FrozenMultiset
 from spellbook.variants.variant_data import Data
 from spellbook.variants import variants_generator
 from spellbook.variants.variants_generator import get_variants_from_graph, get_default_zone_location_for_card, update_state_with_default
-from spellbook.variants.replacements import VariantContext, merge_used_faces
+from spellbook.variants.replacements import IngredientPositions, VariantContext, merge_used_faces
 from spellbook.variants.variants_generator import generate_variants, subtract_features, update_state
 from spellbook.variants.variants_generator import sync_variant_aliases, restore_variants
 from spellbook.variants.variants_generator import VariantDefinition, _restore_variant, _update_variant, _create_variant, _perform_bulk_saves
@@ -246,7 +246,7 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
         data = Data()
         # A context per case, so that the aliases registered by one do not leak into the next
         for test in tests:
-            context = VariantContext.build(data, replacements, [combo], [], {})
+            context = VariantContext.build(data, replacements, [combo], [])
             self.assertEqual(context.apply(test[0]), test[1])
         # When the used_face field is specified, the placeholder defaults to that half of the name,
         # while a face selector in the text still overrides it
@@ -256,14 +256,14 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
             ('Used face is cut before comma as well: [[FLDFC]]', 'Used face is cut before comma as well: The Lord'),
         ]
         for test in face_tests:
-            context = VariantContext.build(data, replacements, [combo], [], {dfc_card.id: 1, legendary_face_card.id: 2})
+            context = VariantContext.build(data, replacements, [combo], [], IngredientPositions(cards={dfc_card.id: 1, legendary_face_card.id: 2}))
             self.assertEqual(context.apply(test[0]), test[1])
         # One context spans a whole variant, so an alias registered by one text is visible to the next
-        context = VariantContext.build(data, replacements, [combo], [], {})
+        context = VariantContext.build(data, replacements, [combo], [])
         self.assertEqual(context.apply('alias registered here: [[FA|XYZ]]'), 'alias registered here: A A')
         self.assertEqual(context.apply('and used in another text: [[XYZ]]'), 'and used in another text: A A')
         # while a newly built one starts over without it
-        self.assertEqual(VariantContext.build(data, replacements, [combo], [], {}).apply('unknown here: [[XYZ]]'), 'unknown here: [[XYZ]]')
+        self.assertEqual(VariantContext.build(data, replacements, [combo], []).apply('unknown here: [[XYZ]]'), 'unknown here: [[XYZ]]')
 
     def test_replacement_order_follows_needed_features(self):
         landfall = FeatureAttribute.objects.create(name='Landfall')
@@ -291,7 +291,7 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
             dict([untapper_replacement, landfall_replacement]),
         ):
             with self.subTest(replacements=list(replacements)):
-                context = VariantContext.build(data, replacements, [combo, other_combo], [], {})
+                context = VariantContext.build(data, replacements, [combo, other_combo], [])
                 self.assertEqual(context.apply(text, combo.id), 'Landfall Card then Untapper Card')
                 # The same text renders against the needed features of the combo it belongs to
                 self.assertEqual(context.apply(text, other_combo.id), 'Untapper Card then Landfall Card')

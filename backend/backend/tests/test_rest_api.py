@@ -14,3 +14,10 @@ class RestApiTestCase(SimpleTestCase):
             self.assertIsInstance(key, str)
             self.assertIsInstance(value, str)
             self.assertRegex(value, r'^https?://')
+
+    def test_root_endpoint_documents_usage_guidelines(self):
+        response = self.client.get('/', headers={'accept': 'text/html'})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        body = response.content.decode()
+        self.assertIn('429 Too Many Requests', body)
+        self.assertIn('User-Agent', body)

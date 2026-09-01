@@ -14,6 +14,7 @@ from django.db.models import Model, QuerySet
 from django_tasks import TaskContext
 from djangorestframework_camel_case.util import camelize
 from multiprocessing_utils import fork_pool, parallelism_is_available, resolve_workers, split_into_chunks
+from constants import VARIANTS_FILE_NAME, VARIANTS_GZIP_FILE_NAME
 from spellbook.models import Variant, VariantAlias, DEFAULT_BATCH_SIZE
 from spellbook.serializers import VariantSerializer, VariantAliasSerializer
 from spellbook.views.variants import VariantViewSet
@@ -23,8 +24,6 @@ from .s3_upload import upload_json_to_aws, upload_gzipped_json_to_aws
 
 logger = logging.getLogger(__name__)
 
-
-DEFAULT_VARIANTS_FILE_NAME = 'variants.json'
 
 # Parallelism is only worth its overhead above this workload size
 MIN_OBJECTS_FOR_PARALLELISM = 2048
@@ -205,13 +204,13 @@ def export_to_s3(parts: list[str], workers: int) -> None:
         compressor = fork_compression(workers)
         if compressor is None:
             document = ''.join(parts)
-            upload_json_to_aws(document, DEFAULT_VARIANTS_FILE_NAME)
-            upload_gzipped_json_to_aws(gzip.compress(document.encode('utf8')), DEFAULT_VARIANTS_FILE_NAME + '.gz')
+            upload_json_to_aws(document, VARIANTS_FILE_NAME)
+            upload_gzipped_json_to_aws(gzip.compress(document.encode('utf8')), VARIANTS_GZIP_FILE_NAME)
             return
         with compressor as pool:
             compression = pool.apply_async(compress_document)
-            upload_json_to_aws(''.join(parts), DEFAULT_VARIANTS_FILE_NAME)
-            upload_gzipped_json_to_aws(compression.get(), DEFAULT_VARIANTS_FILE_NAME + '.gz')
+            upload_json_to_aws(''.join(parts), VARIANTS_FILE_NAME)
+            upload_gzipped_json_to_aws(compression.get(), VARIANTS_GZIP_FILE_NAME)
     finally:
         document_parts = []
 
@@ -249,7 +248,7 @@ def export_variants(
         export_to_s3(parts, workers)
         logger.info('Done')
     elif file is not None:
-        output: Path = (settings.STATIC_BULK_FOLDER / DEFAULT_VARIANTS_FILE_NAME).resolve()
+        output: Path = (settings.STATIC_BULK_FOLDER / VARIANTS_FILE_NAME).resolve()
         logger.info(f'Exporting variants to {output}...')
         export_to_file(parts, output, workers)
         logger.info('Done')

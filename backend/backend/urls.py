@@ -20,6 +20,7 @@ from django.views.generic import TemplateView
 from common.hybridrouter import HybridRouter
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView, TokenVerifyView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
+from api_docs import API_ROOT_DESCRIPTION
 from spellbook.urls import router as spellbook_router
 from website.urls import router as website_router
 from . import views
@@ -28,7 +29,7 @@ admin.site.site_header = f'Spellbook Admin Panel {settings.VERSION}'
 admin.site.site_title = f'Spellbook Admin {settings.VERSION}'
 admin.site.index_title = 'Spellbook Admin Index'
 
-router = HybridRouter()
+router = HybridRouter(root_view_description=API_ROOT_DESCRIPTION)
 router.register_router(spellbook_router)
 router.register_router(website_router)
 router.register(r'users', views.UserViewSet, basename='users')

@@ -8,7 +8,8 @@ from django.contrib.auth.models import User
 from django.tasks import TaskResult, TaskResultStatus
 from multiprocessing_utils import split_into_chunks
 from spellbook.models import Combo, Variant, VariantAlias, recompute_all_counts
-from spellbook.tasks import combo_of_the_day_task, generate_variants_task, export_variants_task, DEFAULT_VARIANTS_FILE_NAME
+from constants import VARIANTS_FILE_NAME
+from spellbook.tasks import combo_of_the_day_task, generate_variants_task, export_variants_task
 from spellbook.tasks.export_variants import build_document, export_variants_chunk, export_variant_aliases_chunk
 from website.models import COMBO_OF_THE_DAY_PROPERTY, WebsiteProperty
 from .testing import SpellbookTestCaseWithSeeding
@@ -67,7 +68,7 @@ class TasksTest(SpellbookTestCaseWithSeeding):
     def test_export_variants(self):
         super().generate_variants()
         with self.settings(VERSION='abc'):
-            file_path = settings.STATIC_BULK_FOLDER / DEFAULT_VARIANTS_FILE_NAME
+            file_path = settings.STATIC_BULK_FOLDER / VARIANTS_FILE_NAME
             result: TaskResult = export_variants_task.enqueue(file=True, s3=False)
             self.assertTrue(result.is_finished)
             self.assertEqual(result.status, TaskResultStatus.SUCCESSFUL)
@@ -91,7 +92,7 @@ class TasksTest(SpellbookTestCaseWithSeeding):
 
     def test_export_variants_in_multiple_batches(self):
         super().generate_and_publish_variants()
-        file_path = settings.STATIC_BULK_FOLDER / DEFAULT_VARIANTS_FILE_NAME
+        file_path = settings.STATIC_BULK_FOLDER / VARIANTS_FILE_NAME
         expected_ids = list(Variant.objects.filter(status__in=Variant.public_statuses()).values_list('id', flat=True))
         self.assertGreater(len(expected_ids), 1)
         with patch('spellbook.tasks.export_variants.DEFAULT_BATCH_SIZE', 1):

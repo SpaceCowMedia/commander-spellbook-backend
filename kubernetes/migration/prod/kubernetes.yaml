@@ -53,6 +53,12 @@ spec:
               secretKeyRef:
                 name: api-secrets
                 key: aws-s3-bucket
+          - name: SPELLBOOK_API_URL
+            value: https://backend.commanderspellbook.com
+          - name: SPELLBOOK_WEBSITE_URL
+            value: https://commanderspellbook.com
+          - name: SPELLBOOK_FILES_URL
+            value: https://json.commanderspellbook.com
           - name: THIS_POD_IP
             valueFrom:
               fieldRef:

@@ -1,12 +1,13 @@
 import json
 from urllib.request import Request, urlopen
+from constants import FILES_URL
 from spellbook.models import Variant
 
 
 def edhrec():
     # Old ID -> new ID mapping fetching
     req = Request(
-        'https://json.commanderspellbook.com/variant_id_map.json'
+        f'{FILES_URL}/variant_id_map.json'
     )
     variants_id_map = dict[str, str]()
     with urlopen(req) as response:

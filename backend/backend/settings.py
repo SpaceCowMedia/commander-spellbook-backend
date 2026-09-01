@@ -13,7 +13,8 @@ import os
 from pathlib import Path
 from datetime import timedelta
 from typing import Any
-from constants import SORTED_COLORS
+from constants import SORTED_COLORS, VERSION
+from api_docs import API_DESCRIPTION
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -29,8 +30,6 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-!5xe$b7a9e4osw_3i23&&f1_s$
 DEBUG = True
 
 STATIC_BULK_FOLDER = Path('./temp/bulk')
-
-VERSION = os.getenv('VERSION', 'dev')
 
 ALLOWED_HOSTS = ['*']
 CSRF_TRUSTED_ORIGINS = [
@@ -247,7 +246,7 @@ REST_FRAMEWORK = {
 
 SPECTACULAR_SETTINGS = {
     'TITLE': 'Commander Spellbook API',
-    'DESCRIPTION': 'API for Commander Spellbook, the combo database engine for Magic: The Gathering',
+    'DESCRIPTION': API_DESCRIPTION,
     'VERSION': VERSION,
     'SCHEMA_PATH_PREFIX': '',
     'SERVE_INCLUDE_SCHEMA': False,

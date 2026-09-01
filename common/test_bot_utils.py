@@ -1,10 +1,10 @@
-import os
 from unittest import TestCase
 from unittest.mock import patch, MagicMock
 from bot_utils import (
     parse_queries, patch_query, url_from_query, summary_from_query, url_from_variant,
     compute_variant_name, compute_variant_recipe, uri_validator, SpellbookQuery
 )
+from constants import WEBSITE_URL
 
 
 class TestBotUtils(TestCase):
@@ -24,19 +24,18 @@ class TestBotUtils(TestCase):
     def test_url_from_query(self):
         with patch('bot_utils.patch_query', return_value='foo format:commander'):
             url = url_from_query('foo')
-            self.assertTrue(url.startswith('/search?q='))
+            self.assertTrue(url.startswith(f'{WEBSITE_URL}/search?q='))
             self.assertIn('foo+format%3Acommander', url)
 
     def test_summary_from_query(self):
         summary = summary_from_query('foo', 'http://url')
         self.assertEqual(summary, '[`foo`](http://url)')
 
-    @patch.dict(os.environ, {'SPELLBOOK_WEBSITE_URL': ''})
     def test_url_from_variant(self):
         variant = MagicMock()
         variant.id = '1234'
         url = url_from_variant(variant)
-        self.assertEqual(url, '/combo/1234')
+        self.assertEqual(url, f'{WEBSITE_URL}/combo/1234')
 
     def test_compute_variant_name(self):
         card1 = MagicMock()

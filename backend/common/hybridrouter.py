@@ -6,9 +6,10 @@ from drf_spectacular.utils import extend_schema
 
 class HybridRouter(routers.DefaultRouter):
     # From http://stackoverflow.com/a/23321478/1459749.
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, root_view_description: str | None = None, **kwargs):
         super(HybridRouter, self).__init__(*args, **kwargs)
         self._api_view_urls = {}
+        self.root_view_description = root_view_description
         self.trailing_slash = '/?'  # Make trailing slash optional
 
     def add_api_view(self, name, url):
@@ -37,8 +38,10 @@ class HybridRouter(routers.DefaultRouter):
         for prefix, viewset, basename in self.registry:
             api_root_dict[prefix] = list_name.format(basename=basename)
         api_view_urls = self._api_view_urls
+        root_view_description = self.root_view_description
 
         class APIRootView(views.APIView):
+            __doc__ = root_view_description
             _ignore_model_permissions = True
             exclude_from_schema = True
 

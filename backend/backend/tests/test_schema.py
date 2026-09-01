@@ -1,6 +1,7 @@
 from django.test import SimpleTestCase
 from rest_framework import status
 from django.conf import settings
+from constants import BULK_VARIANTS_GZIP_URL
 
 
 class SchemaTestCase(SimpleTestCase):
@@ -10,6 +11,7 @@ class SchemaTestCase(SimpleTestCase):
         self.assertEqual(response.get('Content-Type'), 'application/vnd.oai.openapi; charset=utf-8')
         text = response.content.decode()
         self.assertIn('openapi: 3', text)
+        self.assertIn(BULK_VARIANTS_GZIP_URL, text)
 
     def test_swagger(self):
         response = self.client.get('/schema/swagger', follow=True)

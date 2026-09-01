@@ -10,10 +10,9 @@ from urllib.parse import quote_plus, urlencode
 from django.utils import timezone
 from django.db.models import Q
 from spellbook.models import Card, merge_color_identities, LayoutRotation
-from django.conf import settings
+from constants import USER_AGENT
 
 
-USER_AGENT = f'CommanderSpellbook/{settings.VERSION}'
 HEADERS = {'User-Agent': USER_AGENT, 'Accept': 'application/json'}
 
 

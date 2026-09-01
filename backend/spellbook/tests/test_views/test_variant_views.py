@@ -4,7 +4,7 @@ from unittest.mock import patch
 from django.db import models
 from django.urls import reverse
 from rest_framework import status
-from constants import SORTED_COLORS
+from constants import SORTED_COLORS, BULK_VARIANTS_GZIP_URL
 from common.inspection import json_to_python_lambda
 from spellbook.models import Card, Template, Feature, Variant, CardInVariant, TemplateInVariant, Combo, VariantAlias, recompute_all_counts
 from spellbook.views import VariantViewSet
@@ -1445,3 +1445,8 @@ class VariantViewsTests(SpellbookTestCaseWithSeeding):
                 result_id_set = {v.id for v in result.results}
                 correct_id_set = {v.id for v in Variant.objects.filter(of__variants=variant_id)}
                 self.assertSetEqual(result_id_set, correct_id_set)
+
+    def test_variants_list_view_documents_bulk_data(self):
+        response = self.client.get(reverse('variants-list'), headers={'accept': 'text/html'}, follow=True)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn(f'href="{BULK_VARIANTS_GZIP_URL}"', response.content.decode())

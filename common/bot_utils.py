@@ -1,18 +1,17 @@
 import re
-import os
 from itertools import chain
 from urllib.parse import quote_plus as encode_query, urlparse
 from functools import cached_property
 from spellbook_client import ApiClient, Configuration
 from spellbook_client.models.variant import Variant
+from constants import API_URL, WEBSITE_URL
 
 
-WEBSITE_URL = os.getenv('SPELLBOOK_WEBSITE_URL', '')
 QUERY_REGEX = re.compile(r'{{(.*?)}}')
 
 
 def API():
-    return ApiClient(configuration=Configuration(host=os.getenv('SPELLBOOK_API_URL', '')))
+    return ApiClient(configuration=Configuration(host=API_URL))
 
 
 def parse_queries(text: str) -> list[str]:

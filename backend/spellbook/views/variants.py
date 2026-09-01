@@ -8,6 +8,7 @@ from rest_framework import viewsets, serializers, filters
 from django_filters.rest_framework import DjangoFilterBackend, FilterSet
 from django_filters.filters import CharFilter
 from drf_spectacular.utils import extend_schema, inline_serializer
+from api_docs import VARIANTS_DESCRIPTION
 from spellbook.models import Combo, Variant, PreSerializedSerializer
 from spellbook.models.utils import has_random_in_order_by, remove_duplicates_in_order_by, remove_random_from_order_by
 from spellbook.models.variant import DEFAULT_VIEW_ORDERING
@@ -123,6 +124,7 @@ class VariantFilterSet(FilterSet):
     })
 })
 class VariantViewSet(viewsets.ReadOnlyModelViewSet):
+    __doc__ = VARIANTS_DESCRIPTION
     queryset = Variant.serialized_objects
     widen_combo_window: 'Callable[[], QuerySet[Variant] | None] | None' = None
     filter_backends = [

@@ -4,13 +4,11 @@ import re
 from functools import reduce
 from collections import defaultdict
 from django.tasks import TaskResult, TaskResultStatus
-from django.db.models import Q, Count, OuterRef, Subquery
-from django.db.models.functions import Coalesce
 from django.contrib.auth.models import User
 from spellbook.tasks.generate_variants import generate_variants_task
 from website.tests.testing import BaseTestCase
 from spellbook.variants.multiset import FrozenMultiset
-from spellbook.models import Card, Feature, Combo, CardInCombo, Template, TemplateInCombo, DEFAULT_BATCH_SIZE
+from spellbook.models import Card, Feature, Combo, CardInCombo, Template, TemplateInCombo, DEFAULT_BATCH_SIZE, recompute_all_counts
 from spellbook.models import CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, FeatureProducedInVariantSuggestion
 from spellbook.models import VariantSuggestion, VariantAlias, Variant, ZoneLocation
 from spellbook.models import FeatureOfCard, FeatureNeededInCombo, FeatureProducedInCombo, FeatureRemovedInCombo, FeatureAttribute
@@ -21,6 +19,31 @@ FEATURE_WITH_ATTRIBUTES_PATTERN = re.compile(r'([^?!-]+)(\?[^?!-]+)?(![^?!-]+)?(
 
 
 class SpellbookTestCase(BaseTestCase):
+    def tearDown(self):
+        self.assertVariantCountsAreExact()
+        super().tearDown()
+
+    def assertVariantCountsAreExact(self):
+        '''Checks every denormalized count against the query it stands for.
+
+        Running on the tiny fixtures of a test costs nothing, so every test that touches variants,
+        the admin, the API or generation doubles as a proof that the write path it exercises reports
+        what it changed.
+        '''
+        public = Variant.objects.filter(status__in=Variant.public_statuses())
+        for combo in Combo.objects.all():
+            with self.subTest(combo=combo.id):
+                self.assertEqual(combo.variant_count, Variant.objects.filter(of=combo).count())
+                self.assertEqual(combo.public_variant_count, public.filter(of=combo).count())
+        for variant in Variant.objects.defer(None):
+            with self.subTest(variant=variant.id):
+                self.assertEqual(variant.variant_count, public.filter(of__variants=variant.id).distinct().count())
+                if variant.serialized is not None:
+                    self.assertEqual(variant.serialized['variant_count'], variant.variant_count)
+        for card in Card.objects.all():
+            with self.subTest(card=card.id):
+                self.assertEqual(card.variant_count, public.filter(uses=card).distinct().count())
+
     def assertMultisetEqual(self, a, b):
         if isinstance(a, FrozenMultiset):
             a = {k: v for k, v in a.items()}
@@ -42,27 +65,12 @@ class SpellbookTestCase(BaseTestCase):
 
     @classmethod
     def update_variants(cls):
-        Card.objects.update(
-            variant_count=Coalesce(
-                Subquery(
-                    Variant
-                    .objects
-                    .filter(uses=OuterRef('pk'), status__in=Variant.public_statuses())
-                    .values('uses')
-                    .annotate(total=Count('pk', distinct=True))
-                    .values('total'),
-                ),
-                0,
-            ),
-        )
-        variants = list(Variant.objects.only('id').annotate(
-            variant_count_updated=Count('of__variants', distinct=True, filter=Q(of__variants__status__in=Variant.public_statuses()))
-        ))
+        variants = list(Variant.objects.only('id'))
         for variant in variants:
-            variant.variant_count = variant.variant_count_updated
             variant.update_variant()
             variant.pre_save = lambda: None
-        Variant.objects.bulk_update(variants, Variant.computed_fields() + ['variant_count'], batch_size=DEFAULT_BATCH_SIZE)
+        Variant.objects.bulk_update(variants, Variant.computed_fields(), batch_size=DEFAULT_BATCH_SIZE)
+        recompute_all_counts()
 
     @classmethod
     def generate_and_publish_variants(cls):

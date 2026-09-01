@@ -7,6 +7,7 @@ from .ingredient import ComboIngredient, OrderedIngredient, Ingredient, ZoneLoca
 from .feature_attribute import FeatureAttribute, WithFeatureAttributes, WithFeatureAttributesMatcher
 from .combo import Combo, CardInCombo, TemplateInCombo, FeatureNeededInCombo, FeatureProducedInCombo, FeatureRemovedInCombo
 from .variant import Variant, CardInVariant, TemplateInVariant, FeatureProducedByVariant, VariantIncludesCombo, VariantOfCombo, estimate_bracket
+from .variant_counts import recompute_counts, recompute_all_counts
 from .suggestion import Suggestion
 from .variant_suggestion import VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, FeatureProducedInVariantSuggestion
 from .variant_update_suggestion import VariantUpdateSuggestion, VariantInVariantUpdateSuggestion

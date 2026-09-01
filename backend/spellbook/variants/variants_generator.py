@@ -18,7 +18,7 @@ from .generation_tracking import (
 )
 from spellbook.models import Combo, FeatureNeededInCombo, Variant, CardInVariant, TemplateInVariant, ZoneLocation, CardType
 from spellbook.models import Card, VariantAlias, Ingredient, OrderedIngredient, FeatureProducedByVariant, VariantOfCombo, VariantIncludesCombo
-from spellbook.models import id_from_cards_and_templates_ids, merge_mana_costs, join_with_conjunction, DEFAULT_BATCH_SIZE
+from spellbook.models import id_from_cards_and_templates_ids, merge_mana_costs, join_with_conjunction, DEFAULT_BATCH_SIZE, recompute_counts
 from spellbook.models.constants import DEFAULT_CARD_LIMIT, DEFAULT_VARIANT_LIMIT, HIGHER_CARD_LIMIT, LOWER_VARIANT_LIMIT
 
 
@@ -93,6 +93,7 @@ class VariantBulkSaveItem:
     produces_to_update: list[FeatureProducedByVariant] = field(default_factory=list)
     of: set[int] = field(default_factory=set)
     includes: set[int] = field(default_factory=set)
+    status_changed: bool = False
 
     @cached_property
     def produces_ids(self) -> set[int]:
@@ -552,7 +553,7 @@ def _update_variant(
         variant: Variant,
         restore: bool,
         job: str | None) -> VariantBulkSaveItem:
-    old_values = [getattr(variant, field_name) for field_name in _VARIANT_UPDATE_FIELDS]
+    old_values = {field_name: getattr(variant, field_name) for field_name in _VARIANT_UPDATE_FIELDS}
     save_item = _restore_variant(
         data=data,
         variant=variant,
@@ -566,8 +567,13 @@ def _update_variant(
     variant.pre_save()
     save_item.variant_changed = any(
         getattr(variant, field_name) != old_value
-        for field_name, old_value in zip(_VARIANT_UPDATE_FIELDS, old_values)
+        for field_name, old_value in old_values.items()
     )
+    # Generation only ever moves a status to NEW, from RESTORE or from an orphan, so the transition
+    # itself is between two non public statuses and moves nothing. What it does do is write a status
+    # read before the run started, reverting an editor who published in the meantime: the counts of
+    # the combos behind it have to be reconciled with what actually ends up stored.
+    save_item.status_changed = variant.status != old_values['status']
     return save_item
 
 
@@ -668,9 +674,15 @@ def _perform_bulk_saves(
     data: Data,
     to_create: list[VariantBulkSaveItem],
     to_update: list[VariantBulkSaveItem],
+    to_delete: set[str],
     log: LogFunction = lambda _: None,
     progress: ProgressFunction = lambda x, t: None,
 ) -> None:
+    '''Writes the whole diff in one transaction.
+
+    Creations, updates and deletions land together so that a run either moves the dataset forward or
+    leaves it untouched, and so that the counts they all invalidate are reconciled by a single pass.
+    '''
     step_count = 7
     log('Prepare variants...')
     variant_bulk_create = tuple(v.variant for v in to_create)
@@ -686,12 +698,13 @@ def _perform_bulk_saves(
     templateinvariant_bulk_update = tuple(t for v in to_update for t in v.requires_to_update)
     templateinvariant_bulk_update_fields = list(_INGREDIENT_UPDATE_FIELDS)
     progress(3, step_count)
-    of_bulk_delete = tuple(
-        of.id
+    of_rows_to_delete = tuple(
+        of
         for v in to_update
         for of in data.variant_to_of_sets[v.variant.id]
         if of.combo_id not in v.of
     )
+    of_bulk_delete = tuple(of.id for of in of_rows_to_delete)
     of_bulk_create = tuple(
         VariantOfCombo(variant_id=v.variant.id, combo_id=c)
         for v in to_create
@@ -737,10 +750,17 @@ def _perform_bulk_saves(
         for p in v.produces_to_update
     )
     produces_bulk_update_fields = ['quantity']
+    touched_combo_ids = set[int]()
+    touched_combo_ids.update(of.combo_id for of in of_bulk_create)
+    touched_combo_ids.update(of.combo_id for of in of_rows_to_delete)
+    touched_combo_ids.update(combo_id for v in to_update if v.status_changed for combo_id in v.of)
+    touched_combo_ids.update(of.combo_id for id in to_delete for of in data.variant_to_of_sets[id])
     progress(6, step_count)
     log('Perform bulk updates...')
     with transaction.atomic():
         # delete
+        if to_delete:
+            Variant.objects.filter(id__in=to_delete).delete()
         if of_bulk_delete:
             VariantOfCombo.objects.filter(id__in=of_bulk_delete).delete()
         if includes_bulk_delete:
@@ -759,6 +779,11 @@ def _perform_bulk_saves(
         FeatureProducedByVariant.objects.bulk_create(produces_bulk_create, batch_size=DEFAULT_BATCH_SIZE)
         VariantOfCombo.objects.bulk_create(of_bulk_create, batch_size=DEFAULT_BATCH_SIZE)
         VariantIncludesCombo.objects.bulk_create(includes_bulk_create, batch_size=DEFAULT_BATCH_SIZE)
+        # Counts are read back from the database rather than from the in memory dataset, so that a
+        # status changed by an editor while the generation was running is not overwritten with the
+        # value this run started from. An empty set of touched combos costs nothing, which is what a
+        # regeneration that moved no generator combo and created or deleted no variant leaves here.
+        recompute_counts(combo_ids=touched_combo_ids)
 
 
 def sync_variant_aliases(data: Data, added_variants_ids: set[str], deleted_variants_ids: set[str]) -> tuple[int, int]:
@@ -870,15 +895,9 @@ def _generate_variants(
         workers=workers,
     )
     progress(85, 100)
-    log(f'Saving {len(variants)} variants...')
-    _perform_bulk_saves(data, to_bulk_create, to_bulk_update, log, progress=lambda x, t: progress(85 + int(x / t * 10), 100))
-    progress(95, 100)
-    log(f'Saved {len(variants)} variants.')
     new_id_set = set(variants.keys())
     added = new_id_set - old_id_set
     restored = new_id_set & to_restore
-    log(f'Added {len(added)} new variants.')
-    log(f'Updated {len(restored)} variants.')
     if plan.scope is GenerationScope.FULL:
         to_delete = old_id_set - new_id_set
     elif plan.scope is GenerationScope.INCREMENTAL:
@@ -894,11 +913,13 @@ def _generate_variants(
         }
     else:
         to_delete = set[str]()
-    delete_query = Variant.objects.filter(id__in=to_delete)
-    _, deleted_counts = delete_query.delete()
+    log(f'Saving {len(variants)} variants...')
+    _perform_bulk_saves(data, to_bulk_create, to_bulk_update, to_delete, log, progress=lambda x, t: progress(85 + int(x / t * 10), 100))
     progress(97, 100)
-    deleted_count = deleted_counts.get('spellbook.Variant', 0)
-    log(f'Deleted {deleted_count} variants.')
+    log(f'Saved {len(variants)} variants.')
+    log(f'Added {len(added)} new variants.')
+    log(f'Updated {len(restored)} variants.')
+    log(f'Deleted {len(to_delete)} variants.')
     added_aliases, deleted_aliases = sync_variant_aliases(data, added, to_delete)
     log(f'Added {added_aliases} new aliases, deleted {deleted_aliases} aliases.')
     if plan.scope is not GenerationScope.SINGLE:
@@ -907,4 +928,4 @@ def _generate_variants(
         store_fingerprints(current_fingerprints)
     progress(100, 100)
     log('Done.')
-    return len(added), len(restored), deleted_count
+    return len(added), len(restored), len(to_delete)

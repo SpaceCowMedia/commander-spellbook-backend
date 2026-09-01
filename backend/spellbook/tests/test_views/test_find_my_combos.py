@@ -4,7 +4,7 @@ import random
 from django.db import models
 from rest_framework import status
 from common.inspection import json_to_python_lambda
-from spellbook.models import Card, Template, Variant, merge_color_identities, CardInVariant
+from spellbook.models import Card, Template, Variant, merge_color_identities, CardInVariant, recompute_all_counts
 from spellbook.variants.multiset import FrozenMultiset
 from ..testing import SpellbookTestCaseWithSeeding
 from django.urls import reverse
@@ -21,6 +21,7 @@ class FindMyCombosViewTests(SpellbookTestCaseWithSeeding):
         super().setUpTestData()
         cls.generate_and_publish_variants()
         Variant.objects.filter(id__in=random.sample(list(Variant.objects.values_list('id', flat=True)), 3)).update(status=Variant.Status.EXAMPLE)
+        recompute_all_counts()
         CardInVariant.objects.filter(card_id=cls.c1_id, variant__card_count=2).update(quantity=2)
         cls.bulk_serialize_variants()
         cls.variants: models.QuerySet[Variant] = Variant.objects.filter(status__in=Variant.public_statuses()).prefetch_related('cardinvariant_set', 'cardinvariant_set__card')

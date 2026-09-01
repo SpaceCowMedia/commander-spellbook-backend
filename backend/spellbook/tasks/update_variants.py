@@ -1,9 +1,8 @@
 import logging
 from django.tasks import task
 from django_tasks import TaskContext
-from django.db.models import Count, Q
 from django.db import transaction
-from spellbook.models import Variant, DEFAULT_BATCH_SIZE
+from spellbook.models import Variant, DEFAULT_BATCH_SIZE, recompute_all_counts
 from .edhrec import update_variants, edhrec
 
 
@@ -45,30 +44,24 @@ def update_variants_task(context: TaskContext):
         batch = variant_ids[i:i + DEFAULT_BATCH_SIZE]
         with transaction.atomic(durable=True):
             variants = list[Variant](Variant.recipes_prefetched.filter(pk__in=batch).order_by())
-        variants_counts: dict[str, int] = {
-            variant_id: count
-            for variant_id, count in Variant
-            .objects
-            .order_by()
-            .filter(pk__in=batch)
-            .annotate(variant_count_updated=Count(
-                'of__variants',
-                distinct=True,
-                filter=Q(of__variants__status__in=Variant.public_statuses()),
-            ))
-            .values_list('id', 'variant_count_updated')
-        }
         variants_to_save = update_variants(
             variants,
             edhrec_variant_db,
-            variants_counts,
         )
         updated_variant_count += len(variants_to_save)
         log(f'  Saving {len(variants_to_save)} updated variants...')
-        Variant.objects.bulk_update(variants_to_save, fields=Variant.computed_fields() + ['popularity', 'variant_count'])
+        Variant.objects.bulk_update(variants_to_save, fields=Variant.computed_fields() + ['popularity'])
         variant_processed += len(variants)
         log(f'  Processed {variant_processed} / {variant_count} variants')
         progress(0.1 + variant_processed / variant_count * 0.9)
-        del variants, variants_counts, variants_to_save
+        del variants, variants_to_save
     del variant_ids
     log(f'Updating variants...done, updated {updated_variant_count} variants')
+    # The counters are maintained as their inputs change, so this only has to confirm it: a rebuild
+    # of the whole dataset is a second of set based work, and anything it finds is a bug in a write
+    # path that failed to report what it touched.
+    log('Verifying variant counts...')
+    drifted = recompute_all_counts()
+    if drifted:
+        logger.error(f'Repaired {drifted} rows whose denormalized counts had drifted')
+    log(f'Verifying variant counts...done, repaired {drifted} rows')

@@ -6,7 +6,7 @@ from django.urls import reverse
 from rest_framework import status
 from constants import SORTED_COLORS
 from common.inspection import json_to_python_lambda
-from spellbook.models import Card, Template, Feature, Variant, CardInVariant, TemplateInVariant, Combo, VariantAlias
+from spellbook.models import Card, Template, Feature, Variant, CardInVariant, TemplateInVariant, Combo, VariantAlias, recompute_all_counts
 from spellbook.views import VariantViewSet
 from spellbook.serializers import VariantSerializer
 from spellbook.transformers.variants_query_transformer import variants_query_parser
@@ -32,6 +32,7 @@ class VariantViewsTests(SpellbookTestCaseWithSeeding):
         super().setUpTestData()
         super().generate_variants()
         Variant.objects.update(status=Variant.Status.OK)
+        recompute_all_counts()
         Variant.objects.filter(
             id__in=Variant.objects
             .exclude(uses__name__icontains='b')

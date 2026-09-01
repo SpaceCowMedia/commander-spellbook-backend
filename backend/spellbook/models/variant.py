@@ -186,6 +186,10 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
         output_field=models.PositiveSmallIntegerField(null=True, help_text='Bracket number based on the tag'),
     )
 
+    # The status still stored in the database, so that a save can tell whether the variant crossed
+    # the public boundary without querying for the stored one
+    _status: str | None = None
+
     @classmethod
     @cache
     def computed_fields(cls):
@@ -252,6 +256,13 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
 
     def features_produced(self) -> dict[str, int]:
         return {f.feature.name: f.quantity for f in self.featureproducedbyvariant_set.all()}
+
+    @classmethod
+    def from_db(cls, db, field_names, values):
+        instance = super().from_db(db, field_names, values)
+        # read from the loaded values, so that a deferred status stays deferred
+        instance._status = instance.__dict__.get('status')
+        return instance
 
     def pre_save(self):
         self.mana_value_needed = mana_value(self.mana_needed)

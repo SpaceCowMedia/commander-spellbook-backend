@@ -3,38 +3,12 @@ from django.tasks import task
 from django_tasks import TaskContext
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.admin.models import LogEntry, ADDITION
-from django.db.models import Subquery, OuterRef, Count
-from django.db.models.functions import Coalesce
-from spellbook.models import Variant
-from spellbook.models.combo import Combo
+from spellbook.models import Variant, recompute_all_counts
 from .utils import task_result_identifier
 from spellbook.variants.variants_generator import generate_variants
 
 
 logger = logging.getLogger(__name__)
-
-
-def update_combo_variant_counts() -> int:
-    '''Refreshes Combo.variant_count with how many variants each combo generates.
-
-    Every variant is counted, whatever its status: the count is an editing aid telling how much
-    a combo expands into, so a combo whose variants have just been generated (and are therefore
-    all in the NEW status, awaiting review) has to show them right away.
-    '''
-    return Combo.objects.update(
-        variant_count=Coalesce(
-            Subquery(
-                Variant
-                .objects
-                .filter(of=OuterRef('pk'))
-                .order_by()
-                .values('of')
-                .annotate(total=Count('pk'))
-                .values('total'),
-            ),
-            0,
-        ),
-    )
 
 
 @task(takes_context=True)  # type: ignore[arg-type]
@@ -84,8 +58,11 @@ def generate_variants_task(context: TaskContext, combo: int | None = None, start
         metadata=metadata,
         incremental=incremental,
     )
-    log('Updating combo variant counts...')
-    update_combo_variant_counts()
+    # The save already recounted everything generation itself touched. Closing the run out with a
+    # rebuild costs about a second of set based work and also repairs whatever reached the variants
+    # without going through a write path that reports what it changed.
+    log('Updating variant counts...')
+    recompute_all_counts()
     if added == 0 and removed == 0 and restored == 0:
         message = 'Variants are already synced with'
     else:

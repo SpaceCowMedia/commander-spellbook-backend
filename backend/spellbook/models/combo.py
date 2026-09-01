@@ -110,6 +110,7 @@ class Combo(Recipe, ScryfallLinkMixin):
     allow_multiple_copies = models.BooleanField(default=False, help_text='Allow variants to have more copies of the same card or template')
     comment = models.TextField(blank=True, help_text='Notes about the combo', validators=TEXT_VALIDATORS)
     variant_count = models.PositiveIntegerField(default=0, editable=False)
+    public_variant_count = models.PositiveIntegerField(default=0, editable=False, help_text='Number of variants of this combo that are public')
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, editable=False)
 
@@ -142,6 +143,7 @@ class Combo(Recipe, ScryfallLinkMixin):
         ordering = ['created']
         indexes = [
             models.Index(fields=['variant_count']),
+            models.Index(fields=['public_variant_count']),
         ] + case_insensitive_trigram_indexes(
             'combo',
             'mana_needed',

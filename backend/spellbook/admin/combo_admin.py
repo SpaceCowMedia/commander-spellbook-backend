@@ -600,7 +600,7 @@ class ComboAdmin(SpellbookModelAdmin):
     def after_save_related(self, request, form, formsets, change):
         instance: Combo = form.instance
         if change:
-            # Set all new variants to restore
+            # Set all new variants to restore. Both statuses are non public, so no count moves.
             updated = Variant.objects.filter(
                 of=instance,
                 status=Variant.Status.NEW

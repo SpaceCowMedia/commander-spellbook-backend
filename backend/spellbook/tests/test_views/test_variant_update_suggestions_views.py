@@ -6,7 +6,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.urls import reverse
 from rest_framework import status
 from common.inspection import json_to_python_lambda
-from spellbook.models import VariantUpdateSuggestion, Variant
+from spellbook.models import VariantUpdateSuggestion, Variant, recompute_all_counts
 from ..testing import SpellbookTestCaseWithSeeding
 
 
@@ -16,6 +16,7 @@ class VariantSuggestionsTests(SpellbookTestCaseWithSeeding):
         super().setUpTestData()
         super().generate_variants()
         Variant.objects.update(status=Variant.Status.OK)
+        recompute_all_counts()
         cls.v1_id: int = Variant.objects.all()[0].id  # type: ignore
         cls.v2_id: int = Variant.objects.all()[1].id  # type: ignore
         cls.v3_id: int = Variant.objects.all()[2].id  # type: ignore

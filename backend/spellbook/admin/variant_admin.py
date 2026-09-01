@@ -1,4 +1,5 @@
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.db.models.query import QuerySet
 from django.utils.http import urlencode
 from django.utils.html import format_html
@@ -9,7 +10,7 @@ from django.contrib import admin, messages
 from django.forms import Textarea
 from django.utils import timezone
 from django.tasks import TaskResult
-from spellbook.models import Variant, CardInVariant, TemplateInVariant, DEFAULT_BATCH_SIZE
+from spellbook.models import Variant, CardInVariant, TemplateInVariant, DEFAULT_BATCH_SIZE, recompute_counts
 from spellbook.transformers.variants_query_transformer import variants_query_parser
 from spellbook.serializers import VariantSerializer
 from spellbook.tasks import export_variants_task, notify_task, generate_variants_task
@@ -61,17 +62,26 @@ class VariantForm(SpellbookAdminForm):
 
 
 def set_status(request, queryset, status: Variant.Status):
-    # JSON preserialization has to be updated when the status changes, in case it becomes public.
-    variants = list(VariantSerializer.prefetch_related(queryset))
-    unpublished = [variant for variant in variants if not variant.published]
-    published = [variant for variant in variants if variant.published]
     publish = status in Variant.public_statuses()
     now = timezone.now()
-    for variant in variants:
-        variant.published = variant.published or publish
-        variant.status = status
-        variant.updated = now
-    Variant.objects.bulk_serialize(variants, fields=['status', 'published', 'updated'], serializer=VariantSerializer, batch_size=DEFAULT_BATCH_SIZE)
+    with transaction.atomic():
+        # Locking in primary key order keeps two editors working on overlapping selections from
+        # deadlocking, or from counting each other's half applied statuses. The ids are taken from
+        # the action queryset first because a search can leave it with a DISTINCT that no database
+        # accepts together with a row lock.
+        ids = list(queryset.values_list('pk', flat=True))
+        locked = Variant.objects.filter(pk__in=ids).order_by('pk').select_for_update()
+        variants = list(VariantSerializer.prefetch_related(locked))
+        unpublished = [variant for variant in variants if not variant.published]
+        published = [variant for variant in variants if variant.published]
+        # Only the variants crossing the public boundary move any count, their own and their siblings'
+        recount = [variant.pk for variant in variants if (variant.status in Variant.public_statuses()) != publish]
+        for variant in variants:
+            variant.published = variant.published or publish
+            variant.status = status
+            variant.updated = now
+        Variant.objects.bulk_serialize(variants, fields=['status', 'published', 'updated'], serializer=VariantSerializer, batch_size=DEFAULT_BATCH_SIZE)
+        recompute_counts(variant_ids=recount)
     plural = 's' if len(variants) > 1 else ''
     messages.success(request, f'{len(variants)} variant{plural} marked as {status.name}.')
     if publish:
@@ -275,6 +285,8 @@ class VariantAdmin(SpellbookModelAdmin):
         # effectively resulting in a real time update of the variant
         variant.update_serialized(VariantSerializer)
         variant.save()
+        if change and 'status' in form.changed_data:
+            recompute_counts(variant_ids=[variant.pk])
 
     def lookup_allowed(self, lookup: str, value: str, request) -> bool:
         if lookup in (

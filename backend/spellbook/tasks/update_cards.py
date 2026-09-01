@@ -1,9 +1,7 @@
 import logging
-from django.db.models import Q, Count
 from django.tasks import task
 from django_tasks import TaskContext
 from spellbook.models import Card, DEFAULT_BATCH_SIZE
-from spellbook.models.variant import Variant
 from .scryfall import scryfall, update_cards
 
 
@@ -54,20 +52,9 @@ def update_cards_task(context: TaskContext):
     progress(0.2)
     log('Updating cards...')
     cards_to_update = list(Card.objects.all())
-    cards_count: dict[int, int] = {
-        i: c
-        for i, c in Card.objects.annotate(
-            updated_variant_count=Count(
-                'used_in_variants',
-                distinct=True,
-                filter=Q(used_in_variants__status__in=Variant.public_statuses())
-            ),
-        ).values_list('id', 'updated_variant_count')
-    }
     cards_to_save = update_cards(
         cards_to_update,
         scryfall_name_db,
-        cards_count,
         log=log,
         log_warning=log_warning,
         log_error=log_error,
@@ -81,7 +68,6 @@ def update_cards_task(context: TaskContext):
             'name',
             'name_unaccented',
             'oracle_id',
-            'variant_count',
         ] + Card.scryfall_fields() + Card.playable_fields(),
         batch_size=DEFAULT_BATCH_SIZE,
     )

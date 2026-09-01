@@ -5,7 +5,7 @@ from django.db.models import Count
 from spellbook.models.combo import CardInCombo, FeatureNeededInCombo
 from spellbook.models.feature_attribute import FeatureAttribute
 from spellbook.tests.testing import SpellbookTestCase, SpellbookTestCaseWithSeeding
-from spellbook.models import Variant, Card, OrderedIngredient, CardInVariant, TemplateInVariant, Template, Combo, Feature, VariantAlias, FeatureOfCard, ZoneLocation
+from spellbook.models import Variant, Card, OrderedIngredient, CardInVariant, TemplateInVariant, Template, Combo, Feature, VariantAlias, FeatureOfCard, ZoneLocation, recompute_all_counts
 from spellbook.models import VariantGenerationFingerprints, VariantOfCombo, FeatureProducedByVariant, id_from_cards_and_templates_ids
 from spellbook.variants.combo_graph import FeatureWithAttributes
 from spellbook.variants.multiset import FrozenMultiset
@@ -404,6 +404,7 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
 
         self.generate_variants()
         Variant.objects.update(status=Variant.Status.OK, generated_by=None)
+        recompute_all_counts()
         data = Data()
         variants = get_variants_from_graph(data)
         id = next(iter(variants))
@@ -437,6 +438,7 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
     def test_update_variant(self):
         self.generate_variants()
         Variant.objects.update(status=Variant.Status.OK, generated_by=None)
+        recompute_all_counts()
         data = Data()
         variants = get_variants_from_graph(data)
         id = next(iter(variants))
@@ -488,7 +490,7 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
         variants = get_variants_from_graph(data)
         to_update, to_create = restore_variants(data=data, variants=variants, variant_instances={}, to_restore=set(), job='a-job')
         self.assertFalse(to_update)
-        _perform_bulk_saves(data, to_create, [])
+        _perform_bulk_saves(data, to_create, [], set())
         self.assertEqual(Variant.objects.count(), self.expected_variant_count)
         for item in to_create:
             variant = Variant.objects.get(pk=item.variant.id)
@@ -513,7 +515,7 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
             job='another-job',
         )
         self.assertFalse(to_create)
-        _perform_bulk_saves(data, [], to_update)
+        _perform_bulk_saves(data, [], to_update, set())
         self.assertEqual(Variant.objects.count(), self.expected_variant_count)
         self.assertFalse(VariantOfCombo.objects.filter(pk=stale_of.pk).exists())
         self.assertFalse(FeatureProducedByVariant.objects.filter(pk=stale_produces.pk).exists())
@@ -568,12 +570,14 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
                             )
                         ))
                 Variant.objects.update(status=Variant.Status.OK)
+                recompute_all_counts()
                 added, restored, deleted = generate_variants()
                 self.assertEqual(added, 0)
                 self.assertEqual(restored, 0)
                 self.assertEqual(deleted, 0)
                 self.assertTrue(all(variant.status == Variant.Status.OK for variant in Variant.objects.all()))
                 Variant.objects.update(status=Variant.Status.RESTORE)
+                recompute_all_counts()
                 added, restored, deleted = generate_variants()
                 self.assertEqual(added, 0)
                 self.assertEqual(restored, self.expected_variant_count)
@@ -592,6 +596,7 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
             generate_variants()
             self.assertEqual(Variant.objects.count(), self.expected_variant_count)
             Variant.objects.update(status=status)
+            recompute_all_counts()
             Combo.objects.filter(status=Combo.Status.GENERATOR).update(status=Combo.Status.DRAFT)
             generate_variants()
             self.assertEqual(Variant.objects.count(), 0)
@@ -601,6 +606,7 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
         generate_variants()
         self.assertEqual(Variant.objects.count(), self.expected_variant_count)
         Variant.objects.update(status=Variant.Status.OK)
+        recompute_all_counts()
         v: Variant = Variant.objects.alias(of_count=Count('of')).filter(of_count=1).first()  # type: ignore
         c: Combo = v.of.first()  # type: ignore
         c.status = Combo.Status.DRAFT
@@ -616,6 +622,7 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
         self.assertEqual(restored, 0)
         self.assertEqual(deleted, 0)
         Variant.objects.update(status=Variant.Status.OK)
+        recompute_all_counts()
         to_restore: list[str] = list(c.variants.values_list('id', flat=True))  # type: ignore
         c.variantofcombo_set.all().delete()  # type: ignore
         c.description = 'New description'
@@ -832,6 +839,7 @@ class DeltaWritesTests(SpellbookTestCaseWithSeeding):
     def test_restored_variants_are_detected_as_changed(self):
         generate_variants()
         Variant.objects.update(status=Variant.Status.OK)
+        recompute_all_counts()
         data = Data()
         variants = get_variants_from_graph(data)
         variant_instances = data.fetch_variants(variants.keys())
@@ -866,6 +874,7 @@ class IncrementalGenerationTests(SpellbookTestCaseWithSeeding):
     def test_incremental_after_combo_text_edit(self):
         generate_variants()
         Variant.objects.update(status=Variant.Status.OK)
+        recompute_all_counts()
         combo: Combo = Combo.objects.filter(status=Combo.Status.GENERATOR).first()  # type: ignore
         combo.description += ' edited'
         combo.save()
@@ -876,11 +885,13 @@ class IncrementalGenerationTests(SpellbookTestCaseWithSeeding):
     def test_incremental_restores_flagged_variants(self):
         generate_variants()
         Variant.objects.update(status=Variant.Status.OK)
+        recompute_all_counts()
         combo: Combo = Combo.objects.filter(status=Combo.Status.GENERATOR).first()  # type: ignore
         combo.description = 'A new description'
         combo.save()
         flagged = list(combo.variants.values_list('id', flat=True))  # pyright: ignore[reportAttributeAccessIssue]
         Variant.objects.filter(id__in=flagged).update(status=Variant.Status.RESTORE)
+        recompute_all_counts()
         added, restored, deleted = generate_variants(incremental=True)
         self.assertEqual(added, 0)
         self.assertEqual(restored, len(flagged))

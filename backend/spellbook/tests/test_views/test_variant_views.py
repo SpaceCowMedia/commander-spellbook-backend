@@ -1233,6 +1233,16 @@ class VariantViewsTests(SpellbookTestCaseWithSeeding):
         with self.subTest('a doubled OR searches for a card named or'):
             self.assertSetEqual(self.query_ids('card:a OR OR card:b'), a | (or_named & b))
 
+    def test_variants_list_view_query_with_a_word_starting_with_an_operator(self):
+        # The keyword operators only match a whole word: "orb" is a card name, not "or" followed
+        # by "b", and "andd" is a card name, not "and" followed by "d". No card is named either,
+        # so reading the prefix as an operator is the only way to get a result at all.
+        a, b, d = (self.variant_ids_using_card_named(t) for t in 'abd')
+        for term, as_operator in (('orb', a | b), ('andd', a & d)):
+            with self.subTest(f'{term} is a card name, not an operator plus a card name'):
+                self.assertGreater(len(as_operator), 0)
+                self.assertSetEqual(self.query_ids(f'a {term}'), set())
+
     def test_variants_list_view_query_with_too_many_or_terms(self):
         q = ' OR '.join(f'card:{i}' for i in range(21))
         response = self.client.get(reverse('variants-list'), query_params={'q': q}, follow=True)  # type: ignore

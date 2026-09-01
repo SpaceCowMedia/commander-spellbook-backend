@@ -5,9 +5,9 @@
 
 start: expression?
 
-?expression: term | expression OR term
+?expression: term | expression (OR_SYMBOL | OR_KEYWORD) term
 
-?term: factor | term AND? factor
+?term: factor | term (AND_SYMBOL | AND_KEYWORD)? factor
 
 ?factor: matcher | NOT factor | LPAREN expression RPAREN
 
@@ -82,9 +82,18 @@ VARIANTS_SEARCH: VARIANTS_SEARCH_KEY COMPARISON_OPERATOR NUMBER
 
 BRACKET_SEARCH: BRACKET_SEARCH_KEY COMPARISON_OPERATOR STRING_OR_NUMBER
 
-OR.5: "OR"i | "||" | "|"
+OR_SYMBOL: "||" | "|"
 
-AND.5: "AND"i | "&&" | "&"
+AND_SYMBOL: "&&" | "&"
+
+// The keyword operators are kept apart from the symbol ones, as plain strings sharing
+// CARD_SEARCH_SHORTCUT's priority, so that lark folds them into it as an exact-match callback:
+// a word becomes an operator only when the whole word is the keyword, leaving "orb" and "andd"
+// card names rather than an operator plus "b" or "d". Merging them back into one terminal makes
+// the pattern a regexp, which lark cannot fold, and the keywords stop working entirely.
+OR_KEYWORD.-1: "OR"i
+
+AND_KEYWORD.-1: "AND"i
 
 NOT: "-"
 

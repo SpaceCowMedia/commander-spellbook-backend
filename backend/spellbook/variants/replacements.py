@@ -107,10 +107,10 @@ class FeatureIndex(Generic[_C]):
 
 def needed_rows_by_feature(data: Data, combos: Iterable[Combo]) -> dict[featureid, list[FeatureNeededInCombo]]:
     '''The needed feature rows of the given combos, grouped by the feature they ask for.'''
-    rows = defaultdict[featureid, list[FeatureNeededInCombo]](list)
+    rows = dict[featureid, list[FeatureNeededInCombo]]()
     for combo in combos:
         for row in data.combo_to_needed_features[combo.id]:
-            rows[row.feature_id].append(row)
+            rows.setdefault(row.feature_id, []).append(row)
     return rows
 
 

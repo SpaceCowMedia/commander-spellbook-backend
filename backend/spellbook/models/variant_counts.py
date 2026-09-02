@@ -1,4 +1,4 @@
-from django.db import transaction
+from django.db import router, transaction
 from django.db.models import Count, F, IntegerField, Q, QuerySet
 from django.db.models.fields.json import KeyTextTransform
 from django.db.models.functions import Cast
@@ -132,7 +132,7 @@ def recompute_card_counts(cards: QuerySet[Card]) -> int:
 
 def recompute_all_counts() -> int:
     '''Rebuilds every counter from scratch, cheaply enough to be the safety net rather than the mechanism.'''
-    with transaction.atomic():
+    with transaction.atomic(using=router.db_for_write(Variant)):
         # The combos go first: the variant counts read back the public counts this writes
         drifted = recompute_combo_counts(Combo.objects.all())
         drifted += recompute_variant_counts(Variant.objects.all())
@@ -157,7 +157,10 @@ def recompute_counts(*, combo_ids=(), variant_ids=()) -> int:
     if not combos and not variants:
         return 0
     cards = CardInVariant.objects.filter(variant_id__in=variants).values('card_id')
-    with transaction.atomic():
+    # The block is opened on the routed database rather than on the default one, so that a recompute
+    # made from an admin request, which runs on a connection of its own, is atomic on the connection
+    # actually writing the rows.
+    with transaction.atomic(using=router.db_for_write(Variant)):
         # The combos go first: the variant counts read back the public counts this writes
         drifted = recompute_combo_counts(Combo.objects.filter(pk__in=combos))
         drifted += recompute_variant_counts(Variant.objects.filter(pk__in=variants))

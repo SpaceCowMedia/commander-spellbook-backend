@@ -1,5 +1,5 @@
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.db import router, transaction
 from django.db.models.query import QuerySet
 from django.utils.http import urlencode
 from django.utils.html import format_html
@@ -64,13 +64,17 @@ class VariantForm(SpellbookAdminForm):
 def set_status(request, queryset, status: Variant.Status):
     publish = status in Variant.public_statuses()
     now = timezone.now()
-    with transaction.atomic():
+    # The admin serves its requests on a connection of its own, so the transaction has to be opened
+    # on the database the router picks rather than on the default one: the lock below is taken by the
+    # routed connection, and would find itself still in autocommit if the block were opened elsewhere.
+    using = router.db_for_write(Variant)
+    with transaction.atomic(using=using):
         # Locking in primary key order keeps two editors working on overlapping selections from
         # deadlocking, or from counting each other's half applied statuses. The ids are taken from
         # the action queryset first because a search can leave it with a DISTINCT that no database
         # accepts together with a row lock.
         ids = list(queryset.values_list('pk', flat=True))
-        locked = Variant.objects.filter(pk__in=ids).order_by('pk').select_for_update()
+        locked = Variant.objects.using(using).filter(pk__in=ids).order_by('pk').select_for_update()
         variants = list(VariantSerializer.prefetch_related(locked))
         unpublished = [variant for variant in variants if not variant.published]
         published = [variant for variant in variants if variant.published]

@@ -1,7 +1,11 @@
 from datetime import timedelta
+from unittest.mock import patch
+from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
+from django.db import router, transaction
 from django.urls import reverse
 from django.utils import timezone
-from spellbook.models import Variant
+from spellbook.admin import variant_admin
+from spellbook.models import Variant, variant_counts
 from ..testing import SpellbookTestCaseWithSeeding
 
 
@@ -58,3 +62,57 @@ class VariantAdminTests(SpellbookTestCaseWithSeeding):
         response = self.client.post(reverse('admin:spellbook_variant_generate'), data={'full': 'on'})
         self.assertEqual(response.status_code, 302)
         self.assertEqual(Variant.objects.count(), self.expected_variant_count)
+
+
+class RecordingTransactions:
+    '''Stands in for django.db.transaction, remembering the database every block is opened on.'''
+
+    def __init__(self):
+        self.opened: list[str | None] = []
+
+    def atomic(self, using=None, *args, **kwargs):
+        self.opened.append(using)
+        return transaction.atomic(using, *args, **kwargs)
+
+    def __getattr__(self, name):
+        return getattr(transaction, name)
+
+
+class VariantStatusActionTests(SpellbookTestCaseWithSeeding):
+    def setUp(self):
+        super().setUp()
+        self.generate_variants()
+        self.bulk_serialize_variants()
+        self.client.force_login(self.admin)
+
+    def selection(self, count: int) -> list[str]:
+        return list(Variant.objects.order_by('pk').values_list('pk', flat=True)[:count])
+
+    def set_status(self, action: str, ids: list[str]):
+        return self.client.post(
+            reverse('admin:spellbook_variant_changelist'),
+            data={'action': action, ACTION_CHECKBOX_NAME: ids},
+            follow=True,
+        )
+
+    def test_the_action_marks_every_selected_variant(self):
+        ids = self.selection(3)
+        response = self.set_status('set_ok', ids)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            set(Variant.objects.filter(status=Variant.Status.OK).values_list('pk', flat=True)),
+            set(ids),
+        )
+        self.assertTrue(all(Variant.objects.filter(pk__in=ids).values_list('published', flat=True)))
+
+    def test_the_action_names_the_database_it_works_on(self):
+        '''The admin answers its requests on a connection of its own, so a block opened on the default
+        alias leaves the row lock, and the writes it guards, outside any transaction. PostgreSQL then
+        gets asked for a lock through a connection still in autocommit, refuses it, and the whole
+        action comes back as a 500 however few or many variants were selected.'''
+        recorder = RecordingTransactions()
+        with patch.object(variant_admin, 'transaction', recorder), patch.object(variant_counts, 'transaction', recorder):
+            response = self.set_status('set_ok', self.selection(3))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn(None, recorder.opened, 'Every transaction has to name its database, leaving the choice to the router instead of to the default alias.')
+        self.assertEqual(set(recorder.opened), {router.db_for_write(Variant)})

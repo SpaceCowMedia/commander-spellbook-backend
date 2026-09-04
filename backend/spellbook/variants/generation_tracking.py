@@ -14,7 +14,7 @@ Fingerprints = dict[str, dict[int, str]]
 
 # Bump this version to force a full regeneration
 # whenever the generation algorithm changes in a way that affects its output.
-_FINGERPRINT_VERSION = 2
+_FINGERPRINT_VERSION = 3
 
 _META_KIND = 'meta'
 _ENTITY_KINDS = ('card', 'template', 'feature', 'combo')

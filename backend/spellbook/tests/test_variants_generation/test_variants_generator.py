@@ -375,11 +375,11 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
                 self.assertEqual(variant.status, Variant.Status.NEW)
                 self.assertGreater(len(variant.name), 0)
                 self.assertGreater(len(variant.description), 0)
-                self.assertSetEqual(save_item.of, variant_def.of_ids)
-                self.assertSetEqual(save_item.includes, variant_def.included_ids)
+                self.assertSetEqual(save_item.of, variant_def.generator_combos)
+                self.assertSetEqual(save_item.includes, variant_def.needed_combos)
                 self.assertSetEqual({c.card_id for c in save_item.uses}, set(variant_def.card_ids.distinct_elements()))
                 self.assertSetEqual({t.template_id for t in save_item.requires}, set(variant_def.template_ids.distinct_elements()))
-                self.assertSetEqual(save_item.produces_ids, set(subtract_features(data, variant_def.included_ids, variant_def.feature_ids).distinct_elements()))
+                self.assertSetEqual(save_item.produces_ids, set(subtract_features(data, variant_def.needed_combos, variant_def.features).distinct_elements()))
                 self.assertEqual([c.order for c in save_item.uses], list(range(1, len(save_item.uses) + 1)))
                 self.assertEqual([t.order for t in save_item.requires], list(range(1, len(save_item.requires) + 1)))
                 self.assertEqual(save_item.uses_to_create, save_item.uses)
@@ -393,9 +393,8 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
         variant_def = VariantDefinition(
             card_ids=FrozenMultiset({self.c4_id: 1}),
             template_ids=FrozenMultiset(),
-            of_ids={self.b3_id},
-            feature_ids=FrozenMultiset(),
-            included_ids={self.b3_id},
+            generator_combos={self.b3_id},
+            features=FrozenMultiset(),
             feature_replacements={},
             needed_combos={self.b3_id},
             needed_features_of_cards=set(),
@@ -801,6 +800,21 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
         self.assertEqual(v.mana_needed, '{X}{4}{U}{U}{U}{U}')
         self.assertEqual(v.easy_prerequisites, 'A\nB\nC')
         self.assertEqual(v.notable_prerequisites, 'A\nB\nC')
+
+    def test_a_combo_that_only_removes_a_feature_is_included(self):
+        c = Combo.objects.create(mana_needed='{U}', status=Combo.Status.GENERATOR)
+        c.cardincombo_set.create(card_id=self.c1_id, order=1, zone_locations=ZoneLocation.BATTLEFIELD)
+        c.produces.add(self.f4_id)
+        c.produces.add(self.f2_id)
+        remover = Combo.objects.create(mana_needed='{U}', status=Combo.Status.UTILITY)
+        remover.cardincombo_set.create(card_id=self.c1_id, order=1, zone_locations=ZoneLocation.BATTLEFIELD)
+        remover.removes.add(self.f4_id)
+        generate_variants(c.id)
+        v: Variant = Variant.objects.get(of=c)
+        self.assertSetEqual(set(v.includes.values_list('id', flat=True)), {c.id, remover.id})
+        produced = set(v.produces.values_list('id', flat=True))
+        self.assertNotIn(self.f4_id, produced)
+        self.assertIn(self.f2_id, produced)
 
 
 class DeltaWritesTests(SpellbookTestCaseWithSeeding):

@@ -149,7 +149,6 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         self.assertEqual(len(list(variants)), 1)
         self.assertMultisetEqual(variants[0].cards, {1: 1})
         self.assertMultisetEqual(variants[0].templates, {})
-        self.assertSetEqual(variants[0].combos, {1})
         self.assertMultisetEqual(variants[0].features, {1: 1})
         self.assertReplacementsEqual(variants[0].replacements, {1: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset())]})
         self.assertSetEqual(variants[0].needed_combos, {1})
@@ -165,7 +164,6 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         self.assertEqual(len(list(variants)), 1)
         self.assertMultisetEqual(variants[0].cards, {1: 1})
         self.assertMultisetEqual(variants[0].templates, {})
-        self.assertSetEqual(variants[0].combos, {1})
         self.assertMultisetEqual(variants[0].features, {1: 1, 2: 1})
         self.assertReplacementsEqual(variants[0].replacements, {
             1: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset())],
@@ -184,7 +182,6 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         self.assertEqual(len(list(variants)), 1)
         self.assertMultisetEqual(variants[0].cards, {})
         self.assertMultisetEqual(variants[0].templates, {1: 1})
-        self.assertSetEqual(variants[0].combos, {1, 2})
         self.assertMultisetEqual(variants[0].features, {1: 1, 2: 1})
         self.assertReplacementsEqual(variants[0].replacements, {
             1: [VariantIngredients(FrozenMultiset(), FrozenMultiset({1: 1}))],
@@ -203,7 +200,6 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         self.assertEqual(len(list(variants)), 1)
         self.assertMultisetEqual(variants[0].cards, {1: 1})
         self.assertMultisetEqual(variants[0].templates, {})
-        self.assertSetEqual(variants[0].combos, {1})
         self.assertMultisetEqual(variants[0].features, {1: 1})
         self.assertReplacementsEqual(variants[0].replacements, {1: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset())]})
         self.assertSetEqual(variants[0].needed_combos, {1})
@@ -212,7 +208,6 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         self.assertEqual(len(list(variants)), 1)
         self.assertMultisetEqual(variants[0].cards, {2: 1})
         self.assertMultisetEqual(variants[0].templates, {})
-        self.assertSetEqual(variants[0].combos, {2})
         self.assertMultisetEqual(variants[0].features, {1: 1})
         self.assertReplacementsEqual(variants[0].replacements, {1: [VariantIngredients(FrozenMultiset({2: 1}), FrozenMultiset())]})
         self.assertSetEqual(variants[0].needed_combos, {2})
@@ -227,7 +222,6 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         self.assertEqual(len(list(variants)), 1)
         self.assertMultisetEqual(variants[0].cards, {1: 1})
         self.assertMultisetEqual(variants[0].templates, {1: 1})
-        self.assertSetEqual(variants[0].combos, {1})
         self.assertMultisetEqual(variants[0].features, {1: 1, 2: 1})
         self.assertReplacementsEqual(variants[0].replacements, {
             1: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset({1: 1}))],
@@ -248,7 +242,6 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         variants.sort(key=lambda v: sorted(v.cards.distinct_elements()))
         self.assertMultisetEqual(variants[0].cards, {1: 1})
         self.assertMultisetEqual(variants[0].templates, {})
-        self.assertSetEqual(variants[0].combos, {1, 3})
         self.assertMultisetEqual(variants[0].features, {1: 1, 2: 1})
         self.assertReplacementsEqual(variants[0].replacements, {
             1: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset())],
@@ -258,7 +251,6 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         self.assertSetEqual(variants[0].needed_feature_of_cards, set())
         self.assertMultisetEqual(variants[1].cards, {2: 1})
         self.assertMultisetEqual(variants[1].templates, {})
-        self.assertSetEqual(variants[1].combos, {2, 3})
         self.assertMultisetEqual(variants[1].features, {1: 1, 2: 1})
         self.assertReplacementsEqual(variants[1].replacements, {
             1: [VariantIngredients(FrozenMultiset({2: 1}), FrozenMultiset())],
@@ -277,7 +269,6 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         self.assertEqual(len(list(variants)), 1)
         self.assertMultisetEqual(variants[0].cards, {1: 2})
         self.assertMultisetEqual(variants[0].templates, {})
-        self.assertSetEqual(variants[0].combos, {1})
         self.assertMultisetEqual(variants[0].features, {1: 2, 2: 1})
         self.assertReplacementsEqual(variants[0].replacements, {
             1: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset())],
@@ -301,7 +292,6 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         variants.sort(key=lambda v: sorted(v.cards.distinct_elements()))
         self.assertMultisetEqual(variants[0].cards, {1: 2})
         self.assertMultisetEqual(variants[0].templates, {})
-        self.assertSetEqual(variants[0].combos, {1})
         self.assertMultisetEqual(variants[0].features, {1: 2, 2: 1})
         self.assertReplacementsEqual(variants[0].replacements, {
             1: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset())],
@@ -311,7 +301,6 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         self.assertSetEqual(variants[0].needed_feature_of_cards, {1})
         self.assertMultisetEqual(variants[1].cards, {1: 1, 2: 3})
         self.assertMultisetEqual(variants[1].templates, {})
-        self.assertSetEqual(variants[1].combos, {1})
         self.assertMultisetEqual(variants[1].features, {1: 2, 2: 1})
         self.assertReplacementsEqual(variants[1].replacements, {
             1: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset()), VariantIngredients(FrozenMultiset({2: 3}), FrozenMultiset())],
@@ -321,7 +310,6 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         self.assertSetEqual(variants[1].needed_feature_of_cards, {1, 2})
         self.assertMultisetEqual(variants[2].cards, {2: 6})
         self.assertMultisetEqual(variants[2].templates, {})
-        self.assertSetEqual(variants[2].combos, {1})
         self.assertMultisetEqual(variants[2].features, {1: 2, 2: 1})
         self.assertReplacementsEqual(variants[2].replacements, {
             1: [VariantIngredients(FrozenMultiset({2: 3}), FrozenMultiset())],
@@ -348,7 +336,6 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         self.assertEqual(variants_a, variants_b)
         self.assertEqual(len(variants_a), 2)
         self.assertMultisetEqual(variants_a[0].features, {1: 1, 2: 1, 3: 1})
-        self.assertSetEqual(variants_a[0].combos, {1, 3, 4})
         self.assertReplacementsEqual(variants_a[0].replacements, {
             1: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset())],
             2: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset())],
@@ -368,7 +355,6 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         self.assertMultisetEqual(variants[0].cards, {1: 2})
         self.assertMultisetEqual(variants[0].templates, {})
         self.assertMultisetEqual(variants[0].features, {1: 1, 2: 1})
-        self.assertSetEqual(variants[0].combos, {1, 3})
         self.assertReplacementsEqual(variants[0].replacements, {
             1: [VariantIngredients(FrozenMultiset({1: 2}), FrozenMultiset())],
             2: [VariantIngredients(FrozenMultiset({1: 2}), FrozenMultiset())],
@@ -378,7 +364,6 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         self.assertMultisetEqual(variants[1].cards, {2: 1})
         self.assertMultisetEqual(variants[1].templates, {})
         self.assertMultisetEqual(variants[1].features, {1: 1, 2: 1})
-        self.assertSetEqual(variants[1].combos, {2, 3})
         self.assertReplacementsEqual(variants[1].replacements, {
             1: [VariantIngredients(FrozenMultiset({2: 1}), FrozenMultiset())],
             2: [VariantIngredients(FrozenMultiset({2: 1}), FrozenMultiset())],
@@ -391,7 +376,6 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         self.assertMultisetEqual(variants[0].cards, {2: 1})
         self.assertMultisetEqual(variants[0].templates, {})
         self.assertMultisetEqual(variants[0].features, {1: 1, 2: 1})
-        self.assertSetEqual(variants[0].combos, {2, 3})
         self.assertReplacementsEqual(variants[0].replacements, {
             1: [VariantIngredients(FrozenMultiset({2: 1}), FrozenMultiset())],
             2: [VariantIngredients(FrozenMultiset({2: 1}), FrozenMultiset())],
@@ -414,7 +398,6 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         self.assertMultisetEqual(variants[0].cards, {1: 4})
         self.assertMultisetEqual(variants[0].templates, {})
         self.assertMultisetEqual(variants[0].features, {1: 2, 2: 1, 3: 2, 4: 2})
-        self.assertSetEqual(variants[0].combos, {1, 3, 4, 5})
         self.assertReplacementsEqual(variants[0].replacements, {
             1: [VariantIngredients(FrozenMultiset({1: 2}), FrozenMultiset())],
             2: [VariantIngredients(FrozenMultiset({1: 4}), FrozenMultiset())],
@@ -426,7 +409,6 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         self.assertMultisetEqual(variants[1].cards, {1: 2, 2: 3})
         self.assertMultisetEqual(variants[1].templates, {})
         self.assertMultisetEqual(variants[1].features, {1: 2, 2: 1, 3: 2, 4: 2})
-        self.assertSetEqual(variants[1].combos, {1, 2, 3, 4, 5})
         self.assertReplacementsEqual(variants[1].replacements, {
             1: [VariantIngredients(FrozenMultiset({1: 2}), FrozenMultiset()), VariantIngredients(FrozenMultiset({2: 3}), FrozenMultiset())],
             2: [VariantIngredients(FrozenMultiset({1: 2, 2: 3}), FrozenMultiset())],
@@ -438,7 +420,6 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         self.assertMultisetEqual(variants[2].cards, {2: 6})
         self.assertMultisetEqual(variants[2].templates, {})
         self.assertMultisetEqual(variants[2].features, {1: 2, 2: 1, 3: 2, 4: 2})
-        self.assertSetEqual(variants[2].combos, {2, 3, 4, 5})
         self.assertReplacementsEqual(variants[2].replacements, {
             1: [VariantIngredients(FrozenMultiset({2: 3}), FrozenMultiset())],
             2: [VariantIngredients(FrozenMultiset({2: 6}), FrozenMultiset())],
@@ -465,7 +446,6 @@ class ComboGraphTestGeneration(SpellbookTestCase):
             self.assertMultisetEqual(variants[0].cards, {2: 1, 3: 1})
             self.assertMultisetEqual(variants[0].templates, {})
             self.assertMultisetEqual(variants[0].features, {1: 1, 2: 1, 3: 1})
-            self.assertSetEqual(variants[0].combos, {3, 4})
             self.assertReplacementsEqual(variants[0].replacements, {
                 1: [VariantIngredients(FrozenMultiset({2: 1, 3: 1}), FrozenMultiset())],
                 2: [VariantIngredients(FrozenMultiset({2: 1, 3: 1}), FrozenMultiset())],
@@ -487,7 +467,6 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         self.assertMultisetEqual(variants[0].cards, {1: 2, 2: 2})
         self.assertMultisetEqual(variants[0].templates, {})
         self.assertMultisetEqual(variants[0].features, {1: 1, 2: 1, 3: 1})
-        self.assertSetEqual(variants[0].combos, {3, 4})
         self.assertReplacementsEqual(variants[0].replacements, {
             1: [VariantIngredients(FrozenMultiset({1: 2, 2: 2}), FrozenMultiset())],
             2: [VariantIngredients(FrozenMultiset({1: 2, 2: 2}), FrozenMultiset())],
@@ -513,7 +492,6 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         self.assertMultisetEqual(variants[0].cards, {1: 1, 2: 1})
         self.assertMultisetEqual(variants[0].templates, {})
         self.assertMultisetEqual(variants[0].features, {1: 1, 2: 2, 3: 1, 4: 1})
-        self.assertSetEqual(variants[0].combos, {1, 2, 3, 4, 5})
         self.assertReplacementsEqual(variants[0].replacements, {
             1: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset())],
             2: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset()), VariantIngredients(FrozenMultiset({2: 1}), FrozenMultiset())],
@@ -536,7 +514,6 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         self.assertMultisetEqual(variants[0].cards, {1: 2, 2: 2})
         self.assertMultisetEqual(variants[0].templates, {})
         self.assertMultisetEqual(variants[0].features, {1: 2, 2: 1})
-        self.assertSetEqual(variants[0].combos, {1, 3})
         self.assertReplacementsEqual(variants[0].replacements, {
             1: [VariantIngredients(FrozenMultiset({1: 1, 2: 1}), FrozenMultiset())],
             2: [VariantIngredients(FrozenMultiset({1: 2, 2: 2}), FrozenMultiset())],
@@ -546,7 +523,6 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         self.assertMultisetEqual(variants[1].cards, {1: 1, 2: 2, 3: 1})
         self.assertMultisetEqual(variants[1].templates, {})
         self.assertMultisetEqual(variants[1].features, {1: 2, 2: 1})
-        self.assertSetEqual(variants[1].combos, {1, 2, 3})
         self.assertReplacementsEqual(variants[1].replacements, {
             1: [VariantIngredients(FrozenMultiset({1: 1, 2: 1}), FrozenMultiset()), VariantIngredients(FrozenMultiset({2: 1, 3: 1}), FrozenMultiset())],
             2: [VariantIngredients(FrozenMultiset({1: 1, 2: 2, 3: 1}), FrozenMultiset())],
@@ -556,7 +532,6 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         self.assertMultisetEqual(variants[2].cards, {2: 2, 3: 2})
         self.assertMultisetEqual(variants[2].templates, {})
         self.assertMultisetEqual(variants[2].features, {1: 2, 2: 1})
-        self.assertSetEqual(variants[2].combos, {2, 3})
         self.assertReplacementsEqual(variants[2].replacements, {
             1: [VariantIngredients(FrozenMultiset({2: 1, 3: 1}), FrozenMultiset())],
             2: [VariantIngredients(FrozenMultiset({2: 2, 3: 2}), FrozenMultiset())],
@@ -581,7 +556,6 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         self.assertMultisetEqual(variants[0].cards, {1: 1})
         self.assertMultisetEqual(variants[0].templates, {})
         self.assertMultisetEqual(variants[0].features, {1: 1, 2: 1})
-        self.assertSetEqual(variants[0].combos, {2, 4})
         self.assertReplacementsEqual(variants[0].replacements, {
             1: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset())],
             2: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset())],
@@ -591,7 +565,6 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         self.assertMultisetEqual(variants[1].cards, {3: 1})
         self.assertMultisetEqual(variants[1].templates, {})
         self.assertMultisetEqual(variants[1].features, {1: 1, 2: 1})
-        self.assertSetEqual(variants[1].combos, {3, 4})
         self.assertReplacementsEqual(variants[1].replacements, {
             1: [VariantIngredients(FrozenMultiset({3: 1}), FrozenMultiset())],
             2: [VariantIngredients(FrozenMultiset({3: 1}), FrozenMultiset())],
@@ -613,7 +586,6 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         self.assertMultisetEqual(variants[0].cards, {1: 2})
         self.assertMultisetEqual(variants[0].templates, {})
         self.assertMultisetEqual(variants[0].features, {1: 2, 2: 1})
-        self.assertSetEqual(variants[0].combos, {1, 4})
         self.assertReplacementsEqual(variants[0].replacements, {
             1: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset())],
             2: [VariantIngredients(FrozenMultiset({1: 2}), FrozenMultiset())],
@@ -623,7 +595,6 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         self.assertMultisetEqual(variants[1].cards, {1: 1, 2: 1})
         self.assertMultisetEqual(variants[1].templates, {})
         self.assertMultisetEqual(variants[1].features, {1: 2, 2: 1})
-        self.assertSetEqual(variants[1].combos, {1, 2, 4})
         self.assertReplacementsEqual(variants[1].replacements, {
             1: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset()), VariantIngredients(FrozenMultiset({2: 1}), FrozenMultiset())],
             2: [VariantIngredients(FrozenMultiset({1: 1, 2: 1}), FrozenMultiset())],
@@ -633,7 +604,6 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         self.assertMultisetEqual(variants[2].cards, {1: 1, 3: 1})
         self.assertMultisetEqual(variants[2].templates, {})
         self.assertMultisetEqual(variants[2].features, {1: 2, 2: 1})
-        self.assertSetEqual(variants[2].combos, {1, 3, 4})
         self.assertReplacementsEqual(variants[2].replacements, {
             1: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset()), VariantIngredients(FrozenMultiset({3: 1}), FrozenMultiset())],
             2: [VariantIngredients(FrozenMultiset({1: 1, 3: 1}), FrozenMultiset())],
@@ -643,7 +613,6 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         self.assertMultisetEqual(variants[3].cards, {2: 2})
         self.assertMultisetEqual(variants[3].templates, {})
         self.assertMultisetEqual(variants[3].features, {1: 2, 2: 1})
-        self.assertSetEqual(variants[3].combos, {2, 4})
         self.assertReplacementsEqual(variants[3].replacements, {
             1: [VariantIngredients(FrozenMultiset({2: 1}), FrozenMultiset())],
             2: [VariantIngredients(FrozenMultiset({2: 2}), FrozenMultiset())],
@@ -653,7 +622,6 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         self.assertMultisetEqual(variants[4].cards, {2: 1, 3: 1})
         self.assertMultisetEqual(variants[4].templates, {})
         self.assertMultisetEqual(variants[4].features, {1: 2, 2: 1})
-        self.assertSetEqual(variants[4].combos, {2, 3, 4})
         self.assertReplacementsEqual(variants[4].replacements, {
             1: [VariantIngredients(FrozenMultiset({2: 1}), FrozenMultiset()), VariantIngredients(FrozenMultiset({3: 1}), FrozenMultiset())],
             2: [VariantIngredients(FrozenMultiset({2: 1, 3: 1}), FrozenMultiset())],
@@ -663,7 +631,6 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         self.assertMultisetEqual(variants[5].cards, {3: 2})
         self.assertMultisetEqual(variants[5].templates, {})
         self.assertMultisetEqual(variants[5].features, {1: 2, 2: 1})
-        self.assertSetEqual(variants[5].combos, {3, 4})
         self.assertReplacementsEqual(variants[5].replacements, {
             1: [VariantIngredients(FrozenMultiset({3: 1}), FrozenMultiset())],
             2: [VariantIngredients(FrozenMultiset({3: 2}), FrozenMultiset())],
@@ -677,7 +644,6 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         self.assertMultisetEqual(variants[0].cards, {1: 1, 2: 1})
         self.assertMultisetEqual(variants[0].templates, {})
         self.assertMultisetEqual(variants[0].features, {1: 2, 2: 1})
-        self.assertSetEqual(variants[0].combos, {1, 2, 4})
         self.assertReplacementsEqual(variants[0].replacements, {
             1: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset()), VariantIngredients(FrozenMultiset({2: 1}), FrozenMultiset())],
             2: [VariantIngredients(FrozenMultiset({1: 1, 2: 1}), FrozenMultiset())],
@@ -687,7 +653,6 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         self.assertMultisetEqual(variants[1].cards, {1: 1, 3: 1})
         self.assertMultisetEqual(variants[1].templates, {})
         self.assertMultisetEqual(variants[1].features, {1: 2, 2: 1})
-        self.assertSetEqual(variants[1].combos, {1, 3, 4})
         self.assertReplacementsEqual(variants[1].replacements, {
             1: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset()), VariantIngredients(FrozenMultiset({3: 1}), FrozenMultiset())],
             2: [VariantIngredients(FrozenMultiset({1: 1, 3: 1}), FrozenMultiset())],
@@ -697,7 +662,6 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         self.assertMultisetEqual(variants[2].cards, {2: 1, 3: 1})
         self.assertMultisetEqual(variants[2].templates, {})
         self.assertMultisetEqual(variants[2].features, {1: 2, 2: 1})
-        self.assertSetEqual(variants[2].combos, {2, 3, 4})
         self.assertReplacementsEqual(variants[2].replacements, {
             1: [VariantIngredients(FrozenMultiset({2: 1}), FrozenMultiset()), VariantIngredients(FrozenMultiset({3: 1}), FrozenMultiset())],
             2: [VariantIngredients(FrozenMultiset({2: 1, 3: 1}), FrozenMultiset())],
@@ -717,7 +681,6 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         self.assertMultisetEqual(variants[0].cards, {1: 30})
         self.assertMultisetEqual(variants[0].templates, {})
         self.assertMultisetEqual(variants[0].features, {1: 6, 2: 3, 3: 1})
-        self.assertSetEqual(variants[0].combos, {1, 2, 3})
         self.assertReplacementsEqual(variants[0].replacements, {
             1: [VariantIngredients(FrozenMultiset({1: 5}), FrozenMultiset())],
             2: [VariantIngredients(FrozenMultiset({1: 10}), FrozenMultiset())],
@@ -750,7 +713,6 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         self.assertMultisetEqual(variants[0].cards, {1: 1})
         self.assertMultisetEqual(variants[0].templates, {})
         self.assertMultisetEqual(variants[0].features, {1: 2, 2: 1})
-        self.assertSetEqual(variants[0].combos, {1, 2, 3})
         self.assertReplacementsEqual(variants[0].replacements, {
             1: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset())],
             2: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset())],
@@ -781,7 +743,6 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         self.assertMultisetEqual(variants[0].cards, {1: 1})
         self.assertMultisetEqual(variants[0].templates, {})
         self.assertMultisetEqual(variants[0].features, {1: 2, 2: 1, 3: 1})
-        self.assertSetEqual(variants[0].combos, {1, 2, 3, 4})
         self.assertReplacementsEqual(variants[0].replacements, {
             1: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset())],
             2: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset())],
@@ -789,6 +750,20 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         })
         self.assertSetEqual(variants[0].needed_combos, {1, 2, 3, 4})
         self.assertSetEqual(variants[0].needed_feature_of_cards, set())
+
+    def test_a_combo_removing_an_interesting_feature_is_needed(self):
+        self.setup_combo_graph({
+            ('A',): ('x',),
+            ('x',): ('-x', 'uy'),
+            ('A', 'x'): ('uz',),
+        })
+        combo_graph = Graph(Data())
+        variants = list(combo_graph.results(combo_graph.variants(1)))
+        self.assertEqual(len(variants), 1)
+        self.assertMultisetEqual(variants[0].cards, {1: 1})
+        self.assertMultisetEqual(variants[0].features, {1: 1, 2: 1, 3: 1})
+        # combo 2 removes x, combo 3 only produces a utility feature
+        self.assertSetEqual(variants[0].needed_combos, {1, 2})
 
     def test_additional_results(self):
         self.setup_combo_graph({
@@ -809,7 +784,6 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         self.assertMultisetEqual(variants[0].cards, {1: 1, 2: 1, 3: 1})
         self.assertMultisetEqual(variants[0].templates, {})
         self.assertMultisetEqual(variants[0].features, {1: 1, 2: 1, 3: 1, 6: 1, 7: 1, 10: 1})
-        self.assertSetEqual(variants[0].combos, {1, 2, 3, 7})
         self.assertReplacementsEqual(variants[0].replacements, {
             1: [VariantIngredients(FrozenMultiset({2: 1, 3: 1}), FrozenMultiset())],
             2: [VariantIngredients(FrozenMultiset({1: 1, 2: 1, 3: 1}), FrozenMultiset())],
@@ -823,7 +797,6 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         self.assertMultisetEqual(variants[1].cards, {1: 1, 2: 1, 4: 1})
         self.assertMultisetEqual(variants[1].templates, {})
         self.assertMultisetEqual(variants[1].features, {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 8: 1, 9: 1, 10: 1})
-        self.assertSetEqual(variants[1].combos, {1, 2, 4, 5, 6, 7})
         self.assertReplacementsEqual(variants[1].replacements, {
             1: [VariantIngredients(FrozenMultiset({2: 1, 4: 1}), FrozenMultiset())],
             2: [VariantIngredients(FrozenMultiset({1: 1, 2: 1, 4: 1}), FrozenMultiset())],
@@ -853,7 +826,6 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         self.assertMultisetEqual(variants[0].cards, {1: 1, 2: 1, 3: 1})
         self.assertMultisetEqual(variants[0].templates, {})
         self.assertMultisetEqual(variants[0].features, {1: 1, 2: 1, 3: 1})
-        self.assertSetEqual(variants[0].combos, {1, 2, 3})
         self.assertReplacementsEqual(variants[0].replacements, {
             1: [VariantIngredients(FrozenMultiset({2: 1, 3: 1}), FrozenMultiset())],
             2: [VariantIngredients(FrozenMultiset({1: 1, 2: 1, 3: 1}), FrozenMultiset())],
@@ -864,7 +836,6 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         self.assertMultisetEqual(variants[1].cards, {1: 1, 4: 1})
         self.assertMultisetEqual(variants[1].templates, {})
         self.assertMultisetEqual(variants[1].features, {1: 1, 2: 1, 3: 1, 4: 1})
-        self.assertSetEqual(variants[1].combos, {1, 4})
         self.assertReplacementsEqual(variants[1].replacements, {
             1: [VariantIngredients(FrozenMultiset({4: 1}), FrozenMultiset())],
             2: [VariantIngredients(FrozenMultiset({1: 1, 4: 1}), FrozenMultiset())],
@@ -888,7 +859,6 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         self.assertMultisetEqual(variants[0].cards, {1: 1})
         self.assertMultisetEqual(variants[0].templates, {})
         self.assertMultisetEqual(variants[0].features, {1: 1, 2: 1})
-        self.assertSetEqual(variants[0].combos, {1, 2})
         self.assertReplacementsEqual(variants[0].replacements, {
             1: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset())],
             2: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset())],
@@ -908,7 +878,6 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         self.assertMultisetEqual(variants[0].cards, {1: 1, 2: 1})
         self.assertMultisetEqual(variants[0].templates, {1: 4, 2: 1})
         self.assertMultisetEqual(variants[0].features, {1: 2, 2: 1})
-        self.assertSetEqual(variants[0].combos, {1, 2, 3})
         self.assertReplacementsEqual(variants[0].replacements, {
             1: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset({1: 3})), VariantIngredients(FrozenMultiset({2: 1}), FrozenMultiset({1: 1, 2: 1}))],
             2: [VariantIngredients(FrozenMultiset({1: 1, 2: 1}), FrozenMultiset({1: 4, 2: 1}))],
@@ -1039,7 +1008,6 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         self.assertMultisetEqual(variants[0].cards, {1: 2})
         self.assertMultisetEqual(variants[0].templates, {})
         self.assertMultisetEqual(variants[0].features, {1: 2, 2: 1})
-        self.assertSetEqual(variants[0].combos, {1})
         self.assertSetEqual(variants[0].needed_combos, {1})
         self.assertSetEqual(variants[0].needed_feature_of_cards, {1})
         self.assertReplacementsEqual(variants[0].replacements, {
@@ -1058,7 +1026,6 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         self.assertMultisetEqual(variants[0].cards, {1: 2})
         self.assertMultisetEqual(variants[0].templates, {})
         self.assertMultisetEqual(variants[0].features, {1: 2, 2: 1})
-        self.assertSetEqual(variants[0].combos, {1, 2})
         self.assertSetEqual(variants[0].needed_combos, {1, 2})
         self.assertSetEqual(variants[0].needed_feature_of_cards, set())
         self.assertReplacementsEqual(variants[0].replacements, {
@@ -1079,7 +1046,6 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         self.assertMultisetEqual(variants[0].cards, {1: 1, 2: 1})
         self.assertMultisetEqual(variants[0].templates, {})
         self.assertMultisetEqual(variants[0].features, {1: 2, 2: 1})
-        self.assertSetEqual(variants[0].combos, {1, 2, 3})
         self.assertReplacementsEqual(variants[0].replacements, {
             1: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset()), VariantIngredients(FrozenMultiset({2: 1}), FrozenMultiset())],
             2: [VariantIngredients(FrozenMultiset({1: 1, 2: 1}), FrozenMultiset())],
@@ -1106,7 +1072,6 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         self.assertMultisetEqual(variants[0].cards, {1: 1, 2: 1})
         self.assertMultisetEqual(variants[0].templates, {})
         self.assertMultisetEqual(variants[0].features, {1: 1, 2: 1, 3: 1})
-        self.assertSetEqual(variants[0].combos, {1})
         self.assertReplacementsEqual(variants[0].replacements, {
             FeatureWithAttributes(Feature.objects.get(id=1), frozenset()): [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset())],
             FeatureWithAttributes(Feature.objects.get(id=2), frozenset({fa.id})): [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset())],

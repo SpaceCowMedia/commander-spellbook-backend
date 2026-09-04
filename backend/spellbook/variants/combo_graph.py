@@ -289,7 +289,6 @@ comboid = int
 @dataclass(frozen=True)
 class VariantRecipe(VariantIngredients):
     features: FrozenMultiset[featureid]
-    combos: set[comboid]
     replacements: dict[FeatureWithAttributes, list[VariantIngredients]]
     needed_feature_of_cards: set[featureofcardid]
     needed_combos: set[comboid]
@@ -712,13 +711,14 @@ class Graph:
         for fa_node in chain(countable_feature_nodes.keys(), uncountable_feature_nodes):
             if not fa_node.item.feature.is_utility:
                 interesting_features.add(fa_node.item)
+        interesting_feature_ids = {fa.feature.id for fa in interesting_features}
 
         needed_combo_nodes = set[ComboNode]()
         for combo_node in combo_nodes:
-            for fa_node in combo_node.features_produced:
-                if fa_node.item in interesting_features:
-                    needed_combo_nodes.add(combo_node)
-                    break
+            # a combo matters either because it produces an interesting feature or because it removes one
+            if any(fa_node.item in interesting_features for fa_node in combo_node.features_produced) \
+                    or any(removed.feature_id in interesting_feature_ids for removed in self.data.combo_to_removed_features[combo_node.item.id]):
+                needed_combo_nodes.add(combo_node)
 
         needed_feature_of_card_nodes = set[FeatureOfCardNode]()
         for foc_node in feature_of_card_nodes:
@@ -766,7 +766,6 @@ class Graph:
                 ((f.item.feature.id, q) for f, q in countable_feature_nodes.items()),
                 ((f.item.feature.id, 1) for f in uncountable_feature_nodes)
             ))),
-            combos={cn.item.id for cn in combo_nodes},
             replacements=replacements,
             needed_feature_of_cards={fn.item.id for fn in needed_feature_of_card_nodes},
             needed_combos={cn.item.id for cn in needed_combo_nodes},

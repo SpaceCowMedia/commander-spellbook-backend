@@ -3,7 +3,7 @@ import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
 from itertools import chain
-from typing import Callable, Sequence, TypeVar
+from typing import Callable, Iterable, Sequence, TypeVar
 from django.utils.functional import cached_property
 from django.db import transaction
 from multiprocessing_utils import fork_pool, parallelism_is_available, resolve_workers, split_into_chunks
@@ -67,12 +67,16 @@ class VariantRecipeDefinition:
 
 @dataclass
 class VariantDefinition(VariantRecipeDefinition):
-    of_ids: set[int]
-    feature_ids: FrozenMultiset[featureid]
-    included_ids: set[int]
+    generator_combos: set[int]
+    features: FrozenMultiset[featureid]
     feature_replacements: dict[FeatureWithAttributes, list[VariantRecipeDefinition]]
     needed_combos: set[int]
     needed_features_of_cards: set[int]
+
+    def add_generators(self, combo_ids: Iterable[int]) -> None:
+        # a generator combo is always needed, even when it produces nothing the variant keeps
+        self.generator_combos.update(combo_ids)
+        self.needed_combos.update(combo_ids)
 
 
 @dataclass
@@ -114,12 +118,8 @@ def _build_definitions_from_variant_set(
     for variant in variants:
         id = id_from_cards_and_templates_ids(variant.cards.distinct_elements(), variant.templates.distinct_elements())
         if id in result:
-            result[id].of_ids.add(combo.id)
+            result[id].add_generators((combo.id,))
             continue
-        needed_combo_ids = variant.needed_combos.copy()
-        # Adding the current combo to the needed combos in case it is not already there
-        # Which can happen if the combo does not produce useful features
-        needed_combo_ids.add(combo.id)
         feature_replacements = {
             feature: [
                 VariantRecipeDefinition(
@@ -133,11 +133,10 @@ def _build_definitions_from_variant_set(
         result[id] = VariantDefinition(
             card_ids=variant.cards,
             template_ids=variant.templates,
-            feature_ids=variant.features,
-            included_ids=variant.combos,
-            of_ids={combo.id},
+            features=variant.features,
+            generator_combos={combo.id},
             feature_replacements=feature_replacements,
-            needed_combos=needed_combo_ids,
+            needed_combos=variant.needed_combos | {combo.id},
             needed_features_of_cards=variant.needed_feature_of_cards,
         )
 
@@ -148,7 +147,7 @@ def _merge_variant_definitions(target: dict[str, VariantDefinition], source: dic
         if existing is None:
             target[id] = variant_definition
         else:
-            existing.of_ids.update(variant_definition.of_ids)
+            existing.add_generators(variant_definition.generator_combos)
 
 
 # State inherited by forked worker processes for the graph phase
@@ -337,11 +336,11 @@ def _restore_variant(
             old_requires_rows[template_id] = old_row
             _copy_state_from_row(template_in_variant, old_row)
         required_templates.append(template_in_variant)
-    generator_combos = [data.id_to_combo[c_id] for c_id in sorted(variant_def.of_ids)]
-    other_combos = [data.id_to_combo[c_id] for c_id in sorted(variant_def.included_ids - variant_def.of_ids)]
-    needed_combos = [*generator_combos, *(c for c in other_combos if c.id in variant_def.needed_combos)]
+    generator_combos = [data.id_to_combo[c_id] for c_id in sorted(variant_def.generator_combos)]
+    other_combos = [data.id_to_combo[c_id] for c_id in sorted(variant_def.needed_combos - variant_def.generator_combos)]
+    needed_combos = [*generator_combos, *other_combos]
     needed_feature_of_cards = [data.id_to_feature_of_card[f_id] for f_id in sorted(variant_def.needed_features_of_cards)]
-    produces_ids = subtract_features(data, variant_def.included_ids, variant_def.feature_ids)
+    produces_ids = subtract_features(data, variant_def.needed_combos, variant_def.features)
     produced_features = list[FeatureProducedByVariant]()
     old_produces_rows: dict[int, FeatureProducedByVariantRow] = {}
     for feature_id, quantity in produces_ids.items():
@@ -485,8 +484,8 @@ def _restore_variant(
         variant_changed=True,
         uses=ordered_uses,
         requires=ordered_requires,
-        of=variant_def.of_ids,
-        includes=variant_def.included_ids,
+        of=variant_def.generator_combos,
+        includes=variant_def.needed_combos,
         produces=produced_features,
     )
     # Compute which relationship rows are new and which existing ones have changed
@@ -848,7 +847,7 @@ def _generate_variants(
         for id, variant_def in variants.items():
             of_rows = data.variant_to_of_sets.get(id)
             if of_rows:
-                variant_def.of_ids.update(of_row.combo_id for of_row in of_rows if of_row.combo_id not in plan.regenerated_combo_ids)
+                variant_def.add_generators(of_row.combo_id for of_row in of_rows if of_row.combo_id not in plan.regenerated_combo_ids)
     log(f'Processing {len(variants)} variants...')
     variant_instances = data.fetch_variants(id for id in variants if id in old_id_set)
     to_bulk_update, to_bulk_create = restore_variants(

@@ -8,6 +8,8 @@ spec:
   schedule: '5 8 * * *'
   jobTemplate:
     spec:
+      # one week, long enough to inspect a failed run before it is collected
+      ttlSecondsAfterFinished: 604800
       template:
         spec:
           serviceAccountName: app-service-account

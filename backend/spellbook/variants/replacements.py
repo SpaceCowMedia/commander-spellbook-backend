@@ -291,7 +291,7 @@ def default_zone_locations(data: Data, ingredient: CardInVariant | TemplateInVar
     '''Where an ingredient no source asks anything of starts: a card by its type, a template by the
     default of the field.'''
     if isinstance(ingredient, CardInVariant):
-        return get_default_zone_location_for_card(data.id_to_card[ingredient.card_id])
+        return get_default_zone_location_for_card(data.id_to_card[ingredient.card_id]).value
     return Ingredient._meta.get_field('zone_locations').get_default()  # pyright: ignore[reportAttributeAccessIssue]
 
 

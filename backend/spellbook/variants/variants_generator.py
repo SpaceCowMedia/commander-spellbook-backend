@@ -1,6 +1,5 @@
 import gc
 import logging
-from collections import defaultdict
 from dataclasses import dataclass, field
 from itertools import chain
 from typing import Callable, Iterable, Sequence, TypeVar
@@ -11,14 +10,14 @@ from .multiset import FrozenMultiset
 from .variant_data import Data, CardInVariantRow, TemplateInVariantRow, FeatureProducedByVariantRow
 from .variant_set import VariantSet
 from .combo_graph import FeatureWithAttributes, Graph, GraphError, cardid, templateid, featureid
-from .replacements import IngredientPositions, VariantContext, merge_used_faces
+from .replacements import IngredientPositions, VariantContext
 from .generation_tracking import (
     GenerationPlan, GenerationScope, plan_full_generation, plan_incremental_generation,
     compute_fingerprints, load_stored_fingerprints, store_fingerprints,
 )
-from spellbook.models import Combo, FeatureNeededInCombo, Variant, CardInVariant, TemplateInVariant, ZoneLocation, CardType
-from spellbook.models import Card, VariantAlias, Ingredient, OrderedIngredient, FeatureProducedByVariant, VariantOfCombo, VariantIncludesCombo
-from spellbook.models import id_from_cards_and_templates_ids, merge_mana_costs, join_with_conjunction, DEFAULT_BATCH_SIZE, recompute_counts
+from spellbook.models import Combo, Variant, CardInVariant, TemplateInVariant
+from spellbook.models import VariantAlias, Ingredient, OrderedIngredient, FeatureProducedByVariant, VariantOfCombo, VariantIncludesCombo
+from spellbook.models import id_from_cards_and_templates_ids, merge_mana_costs, DEFAULT_BATCH_SIZE, recompute_counts
 from spellbook.models.constants import DEFAULT_CARD_LIMIT, DEFAULT_VARIANT_LIMIT, HIGHER_CARD_LIMIT, LOWER_VARIANT_LIMIT
 
 
@@ -250,39 +249,6 @@ def subtract_features(data: Data, includes: set[int], features: FrozenMultiset[f
     return FrozenMultiset({f: c for f, c in features.items() if f not in data.utility_features_ids and f not in to_remove})
 
 
-def get_default_zone_location_for_card(card: Card) -> ZoneLocation:
-    if card.is_of_type(CardType.INSTANT) or card.is_of_type(CardType.SORCERY):
-        return ZoneLocation.HAND
-    return ZoneLocation.BATTLEFIELD
-
-
-def update_state_with_default(data: Data, destination: Ingredient) -> None:
-    if isinstance(destination, CardInVariant):
-        destination.zone_locations = get_default_zone_location_for_card(data.id_to_card[destination.card_id])
-        destination.used_face = None
-    else:
-        destination.zone_locations = Ingredient._meta.get_field('zone_locations').get_default()  # pyright: ignore[reportAttributeAccessIssue]
-    for state in Ingredient.CARD_STATE_FIELDS.values():
-        setattr(destination, state, '')
-    destination.must_be_commander = False
-
-
-def update_state(destination: Ingredient, initial_states: Sequence[Ingredient]) -> None:
-    zone_locations = initial_states[0].zone_locations
-    for initial_state in initial_states[1:]:
-        zone_locations = ''.join(
-            location
-            for location in zone_locations
-            if location in initial_state.zone_locations
-        ) or zone_locations or initial_state.zone_locations
-    destination.zone_locations = zone_locations
-    for state in Ingredient.CARD_STATE_FIELDS.values():
-        setattr(destination, state, join_with_conjunction(getattr(initial_state, state) for initial_state in initial_states))
-    destination.must_be_commander = any(initial_state.must_be_commander for initial_state in initial_states)
-    if isinstance(destination, CardInVariant):
-        destination.used_face = merge_used_faces(initial_states)
-
-
 def _copy_state_from_row(destination: CardInVariant | TemplateInVariant, row: CardInVariantRow | TemplateInVariantRow) -> None:
     destination.zone_locations = row.zone_locations
     for state in Ingredient.CARD_STATE_FIELDS.values():
@@ -402,63 +368,9 @@ def _restore_variant(
         # rendered after it, which is why the ingredients below are walked in their display order
         context = VariantContext.build(data, replacements, needed_combos, needed_feature_of_cards, positions)
 
-        card_zone_locations_overrides = defaultdict[int, defaultdict[str, int]](lambda: defaultdict(int))
-        template_zone_locations_overrides = defaultdict[int, defaultdict[str, int]](lambda: defaultdict(int))
-        card_features_for_override = defaultdict[int, set[FeatureNeededInCombo]](set)
-        template_features_for_override = defaultdict[int, set[FeatureNeededInCombo]](set)
-        for combo in needed_combos:
-            # Applying zone locations overrides
-            for feature_in_combo in data.combo_to_needed_features[combo.id]:
-                if feature_in_combo.zone_locations:
-                    for feature_attributes, feature_replacements in variant_def.feature_replacements.items():
-                        if feature_attributes.feature.id == feature_in_combo.feature_id \
-                                and data.feature_needed_in_combo_to_attributes_matcher[feature_in_combo.id].matches(feature_attributes.attributes):
-                            for feature_replacement in feature_replacements:
-                                # Apply the override to all cards replacing the feature
-                                for card in feature_replacement.card_ids.distinct_elements():
-                                    card_features_for_override[card].add(feature_in_combo)
-                                    for location in feature_in_combo.zone_locations:
-                                        card_zone_locations_overrides[card][location] += 1
-                                for template in feature_replacement.template_ids.distinct_elements():
-                                    template_features_for_override[template].add(feature_in_combo)
-                                    for location in feature_in_combo.zone_locations:
-                                        template_zone_locations_overrides[template][location] += 1
-        # Merging the initial states the context collected for each ingredient
-        for card_in_variant in used_cards:
-            initial_states = context.initial_states.cards.get(card_in_variant.card_id)
-            if initial_states:
-                update_state(card_in_variant, initial_states)
-            else:
-                update_state_with_default(data, card_in_variant)
-        for template_in_variant in required_templates:
-            initial_states = context.initial_states.templates.get(template_in_variant.template_id)
-            if initial_states:
-                update_state(template_in_variant, initial_states)
-            else:
-                update_state_with_default(data, template_in_variant)
-        combo_positions = {c.id: i for i, c in enumerate(needed_combos)}
-
-        def feature_override_key(feature: FeatureNeededInCombo) -> tuple[int, int, int]:
-            return (combo_positions.get(feature.combo_id, len(combo_positions)), feature.order, feature.id)
-
-        for used_card in ordered_uses:
-            override_score = max(card_zone_locations_overrides[used_card.card_id].values(), default=0)
-            if override_score > 0:
-                used_card.zone_locations = ''.join(
-                    location
-                    for location, count in card_zone_locations_overrides[used_card.card_id].items()
-                    if count == override_score
-                )
-            context.render_ingredient_states(used_card, sorted(card_features_for_override[used_card.card_id], key=feature_override_key))
-        for required_template in ordered_requires:
-            override_score = max(template_zone_locations_overrides[required_template.template_id].values(), default=0)
-            if override_score > 0:
-                required_template.zone_locations = ''.join(
-                    location
-                    for location, count in template_zone_locations_overrides[required_template.template_id].items()
-                    if count == override_score
-                )
-            context.render_ingredient_states(required_template, sorted(template_features_for_override[required_template.template_id], key=feature_override_key))
+        ingredients: list[CardInVariant | TemplateInVariant] = [*ordered_uses, *ordered_requires]
+        for ingredient in ingredients:
+            context.render_ingredient(ingredient)
 
         # The variant text fields come last, in the order the combo admin form displays them
         variant.mana_needed = context.render_field('mana_needed', merge_mana_costs)

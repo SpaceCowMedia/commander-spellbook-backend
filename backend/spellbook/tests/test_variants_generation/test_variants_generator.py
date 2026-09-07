@@ -11,9 +11,10 @@ from spellbook.variants.combo_graph import FeatureWithAttributes
 from spellbook.variants.multiset import FrozenMultiset
 from spellbook.variants.variant_data import Data
 from spellbook.variants import variants_generator
-from spellbook.variants.variants_generator import get_variants_from_graph, get_default_zone_location_for_card, update_state_with_default
-from spellbook.variants.replacements import IngredientPositions, VariantContext, merge_used_faces
-from spellbook.variants.variants_generator import generate_variants, subtract_features, update_state
+from spellbook.variants.variants_generator import get_variants_from_graph
+from spellbook.variants.replacements import FeatureIndex, IngredientPositions, InitialStates, NeededFeatureOverrides, SourcedState, VariantContext
+from spellbook.variants.replacements import get_default_zone_location_for_card, merge_used_faces
+from spellbook.variants.variants_generator import generate_variants, subtract_features
 from spellbook.variants.variants_generator import sync_variant_aliases, restore_variants
 from spellbook.variants.variants_generator import VariantDefinition, _restore_variant, _update_variant, _create_variant, _perform_bulk_saves
 from multiprocessing_utils import WORKERS_ENV_VAR, parallelism_is_available, resolve_workers
@@ -81,12 +82,23 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
             else:
                 self.assertEqual(location, ZoneLocation.BATTLEFIELD)
 
-    def test_update_state_with_default(self):
-        data = Data()
+    def make_bare_context(self, initial_states: InitialStates) -> VariantContext:
+        '''A context with nothing to resolve, to render an ingredient against rows given by hand.'''
+        return VariantContext(
+            data=Data(),
+            replacements=FeatureIndex({}, {}),
+            producers=FeatureIndex({}, {}),
+            sources=[Combo(id=1), Combo(id=2), Combo(id=3)],
+            initial_states=initial_states,
+            overrides=NeededFeatureOverrides(cards={}, templates={}),
+        )
+
+    def test_render_ingredient_falls_back_to_the_defaults(self):
+        context = self.make_bare_context(InitialStates(cards={}, templates={}))
         civs = (CardInVariant(card=c) for c in Card.objects.all())
         tivs = (TemplateInVariant(template=t) for t in Template.objects.all())
         for sut in chain(civs, tivs):
-            update_state_with_default(data, sut)
+            context.render_ingredient(sut)
             self.assertEqual(sut.battlefield_card_state, '')
             self.assertEqual(sut.exile_card_state, '')
             self.assertEqual(sut.graveyard_card_state, '')
@@ -94,53 +106,28 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
             self.assertEqual(sut.must_be_commander, False)
             if isinstance(sut, CardInVariant):
                 self.assertEqual(sut.zone_locations, get_default_zone_location_for_card(sut.card))
+                self.assertIsNone(sut.used_face)
             else:
                 self.assertEqual(sut.zone_locations, OrderedIngredient._meta.get_field('zone_locations').get_default())  # pyright: ignore[reportAttributeAccessIssue]
 
-    def test_update_state(self):
-        civs = list(CardInVariant(card=c) for c in Card.objects.all())
-        tivs = list(TemplateInVariant(template=t) for t in Template.objects.all())
-        for sut1, sut2 in zip(chain(civs, tivs), chain(reversed(civs), reversed(tivs))):  # type: ignore
-            sut1.battlefield_card_state = 'battlefield_card_state'
-            sut1.exile_card_state = 'exile_card_state'
-            sut1.graveyard_card_state = 'graveyard_card_state'
-            sut1.library_card_state = 'library_card_state'
-            sut1.must_be_commander = True
-            sut1.zone_locations = ZoneLocation.COMMAND_ZONE + ZoneLocation.BATTLEFIELD
-            update_state(destination=sut2, initial_states=[sut1])
-            self.assertEqual(sut2.battlefield_card_state, sut1.battlefield_card_state)
-            self.assertEqual(sut2.exile_card_state, sut1.exile_card_state)
-            self.assertEqual(sut2.graveyard_card_state, sut1.graveyard_card_state)
-            self.assertEqual(sut2.library_card_state, sut1.library_card_state)
-            self.assertEqual(sut2.must_be_commander, sut1.must_be_commander)
-            self.assertEqual(sut2.zone_locations, sut1.zone_locations)
-            other = CardInVariant(
-                battlefield_card_state='battlefield_card_state2',
-                exile_card_state='exile_card_state2',
-                graveyard_card_state='graveyard_card_state2',
-                library_card_state='library_card_state2',
-                must_be_commander=False,
-                zone_locations=ZoneLocation.BATTLEFIELD + ZoneLocation.EXILE,
-            )
-            update_state(destination=sut2, initial_states=[sut1, other])
-            self.assertEqual(sut2.battlefield_card_state, 'battlefield_card_state and battlefield_card_state2')
-            self.assertEqual(sut2.exile_card_state, 'exile_card_state and exile_card_state2')
-            self.assertEqual(sut2.graveyard_card_state, 'graveyard_card_state and graveyard_card_state2')
-            self.assertEqual(sut2.library_card_state, 'library_card_state and library_card_state2')
-            self.assertEqual(sut2.must_be_commander, True)
-            self.assertEqual(sut2.zone_locations, ZoneLocation.BATTLEFIELD)
-            third = CardInVariant(
-                battlefield_card_state='battlefield_card_state3',
-                zone_locations=ZoneLocation.HAND,
-            )
-            update_state(destination=sut2, initial_states=[sut1, other, third])
-            self.assertEqual(sut2.battlefield_card_state, 'battlefield_card_state, battlefield_card_state2 and battlefield_card_state3')
-            self.assertEqual(sut2.exile_card_state, 'exile_card_state and exile_card_state2')
-            self.assertEqual(sut2.zone_locations, ZoneLocation.BATTLEFIELD)
-            empty_zones = CardInVariant(zone_locations='')
-            update_state(destination=sut2, initial_states=[empty_zones, sut1])
-            self.assertEqual(sut2.zone_locations, sut1.zone_locations)
-            self.assertEqual(sut2.battlefield_card_state, sut1.battlefield_card_state)
+    def test_render_ingredient_merges_the_rows_of_every_source(self):
+        rows = [
+            CardInCombo(zone_locations=ZoneLocation.COMMAND_ZONE + ZoneLocation.BATTLEFIELD, must_be_commander=True, battlefield_card_state='battlefield_card_state'),
+            CardInCombo(zone_locations=ZoneLocation.BATTLEFIELD + ZoneLocation.EXILE, battlefield_card_state='battlefield_card_state2', exile_card_state='exile_card_state2'),
+            CardInCombo(zone_locations=ZoneLocation.HAND, battlefield_card_state='battlefield_card_state3'),
+        ]
+        context = self.make_bare_context(InitialStates(
+            cards={self.c1_id: [SourcedState(index, row) for index, row in enumerate(rows)]},
+            templates={},
+        ))
+        sut = CardInVariant(card_id=self.c1_id)
+        context.render_ingredient(sut)
+        # the locations left are the ones the rows agree on, ignoring the row that agrees on none
+        self.assertEqual(sut.zone_locations, ZoneLocation.BATTLEFIELD)
+        self.assertTrue(sut.must_be_commander)
+        self.assertEqual(sut.battlefield_card_state, 'battlefield_card_state, battlefield_card_state2 and battlefield_card_state3')
+        # a location the ingredient does not start in keeps no state at all
+        self.assertEqual(sut.exile_card_state, '')
 
     def test_merge_used_faces(self):
         # No contributor specifies a face -> blank
@@ -1093,6 +1080,20 @@ class FeatureInclusionTests(SpellbookTestCase):
         combo.produces.add(self.win)
         return combo
 
+    def make_sharing_main(self, producer_state: str, main_state: str) -> tuple[Combo, Card]:
+        '''A card asked for by both a producer of IFMana and the main combo, so that a starting state of
+        the main combo can name the state the producer asks the same card for.'''
+        shared = Card.objects.create(name='Inclusion Shared Card', type_line='Creature - Elf')
+        producer = Combo.objects.create(status=Combo.Status.UTILITY)
+        CardInCombo.objects.create(combo=producer, card=shared, order=1, zone_locations=ZoneLocation.BATTLEFIELD, battlefield_card_state=producer_state)
+        producer.produces.add(self.mana)
+        main = Combo.objects.create(status=Combo.Status.GENERATOR)
+        CardInCombo.objects.create(combo=main, card=self.main_card, order=1, zone_locations=ZoneLocation.HAND)
+        CardInCombo.objects.create(combo=main, card=shared, order=2, zone_locations=ZoneLocation.BATTLEFIELD, battlefield_card_state=main_state)
+        FeatureNeededInCombo.objects.create(combo=main, feature=self.mana, order=1)
+        main.produces.add(self.win)
+        return main, shared
+
     def test_inclusion_writes_the_producer_text_in_place_of_appending_it(self):
         self.make_producer('Inclusion Mana Card', self.mana, description='make infinite mana', notes='a note of the producer')
         main = self.make_main(self.mana, description='First, {{IFMana}}, then win.', notes='a note of the main combo')
@@ -1133,20 +1134,26 @@ class FeatureInclusionTests(SpellbookTestCase):
 
         # the only producer of the feature is the text itself, so the inclusion resolves to nothing
         variant = Variant.objects.get(of=main)
-        self.assertEqual(variant.description, 'First, win.\na loop over {{IFMana}}')
+        self.assertEqual(variant.description, 'First, win.\na loop over')
         self.assertEqual(Combo.objects.get(id=producer.id).description, 'a loop over {{IFMana}}')
 
-    def test_an_unresolvable_inclusion_stays_in_the_text(self):
+    def test_an_unresolvable_inclusion_is_deleted_with_the_separators_after_it(self):
         self.make_producer('Inclusion Mana Card', self.mana, description='make infinite mana')
-        main = self.make_main(self.mana, description='{{IFUnknown}} and {{IFMana$9}} and {{IFMana$Unknown}}.')
+        main = self.make_main(self.mana, description='First, {{IFUnknown}}, then win with {{IFMana$Unknown}}.')
 
         self.generate_variants()
 
-        # nothing was selected, so the producer text is still appended
-        self.assertEqual(
-            Variant.objects.get(of=main).description,
-            '{{IFUnknown}} and {{IFMana$9}} and {{IFMana$Unknown}}.\nmake infinite mana',
-        )
+        # nothing was selected, so each inclusion goes away with the separators after it, the last one
+        # taking the full stop too, while the producer text, which none of them consumed, is appended
+        self.assertEqual(Variant.objects.get(of=main).description, 'First, then win with\nmake infinite mana')
+
+    def test_a_deleted_inclusion_takes_the_line_it_was_alone_on(self):
+        self.make_producer('Inclusion Mana Card', self.mana, description='make infinite mana')
+        main = self.make_main(self.mana, description='First.\n{{IFMana$9}}\nThen win.')
+
+        self.generate_variants()
+
+        self.assertEqual(Variant.objects.get(of=main).description, 'First.\nThen win.\nmake infinite mana')
 
     def test_an_inclusion_resolves_the_replacements_of_the_text_it_comes_from(self):
         self.make_producer('Inclusion Mana Card', self.mana, description='tap [[IFMana]] for infinite mana')
@@ -1196,3 +1203,20 @@ class FeatureInclusionTests(SpellbookTestCase):
         main.save()
         self.generate_variants()
         self.assertEqual(Variant.objects.get(of=main).description, 'First, play a land, then win.\nuntap it')
+
+    def test_an_inclusion_in_a_starting_card_state_writes_the_state_of_its_producer(self):
+        main, shared = self.make_sharing_main('tapped', 'untapped, {{IFMana}}')
+
+        self.generate_variants()
+
+        card_in_variant = Variant.objects.get(of=main).cardinvariant_set.get(card=shared)
+        # the state of the producer is written where it is mentioned, instead of being merged after it
+        self.assertEqual(card_in_variant.battlefield_card_state, 'untapped, tapped')
+
+    def test_an_unresolvable_inclusion_in_a_starting_card_state_is_deleted(self):
+        main, shared = self.make_sharing_main('tapped', 'in play, {{IFUnknown}} untapped')
+
+        self.generate_variants()
+
+        card_in_variant = Variant.objects.get(of=main).cardinvariant_set.get(card=shared)
+        self.assertEqual(card_in_variant.battlefield_card_state, 'in play, untapped and tapped')

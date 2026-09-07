@@ -3,7 +3,7 @@ from collections import defaultdict
 from html import unescape
 from django.urls import reverse
 from spellbook.admin.combo_admin import ALL_ZONE_LOCATIONS
-from spellbook.models import Combo, CardInCombo, ZoneLocation
+from spellbook.models import Combo, CardInCombo, Variant, ZoneLocation
 from spellbook.models.utils import sanitize_newlines_apostrophes_and_quotes
 from ..testing import SpellbookTestCaseWithSeeding
 
@@ -454,3 +454,37 @@ class ComboAdminDuplicateConfirmationTests(ComboAdminTestCase):
         response = self.client.post(self.change_url(self.b5_id), data={**payload, '_confirm_duplicate': 'Yes, I’m sure'})
         self.assertEqual(response.status_code, 302)
         self.assertEqual(set(Combo.objects.get(id=self.b5_id).uses.values_list('id', flat=True)), {self.c8_id, self.c1_id})
+
+
+class ComboAdminRestoreTests(ComboAdminTestCase):
+    '''A variant writes the texts of every combo it includes, so saving one has to flag them all
+    for restore, not only the ones the combo generates. An utility combo generates none.'''
+
+    def save_b5(self):
+        card_ids = list(CardInCombo.objects.filter(combo_id=self.b5_id).order_by('order').values_list('id', flat=True))
+        return self.client.post(self.change_url(self.b5_id), data=self.combo_payload(
+            cards=[self.c5_id, self.c6_id],
+            card_ids_to_update=card_ids,
+            status=Combo.Status.UTILITY,
+            description='An edited description',
+        ))
+
+    def test_saving_an_utility_combo_restores_the_new_variants_including_it(self):
+        self.generate_variants()
+        including = set(Variant.objects.filter(includes=self.b5_id).values_list('id', flat=True))
+        self.assertTrue(including)
+        self.assertFalse(Variant.objects.filter(of=self.b5_id).exists())
+        Variant.objects.update(status=Variant.Status.NEW)
+        response = self.save_b5()
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            set(Variant.objects.filter(status=Variant.Status.RESTORE).values_list('id', flat=True)),
+            including,
+        )
+
+    def test_published_variants_are_left_alone(self):
+        self.generate_and_publish_variants()
+        self.assertTrue(Variant.objects.filter(includes=self.b5_id).exists())
+        response = self.save_b5()
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(Variant.objects.filter(status=Variant.Status.RESTORE).exists())

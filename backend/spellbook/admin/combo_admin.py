@@ -601,9 +601,11 @@ class ComboAdmin(SpellbookModelAdmin):
         instance: Combo = form.instance
         if change:
             # Set all new variants to restore. Both statuses are non public, so no count moves.
+            # A variant writes the texts of every combo it includes, its generators among them,
+            # so editing an utility combo has to reach them too.
             updated = Variant.objects.filter(
-                of=instance,
-                status=Variant.Status.NEW
+                includes=instance,
+                status=Variant.Status.NEW,
             ).update(status=Variant.Status.RESTORE, updated=timezone.now())
             if updated:
                 messages.info(request, f'Set {updated} "New" variants to "Restore" status.')

@@ -36,13 +36,7 @@ MetadataFunction = Callable[[str, object], None]
 # Fields of a Variant row that generation may modify on existing variants
 _VARIANT_UPDATE_FIELDS = [
     'status',
-    'mana_needed',
-    'is_mana_needed_an_accurate_minimum',
-    'easy_prerequisites',
-    'notable_prerequisites',
-    'description',
-    'notes',
-    'comment',
+    *Variant.explanation_fields(),
     'generated_by',
 ] + Variant.computed_fields()
 
@@ -375,8 +369,8 @@ def _restore_variant(
         # The variant text fields come last, in the order the combo admin form displays them
         variant.mana_needed = context.render_field('mana_needed', merge_mana_costs)
         variant.is_mana_needed_an_accurate_minimum = not variant.mana_needed or all(
-            c.is_mana_needed_an_accurate_minimum
-            for c in needed_combos
+            source.is_mana_needed_an_accurate_minimum
+            for source in context.sources
         )
         variant.easy_prerequisites = context.render_field('easy_prerequisites')
         variant.notable_prerequisites = context.render_field('notable_prerequisites')

@@ -785,8 +785,45 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
         v: Variant = Variant.objects.get(of=c)
         self.assertEqual(v.mana_value_needed, 8)
         self.assertEqual(v.mana_needed, '{X}{4}{U}{U}{U}{U}')
-        self.assertEqual(v.easy_prerequisites, 'A\nB\nC')
-        self.assertEqual(v.notable_prerequisites, 'A\nB\nC')
+        # the features of the cards write before the combos, generator first among them
+        self.assertEqual(v.easy_prerequisites, 'C\nA\nB')
+        self.assertEqual(v.notable_prerequisites, 'C\nA\nB')
+
+    def generator_needing_a_card_feature(self, **feature_of_card_fields) -> Combo:
+        """A generator combo using the card whose feature carries the given texts. FB is contextual, so
+        the row producing it is kept in the variant, and the combo produces a standalone feature of its own."""
+        card = Card.objects.get(pk=self.c1_id)
+        card.featureofcard_set.create(feature_id=self.f2_id, zone_locations=ZoneLocation.BATTLEFIELD, **feature_of_card_fields)
+        combo = Combo.objects.create(status=Combo.Status.GENERATOR, **self.combo_fields)
+        combo.cardincombo_set.create(card_id=self.c1_id, order=1, zone_locations=ZoneLocation.BATTLEFIELD)
+        combo.produces.add(self.f4_id)
+        generate_variants(combo.id)
+        return combo
+
+    def test_an_inclusion_writes_the_description_of_a_card_feature(self):
+        self.combo_fields = {'description': 'then {{FB}}, and win'}
+        combo = self.generator_needing_a_card_feature(description='sacrifice a creature')
+        v: Variant = Variant.objects.get(of=combo)
+        # written where it was named, and not appended a second time
+        self.assertEqual(v.description, 'then sacrifice a creature, and win')
+
+    def test_the_description_of_a_card_feature_is_appended_when_nothing_names_it(self):
+        self.combo_fields = {'description': 'and win'}
+        combo = self.generator_needing_a_card_feature(description='sacrifice a creature')
+        v: Variant = Variant.objects.get(of=combo)
+        self.assertEqual(v.description, 'sacrifice a creature\nand win')
+
+    def test_a_card_feature_can_make_the_mana_needed_an_inaccurate_minimum(self):
+        self.combo_fields = {'mana_needed': '{U}', 'is_mana_needed_an_accurate_minimum': True}
+        combo = self.generator_needing_a_card_feature(mana_needed='{U}', is_mana_needed_an_accurate_minimum=False)
+        v: Variant = Variant.objects.get(of=combo)
+        self.assertFalse(v.is_mana_needed_an_accurate_minimum)
+
+    def test_a_card_feature_leaves_an_accurate_minimum_alone(self):
+        self.combo_fields = {'mana_needed': '{U}', 'is_mana_needed_an_accurate_minimum': True}
+        combo = self.generator_needing_a_card_feature(mana_needed='{U}')
+        v: Variant = Variant.objects.get(of=combo)
+        self.assertTrue(v.is_mana_needed_an_accurate_minimum)
 
     def test_a_combo_that_only_removes_a_feature_is_included(self):
         c = Combo.objects.create(mana_needed='{U}', status=Combo.Status.GENERATOR)

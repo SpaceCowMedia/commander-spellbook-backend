@@ -106,6 +106,7 @@ class FeatureAdminTests(SpellbookTestCaseWithSeeding):
             feature=unrelated_feature,
             zone_locations=ZoneLocation.BATTLEFIELD,
             notable_prerequisites='needs [[Old Feature]]',
+            description='then [[Old Feature]] happens',
         )
 
         feature.name = 'New Feature'
@@ -117,6 +118,7 @@ class FeatureAdminTests(SpellbookTestCaseWithSeeding):
         self.assertEqual(card_in_unrelated_combo.battlefield_card_state, 'next to [[New Feature]]')
         feature_of_card.refresh_from_db()
         self.assertEqual(feature_of_card.notable_prerequisites, 'needs [[New Feature]]')
+        self.assertEqual(feature_of_card.description, 'then [[New Feature]] happens')
 
     def test_merge_feature_updates_references(self):
         source = Feature.objects.create(name='Source Feature')

@@ -10,6 +10,7 @@ from django.utils.html import format_html
 from django.core.validators import MinValueValidator
 from django.core.exceptions import ValidationError
 from .playable import Playable
+from .explanation import Explanation
 from .recipe import Recipe
 from .mixins import ScryfallLinkMixin, PreSaveSerializedModelMixin, PreSaveSerializedManager
 from .card import Card, WithUsedFace
@@ -17,9 +18,7 @@ from .template import Template
 from .feature import Feature
 from .ingredient import OrderedIngredient, ZoneLocation
 from .combo import Combo
-from .validators import TEXT_VALIDATORS, MANA_VALIDATOR
 from .utils import CardType, mana_value, merge_color_identities, case_insensitive_trigram_indexes
-from .constants import MAX_MANA_NEEDED_LENGTH
 
 
 _INFINITE_TURNS_REGEX = r'(?:near-)?infinite (?:extra )?turns?'
@@ -80,7 +79,7 @@ def view_ordering_indexes(*fields: str, **labels: str) -> list[models.Index]:
     ]
 
 
-class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
+class Variant(Recipe, Playable, Explanation, PreSaveSerializedModelMixin, ScryfallLinkMixin):
     objects: PreSaveSerializedManager  # type: ignore[misc]
     recipes_prefetched = RecipePrefetchedManager()
     rename_prefetched = RenamePrefetchedManager()
@@ -154,14 +153,7 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
     )
     variantofcombo_set: models.Manager['VariantOfCombo']
     status = models.CharField(choices=Status.choices, db_default=Status.NEW, max_length=2, help_text='Variant status for editors')
-    mana_needed = models.CharField(blank=True, max_length=MAX_MANA_NEEDED_LENGTH, help_text='Mana needed for this combo. Use the {1}{W}{U}{B}{R}{G}{B/P}... format.', validators=[MANA_VALIDATOR, *TEXT_VALIDATORS])
-    is_mana_needed_an_accurate_minimum = models.BooleanField(default=True, help_text='Does the first mana cost in this field represent the MINIMUM needed to start the combo, ignoring all other text?')
     mana_value_needed = models.PositiveIntegerField(editable=False, help_text='Mana value needed for this combo. Calculated from mana_needed.')
-    easy_prerequisites = models.TextField(blank=True, help_text='Easily achievable prerequisites for this combo.', validators=TEXT_VALIDATORS)
-    notable_prerequisites = models.TextField(blank=True, help_text='Notable prerequisites for this combo.', validators=TEXT_VALIDATORS)
-    description = models.TextField(blank=True, help_text='Long description, in steps', validators=TEXT_VALIDATORS)
-    notes = models.TextField(blank=True, help_text='Notes about the combo that will be displayed on the site', validators=TEXT_VALIDATORS)
-    comment = models.TextField(blank=True, help_text='Notes about the combo', validators=TEXT_VALIDATORS)
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, editable=False)
     generated_by = models.CharField(max_length=255, null=True, blank=True, editable=False, help_text='Task that generated this variant')
@@ -272,11 +264,6 @@ class Variant(Recipe, Playable, PreSaveSerializedModelMixin, ScryfallLinkMixin):
         ) + (
             self.notable_prerequisites.count('\n') + 1 if self.notable_prerequisites else 0
         )
-
-    def clean(self):
-        super().clean()
-        if not self.mana_needed and not self.is_mana_needed_an_accurate_minimum:
-            raise ValidationError(f'If {self._meta.get_field('mana_needed').verbose_name} is empty, {self._meta.get_field('is_mana_needed_an_accurate_minimum').verbose_name} must be True.')  # pyright: ignore[reportAttributeAccessIssue]
 
     @dataclass(frozen=True)
     class Recipe:

@@ -14,7 +14,7 @@ Fingerprints = dict[str, dict[int, str]]
 
 # Bump this version to force a full regeneration
 # whenever the generation algorithm changes in a way that affects its output.
-_FINGERPRINT_VERSION = 3
+_FINGERPRINT_VERSION = 4
 
 _META_KIND = 'meta'
 _ENTITY_KINDS = ('card', 'template', 'feature', 'combo')
@@ -30,17 +30,13 @@ _CARD_FINGERPRINT_FIELDS = (
     'extra_turn',
 )
 
+_EXPLANATION_FINGERPRINT_FIELDS = tuple(Combo.explanation_fields())
+
 _COMBO_FINGERPRINT_FIELDS = (
     'status',
     'allow_many_cards',
     'allow_multiple_copies',
-    'mana_needed',
-    'is_mana_needed_an_accurate_minimum',
-    'easy_prerequisites',
-    'notable_prerequisites',
-    'description',
-    'notes',
-    'comment',
+    *_EXPLANATION_FINGERPRINT_FIELDS,
 )
 
 _INGREDIENT_FINGERPRINT_FIELDS = (
@@ -85,9 +81,7 @@ def compute_fingerprints(data: Data) -> Fingerprints:
                 feature_of_card.feature_id,
                 *(getattr(feature_of_card, field) for field in _INGREDIENT_FINGERPRINT_FIELDS),
                 feature_of_card.used_face,
-                feature_of_card.mana_needed,
-                feature_of_card.easy_prerequisites,
-                feature_of_card.notable_prerequisites,
+                *(getattr(feature_of_card, field) for field in _EXPLANATION_FINGERPRINT_FIELDS),
                 tuple(sorted(data.feature_of_card_to_attributes.get(feature_of_card.id, ()))),
             )
             for feature_of_card in data.card_to_features.get(card_id, ())

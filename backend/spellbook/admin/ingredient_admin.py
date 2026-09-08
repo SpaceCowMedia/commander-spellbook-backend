@@ -43,9 +43,13 @@ class FeatureOfCardAdmin(IngredientAdmin):
         IngredientAdmin.fields[0],  # pyright: ignore[reportGeneralTypeIssues]
         'used_face',
         'mana_needed',
+        'is_mana_needed_an_accurate_minimum',
         *IngredientAdmin.fields[1:],
         'easy_prerequisites',
         'notable_prerequisites',
+        'description',
+        'notes',
+        'comment',
     ]
     model = FeatureOfCard
     autocomplete_fields = ['attributes']

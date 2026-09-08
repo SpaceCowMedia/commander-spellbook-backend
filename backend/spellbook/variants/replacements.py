@@ -322,15 +322,14 @@ class InitialStates(ByIngredient[Sequence[SourcedState]]):
 
     @classmethod
     def collect(cls, data: Data, sources: Sequence[TextSource], positions: IngredientPositions) -> 'InitialStates':
-        '''The card features first, then the rows of the needed combos, in combo order. Only the
-        ingredients the variant ends up with are collected, which is what the positions carry.'''
+        '''The rows an ingredient inherits from, in source order: the features of the cards first, then
+        the rows of the needed combos, in combo order. Only the ingredients the variant ends up with are
+        collected, which is what the positions carry.'''
         cards = defaultdict[cardid, list[SourcedState]](list)
         templates = defaultdict[templateid, list[SourcedState]](list)
         for index, source in enumerate(sources):
             if isinstance(source, FeatureOfCard):
                 cards[source.card_id].append(SourcedState(index, source))
-        for index, source in enumerate(sources):
-            if not isinstance(source, Combo):
                 continue
             for card_in_combo in data.combo_to_cards[source.id]:
                 if card_in_combo.card_id in positions.cards:
@@ -473,8 +472,8 @@ class VariantContext:
     '''Renders the ingredients and the texts of a single variant, resolving the feature names they
     mention.
 
-    The texts come from the sources of the variant, the combos it needs followed by the features of its
-    cards, each identified by its position among them. That numbering spans every field, so one context
+    The texts come from the sources of the variant, the features of its cards followed by the combos it
+    needs, each identified by its position among them. That numbering spans every field, so one context
     is built per variant and reused by all of them, along with everything else derived from the same
     sources: what replaces a feature name, which sources produce it, what the ingredients start as, and
     what the needed feature rows ask of them.
@@ -515,7 +514,7 @@ class VariantContext:
         '''Builds the context of a variant from its replacements, its sources and where its ingredients
         are displayed. The states collected for a card give the face it is used by, which is what makes
         a card used by one face show that half of its name.'''
-        sources: list[TextSource] = [*needed_combos, *needed_feature_of_cards]
+        sources: list[TextSource] = [*needed_feature_of_cards, *needed_combos]
         initial_states = InitialStates.collect(data, sources, positions)
         return cls(
             data=data,
@@ -595,8 +594,7 @@ class VariantContext:
 
     def render_field(self, field: str, merge: MergeTexts = join_texts) -> str:
         '''Renders one text field of the variant, from what each of its sources wrote for it, in source
-        order. A source with nothing to say writes nothing, and a feature of a card has only the fields
-        it shares with a combo.'''
+        order. A source with nothing to say writes nothing.'''
         return self.assemble(
             {
                 index: self.apply(text, combo_id)

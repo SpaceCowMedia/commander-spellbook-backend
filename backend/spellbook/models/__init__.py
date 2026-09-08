@@ -1,4 +1,5 @@
 from .playable import Playable
+from .explanation import Explanation
 from .feature import Feature
 from .card import Card, FeatureOfCard, LayoutRotation
 from .template import Template, TemplateReplacement

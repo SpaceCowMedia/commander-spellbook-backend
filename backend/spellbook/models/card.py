@@ -4,8 +4,7 @@ from django.dispatch import receiver
 from django.db.models.signals import post_save
 from django.core.validators import MinValueValidator
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
-from .constants import MAX_CARD_NAME_LENGTH, MAX_MANA_NEEDED_LENGTH
-from .validators import MANA_VALIDATOR, TEXT_VALIDATORS
+from .constants import MAX_CARD_NAME_LENGTH
 from .playable import Playable
 from .utils import strip_accents, simplify_card_name_on_database, simplify_card_name_with_spaces_on_database, cast_case_insensitive_trigram_indexes, case_insensitive_trigram_indexes, CardType
 from .recipe import update_variants, update_combo_names
@@ -14,6 +13,7 @@ from .feature import Feature
 from .fields import KeywordsField
 from .ingredient import Ingredient
 from .feature_attribute import WithFeatureAttributes
+from .explanation import Explanation
 
 
 class LayoutRotation(models.TextChoices):
@@ -228,23 +228,15 @@ class WithUsedFace(models.Model):
             raise ValidationError({'used_face': f'The used face must be a number between 1 and {card.faces}.'})
 
 
-class FeatureOfCard(Ingredient, WithFeatureAttributes, WithUsedFace):
+class FeatureOfCard(Ingredient, Explanation, WithFeatureAttributes, WithUsedFace):
     id: int
-    mana_needed = models.CharField(blank=True, max_length=MAX_MANA_NEEDED_LENGTH, help_text='Mana needed for this card feature. Use the {1}{W}{U}{B}{R}{G}{B/P}... format.', validators=[MANA_VALIDATOR, *TEXT_VALIDATORS])
-    easy_prerequisites = models.TextField(blank=True, help_text='Easily achievable prerequisites for this card feature.', validators=TEXT_VALIDATORS)
-    notable_prerequisites = models.TextField(blank=True, help_text='Notable prerequisites for this card feature.', validators=TEXT_VALIDATORS)
 
     @classmethod
     def text_fields_with_references(cls) -> list[str]:
-        return [*super().text_fields_with_references(), 'mana_needed', 'easy_prerequisites', 'notable_prerequisites']
+        return [*Ingredient.text_fields_with_references(), *Explanation.text_fields_with_references()]
 
     class Meta(Ingredient.Meta):
-        indexes = Ingredient.card_state_trigram_indexes('foc') + case_insensitive_trigram_indexes(
-            'foc',
-            'mana_needed',
-            easy_prerequisites='easy_prereq',
-            notable_prerequisites='notable_prereq',
-        )
+        indexes = Ingredient.card_state_trigram_indexes('foc') + Explanation.text_trigram_indexes('foc')
 
     def __str__(self):
         return f'{self.feature} for card {self.card_id}'

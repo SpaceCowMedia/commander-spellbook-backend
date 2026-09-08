@@ -4,13 +4,12 @@ from django.dispatch import receiver
 from django.core.exceptions import ValidationError
 from .mixins import ScryfallLinkMixin
 from .recipe import Recipe
+from .explanation import Explanation
 from .card import Card, WithUsedFace
 from .feature import Feature
 from .template import Template
 from .ingredient import ComboIngredient, ZoneLocationsField
-from .utils import case_insensitive_trigram_indexes
-from .validators import MANA_VALIDATOR, TEXT_VALIDATORS
-from .constants import HIGHER_CARD_LIMIT, DEFAULT_CARD_LIMIT, LOWER_VARIANT_LIMIT, DEFAULT_VARIANT_LIMIT, MAX_MANA_NEEDED_LENGTH
+from .constants import HIGHER_CARD_LIMIT, DEFAULT_CARD_LIMIT, LOWER_VARIANT_LIMIT, DEFAULT_VARIANT_LIMIT
 from .feature_attribute import WithFeatureAttributes, WithFeatureAttributesMatcher
 
 
@@ -43,7 +42,7 @@ class RenamePrefetchedManager(models.Manager):
         )
 
 
-class Combo(Recipe, ScryfallLinkMixin):
+class Combo(Recipe, Explanation, ScryfallLinkMixin):
     objects = models.Manager()
     recipes_prefetched = RecipePrefetchedManager()
     rename_prefetched = RenamePrefetchedManager()
@@ -99,16 +98,9 @@ class Combo(Recipe, ScryfallLinkMixin):
         verbose_name='removed features',
     )
     featureremovedincombo_set: models.Manager['FeatureRemovedInCombo']
-    mana_needed = models.CharField(blank=True, max_length=MAX_MANA_NEEDED_LENGTH, help_text='Mana needed for this combo. Use the {1}{W}{U}{B}{R}{G}{B/P}... format.', validators=[MANA_VALIDATOR, *TEXT_VALIDATORS])
-    is_mana_needed_an_accurate_minimum = models.BooleanField(default=True, help_text='Does the first mana cost in this field represent the MINIMUM needed to start the combo, ignoring all other text?')
-    easy_prerequisites = models.TextField(blank=True, help_text='Easily achievable prerequisites for this combo.', validators=TEXT_VALIDATORS)
-    notable_prerequisites = models.TextField(blank=True, help_text='Notable prerequisites for this combo.', validators=TEXT_VALIDATORS)
-    description = models.TextField(blank=True, help_text='Long description of the combo, in steps. Here and in every other text field you can reference feature replacements with the [[name]] syntax. Optionally, you can also give it an alias to use later with [[name|alias]] and/or select one of the multiple copies with [[name$number]], where the number is the position of the needed feature row among the ones this combo needs for that feature, or with [[name$attribute]], where the attribute is the name of one of the attributes the feature was produced with. Uncheck "in replacements" on an ingredient to keep it out of the replacements of the features this combo produces. With the {{name}} syntax, and the same selectors, you can instead write here the text of this same field, taken from every combo or card producing that feature: those texts are then not appended to this one, because they have already been written where you mentioned them.', validators=TEXT_VALIDATORS)
-    notes = models.TextField(blank=True, help_text='Notes about the combo that will be displayed on the site', validators=TEXT_VALIDATORS)
     status = models.CharField(choices=Status.choices, default=Status.DRAFT, help_text='Is this combo a generator for variants?', verbose_name='status', max_length=2)
     allow_many_cards = models.BooleanField(default=False, help_text=f'Allow variants to have more cards ({HIGHER_CARD_LIMIT}) than the default limit ({DEFAULT_CARD_LIMIT}). On the other hand, with this option enabled, the limit on the number of allowed variants is lowered to {LOWER_VARIANT_LIMIT}, instead of the default {DEFAULT_VARIANT_LIMIT}.')
     allow_multiple_copies = models.BooleanField(default=False, help_text='Allow variants to have more copies of the same card or template')
-    comment = models.TextField(blank=True, help_text='Notes about the combo', validators=TEXT_VALIDATORS)
     variant_count = models.PositiveIntegerField(default=0, editable=False)
     public_variant_count = models.PositiveIntegerField(default=0, editable=False, help_text='Number of variants of this combo that are public')
     created = models.DateTimeField(auto_now_add=True, editable=False)
@@ -132,10 +124,6 @@ class Combo(Recipe, ScryfallLinkMixin):
             result[f.feature.name] = result.get(f.feature.name, 0) + f.quantity
         return result
 
-    @classmethod
-    def text_fields_with_references(cls) -> list[str]:
-        return ['mana_needed', 'easy_prerequisites', 'notable_prerequisites', 'description', 'notes', 'comment']
-
     class Meta:
         verbose_name = 'combo'
         verbose_name_plural = 'combos'
@@ -144,20 +132,7 @@ class Combo(Recipe, ScryfallLinkMixin):
         indexes = [
             models.Index(fields=['variant_count']),
             models.Index(fields=['public_variant_count']),
-        ] + case_insensitive_trigram_indexes(
-            'combo',
-            'mana_needed',
-            'description',
-            'notes',
-            'comment',
-            easy_prerequisites='easy_prereq',
-            notable_prerequisites='notable_prereq',
-        )
-
-    def clean(self):
-        super().clean()
-        if not self.mana_needed and not self.is_mana_needed_an_accurate_minimum:
-            raise ValidationError(f'If {self._meta.get_field('mana_needed').verbose_name} is empty, {self._meta.get_field('is_mana_needed_an_accurate_minimum').verbose_name} must be True.')  # pyright: ignore[reportAttributeAccessIssue]
+        ] + Explanation.text_trigram_indexes('combo')
 
 
 class CardInCombo(ComboIngredient, WithUsedFace):

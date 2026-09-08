@@ -65,7 +65,7 @@ class VariantTests(SpellbookTestCaseWithSeeding):
         self.assertTrue(v.query_string().startswith('q='))
 
     def test_method_count(self):
-        self.assertEqual(count_methods(Variant), 14)
+        self.assertEqual(count_methods(Variant), 13)
 
     def test_features_produced_uses_the_quantity(self):
         produced = FeatureProducedByVariant.objects.filter(variant_id=self.v1_id, feature__uncountable=False).first()

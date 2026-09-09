@@ -1,4 +1,5 @@
 from collections import defaultdict
+from uuid import UUID
 from dataclasses import dataclass
 from itertools import chain
 from functools import cached_property
@@ -139,7 +140,7 @@ class DecklistAPIView(APIView):
 
         A view that hands the cards themselves back to the caller widens this to the whole row, so that
         serializing them takes no second read of the same rows.'''
-        return Card.objects.only('name', 'name_unaccented', 'number', 'identity')
+        return Card.objects.only('name', 'name_unaccented', 'number', 'oracle_id', 'identity')
 
     def parse(self, request: Request) -> Deck:
         data: str | dict = request.data  # type: ignore
@@ -151,8 +152,15 @@ class DecklistAPIView(APIView):
         submitted = {raw_card.card.strip() for raw_card in chain(raw_deck.main, raw_deck.commanders)}
         submitted.discard('')
         names = {name.lower() for name in submitted}
-        # a list can name a card by the number it is published under, as well as by its name
+        # a list can name a card by either id the API publishes it under, as well as by its name:
+        # the number names a curated card, and the oracle id names any card Scryfall knows
         numeric = {int(name) for name in names if name.isdigit()}
+        oracle_ids = set[UUID]()
+        for name in names:
+            try:
+                oracle_ids.add(UUID(name))
+            except ValueError:
+                pass
         # the same names without their accents and ligatures, so that a list writing Aether Vial finds
         # the card printed with the ligature, and a list writing the ligature finds it back
         plain = {strip_accents(name).lower() for name in names}
@@ -165,7 +173,7 @@ class DecklistAPIView(APIView):
         cards = (
             self.deck_cards()
             .annotate(lowered=Lower('name'), lowered_plain=Lower('name_unaccented'))
-            .filter(Q(name__in=submitted) | Q(lowered__in=names) | Q(lowered_plain__in=plain) | Q(number__in=numeric))
+            .filter(Q(name__in=submitted) | Q(lowered__in=names) | Q(lowered_plain__in=plain) | Q(number__in=numeric) | Q(oracle_id__in=oracle_ids))
             .order_by()
         )
         cards_by_name: dict[str, Card] = {}
@@ -174,6 +182,8 @@ class DecklistAPIView(APIView):
             cards_by_name[card.name.lower()] = card
             if card.number in numeric:
                 cards_by_name[str(card.number)] = card
+            if card.oracle_id in oracle_ids:
+                cards_by_name[str(card.oracle_id)] = card
         return deck_from_raw(raw_deck, cards_by_name)
 
 

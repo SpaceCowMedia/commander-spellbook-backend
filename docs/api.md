@@ -53,6 +53,22 @@ Routes are wired in [`backend/spellbook/urls.py`](https://github.com/SpaceCowMed
 | `… /variant-update-suggestions/` | Suggested edits to existing variants. |
 | `… /variant-aliases/` | Redirects from alternative ids to canonical variants. |
 
+### Naming a card
+
+A card is never named by its database key, which the API does not publish. It answers to the compact
+`number` it was given when an editor curated it — the `id` every response carries for it — and, wherever
+an endpoint reaches cards nobody has curated, to its Scryfall Oracle ID as well.
+
+| Input | Accepts |
+|-------|---------|
+| `GET /cards/{id}/` | a number or an oracle id |
+| `GET /templates/?matches=` | a number or an oracle id, repeatable |
+| `GET /features/?cards=` | a number, repeatable — only a curated card produces features |
+| a decklist, wherever one is posted | a card name, a number, or an oracle id |
+
+A card nobody has curated has no number, so its `id` is `null` and its oracle id is the only way to
+name it. Anything else is refused rather than guessed at.
+
 ### Site support (`website`)
 
 | Endpoint | Description |

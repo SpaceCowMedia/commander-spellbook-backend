@@ -110,3 +110,29 @@ class DeckLigatureTests(SpellbookTestCaseWithSeeding):
         card = curated_card(name='Human—Time Test', type_line='Creature', identity='R')
         self.assertEqual(card.name_unaccented, 'Human-Time Test')
         self.assertEqual(self._classified('Human-Time Test'), {'Human—Time Test'})
+
+    def test_a_list_names_a_card_by_the_ids_the_api_publishes(self):
+        '''A card can be named by either id the API gives it, and never by the key behind them.'''
+        card = Card.objects.create(
+            name='Published Card',
+            number=900,
+            oracle_id='00000000-0000-0000-0000-0000000000ee',
+            type_line='Instant',
+            identity='W',
+        )
+        self.assertNotEqual(card.pk, card.number)
+        self.assertFalse(Card.objects.filter(number=card.pk).exists())
+        self.assertEqual(self._classified(str(card.number)), {'Published Card'})
+        self.assertEqual(self._classified(str(card.oracle_id)), {'Published Card'})
+        self.assertEqual(self._classified(str(card.pk)), set())
+
+    def test_a_list_names_a_card_nobody_curated_by_its_oracle_id(self):
+        '''The oracle id is the only id such a card has, and the deck still has to hold it.'''
+        uncurated = Card.objects.create(
+            name='Uncurated Deck Card',
+            oracle_id='00000000-0000-0000-0000-0000000000ef',
+            type_line='Instant',
+            identity='U',
+        )
+        self.assertIsNone(uncurated.number)
+        self.assertEqual(self._classified(str(uncurated.oracle_id)), {'Uncurated Deck Card'})

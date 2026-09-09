@@ -45,8 +45,8 @@ class VariantDataTests(SpellbookTestCaseWithSeeding):
     def test_cards(self):
         data = Data()
         self.assertEqual(set(c.id for c in data.id_to_card.values()), set(Card.objects.values_list('id', flat=True)))
-        self.assertDictEqual({k: data.card_to_features[k] for k in Card.objects.values_list('id', flat=True)}, {card.id: list(card.featureofcard_set.all()) for card in Card.objects.all()})
-        self.assertDictEqual(data.id_to_card, {c.id: c for c in Card.objects.all()})
+        self.assertDictEqual({k: data.card_to_features[k] for k in Card.objects.values_list('number', flat=True)}, {card.number: list(card.featureofcard_set.all()) for card in Card.objects.all()})
+        self.assertDictEqual(data.id_to_card, {c.number: c for c in Card.objects.all()})
 
     def test_templates(self):
         data = Data()
@@ -88,7 +88,7 @@ class VariantDataTests(SpellbookTestCaseWithSeeding):
     def test_card_variant_dict(self):
         data = Data()
         for card_id, variant_id in data.variant_uses_card_dict.keys():
-            self.assertIn(card_id, set(Variant.objects.get(pk=variant_id).uses.all().values_list('id', flat=True)))
+            self.assertIn(card_id, set(Variant.objects.get(pk=variant_id).uses.all().values_list('number', flat=True)))
 
     def test_template_variant_dict(self):
         data = Data()

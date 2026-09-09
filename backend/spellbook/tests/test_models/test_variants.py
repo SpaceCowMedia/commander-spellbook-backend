@@ -19,8 +19,8 @@ class VariantTests(SpellbookTestCaseWithSeeding):
 
     def test_variant_fields(self):
         v: Variant = Variant.objects.get(id=self.v1_id)
-        self.assertSetEqual(set(v.uses.values_list('id', flat=True)), {self.c8_id, self.c1_id})
-        self.assertDictEqual(v.cards(), {Card.objects.get(pk=self.c8_id).name: 1, Card.objects.get(pk=self.c1_id).name: 1})
+        self.assertSetEqual(set(v.uses.values_list('number', flat=True)), {self.c8_id, self.c1_id})
+        self.assertDictEqual(v.cards(), {Card.objects.get(number=self.c8_id).name: 1, Card.objects.get(number=self.c1_id).name: 1})
         self.assertSetEqual(set(v.requires.values_list('id', flat=True)), {self.t1_id})
         self.assertDictEqual(v.templates(), {Template.objects.get(pk=self.t1_id).name: 1})
         self.assertSetEqual(set(v.produces.values_list('id', flat=True)), {self.f4_id, self.f2_id})

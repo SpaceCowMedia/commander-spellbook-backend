@@ -182,9 +182,9 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
         CardInCombo.objects.create(combo=combo, card=dfc_card, order=1, zone_locations=ZoneLocation.BATTLEFIELD, used_face=2)
         CardInCombo.objects.create(combo=combo, card=legendary_face_card, order=2, zone_locations=ZoneLocation.BATTLEFIELD, used_face=2)
         replacements = {
-            FeatureWithAttributes(Feature.objects.get(id=self.f1_id), frozenset()): [([Card.objects.get(id=self.c1_id)], []), ([Card.objects.get(id=self.c2_id)], [])],
+            FeatureWithAttributes(Feature.objects.get(id=self.f1_id), frozenset()): [([Card.objects.get(number=self.c1_id)], []), ([Card.objects.get(number=self.c2_id)], [])],
             FeatureWithAttributes(Feature.objects.get(id=self.f2_id), frozenset()): [([], [Template.objects.get(id=self.t1_id)]), ([], [Template.objects.get(id=self.t2_id)])],
-            FeatureWithAttributes(Feature.objects.get(id=self.f3_id), frozenset()): [([Card.objects.get(id=self.c1_id), Card.objects.get(id=self.c2_id)], [Template.objects.get(id=self.t1_id), Template.objects.get(id=self.t2_id)])],
+            FeatureWithAttributes(Feature.objects.get(id=self.f3_id), frozenset()): [([Card.objects.get(number=self.c1_id), Card.objects.get(number=self.c2_id)], [Template.objects.get(id=self.t1_id), Template.objects.get(id=self.t2_id)])],
             FeatureWithAttributes(fx, frozenset({fattr.id})): [([normal_card], [])],  # Test invalid entries due to attributes
             FeatureWithAttributes(fx, frozenset()): [([legendary_card], [])],
             FeatureWithAttributes(fy, frozenset()): [([non_legendary_card], [])],
@@ -243,7 +243,7 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
             ('Used face is cut before comma as well: [[FLDFC]]', 'Used face is cut before comma as well: The Lord'),
         ]
         for test in face_tests:
-            context = VariantContext.build(data, replacements, [combo], [], IngredientPositions(cards={dfc_card.id: 1, legendary_face_card.id: 2}))
+            context = VariantContext.build(data, replacements, [combo], [], IngredientPositions(cards={dfc_card.number: 1, legendary_face_card.number: 2}))
             self.assertEqual(context.apply(test[0]), test[1])
         # One context spans a whole variant, so an alias registered by one text is visible to the next
         context = VariantContext.build(data, replacements, [combo], [])
@@ -485,7 +485,7 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
         for item in to_create:
             variant = Variant.objects.get(pk=item.variant.id)
             self.assertEqual(variant.generated_by, 'a-job')
-            self.assertSetEqual(set(variant.uses.values_list('id', flat=True)), {c.card_id for c in item.uses})
+            self.assertSetEqual(set(variant.uses.values_list('number', flat=True)), {c.card_id for c in item.uses})
             self.assertSetEqual(set(variant.requires.values_list('id', flat=True)), {t.template_id for t in item.requires})
             self.assertSetEqual(set(variant.produces.values_list('id', flat=True)), item.produces_ids)
             self.assertSetEqual(set(variant.of.values_list('id', flat=True)), item.of)
@@ -779,7 +779,7 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
         c2.cardincombo_set.create(card_id=self.c1_id, order=1, zone_locations=ZoneLocation.BATTLEFIELD)
         c2.removes.add(self.f1_id)
         c2.produces.add(self.f3_id)
-        card = Card.objects.get(pk=self.c1_id)
+        card = Card.objects.get(number=self.c1_id)
         card.featureofcard_set.create(feature_id=self.f2_id, zone_locations=ZoneLocation.HAND, mana_needed='{X}{U}{1}', easy_prerequisites='C', notable_prerequisites='C')
         generate_variants(c.id)
         v: Variant = Variant.objects.get(of=c)
@@ -792,7 +792,7 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
     def generator_needing_a_card_feature(self, **feature_of_card_fields) -> Combo:
         """A generator combo using the card whose feature carries the given texts. FB is contextual, so
         the row producing it is kept in the variant, and the combo produces a standalone feature of its own."""
-        card = Card.objects.get(pk=self.c1_id)
+        card = Card.objects.get(number=self.c1_id)
         card.featureofcard_set.create(feature_id=self.f2_id, zone_locations=ZoneLocation.BATTLEFIELD, **feature_of_card_fields)
         combo = Combo.objects.create(status=Combo.Status.GENERATOR, **self.combo_fields)
         combo.cardincombo_set.create(card_id=self.c1_id, order=1, zone_locations=ZoneLocation.BATTLEFIELD)

@@ -54,7 +54,7 @@ class EstimateBracketViewTests(SpellbookTestCaseWithSeeding):
                 self._check_result(result, set(), set())
                 self.assertEqual(result.bracket_tag, Variant.BracketTag.EXHIBITION)
             with self.subTest('one card'):
-                card = Card.objects.get(id=self.c1_id)
+                card = Card.objects.get(number=self.c1_id)
                 if 'json' in content_type:
                     data = json.dumps({'main': [{'card': card.name}]})
                 else:
@@ -121,7 +121,7 @@ class EstimateBracketUnknownCommandersViewTests(SpellbookTestCaseWithSeeding):
         # Make the deck's only commander-eligible card actually commander-eligible, and
         # drop the notable prerequisites so that the sure/arguable card split is the only
         # thing driving the two-card classification of that variant.
-        Card.objects.filter(pk=cls.c3_id).update(type_line='Legendary Creature - Human', mana_value=3)
+        Card.objects.filter(number=cls.c3_id).update(type_line='Legendary Creature - Human', mana_value=3)
         Variant.objects.update(notable_prerequisites='')
         cls.bulk_serialize_variants()
 

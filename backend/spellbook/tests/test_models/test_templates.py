@@ -41,7 +41,7 @@ class TemplateTests(SpellbookTestCaseWithSeeding):
         t = Template.objects.get(id=self.t2_id)
         self.assertEqual(t.replacements.count(), 1)
         self.assertEqual(t.scryfall_link(), None)
-        t.replacements.add(Card.objects.get(id=self.c4_id))
+        t.replacements.add(Card.objects.get(number=self.c4_id))
         self.assertEqual(t.replacements.count(), 2)
 
     def test_method_count(self):

@@ -268,7 +268,7 @@ class ComboAdminMultipleCopiesTests(ComboAdminTestCase):
         payload['cardincombo_set-0-DELETE'] = 'on'
         response = self.client.post(self.change_url(self.b5_id), data=payload)
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(set(Combo.objects.get(id=self.b5_id).uses.values_list('id', flat=True)), {self.c6_id})
+        self.assertEqual(set(Combo.objects.get(id=self.b5_id).uses.values_list('number', flat=True)), {self.c6_id})
 
 
 class ComboAdminDuplicateConfirmationTests(ComboAdminTestCase):
@@ -299,7 +299,7 @@ class ComboAdminDuplicateConfirmationTests(ComboAdminTestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(Combo.objects.count(), combo_count + 1)
         added_combo = Combo.objects.latest('created')
-        self.assertEqual(set(added_combo.uses.values_list('id', flat=True)), {self.c5_id, self.c6_id})
+        self.assertEqual(set(added_combo.uses.values_list('number', flat=True)), {self.c5_id, self.c6_id})
 
     def test_the_data_carried_by_the_confirmation_page_is_added_unchanged(self):
         '''The confirmation page round trips the submitted data through hidden inputs, the way a browser would resubmit it.'''
@@ -317,7 +317,7 @@ class ComboAdminDuplicateConfirmationTests(ComboAdminTestCase):
         response = self.client.post(self.add_url(), data=confirmed_payload)
         self.assertEqual(response.status_code, 302)
         added_combo = Combo.objects.latest('created')
-        self.assertEqual(set(added_combo.uses.values_list('id', flat=True)), {self.c5_id, self.c6_id})
+        self.assertEqual(set(added_combo.uses.values_list('number', flat=True)), {self.c5_id, self.c6_id})
         self.assertEqual(added_combo.description, sanitize_newlines_apostrophes_and_quotes(description), 'The description must survive the confirmation page.')
 
     def test_cancelling_a_duplicate_combo_goes_back_to_the_form_without_adding_it(self):
@@ -392,7 +392,7 @@ class ComboAdminDuplicateConfirmationTests(ComboAdminTestCase):
         self.assertTemplateUsed(response, 'admin/spellbook/combo/change_form.html')
         self.assertIn('This combo was not saved', response.content.decode())
         self.assertEqual(
-            set(Combo.objects.get(id=self.b5_id).uses.values_list('id', flat=True)),
+            set(Combo.objects.get(id=self.b5_id).uses.values_list('number', flat=True)),
             {self.c5_id, self.c6_id},
             'The combo must not be changed after the editor cancels.',
         )
@@ -446,14 +446,14 @@ class ComboAdminDuplicateConfirmationTests(ComboAdminTestCase):
         self.assertIn('Would you still like to save this combo?', content)
         self.assertIn(f'{self.b4_id}:', content)
         self.assertEqual(
-            set(Combo.objects.get(id=self.b5_id).uses.values_list('id', flat=True)),
+            set(Combo.objects.get(id=self.b5_id).uses.values_list('number', flat=True)),
             {self.c5_id, self.c6_id},
             'The combo must not be changed before the editor confirms.',
         )
 
         response = self.client.post(self.change_url(self.b5_id), data={**payload, '_confirm_duplicate': 'Yes, I’m sure'})
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(set(Combo.objects.get(id=self.b5_id).uses.values_list('id', flat=True)), {self.c8_id, self.c1_id})
+        self.assertEqual(set(Combo.objects.get(id=self.b5_id).uses.values_list('number', flat=True)), {self.c8_id, self.c1_id})
 
 
 class ComboAdminRestoreTests(ComboAdminTestCase):

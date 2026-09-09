@@ -18,6 +18,12 @@ from spellbook.serializers import VariantSerializer
 FEATURE_WITH_ATTRIBUTES_PATTERN = re.compile(r'([^?!-]+)(\?[^?!-]+)?(![^?!-]+)?(-[^?!-]+)?')
 
 
+def card_number(card: Card) -> int:
+    '''The number a curated card is referenced by, which every model pointing at a card stores.'''
+    assert card.number is not None
+    return card.number
+
+
 def curated_card(**kwargs) -> Card:
     '''A card an editor has taken in, which is the only kind another model can reference.'''
     card = Card.objects.create(**kwargs)
@@ -340,14 +346,14 @@ class SpellbookTestCaseWithSeeding(SpellbookTestCase):
         a1 = VariantAlias.objects.create(id='1', description='a1')
 
         # Save ids
-        cls.c1_id = c1.id
-        cls.c2_id = c2.id
-        cls.c3_id = c3.id
-        cls.c4_id = c4.id
-        cls.c5_id = c5.id
-        cls.c6_id = c6.id
-        cls.c7_id = c7.id
-        cls.c8_id = c8.id
+        cls.c1_id = card_number(c1)
+        cls.c2_id = card_number(c2)
+        cls.c3_id = card_number(c3)
+        cls.c4_id = card_number(c4)
+        cls.c5_id = card_number(c5)
+        cls.c6_id = card_number(c6)
+        cls.c7_id = card_number(c7)
+        cls.c8_id = card_number(c8)
         cls.t1_id = t1.id
         cls.t2_id = t2.id
         cls.f1_id = f1.id

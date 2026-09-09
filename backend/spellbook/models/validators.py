@@ -1,7 +1,9 @@
+from typing import Any, Callable
 from django.core.validators import RegexValidator
 from ..regexs import RESERVED_CHARACTERS_REGEX, URL_REGEX, FIRST_CAPITAL_LETTER_REGEX, NO_TRAILING_PUNCTUATION_REGEX, MANA_REGEX, DOUBLE_SQUARE_BRACKET_TEXT_REGEX, DOUBLE_CURLY_BRACKET_TEXT_REGEX, SYMBOLS_TEXT_REGEX, ORDINARY_CHARACTERS_REGEX
 from ..parsers.scryfall_query_grammar import SCRYFALL_GRAMMAR, VARIABLES_SUPPORTED
 from ..parsers.lark_validator import LarkGrammarValidator
+from ..parsers.safe_regex import MAX_REGEX_LENGTH, validate_query_regexes
 
 NOT_URL_VALIDATOR = RegexValidator(regex=URL_REGEX, inverse_match=True, message='URLs are not allowed.')
 
@@ -25,6 +27,8 @@ TEXT_VALIDATORS = [DOUBLE_SQUARE_BRACKET_TEXT_VALIDATOR, DOUBLE_CURLY_BRACKET_TE
 NAME_VALIDATORS = [FIRST_CAPITAL_LETTER_VALIDATOR, NO_TRAILING_PUNCTUATION_VALIDATOR, NOT_URL_VALIDATOR, NO_RESERVED_CHARACTERS_VALIDATOR, *TEXT_VALIDATORS]
 
 SCRYFALL_QUERY_VALIDATOR = LarkGrammarValidator(SCRYFALL_GRAMMAR)
+
+SCRYFALL_QUERY_VALIDATORS: list[Callable[[Any], None]] = [SCRYFALL_QUERY_VALIDATOR, validate_query_regexes]
 SCRYFALL_QUERY_HELP = f'''\
 Variables supported: {', '.join(VARIABLES_SUPPORTED)}.
 Operators supported: =, !=, <, >, <=, >=, :.
@@ -32,5 +36,7 @@ You can compose a "and"/"or" expression made of "and"/"or" expressions, like "(c
 You can also omit parentheses when not necessary, like "(c:W or c:U) t:creature".
 Card names are only supported if wrapped in double quotes and preceded by an exclamation mark (!) in order to match the exact name, like !"Lightning Bolt".
 You can negate any expression by prepending a dash (-), like "-t:creature".
+A regular expression must be at most {MAX_REGEX_LENGTH} characters long, and may not repeat a group
+that repeats or chooses within itself, since that can take exponential time to match.
 More info at: https://scryfall.com/docs/syntax.
 '''

@@ -136,7 +136,7 @@ def recompute_all_counts() -> int:
         # The combos go first: the variant counts read back the public counts this writes
         drifted = recompute_combo_counts(Combo.objects.all())
         drifted += recompute_variant_counts(Variant.objects.all())
-        drifted += recompute_card_counts(Card.objects.all())
+        drifted += recompute_card_counts(Card.objects.filter(number__isnull=False))
         return drifted
 
 
@@ -164,7 +164,7 @@ def recompute_counts(*, combo_ids=(), variant_ids=()) -> int:
         # The combos go first: the variant counts read back the public counts this writes
         drifted = recompute_combo_counts(Combo.objects.filter(pk__in=combos))
         drifted += recompute_variant_counts(Variant.objects.filter(pk__in=variants))
-        drifted += recompute_card_counts(Card.objects.filter(pk__in=cards))
+        drifted += recompute_card_counts(Card.objects.filter(number__in=cards))
         return drifted
 
 

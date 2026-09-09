@@ -102,7 +102,7 @@ class Data:
         features = list(Feature.objects.order_by())
         feature_attributes = list(FeatureAttribute.objects.order_by())
         # Cards
-        cards = list(Card.objects.order_by())
+        cards = list(Card.objects.filter(number__isnull=False).order_by())
         featureofcards = list(FeatureOfCard.objects.order_by())
         featureofcard_attributes = list(FeatureOfCard.attributes.through.objects.order_by())
         # Templates
@@ -126,7 +126,7 @@ class Data:
         variantincludescombos = _load_rows(VariantIncludesComboRow, VariantIncludesCombo.objects)
         featureproducedbyvariants = _load_rows(FeatureProducedByVariantRow, FeatureProducedByVariant.objects)
         # Data
-        self.id_to_card = {c.id: c for c in cards}
+        self.id_to_card = {c.number: c for c in cards}
         self.id_to_template = {t.id: t for t in templates}
         self.id_to_feature_of_card = {f.id: f for f in featureofcards}
         self.id_to_combo = {c.id: c for c in combos}

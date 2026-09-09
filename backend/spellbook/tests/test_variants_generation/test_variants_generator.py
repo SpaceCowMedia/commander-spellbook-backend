@@ -4,7 +4,7 @@ from unittest import mock, skipUnless
 from django.db.models import Count
 from spellbook.models.combo import CardInCombo, FeatureNeededInCombo
 from spellbook.models.feature_attribute import FeatureAttribute
-from spellbook.tests.testing import SpellbookTestCase, SpellbookTestCaseWithSeeding
+from spellbook.tests.testing import SpellbookTestCase, SpellbookTestCaseWithSeeding, curated_card
 from spellbook.models import Variant, Card, OrderedIngredient, CardInVariant, TemplateInVariant, Template, Combo, Feature, VariantAlias, FeatureOfCard, ZoneLocation, recompute_all_counts
 from spellbook.models import VariantGenerationFingerprints, VariantOfCombo, FeatureProducedByVariant, id_from_cards_and_templates_ids
 from spellbook.variants.combo_graph import FeatureWithAttributes
@@ -140,28 +140,28 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
         self.assertIsNone(merge_used_faces([CardInVariant(used_face=1), CardInVariant(used_face=2)]))
 
     def test_apply_replacements(self):
-        legendary_card = Card.objects.create(
+        legendary_card = curated_card(
             name='The Name, the Title',
             type_line='Legendary Creature - Human',
         )
-        non_legendary_card = Card.objects.create(
+        non_legendary_card = curated_card(
             name='The Name, different Title',
             type_line='Creature - Human',
         )
-        legendary_modal_card = Card.objects.create(
+        legendary_modal_card = curated_card(
             name='The Name, the Title  // Another Name, Another Title',
             type_line='Legendary Creature - Human // Legendary Enchantment',
         )
-        normal_card = Card.objects.create(
+        normal_card = curated_card(
             name='Normal Card',
             type_line='Instant',
         )
-        dfc_card = Card.objects.create(
+        dfc_card = curated_card(
             name='Front Face // Back Face',
             type_line='Creature - Human // Creature - Zombie',
             faces=2,
         )
-        legendary_face_card = Card.objects.create(
+        legendary_face_card = curated_card(
             name='Enchanted Front, with Words // The Lord, the Legend',
             type_line='Enchantment - Aura // Legendary Creature - Avatar',
             faces=2,
@@ -256,8 +256,8 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
         landfall = FeatureAttribute.objects.create(name='Landfall')
         untapper = FeatureAttribute.objects.create(name='Untapper Effect')
         token_maker = Feature.objects.create(name='FToken')
-        landfall_card = Card.objects.create(name='Landfall Card', type_line='Creature - Elf')
-        untapper_card = Card.objects.create(name='Untapper Card', type_line='Creature - Elf')
+        landfall_card = curated_card(name='Landfall Card', type_line='Creature - Elf')
+        untapper_card = curated_card(name='Untapper Card', type_line='Creature - Elf')
         combo = Combo.objects.create(status=Combo.Status.UTILITY)
         needs_landfall_first = FeatureNeededInCombo.objects.create(combo=combo, feature=token_maker, order=1)
         needs_landfall_first.any_of_attributes.add(landfall)
@@ -287,8 +287,8 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
                 self.assertEqual(context.apply('[[FToken$Untapper Effect]]', combo.id), 'Untapper Card')
 
     def test_replacement_from_a_transitive_feature_dependency(self):
-        card1 = Card.objects.create(name='Transitive Card One', type_line='Creature - Elf')
-        card2 = Card.objects.create(name='Transitive Card Two', type_line='Creature - Elf')
+        card1 = curated_card(name='Transitive Card One', type_line='Creature - Elf')
+        card2 = curated_card(name='Transitive Card Two', type_line='Creature - Elf')
         feature_a = Feature.objects.create(name='TFA', status=Feature.Status.HIDDEN_UTILITY)
         feature_b = Feature.objects.create(name='TFB', status=Feature.Status.STANDALONE)
         feature_c = Feature.objects.create(name='TFC', status=Feature.Status.HIDDEN_UTILITY)
@@ -311,8 +311,8 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
     def test_replacement_leaves_out_an_ingredient_not_in_replacements(self):
         '''The shape of issue #1213: a utility combo needs two cards to produce its feature, but only
         one of them is worth naming in the texts referencing that feature.'''
-        named_card = Card.objects.create(name='Named Card', type_line='Instant')
-        unnamed_card = Card.objects.create(name='Unnamed Card', type_line='Creature - Elf')
+        named_card = curated_card(name='Named Card', type_line='Instant')
+        unnamed_card = curated_card(name='Unnamed Card', type_line='Creature - Elf')
         utility_feature = Feature.objects.create(name='UF', status=Feature.Status.HIDDEN_UTILITY)
         produced_feature = Feature.objects.create(name='PF', status=Feature.Status.STANDALONE)
         utility = Combo.objects.create(status=Combo.Status.UTILITY)
@@ -333,8 +333,8 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
     def test_a_needed_feature_override_skips_an_ingredient_not_in_replacements(self):
         '''Applying the restricted replacements everywhere means the zone override of a needed feature
         row reaches only the cards that replace it in the texts.'''
-        named_card = Card.objects.create(name='Overridden Card', type_line='Instant')
-        unnamed_card = Card.objects.create(name='Untouched Card', type_line='Creature - Elf')
+        named_card = curated_card(name='Overridden Card', type_line='Instant')
+        unnamed_card = curated_card(name='Untouched Card', type_line='Creature - Elf')
         utility_feature = Feature.objects.create(name='UOF', status=Feature.Status.HIDDEN_UTILITY)
         produced_feature = Feature.objects.create(name='POF', status=Feature.Status.STANDALONE)
         utility = Combo.objects.create(status=Combo.Status.UTILITY)
@@ -1101,11 +1101,11 @@ class FeatureInclusionTests(SpellbookTestCase):
         super().setUp()
         self.mana = Feature.objects.create(name='IFMana', status=Feature.Status.HIDDEN_UTILITY)
         self.win = Feature.objects.create(name='IFWin', status=Feature.Status.STANDALONE)
-        self.main_card = Card.objects.create(name='Inclusion Main Card', type_line='Instant')
+        self.main_card = curated_card(name='Inclusion Main Card', type_line='Instant')
 
     def make_producer(self, card_name: str, feature: Feature, **texts) -> Combo:
         combo = Combo.objects.create(status=Combo.Status.UTILITY, **texts)
-        card = Card.objects.create(name=card_name, type_line='Creature - Elf')
+        card = curated_card(name=card_name, type_line='Creature - Elf')
         CardInCombo.objects.create(combo=combo, card=card, order=1, zone_locations=ZoneLocation.BATTLEFIELD)
         combo.produces.add(feature)
         return combo
@@ -1120,7 +1120,7 @@ class FeatureInclusionTests(SpellbookTestCase):
     def make_sharing_main(self, producer_state: str, main_state: str) -> tuple[Combo, Card]:
         '''A card asked for by both a producer of IFMana and the main combo, so that a starting state of
         the main combo can name the state the producer asks the same card for.'''
-        shared = Card.objects.create(name='Inclusion Shared Card', type_line='Creature - Elf')
+        shared = curated_card(name='Inclusion Shared Card', type_line='Creature - Elf')
         producer = Combo.objects.create(status=Combo.Status.UTILITY)
         CardInCombo.objects.create(combo=producer, card=shared, order=1, zone_locations=ZoneLocation.BATTLEFIELD, battlefield_card_state=producer_state)
         producer.produces.add(self.mana)
@@ -1204,7 +1204,7 @@ class FeatureInclusionTests(SpellbookTestCase):
         )
 
     def test_a_card_feature_is_a_producer_of_its_own(self):
-        card = Card.objects.create(name='Inclusion Feature Card', type_line='Creature - Elf')
+        card = curated_card(name='Inclusion Feature Card', type_line='Creature - Elf')
         FeatureOfCard.objects.create(card=card, feature=self.mana, zone_locations=ZoneLocation.BATTLEFIELD, easy_prerequisites='untap it first')
         main = self.make_main(self.mana, easy_prerequisites='To start, {{IFMana}}.')
 

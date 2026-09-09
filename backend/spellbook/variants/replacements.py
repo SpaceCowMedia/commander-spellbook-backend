@@ -392,7 +392,8 @@ class NeededFeatureOverrides(ByIngredient[NeededFeatureOverride]):
                         continue
                     for recipe_cards, recipe_templates in recipes:
                         for card in recipe_cards:
-                            cards[card.id].add(row)
+                            assert card.number is not None
+                            cards[card.number].add(row)
                         for template in recipe_templates:
                             templates[template.id].add(row)
         return cls(cards=cards, templates=templates)

@@ -1,12 +1,13 @@
 from functools import cached_property
-from django.db import models
+from django.db import models, router, transaction
 from django.dispatch import receiver
 from django.db.models.signals import post_save
 from django.core.validators import MinValueValidator
+from django.db.models.functions import Lower
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from .constants import MAX_CARD_NAME_LENGTH
 from .playable import Playable
-from .utils import strip_accents, simplify_card_name_on_database, simplify_card_name_with_spaces_on_database, cast_case_insensitive_trigram_indexes, case_insensitive_trigram_indexes, CardType
+from .utils import as_number, strip_accents, simplify_card_name_on_database, simplify_card_name_with_spaces_on_database, cast_case_insensitive_trigram_indexes, case_insensitive_trigram_indexes, CardType
 from .recipe import update_variants, update_combo_names
 from .mixins import ScryfallLinkMixin, PreSaveModelMixin, NamedModel
 from .feature import Feature
@@ -25,6 +26,7 @@ class LayoutRotation(models.TextChoices):
 class Card(NamedModel, Playable, PreSaveModelMixin, ScryfallLinkMixin):
     id: int
     oracle_id = models.UUIDField(unique=True, blank=True, null=True, verbose_name='Scryfall Oracle ID of card')
+    number = models.BigIntegerField(unique=True, blank=True, null=True, editable=False, help_text='Compact identifier of a card an editor has curated, and the only way other models reference it', verbose_name='card number')
     name = NamedModel.name_field(max_length=MAX_CARD_NAME_LENGTH, verbose_name='name of card')
     name_unaccented = models.CharField(max_length=MAX_CARD_NAME_LENGTH, unique=True, blank=False, verbose_name='name of card without accents', editable=False)
     name_unaccented_simplified = models.GeneratedField(
@@ -47,6 +49,15 @@ class Card(NamedModel, Playable, PreSaveModelMixin, ScryfallLinkMixin):
             'oracle_text',
             'keywords',
             'mana_value',
+            'mana_cost',
+            'power',
+            'toughness',
+            'loyalty',
+            'power_value',
+            'toughness_value',
+            'loyalty_value',
+            'layout',
+            'produced_mana',
             'reserved',
             'latest_printing_set',
             'reprinted',
@@ -70,6 +81,15 @@ class Card(NamedModel, Playable, PreSaveModelMixin, ScryfallLinkMixin):
     type_line = models.CharField(max_length=MAX_CARD_NAME_LENGTH, blank=True, verbose_name='type line of card')
     oracle_text = models.TextField(blank=True, verbose_name='oracle text of card')
     keywords = KeywordsField(verbose_name='oracle keywords of card')
+    mana_cost = models.CharField(max_length=128, blank=True, help_text='Mana cost of the card, in the {1}{W}{U} format', verbose_name='mana cost of card')
+    power = models.CharField(max_length=16, blank=True, help_text='Power of the card, which can be a value such as * or 1+*', verbose_name='power of card')
+    toughness = models.CharField(max_length=16, blank=True, help_text='Toughness of the card, which can be a value such as * or 1+*', verbose_name='toughness of card')
+    loyalty = models.CharField(max_length=16, blank=True, help_text='Starting loyalty of the card, which can be a value such as X', verbose_name='loyalty of card')
+    power_value = models.IntegerField(blank=True, null=True, help_text='Power as a number, when it is one, so that a search can compare it', verbose_name='numeric power of card')
+    toughness_value = models.IntegerField(blank=True, null=True, help_text='Toughness as a number, when it is one, so that a search can compare it', verbose_name='numeric toughness of card')
+    loyalty_value = models.IntegerField(blank=True, null=True, help_text='Loyalty as a number, when it is one, so that a search can compare it', verbose_name='numeric loyalty of card')
+    layout = models.CharField(max_length=32, blank=True, help_text='Scryfall layout of the card, such as normal, transform or adventure', verbose_name='layout of card')
+    produced_mana = KeywordsField(verbose_name='mana produced by card')
     reserved = models.BooleanField(default=False, help_text='Whether this card is part of the Reserved List', verbose_name='reserved list card')
     latest_printing_set = models.CharField(max_length=10, blank=True, help_text='Set code of latest printing of card', verbose_name='latest printing set of card')
     reprinted = models.BooleanField(default=False, help_text='Whether this card has been reprinted', verbose_name='reprinted card')
@@ -112,10 +132,18 @@ class Card(NamedModel, Playable, PreSaveModelMixin, ScryfallLinkMixin):
             'name',
             'type_line',
             'oracle_text',
+            'mana_cost',
             name_unaccented='name_unacc',
             name_unaccented_simplified='name_unac_sim',
             name_unaccented_simplified_with_spaces='name_unac_sim_sp',
-        ) + cast_case_insensitive_trigram_indexes('card', 'keywords')
+        ) + cast_case_insensitive_trigram_indexes('card', 'keywords', 'produced_mana') + [
+            models.Index(Lower('name'), name='card_lower_name_idx'),
+            models.Index(Lower('name_unaccented'), name='card_lower_name_unacc_idx'),
+            models.Index(fields=['mana_cost']),
+            models.Index(fields=['power_value']),
+            models.Index(fields=['toughness_value']),
+            models.Index(fields=['loyalty_value']),
+        ]
 
     def __str__(self):
         return self.name
@@ -139,6 +167,23 @@ class Card(NamedModel, Playable, PreSaveModelMixin, ScryfallLinkMixin):
 
     def pre_save(self):
         self.name_unaccented = strip_accents(self.name)
+        self.power_value = as_number(self.power)
+        self.toughness_value = as_number(self.toughness)
+        self.loyalty_value = as_number(self.loyalty)
+
+    def ensure_number(self):
+        '''Gives this card the next card number, if an editor has not curated it yet.
+
+        The alias has to be threaded through explicitly: the router sends every query to the connection
+        of the request in progress, so a transaction opened on the default alias would leave the lock
+        of an admin request on another connection, outside of it.'''
+        if self.number is not None:
+            return
+        database = router.db_for_write(Card)
+        with transaction.atomic(using=database):
+            last = Card.objects.using(database).select_for_update().filter(number__isnull=False).order_by('-number').first()
+            self.number = (last.number if last else 0) + 1
+            Card.objects.using(database).filter(pk=self.pk).update(number=self.number)
 
     @cached_property
     def card_types(self):
@@ -199,7 +244,7 @@ def update_combo_fields(sender, instance: Card, created, raw, **kwargs):
 
 class WithUsedFace(models.Model):
     '''Mixin for models pointing to a Card, that allows to specify which face of a multi-faced card is used.'''
-    card = models.ForeignKey(to=Card, on_delete=models.CASCADE)
+    card = models.ForeignKey(to=Card, to_field='number', on_delete=models.CASCADE, limit_choices_to={'number__isnull': False})
     card_id: int
 
     used_face = models.PositiveSmallIntegerField(

@@ -14,8 +14,7 @@ from constants import SORTED_COLORS, COLORS
 
 MANA_SEARCH_REGEX = r'\{(' + MANA_SYMBOL + r')\}'
 SANITIZATION_REPLACEMENTS = {
-    'ʹʻʼʾˈ՚′＇ꞌ': '\'',  # apostrophes
-    'ʻʼ‘’❛❜': '\'',  # quotes
+    'ʹʻʼʾˈ՚′＇ꞌ‘’❛❜': '\'',  # apostrophes and quotes
     '“”″❞〝〞ˮ': '"',  # double quotes
 }
 
@@ -51,8 +50,17 @@ def recipe(ingredients: list[str], results: list[str], negative_results: list[st
         + ('...' if len(negative_results) > 3 and len(results) < 3 else '')
 
 
+TRANSLITERATIONS = str.maketrans({
+    'Æ': 'Ae', 'æ': 'ae', 'Œ': 'Oe', 'œ': 'oe', 'ß': 'ss',
+    'Ø': 'O', 'ø': 'o', 'Ð': 'D', 'ð': 'd', 'Đ': 'D', 'đ': 'd',
+    'Þ': 'Th', 'þ': 'th', 'Ł': 'L', 'ł': 'l', 'Ħ': 'H', 'ħ': 'h', 'ı': 'i',
+    '—': '-', '–': '-', '‐': '-', '’': "'", '‘': "'", '“': '"', '”': '"',
+    '®': '', '™': '', '©': '', '꞉': '', '​': '',
+})
+
+
 def strip_accents(s: str) -> str:
-    return ''.join(c for c in unicodedata.normalize('NFD', s) if unicodedata.category(c) != 'Mn')
+    return ''.join(c for c in unicodedata.normalize('NFD', s) if unicodedata.category(c) != 'Mn').translate(TRANSLITERATIONS)
 
 
 def id_from_cards_and_templates_ids(cards: Iterable[int], templates: Iterable[int]) -> str:
@@ -252,6 +260,23 @@ def sanitize_newlines_apostrophes_and_quotes(s: str) -> str:
         for c in chars:
             s = s.replace(c, replacement)
     return s
+
+
+def as_number(value: str) -> int | None:
+    '''A printed characteristic as the number a search can compare, or None when the card prints
+    something else: a power of * or a loyalty of X is not a number and cannot be compared to one.'''
+    try:
+        return int(value)
+    except ValueError:
+        return None
+
+
+def simplify_card_name(name: str) -> str:
+    return name.replace('-', '').replace('_____', '').strip()
+
+
+def simplify_card_name_with_spaces(name: str) -> str:
+    return name.replace('-', ' ').replace('_____', '_').strip()
 
 
 def simplify_card_name_on_database(field: str) -> Expression:

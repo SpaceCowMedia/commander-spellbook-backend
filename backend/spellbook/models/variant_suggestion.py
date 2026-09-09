@@ -10,7 +10,7 @@ from .card import Card
 from .template import Template
 from .variant import Variant
 from .ingredient import OrderedIngredient
-from .validators import TEXT_VALIDATORS, MANA_VALIDATOR, SCRYFALL_QUERY_HELP, SCRYFALL_QUERY_VALIDATOR, NAME_VALIDATORS, NOT_URL_VALIDATOR
+from .validators import TEXT_VALIDATORS, MANA_VALIDATOR, SCRYFALL_QUERY_HELP, SCRYFALL_QUERY_VALIDATORS, NAME_VALIDATORS, NOT_URL_VALIDATOR
 from .scryfall import SCRYFALL_MAX_QUERY_LENGTH
 from .utils import id_from_cards_and_templates_ids, simplify_card_name_on_database, simplify_card_name_with_spaces_on_database, strip_accents
 
@@ -73,8 +73,9 @@ class VariantSuggestion(Recipe, Suggestion):
             raise ValidationError('You cannot specify the same feature more than once.')
         card_entities = list(Card.objects.filter(name__in=cards))
         template_entities = list(Template.objects.filter(name__in=templates))
-        if len(card_entities) == len(cards) and len(template_entities) == len(templates):
-            variant_id = id_from_cards_and_templates_ids([card.id for card in card_entities], [template.id for template in template_entities])
+        card_numbers = [card.number for card in card_entities if card.number is not None]
+        if len(card_numbers) == len(cards) and len(template_entities) == len(templates):
+            variant_id = id_from_cards_and_templates_ids(card_numbers, [template.id for template in template_entities])
             if Variant.objects.filter(id=variant_id).exists():
                 raise ValidationError('This combo already exists.')
         q = VariantSuggestion.objects \
@@ -122,7 +123,7 @@ class CardUsedInVariantSuggestion(PreSaveModelMixin, OrderedIngredient):
 
 class TemplateRequiredInVariantSuggestion(OrderedIngredient):
     template = models.CharField(max_length=Template.MAX_TEMPLATE_NAME_LENGTH, blank=False, help_text='Template name', verbose_name='template name', validators=NAME_VALIDATORS)
-    scryfall_query = models.CharField(max_length=SCRYFALL_MAX_QUERY_LENGTH, blank=True, null=True, verbose_name='Scryfall query', help_text=SCRYFALL_QUERY_HELP, validators=[SCRYFALL_QUERY_VALIDATOR])
+    scryfall_query = models.CharField(max_length=SCRYFALL_MAX_QUERY_LENGTH, blank=True, null=True, verbose_name='Scryfall query', help_text=SCRYFALL_QUERY_HELP, validators=SCRYFALL_QUERY_VALIDATORS)
     suggestion = models.ForeignKey(to=VariantSuggestion, on_delete=models.CASCADE, related_name='requires')
 
     def __str__(self):

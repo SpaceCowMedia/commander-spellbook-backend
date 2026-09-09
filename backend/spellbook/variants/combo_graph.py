@@ -130,9 +130,10 @@ class CardNode(NodeWithoutState):
             features_of_card: Iterable[FeatureOfCard],
             feature_with_attributes_nodes: dict[int, dict[frozenset[int], 'FeatureWithAttributesNode']],
     ):
+        assert card.number is not None
         variant_set = VariantSet(
             parameters=graph.variant_set_parameters,
-            entries=(VariantSet.ingredients_to_entry(FrozenMultiset({card.id: 1}), FrozenMultiset()),),
+            entries=(VariantSet.ingredients_to_entry(FrozenMultiset({card.number: 1}), FrozenMultiset()),),
         )
         super().__init__(graph, card, variant_set)
         self.combos = dict['ComboNode', int]()

@@ -18,6 +18,13 @@ from spellbook.serializers import VariantSerializer
 FEATURE_WITH_ATTRIBUTES_PATTERN = re.compile(r'([^?!-]+)(\?[^?!-]+)?(![^?!-]+)?(-[^?!-]+)?')
 
 
+def curated_card(**kwargs) -> Card:
+    '''A card an editor has taken in, which is the only kind another model can reference.'''
+    card = Card.objects.create(**kwargs)
+    card.ensure_number()
+    return card
+
+
 class SpellbookTestCase(BaseTestCase):
     def tearDown(self):
         self.assertVariantCountsAreExact()
@@ -106,7 +113,7 @@ class SpellbookTestCase(BaseTestCase):
                 recipe = recipe.strip()
                 assert len(recipe) > 0 and not recipe[0].islower() and recipe[0] != 'T'
                 card_id = card_ids_by_name.setdefault(recipe, reduce(lambda x, y: max(x, y), card_ids_by_name.values(), 0) + 1)
-                c, _ = Card.objects.get_or_create(pk=card_id, name=recipe, identity='W', legal_commander=True, spoiler=False, type_line='Test Card')
+                c, _ = Card.objects.get_or_create(pk=card_id, number=card_id, name=recipe, identity='W', legal_commander=True, spoiler=False, type_line='Test Card')
                 for r in result:
                     feature, attributes = r.split('/') if '/' in r else (r, '')
                     feature = feature.strip()
@@ -147,7 +154,7 @@ class SpellbookTestCase(BaseTestCase):
                 combo = Combo.objects.create(pk=combo_id, mana_needed='', is_mana_needed_an_accurate_minimum=True, easy_prerequisites='Test Easy Prerequisites', notable_prerequisites='Test Notable Prerequisites', description='Test Description', status=Combo.Status.GENERATOR)
                 for i, (card, quantity) in enumerate(cards.items(), start=1):
                     card_id = card_ids_by_name.setdefault(card, reduce(lambda x, y: max(x, y), card_ids_by_name.values(), 0) + 1)
-                    c, _ = Card.objects.get_or_create(pk=card_id, name=card, identity='W', legal_commander=True, spoiler=False, type_line='Test Card')
+                    c, _ = Card.objects.get_or_create(pk=card_id, number=card_id, name=card, identity='W', legal_commander=True, spoiler=False, type_line='Test Card')
                     CardInCombo.objects.create(card=c, combo=combo, order=i, zone_locations=ZoneLocation.BATTLEFIELD, quantity=quantity, in_replacements=cards_in_replacements[card])
                 for i, (template, quantity) in enumerate(templates.items(), start=1):
                     template_id = template_ids_by_name.setdefault(template, reduce(lambda x, y: max(x, y), template_ids_by_name.values(), 0) + 1)
@@ -249,14 +256,14 @@ class SpellbookTestCaseWithSeeding(SpellbookTestCase):
         super().setUpTestData()
         fa1 = FeatureAttribute.objects.create(name='FA1')
         fa2 = FeatureAttribute.objects.create(name='FA2')
-        c1 = Card.objects.create(name='A A', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000001'), identity='W', color='W', legal_commander=True, spoiler=False, type_line='Instant', oracle_text='x1', keywords=['keyword1', 'keyword2'], game_changer=True, extra_turn=True, image_uri_front_png='http://localhost/x.png', image_uri_back_normal='http://localhost/x.jpg')
-        c2 = Card.objects.create(name='B B', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000002'), identity='U', color='U', legal_commander=True, spoiler=False, type_line='Sorcery', oracle_text='x2 x3', mana_value=3, game_changer=True)
-        c3 = Card.objects.create(name='C C', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000003'), identity='B', color='B', legal_commander=True, spoiler=False, type_line='Creature', oracle_text='xx4', price_tcgplayer=2.71, price_cardkingdom=3.14, price_cardmarket=1.59)
-        c4 = Card.objects.create(name='D\' D', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000004'), identity='R', color='R', legal_commander=True, spoiler=True, type_line='Battle', oracle_text='x5x', keywords=['keyword3'], price_tcgplayer=3.14, price_cardkingdom=1.59, price_cardmarket=2.65)
-        c5 = Card.objects.create(name='E É', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000005'), identity='G', color='G', legal_commander=False, spoiler=True, type_line='Planeswalker', oracle_text='', price_tcgplayer=1.23, price_cardkingdom=4.56, price_cardmarket=7.89)
-        c6 = Card.objects.create(name='F F', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000006'), identity='WU', color='WU', legal_commander=True, spoiler=False, type_line='Enchantment', oracle_text='x6', mana_value=6, legal_brawl=False)
-        c7 = Card.objects.create(name='G G _____', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000007'), identity='WB', color='WB', legal_commander=True, spoiler=False, type_line='Artifact', oracle_text='x7x7')
-        c8 = Card.objects.create(name='H-H', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000008'), identity='C', color='C', legal_commander=True, spoiler=False, type_line='Land', oracle_text='x8. x9.', mana_value=8)
+        c1 = Card.objects.create(number=1, name='A A', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000001'), identity='W', color='W', legal_commander=True, spoiler=False, type_line='Instant', oracle_text='x1', keywords=['keyword1', 'keyword2'], game_changer=True, extra_turn=True, image_uri_front_png='http://localhost/x.png', image_uri_back_normal='http://localhost/x.jpg')
+        c2 = Card.objects.create(number=2, name='B B', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000002'), identity='U', color='U', legal_commander=True, spoiler=False, type_line='Sorcery', oracle_text='x2 x3', mana_value=3, game_changer=True)
+        c3 = Card.objects.create(number=3, name='C C', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000003'), identity='B', color='B', legal_commander=True, spoiler=False, type_line='Creature', oracle_text='xx4', price_tcgplayer=2.71, price_cardkingdom=3.14, price_cardmarket=1.59)
+        c4 = Card.objects.create(number=4, name='D\' D', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000004'), identity='R', color='R', legal_commander=True, spoiler=True, type_line='Battle', oracle_text='x5x', keywords=['keyword3'], price_tcgplayer=3.14, price_cardkingdom=1.59, price_cardmarket=2.65)
+        c5 = Card.objects.create(number=5, name='E É', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000005'), identity='G', color='G', legal_commander=False, spoiler=True, type_line='Planeswalker', oracle_text='', price_tcgplayer=1.23, price_cardkingdom=4.56, price_cardmarket=7.89)
+        c6 = Card.objects.create(number=6, name='F F', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000006'), identity='WU', color='WU', legal_commander=True, spoiler=False, type_line='Enchantment', oracle_text='x6', mana_value=6, legal_brawl=False)
+        c7 = Card.objects.create(number=7, name='G G _____', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000007'), identity='WB', color='WB', legal_commander=True, spoiler=False, type_line='Artifact', oracle_text='x7x7')
+        c8 = Card.objects.create(number=8, name='H-H', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000008'), identity='C', color='C', legal_commander=True, spoiler=False, type_line='Land', oracle_text='x8. x9.', mana_value=8)
         f1 = Feature.objects.create(name='FA', description='Feature A', status=Feature.Status.HIDDEN_UTILITY)
         f2 = Feature.objects.create(name='FB', description='Feature B', status=Feature.Status.CONTEXTUAL)
         f3 = Feature.objects.create(name='FC', description='Feature C', status=Feature.Status.HELPER)

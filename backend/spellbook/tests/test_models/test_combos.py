@@ -1,15 +1,15 @@
 from django.core.exceptions import ValidationError
-from spellbook.tests.testing import SpellbookTestCaseWithSeeding
+from spellbook.tests.testing import SpellbookTestCaseWithSeeding, curated_card
 from common.inspection import count_methods
-from spellbook.models import Card, Combo, CardInCombo, ZoneLocation
+from spellbook.models import Combo, CardInCombo, ZoneLocation
 from spellbook.models.references import replace_in_text_fields
 from urllib.parse import quote_plus
 
 
 class ComboTests(SpellbookTestCaseWithSeeding):
     def test_used_face_validation(self):
-        single = Card.objects.create(name='Single Face Card', type_line='Instant')
-        dfc = Card.objects.create(name='Front // Back', type_line='Creature // Creature', faces=2)
+        single = curated_card(name='Single Face Card', type_line='Instant')
+        dfc = curated_card(name='Front // Back', type_line='Creature // Creature', faces=2)
         combo = Combo.objects.create(status=Combo.Status.UTILITY)
         # A used face on a single-faced card is not allowed
         cic_single = CardInCombo(card=single, combo=combo, order=1, zone_locations=ZoneLocation.HAND, used_face=1)

@@ -2,11 +2,7 @@
 
 import django.core.validators
 from django.db import migrations, models
-from spellbook.models.variant_counts import recompute_all_counts
-
-
-def backfill_counts(apps, schema_editor):
-    recompute_all_counts()
+from ._utils import backfill_counts
 
 
 class Migration(migrations.Migration):

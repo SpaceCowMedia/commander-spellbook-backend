@@ -2,7 +2,7 @@ import re
 from collections import defaultdict
 from dataclasses import dataclass
 from django.db import migrations
-from django.db.models import Q
+from django.db.models import Count, F, Q
 from spellbook.models.ingredient import Ingredient
 from spellbook.models.recipe import Recipe
 from spellbook.models.utils import CardType, DEFAULT_BATCH_SIZE, strip_accents
@@ -195,3 +195,74 @@ def used_face_from_card_states(apps, schema_editor) -> None:
         print(f'{len(problems)} rows were left untouched, for an editor to fix by hand:')
         for problem in problems:
             print(f'  {problem}')
+
+
+def card_number_from_id(apps, schema_editor):
+    '''Gives every card curated so far the number its id already is, so that the foreign keys about to
+    point at the number keep the values they hold, and every variant id stays the one it was.'''
+    Card = apps.get_model('spellbook', 'Card')
+    Card.objects.update(number=F('id'))
+
+
+def backfill_counts(apps, schema_editor):
+    '''Fills the counters over the models as they stand at this migration.
+
+    The live recompute cannot be called from here: it reads the models as they are now, and the joins
+    it makes from a card go through a column a later migration adds.'''
+    Card = apps.get_model('spellbook', 'Card')
+    Combo = apps.get_model('spellbook', 'Combo')
+    Variant = apps.get_model('spellbook', 'Variant')
+    VariantOfCombo = apps.get_model('spellbook', 'VariantOfCombo')
+    public = ('OK', 'E')
+    combo_counts = {
+        row['combo_id']: (row['total'], row['public'])
+        for row in VariantOfCombo
+        .objects
+        .order_by()
+        .values('combo_id')
+        .annotate(
+            total=Count('variant_id', distinct=True),
+            public=Count('variant_id', distinct=True, filter=Q(variant__status__in=public)),
+        )
+    }
+    combos = list(Combo.objects.only('pk', 'variant_count', 'public_variant_count').order_by())
+    for combo in combos:
+        combo.variant_count, combo.public_variant_count = combo_counts.get(combo.pk, (0, 0))
+    Combo.objects.bulk_update(combos, ['variant_count', 'public_variant_count'], batch_size=DEFAULT_BATCH_SIZE)
+    variant_counts = dict(
+        Variant
+        .objects
+        .order_by()
+        .annotate(truth=Count('of__variants', distinct=True, filter=Q(of__variants__status__in=public)))
+        .values_list('pk', 'truth')
+    )
+    variants = list(Variant.objects.only('pk', 'variant_count', 'serialized').order_by())
+    for variant in variants:
+        variant.variant_count = variant_counts.get(variant.pk, 0)
+        if variant.serialized is not None:
+            variant.serialized['variant_count'] = variant.variant_count
+    Variant.objects.bulk_update(variants, ['variant_count', 'serialized'], batch_size=DEFAULT_BATCH_SIZE)
+    card_counts = dict(
+        Card
+        .objects
+        .order_by()
+        .annotate(truth=Count('used_in_variants', distinct=True, filter=Q(used_in_variants__status__in=public)))
+        .values_list('pk', 'truth')
+    )
+    cards = list(Card.objects.only('pk', 'variant_count').order_by())
+    for card in cards:
+        card.variant_count = card_counts.get(card.pk, 0)
+    Card.objects.bulk_update(cards, ['variant_count'], batch_size=DEFAULT_BATCH_SIZE)
+
+
+def normalize_card_names(apps, schema_editor):
+    '''Rewrites the name a card is looked up by, for the ones holding a letter that now has a plain
+    spelling: a ligature, a dash a keyboard does not carry, a symbol trailing the name.'''
+    Card = apps.get_model('spellbook', 'Card')
+    drifted = []
+    for card in Card.objects.only('pk', 'name', 'name_unaccented').order_by().iterator(chunk_size=5000):
+        plain = strip_accents(card.name)
+        if card.name_unaccented != plain:
+            card.name_unaccented = plain
+            drifted.append(card)
+    Card.objects.bulk_update(drifted, ['name_unaccented'], batch_size=DEFAULT_BATCH_SIZE)

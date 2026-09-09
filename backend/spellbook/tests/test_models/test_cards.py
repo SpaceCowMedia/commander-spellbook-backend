@@ -1,5 +1,5 @@
 from django.test import TestCase
-from spellbook.tests.testing import SpellbookTestCaseWithSeeding
+from spellbook.tests.testing import SpellbookTestCaseWithSeeding, curated_card
 from django.core.exceptions import ValidationError
 from common.inspection import count_methods
 from spellbook.models import Card, CardType, Combo, Variant
@@ -89,7 +89,7 @@ class CardTests(SpellbookTestCaseWithSeeding):
         self.assertFalse(c.is_of_type(CardType.SORCERY))
 
     def test_method_count(self):
-        self.assertEqual(count_methods(Card), 6)
+        self.assertEqual(count_methods(Card), 7)
 
     def test_saving_a_card_without_renaming_it_leaves_combo_names_alone(self):
         card = Card.objects.get(id=self.c1_id)
@@ -124,24 +124,24 @@ class CardTests(SpellbookTestCaseWithSeeding):
         self.assertEqual(variant.hulkline, hulkline)
 
     def test_face_name(self):
-        single = Card.objects.create(name='Single Card', type_line='Instant')
+        single = curated_card(name='Single Card', type_line='Instant')
         self.assertEqual(single.face_name(None), 'Single Card')
         self.assertEqual(single.face_name(1), 'Single Card')
         self.assertEqual(single.face_name(2), 'Single Card')  # out of range falls back to the whole name
-        dfc = Card.objects.create(name='Front Face // Back Face', type_line='Creature // Creature', faces=2)
+        dfc = curated_card(name='Front Face // Back Face', type_line='Creature // Creature', faces=2)
         self.assertEqual(dfc.face_name(None), 'Front Face // Back Face')
         self.assertEqual(dfc.face_name(1), 'Front Face')
         self.assertEqual(dfc.face_name(2), 'Back Face')
         self.assertEqual(dfc.face_name(3), 'Front Face // Back Face')  # out of range falls back to the whole name
 
     def test_short_face_name(self):
-        legendary = Card.objects.create(name='The Name, the Title', type_line='Legendary Creature - Human')
+        legendary = curated_card(name='The Name, the Title', type_line='Legendary Creature - Human')
         self.assertEqual(legendary.face_name(None), 'The Name, the Title')
         self.assertEqual(legendary.face_name(None, short=True), 'The Name')
         self.assertEqual(legendary.face_name(1, short=True), 'The Name')
-        non_legendary = Card.objects.create(name='The Name, different Title', type_line='Creature - Human')
+        non_legendary = curated_card(name='The Name, different Title', type_line='Creature - Human')
         self.assertEqual(non_legendary.face_name(None, short=True), 'The Name, different Title')
-        legendary_dfc = Card.objects.create(
+        legendary_dfc = curated_card(
             name='Enchanted Front, with Words // The Lord, the Legend',
             type_line='Enchantment - Aura // Legendary Creature - Avatar',
             faces=2,
@@ -154,7 +154,7 @@ class CardTests(SpellbookTestCaseWithSeeding):
         self.assertEqual(legendary_dfc.face_name(3, short=True), 'Enchanted Front, with Words // The Lord, the Legend')
 
     def test_name_unaccented(self):
-        c = Card.objects.create(name='à, è, ì, ò, ù, y, À, È, Ì, Ò, Ù, Y, á, é, í, ó, ú, ý, Á, É, Í, Ó, Ú, Ý, â, ê, î, ô, û, y, Â, Ê, Î, Ô, Û, Y, ä, ë, ï, ö, ü, ÿ, Ä, Ë, Ï, Ö, Ü, Ÿ', oracle_id='47d6f04b-a6fe-4274-bd27-888475158e82')
+        c = curated_card(name='à, è, ì, ò, ù, y, À, È, Ì, Ò, Ù, Y, á, é, í, ó, ú, ý, Á, É, Í, Ó, Ú, Ý, â, ê, î, ô, û, y, Â, Ê, Î, Ô, Û, Y, ä, ë, ï, ö, ü, ÿ, Ä, Ë, Ï, Ö, Ü, Ÿ', oracle_id='47d6f04b-a6fe-4274-bd27-888475158e82')
         self.assertEqual(c.name_unaccented, ', '.join('aeiouyAEIOUY' * 4))
         c.name = 'àààèèèìììòòòùùù'
         c.save()

@@ -1,4 +1,5 @@
 from django.core.management.base import BaseCommand
+from django.tasks import TaskResult
 from spellbook.tasks import export_variants_task
 
 
@@ -19,7 +20,8 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        export_variants_task.enqueue(
+        result: TaskResult = export_variants_task.enqueue(
             file=options['file'],
             s3=options['s3'],
         )
+        self.stdout.write(self.style.SUCCESS(f'Enqueued variant export task with id {result.id}.'))

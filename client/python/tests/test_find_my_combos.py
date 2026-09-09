@@ -9,29 +9,23 @@ class TestFindMyCombos(SpellbookClientTest):
     def find_my_combos_assertions(self, result: PaginatedFindMyCombosResponseList):
         self.assertIsNotNone(result)
         self.assertEqual(result.results.identity, 'GWUB')
+        # the deck holds no card the template matches, and a template is no longer assumed to be in a
+        # deck just because a query defines it, so every variant requiring one is an ingredient short
         self.assertSetEqual({
             id_from_cards_and_templates_ids(
                 [self.c2_id, self.c3_id, self.c5_id, self.c6_id],
                 []
-            ),
-            id_from_cards_and_templates_ids(
-                [self.c2_id, self.c3_id, self.c5_id, self.c6_id],
-                [self.t1_id]
             ),
         }, {v.id for v in result.results.included})
         self.assertSetEqual(set(), {v.id for v in result.results.included_by_changing_commanders})
         self.assertSetEqual({
             id_from_cards_and_templates_ids(
-                [self.c1_id, self.c2_id, self.c3_id],
-                []
-            ),
-            id_from_cards_and_templates_ids(
-                [self.c1_id, self.c2_id, self.c3_id],
+                [self.c2_id, self.c3_id, self.c5_id, self.c6_id],
                 [self.t1_id],
             ),
             id_from_cards_and_templates_ids(
-                [self.c1_id, self.c2_id],
-                [self.t1_id, self.t2_id],
+                [self.c1_id, self.c2_id, self.c3_id],
+                []
             ),
         }, {v.id for v in result.results.almost_included})
         self.assertSetEqual(set(), {v.id for v in result.results.almost_included_by_adding_colors})

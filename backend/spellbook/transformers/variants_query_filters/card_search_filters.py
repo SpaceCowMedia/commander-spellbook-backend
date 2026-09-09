@@ -1,4 +1,5 @@
 from spellbook.models import Card
+from ..query_parsing import compare
 from .base import QueryValue, VariantQuery, Q, ValidationError
 
 
@@ -17,15 +18,7 @@ def card_search_filter(qv: QueryValue) -> VariantQuery:
                 Q(name__iexact=qv.value) | Q(name_unaccented__iexact=qv.value) | Q(name_unaccented_simplified__iexact=qv.value) | Q(name_unaccented_simplified_with_spaces__iexact=qv.value),
                 Card,
             )
-        case '<' if value_is_digit:
-            return qv.to_filter(Q(card_count__lt=qv.value))
-        case '>' if value_is_digit:
-            return qv.to_filter(Q(card_count__gt=qv.value))
-        case '<=' if value_is_digit:
-            return qv.to_filter(Q(card_count__lte=qv.value))
-        case '>=' if value_is_digit:
-            return qv.to_filter(Q(card_count__gte=qv.value))
-        case ':' | '=' if value_is_digit:
-            return qv.to_filter(Q(card_count=qv.value))
+        case _ if value_is_digit:
+            return qv.to_filter(compare('card_count', qv.operator, int(qv.value)))
         case _:
             raise ValidationError(f'Operator {qv.operator} is not supported for card search with {'numbers' if value_is_digit else 'strings'}.')

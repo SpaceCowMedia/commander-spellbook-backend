@@ -14,6 +14,12 @@ def tag_explanation(qv: QueryValue) -> Explanation:
             return Predicate(REQUIRE, 'a specific commander')
         case 'reserved':
             return Predicate(USE, 'a card on the Reserved List')
+        case 'gamechanger' | 'game_changer':
+            return Predicate(USE, 'a card on the Game Changer list')
+        case 'tutor':
+            return Predicate(USE, 'a card that can tutor for other cards')
+        case 'extraturn' | 'extraturns':
+            return Predicate(PRODUCE, 'extra turns')
         case 'mandatory':
             return Predicate(PRODUCE, 'a mandatory loop')
         case 'lock':

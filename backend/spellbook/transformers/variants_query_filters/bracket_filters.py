@@ -1,4 +1,5 @@
 from spellbook.models import Variant
+from ..query_parsing import compare
 from .base import QueryValue, VariantQuery, Q, ValidationError
 
 
@@ -16,16 +17,8 @@ def bracket_filter(qv: QueryValue) -> VariantQuery:
         if not bracket_tag:
             raise ValidationError(f'Value {qv.value} is not supported for bracket search. Choose one of the following: {", ".join(map(str, Variant.BracketTag.labels))}.')
     match qv.operator:
-        case ':' | '=' if value_is_digit:
-            q = Q(bracket=qv.value)
-        case '<' if value_is_digit:
-            q = Q(bracket__lt=qv.value)
-        case '<=' if value_is_digit:
-            q = Q(bracket__lte=qv.value)
-        case '>' if value_is_digit:
-            q = Q(bracket__gt=qv.value)
-        case '>=' if value_is_digit:
-            q = Q(bracket__gte=qv.value)
+        case _ if value_is_digit:
+            q = compare('bracket', qv.operator, int(qv.value))
         case ':' | '=' if bracket_tag:
             q = Q(bracket_tag=bracket_tag)
         case _:

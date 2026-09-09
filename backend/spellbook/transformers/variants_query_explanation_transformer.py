@@ -6,7 +6,11 @@ from .variants_query_explanations.card_type_explanations import card_type_explan
 from .variants_query_explanations.card_oracle_explanations import card_oracle_explanation
 from .variants_query_explanations.card_keyword_explanations import card_keyword_explanation
 from .variants_query_explanations.card_mana_value_explanations import card_mana_value_explanation
+from .variants_query_explanations.card_characteristic_explanations import card_power_explanation, card_toughness_explanation, card_loyalty_explanation
 from .variants_query_explanations.card_color_explanations import card_color_explanation
+from .variants_query_explanations.card_produces_explanations import card_produces_explanation
+from .variants_query_explanations.card_oracle_tag_explanations import card_oracle_tag_explanation
+from .variants_query_explanations.card_oracle_id_explanations import card_oracle_id_explanation
 from .variants_query_explanations.variant_identity_explanations import identity_explanation
 from .variants_query_explanations.variant_prerequisites_explanations import prerequisites_explanation
 from .variants_query_explanations.variant_description_explanations import description_explanation
@@ -56,9 +60,33 @@ class VariantsQueryExplanationTransformer(Transformer):
         q = QueryValue.from_string(values[0])
         return card_mana_value_explanation(q)
 
+    def card_power_search(self, values):
+        q = QueryValue.from_string(values[0])
+        return card_power_explanation(q)
+
+    def card_toughness_search(self, values):
+        q = QueryValue.from_string(values[0])
+        return card_toughness_explanation(q)
+
+    def card_loyalty_search(self, values):
+        q = QueryValue.from_string(values[0])
+        return card_loyalty_explanation(q)
+
     def card_color_search(self, values):
         q = QueryValue.from_string(values[0])
         return card_color_explanation(q)
+
+    def card_produces_search(self, values):
+        q = QueryValue.from_string(values[0])
+        return card_produces_explanation(q)
+
+    def card_oracle_tag_search(self, values):
+        q = QueryValue.from_string(values[0])
+        return card_oracle_tag_explanation(q)
+
+    def card_oracle_id_search(self, values):
+        q = QueryValue.from_string(values[0])
+        return card_oracle_id_explanation(q)
 
     def identity_search(self, values):
         q = QueryValue.from_string(values[0])

@@ -1,10 +1,11 @@
+from django.db.models import QuerySet
 from djangorestframework_camel_case.render import CamelCaseJSONRenderer
 from rest_framework import parsers, serializers
 from rest_framework.response import Response
 from rest_framework.request import Request
 from drf_spectacular.utils import extend_schema, OpenApiParameter
-from spellbook.models import Card, Template, Variant, estimate_bracket
-from spellbook.serializers import CardSerializer, TemplateSerializer, VariantSerializer, BracketTagSerializer
+from spellbook.models import Card, Variant, estimate_bracket
+from spellbook.serializers import CardSerializer, VariantSerializer, BracketTagSerializer
 from website.views import PlainTextDeckListParser
 from .filters import AbstractBooleanFilter
 from .utils import DecklistAPIView, FilterFormBrowsableAPIRenderer, find_variants
@@ -15,13 +16,6 @@ class ClassifiedCardSerializer(serializers.Serializer):
     quantity = serializers.IntegerField()
     banned = serializers.BooleanField()
     game_changer = serializers.BooleanField()
-    mass_land_denial = serializers.BooleanField()
-    extra_turn = serializers.BooleanField()
-
-
-class ClassifiedTemplateSerializer(serializers.Serializer):
-    template = TemplateSerializer()
-    quantity = serializers.IntegerField()
     mass_land_denial = serializers.BooleanField()
     extra_turn = serializers.BooleanField()
 
@@ -44,7 +38,6 @@ class ClassifiedVariantSerializer(serializers.Serializer):
 class EstimateBracketResultSerializer(serializers.Serializer):
     bracket_tag = BracketTagSerializer()
     cards = serializers.ListField(child=ClassifiedCardSerializer())
-    templates = serializers.ListField(child=ClassifiedTemplateSerializer())
     combos = serializers.ListField(child=ClassifiedVariantSerializer())
 
 
@@ -71,21 +64,17 @@ class EstimateBracketView(DecklistAPIView):
         ),
     ]
 
+    def deck_cards(self) -> QuerySet[Card]:
+        # the whole row: these cards are classified and serialized back, so reading them narrower here
+        # would only cost a second read of the same rows
+        return Card.objects.all()
+
     @extend_schema(request=DecklistAPIView.request, parameters=parameters, responses=response)
     def get(self, request: Request) -> Response:
         deck = self.parse(request)
         unknown_commanders = UnknownCommandersFilter().is_enabled(request)
-
-        commanders: set[Card | Template] = set()
-        cards: dict[Card, int] = {}
-        for c in Card.objects.filter(pk__in=deck.cards.distinct_elements()):
-            cards[c] = deck.cards[c.pk]
-            if c.pk in deck.commanders:
-                commanders.add(c)
-        templates: dict[Template, int] = {}
-        for t in Template.objects.filter(pk__in=deck.templates.distinct_elements()).exclude(scryfall_query__isnull=False):
-            templates[t] = deck.templates[t.pk]
-
+        cards: dict[Card, int] = dict(deck.cards.items())
+        commanders: set[Card] = set(deck.commanders.distinct_elements())
         variant_id_list = find_variants(deck, missing=0)
         variants_query = Variant.recipes_prefetched \
             .filter(status__in=Variant.public_statuses()) \
@@ -94,9 +83,8 @@ class EstimateBracketView(DecklistAPIView):
 
         result = estimate_bracket(
             cards=cards,
-            templates=templates,
-            included_variants=tuple((v, v.get_recipe()) for v in variants),
             commanders=None if unknown_commanders and not commanders else commanders,
+            included_variants=tuple((v, v.get_recipe()) for v in variants),
         )
         serializer = self.response(result)
         return Response(serializer.data)

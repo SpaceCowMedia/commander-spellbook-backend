@@ -55,3 +55,14 @@ class FeatureViewsTests(SpellbookTestCaseWithSeeding):
         self.assertEqual([f.id for f in result.results], [self.f2_id])
         response = self.client.get(reverse('features-list') + '?cards=' + str(card.pk), follow=True)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_features_cards_filter_takes_more_than_one_card(self):
+        '''The parameter can be repeated, the way the generated filter it replaced accepted it.'''
+        first = Card.objects.create(name='First Numbered Card', number=900, type_line='Creature', legal_commander=True)
+        second = Card.objects.create(name='Second Numbered Card', number=901, type_line='Creature', legal_commander=True)
+        FeatureOfCard.objects.create(card_id=first.number, feature_id=self.f2_id, zone_locations=ZoneLocation.BATTLEFIELD, quantity=1)
+        FeatureOfCard.objects.create(card_id=second.number, feature_id=self.f3_id, zone_locations=ZoneLocation.BATTLEFIELD, quantity=1)
+        response = self.client.get(reverse('features-list'), query_params={'cards': [first.number, second.number]}, follow=True)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        result = json.loads(response.content, object_hook=json_to_python_lambda)
+        self.assertSetEqual({f.id for f in result.results}, {self.f2_id, self.f3_id})

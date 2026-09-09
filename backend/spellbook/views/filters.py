@@ -1,7 +1,7 @@
 from django.db.models import QuerySet, Case, Value, When, Q, F
 from django.core.exceptions import FieldDoesNotExist, ValidationError as DjangoValidationError
 from django.template import loader
-from django_filters.rest_framework import ModelChoiceFilter
+from django_filters.rest_framework import ModelMultipleChoiceFilter
 from rest_framework import filters
 from rest_framework.exceptions import ValidationError
 from rest_framework.request import Request
@@ -10,19 +10,27 @@ from spellbook.models import Card
 from spellbook.transformers.variants_query_transformer import variants_query_parser
 
 
-class CardNumberFilter(ModelChoiceFilter):
-    '''A parameter naming a card by its number, which is the id the API publishes it under.
+class CardNumberFilter(ModelMultipleChoiceFilter):
+    '''A parameter naming cards by their number, which is the id the API publishes them under.
 
     Only a curated card can be named: the number is the only id the API gives a card, and a card
-    without one takes part in nothing a filter here asks about.'''
+    without one takes part in nothing a filter here asks about. The parameter can be repeated, and
+    `distinct` is set for the same reason the generated filter this replaces set both: the relation
+    reached through a card is a many to many one, so a row would come back once per join that matched.
+
+    The card the number resolved to is what gets compared, rather than the number itself, so that each
+    relation is matched on the column it actually stores: the join behind the features of a card holds
+    the number, while the join behind the templates a card matches holds the primary key, since a
+    template can stand for a card no editor has curated.'''
 
     def __init__(self, **kwargs):
         kwargs.setdefault('queryset', Card.objects.filter(number__isnull=False))
         kwargs.setdefault('to_field_name', 'number')
-        # every relation reached through a card is a many to many one, and a generated filter would
-        # have asked for this itself: without it a row comes back once per join that matched
         kwargs.setdefault('distinct', True)
         super().__init__(**kwargs)
+
+    def get_filter_predicate(self, v):
+        return {self.field_name: v}
 
 
 class AbstractQueryFilter(filters.BaseFilterBackend):

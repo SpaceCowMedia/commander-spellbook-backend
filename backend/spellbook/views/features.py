@@ -11,7 +11,7 @@ class FeatureFilterSet(FilterSet):
         choices=Feature.Status.choices,
         conjoined=False,
     )
-    cards = CardNumberFilter(field_name='cards', label='Filters for the features produced by the card with the given number.')
+    cards = CardNumberFilter(field_name='cards', label='Filters for the features produced by the cards with the given numbers.')
 
     class Meta:
         model = Feature

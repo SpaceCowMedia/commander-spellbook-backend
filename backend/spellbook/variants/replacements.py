@@ -165,6 +165,12 @@ def index_of(
 # The two kinds of alternative a variant offers
 # ---------------------------------------------------------------------------
 
+def card_number(card: Card) -> int:
+    '''The number the ingredients of a variant are keyed by, which every card reaching here carries.'''
+    assert card.number is not None
+    return card.number
+
+
 @dataclass(frozen=True)
 class IngredientPositions:
     '''Where each ingredient of the variant is displayed. This orders the ways of producing the same
@@ -174,7 +180,7 @@ class IngredientPositions:
 
     def position_of(self, cards: Iterable[Card], templates: Iterable[Template]) -> tuple[int, ...]:
         last = len(self.cards) + len(self.templates) + 1
-        positions = [self.cards.get(c.id, last) for c in cards]
+        positions = [self.cards.get(card_number(c), last) for c in cards]
         positions.extend(len(self.cards) + self.templates.get(t.id, last) for t in templates)
         return tuple(sorted(positions))
 
@@ -196,7 +202,7 @@ def replacement_of(recipe: Recipe, used_faces: Mapping[cardid, int | None]) -> R
     '''The name a text shows for one way of producing a feature. A card used by one of its faces shows
     that half of its name, and a lone card is kept, so that a face override in the text still resolves.'''
     cards, templates = recipe
-    names = [c.face_name(used_faces.get(c.id), short=True) for c in cards] + [t.name for t in templates]
+    names = [c.face_name(used_faces.get(card_number(c)), short=True) for c in cards] + [t.name for t in templates]
     return Replacement(
         text=' + '.join(names),
         card=cards[0] if len(cards) == 1 and not templates else None,

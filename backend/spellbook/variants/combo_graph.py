@@ -615,6 +615,7 @@ class Graph:
                         combo.state = NodeState.VISITED
 
         for card, quantity in cards.items():
+            assert card.item.number is not None
             for feature_of_card in card.features:
                 feature_of_card_nodes.add(feature_of_card)
                 feature = feature_of_card.feature
@@ -627,7 +628,7 @@ class Graph:
                     countable_feature_nodes[feature] = countable_feature_nodes.get(feature, 0) + feature_count
                 replacements[feature.item].append(
                     VariantIngredients(
-                        cards=FrozenMultiset({card.item.id: cards_needed}),
+                        cards=FrozenMultiset({card.item.number: cards_needed}),
                         templates=FrozenMultiset()
                     )
                 )

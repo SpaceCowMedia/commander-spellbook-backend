@@ -9,8 +9,8 @@ from ..testing import SpellbookTestCaseWithSeeding
 
 class CardViewsTests(SpellbookTestCaseWithSeeding):
     def card_assertions(self, card_result):
-        c = Card.objects.get(id=card_result.id)
-        self.assertEqual(card_result.id, c.id)
+        c = Card.objects.get(number=card_result.id)
+        self.assertEqual(card_result.id, c.number)
         self.assertEqual(card_result.name, c.name)
         self.assertEqual(card_result.oracle_id, str(c.oracle_id))
         self.assertEqual(card_result.type_line, c.type_line)
@@ -91,7 +91,7 @@ class CardViewsTests(SpellbookTestCaseWithSeeding):
         self.assertIsNone(uncurated_results[0].id)
 
     def test_cards_detail_view_by_oracle_id(self):
-        card = Card.objects.get(id=self.c1_id)
+        card = Card.objects.get(number=self.c1_id)
         response = self.client.get(reverse('cards-detail', args=[card.oracle_id]), follow=True)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         result = json.loads(response.content, object_hook=json_to_python_lambda)

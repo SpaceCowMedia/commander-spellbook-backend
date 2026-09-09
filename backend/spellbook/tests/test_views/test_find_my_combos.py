@@ -94,7 +94,7 @@ class FindMyCombosViewTests(SpellbookTestCaseWithSeeding):
                     self.assertEqual(len(result.results.almost_included_by_changing_commanders), 0)
                     self.assertEqual(len(result.results.almost_included_by_adding_colors_and_changing_commanders), 0)
                 with self.subTest('single card'):
-                    card = Card.objects.get(id=self.c1_id)
+                    card = Card.objects.get(number=self.c1_id)
                     card_str = str(card.number) if using_ids else card.name
                     quantity = 2
                     if 'json' in content_type:

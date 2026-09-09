@@ -81,12 +81,12 @@ class VariantViewsTests(SpellbookTestCaseWithSeeding):
         self.assertEqual(variant_result.prices.cardkingdom, str(v.price_cardkingdom))
         self.assertEqual(variant_result.prices.cardmarket, str(v.price_cardmarket))
         self.assertEqual(variant_result.spoiler, v.spoiler)
-        uses_list = [u.id for u in v.uses.all()]
+        uses_list = [u.number for u in v.uses.all()]
         for u in variant_result.uses:
             card = u.card
             self.assertIn(card.id, uses_list)
-            c = Card.objects.get(id=card.id)
-            self.assertEqual(card.id, c.id)
+            c = Card.objects.get(number=card.id)
+            self.assertEqual(card.id, c.number)
             self.assertEqual(card.name, c.name)
             self.assertEqual(card.oracle_id, str(c.oracle_id))
             self.assertEqual(card.spoiler, c.spoiler)
@@ -188,7 +188,7 @@ class VariantViewsTests(SpellbookTestCaseWithSeeding):
         # return variants
 
     def test_variants_list_view_query_by_card_name(self):
-        a_card = Card.objects.get(pk=self.c1_id)
+        a_card = Card.objects.get(number=self.c1_id)
         queries: list[tuple[str, str]] = []
         for search in (name for c in Card.objects.all() for name in (c.name, c.name_unaccented, c.name_unaccented.replace('-', ''), c.name_unaccented.replace('-', ' '))):
             prefix_without_spaces = search.partition(' ')[0]

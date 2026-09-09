@@ -9,7 +9,7 @@ from urllib.parse import quote_plus
 
 class CardTests(SpellbookTestCaseWithSeeding):
     def test_card_fields(self):
-        c = Card.objects.get(id=self.c1_id)
+        c = Card.objects.get(number=self.c1_id)
         self.assertEqual(c.name, 'A A')
         self.assertEqual(str(c.oracle_id), '00000000-0000-0000-0000-000000000001')
         self.assertEqual(c.features.count(), 2)
@@ -32,11 +32,11 @@ class CardTests(SpellbookTestCaseWithSeeding):
         self.assertEqual(c.image_uri_back_normal, 'http://localhost/x.jpg')
 
     def test_query_string(self):
-        c = Card.objects.get(id=self.c1_id)
+        c = Card.objects.get(number=self.c1_id)
         self.assertEqual(f'q=%21%22{quote_plus(c.name)}%22', c.query_string())
 
     def test_scryfall_link(self):
-        c = Card.objects.get(id=self.c1_id)
+        c = Card.objects.get(number=self.c1_id)
         self.assertIn(SCRYFALL_WEBSITE_CARD_SEARCH, c.scryfall_link())  # type: ignore
         self.assertIn(c.query_string(), c.scryfall_link())  # type: ignore
         self.assertIn('<a', c.scryfall_link())  # type: ignore
@@ -45,7 +45,7 @@ class CardTests(SpellbookTestCaseWithSeeding):
         self.assertIn(c.scryfall_link(raw=True), c.scryfall_link(raw=False))  # type: ignore
 
     def test_is_legendary(self):
-        c = Card.objects.get(id=self.c1_id)
+        c = Card.objects.get(number=self.c1_id)
         self.assertFalse(c.is_of_type(CardType.LEGENDARY))
         c.type_line = 'Legendary Creature - Human'
         c.save()
@@ -56,7 +56,7 @@ class CardTests(SpellbookTestCaseWithSeeding):
         self.assertFalse(c.is_of_type(CardType.LEGENDARY))
 
     def test_is_creature(self):
-        c = Card.objects.get(id=self.c1_id)
+        c = Card.objects.get(number=self.c1_id)
         self.assertFalse(c.is_of_type(CardType.CREATURE))
         c.type_line = 'Creature - Human'
         c.save()
@@ -67,7 +67,7 @@ class CardTests(SpellbookTestCaseWithSeeding):
         self.assertFalse(c.is_of_type(CardType.CREATURE))
 
     def test_is_instant(self):
-        c = Card.objects.get(id=self.c2_id)
+        c = Card.objects.get(number=self.c2_id)
         self.assertFalse(c.is_of_type(CardType.INSTANT))
         c.type_line = 'Legendary Instant'
         c.save()
@@ -78,7 +78,7 @@ class CardTests(SpellbookTestCaseWithSeeding):
         self.assertFalse(c.is_of_type(CardType.INSTANT))
 
     def test_is_sorcery(self):
-        c = Card.objects.get(id=self.c1_id)
+        c = Card.objects.get(number=self.c1_id)
         self.assertFalse(c.is_of_type(CardType.SORCERY))
         c.type_line = 'Legendary Sorcery'
         c.save()
@@ -92,7 +92,7 @@ class CardTests(SpellbookTestCaseWithSeeding):
         self.assertEqual(count_methods(Card), 7)
 
     def test_saving_a_card_without_renaming_it_leaves_combo_names_alone(self):
-        card = Card.objects.get(id=self.c1_id)
+        card = Card.objects.get(number=self.c1_id)
         combo = Combo.objects.filter(uses=card).first()
         assert combo is not None
         Combo.objects.filter(pk=combo.pk).update(name='stale name')
@@ -109,7 +109,7 @@ class CardTests(SpellbookTestCaseWithSeeding):
 
     def test_saving_a_card_without_renaming_it_still_updates_variants(self):
         self.generate_variants()
-        card = Card.objects.get(id=self.c1_id)
+        card = Card.objects.get(number=self.c1_id)
         variant = Variant.objects.filter(uses=card).first()
         assert variant is not None
         hulkline = variant.hulkline

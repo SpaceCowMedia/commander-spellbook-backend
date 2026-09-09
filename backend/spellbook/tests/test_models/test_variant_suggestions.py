@@ -7,7 +7,7 @@ from django.core.exceptions import ValidationError
 class VariantSuggestionTests(SpellbookTestCaseWithSeeding):
     def test_variant_suggestion_fields(self):
         s = VariantSuggestion.objects.get(id=self.s1_id)
-        card_names = {Card.objects.get(id=self.c1_id).name, Card.objects.get(id=self.c2_id).name}
+        card_names = {Card.objects.get(number=self.c1_id).name, Card.objects.get(number=self.c2_id).name}
         template_names = {Template.objects.get(id=self.t1_id).name}
         feature_names = {Feature.objects.get(id=self.f1_id).name}
         self.assertSetEqual(set(s.uses.values_list('card', flat=True)), card_names)

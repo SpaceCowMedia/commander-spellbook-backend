@@ -8,7 +8,7 @@ class CardAdminTests(SpellbookTestCaseWithSeeding):
         self.client.force_login(self.admin)
         response = self.client.get(reverse('admin:spellbook_card_changelist'))
         self.assertEqual(response.status_code, 200)
-        self.assertIn(f'{Card.objects.get(id=self.c1_id).name}</a>', str(response.content))
+        self.assertIn(f'{Card.objects.get(number=self.c1_id).name}</a>', str(response.content))
 
     def test_changelist_view_with_facets(self):
         self.client.force_login(self.admin)
@@ -18,7 +18,7 @@ class CardAdminTests(SpellbookTestCaseWithSeeding):
 
     def test_autocomplete_offers_curated_cards_by_number(self):
         self.client.force_login(self.admin)
-        curated = Card.objects.get(id=self.c1_id)
+        curated = Card.objects.get(number=self.c1_id)
         uncurated = Card.objects.create(name='Uncurated Card', type_line='Instant')
         response = self.client.get(reverse('admin:autocomplete'), query_params={  # type: ignore
             'app_label': 'spellbook',
@@ -39,7 +39,7 @@ class CardAdminTests(SpellbookTestCaseWithSeeding):
         response = self.client.get(reverse('admin:spellbook_card_change', args=[uncurated.pk]))
         self.assertEqual(response.status_code, 200)
         self.assertIn(curate_url, str(response.content))
-        curated = Card.objects.get(id=self.c1_id)
+        curated = Card.objects.get(number=self.c1_id)
         response = self.client.get(reverse('admin:spellbook_card_change', args=[curated.pk]))
         self.assertEqual(response.status_code, 200)
         self.assertNotIn(reverse('admin:spellbook_card_curate', args=[curated.pk]), str(response.content))

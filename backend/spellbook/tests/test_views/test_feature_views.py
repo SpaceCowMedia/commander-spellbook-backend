@@ -1,7 +1,7 @@
 import json
 from rest_framework import status
 from common.inspection import json_to_python_lambda
-from spellbook.models import Feature, FeatureOfCard, ZoneLocation
+from spellbook.models import Card, Feature, FeatureOfCard, ZoneLocation
 from ..testing import SpellbookTestCaseWithSeeding
 from django.urls import reverse
 
@@ -35,7 +35,7 @@ class FeatureViewsTests(SpellbookTestCaseWithSeeding):
     def test_features_cards_filter(self):
         FeatureOfCard.objects.create(card_id=self.c1_id, feature_id=self.f2_id, zone_locations=ZoneLocation.BATTLEFIELD, quantity=1)
         FeatureOfCard.objects.create(card_id=self.c1_id, feature_id=self.f2_id, zone_locations=ZoneLocation.BATTLEFIELD, quantity=2)
-        response = self.client.get(reverse('features-list') + '?cards=' + str(self.c1_id), follow=True)
+        response = self.client.get(reverse('features-list') + '?cards=' + str(Card.objects.get(number=self.c1_id).pk), follow=True)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.get('Content-Type'), 'application/json')
         result = json.loads(response.content, object_hook=json_to_python_lambda)

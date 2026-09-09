@@ -2,7 +2,7 @@ import json
 from rest_framework import status
 from django.urls import reverse
 from common.inspection import json_to_python_lambda
-from spellbook.models import Template
+from spellbook.models import Card, Template
 from ..testing import SpellbookTestCaseWithSeeding
 
 
@@ -35,7 +35,7 @@ class TemplateViewsTests(SpellbookTestCaseWithSeeding):
     def test_templates_matches_filter(self):
         # the templates a card stands in for include the ones a query found it, not only the ones listing it
         query_template = Template.objects.create(name='TC', scryfall_query='t:creature')
-        response = self.client.get(reverse('templates-list') + '?matches=' + str(self.c3_id), follow=True)
+        response = self.client.get(reverse('templates-list') + '?matches=' + str(Card.objects.get(number=self.c3_id).pk), follow=True)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.get('Content-Type'), 'application/json')
         result = json.loads(response.content, object_hook=json_to_python_lambda)

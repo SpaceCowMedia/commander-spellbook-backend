@@ -3,6 +3,8 @@ from spellbook.models import Card
 
 
 class CardSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(source='number', read_only=True)
+
     class Meta:
         model = Card
         fields = [

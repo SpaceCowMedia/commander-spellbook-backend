@@ -41,6 +41,7 @@ class FeatureOfCardSerializer(serializers.ModelSerializer):
 
 
 class CardDetailSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(source='number', read_only=True)
     features = FeatureOfCardSerializer(source='featureofcard_set', many=True, read_only=True)
     legalities = CardLegalitiesSerializer(source='*', read_only=True)
     prices = CardPricesSerializer(source='*', read_only=True)

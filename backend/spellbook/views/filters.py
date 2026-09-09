@@ -1,11 +1,28 @@
 from django.db.models import QuerySet, Case, Value, When, Q, F
 from django.core.exceptions import FieldDoesNotExist, ValidationError as DjangoValidationError
 from django.template import loader
+from django_filters.rest_framework import ModelChoiceFilter
 from rest_framework import filters
 from rest_framework.exceptions import ValidationError
 from rest_framework.request import Request
 from django.utils.encoding import force_str
+from spellbook.models import Card
 from spellbook.transformers.variants_query_transformer import variants_query_parser
+
+
+class CardNumberFilter(ModelChoiceFilter):
+    '''A parameter naming a card by its number, which is the id the API publishes it under.
+
+    Only a curated card can be named: the number is the only id the API gives a card, and a card
+    without one takes part in nothing a filter here asks about.'''
+
+    def __init__(self, **kwargs):
+        kwargs.setdefault('queryset', Card.objects.filter(number__isnull=False))
+        kwargs.setdefault('to_field_name', 'number')
+        # every relation reached through a card is a many to many one, and a generated filter would
+        # have asked for this itself: without it a row comes back once per join that matched
+        kwargs.setdefault('distinct', True)
+        super().__init__(**kwargs)
 
 
 class AbstractQueryFilter(filters.BaseFilterBackend):

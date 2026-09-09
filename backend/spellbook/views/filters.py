@@ -1,3 +1,5 @@
+from uuid import UUID
+from django_filters.fields import ModelMultipleChoiceField
 from django.db.models import QuerySet, Case, Value, When, Q, F
 from django.core.exceptions import FieldDoesNotExist, ValidationError as DjangoValidationError
 from django.template import loader
@@ -8,6 +10,8 @@ from rest_framework.request import Request
 from django.utils.encoding import force_str
 from spellbook.models import Card
 from spellbook.transformers.variants_query_transformer import variants_query_parser
+
+CARD_REFERENCE_HELP = 'The number of a curated card, or the Scryfall Oracle ID of any card.'
 
 
 class CardNumberFilter(ModelMultipleChoiceFilter):
@@ -31,6 +35,53 @@ class CardNumberFilter(ModelMultipleChoiceFilter):
 
     def get_filter_predicate(self, v):
         return {self.field_name: v}
+
+
+class CardReferenceField(ModelMultipleChoiceField):
+    '''A field taking cards named by number or by Scryfall Oracle ID, and by nothing else.
+
+    A relation holding cards nobody has curated cannot be asked about by number alone, since those
+    cards have none, and the primary key is not published: the oracle id is the other half.'''
+
+    def _check_values(self, value):
+        given = [force_str(item).strip() for item in value]
+        numbers = set[int]()
+        oracle_ids = set[UUID]()
+        for reference in given:
+            if reference.isdigit():
+                numbers.add(int(reference))
+                continue
+            try:
+                oracle_ids.add(UUID(reference))
+            except ValueError:
+                raise DjangoValidationError(
+                    f'“{reference}” is neither a card number nor a Scryfall Oracle ID.',
+                    code='invalid_choice',
+                )
+        available: QuerySet[Card] = self.queryset if self.queryset is not None else Card.objects.all()
+        cards = available.filter(Q(number__in=numbers) | Q(oracle_id__in=oracle_ids)).order_by()
+        known = set[str]()
+        for card in cards:
+            known.add(str(card.number))
+            known.add(str(card.oracle_id))
+        for reference in given:
+            if reference.lower() not in known:
+                raise DjangoValidationError(f'No card is published as “{reference}”.', code='invalid_choice')
+        return cards
+
+
+class CardReferenceFilter(CardNumberFilter):
+    '''A parameter naming cards the way the API publishes them, by number or by Scryfall Oracle ID.
+
+    This is the parameter for a relation reaching any card rather than only a curated one, which is
+    why it takes the oracle id as well: the number names the cards an editor took in, and every card
+    Scryfall knows answers to its oracle id.'''
+
+    field_class = CardReferenceField
+
+    def __init__(self, **kwargs):
+        kwargs.setdefault('queryset', Card.objects.all())
+        super().__init__(**kwargs)
 
 
 class AbstractQueryFilter(filters.BaseFilterBackend):

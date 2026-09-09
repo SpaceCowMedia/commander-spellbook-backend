@@ -58,3 +58,24 @@ class TemplateViewsTests(SpellbookTestCaseWithSeeding):
         self.assertIn(query_template.id, {t.id for t in result.results})
         response = self.client.get(reverse('templates-list') + '?matches=' + str(card.pk), follow=True)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_templates_matches_filter_names_a_card_by_its_oracle_id(self):
+        '''A template can stand for a card nobody curated, and only the oracle id reaches that card.'''
+        uncurated = Card.objects.create(
+            name='Uncurated Creature',
+            oracle_id='00000000-0000-0000-0000-0000000000ff',
+            type_line='Creature',
+            legal_commander=True,
+        )
+        self.assertIsNone(uncurated.number)
+        query_template = Template.objects.create(name='TC', scryfall_query='t:creature')
+        response = self.client.get(reverse('templates-list') + '?matches=' + str(uncurated.oracle_id), follow=True)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        result = json.loads(response.content, object_hook=json_to_python_lambda)
+        self.assertIn(query_template.id, {t.id for t in result.results})
+
+    def test_templates_matches_filter_refuses_anything_that_is_not_a_published_id(self):
+        for reference in ('not-an-id', '999999', '00000000-0000-0000-0000-0000000000aa'):
+            with self.subTest(reference):
+                response = self.client.get(reverse('templates-list') + '?matches=' + reference, follow=True)
+                self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

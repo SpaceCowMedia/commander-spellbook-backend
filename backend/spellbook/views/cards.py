@@ -5,7 +5,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
 from spellbook.models import Card
 from spellbook.serializers import CardDetailSerializer
-from .filters import NameAutocompleteQueryFilter, OrderingFilterWithNullsLast
+from .filters import CARD_REFERENCE_HELP, NameAutocompleteQueryFilter, OrderingFilterWithNullsLast
 
 
 @extend_schema_view(
@@ -14,7 +14,7 @@ from .filters import NameAutocompleteQueryFilter, OrderingFilterWithNullsLast
             name='id',
             location=OpenApiParameter.PATH,
             type=str,
-            description='The number of a curated card, or the Scryfall Oracle ID of any card.',
+            description=CARD_REFERENCE_HELP,
         ),
     ]),
 )

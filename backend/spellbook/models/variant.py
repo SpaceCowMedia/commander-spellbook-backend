@@ -286,7 +286,7 @@ class Variant(Recipe, Playable, Explanation, PreSaveSerializedModelMixin, Scryfa
         return self.update_variant_from_recipe(self.get_recipe())
 
     def get_recipe(self) -> Variant.Recipe:
-        cards: dict[int, Card] = {c.id: c for c in self.uses.all()}
+        cards: dict[int, Card] = {c.number: c for c in self.uses.all() if c.number is not None}
         civs = [(civ, cards[civ.card_id]) for civ in self.cardinvariant_set.all()]
         templates: dict[int, Template] = {t.id: t for t in self.requires.all()}
         tivs = [(tiv, templates[tiv.template_id]) for tiv in self.templateinvariant_set.all()]

@@ -80,6 +80,31 @@
 
                             django.jQuery('#id_keywords').val(JSON.stringify(data.keywords));
 
+                            // a characteristic a double faced card prints on its front face only is
+                            // read off that face, the way the card sync reads it
+                            const faceField = function(key) {
+                                let value = data[key];
+                                if (value === undefined || value === null) {
+                                    value = Object.hasOwn(data, 'card_faces') ? data.card_faces[0][key] : null;
+                                }
+                                return value || '';
+                            };
+                            django.jQuery('#id_mana_cost').val(faceField('mana_cost'));
+                            django.jQuery('#id_power').val(faceField('power'));
+                            django.jQuery('#id_toughness').val(faceField('toughness'));
+                            django.jQuery('#id_loyalty').val(faceField('loyalty'));
+
+                            django.jQuery('#id_layout').val(data.layout);
+
+                            // every face contributes the mana it makes, since either of them may be the land
+                            const producedMana = new Set(data.produced_mana || []);
+                            for (const face of data.card_faces || []) {
+                                for (const color of face.produced_mana || []) {
+                                    producedMana.add(color);
+                                }
+                            }
+                            django.jQuery('#id_produced_mana').val(JSON.stringify(Array.from(producedMana).sort()));
+
                             django.jQuery('#id_mana_value').val(Math.round(data.cmc));
 
                             django.jQuery('#id_reserved').prop('checked', data.reserved);
@@ -182,6 +207,18 @@
     {% endif %}
 {% endblock %}
 
+{% block object-tools-items %}
+{% if original and original.number is None %}
+<li>
+    <form method="post" action="{% url 'admin:spellbook_card_curate' original.id %}" class="inline" novalidate>
+        {% csrf_token %}
+        <button type="submit" class="default">Curate this card, so that combos and templates can use it</button>
+    </form>
+</li>
+{% endif %}
+{{ block.super }}
+{% endblock %}
+
 {% block after-content %}
     {{ block.super }}
     <table>
@@ -198,62 +235,64 @@
             </tr>
         </tbody>
     </table>
-    <table>
-        <thead>
-            <tr>
-                <th class="column-variant">Used in combos</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for item in original.used_in_combos.all|slice:suggested_slice %}
-                <tr class="form-row">
-                    <td class="field-combo">
-                        <p>
-                            <a href="{% url 'admin:spellbook_combo_change' item.id %}">{{ item }}</a>
-                        </p>
-                    </td>
+    {% if original.number is not None %}
+        <table>
+            <thead>
+                <tr>
+                    <th class="column-variant">Used in combos</th>
                 </tr>
-            {% endfor %}
-            {% with combo_count=original.used_in_combos.count %}
-            {% if combo_count > 0 %}
-                <tr class="form-row">
-                    <td class="field-combo">
-                        <p>
-                            <a href="{% url 'admin:spellbook_combo_changelist' %}?uses__id={{ original.id }}">View all {{ combo_count }} combos where {{ original.name }} is used...</a>
-                        </p>
-                    </td>
+            </thead>
+            <tbody>
+                {% for item in original.used_in_combos.all|slice:suggested_slice %}
+                    <tr class="form-row">
+                        <td class="field-combo">
+                            <p>
+                                <a href="{% url 'admin:spellbook_combo_change' item.id %}">{{ item }}</a>
+                            </p>
+                        </td>
+                    </tr>
+                {% endfor %}
+                {% with combo_count=original.used_in_combos.count %}
+                {% if combo_count > 0 %}
+                    <tr class="form-row">
+                        <td class="field-combo">
+                            <p>
+                                <a href="{% url 'admin:spellbook_combo_changelist' %}?uses__id={{ original.id }}">View all {{ combo_count }} combos where {{ original.name }} is used...</a>
+                            </p>
+                        </td>
+                    </tr>
+                {% endif %}
+                {% endwith %}
+            </tbody>
+        </table>
+        <table>
+            <thead>
+                <tr>
+                    <th class="column-variant">Used in variants</th>
                 </tr>
-            {% endif %}
-            {% endwith %}
-        </tbody>
-    </table>
-    <table>
-        <thead>
-            <tr>
-                <th class="column-variant">Used in variants</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for item in original.used_in_variants.all|slice:suggested_slice %}
-                <tr class="form-row">
-                    <td class="field-variant">
-                        <p>
-                            <a href="{% url 'admin:spellbook_variant_change' item.id %}">{{ item }}</a>
-                        </p>
-                    </td>
-                </tr>
-            {% endfor %}
-            {% with variant_count=original.used_in_variants.count %}
-            {% if variant_count > 0 %}
-                <tr class="form-row">
-                    <td class="field-variant">
-                        <p>
-                            <a href="{% url 'admin:spellbook_variant_changelist' %}?uses__id={{ original.id }}">View all {{ variant_count }} variants where {{ original.name }} is used...</a>
-                        </p>
-                    </td>
-                </tr>
-            {% endif %}
-            {% endwith %}
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                {% for item in original.used_in_variants.all|slice:suggested_slice %}
+                    <tr class="form-row">
+                        <td class="field-variant">
+                            <p>
+                                <a href="{% url 'admin:spellbook_variant_change' item.id %}">{{ item }}</a>
+                            </p>
+                        </td>
+                    </tr>
+                {% endfor %}
+                {% with variant_count=original.used_in_variants.count %}
+                {% if variant_count > 0 %}
+                    <tr class="form-row">
+                        <td class="field-variant">
+                            <p>
+                                <a href="{% url 'admin:spellbook_variant_changelist' %}?uses__id={{ original.id }}">View all {{ variant_count }} variants where {{ original.name }} is used...</a>
+                            </p>
+                        </td>
+                    </tr>
+                {% endif %}
+                {% endwith %}
+            </tbody>
+        </table>
+    {% endif %}
 {% endblock %}

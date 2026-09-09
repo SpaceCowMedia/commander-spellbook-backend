@@ -1,7 +1,10 @@
 from typing import Any
 from django.contrib import admin
 from django.db.models import Q
+from django.core.exceptions import ValidationError
+from spellbook.models import Card
 from spellbook.models.template import Template, TemplateReplacement
+from spellbook.transformers.scryfall_query_transformer import scryfall_query_parser
 from .utils import SpellbookAdminForm, SpellbookModelAdmin, CustomFilter
 
 
@@ -22,6 +25,11 @@ class TemplateAdminForm(SpellbookAdminForm):
                 replacement_form_count = int(replacement_forms)
                 if replacement_form_count > 0 and not all(self.data.get(f'templatereplacement_set-{i}-DELETE', 'off') == 'on' for i in range(replacement_form_count)):
                     self.add_error('scryfall_query', 'Cannot have both a Scryfall query and replacements')
+            try:
+                if not Card.objects.filter(scryfall_query_parser(cleaned_data['scryfall_query'])).exists():
+                    self.add_error('scryfall_query', 'This query matches no card.')
+            except ValidationError as e:
+                self.add_error('scryfall_query', e)
         elif replacement_forms == '0':
             self.add_error('scryfall_query', 'Must have either a Scryfall query or replacements')
         return cleaned_data

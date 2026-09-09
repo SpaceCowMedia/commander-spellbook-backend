@@ -1,5 +1,8 @@
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.db.models import Q
+from django.http.request import HttpRequest
+from django.shortcuts import redirect
+from django.urls import path
 from spellbook.models import Card, CardType
 from .utils import IdentityFilter, SpellbookModelAdmin, CustomFilter
 from .ingredient_admin import FeatureOfCardAdmin
@@ -15,6 +18,18 @@ class ManagedByScryfallFilter(CustomFilter):
 
     def filter(self, value: bool) -> Q:
         return Q(oracle_id__isnull=not value)
+
+
+class CuratedFilter(CustomFilter):
+    title = 'curated'
+    parameter_name = 'curated'
+    data_type = bool
+
+    def lookups(self, request, model_admin):
+        return [(True, 'Yes'), (False, 'No')]
+
+    def filter(self, value: bool) -> Q:
+        return Q(number__isnull=not value)
 
 
 class CardTypeFilter(CustomFilter):
@@ -37,12 +52,12 @@ class FeatureOfCardAdminInline(FeatureOfCardAdmin):
 
 @admin.register(Card)
 class CardAdmin(SpellbookModelAdmin):
-    readonly_fields = ['id', 'scryfall_link']
+    readonly_fields = ['number', 'scryfall_link', 'power_value', 'toughness_value', 'loyalty_value']
     scryfall_fields = ['oracle_id'] + Card.scryfall_fields()
     fieldsets = [  # pyright: ignore[reportAssignmentType]
         ('Spellbook', {'fields': [
             'name',
-            'id',
+            'number',
         ]}),
         ('Scryfall', {
             'fields': [
@@ -65,6 +80,7 @@ class CardAdmin(SpellbookModelAdmin):
     ]
     list_filter = [
         IdentityFilter,
+        CuratedFilter,
         CardTypeFilter,
         'legal_commander',
         ManagedByScryfallFilter,
@@ -74,14 +90,14 @@ class CardAdmin(SpellbookModelAdmin):
         'extra_turn',
     ]
     search_fields = [
-        '=pk',
+        '=number',
         'name',
         'name_unaccented',
         'name_unaccented_simplified',
         'name_unaccented_simplified_with_spaces',
     ]
     autocomplete_fields = ['features']
-    list_display = ['name', 'id', 'identity', 'variant_count']
+    list_display = ['name', 'number', 'identity', 'variant_count']
     inlines = [FeatureOfCardAdminInline]
 
     def lookup_allowed(self, lookup: str, value: str, request) -> bool:
@@ -100,7 +116,32 @@ class CardAdmin(SpellbookModelAdmin):
                 + Card.prices_fields()
         return readonly_fields
 
+    def curate_card(self, request: HttpRequest, object_id: str):
+        card = Card.objects.filter(pk=object_id).first()
+        if not card:
+            messages.error(request, f'Card with id {object_id} does not exist.')
+            return redirect('admin:spellbook_card_changelist')
+        if request.method == 'POST' and self.has_change_permission(request, card):
+            if card.number is None:
+                card.ensure_number()
+                messages.success(request, f'Curated {card.name} as card number {card.number}.')
+            else:
+                messages.warning(request, f'{card.name} is already curated as card number {card.number}.')
+        return redirect('admin:spellbook_card_change', object_id)
+
+    def get_urls(self):
+        return [
+            path(
+                '<path:object_id>/curate/',
+                self.admin_site.admin_view(view=self.curate_card, cacheable=False),
+                name='spellbook_card_curate',
+            ),
+            *super().get_urls(),
+        ]
+
     def has_delete_permission(self, request, obj=None):
         if obj is None:
             return False
+        if obj.number is None:
+            return super().has_delete_permission(request, obj)
         return super().has_delete_permission(request, obj) and not obj.used_in_combos.exists() and not obj.used_in_variants.exists()

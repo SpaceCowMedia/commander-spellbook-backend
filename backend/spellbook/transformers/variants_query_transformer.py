@@ -9,7 +9,11 @@ from .variants_query_filters.card_type_filters import card_type_filter
 from .variants_query_filters.card_oracle_filters import card_oracle_filter
 from .variants_query_filters.card_keyword_filters import card_keyword_filter
 from .variants_query_filters.card_mana_value_filters import card_mana_value_filter
+from .variants_query_filters.card_characteristic_filters import card_power_filter, card_toughness_filter, card_loyalty_filter
 from .variants_query_filters.card_color_filters import card_color_filter
+from .variants_query_filters.card_produces_filters import card_produces_filter
+from .variants_query_filters.card_oracle_tag_filters import card_oracle_tag_filter
+from .variants_query_filters.card_oracle_id_filters import card_oracle_id_filter
 from .variants_query_filters.variant_identity_filters import identity_filter
 from .variants_query_filters.variant_prerequisites_filters import prerequisites_filter
 from .variants_query_filters.variant_description_filters import description_filter
@@ -55,9 +59,33 @@ class VariantsQueryTransformer(Transformer):
         q = QueryValue.from_string(values[0])
         return card_mana_value_filter(q)
 
+    def card_power_search(self, values):
+        q = QueryValue.from_string(values[0])
+        return card_power_filter(q)
+
+    def card_toughness_search(self, values):
+        q = QueryValue.from_string(values[0])
+        return card_toughness_filter(q)
+
+    def card_loyalty_search(self, values):
+        q = QueryValue.from_string(values[0])
+        return card_loyalty_filter(q)
+
     def card_color_search(self, values):
         q = QueryValue.from_string(values[0])
         return card_color_filter(q)
+
+    def card_produces_search(self, values):
+        q = QueryValue.from_string(values[0])
+        return card_produces_filter(q)
+
+    def card_oracle_tag_search(self, values):
+        q = QueryValue.from_string(values[0])
+        return card_oracle_tag_filter(q)
+
+    def card_oracle_id_search(self, values):
+        q = QueryValue.from_string(values[0])
+        return card_oracle_id_filter(q)
 
     def identity_search(self, values):
         q = QueryValue.from_string(values[0])

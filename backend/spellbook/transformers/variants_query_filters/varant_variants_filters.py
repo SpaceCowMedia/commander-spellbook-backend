@@ -1,20 +1,8 @@
-from .base import QueryValue, VariantQuery, Q, ValidationError
+from ..query_parsing import compare
+from .base import QueryValue, VariantQuery, ValidationError
 
 
 def variants_filter(qv: QueryValue) -> VariantQuery:
     if not qv.is_numeric():
         raise ValidationError(f'Value {qv.value} is not supported for variants search.')
-    match qv.operator:
-        case ':' | '=':
-            q = Q(variant_count=qv.value)
-        case '<':
-            q = Q(variant_count__lt=qv.value)
-        case '<=':
-            q = Q(variant_count__lte=qv.value)
-        case '>':
-            q = Q(variant_count__gt=qv.value)
-        case '>=':
-            q = Q(variant_count__gte=qv.value)
-        case _:
-            raise ValidationError(f'Operator {qv.operator} is not supported for variants search.')
-    return qv.to_filter(q)
+    return qv.to_filter(compare('variant_count', qv.operator, int(qv.value)))

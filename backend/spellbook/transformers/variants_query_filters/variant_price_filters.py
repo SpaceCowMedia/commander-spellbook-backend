@@ -1,4 +1,5 @@
-from .base import QueryValue, VariantQuery, Q, ValidationError
+from ..query_parsing import compare
+from .base import QueryValue, VariantQuery, ValidationError
 from spellbook.parsers.variants_query_grammar import SUPPORTED_STORES
 
 
@@ -14,17 +15,4 @@ def price_filter(qv: QueryValue) -> VariantQuery:
             store = other
     if store not in SUPPORTED_STORES:
         raise ValidationError(f'Store {store} is not supported for price search.')
-    match qv.operator:
-        case ':' | '=':
-            q = Q(**{f'price_{store}': qv.value})
-        case '<':
-            q = Q(**{f'price_{store}__lt': qv.value})
-        case '<=':
-            q = Q(**{f'price_{store}__lte': qv.value})
-        case '>':
-            q = Q(**{f'price_{store}__gt': qv.value})
-        case '>=':
-            q = Q(**{f'price_{store}__gte': qv.value})
-        case _:
-            raise ValidationError(f'Operator {qv.operator} is not supported for price search.')
-    return qv.to_filter(q)
+    return qv.to_filter(compare(f'price_{store}', qv.operator, int(qv.value)))

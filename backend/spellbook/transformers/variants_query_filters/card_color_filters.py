@@ -1,5 +1,6 @@
 from spellbook.models import Card
 from spellbook.parsers.color_parser import parse_color
+from ..query_parsing import compare
 from .base import QueryValue, VariantQuery, Q, ValidationError
 
 
@@ -18,32 +19,16 @@ def card_color_filter(qv: QueryValue) -> VariantQuery:
     match qv.operator:
         case ':' | '=' if not value_is_digit:
             q = Q(color=color or 'C')
-        case '<' if not value_is_digit:
-            q = Q(color_count__lt=len(color))
+        case '<' | '<=' if not value_is_digit:
+            q = compare('color_count', qv.operator, len(color))
             for c in not_in_color:
                 q &= Q(**{f'color_{c.lower()}': False})
-        case '<=' if not value_is_digit:
-            q = Q(color_count__lte=len(color))
-            for c in not_in_color:
-                q &= Q(**{f'color_{c.lower()}': False})
-        case '>' if not value_is_digit:
-            q = Q(color_count__gt=len(color))
+        case '>' | '>=' if not value_is_digit:
+            q = compare('color_count', qv.operator, len(color))
             for c in color:
                 q &= Q(**{f'color_{c.lower()}': True})
-        case '>=' if not value_is_digit:
-            q = Q(color_count__gte=len(color))
-            for c in color:
-                q &= Q(**{f'color_{c.lower()}': True})
-        case ':' | '=' if value_is_digit:
-            q = Q(color_count=qv.value)
-        case '<' if value_is_digit:
-            q = Q(color_count__lt=qv.value)
-        case '<=' if value_is_digit:
-            q = Q(color_count__lte=qv.value)
-        case '>' if value_is_digit:
-            q = Q(color_count__gt=qv.value)
-        case '>=' if value_is_digit:
-            q = Q(color_count__gte=qv.value)
+        case _ if value_is_digit:
+            q = compare('color_count', qv.operator, int(qv.value))
         case _:
             raise ValidationError(f'Operator {qv.operator} is not supported for card color search with {'numbers' if value_is_digit else 'strings'}.')
     return qv.to_filter(q, Card)

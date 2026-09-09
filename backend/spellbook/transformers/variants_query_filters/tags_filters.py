@@ -1,6 +1,6 @@
 from .base import QueryValue, Q, ValidationError, VariantQuery
 from website.models import WebsiteProperty, FEATURED_SET_CODES_PROPERTIES, FEATURED_TABS_COUNT
-from spellbook.models import Card, CardInVariant, Feature, FeatureProducedByVariant, Variant
+from spellbook.models import CardInVariant, Feature, FeatureProducedByVariant, Variant
 
 
 FEATURED_TABS_TAGS = [f'featured-{i}' for i in range(1, FEATURED_TABS_COUNT + 1)]
@@ -15,17 +15,19 @@ def tag_filter(qv: QueryValue) -> VariantQuery:
         case 'commander':
             return qv.to_filter(Q(must_be_commander=True), CardInVariant)
         case 'reserved':
-            return qv.to_filter(Q(reserved=True), Card)
+            return qv.to_filter(Q(reserved=True))
+        case 'gamechanger' | 'game_changer':
+            return qv.to_filter(Q(game_changer=True))
+        case 'tutor':
+            return qv.to_filter(Q(tutor=True))
+        case 'extraturn' | 'extraturns':
+            return qv.to_filter(Q(extra_turn=True))
         case 'mandatory':
             return qv.to_filter(Q(feature__name='Mandatory Loop'), FeatureProducedByVariant)
         case 'lock':
             return qv.to_filter(Q(feature__name='Lock'), FeatureProducedByVariant)
         case 'mld' | 'masslanddestruction' | 'masslanddenial' | 'masslandremoval':
-            return qv.to_filter(Q(feature__name__in=[
-                'Mass Land Destruction',
-                'Mass Land Denial',
-                'Mass Land Removal',
-            ]), FeatureProducedByVariant)
+            return qv.to_filter(Q(mass_land_denial=True))
         case 'infinite':
             return qv.to_filter(Q(feature__name__istartswith='infinite'), FeatureProducedByVariant)
         case 'risky' | 'allin':

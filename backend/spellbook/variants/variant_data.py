@@ -193,7 +193,7 @@ class Data:
             x = self.feature_produced_in_combo_to_attributes.get(i.featureproducedincombo_id)
             if x is not None:
                 x.add(i.featureattribute_id)
-        self.card_to_features = {c.id: list[FeatureOfCard]() for c in cards}
+        self.card_to_features = {c.number: list[FeatureOfCard]() for c in cards}
         self.features_to_cards = {f.id: list[FeatureOfCard]() for f in features}
         for i in featureofcards:
             x = self.card_to_features.get(i.card_id)

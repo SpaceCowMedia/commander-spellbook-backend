@@ -32,10 +32,13 @@ class TemplateViewsTests(SpellbookTestCaseWithSeeding):
         self.assertEqual(result.id, self.t1_id)
         self.template_assertions(result)
 
-    def test_templates_replacements_filter(self):
-        response = self.client.get(reverse('templates-list') + '?replacements=' + str(self.c3_id), follow=True)
+    def test_templates_matches_filter(self):
+        # the templates a card stands in for include the ones a query found it, not only the ones listing it
+        query_template = Template.objects.create(name='TC', scryfall_query='t:creature')
+        response = self.client.get(reverse('templates-list') + '?matches=' + str(self.c3_id), follow=True)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.get('Content-Type'), 'application/json')
         result = json.loads(response.content, object_hook=json_to_python_lambda)
-        self.assertEqual(len(result.results), 1)
-        self.template_assertions(result.results[0])
+        self.assertSetEqual({t.id for t in result.results}, {self.t2_id, query_template.id})
+        for template_result in result.results:
+            self.template_assertions(template_result)

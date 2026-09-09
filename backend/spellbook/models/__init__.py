@@ -2,7 +2,7 @@ from .playable import Playable
 from .explanation import Explanation
 from .feature import Feature
 from .card import Card, FeatureOfCard, LayoutRotation
-from .template import Template, TemplateReplacement
+from .template import Template, TemplateReplacement, TemplateMatch
 from .oracle_tag import OracleTag, OracleTagName, CardOracleTag, oracle_tag_key, oracle_tag_condition
 from .recipe import Recipe
 from .ingredient import ComboIngredient, OrderedIngredient, Ingredient, ZoneLocation

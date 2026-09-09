@@ -45,7 +45,7 @@ class TemplateTests(SpellbookTestCaseWithSeeding):
         self.assertEqual(t.replacements.count(), 2)
 
     def test_method_count(self):
-        self.assertEqual(count_methods(Template), 4)
+        self.assertEqual(count_methods(Template), 6)
 
     def test_renaming_a_template_updates_variant_and_combo_names(self):
         self.generate_variants()

@@ -25,6 +25,8 @@ Features can be marked **uncountable** (only ever one copy — this also speeds 
 
 A **placeholder for "any card matching a query"**, e.g. *"a creature with power 4 or greater"*. A template is defined **either** by a [Scryfall-style search query](api.md#the-search-query-language) **or** by an explicit list of concrete **replacements** (cards known to satisfy it) — **not both**. Either way the replacements are ordinary **Cards**. Templates let a combo be written generically; the engine expands them into real cards.
 
+Both kinds resolve to the same relation, `matches`, recomputed by the card sync and whenever a template is edited: a query is evaluated locally against the card table, a replacement list is taken as written. That is what lets a deck be told how many copies of a template it actually holds, rather than assuming a query template is always available.
+
 ### Combo
 
 The **editor-authored interaction** — the input to the engine. A combo is a *recipe* that declares:

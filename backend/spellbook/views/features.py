@@ -2,7 +2,7 @@ from rest_framework import viewsets
 from django_filters.rest_framework import DjangoFilterBackend, FilterSet, MultipleChoiceFilter
 from spellbook.models import Feature
 from spellbook.serializers import FeatureSerializer
-from .filters import NameAndDescriptionAutocompleteQueryFilter
+from .filters import CardNumberFilter, NameAndDescriptionAutocompleteQueryFilter
 
 
 class FeatureFilterSet(FilterSet):
@@ -11,6 +11,7 @@ class FeatureFilterSet(FilterSet):
         choices=Feature.Status.choices,
         conjoined=False,
     )
+    cards = CardNumberFilter(field_name='cards', label='Filters for the features produced by the card with the given number.')
 
     class Meta:
         model = Feature

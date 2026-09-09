@@ -9,4 +9,4 @@ class TemplateViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = TemplateSerializer.prefetch_related(Template.objects.all())
     serializer_class = TemplateSerializer
     filter_backends = [DjangoFilterBackend, NameAndScryfallAutocompleteQueryFilter]
-    filterset_fields = ['replacements']
+    filterset_fields = ['matches']

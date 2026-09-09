@@ -6,7 +6,7 @@ from .filters import CardNumberFilter, NameAndScryfallAutocompleteQueryFilter
 
 
 class TemplateFilterSet(FilterSet):
-    matches = CardNumberFilter(field_name='matches', label='Filters for the templates standing for the card with the given number.')
+    matches = CardNumberFilter(field_name='matches', label='Filters for the templates standing for the cards with the given numbers.')
 
 
 class TemplateViewSet(viewsets.ReadOnlyModelViewSet):

@@ -1,4 +1,5 @@
 import json
+from uuid import uuid4
 from django.urls import reverse
 from rest_framework import status
 from common.inspection import json_to_python_lambda
@@ -79,6 +80,37 @@ class CardViewsTests(SpellbookTestCaseWithSeeding):
         self.assertEqual(result.id, self.c1_id)
         self.card_assertions(result)
 
+    def test_cards_list_view_includes_the_uncurated_cards(self):
+        uncurated = Card.objects.create(name='Uncurated Card', type_line='Instant', oracle_id=uuid4())
+        response = self.client.get(reverse('cards-list'), follow=True)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        result = json.loads(response.content, object_hook=json_to_python_lambda)
+        self.assertEqual(len(result.results), Card.objects.count())
+        uncurated_results = [c for c in result.results if c.oracle_id == str(uncurated.oracle_id)]
+        self.assertEqual(len(uncurated_results), 1)
+        self.assertIsNone(uncurated_results[0].id)
+
+    def test_cards_detail_view_by_oracle_id(self):
+        card = Card.objects.get(id=self.c1_id)
+        response = self.client.get(reverse('cards-detail', args=[card.oracle_id]), follow=True)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        result = json.loads(response.content, object_hook=json_to_python_lambda)
+        self.assertEqual(result.id, card.number)
+        self.card_assertions(result)
+
+    def test_cards_detail_view_reaches_an_uncurated_card_by_oracle_id(self):
+        uncurated = Card.objects.create(name='Uncurated Card', type_line='Instant', oracle_id=uuid4())
+        response = self.client.get(reverse('cards-detail', args=[uncurated.oracle_id]), follow=True)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        result = json.loads(response.content, object_hook=json_to_python_lambda)
+        self.assertIsNone(result.id)
+        self.assertEqual(result.name, uncurated.name)
+
+    def test_cards_detail_view_not_found(self):
+        for lookup in [Card.objects.count() + 1000, uuid4(), 'not-a-card']:
+            response = self.client.get(reverse('cards-detail', args=[lookup]), follow=True)
+            self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
     def test_cards_list_view_ordering(self):
         self.generate_and_publish_variants()
         for ordering, assertion in [
@@ -103,12 +135,15 @@ class CardViewsTests(SpellbookTestCaseWithSeeding):
                 variant_count_values.add(result.results[i].variant_count)  # type: ignore
             self.assertGreater(len(variant_count_values), 1)
 
-    def test_cards_list_view_replacement_filter(self):
-        for template_id in [self.t1_id, self.t2_id]:
-            response = self.client.get(reverse('cards-list'), query_params={'replaces': template_id}, follow=True)  # type: ignore
+    def test_cards_list_view_match_filter(self):
+        # a query says what a template stands for just as a replacement list does, so both are filtered on
+        query_template = Template.objects.create(name='TC', scryfall_query='mv>5')
+        self.assertEqual(query_template.matches.count(), 2)
+        for template_id in [self.t1_id, self.t2_id, query_template.id]:
+            response = self.client.get(reverse('cards-list'), query_params={'matchedBy': template_id}, follow=True)  # type: ignore
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             self.assertEqual(response.get('Content-Type'), 'application/json')
             result = json.loads(response.content, object_hook=json_to_python_lambda)
             card_ids = {c.id for c in result.results}
-            replacements = set(Template.objects.get(id=template_id).replacements.values_list('id', flat=True))
-            self.assertSetEqual(card_ids, replacements)
+            matches = set(Template.objects.get(id=template_id).matches.values_list('number', flat=True))
+            self.assertSetEqual(card_ids, matches)

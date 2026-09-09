@@ -95,7 +95,7 @@ class FindMyCombosViewTests(SpellbookTestCaseWithSeeding):
                     self.assertEqual(len(result.results.almost_included_by_adding_colors_and_changing_commanders), 0)
                 with self.subTest('single card'):
                     card = Card.objects.get(id=self.c1_id)
-                    card_str = str(card.id) if using_ids else card.name
+                    card_str = str(card.number) if using_ids else card.name
                     quantity = 2
                     if 'json' in content_type:
                         deck_list = json.dumps({'main': [{'card': card_str, 'quantity': quantity}]})
@@ -108,18 +108,20 @@ class FindMyCombosViewTests(SpellbookTestCaseWithSeeding):
                     result = json.loads(response.content, object_hook=json_to_python_lambda)  # type: ignore
                     self.assertEqual(result.results.identity, identity)
                     self.assertEqual(len(result.results.included), 0)
-                    self.assertEqual(len(result.results.almost_included), 2)
+                    # only the variant short of one card: the one short of a card and of a template is
+                    # two ingredients away now that a template is no longer assumed to be in the deck
+                    self.assertEqual(len(result.results.almost_included), 1)
                     self.assertEqual(len(result.results.almost_included_by_adding_colors), 0)
                     self.assertEqual(len(result.results.almost_included_by_changing_commanders), 0)
                     self.assertEqual(len(result.results.almost_included_by_adding_colors_and_changing_commanders), 0)
-                    self._check_result(result, identity, FrozenMultiset({card.name: quantity}), FrozenMultiset(), FrozenMultiset(Template.objects.filter(scryfall_query__isnull=False).values_list('name', flat=True)))
+                    self._check_result(result, identity, FrozenMultiset({card.name: quantity}), FrozenMultiset(), FrozenMultiset({t.name: quantity for t in Template.objects.filter(matches=card).distinct()}))
             card_names = list[str](Card.objects.values_list('name', flat=True))
             for card_count in [4, Card.objects.count()]:
                 for commander_count in [0, 1, 2, 4]:
                     with self.subTest(f'{card_count} cards with {commander_count} commanders'):
                         for card_set in itertools.combinations(card_names, card_count):
                             card_set = FrozenMultiset[str]({c: q for q, c in enumerate(card_set, start=1)})
-                            template_set = FrozenMultiset[str]({t.name: sum(card_set.get(c.name, 0) for c in t.replacements.filter(name__in=card_set.distinct_elements())) if not t.scryfall_query else 1 for t in Template.objects.all()})
+                            template_set = FrozenMultiset[str]({t.name: sum(card_set.get(c.name, 0) for c in t.matches.filter(name__in=card_set.distinct_elements())) for t in Template.objects.all()})
                             for commander_set in itertools.combinations(card_set.items(), commander_count):
                                 commander_set = FrozenMultiset[str](dict(commander_set))
                                 commander_list = list(commander_set.items())

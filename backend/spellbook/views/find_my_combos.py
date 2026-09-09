@@ -32,7 +32,7 @@ class FindMyCombosResponseSerializer(serializers.BaseSerializer):
         identity = data['identity']
         identity_set = set(identity) - {'C'}
         deck: Deck = data['deck']
-        cards = deck.main.union(deck.commanders)
+        cards = deck.used_cards
         included_variants = []
         included_variants_by_changing_commanders = []
         almost_included_variants = []
@@ -46,7 +46,7 @@ class FindMyCombosResponseSerializer(serializers.BaseSerializer):
             variant_commanders = FrozenMultiset[int]({civ['card']['id']: civ['quantity'] for civ in variant_data['uses'] if civ['must_be_commander']})
             variants_templates = FrozenMultiset[int]({tiv['template']['id']: tiv['quantity'] for tiv in variant_data['requires']})
             variant_identity = set(variant_data['identity']) - {'C'}
-            if variant_commanders.issubset(deck.commanders):
+            if variant_commanders.issubset(deck.used_commanders):
                 if variant_cards.issubset(cards) and variants_templates.issubset(deck.templates):
                     included_variants.append(variant_data)
                 else:

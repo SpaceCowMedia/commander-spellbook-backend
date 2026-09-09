@@ -193,7 +193,7 @@ class EstimateBracketTests(TestCase):
         variant, recipe = self._make_recipe(cards=[(sure1, 1, False), (sure2, 1, False), (commander, 1, False)])
         result = estimate_bracket(
             cards={sure1: 1, sure2: 1, commander: 1},
-            templates={},
+            commanders=None,
             included_variants=[(variant, recipe)],
         )
         combo = result.combos[0]
@@ -210,7 +210,7 @@ class EstimateBracketTests(TestCase):
         )
         result = estimate_bracket(
             cards={sure1: 1, sure2: 1},
-            templates={template: 1},
+            commanders=None,
             included_variants=[(variant, recipe)],
         )
         combo = result.combos[0]
@@ -226,7 +226,7 @@ class EstimateBracketTests(TestCase):
         )
         result = estimate_bracket(
             cards={sure1: 1},
-            templates={template: 1},
+            commanders=None,
             included_variants=[(variant, recipe)],
         )
         combo = result.combos[0]
@@ -238,9 +238,8 @@ class EstimateBracketTests(TestCase):
         variant, recipe = self._make_recipe(cards=[(sure1, 1, False), (commander, 1, False)])
         result = estimate_bracket(
             cards={sure1: 1, commander: 1},
-            templates={},
-            included_variants=[(variant, recipe)],
             commanders={commander},
+            included_variants=[(variant, recipe)],
         )
         combo = result.combos[0]
         self.assertTrue(combo.definitely_two_card)
@@ -253,9 +252,8 @@ class EstimateBracketTests(TestCase):
         variant, recipe = self._make_recipe(cards=[(sure1, 1, False), (sure2, 1, False), (real_commander, 1, False), (commander_eligible, 1, False)])
         result = estimate_bracket(
             cards={sure1: 1, sure2: 1, real_commander: 1, commander_eligible: 1},
-            templates={},
-            included_variants=[(variant, recipe)],
             commanders={real_commander},
+            included_variants=[(variant, recipe)],
         )
         combo = result.combos[0]
         # With an explicit commanders set, the is_commander heuristic is disabled:

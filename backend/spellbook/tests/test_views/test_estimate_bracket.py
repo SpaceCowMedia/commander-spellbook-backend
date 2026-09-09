@@ -90,10 +90,11 @@ class EstimateBracketViewTests(SpellbookTestCaseWithSeeding):
                     result = json.loads(response.content, object_hook=json_to_python_lambda)
                     self.assertFalse(any(c.banned for c in result.cards))
                     self._check_result(result, card_set, set())
-            with self.subTest('template as extra turns'):
+            with self.subTest('cards a template stands for as extra turns'):
+                # a template needs no classification of its own: the deck holds every card it was
+                # resolved to, so what it stands for reaches the bracket through those cards
                 t = Template.objects.get(pk=self.t2_id)
-                t.name = 'Extra Turn Template'
-                t.save()
+                Card.objects.filter(pk__in=t.matches.values('pk')).update(extra_turn=True)
                 if 'json' in content_type:
                     data = json.dumps({'main': [{'card': card, 'quantity': 2} for card in legal_cards]})
                 else:
@@ -103,7 +104,7 @@ class EstimateBracketViewTests(SpellbookTestCaseWithSeeding):
                 self.assertEqual(response.get('Content-Type'), 'application/json')
                 result = json.loads(response.content, object_hook=json_to_python_lambda)
                 self.assertEqual(result.bracket_tag, Variant.BracketTag.RUTHLESS)
-                self.assertGreaterEqual(sum(t.quantity for t in result.templates if t.extra_turn), 1)
+                self.assertGreaterEqual(sum(c.quantity for c in result.cards if c.extra_turn), 2)
                 self._check_result(result, legal_cards, set())
 
 

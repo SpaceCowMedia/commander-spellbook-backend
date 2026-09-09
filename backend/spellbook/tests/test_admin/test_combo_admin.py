@@ -3,7 +3,7 @@ from collections import defaultdict
 from html import unescape
 from django.urls import reverse
 from spellbook.admin.combo_admin import ALL_ZONE_LOCATIONS
-from spellbook.models import Combo, CardInCombo, Variant, ZoneLocation
+from spellbook.models import Card, CardInCombo, CardUsedInVariantSuggestion, Combo, FeatureProducedInVariantSuggestion, Variant, VariantSuggestion, ZoneLocation
 from spellbook.models.utils import sanitize_newlines_apostrophes_and_quotes
 from ..testing import SpellbookTestCaseWithSeeding
 
@@ -488,3 +488,33 @@ class ComboAdminRestoreTests(ComboAdminTestCase):
         response = self.save_b5()
         self.assertEqual(response.status_code, 302)
         self.assertFalse(Variant.objects.filter(status=Variant.Status.RESTORE).exists())
+
+
+class ComboFromSuggestionTests(SpellbookTestCaseWithSeeding):
+    '''Accepting a suggestion that names a card the database holds but no editor has curated.'''
+
+    def _add_form_from(self, card_name: str):
+        self.client.force_login(self.admin)
+        suggestion = VariantSuggestion.objects.create(
+            status=VariantSuggestion.Status.NEW,
+            description='d',
+            suggested_by=self.admin,
+        )
+        CardUsedInVariantSuggestion.objects.create(suggestion=suggestion, card=card_name, order=1, zone_locations=ZoneLocation.BATTLEFIELD)
+        FeatureProducedInVariantSuggestion.objects.create(suggestion=suggestion, feature='FA')
+        return self.client.get(reverse('admin:spellbook_combo_add'), query_params={'from_variant_suggestion': suggestion.pk}, follow=True)  # type: ignore
+
+    def test_an_uncurated_card_is_reported_instead_of_leaving_the_row_blank(self):
+        uncurated = Card.objects.create(name='Uncurated Suggested Card', type_line='Instant')
+        response = self._add_form_from(uncurated.name)
+        self.assertEqual(response.status_code, 200)
+        messages = [str(m) for m in response.context['messages']]
+        self.assertTrue(any('has not been curated' in message for message in messages), messages)
+
+    def test_a_curated_card_is_filled_in(self):
+        curated = Card.objects.filter(number__isnull=False).first()
+        assert curated is not None
+        response = self._add_form_from(curated.name)
+        self.assertEqual(response.status_code, 200)
+        messages = [str(m) for m in response.context['messages']]
+        self.assertFalse(any('has not been curated' in message for message in messages), messages)

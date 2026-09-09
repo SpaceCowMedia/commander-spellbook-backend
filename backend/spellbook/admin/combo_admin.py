@@ -65,9 +65,12 @@ def find_duplicate_combos(
 
 
 def submitted_quantities(formset: BaseModelFormSet | None, related_field_name: str) -> dict[int, int] | None:
-    '''Sum the submitted quantities by related object id, or None if the submitted data can't be interpreted.'''
-    if formset is None or not formset.is_valid():
+    '''Sum the submitted quantities by related object id, or None if the submitted data can't be interpreted.
+
+    The id read is the one the foreign key stores, which for a card is its number rather than its primary key.'''
+    if formset is None or formset.model is None or not formset.is_valid():
         return None
+    target = formset.model._meta.get_field(related_field_name).target_field.attname
     quantity_by_id = defaultdict[int, int](int)
     for form_data in formset.cleaned_data:
         if not form_data or form_data.get('DELETE'):
@@ -75,7 +78,7 @@ def submitted_quantities(formset: BaseModelFormSet | None, related_field_name: s
         related_object = form_data.get(related_field_name)
         if related_object is None:
             continue
-        quantity_by_id[related_object.pk] += form_data.get('quantity') or 1
+        quantity_by_id[getattr(related_object, target)] += form_data.get('quantity') or 1
     return quantity_by_id
 
 
@@ -387,6 +390,15 @@ class ComboAdmin(SpellbookModelAdmin):
                         messages.warning(request, mark_safe(
                             f'Could not find used card "{suggested_card.card}" in database. {create_missing_object_message(add_card_link)}'
                         ))
+                for name, found in list(found_used_cards.items()):
+                    if found.number is None:
+                        curate_link = reverse('admin:spellbook_card_change', args=[found.pk])
+                        messages.warning(request, mark_safe(
+                            f'The card "{found.name}" is in the database but has not been curated, so a combo cannot use it yet.'
+                            f' <a href="{curate_link}" target="_blank"><u>Click here to curate it</u></a>.'
+                            ' Remember to refresh this page afterwards.'
+                        ))
+                        del found_used_cards[name]
                 request.from_suggestion.suggested_used_cards = suggested_used_cards  # type: ignore
                 request.from_suggestion.uses_dict = found_used_cards  # type: ignore
                 # Handle suggested required templates
@@ -432,7 +444,7 @@ class ComboAdmin(SpellbookModelAdmin):
         if not obj.id and hasattr(request, 'from_suggestion') and request.from_suggestion is not None:  # type: ignore
             initial: list = formset_kwargs.setdefault('initial', [])
             if isinstance(inline, CardInComboAdminInline):
-                suggestion_name_to_card_id: dict[str, Any] = {name: c.pk for name, c in request.from_suggestion.uses_dict.items()}  # type: ignore
+                suggestion_name_to_card_id: dict[str, Any] = {name: c.number for name, c in request.from_suggestion.uses_dict.items()}  # type: ignore
                 suggested_used_cards: list[CardUsedInVariantSuggestion] = request.from_suggestion.suggested_used_cards  # type: ignore
                 for suggested_card in suggested_used_cards:
                     initial.append({

@@ -3,20 +3,25 @@
 
 ?start : expression
 
-?expression : term | expression OR term
+?expression : term | expression OR term -> or_expression
 
-?term : factor | term (AND | _WS) factor
+?term : factor | term (AND | _WS) factor -> and_expression
 
-?factor : matcher | LPAREN expression RPAREN
+?factor : matcher | group
 
-?matcher: NEGATION_OPERATOR? value
+?matcher: value | NEGATION_OPERATOR value -> negation
 
-?value: "!" LONG_LITERAL | pair
+group : LPAREN expression RPAREN
+    | NEGATION_OPERATOR LPAREN expression RPAREN -> negated_group
 
-pair : COMPARABLE_STRING_VARIABLE COMPARISON_OPERATOR string_value
-    | NUMERIC_VARIABLE COMPARISON_OPERATOR numeric_value
-    | MANA_VARIABLE COMPARISON_OPERATOR mana_value
-    | UNCOMPARABLE_STRING_VARIABLE ":" string_value
+?value: exact_name | pair
+
+exact_name : "!" LONG_LITERAL
+
+?pair : COMPARABLE_STRING_VARIABLE COMPARISON_OPERATOR string_value -> comparable_string_pair
+    | NUMERIC_VARIABLE COMPARISON_OPERATOR numeric_value -> numeric_pair
+    | MANA_VARIABLE COMPARISON_OPERATOR mana_value -> mana_pair
+    | UNCOMPARABLE_STRING_VARIABLE ":" string_value -> uncomparable_string_pair
 
 ?string_value : SHORT_LITERAL | LONG_LITERAL | REGEX_VALUE
 
@@ -24,7 +29,7 @@ pair : COMPARABLE_STRING_VARIABLE COMPARISON_OPERATOR string_value
 
 ?mana_value : INTEGER | mana_expression
 
-?mana_expression : MANA_SYMBOL+
+mana_expression : MANA_SYMBOL+
 
 LONG_LITERAL.10 : /"[^"]+"/
 

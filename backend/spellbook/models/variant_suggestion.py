@@ -52,8 +52,8 @@ class VariantSuggestion(Recipe, Suggestion):
 
     @classmethod
     def validate(cls, cards: list[str], templates: list[str], produces: list[str], ignore=None):
-        if len(cards) == 0:
-            raise ValidationError('You must specify at least one card.')
+        if len(cards) == 0 and len(templates) == 0:
+            raise ValidationError('You must specify at least one card or template.')
         if len(produces) == 0:
             raise ValidationError('You must specify at least one feature.')
         if len(cards) > cls.max_cards:

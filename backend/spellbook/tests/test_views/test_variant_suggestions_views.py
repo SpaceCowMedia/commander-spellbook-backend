@@ -165,6 +165,31 @@ class VariantSuggestionsTests(SpellbookTestCaseWithSeeding):
         self.assertTrue(VariantSuggestion.objects.filter(id=result.id).exists())
         self.suggestion_assertions(result)
 
+    def test_new_suggestion_with_only_templates(self):
+        self.client.force_login(self.user)
+        permissions = Permission.objects.filter(content_type=ContentType.objects.get_for_model(VariantSuggestion))
+        self.user.user_permissions.add(*permissions)
+        post_data = deepcopy(self.post_data)
+        post_data['uses'] = []
+        response = self.client.post(reverse('variant-suggestions-list'), post_data, content_type='application/json', follow=True)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        result = json.loads(response.content, object_hook=json_to_python_lambda)
+        self.assertEqual(result.uses, [])
+        self.assertEqual(len(result.requires), 2)
+        self.suggestion_assertions(result)
+        response = self.client.post(reverse('variant-suggestions-list'), post_data, content_type='application/json', follow=True)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_new_suggestion_without_cards_and_templates(self):
+        self.client.force_login(self.user)
+        permissions = Permission.objects.filter(content_type=ContentType.objects.get_for_model(VariantSuggestion))
+        self.user.user_permissions.add(*permissions)
+        post_data = deepcopy(self.post_data)
+        post_data['uses'] = []
+        post_data['requires'] = []
+        response = self.client.post(reverse('variant-suggestions-list'), post_data, content_type='application/json', follow=True)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
     def test_duplicate_suggestion(self):
         self.client.force_login(self.user)
         permissions = Permission.objects.filter(content_type=ContentType.objects.get_for_model(VariantSuggestion))

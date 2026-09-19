@@ -55,11 +55,31 @@ class VariantSuggestionTests(SpellbookTestCaseWithSeeding):
             ['b'],
             []))
 
-    def test_validate_against_empty_cards(self):
+    def test_validate_against_empty_cards_and_templates(self):
+        self.assertRaises(ValidationError, lambda: VariantSuggestion.validate(
+            [],
+            [],
+            ['result']))
+
+    def test_validate_success_with_only_templates(self):
+        VariantSuggestion.validate(
+            [],
+            ['b'],
+            ['result'])
+
+    def test_validate_against_redundancy_with_only_templates(self):
+        s = VariantSuggestion.objects.create(description='2', suggested_by=None)
+        s.requires.create(template='b', order=1, zone_locations=ZoneLocation.BATTLEFIELD)
+        s.produces.create(feature='result')
         self.assertRaises(ValidationError, lambda: VariantSuggestion.validate(
             [],
             ['b'],
             ['result']))
+        VariantSuggestion.validate(
+            [],
+            ['b'],
+            ['result'],
+            ignore=s.pk)
 
     def test_validate_success(self):
         super().generate_variants()

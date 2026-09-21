@@ -1,11 +1,24 @@
 from uuid import UUID
 from rest_framework import viewsets
 from rest_framework.generics import get_object_or_404
-from django_filters.rest_framework import DjangoFilterBackend
+from django_filters.rest_framework import BooleanFilter, DjangoFilterBackend, FilterSet
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
 from spellbook.models import Card
 from spellbook.serializers import CardDetailSerializer
 from .filters import CARD_REFERENCE_HELP, NameAutocompleteQueryFilter, OrderingFilterWithNullsLast
+
+
+class CardFilterSet(FilterSet):
+    curated = BooleanFilter(
+        field_name='number',
+        lookup_expr='isnull',
+        exclude=True,
+        label='Filters for the cards an editor has curated, which are the ones with a number, or with false for the ones nobody has.',
+    )
+
+    class Meta:
+        model = Card
+        fields = ['curated', 'matched_by']
 
 
 @extend_schema_view(
@@ -25,7 +38,7 @@ class CardViewSet(viewsets.ReadOnlyModelViewSet):
     lookup_url_kwarg = 'pk'
     ordering_fields = ['variant_count', 'name']
     filter_backends = [DjangoFilterBackend, NameAutocompleteQueryFilter, OrderingFilterWithNullsLast]
-    filterset_fields = ['matched_by']
+    filterset_class = CardFilterSet
 
     def get_object(self):
         value = self.kwargs[self.lookup_url_kwarg]

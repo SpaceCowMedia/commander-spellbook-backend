@@ -90,6 +90,18 @@ class CardViewsTests(SpellbookTestCaseWithSeeding):
         self.assertEqual(len(uncurated_results), 1)
         self.assertIsNone(uncurated_results[0].id)
 
+    def test_cards_list_view_curated_filter(self):
+        uncurated = Card.objects.create(name='Uncurated Card', type_line='Instant', oracle_id=uuid4())
+        for curated, expected in [
+            ('true', set(Card.objects.filter(number__isnull=False).values_list('oracle_id', flat=True))),
+            ('false', {uncurated.oracle_id}),
+        ]:
+            with self.subTest(curated=curated):
+                response = self.client.get(reverse('cards-list'), query_params={'curated': curated}, follow=True)  # type: ignore
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
+                result = json.loads(response.content, object_hook=json_to_python_lambda)
+                self.assertSetEqual({c.oracle_id for c in result.results}, {str(oracle_id) for oracle_id in expected})
+
     def test_cards_detail_view_by_oracle_id(self):
         card = Card.objects.get(number=self.c1_id)
         response = self.client.get(reverse('cards-detail', args=[card.oracle_id]), follow=True)

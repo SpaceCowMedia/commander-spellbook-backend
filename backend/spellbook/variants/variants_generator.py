@@ -374,7 +374,7 @@ def _restore_variant(
         )
         variant.easy_prerequisites = context.render_field('easy_prerequisites')
         variant.notable_prerequisites = context.render_field('notable_prerequisites')
-        variant.description = context.render_field('description')
+        variant.description = context.render_field('description', only_when_included=context.feature_of_card_sources)
         variant.notes = context.render_field('notes')
         variant.comment = context.render_field('comment')
 

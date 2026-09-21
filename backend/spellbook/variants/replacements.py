@@ -428,15 +428,23 @@ class FieldAssembly:
     result, because they have already been written where they were mentioned. Deciding that is why a
     whole field is assembled at once: a field holding no inclusion is simply every text of it, merged.
     An inclusion with nothing to write is deleted instead, so that no variant displays one.
+
+    A source listed in only_when_included never writes on its own: its text reaches the field only
+    where an inclusion names it, and so do the inclusions that text holds.
     '''
     producers: FeatureIndex[SourceIndex]
     combo_ids: Sequence[comboid | None]
     texts: Mapping[SourceIndex, str]
     merge: MergeTexts
+    only_when_included: frozenset[SourceIndex] = frozenset()
 
     def assemble(self) -> str:
         included = self.included_sources()
-        written = (self.write(source, frozenset()) for source in self.texts if source not in included)
+        written = (
+            self.write(source, frozenset())
+            for source in self.texts
+            if source not in included and source not in self.only_when_included
+        )
         return self.merge(text for text in written if text)
 
     def named_by(self, source: SourceIndex, inclusion: re.Match[str]) -> Sequence[SourceIndex]:
@@ -446,14 +454,19 @@ class FieldAssembly:
         return [other for other in named if other != source]
 
     def included_sources(self) -> set[SourceIndex]:
-        '''Every source named by an inclusion anywhere in the field, which is what keeps its text from
-        being appended on its own.'''
-        return {
-            other
-            for source, text in self.texts.items()
-            for inclusion in INCLUSION_PATTERN.finditer(text)
-            for other in self.named_by(source, inclusion)
-        }
+        '''Every source named by an inclusion the field ends up writing, which is what keeps its text
+        from being appended on its own. The search starts at the sources that write on their own and
+        follows the ones they name, so that an inclusion held by a text nothing writes names nothing.'''
+        included = set[SourceIndex]()
+        pending = [source for source in self.texts if source not in self.only_when_included]
+        while pending:
+            source = pending.pop()
+            for inclusion in INCLUSION_PATTERN.finditer(self.texts.get(source, '')):
+                for other in self.named_by(source, inclusion):
+                    if other not in included:
+                        included.add(other)
+                        pending.append(other)
+        return included
 
     def write(self, source: SourceIndex, ancestors: frozenset[SourceIndex]) -> str:
         '''The text of one source, with its inclusions written out in place. A source already being
@@ -507,6 +520,7 @@ class VariantContext:
         self.overrides = overrides
         self.source_combo_ids = [owning_combo_id(source) for source in sources]
         self.source_of_combo = {combo_id: index for index, combo_id in enumerate(self.source_combo_ids) if combo_id is not None}
+        self.feature_of_card_sources = frozenset(index for index, source in enumerate(sources) if isinstance(source, FeatureOfCard))
         self.aliases = dict[str, Sequence[Alternative[Replacement]]]()
 
     @classmethod
@@ -554,7 +568,7 @@ class VariantContext:
 
         return FEATURE_REPLACEMENT_PATTERN.sub(replace, text)
 
-    def assemble(self, texts: Mapping[SourceIndex, str], merge: MergeTexts) -> str:
+    def assemble(self, texts: Mapping[SourceIndex, str], merge: MergeTexts, only_when_included: frozenset[SourceIndex] = frozenset()) -> str:
         '''Writes one field of the variant out of the texts its sources wrote for it, resolving the
         inclusions they mention against the same sources.'''
         return FieldAssembly(
@@ -562,6 +576,7 @@ class VariantContext:
             combo_ids=self.source_combo_ids,
             texts=texts,
             merge=merge,
+            only_when_included=only_when_included,
         ).assemble()
 
     def texts_by_source(self, states: Sequence[SourcedState], field: str) -> dict[SourceIndex, str]:
@@ -599,7 +614,7 @@ class VariantContext:
                 join_texts if overriding else join_with_conjunction,
             ))
 
-    def render_field(self, field: str, merge: MergeTexts = join_texts) -> str:
+    def render_field(self, field: str, merge: MergeTexts = join_texts, only_when_included: frozenset[SourceIndex] = frozenset()) -> str:
         '''Renders one text field of the variant, from what each of its sources wrote for it, in source
         order. A source with nothing to say writes nothing.'''
         return self.assemble(
@@ -609,4 +624,5 @@ class VariantContext:
                 if (text := getattr(source, field, ''))
             },
             merge,
+            only_when_included,
         )

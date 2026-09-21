@@ -807,11 +807,25 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
         # written where it was named, and not appended a second time
         self.assertEqual(v.description, 'then sacrifice a creature, and win')
 
-    def test_the_description_of_a_card_feature_is_appended_when_nothing_names_it(self):
+    def test_the_description_of_a_card_feature_is_dropped_when_nothing_names_it(self):
         self.combo_fields = {'description': 'and win'}
         combo = self.generator_needing_a_card_feature(description='sacrifice a creature')
         v: Variant = Variant.objects.get(of=combo)
-        self.assertEqual(v.description, 'sacrifice a creature\nand win')
+        self.assertEqual(v.description, 'and win')
+
+    def test_the_inclusions_of_an_unnamed_card_feature_description_are_dropped_with_it(self):
+        self.combo_fields = {'description': 'and win'}
+        combo = self.generator_needing_a_card_feature(description='sacrifice a creature, then {{FD}}')
+        v: Variant = Variant.objects.get(of=combo)
+        self.assertEqual(v.description, 'and win')
+
+    def test_the_other_fields_of_a_card_feature_are_still_appended(self):
+        self.combo_fields = {'easy_prerequisites': 'A', 'notable_prerequisites': 'A', 'notes': 'A'}
+        combo = self.generator_needing_a_card_feature(easy_prerequisites='C', notable_prerequisites='C', notes='C')
+        v: Variant = Variant.objects.get(of=combo)
+        self.assertEqual(v.easy_prerequisites, 'C\nA')
+        self.assertEqual(v.notable_prerequisites, 'C\nA')
+        self.assertEqual(v.notes, 'C\nA')
 
     def test_a_card_feature_can_make_the_mana_needed_an_inaccurate_minimum(self):
         self.combo_fields = {'mana_needed': '{U}', 'is_mana_needed_an_accurate_minimum': True}
@@ -1149,6 +1163,20 @@ class FeatureInclusionTests(SpellbookTestCase):
         self.generate_variants()
 
         self.assertEqual(Variant.objects.get(of=main).description, 'make infinite mana, and again make infinite mana.')
+
+    def test_an_included_card_feature_expands_its_own_inclusion_without_repeating_it(self):
+        '''A feature of a card writes only where an inclusion names it, so what its text names in turn is
+        reached through it: the producer writes there and nowhere else.'''
+        card_feature = Feature.objects.create(name='IFCard', status=Feature.Status.CONTEXTUAL)
+        card = curated_card(name='Inclusion Feature Card', type_line='Creature - Elf')
+        card.featureofcard_set.create(feature=card_feature, zone_locations=ZoneLocation.BATTLEFIELD, description='tap it, then {{IFMana}}')
+        self.make_producer('Inclusion Mana Card', self.mana, description='make infinite mana')
+        main = self.make_main(card_feature, description='First, {{IFCard}}, then win.')
+        FeatureNeededInCombo.objects.create(combo=main, feature=self.mana, order=2)
+
+        self.generate_variants()
+
+        self.assertEqual(Variant.objects.get(of=main).description, 'First, tap it, then make infinite mana, then win.')
 
     def test_an_inclusion_inside_an_included_text_expands_in_turn(self):
         top = Feature.objects.create(name='IFTop', status=Feature.Status.HIDDEN_UTILITY)

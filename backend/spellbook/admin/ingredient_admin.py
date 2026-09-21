@@ -36,7 +36,16 @@ class IngredientAdmin(TabularInline):
     ]
 
 
+class FeatureOfCardForm(IngredientForm):
+    class Meta(IngredientForm.Meta):
+        help_texts = {
+            'description': 'How the card produces the feature. Unlike the other fields, this one is never appended to the description of a variant on its own:'
+            ' it is written only where a text names this feature with the {{name}} syntax, so that it lands among the steps that need it.',
+        }
+
+
 class FeatureOfCardAdmin(IngredientAdmin):
+    form = FeatureOfCardForm
     related_field: str
     fields = [
         'attributes',

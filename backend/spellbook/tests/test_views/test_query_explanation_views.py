@@ -50,6 +50,12 @@ class QueryExplanationTests(SpellbookTestCase):
         self.assertExplanation('@cardcolor:c', 'Combos that use only colorless cards.')
         self.assertExplanation('cardcolor>=r', 'Combos that use a card whose colors include red.')
         self.assertExplanation('cardcolor=2', 'Combos that use a card with exactly 2 colors.')
+        self.assertExplanation('produces:c', 'Combos that use a card producing colorless mana.')
+        self.assertExplanation('produces=wu', 'Combos that use a card producing exactly white and blue mana.')
+        self.assertExplanation('produces<=gc', 'Combos that use a card producing only green or colorless mana.')
+        self.assertExplanation('produces>g', 'Combos that use a card producing green mana and more.')
+        self.assertExplanation('produces:m', 'Combos that use a card producing at least 2 kinds of mana.')
+        self.assertExplanation('@produces=0', 'Combos that use only cards producing exactly 0 kinds of mana.')
 
     def test_identity_terms(self):
         self.assertExplanation('ci:temur', 'Combos that have a color identity within green, blue, and red.')
@@ -164,6 +170,7 @@ class QueryExplanationTests(SpellbookTestCase):
         self.assertInvalid('is:nope', 'Value "nope" is not supported for tag search.')
         self.assertInvalid('legal:frog', 'Format frog is not supported for legality search.')
         self.assertInvalid('ci:xyz', 'Invalid color identity: xyz')
+        self.assertInvalid('produces:colorless', 'Invalid color: colorless')
         self.assertInvalid('bracket:9', 'Value 9 is not supported for bracket search. Choose a value between 1 and 5.')
         self.assertInvalid('@cards>2', 'Prefix @ is not supported for card search with numbers.')
         self.assertInvalid('a' * (MAX_QUERY_LENGTH + 1), 'Search query is too long.')

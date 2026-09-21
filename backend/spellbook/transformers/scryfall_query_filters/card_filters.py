@@ -1,9 +1,9 @@
 from django.core.exceptions import ValidationError
 from django.db import connection
-from django.db.models import F, Q
+from django.db.models import Case, F, Q, Value, When
 from django.db.models.expressions import Combinable
 from spellbook.models import oracle_tag_condition
-from spellbook.parsers.color_parser import parse_color
+from spellbook.parsers.color_parser import parse_color, parse_produced_mana
 from spellbook.parsers.safe_regex import exclude_newline, expand_card_name, validate_safe_regex
 from ..query_parsing import compare
 from .base import ScryfallValue
@@ -24,6 +24,8 @@ NUMERIC_CHARACTERISTICS: dict[str, str | Combinable] = {
 PERMANENT_TYPES = ('Artifact', 'Creature', 'Enchantment', 'Land', 'Planeswalker', 'Battle')
 
 DOUBLE_FACED_LAYOUTS = ('transform', 'modal_dfc', 'double_faced_token', 'reversible_card')
+
+PRODUCES = {kind: Q(produced_mana__icontains=f'"{kind}"') for kind in 'WUBRGC'}
 
 
 def name_filter(name: str) -> Q:
@@ -76,8 +78,44 @@ def colors_of(value: ScryfallValue) -> set[str]:
     return set(parsed) - {'C'}
 
 
+def produced_kinds():
+    '''How many kinds of mana the card makes.'''
+    return sum((Case(When(PRODUCES[kind], then=Value(1)), default=Value(0)) for kind in 'WUBRGC'), start=Value(0))
+
+
+def produced_mana_condition(operator: str, target: str | int) -> Q:
+    '''The kinds of mana a card makes compared to the ones named, as one set to another, or their number
+    compared to a count.
+
+    Only a card making some mana is within a set, the way Scryfall reads it, whereas one making none
+    still differs from it.'''
+    if isinstance(target, int):
+        return compare(produced_kinds(), operator, target)
+    holds = Q(*(PRODUCES[kind] for kind in target))
+    inside = Q(*(~PRODUCES[kind] for kind in 'WUBRGC' if kind not in target))
+    some = Q(*(PRODUCES[kind] for kind in target), _connector=Q.OR)
+    match operator:
+        case ':' | '>=':
+            return holds
+        case '=':
+            return holds & inside
+        case '!=':
+            return ~(holds & inside)
+        case '<=':
+            return inside & some
+        case '<':
+            return inside & some & ~holds
+        case '>':
+            return holds & compare(produced_kinds(), '>', len(target))
+        case _:
+            raise ValidationError(f'Operator {operator} is not supported for produced mana search.')
+
+
 def produces_filter(value: ScryfallValue) -> Q:
-    return Q(*(Q(produced_mana__icontains=f'"{color}"') for color in colors_of(value)))
+    produced = parse_produced_mana(value.value, value.operator)
+    if produced is None:
+        raise ValidationError(f'{value.value} does not name any colour.')
+    return produced_mana_condition(*produced)
 
 
 def color_filter(value: ScryfallValue, field: str) -> Q:

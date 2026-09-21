@@ -88,6 +88,42 @@ class ScryfallQueryTests(SpellbookTestCaseWithSeeding):
         self.assertEqual(matching('produces:G'), {'Test Dork'})
         self.assertEqual(matching('produces:U'), {'Test Land'})
 
+    def test_produces_counts_colorless_as_a_kind_of_mana(self):
+        self.assertEqual(matching('produces:C'), {'Test Rock'})
+        self.assertEqual(matching('produces=c'), {'Test Rock'})
+        self.assertEqual(matching('produces<=gc'), {'Test Dork', 'Test Rock'})
+
+    def test_produces_compares_kinds_of_mana_as_sets(self):
+        curated_card(name='Test Signet', type_line='Artifact', oracle_text='Test Signet makes two.', mana_cost='{2}', mana_value=2, color='C', identity='WU', layout='normal', produced_mana=['U', 'W'])
+        self.assertEqual(matching('produces:wu'), {'Test Signet'})
+        self.assertEqual(matching('produces:azorius'), {'Test Signet'})
+        self.assertEqual(matching('produces>u'), {'Test Signet'})
+        self.assertEqual(matching('produces<wu'), {'Test Land'})
+        # a card making no mana is within no set of kinds, but still differs from every one
+        self.assertEqual(matching('produces<=wu'), {'Test Land', 'Test Signet'})
+        self.assertEqual(matching('produces!=u'), {'Test Bear', 'Test Dork', 'Test Ogre', 'Test Goyf', 'Test Rock', 'Test Signet'})
+
+    def test_produces_compares_how_many_kinds_of_mana(self):
+        curated_card(name='Test Signet', type_line='Artifact', oracle_text='Test Signet makes two.', mana_cost='{2}', mana_value=2, color='C', identity='WU', layout='normal', produced_mana=['U', 'W'])
+        makes_none = {'Test Bear', 'Test Ogre', 'Test Goyf'}
+        makes_one = {'Test Dork', 'Test Land', 'Test Rock'}
+        self.assertEqual(matching('produces=0'), makes_none)
+        self.assertEqual(matching('produces:1'), makes_one)
+        self.assertEqual(matching('produces>=2'), {'Test Signet'})
+        self.assertEqual(matching('produces:m'), {'Test Signet'})
+        self.assertEqual(matching('produces<m'), makes_one)
+        self.assertEqual(matching('produces<=m'), makes_one | {'Test Signet'})
+        self.assertEqual(matching('produces:any'), makes_one | {'Test Signet'})
+        self.assertEqual(matching('produces<=any'), makes_none | makes_one)
+        # what Scryfall answers, though the operators ask for the opposite
+        self.assertEqual(matching('produces!=0'), makes_none)
+        self.assertEqual(matching('produces<0'), makes_none)
+
+    def test_produces_refuses_what_scryfall_refuses(self):
+        for query in ('produces:colorless', 'produces:5color', 'produces:mono', 'produces:wm', 'produces=7'):
+            with self.subTest(query), self.assertRaises(ValidationError):
+                scryfall_query_parser(query)
+
     def test_colors_compare_as_sets(self):
         self.assertEqual(matching('c:G t:creature'), {'Test Bear', 'Test Dork', 'Test Goyf'})
         self.assertEqual(matching('c=0 t:land'), {'Test Land'})

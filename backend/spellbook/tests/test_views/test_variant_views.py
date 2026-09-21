@@ -535,6 +535,50 @@ class VariantViewsTests(SpellbookTestCaseWithSeeding):
                     for v in result.results:
                         self.variant_assertions(v)
 
+    def test_variants_list_view_query_by_card_produces(self):
+        produced_mana = [['C'], ['G'], [], ['U', 'W'], ['G'], [], ['C', 'G'], ['R'], [], ['U']]
+        cards = list(Card.objects.order_by('pk'))
+        for i, card in enumerate(cards):
+            card.produced_mana = produced_mana[i % len(produced_mana)]
+        Card.objects.bulk_update(cards, ['produced_mana'])
+        set_comparisons = {
+            ':': lambda produced, kinds: produced >= kinds,
+            '>=': lambda produced, kinds: produced >= kinds,
+            '=': lambda produced, kinds: produced == kinds,
+            '>': lambda produced, kinds: produced > kinds,
+            '<=': lambda produced, kinds: bool(produced) and produced <= kinds,
+            '<': lambda produced, kinds: bool(produced) and produced < kinds,
+        }
+        queries = [
+            (f'{operator}{value}', lambda produced, comparison=comparison, kinds=kinds: comparison(produced, kinds))
+            for operator, comparison in set_comparisons.items()
+            for value, kinds in [('c', {'C'}), ('g', {'G'}), ('wu', {'W', 'U'}), ('azorius', {'W', 'U'}), ('gc', {'G', 'C'})]
+        ] + [
+            ('=0', lambda produced: not produced),
+            ('<0', lambda produced: not produced),
+            ('>=2', lambda produced: len(produced) >= 2),
+            (':m', lambda produced: len(produced) >= 2),
+            ('<m', lambda produced: len(produced) == 1),
+            (':any', lambda produced: bool(produced)),
+            ('<any', lambda produced: not produced),
+        ]
+        for query, predicate in queries:
+            for prefix in ('', '@'):
+                q = f'{prefix}produces{query}'
+                matching_cards = Card.objects.filter(pk__in=[card.pk for card in cards if predicate(set(card.produced_mana))])
+                if prefix:
+                    variants = self.variants_matching_all_cards(matching_cards)
+                else:
+                    variants = self.variants_matching_any_cards(matching_cards)
+                with self.subTest(f'query by card produces with query {q}'):
+                    response = self.client.get(reverse('variants-list'), query_params={'q': q}, follow=True)  # type: ignore
+                    self.assertEqual(response.status_code, status.HTTP_200_OK)
+                    result = json.loads(response.content, object_hook=json_to_python_lambda)
+                    self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
+        with self.subTest('query by card produces with a value Scryfall refuses'):
+            response = self.client.get(reverse('variants-list'), query_params={'q': 'produces:colorless'}, follow=True)  # type: ignore
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
     def test_variants_list_view_query_by_identity(self):
         for operator, operator_django in self.operators.items():
             queries = []

@@ -102,6 +102,19 @@ class CardViewsTests(SpellbookTestCaseWithSeeding):
                 result = json.loads(response.content, object_hook=json_to_python_lambda)
                 self.assertSetEqual({c.oracle_id for c in result.results}, {str(oracle_id) for oracle_id in expected})
 
+    def test_cards_list_view_autocomplete_ignores_accents(self):
+        accented = Card.objects.create(name='Séance Test', type_line='Instant', oracle_id=uuid4())
+        plain = Card.objects.create(name='Seance Test Board', type_line='Artifact', oracle_id=uuid4())
+        for query, expected in [
+            ('seance test', [accented.name, plain.name]),
+            ('Séance', [accented.name]),
+        ]:
+            with self.subTest(query=query):
+                response = self.client.get(reverse('cards-list'), query_params={'q': query}, follow=True)  # type: ignore
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
+                result = json.loads(response.content, object_hook=json_to_python_lambda)
+                self.assertEqual([c.name for c in result.results], expected)
+
     def test_cards_detail_view_by_oracle_id(self):
         card = Card.objects.get(number=self.c1_id)
         response = self.client.get(reverse('cards-detail', args=[card.oracle_id]), follow=True)

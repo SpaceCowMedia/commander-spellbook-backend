@@ -172,7 +172,7 @@ class AutocompleteQueryFilter(AbstractQueryFilter):
 
 
 class NameAutocompleteQueryFilter(AutocompleteQueryFilter):
-    fields = ['name']
+    fields = ['name_unaccented', 'name']
 
 
 class NameAndDescriptionAutocompleteQueryFilter(AutocompleteQueryFilter):

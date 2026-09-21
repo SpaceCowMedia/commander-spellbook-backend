@@ -522,6 +522,20 @@ jobs:
             timeout ${KUBECTL_TIMEOUT} kubectl rollout status deployment/$deployment -n $NAMESPACE
           done
 
+      # Not part of the migration job: it finishes before the worker is replaced, so the old worker would take the tasks
+      - name: Fire periodic tasks ⏰
+        working-directory: ${{ steps.migration-artifacts.outputs.download-path }}
+        run: |
+          export KUBECONFIG=spellbookkubeconfig.yaml
+          kubectl get cronjobs -n spellbook-prod -o jsonpath='{range .items[*]}{.metadata.name} {.spec.schedule}{"\n"}{end}' |
+            while read -r cronjob minute hour _; do
+              # a single minute and hour, or a macro other than @hourly, run once a day or less often
+              if [[ $minute =~ ^[0-9]+$ && $hour =~ ^[0-9]+$ || $minute == @* && $minute != @hourly ]]; then
+                continue
+              fi
+              kubectl create job --from=cronjob/$cronjob $cronjob-deploy-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT -n spellbook-prod
+            done
+
 
   open-api:
     runs-on: ubuntu-latest

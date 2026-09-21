@@ -9,7 +9,7 @@ LEGALITIES = {
     for format in (
         'commander', 'paupercommander', 'paupercommander_c', 'oathbreaker', 'predh', 'standardbrawl',
         'brawl', 'competitivebrawl', 'alchemy', 'vintage', 'legacy', 'premodern', 'modern', 'pioneer',
-        'standard', 'pauper', 'future', 'standard_brawl', 'competitive_brawl',
+        'standard', 'pauper', 'future',
     )
 }
 
@@ -118,6 +118,23 @@ class CardSyncTests(SpellbookTestCaseWithSeeding):
         _, to_create, _ = update_cards(list(Card.objects.order_by()), scryfall_data(clash), log=lambda t: None, log_warning=warnings.append, log_error=lambda t: None)
         self.assertEqual(to_create, [])
         self.assertTrue(any(existing.name in warning for warning in warnings))
+
+    def test_a_spoiled_card_headed_for_standard_is_legal_where_it_is_not_banned(self):
+        spoiled = bulk_card(
+            'Spoiled Standard Card',
+            str(uuid.uuid4()),
+            released_at='2999-01-01',
+            games=['paper', 'arena'],
+            legalities=NO_LEGALITIES | {'future': 'legal', 'competitivebrawl': 'banned'},
+        )
+        _, to_create, _ = update_cards(list(Card.objects.order_by()), scryfall_data(spoiled), log=lambda t: None, log_warning=lambda t: None, log_error=lambda t: None)
+        created = to_create[0]
+        self.assertTrue(created.spoiler)
+        self.assertTrue(created.legal_standard)
+        self.assertTrue(created.legal_alchemy)
+        self.assertTrue(created.legal_brawl)
+        self.assertTrue(created.legal_standard_brawl)
+        self.assertFalse(created.legal_competitive_brawl)
 
 
 class UnplayableCardTests(SpellbookTestCaseWithSeeding):

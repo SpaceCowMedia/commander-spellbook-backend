@@ -275,8 +275,8 @@ def apply_scryfall_fields(card: Card, card_in_db: dict, scryfall: Scryfall):
             card.legal_alchemy = card_legalities['alchemy'] != 'banned'
         if future_standard or future_alchemy:
             card.legal_brawl = card_legalities['brawl'] != 'banned'
-            card.legal_standard_brawl = card_legalities['standard_brawl'] != 'banned'
-            card.legal_competitive_brawl = card_legalities['competitive_brawl'] != 'banned'
+            card.legal_standard_brawl = card_legalities['standardbrawl'] != 'banned'
+            card.legal_competitive_brawl = card_legalities['competitivebrawl'] != 'banned'
     if 'prices' in card_in_db:
         card_prices = card_in_db['prices']
         p = card_prices['tcgplayer']['price'] if card_prices['tcgplayer'] is not None and card_prices['tcgplayer'].get('price') else 0.0

@@ -10,7 +10,7 @@ from .card import Card
 from .template import Template
 from .variant import Variant
 from .ingredient import OrderedIngredient
-from .validators import TEXT_VALIDATORS, MANA_VALIDATOR, SCRYFALL_QUERY_HELP, SCRYFALL_QUERY_VALIDATORS, NAME_VALIDATORS, NOT_URL_VALIDATOR
+from .validators import TEXT_VALIDATORS, MANA_VALIDATOR, SCRYFALL_QUERY_HELP, SCRYFALL_QUERY_VALIDATORS, NAME_VALIDATORS, FEATURE_NAME_VALIDATORS, NOT_URL_VALIDATOR
 from .scryfall import SCRYFALL_MAX_QUERY_LENGTH
 from .utils import id_from_cards_and_templates_ids, simplify_card_name_on_database, simplify_card_name_with_spaces_on_database, strip_accents
 
@@ -134,7 +134,7 @@ class TemplateRequiredInVariantSuggestion(OrderedIngredient):
 
 
 class FeatureProducedInVariantSuggestion(models.Model):
-    feature = models.CharField(max_length=MAX_FEATURE_NAME_LENGTH, blank=False, help_text='Feature name', verbose_name='feature name', validators=NAME_VALIDATORS)
+    feature = models.CharField(max_length=MAX_FEATURE_NAME_LENGTH, blank=False, help_text='Feature name', verbose_name='feature name', validators=FEATURE_NAME_VALIDATORS)
     suggestion = models.ForeignKey(to=VariantSuggestion, on_delete=models.CASCADE, related_name='produces')
 
     def __str__(self):

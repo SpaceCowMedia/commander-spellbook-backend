@@ -2,7 +2,7 @@ from unittest import TestCase
 from django.core.exceptions import ValidationError
 from spellbook.regexs import DOUBLE_CURLY_BRACKET_TEXT_REGEX, DOUBLE_SQUARE_BRACKET_TEXT_REGEX, MANA_REGEX, ORACLE_SYMBOL, SYMBOLS_TEXT_REGEX
 from spellbook.regexs import MANA_SYMBOL, ORDINARY_CHARACTERS_REGEX, URL_REGEX
-from spellbook.models.validators import SCRYFALL_QUERY_VALIDATOR
+from spellbook.models.validators import LINE_REFERENCE_VALIDATOR, NOT_LINE_REFERENCE_VALIDATOR, SCRYFALL_QUERY_VALIDATOR
 
 
 class TestValidators(TestCase):
@@ -121,6 +121,37 @@ class TestValidators(TestCase):
         self.assertNotRegex('{{}}', DOUBLE_CURLY_BRACKET_TEXT_REGEX)
         self.assertNotRegex('{{', DOUBLE_CURLY_BRACKET_TEXT_REGEX)
         self.assertNotRegex('{{unpaired}', DOUBLE_CURLY_BRACKET_TEXT_REGEX)
+        self.assertRegex('Repeat from step {{2}}, then {{+1}} and {{-3}}', DOUBLE_CURLY_BRACKET_TEXT_REGEX)
+
+    def test_line_references(self):
+        for text in (
+            'First\nRepeat from step {{1}}.',
+            '{{+1}}\nSecond',
+            'Only line {{-0}} and {{+0}}',
+            'First\nSecond\nBack to {{-2}}, forward to {{3}}',
+            '{{Feature}} is no line reference',
+        ):
+            with self.subTest(text=text):
+                LINE_REFERENCE_VALIDATOR(text)
+        for text in (
+            'Repeat from step {{2}}.',
+            'Back to {{-1}}',
+            'Step {{0}}',
+            'First\nForward to {{+1}}',
+            'First\r\nSecond\r\n{{4}}',
+        ):
+            with self.subTest(text=text):
+                with self.assertRaises(ValidationError):
+                    LINE_REFERENCE_VALIDATOR(text)
+
+    def test_not_line_reference(self):
+        for name in ('Feature', '3 Mana', '+4 Power', 'Step 3'):
+            with self.subTest(name=name):
+                NOT_LINE_REFERENCE_VALIDATOR(name)
+        for name in ('3', '+4', '-3', '0'):
+            with self.subTest(name=name):
+                with self.assertRaises(ValidationError):
+                    NOT_LINE_REFERENCE_VALIDATOR(name)
 
     def test_oracle_symbol(self):
         regex = f'^{ORACLE_SYMBOL}$'

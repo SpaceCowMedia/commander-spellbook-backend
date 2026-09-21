@@ -5,7 +5,7 @@ from django.db.models.functions import Lower
 from .constants import MAX_FEATURE_NAME_LENGTH
 from .mixins import NamedModel
 from .utils import case_insensitive_trigram_indexes
-from .validators import NAME_VALIDATORS
+from .validators import FEATURE_NAME_VALIDATORS
 
 
 class Feature(NamedModel):
@@ -17,7 +17,7 @@ class Feature(NamedModel):
         STANDALONE = 'S'
 
     id: int
-    name = NamedModel.name_field(max_length=MAX_FEATURE_NAME_LENGTH, help_text='Short name for a produced effect', verbose_name='name of feature', validators=NAME_VALIDATORS)
+    name = NamedModel.name_field(max_length=MAX_FEATURE_NAME_LENGTH, help_text='Short name for a produced effect', verbose_name='name of feature', validators=FEATURE_NAME_VALIDATORS)
     description = models.TextField(blank=True, help_text='Long description of a produced effect', verbose_name='description of the feature')
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, editable=False)

@@ -10,3 +10,5 @@ ORACLE_SYMBOL_EXTENDED = r'(?:(?:(?:2|P)\/[WUBRG]|W\/U|W\/B|B\/R|B\/G|U\/B|U\/R|
 SYMBOLS_TEXT_REGEX = r'^(?:[^\{]*(?:\{' + ORACLE_SYMBOL + r'\}|\{\{[^\{\}]+\}\}))*[^\{]*$'
 ORDINARY_CHARACTERS_REGEX = r'^[\x0A\x0D\x20-\x7E\x80\x95\x99\xA1\xA9\xAE\xB0\xB1-\xB3\xBC-\xFF\u0100-\u024F\u0300-\u036F\u1E00-\u1EFF\u2014\uA720-\uA7FF]*$'
 RESERVED_CHARACTERS_REGEX = r'\$|\|'
+LINE_REFERENCE_KEY_REGEX = r'(?P<sign>[+-]?)(?P<number>\d+)'
+LINE_REFERENCE_REGEX = r'\{\{' + LINE_REFERENCE_KEY_REGEX + r'\}\}'

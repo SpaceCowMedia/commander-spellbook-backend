@@ -1107,9 +1107,8 @@ class ParallelGenerationOverACycleTests(SpellbookTestCase):
         self.assertEqual(serial, parallel)
 
 
-class FeatureInclusionTests(SpellbookTestCase):
-    '''End to end coverage of the {{name}} syntax, which writes the text box it appears in, taken from
-    the sources producing the mentioned feature, instead of leaving it to be appended.'''
+class TextSourcesTestCase(SpellbookTestCase):
+    '''A generator combo needing a feature, and the combos producing it, each writing its own texts.'''
 
     def setUp(self):
         super().setUp()
@@ -1130,6 +1129,11 @@ class FeatureInclusionTests(SpellbookTestCase):
         FeatureNeededInCombo.objects.create(combo=combo, feature=feature, order=1)
         combo.produces.add(self.win)
         return combo
+
+
+class FeatureInclusionTests(TextSourcesTestCase):
+    '''End to end coverage of the {{name}} syntax, which writes the text box it appears in, taken from
+    the sources producing the mentioned feature, instead of leaving it to be appended.'''
 
     def make_sharing_main(self, producer_state: str, main_state: str) -> tuple[Combo, Card]:
         '''A card asked for by both a producer of IFMana and the main combo, so that a starting state of
@@ -1285,3 +1289,74 @@ class FeatureInclusionTests(SpellbookTestCase):
 
         card_in_variant = Variant.objects.get(of=main).cardinvariant_set.get(card=shared)
         self.assertEqual(card_in_variant.battlefield_card_state, 'in play, untapped and tapped')
+
+
+class LineReferenceTests(TextSourcesTestCase):
+    '''End to end coverage of the {{+X}}, {{-Y}} and {{Z}} syntax, which points at a line of the text it
+    is written in and is replaced with the number that line ends up at in the variant.'''
+
+    def description_of(self, main: Combo) -> str:
+        self.generate_variants()
+        return Variant.objects.get(of=main).description
+
+    def test_a_reference_follows_its_line_past_the_inclusions_around_it(self):
+        self.make_producer('Inclusion Mana Card', self.mana, description='X')
+        text = 'A\n{{IFUnknown}}\n{{IFMana}}\n{{IFOther}}\nRepeat from step {{3}}.'
+        main = self.make_main(self.mana, description=text)
+
+        self.assertEqual(self.description_of(main), 'A\nX\nRepeat from step 2.')
+        self.assertEqual(Combo.objects.get(id=main.id).description, text)
+
+    def test_relative_references_count_from_their_own_line(self):
+        self.make_producer('Inclusion Mana Card', self.mana)
+        main = self.make_main(self.mana, description='{{IFUnknown}}\nIf needed, jump to step {{+2}}.\nTap it.\nUntap it.\nRepeat from step {{-2}}.')
+
+        self.assertEqual(self.description_of(main), 'If needed, jump to step 3.\nTap it.\nUntap it.\nRepeat from step 2.')
+
+    def test_a_line_expanding_into_several_is_referenced_by_its_first(self):
+        self.make_producer('Inclusion Mana Card', self.mana, description='Tap it.\nUntap it.')
+        main = self.make_main(self.mana, description='Cast it.\n{{IFMana}}\nRepeat from step {{2}}.\nStop at step {{-1}}.')
+
+        self.assertEqual(self.description_of(main), 'Cast it.\nTap it.\nUntap it.\nRepeat from step 2.\nStop at step 4.')
+
+    def test_an_appended_text_counts_the_lines_before_it(self):
+        self.make_producer('Inclusion Mana Card', self.mana, description='Tap it.\nUntap it.\nRepeat from step {{1}}.')
+        main = self.make_main(self.mana, description='Cast it.\nWin.')
+
+        self.assertEqual(self.description_of(main), 'Cast it.\nWin.\nTap it.\nUntap it.\nRepeat from step 3.')
+
+    def test_a_reference_in_an_included_text_follows_it_where_it_is_included(self):
+        self.make_producer('Inclusion Mana Card', self.mana, description='Tap it.\nUntap it, then go back to step {{-1}}.')
+        main = self.make_main(self.mana, description='Cast it.\n{{IFMana}}\nWin.')
+
+        self.assertEqual(self.description_of(main), 'Cast it.\nTap it.\nUntap it, then go back to step 2.\nWin.')
+
+    def test_a_deleted_line_is_referenced_by_the_one_taking_its_place(self):
+        self.make_producer('Inclusion Mana Card', self.mana)
+        main = self.make_main(self.mana, description='Cast it.\n{{IFUnknown}}\nTap it.\nRepeat from step {{2}}.')
+
+        self.assertEqual(self.description_of(main), 'Cast it.\nTap it.\nRepeat from step 2.')
+
+    def test_a_text_included_twice_resolves_each_copy_on_its_own(self):
+        self.make_producer('Inclusion Mana Card', self.mana, description='Tap it.\nRepeat from step {{-1}}.')
+        main = self.make_main(self.mana, description='{{IFMana}}\n{{IFMana}}')
+
+        self.assertEqual(self.description_of(main), 'Tap it.\nRepeat from step 1.\nTap it.\nRepeat from step 3.')
+
+    def test_a_reference_outside_of_its_text_is_left_as_written(self):
+        self.make_producer('Inclusion Mana Card', self.mana)
+        main = self.make_main(self.mana, description='Tap it.\nRepeat from step {{5}} or {{-2}}.')
+
+        self.assertEqual(self.description_of(main), 'Tap it.\nRepeat from step {{5}} or {{-2}}.')
+
+    def test_a_trimmed_text_moves_its_references_up(self):
+        self.make_producer('Inclusion Mana Card', self.mana)
+        main = self.make_main(self.mana, description='\n{{IFUnknown}}\nTap it.\nRepeat from step {{3}}.')
+
+        self.assertEqual(self.description_of(main), 'Tap it.\nRepeat from step 1.')
+
+    def test_a_line_vanishing_at_the_end_of_its_text_is_referenced_by_its_last_line(self):
+        self.make_producer('Inclusion Mana Card', self.mana)
+        main = self.make_main(self.mana, description='Tap it.\nRepeat until step {{+1}}.\n{{IFUnknown}}')
+
+        self.assertEqual(self.description_of(main), 'Tap it.\nRepeat until step 2.')

@@ -1,6 +1,9 @@
+import re
 from typing import Any, Callable
+from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
-from ..regexs import RESERVED_CHARACTERS_REGEX, URL_REGEX, FIRST_CAPITAL_LETTER_REGEX, NO_TRAILING_PUNCTUATION_REGEX, MANA_REGEX, DOUBLE_SQUARE_BRACKET_TEXT_REGEX, DOUBLE_CURLY_BRACKET_TEXT_REGEX, SYMBOLS_TEXT_REGEX, ORDINARY_CHARACTERS_REGEX
+from django.utils.deconstruct import deconstructible
+from ..regexs import RESERVED_CHARACTERS_REGEX, URL_REGEX, FIRST_CAPITAL_LETTER_REGEX, NO_TRAILING_PUNCTUATION_REGEX, MANA_REGEX, DOUBLE_SQUARE_BRACKET_TEXT_REGEX, DOUBLE_CURLY_BRACKET_TEXT_REGEX, SYMBOLS_TEXT_REGEX, ORDINARY_CHARACTERS_REGEX, LINE_REFERENCE_KEY_REGEX, LINE_REFERENCE_REGEX
 from ..parsers.scryfall_query_grammar import SCRYFALL_GRAMMAR, VARIABLES_SUPPORTED
 from ..parsers.lark_validator import LarkGrammarValidator
 from ..parsers.safe_regex import MAX_REGEX_LENGTH, validate_query_regexes
@@ -23,8 +26,51 @@ ORDINARY_CHARACTERS_VALIDATOR = RegexValidator(regex=ORDINARY_CHARACTERS_REGEX, 
 
 NO_RESERVED_CHARACTERS_VALIDATOR = RegexValidator(regex=RESERVED_CHARACTERS_REGEX, inverse_match=True, message='Reserved characters are not allowed. Examples of reserved characters: $, |.')
 
-TEXT_VALIDATORS = [DOUBLE_SQUARE_BRACKET_TEXT_VALIDATOR, DOUBLE_CURLY_BRACKET_TEXT_VALIDATOR, SYMBOLS_TEXT_VALIDATOR, ORDINARY_CHARACTERS_VALIDATOR]
-NAME_VALIDATORS = [FIRST_CAPITAL_LETTER_VALIDATOR, NO_TRAILING_PUNCTUATION_VALIDATOR, NOT_URL_VALIDATOR, NO_RESERVED_CHARACTERS_VALIDATOR, *TEXT_VALIDATORS]
+NOT_LINE_REFERENCE_VALIDATOR = RegexValidator(regex=f'^{LINE_REFERENCE_KEY_REGEX}$', inverse_match=True, message='Must not be a line reference, like 3, +4 or -3.')
+
+LINE_REFERENCE_PATTERN = re.compile(LINE_REFERENCE_REGEX)
+
+
+def referenced_line(reference: re.Match[str], line: int) -> int:
+    '''The line of its text a line reference written on the given line points at.'''
+    number = int(reference['number'])
+    match reference['sign']:
+        case '+':
+            return line + number
+        case '-':
+            return line - number
+        case _:
+            return number
+
+
+@deconstructible
+class LineReferenceValidator:
+    '''Rejects a line reference pointing at a line the text it is written in does not have.'''
+    message = '%(reference)s on line %(line)s points at a line the text does not have.'
+    code = 'invalid'
+
+    def __init__(self, message: str | None = None, code: str | None = None):
+        if message is not None:
+            self.message = message
+        if code is not None:
+            self.code = code
+
+    def __call__(self, value: str) -> None:
+        lines = value.split('\n')
+        for position, line in enumerate(lines, start=1):
+            for reference in LINE_REFERENCE_PATTERN.finditer(line):
+                if not 1 <= referenced_line(reference, position) <= len(lines):
+                    raise ValidationError(self.message, code=self.code, params={'reference': reference[0], 'line': position})
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, LineReferenceValidator) and self.message == other.message and self.code == other.code
+
+
+LINE_REFERENCE_VALIDATOR = LineReferenceValidator()
+
+TEXT_VALIDATORS: list[Callable[[Any], None]] = [DOUBLE_SQUARE_BRACKET_TEXT_VALIDATOR, DOUBLE_CURLY_BRACKET_TEXT_VALIDATOR, SYMBOLS_TEXT_VALIDATOR, ORDINARY_CHARACTERS_VALIDATOR, LINE_REFERENCE_VALIDATOR]
+NAME_VALIDATORS: list[Callable[[Any], None]] = [FIRST_CAPITAL_LETTER_VALIDATOR, NO_TRAILING_PUNCTUATION_VALIDATOR, NOT_URL_VALIDATOR, NO_RESERVED_CHARACTERS_VALIDATOR, *TEXT_VALIDATORS]
+FEATURE_NAME_VALIDATORS: list[Callable[[Any], None]] = [*NAME_VALIDATORS, NOT_LINE_REFERENCE_VALIDATOR]
 
 SCRYFALL_QUERY_VALIDATOR = LarkGrammarValidator(SCRYFALL_GRAMMAR)
 

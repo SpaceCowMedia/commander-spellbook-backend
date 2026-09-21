@@ -6,6 +6,7 @@ from .variant_data import Data
 from .combo_graph import FeatureWithAttributes, cardid, comboid, featureid, templateid
 from spellbook.models import Card, CardInVariant, CardType, Combo, FeatureNeededInCombo, FeatureOfCard, Ingredient, Template, TemplateInVariant, ZoneLocation, join_with_conjunction
 from spellbook.models.references import FEATURE_INCLUSION_PATTERN, FEATURE_REPLACEMENT_PATTERN
+from spellbook.models.validators import LINE_REFERENCE_PATTERN, referenced_line
 
 
 FeatureName = str
@@ -24,7 +25,7 @@ _V = TypeVar('_V')
 # An unresolved inclusion is deleted together with the separators that follow it, so that the text
 # closes over the gap it leaves: `x, {{A}}, y` reads `x, y`, and a line holding only an inclusion
 # goes away with it. The separators come back untouched when the inclusion resolves.
-INCLUSION_PATTERN = re.compile(FEATURE_INCLUSION_PATTERN.pattern + r'(?P<separators>[\s,;:.]*)', re.IGNORECASE)
+INCLUSION_PATTERN = re.compile(r'(?P<inclusion>' + FEATURE_INCLUSION_PATTERN.pattern + r')(?P<separators>[\s,;:.]*)', re.IGNORECASE)
 
 
 # ---------------------------------------------------------------------------
@@ -421,6 +422,48 @@ def owning_combo_id(source: TextSource) -> comboid | None:
 
 
 @dataclass(frozen=True)
+class WrittenText:
+    '''A text as written into a field, with the line each of its line references resolves to, counted
+    from its first line, in the order the references appear in it. A reference pointing outside of the
+    text it was written in resolves to None, and is left as written.'''
+    text: str
+    lines: tuple[int | None, ...] = ()
+
+    def shifted(self, by: int) -> tuple[int | None, ...]:
+        return tuple(line + by if line is not None else None for line in self.lines)
+
+
+@dataclass(frozen=True)
+class Substitution:
+    '''An inclusion as written into a text: the span it took in the text of its source, separators
+    included, and what replaced it, which is nothing when it was deleted.'''
+    start: int
+    end: int
+    separators: str
+    included: WrittenText | None
+
+
+def landing_line(text: str, substitutions: Sequence[Substitution], offset: int) -> int:
+    '''The line of a written text that a position of the text of its source lands on. A position inside
+    a deleted inclusion lands where the inclusion was, which is where whatever followed it now is.'''
+    line = 1
+    position = 0
+    for substitution in substitutions:
+        if offset < substitution.start:
+            break
+        line += text.count('\n', position, substitution.start)
+        if offset < substitution.end:
+            separators_start = substitution.end - len(substitution.separators)
+            if substitution.included is None or offset < separators_start:
+                return line
+            return line + substitution.included.text.count('\n') + text.count('\n', separators_start, offset)
+        if substitution.included is not None:
+            line += substitution.included.text.count('\n') + substitution.separators.count('\n')
+        position = substitution.end
+    return line + text.count('\n', position, offset)
+
+
+@dataclass(frozen=True)
 class FieldAssembly:
     '''Assembles one text field of a variant, out of the texts its sources wrote for it.
 
@@ -431,6 +474,10 @@ class FieldAssembly:
 
     A source listed in only_when_included never writes on its own: its text reaches the field only
     where an inclusion names it, and so do the inclusions that text holds.
+
+    A line reference is replaced with the line of the field that the line it points at landed on, which
+    only the whole field knows: every writing of a text keeps track of where its own lines went, and
+    the fields joining their texts line by line are the only ones whose lines are counted.
     '''
     producers: FeatureIndex[SourceIndex]
     combo_ids: Sequence[comboid | None]
@@ -438,14 +485,40 @@ class FieldAssembly:
     merge: MergeTexts
     only_when_included: frozenset[SourceIndex] = frozenset()
 
+    @property
+    def follows_lines(self) -> bool:
+        return self.merge is join_texts
+
     def assemble(self) -> str:
         included = self.included_sources()
-        written = (
+        written = self.join(
             self.write(source, frozenset())
             for source in self.texts
             if source not in included and source not in self.only_when_included
         )
-        return self.merge(text for text in written if text)
+        if not written.lines:
+            return written.text
+        lines = iter(written.lines)
+
+        def number(reference: re.Match[str]) -> str:
+            line = next(lines, None)
+            return str(line) if line is not None else reference[0]
+
+        return LINE_REFERENCE_PATTERN.sub(number, written.text)
+
+    def join(self, pieces: Iterable[WrittenText]) -> WrittenText:
+        '''Merges written texts the way the field merges them, leaving out the empty ones, and moves the
+        lines of each one down to where it starts.'''
+        kept = [piece for piece in pieces if piece.text]
+        text = self.merge(piece.text for piece in kept)
+        if not any(piece.lines for piece in kept):
+            return WrittenText(text)
+        lines = list[int | None]()
+        start = 1
+        for piece in kept:
+            lines.extend(piece.shifted(start - 1))
+            start += piece.text.count('\n') + 1
+        return WrittenText(text, tuple(lines))
 
     def named_by(self, source: SourceIndex, inclusion: re.Match[str]) -> Sequence[SourceIndex]:
         '''The sources an inclusion names, never the one writing it: a text does not write itself, so
@@ -468,24 +541,52 @@ class FieldAssembly:
                         pending.append(other)
         return included
 
-    def write(self, source: SourceIndex, ancestors: frozenset[SourceIndex]) -> str:
+    def write(self, source: SourceIndex, ancestors: frozenset[SourceIndex]) -> WrittenText:
         '''The text of one source, with its inclusions written out in place. A source already being
         written higher up is skipped, so that a cycle of inclusions terminates. An inclusion left with
         nothing to write, because it names no source or only sources being written already, goes away
-        with the separators after it, and the text it was deleted from is trimmed.'''
+        with the separators after it, and the text it was deleted from is trimmed, lines along with it.
+        A line reference names no feature, since no feature can be named like one, so it is left as
+        written for the whole field to number.'''
         written = ancestors | {source}
-        deleted = False
+        substitutions = list[Substitution]()
 
         def include(inclusion: re.Match[str]) -> str:
-            nonlocal deleted
+            if LINE_REFERENCE_PATTERN.fullmatch(inclusion['inclusion']):
+                return inclusion[0]
             named = self.named_by(source, inclusion)
-            texts = (self.write(other, written) for other in named if other not in written)
-            text = self.merge(text for text in texts if text)
-            deleted = deleted or not text
-            return text + inclusion['separators'] if text else ''
+            included = self.join(self.write(other, written) for other in named if other not in written)
+            substitutions.append(Substitution(inclusion.start(), inclusion.end(), inclusion['separators'], included if included.text else None))
+            return included.text + inclusion['separators'] if included.text else ''
 
-        text = INCLUSION_PATTERN.sub(include, self.texts.get(source, ''))
-        return text.strip() if deleted else text
+        source_text = self.texts.get(source, '')
+        text = INCLUSION_PATTERN.sub(include, source_text)
+        lines = self.lines_of(source_text, substitutions) if self.follows_lines else ()
+        if all(substitution.included is not None for substitution in substitutions):
+            return WrittenText(text, lines)
+        stripped = text.strip()
+        removed = text[:len(text) - len(text.lstrip())].count('\n')
+        last = stripped.count('\n') + 1
+        return WrittenText(stripped, tuple(min(max(line - removed, 1), last) if line is not None else None for line in lines))
+
+    def lines_of(self, text: str, substitutions: Sequence[Substitution]) -> tuple[int | None, ...]:
+        '''The lines the line references of one writing of a text resolve to, in the order they are
+        written: its own ones take the line their target landed on, while the ones of an included text
+        are moved down to where it was included. No reference is ever part of a substitution, so where
+        they are in the text of the source orders them the way they are written.'''
+        references = list(LINE_REFERENCE_PATTERN.finditer(text))
+        nested = [(s.start, s.included) for s in substitutions if s.included is not None and s.included.lines]
+        if not references and not nested:
+            return ()
+        line_starts = [0, *(newline.end() for newline in re.finditer('\n', text))]
+        resolved = list[tuple[int, tuple[int | None, ...]]]()
+        for reference in references:
+            target = referenced_line(reference, text.count('\n', 0, reference.start()) + 1)
+            landed = landing_line(text, substitutions, line_starts[target - 1]) if 1 <= target <= len(line_starts) else None
+            resolved.append((reference.start(), (landed,)))
+        for start, included in nested:
+            resolved.append((start, included.shifted(landing_line(text, substitutions, start) - 1)))
+        return tuple(line for _, lines in sorted(resolved, key=lambda r: r[0]) for line in lines)
 
 
 class VariantContext:

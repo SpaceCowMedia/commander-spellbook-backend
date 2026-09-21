@@ -7,7 +7,7 @@ dependencies = [
     "discord.py==2.7.1",
     # spellbook_client is provided on PYTHONPATH rather than installed, so its runtime
     # dependencies are listed here.
-    "urllib3==2.7.0",
+    "urllib3==2.8.0",
     "python-dateutil==2.9.0.post0",
     "aiohttp==3.14.3",
     "aiohttp-retry==2.9.1",

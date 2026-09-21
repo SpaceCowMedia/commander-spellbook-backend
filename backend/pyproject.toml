@@ -63,7 +63,7 @@ dev = [
     "lazy-imports==1.2.0",
     "pydantic==2.13.5",
     "python-dateutil==2.9.0.post0",
-    "urllib3==2.7.0",
+    "urllib3==2.8.0",
     "django-stubs[compatible-mypy]>=6.1.0",
 ]
 

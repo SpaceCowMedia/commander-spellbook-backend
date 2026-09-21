@@ -10,7 +10,7 @@ import spellbook.parsers.safe_regex
 from django.db import migrations, models, connection
 from django.db.models import Exists, OuterRef, Q
 from spellbook.models.variant import EXTRA_TURN_FOR_OPPONENT_PATTERN, EXTRA_TURN_PATTERN, MASS_LAND_DENIAL_PATTERN
-from ._utils import card_number_from_id, normalize_card_names
+from ._utils import LockTables, card_number_from_id, normalize_card_names
 
 
 def populate_card_property_flags(apps, schema_editor):
@@ -53,6 +53,15 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        LockTables({
+            'Variant': 'ACCESS EXCLUSIVE',
+            'CardInVariant': 'ACCESS EXCLUSIVE',
+            'CardInCombo': 'ACCESS EXCLUSIVE',
+            'FeatureOfCard': 'ACCESS EXCLUSIVE',
+            'TemplateReplacement': 'ACCESS EXCLUSIVE',
+            'Template': 'SHARE ROW EXCLUSIVE',
+            'Card': 'ACCESS EXCLUSIVE',
+        }),
         migrations.CreateModel(
             name='CardOracleTag',
             fields=[

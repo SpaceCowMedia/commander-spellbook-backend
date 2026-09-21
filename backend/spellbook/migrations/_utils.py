@@ -1,13 +1,19 @@
 import re
+import time
 from collections import defaultdict
 from dataclasses import dataclass
-from django.db import migrations
+from functools import partial
+from django.db import OperationalError, migrations, transaction
 from django.db.models import Count, F, Q
 from spellbook.models.ingredient import Ingredient
 from spellbook.models.recipe import Recipe
 from spellbook.models.utils import CardType, DEFAULT_BATCH_SIZE, strip_accents
 
 FACE_SEPARATOR = ' // '
+LOCK_TIMEOUT = '2s'
+LOCK_ATTEMPTS = 30
+# lock_not_available and deadlock_detected
+LOCK_CONTENTION = frozenset(('55P03', '40P01'))
 # words an editor can drop from a card name without changing which card it is
 NAME_ARTICLES = frozenset(('the', 'a', 'an'))
 # the wording of a starting card state that only repeats the zone the state already belongs to
@@ -266,3 +272,35 @@ def normalize_card_names(apps, schema_editor):
             card.name_unaccented = plain
             drifted.append(card)
     Card.objects.bulk_update(drifted, ['name_unaccented'], batch_size=DEFAULT_BATCH_SIZE)
+
+
+def lock_tables(modes: dict[str, str], apps, schema_editor):
+    connection = schema_editor.connection
+    if connection.vendor != 'postgresql':
+        return
+    statements = [
+        f'LOCK TABLE {schema_editor.quote_name(apps.get_model("spellbook", model)._meta.db_table)} IN {mode} MODE'
+        for model, mode in modes.items()
+    ]
+    for attempt in range(1, LOCK_ATTEMPTS + 1):
+        try:
+            with transaction.atomic(using=connection.alias), connection.cursor() as cursor:
+                cursor.execute(f"SET LOCAL lock_timeout = '{LOCK_TIMEOUT}'")
+                for statement in statements:
+                    cursor.execute(statement)
+                cursor.execute('SET LOCAL lock_timeout TO DEFAULT')
+            return
+        except OperationalError as error:
+            if attempt == LOCK_ATTEMPTS or getattr(error.__cause__, 'sqlstate', None) not in LOCK_CONTENTION:
+                raise
+            time.sleep(1)
+
+
+class LockTables(migrations.RunPython):
+    '''Takes up front every lock the migration would otherwise take table by table while the site is live.
+    A live query holding a table the migration has yet to alter, while it waits on one already altered,
+    deadlocks with it. The order given should follow the joins live queries make, and a wait longer than
+    LOCK_TIMEOUT gives every lock back and tries again, rather than stall the requests queued behind it.'''
+
+    def __init__(self, modes: dict[str, str]) -> None:
+        super().__init__(code=partial(lock_tables, modes), reverse_code=migrations.RunPython.noop)

@@ -102,7 +102,7 @@ class CardSyncTests(SpellbookTestCaseWithSeeding):
         self.assertIsNone(created.number)
         self.assertEqual(created.mana_cost, '{G}')
         self.assertEqual(created.power, '1')
-        self.assertEqual(created.produced_mana, ['G'])
+        self.assertEqual(created.produced_mana, 'G')
         # the number a search compares is derived when the card is written, not by the sync
         self.assertIsNone(created.power_value)
         created.save()

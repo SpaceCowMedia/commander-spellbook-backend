@@ -31,6 +31,8 @@ def validate_keyword_json(value):
 
 
 class KeywordsField(JSONField):
+    '''A list of strings stored as JSON, such as a card's keywords. An empty list is a valid value rather
+    than a blank one, and every element has to be a string.'''
     empty_values = KEYWORDS_EMPTY_VALUES
 
     def __init__(self, *args, **kwargs):

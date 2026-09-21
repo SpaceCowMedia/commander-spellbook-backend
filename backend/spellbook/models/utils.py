@@ -81,6 +81,17 @@ def merge_color_identities(identities: Iterable[str]) -> str:
     return sort_color_identity(''.join(identities))
 
 
+def produced_mana_kinds(symbols: Iterable[str]) -> str:
+    '''The kinds of mana a card produces as one string: its colors in their canonical order, then C for
+    colorless, and nothing at all for a card making none.'''
+    symbols = set(symbols)
+    colors = frozenset(symbols) & COLORS
+    return (SORTED_COLORS[colors] if colors else '') + ('C' if 'C' in symbols else '')
+
+
+PRODUCED_MANA_KINDS = [colors + colorless for colorless in ('', 'C') for colors in ('', *(c for c in SORTED_COLORS.values() if c != 'C'))]
+
+
 def get_color_or_empty(x: str) -> str:
     s = x.upper()
     return s if s in COLORS else ''

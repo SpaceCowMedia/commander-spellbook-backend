@@ -1,8 +1,7 @@
 from decimal import Decimal
 from functools import cache
 from django.db import models
-from django.db.models.functions import Length, StrIndex
-from django.db.models.lookups import GreaterThan
+from django.db.models.functions import Length
 from constants import SORTED_COLORS
 
 
@@ -12,57 +11,7 @@ class Playable(models.Model):
     def playable_fields(cls):
         return ['identity', 'color', 'spoiler', 'mana_value'] + cls.legalities_fields() + cls.prices_fields()
     identity = models.CharField(max_length=5, blank=False, null=False, default='C', verbose_name='color identity', choices=[(c, c) for c in SORTED_COLORS.values()])
-    identity_w = models.GeneratedField(
-        db_persist=True,
-        expression=GreaterThan(StrIndex('identity', models.Value('W')), models.Value(0)),
-        output_field=models.BooleanField(default=False, verbose_name='identity white'),
-    )
-    identity_u = models.GeneratedField(
-        db_persist=True,
-        expression=GreaterThan(StrIndex('identity', models.Value('U')), models.Value(0)),
-        output_field=models.BooleanField(default=False, verbose_name='identity blue'),
-    )
-    identity_b = models.GeneratedField(
-        db_persist=True,
-        expression=GreaterThan(StrIndex('identity', models.Value('B')), models.Value(0)),
-        output_field=models.BooleanField(default=False, verbose_name='identity black'),
-    )
-    identity_r = models.GeneratedField(
-        db_persist=True,
-        expression=GreaterThan(StrIndex('identity', models.Value('R')), models.Value(0)),
-        output_field=models.BooleanField(default=False, verbose_name='identity red'),
-    )
-    identity_g = models.GeneratedField(
-        db_persist=True,
-        expression=GreaterThan(StrIndex('identity', models.Value('G')), models.Value(0)),
-        output_field=models.BooleanField(default=False, verbose_name='identity green'),
-    )
     color = models.CharField(max_length=5, blank=False, null=False, default='C', verbose_name='colors', choices=[(c, c) for c in SORTED_COLORS.values()])
-    color_w = models.GeneratedField(
-        db_persist=True,
-        expression=GreaterThan(StrIndex('color', models.Value('W')), models.Value(0)),
-        output_field=models.BooleanField(default=False, verbose_name='color white'),
-    )
-    color_u = models.GeneratedField(
-        db_persist=True,
-        expression=GreaterThan(StrIndex('color', models.Value('U')), models.Value(0)),
-        output_field=models.BooleanField(default=False, verbose_name='color blue'),
-    )
-    color_b = models.GeneratedField(
-        db_persist=True,
-        expression=GreaterThan(StrIndex('color', models.Value('B')), models.Value(0)),
-        output_field=models.BooleanField(default=False, verbose_name='color black'),
-    )
-    color_r = models.GeneratedField(
-        db_persist=True,
-        expression=GreaterThan(StrIndex('color', models.Value('R')), models.Value(0)),
-        output_field=models.BooleanField(default=False, verbose_name='color red'),
-    )
-    color_g = models.GeneratedField(
-        db_persist=True,
-        expression=GreaterThan(StrIndex('color', models.Value('G')), models.Value(0)),
-        output_field=models.BooleanField(default=False, verbose_name='color green'),
-    )
     spoiler = models.BooleanField(default=False, help_text='Is this from an upcoming set?', verbose_name='is spoiler')
     mana_value = models.PositiveSmallIntegerField(default=0)
     identity_count = models.GeneratedField(

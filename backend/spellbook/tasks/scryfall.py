@@ -8,7 +8,7 @@ from decimal import Decimal
 from urllib.request import Request, urlopen
 from urllib.parse import urlencode
 from django.utils import timezone
-from spellbook.models import Card, merge_color_identities, simplify_card_name, simplify_card_name_with_spaces, strip_accents, LayoutRotation
+from spellbook.models import Card, merge_color_identities, produced_mana_kinds, simplify_card_name, simplify_card_name_with_spaces, strip_accents, LayoutRotation
 from constants import USER_AGENT
 
 
@@ -327,7 +327,7 @@ def apply_scryfall_fields(card: Card, card_in_db: dict, scryfall: Scryfall):
     produced = set(card_in_db.get('produced_mana') or [])
     for face in card_in_db.get('card_faces', []):
         produced.update(face.get('produced_mana') or [])
-    card.produced_mana = sorted(produced)
+    card.produced_mana = produced_mana_kinds(produced)
 
 
 def scryfall_fields_of(card: Card) -> tuple:

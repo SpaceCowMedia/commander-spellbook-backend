@@ -1,94 +1,40 @@
 from constants import SORTED_COLORS
 
+# the names Scryfall reads a color by, measured against it, followed by the ones this search took on its
+# own before, which Scryfall refuses
+COLOR_NAMES = {
+    'colorless': 'C', 'colourless': 'C',
+    'white': 'W', 'blue': 'U', 'black': 'B', 'red': 'R', 'green': 'G',
+    'azorius': 'WU', 'dimir': 'UB', 'rakdos': 'BR', 'gruul': 'RG', 'selesnya': 'GW',
+    'orzhov': 'WB', 'izzet': 'UR', 'golgari': 'BG', 'boros': 'RW', 'simic': 'GU',
+    'silverquill': 'WB', 'prismari': 'UR', 'witherbloom': 'BG', 'lorehold': 'RW', 'quandrix': 'GU',
+    'bant': 'GWU', 'esper': 'WUB', 'grixis': 'UBR', 'jund': 'BRG', 'naya': 'RGW',
+    'abzan': 'WBG', 'jeskai': 'URW', 'sultai': 'BGU', 'mardu': 'RWB', 'temur': 'GUR',
+    'brokers': 'GWU', 'obscura': 'WUB', 'maestros': 'UBR', 'riveteers': 'BRG', 'cabaretti': 'RGW',
+    'chaos': 'UBRG', 'glinteye': 'UBRG', 'glint-eye': 'UBRG',
+    'aggression': 'BRGW', 'dunebrood': 'BRGW', 'dune-brood': 'BRGW',
+    'altruism': 'RGWU', 'inktreader': 'RGWU', 'ink-treader': 'RGWU',
+    'growth': 'GWUB', 'witchmaw': 'GWUB', 'witch-maw': 'GWUB',
+    'artifice': 'WUBR', 'yoretiller': 'WUBR', 'yore-tiller': 'WUBR',
+    'monowhite': 'W', 'monoblue': 'U', 'monoblack': 'B', 'monored': 'R', 'monogreen': 'G',
+    'glint': 'UBRG', 'dune': 'BRGW', 'ink': 'RGWU', 'witch': 'GWUB', 'yore': 'WUBR',
+    'sanswhite': 'UBRG', 'sansblue': 'BRGW', 'sansblack': 'RGWU', 'sansred': 'GWUB', 'sansgreen': 'WUBR',
+    '5color': 'WUBRG', '5colors': 'WUBRG', 'fivecolor': 'WUBRG', 'fivecolors': 'WUBRG',
+    'penta': 'WUBRG', 'pentacolor': 'WUBRG',
+}
+
 
 def parse_color(value: str) -> str | None:
-    value = value.upper()
-    value_set = frozenset(value)
-    if value_set in SORTED_COLORS:
-        return SORTED_COLORS[value_set]
-    match value:
-        case 'C' | 'COLORLESS':
-            value_set = frozenset('C')
-        case 'WHITE' | 'MONOWHITE':
-            value_set = frozenset('W')
-        case 'BLUE' | 'MONOBLUE':
-            value_set = frozenset('U')
-        case 'BLACK' | 'MONOBLACK':
-            value_set = frozenset('B')
-        case 'RED' | 'MONORED':
-            value_set = frozenset('R')
-        case 'GREEN' | 'MONOGREEN':
-            value_set = frozenset('G')
-        case 'AZORIUS':
-            value_set = frozenset('WU')
-        case 'DIMIR':
-            value_set = frozenset('UB')
-        case 'RAKDOS':
-            value_set = frozenset('BR')
-        case 'GRUUL':
-            value_set = frozenset('RG')
-        case 'SELESNYA':
-            value_set = frozenset('WG')
-        case 'ORZHOV':
-            value_set = frozenset('WB')
-        case 'IZZET':
-            value_set = frozenset('UR')
-        case 'GOLGARI':
-            value_set = frozenset('BG')
-        case 'BOROS':
-            value_set = frozenset('WR')
-        case 'SIMIC':
-            value_set = frozenset('UG')
-        case 'NAYA':
-            value_set = frozenset('WRG')
-        case 'ESPER':
-            value_set = frozenset('WUB')
-        case 'GRIXIS':
-            value_set = frozenset('UBR')
-        case 'JUND':
-            value_set = frozenset('BRG')
-        case 'BANT':
-            value_set = frozenset('WUG')
-        case 'ABZAN':
-            value_set = frozenset('WBG')
-        case 'TEMUR':
-            value_set = frozenset('URG')
-        case 'JESKAI':
-            value_set = frozenset('WUR')
-        case 'MARDU':
-            value_set = frozenset('WBR')
-        case 'SULTAI':
-            value_set = frozenset('UBG')
-        case 'CHAOS' | 'GLINT' | 'GLINTEYE' | 'SANSWHITE':
-            value_set = frozenset('UBRG')
-        case 'AGGRESSION' | 'DUNE' | 'DUNEBROOD' | 'SANSBLUE':
-            value_set = frozenset('WBRG')
-        case 'ALTRUISM' | 'INK' | 'INKTREADER' | 'SANSBLACK':
-            value_set = frozenset('WURG')
-        case 'GROWTH' | 'WITCH' | 'WITCHMAW' | 'SANSRED':
-            value_set = frozenset('WUBG')
-        case 'ARTIFICE' | 'YORE' | 'YORETILLER' | 'SANSGREEN':
-            value_set = frozenset('WUBR')
-        case '5COLOR' | '5COLORS' | 'FIVECOLOR' | 'FIVECOLORS' | 'PENTA' | 'PENTACOLOR':
-            value_set = frozenset('WUBRG')
-        case _:
-            value_set = frozenset()
-    if value_set in SORTED_COLORS:
-        return SORTED_COLORS[value_set]
-    return None
+    '''The colors a value names, either by their letters or by a name, in their canonical order.'''
+    return SORTED_COLORS.get(frozenset(COLOR_NAMES.get(value.lower(), value.upper())))
 
 
-# the names Scryfall reads a produces search by, measured against it: fewer than a color search takes,
-# since colorless, the mono and sans names and the short four-color ones are all refused there
-PRODUCED_MANA_NAMES = {
-    'white': 'w', 'blue': 'u', 'black': 'b', 'red': 'r', 'green': 'g',
-    'azorius': 'wu', 'dimir': 'ub', 'rakdos': 'br', 'gruul': 'rg', 'selesnya': 'wg',
-    'orzhov': 'wb', 'izzet': 'ur', 'golgari': 'bg', 'boros': 'wr', 'simic': 'ug',
-    'silverquill': 'wb', 'prismari': 'ur', 'witherbloom': 'bg', 'lorehold': 'wr', 'quandrix': 'ug',
-    'naya': 'wrg', 'esper': 'wub', 'grixis': 'ubr', 'jund': 'brg', 'bant': 'wug',
-    'abzan': 'wbg', 'temur': 'urg', 'jeskai': 'wur', 'mardu': 'wbr', 'sultai': 'ubg',
-    'chaos': 'ubrg', 'glinteye': 'ubrg', 'aggression': 'wbrg', 'dunebrood': 'wbrg', 'altruism': 'wurg',
-    'inktreader': 'wurg', 'growth': 'wubg', 'witchmaw': 'wubg', 'artifice': 'wubr', 'yoretiller': 'wubr',
+MULTICOLORED_NAMES = ('m', 'multi', 'multicolor', 'multicolour')
+
+COLOR_COUNTS = {str(count): count for count in range(6)} | {'rainbow': 5, 'all': 5}
+
+MULTICOLORED_COLORS = {
+    ':': ('>=', 2), '=': ('>=', 2), '>=': ('>=', 2), '>': ('>=', 2), '<=': ('>=', 0), '<': ('<=', 1), '!=': ('<=', 1),
 }
 
 PRODUCED_MANA_COUNTS = {str(count): count for count in range(7)} | {'rainbow': 5, 'all': 6}
@@ -97,13 +43,26 @@ MULTICOLORED_PRODUCED_MANA = {
     ':': ('>=', 2), '=': ('>=', 2), '>=': ('>=', 2), '>': ('>=', 2), '<=': ('>=', 1), '<': ('=', 1), '!=': ('=', 1),
 }
 
-PRODUCED_MANA_KEYWORDS = {
-    'm': MULTICOLORED_PRODUCED_MANA,
-    'multi': MULTICOLORED_PRODUCED_MANA,
-    'multicolor': MULTICOLORED_PRODUCED_MANA,
-    'multicolour': MULTICOLORED_PRODUCED_MANA,
+PRODUCED_MANA_KEYWORDS = {name: MULTICOLORED_PRODUCED_MANA for name in MULTICOLORED_NAMES} | {
     'any': {':': ('>=', 1), '=': ('>=', 1), '>=': ('>=', 1), '>': ('>=', 1), '!=': ('>=', 1), '<=': ('<=', 1), '<': ('=', 0)},
 }
+
+
+def parse_colors(value: str, operator: str) -> tuple[str, str | int] | None:
+    '''A color or identity search the way Scryfall reads it, as one comparison: of a card's colors to the
+    ones named, colorless naming none of them, or of how many colors it has to a number.
+
+    A colon asks for a number exactly, and the multicolored keyword stands for a number of colors that
+    changes with the operator, the way Scryfall answers both.'''
+    value = value.lower()
+    if value in MULTICOLORED_NAMES:
+        return MULTICOLORED_COLORS[operator]
+    if value in COLOR_COUNTS:
+        return ('=' if operator == ':' else operator), COLOR_COUNTS[value]
+    parsed = parse_color(value)
+    if parsed is None:
+        return None
+    return operator, parsed.replace('C', '')
 
 
 def parse_produced_mana(value: str, operator: str) -> tuple[str, str | int] | None:
@@ -120,7 +79,7 @@ def parse_produced_mana(value: str, operator: str) -> tuple[str, str | int] | No
     if value in PRODUCED_MANA_COUNTS:
         count = PRODUCED_MANA_COUNTS[value]
         return ('=', 0) if count == 0 and operator in ('<', '!=') else (operator, count)
-    value = PRODUCED_MANA_NAMES.get(value, value)
-    if value and set(value) <= set('wubrgc'):
-        return operator, ''.join(kind for kind in 'WUBRGC' if kind.lower() in value)
+    kinds = COLOR_NAMES.get(value, value.upper())
+    if kinds and set(kinds) <= set('WUBRGC'):
+        return operator, ''.join(kind for kind in 'WUBRGC' if kind in kinds)
     return None

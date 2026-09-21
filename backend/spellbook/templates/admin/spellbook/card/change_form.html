@@ -103,7 +103,8 @@
                                     producedMana.add(color);
                                 }
                             }
-                            django.jQuery('#id_produced_mana').val(JSON.stringify(Array.from(producedMana).sort()));
+                            const producedColors = Array.from(producedMana).filter(kind => 'WUBRG'.includes(kind)).sort().join('');
+                            django.jQuery('#id_produced_mana').val((producedColors ? identityMap.get(producedColors) : '') + (producedMana.has('C') ? 'C' : ''));
 
                             django.jQuery('#id_mana_value').val(Math.round(data.cmc));
 

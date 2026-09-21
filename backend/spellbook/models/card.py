@@ -3,11 +3,11 @@ from django.db import models, router, transaction
 from django.dispatch import receiver
 from django.db.models.signals import post_save
 from django.core.validators import MinValueValidator
-from django.db.models.functions import Lower
+from django.db.models.functions import Length, Lower
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from .constants import MAX_CARD_NAME_LENGTH
 from .playable import Playable
-from .utils import as_number, strip_accents, simplify_card_name_on_database, simplify_card_name_with_spaces_on_database, cast_case_insensitive_trigram_indexes, case_insensitive_trigram_indexes, CardType
+from .utils import PRODUCED_MANA_KINDS, as_number, strip_accents, simplify_card_name_on_database, simplify_card_name_with_spaces_on_database, cast_case_insensitive_trigram_indexes, case_insensitive_trigram_indexes, CardType
 from .recipe import update_variants, update_combo_names
 from .mixins import ScryfallLinkMixin, PreSaveModelMixin, NamedModel
 from .feature import Feature
@@ -89,7 +89,12 @@ class Card(NamedModel, Playable, PreSaveModelMixin, ScryfallLinkMixin):
     toughness_value = models.IntegerField(blank=True, null=True, help_text='Toughness as a number, when it is one, so that a search can compare it', verbose_name='numeric toughness of card')
     loyalty_value = models.IntegerField(blank=True, null=True, help_text='Loyalty as a number, when it is one, so that a search can compare it', verbose_name='numeric loyalty of card')
     layout = models.CharField(max_length=32, blank=True, help_text='Scryfall layout of the card, such as normal, transform or adventure', verbose_name='layout of card')
-    produced_mana = KeywordsField(verbose_name='mana produced by card')
+    produced_mana = models.CharField(max_length=6, blank=True, default='', verbose_name='mana produced by card', choices=[(kinds, kinds) for kinds in PRODUCED_MANA_KINDS])
+    produced_mana_count = models.GeneratedField(
+        db_persist=True,
+        expression=Length('produced_mana'),
+        output_field=models.PositiveSmallIntegerField(default=0, verbose_name='kinds of mana produced by card'),
+    )
     reserved = models.BooleanField(default=False, help_text='Whether this card is part of the Reserved List', verbose_name='reserved list card')
     latest_printing_set = models.CharField(max_length=10, blank=True, help_text='Set code of latest printing of card', verbose_name='latest printing set of card')
     reprinted = models.BooleanField(default=False, help_text='Whether this card has been reprinted', verbose_name='reprinted card')
@@ -136,7 +141,7 @@ class Card(NamedModel, Playable, PreSaveModelMixin, ScryfallLinkMixin):
             name_unaccented='name_unacc',
             name_unaccented_simplified='name_unac_sim',
             name_unaccented_simplified_with_spaces='name_unac_sim_sp',
-        ) + cast_case_insensitive_trigram_indexes('card', 'keywords', 'produced_mana') + [
+        ) + cast_case_insensitive_trigram_indexes('card', 'keywords') + [
             models.Index(Lower('name'), name='card_lower_name_idx'),
             models.Index(Lower('name_unaccented'), name='card_lower_name_unacc_idx'),
             models.Index(fields=['mana_cost']),

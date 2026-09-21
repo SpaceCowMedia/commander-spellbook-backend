@@ -17,14 +17,14 @@ class ScryfallQueryTests(SpellbookTestCaseWithSeeding):
     @classmethod
     def setUpTestData(cls):
         super().setUpTestData()
-        cls.bear = curated_card(name='Test Bear', type_line='Creature — Bear', oracle_text='Test Bear is big.', mana_cost='{1}{G}', mana_value=2, power='2', toughness='2', power_value=2, toughness_value=2, color='G', identity='G', layout='normal', keywords=['Trample'], produced_mana=[])
-        cls.dork = curated_card(name='Test Dork', type_line='Creature — Elf', oracle_text='{T}: Add {G}.', mana_cost='{G}', mana_value=1, power='1', toughness='1', power_value=1, toughness_value=1, color='G', identity='G', layout='normal', produced_mana=['G'])
-        cls.land = curated_card(name='Test Land', type_line='Land', oracle_text='{T}: Add {U}.', mana_cost='', mana_value=0, color='C', identity='U', layout='normal', produced_mana=['U'])
+        cls.bear = curated_card(name='Test Bear', type_line='Creature — Bear', oracle_text='Test Bear is big.', mana_cost='{1}{G}', mana_value=2, power='2', toughness='2', power_value=2, toughness_value=2, color='G', identity='G', layout='normal', keywords=['Trample'], produced_mana='')
+        cls.dork = curated_card(name='Test Dork', type_line='Creature — Elf', oracle_text='{T}: Add {G}.', mana_cost='{G}', mana_value=1, power='1', toughness='1', power_value=1, toughness_value=1, color='G', identity='G', layout='normal', produced_mana='G')
+        cls.land = curated_card(name='Test Land', type_line='Land', oracle_text='{T}: Add {U}.', mana_cost='', mana_value=0, color='C', identity='U', layout='normal', produced_mana='U')
         # the only card here whose power and toughness differ, which is what comparing the two turns on
-        cls.ogre = curated_card(name='Test Ogre', type_line='Creature — Ogre', oracle_text='Test Ogre attacks each combat if able.', mana_cost='{2}{R}', mana_value=3, power='4', toughness='1', power_value=4, toughness_value=1, color='R', identity='R', layout='normal', produced_mana=[])
+        cls.ogre = curated_card(name='Test Ogre', type_line='Creature — Ogre', oracle_text='Test Ogre attacks each combat if able.', mana_cost='{2}{R}', mana_value=3, power='4', toughness='1', power_value=4, toughness_value=1, color='R', identity='R', layout='normal', produced_mana='')
         cls.goyf = curated_card(name='Test Goyf', type_line='Creature — Lhurgoyf', oracle_text='Star power.', mana_cost='{1}{G}', mana_value=2, power='*', toughness='1+*', color='G', identity='G', layout='normal')
         # the only card here whose text runs to a second line, which is what a regular expression anchors to
-        cls.rock = curated_card(name='Test Rock', type_line='Artifact', oracle_text='Test Rock enters tapped.\n{T}: Add {C}.', mana_cost='{2}', mana_value=2, color='C', identity='C', layout='normal', produced_mana=['C'])
+        cls.rock = curated_card(name='Test Rock', type_line='Artifact', oracle_text='Test Rock enters tapped.\n{T}: Add {C}.', mana_cost='{2}', mana_value=2, color='C', identity='C', layout='normal', produced_mana='C')
 
     def test_a_type_and_a_number_narrow_each_other(self):
         self.assertEqual(matching('t:creature mv<=1'), {'Test Dork'})
@@ -94,7 +94,7 @@ class ScryfallQueryTests(SpellbookTestCaseWithSeeding):
         self.assertEqual(matching('produces<=gc'), {'Test Dork', 'Test Rock'})
 
     def test_produces_compares_kinds_of_mana_as_sets(self):
-        curated_card(name='Test Signet', type_line='Artifact', oracle_text='Test Signet makes two.', mana_cost='{2}', mana_value=2, color='C', identity='WU', layout='normal', produced_mana=['U', 'W'])
+        curated_card(name='Test Signet', type_line='Artifact', oracle_text='Test Signet makes two.', mana_cost='{2}', mana_value=2, color='C', identity='WU', layout='normal', produced_mana='WU')
         self.assertEqual(matching('produces:wu'), {'Test Signet'})
         self.assertEqual(matching('produces:azorius'), {'Test Signet'})
         self.assertEqual(matching('produces>u'), {'Test Signet'})
@@ -104,7 +104,7 @@ class ScryfallQueryTests(SpellbookTestCaseWithSeeding):
         self.assertEqual(matching('produces!=u'), {'Test Bear', 'Test Dork', 'Test Ogre', 'Test Goyf', 'Test Rock', 'Test Signet'})
 
     def test_produces_compares_how_many_kinds_of_mana(self):
-        curated_card(name='Test Signet', type_line='Artifact', oracle_text='Test Signet makes two.', mana_cost='{2}', mana_value=2, color='C', identity='WU', layout='normal', produced_mana=['U', 'W'])
+        curated_card(name='Test Signet', type_line='Artifact', oracle_text='Test Signet makes two.', mana_cost='{2}', mana_value=2, color='C', identity='WU', layout='normal', produced_mana='WU')
         makes_none = {'Test Bear', 'Test Ogre', 'Test Goyf'}
         makes_one = {'Test Dork', 'Test Land', 'Test Rock'}
         self.assertEqual(matching('produces=0'), makes_none)
@@ -119,14 +119,48 @@ class ScryfallQueryTests(SpellbookTestCaseWithSeeding):
         self.assertEqual(matching('produces!=0'), makes_none)
         self.assertEqual(matching('produces<0'), makes_none)
 
-    def test_produces_refuses_what_scryfall_refuses(self):
-        for query in ('produces:colorless', 'produces:5color', 'produces:mono', 'produces:wm', 'produces=7'):
+    def test_produces_refuses_a_value_naming_no_mana(self):
+        for query in ('produces:mono', 'produces:wm', 'produces=7', 'produces:xyz'):
             with self.subTest(query), self.assertRaises(ValidationError):
                 scryfall_query_parser(query)
 
     def test_colors_compare_as_sets(self):
         self.assertEqual(matching('c:G t:creature'), {'Test Bear', 'Test Dork', 'Test Goyf'})
         self.assertEqual(matching('c=0 t:land'), {'Test Land'})
+
+    def test_a_colon_asks_colors_to_include_the_named_ones_but_an_identity_to_fit_within_them(self):
+        self.assertEqual(matching('c:g'), {'Test Bear', 'Test Dork', 'Test Goyf'})
+        self.assertEqual(matching('id:g'), {'Test Bear', 'Test Dork', 'Test Goyf', 'Test Rock'})
+        self.assertEqual(matching('id:ug'), {'Test Bear', 'Test Dork', 'Test Goyf', 'Test Land', 'Test Rock'})
+        self.assertEqual(matching('id>=g'), {'Test Bear', 'Test Dork', 'Test Goyf'})
+
+    def test_colorless_names_no_color_at_all(self):
+        self.assertEqual(matching('c:c'), {'Test Land', 'Test Rock'})
+        self.assertEqual(matching('c:colorless'), {'Test Land', 'Test Rock'})
+        self.assertEqual(matching('id:c'), {'Test Rock'})
+        self.assertEqual(matching('c>c'), {'Test Bear', 'Test Dork', 'Test Ogre', 'Test Goyf'})
+        self.assertEqual(matching('c<c'), set())
+
+    def test_a_number_counts_colors_and_a_colon_asks_for_it_exactly(self):
+        curated_card(name='Test Charm', type_line='Instant', oracle_text='Choose one.', mana_cost='{G}{U}', mana_value=2, color='GU', identity='GU', layout='normal')
+        colored_once = {'Test Bear', 'Test Dork', 'Test Ogre', 'Test Goyf'}
+        colorless = {'Test Land', 'Test Rock'}
+        self.assertEqual(matching('c:1'), colored_once)
+        self.assertEqual(matching('id:1'), colored_once | {'Test Land'})
+        self.assertEqual(matching('id:2'), {'Test Charm'})
+        self.assertEqual(matching('c:m'), {'Test Charm'})
+        self.assertEqual(matching('c<m'), colored_once | colorless)
+        self.assertEqual(matching('c<=m'), colored_once | colorless | {'Test Charm'})
+        self.assertEqual(matching('c:rainbow'), set())
+        with self.assertRaises(ValidationError):
+            scryfall_query_parser('c:6')
+
+    def test_colors_answer_to_the_names_scryfall_gives_them_and_to_ours(self):
+        self.assertEqual(matching('c=colourless t:land'), {'Test Land'})
+        self.assertEqual(matching('id<=quandrix'), {'Test Bear', 'Test Dork', 'Test Goyf', 'Test Land', 'Test Rock'})
+        self.assertEqual(matching('id<=monogreen'), {'Test Bear', 'Test Dork', 'Test Goyf', 'Test Rock'})
+        self.assertEqual(matching('produces:colorless'), {'Test Rock'})
+        self.assertEqual(matching('produces<=glint-eye'), {'Test Dork', 'Test Land'})
 
     def test_a_regex_reads_one_line_of_the_oracle_text(self):
         # the ability is on the second line, so anchoring to the start of the whole text would miss it

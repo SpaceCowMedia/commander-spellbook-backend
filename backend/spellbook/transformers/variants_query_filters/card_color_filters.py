@@ -22,11 +22,11 @@ def card_color_filter(qv: QueryValue) -> VariantQuery:
         case '<' | '<=' if not value_is_digit:
             q = compare('color_count', qv.operator, len(color))
             for c in not_in_color:
-                q &= Q(**{f'color_{c.lower()}': False})
+                q &= ~Q(color__contains=c)
         case '>' | '>=' if not value_is_digit:
             q = compare('color_count', qv.operator, len(color))
             for c in color:
-                q &= Q(**{f'color_{c.lower()}': True})
+                q &= Q(color__contains=c)
         case _ if value_is_digit:
             q = compare('color_count', qv.operator, int(qv.value))
         case _:

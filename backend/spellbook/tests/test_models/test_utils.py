@@ -1,6 +1,6 @@
 from unittest import TestCase
 from spellbook.models.utils import merge_color_identities, auto_fix_missing_braces_to_oracle_symbols, merge_mana_costs, \
-    upper_oracle_symbols, sanitize_mana, sanitize_scryfall_query, auto_fix_missing_slashes_in_hybrid_mana, join_with_conjunction
+    upper_oracle_symbols, sanitize_mana, sanitize_scryfall_query, auto_fix_missing_slashes_in_hybrid_mana, join_with_conjunction, produced_mana_kinds
 
 
 class TestAutoFixMissingBracesToOracleSymbols(TestCase):
@@ -298,6 +298,18 @@ class TestMergeIdentities(TestCase):
         self.assertSetEqual(set(merge_color_identities(['W', 'U', 'B', 'R', 'G'])), set('WUBRG'))
         self.assertSetEqual(set(merge_color_identities(sorted(['W', 'U', 'B', 'R', 'G']))), set('WUBRG'))
         self.assertSetEqual(set(merge_color_identities(['W', 'U', 'B', 'R', 'G', 'W'])), set('WUBRG'))
+
+
+class TestProducedManaKinds(TestCase):
+    def test_colors_come_in_canonical_order_and_colorless_last(self):
+        self.assertEqual(produced_mana_kinds([]), '')
+        self.assertEqual(produced_mana_kinds(['C']), 'C')
+        self.assertEqual(produced_mana_kinds(['G', 'C']), 'GC')
+        self.assertEqual(produced_mana_kinds(['W', 'R']), 'RW')
+        self.assertEqual(produced_mana_kinds(['B', 'C', 'G', 'R', 'U', 'W']), 'WUBRGC')
+
+    def test_a_symbol_that_is_no_kind_of_mana_is_left_out(self):
+        self.assertEqual(produced_mana_kinds(['T', 'G']), 'G')
         self.assertSetEqual(set(merge_color_identities(['WU', 'BR', 'G', 'WG'])), set('WUBRG'))
         self.assertSetEqual(set(merge_color_identities(['S'])), set('C'))
         self.assertSetEqual(set(merge_color_identities(['S', 'R'])), set('R'))

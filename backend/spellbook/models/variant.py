@@ -230,7 +230,6 @@ class Variant(Recipe, Playable, Explanation, PreSaveSerializedModelMixin, Scryfa
             models.Index(fields=['prerequisites_line_count']),
             models.Index(fields=['description_line_count']),
             *(models.Index(fields=[field]) for field in Playable.playable_fields() if field not in EXACT_SEARCH_FIELDS),
-            *(models.Index(fields=[f'identity_{color}']) for color in 'wubrg'),
         ] + view_ordering_indexes(
             *EXACT_SEARCH_FIELDS,
             legal_pauper_commander_main='pdh_main',

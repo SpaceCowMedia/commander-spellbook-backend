@@ -22,11 +22,11 @@ def identity_filter(qv: QueryValue) -> VariantQuery:
             # a bare colon asks for an identity that fits inside the queried one, which is what <= asks
             q = compare('identity_count', '<=' if qv.operator == ':' else qv.operator, len(identity))
             for color in not_in_identity:
-                q &= Q(**{f'identity_{color.lower()}': False})
+                q &= ~Q(identity__contains=color)
         case '>' | '>=' if not value_is_digit:
             q = compare('identity_count', qv.operator, len(identity))
             for color in identity:
-                q &= Q(**{f'identity_{color.lower()}': True})
+                q &= Q(identity__contains=color)
         case _ if value_is_digit:
             q = compare('identity_count', qv.operator, int(qv.value))
         case _:

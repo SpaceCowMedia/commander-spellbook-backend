@@ -480,7 +480,7 @@ class VariantViewsTests(SpellbookTestCaseWithSeeding):
                     (f'cardcolors{operator}{color}', color),
                     (f'@cardcolor{operator}{color}', color),
                 ])
-            for color_name, color in [('blue', 'U'), ('black', 'B'), ('COLORLESS', 'C')]:
+            for color_name, color in [('blue', 'U'), ('black', 'B'), ('COLORLESS', 'C'), ('colourless', 'C'), ('Brokers', 'GWU')]:
                 queries.extend([
                     (f'cardcolor{operator}{color_name}', color),
                     (f'cardcolors{operator}"{color_name}"', color),
@@ -536,7 +536,7 @@ class VariantViewsTests(SpellbookTestCaseWithSeeding):
                         self.variant_assertions(v)
 
     def test_variants_list_view_query_by_card_produces(self):
-        produced_mana = [['C'], ['G'], [], ['U', 'W'], ['G'], [], ['C', 'G'], ['R'], [], ['U']]
+        produced_mana = ['C', 'G', '', 'WU', 'G', '', 'GC', 'R', '', 'U']
         cards = list(Card.objects.order_by('pk'))
         for i, card in enumerate(cards):
             card.produced_mana = produced_mana[i % len(produced_mana)]
@@ -575,8 +575,8 @@ class VariantViewsTests(SpellbookTestCaseWithSeeding):
                     self.assertEqual(response.status_code, status.HTTP_200_OK)
                     result = json.loads(response.content, object_hook=json_to_python_lambda)
                     self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
-        with self.subTest('query by card produces with a value Scryfall refuses'):
-            response = self.client.get(reverse('variants-list'), query_params={'q': 'produces:colorless'}, follow=True)  # type: ignore
+        with self.subTest('query by card produces with a value naming no mana'):
+            response = self.client.get(reverse('variants-list'), query_params={'q': 'produces:mono'}, follow=True)  # type: ignore
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_variants_list_view_query_by_identity(self):
@@ -598,7 +598,7 @@ class VariantViewsTests(SpellbookTestCaseWithSeeding):
                     (f'c{operator}{identity}', identity),
                     (f'ci{operator}{identity}', identity),
                 ])
-            for identity_name, identity in [('simic', 'UG'), ('Golgari', 'BG'), ('COLORLESS', 'C')]:
+            for identity_name, identity in [('simic', 'UG'), ('Golgari', 'BG'), ('COLORLESS', 'C'), ('quandrix', 'UG'), ('glint-eye', 'UBRG')]:
                 queries.extend([
                     (f'coloridentity{operator}{identity_name}', identity),
                     (f'identity{operator}"{identity_name}"', identity),

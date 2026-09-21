@@ -170,7 +170,7 @@ class QueryExplanationTests(SpellbookTestCase):
         self.assertInvalid('is:nope', 'Value "nope" is not supported for tag search.')
         self.assertInvalid('legal:frog', 'Format frog is not supported for legality search.')
         self.assertInvalid('ci:xyz', 'Invalid color identity: xyz')
-        self.assertInvalid('produces:colorless', 'Invalid color: colorless')
+        self.assertInvalid('produces:mono', 'Invalid color: mono')
         self.assertInvalid('bracket:9', 'Value 9 is not supported for bracket search. Choose a value between 1 and 5.')
         self.assertInvalid('@cards>2', 'Prefix @ is not supported for card search with numbers.')
         self.assertInvalid('a' * (MAX_QUERY_LENGTH + 1), 'Search query is too long.')

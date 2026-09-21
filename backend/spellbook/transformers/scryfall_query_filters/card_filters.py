@@ -1,9 +1,10 @@
 from django.core.exceptions import ValidationError
 from django.db import connection
-from django.db.models import Case, F, Q, Value, When
+from django.db.models import F, Q
 from django.db.models.expressions import Combinable
 from spellbook.models import oracle_tag_condition
-from spellbook.parsers.color_parser import parse_color, parse_produced_mana
+from spellbook.models.utils import PRODUCED_MANA_KINDS
+from spellbook.parsers.color_parser import parse_colors, parse_produced_mana
 from spellbook.parsers.safe_regex import exclude_newline, expand_card_name, validate_safe_regex
 from ..query_parsing import compare
 from .base import ScryfallValue
@@ -24,8 +25,6 @@ NUMERIC_CHARACTERISTICS: dict[str, str | Combinable] = {
 PERMANENT_TYPES = ('Artifact', 'Creature', 'Enchantment', 'Land', 'Planeswalker', 'Battle')
 
 DOUBLE_FACED_LAYOUTS = ('transform', 'modal_dfc', 'double_faced_token', 'reversible_card')
-
-PRODUCES = {kind: Q(produced_mana__icontains=f'"{kind}"') for kind in 'WUBRGC'}
 
 
 def name_filter(name: str) -> Q:
@@ -68,21 +67,6 @@ def keyword_filter(value: ScryfallValue) -> Q:
     return Q(keywords__icontains=f'"{value.value}"')
 
 
-def colors_of(value: ScryfallValue) -> set[str]:
-    '''The colours a query names, where a zero and the word colourless both name none of them.'''
-    if value.value in ('0', ''):
-        return set()
-    parsed = parse_color(value.value)
-    if parsed is None:
-        raise ValidationError(f'{value.value} does not name any colour.')
-    return set(parsed) - {'C'}
-
-
-def produced_kinds():
-    '''How many kinds of mana the card makes.'''
-    return sum((Case(When(PRODUCES[kind], then=Value(1)), default=Value(0)) for kind in 'WUBRGC'), start=Value(0))
-
-
 def produced_mana_condition(operator: str, target: str | int) -> Q:
     '''The kinds of mana a card makes compared to the ones named, as one set to another, or their number
     compared to a count.
@@ -90,23 +74,23 @@ def produced_mana_condition(operator: str, target: str | int) -> Q:
     Only a card making some mana is within a set, the way Scryfall reads it, whereas one making none
     still differs from it.'''
     if isinstance(target, int):
-        return compare(produced_kinds(), operator, target)
-    holds = Q(*(PRODUCES[kind] for kind in target))
-    inside = Q(*(~PRODUCES[kind] for kind in 'WUBRGC' if kind not in target))
-    some = Q(*(PRODUCES[kind] for kind in target), _connector=Q.OR)
+        return compare('produced_mana_count', operator, target)
+    target_kinds = set(target)
+    holds = [kinds for kinds in PRODUCED_MANA_KINDS if target_kinds <= set(kinds)]
+    inside = [kinds for kinds in PRODUCED_MANA_KINDS if set(kinds) <= target_kinds and kinds]
     match operator:
         case ':' | '>=':
-            return holds
+            return Q(produced_mana__in=holds)
         case '=':
-            return holds & inside
+            return Q(produced_mana=target)
         case '!=':
-            return ~(holds & inside)
+            return ~Q(produced_mana=target)
         case '<=':
-            return inside & some
+            return Q(produced_mana__in=inside)
         case '<':
-            return inside & some & ~holds
+            return Q(produced_mana__in=[kinds for kinds in inside if kinds != target])
         case '>':
-            return holds & compare(produced_kinds(), '>', len(target))
+            return Q(produced_mana__in=[kinds for kinds in holds if kinds != target])
         case _:
             raise ValidationError(f'Operator {operator} is not supported for produced mana search.')
 
@@ -119,14 +103,24 @@ def produces_filter(value: ScryfallValue) -> Q:
 
 
 def color_filter(value: ScryfallValue, field: str) -> Q:
-    '''A colour set compared to the queried one, over the generated per colour columns.'''
-    colors = colors_of(value)
+    '''A colour set compared to the queried one, over the generated per colour columns.
+
+    A colon asks a card's colours to include the queried ones but its identity to fit within them, the
+    way Scryfall reads each; asking either for no colours at all asks for colourless.'''
+    parsed = parse_colors(value.value, value.operator)
+    if parsed is None:
+        raise ValidationError(f'{value.value} does not name any colour.')
+    operator, colors = parsed
     count = f'{field}_count'
-    has = {color: Q(**{f'{field}_{color.lower()}': True}) for color in 'WUBRG'}
+    if isinstance(colors, int):
+        return compare(count, operator, colors)
+    if operator == ':':
+        operator = '<=' if field == 'identity' or not colors else '>='
+    has = {color: Q(**{f'{field}__contains': color}) for color in 'WUBRG'}
     inside = Q(*(~has[color] for color in 'WUBRG' if color not in colors))
     holds = Q(*(has[color] for color in colors))
-    match value.operator:
-        case ':' | '>=':
+    match operator:
+        case '>=':
             return holds
         case '=':
             return holds & inside

@@ -1,6 +1,6 @@
 import re
 from functools import partial
-from typing import Callable, Iterable, Sequence, TypeVar
+from typing import Callable, Collection, Iterable, Sequence, TypeVar
 from django.db.models import Q
 from .card import FeatureOfCard
 from .combo import CardInCombo, Combo, FeatureNeededInCombo, TemplateInCombo
@@ -49,6 +49,28 @@ def format_feature_inclusion(key: str, selector: str | None) -> str:
     if selector is not None:
         result += f'${selector}'
     return '{{' + result + '}}'
+
+
+def references_to_features_not_needed(texts: Sequence[str], needed_feature_names: Collection[str]) -> list[str]:
+    '''The replacements and inclusions in the texts of a combo whose key is neither the name of a feature
+    the combo needs nor an alias its texts define, each once, in the order they appear. Names are
+    matched exactly, the way the texts of a variant resolve them.'''
+    aliases = {
+        alias
+        for text in texts
+        for match in FEATURE_REPLACEMENT_PATTERN.finditer(text)
+        for alias in (match['alias'], match['postfix_alias'])
+        if alias
+    }
+    result = dict[str, None]()
+    for text in texts:
+        for match in FEATURE_REPLACEMENT_PATTERN.finditer(text):
+            if match['key'] not in needed_feature_names and match['key'] not in aliases:
+                result.setdefault(match[0])
+        for match in FEATURE_INCLUSION_PATTERN.finditer(text):
+            if match['key'] not in needed_feature_names:
+                result.setdefault(match[0])
+    return list(result)
 
 
 def references_filter(model: type[Combo] | type[Ingredient], referenced: type[Feature] | type[FeatureAttribute], name: str) -> Q:

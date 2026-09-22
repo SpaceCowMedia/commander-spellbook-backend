@@ -1,6 +1,6 @@
 from itertools import product
 from unittest import TestCase
-from spellbook.models.references import FEATURE_INCLUSION_PATTERN, FEATURE_REPLACEMENT_PATTERN, format_feature_inclusion, format_feature_replacement
+from spellbook.models.references import FEATURE_INCLUSION_PATTERN, FEATURE_REPLACEMENT_PATTERN, format_feature_inclusion, format_feature_replacement, references_to_features_not_needed
 
 KEYS = [
     'Feature',
@@ -83,3 +83,23 @@ class FeatureInclusionPatternTests(TestCase):
         for text in ('{{}}', '{{unpaired}', '{W}', '[[Feature]]', '{{Feature|alias}}', '{{Feature$1$2}}'):
             with self.subTest(text=text):
                 self.assertIsNone(FEATURE_INCLUSION_PATTERN.search(text))
+
+
+class ReferencesToFeaturesNotNeededTests(TestCase):
+    def test_references_to_needed_features_pass(self):
+        texts = ['Activate [[Feature#2|alias$1|post]], then [[Other feature$attribute]].', 'Include {{Feature$1}}.']
+        self.assertEqual(references_to_features_not_needed(texts, {'Feature', 'Other feature'}), [])
+
+    def test_references_to_other_features_are_returned_once_in_order(self):
+        texts = ['[[Unneeded]] and {{Included}}', '[[Feature]], [[Unneeded]] and [[Another]]']
+        self.assertEqual(references_to_features_not_needed(texts, {'Feature'}), ['[[Unneeded]]', '{{Included}}', '[[Another]]'])
+
+    def test_names_are_matched_exactly(self):
+        self.assertEqual(references_to_features_not_needed(['[[feature]] and {{feature}}'], {'Feature'}), ['[[feature]]', '{{feature}}'])
+
+    def test_aliases_defined_by_any_of_the_texts_pass(self):
+        texts = ['Use [[alias]] and [[post]].', 'Where [[Feature|alias]] and [[Feature$1|post]] are defined.']
+        self.assertEqual(references_to_features_not_needed(texts, {'Feature'}), [])
+
+    def test_an_alias_is_no_feature_for_an_inclusion(self):
+        self.assertEqual(references_to_features_not_needed(['[[Feature|alias]] {{alias}}'], {'Feature'}), ['{{alias}}'])

@@ -159,6 +159,63 @@ class ComboAdminReplacementsTests(ComboAdminTestCase):
         self.assertEqual(Combo.objects.count(), combo_count + 1)
 
 
+class ComboAdminReferencesTests(ComboAdminTestCase):
+    '''The texts of a combo can only reference the features it requires, by their exact names or by the
+    aliases the texts define, since those are the ones its variants are sure to replace.'''
+
+    def payload_requiring(self, features: list[int], **overrides) -> dict:
+        payload = self.combo_payload(cards=[self.c7_id], **overrides)
+        payload['featureneededincombo_set-TOTAL_FORMS'] = str(len(features))
+        for i, feature_id in enumerate(features):
+            payload.update({
+                f'featureneededincombo_set-{i}-feature': str(feature_id),
+                f'featureneededincombo_set-{i}-quantity': '1',
+                f'featureneededincombo_set-{i}-order': str(i + 1),
+                f'featureneededincombo_set-{i}-in_replacements': 'on',
+            })
+        return payload
+
+    def assertSaved(self, payload: dict):
+        response = self.client.post(self.add_url(), data=payload)
+        self.assertEqual(response.status_code, 302)
+
+    def assertRejected(self, payload: dict, *references: str):
+        combo_count = Combo.objects.count()
+        response = self.client.post(self.add_url(), data=payload)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(f'its texts reference features it does not require: {", ".join(references)}.', unescape(response.content.decode()))
+        self.assertEqual(Combo.objects.count(), combo_count)
+
+    def test_a_reference_to_a_required_feature_is_saved(self):
+        self.assertSaved(self.payload_requiring([self.f2_id], description='Activate [[FB]].'))
+
+    def test_a_reference_to_a_feature_not_required_is_rejected(self):
+        self.assertRejected(self.payload_requiring([], description='Activate [[FB]].'), '[[FB]]')
+
+    def test_names_are_matched_exactly(self):
+        self.assertRejected(self.payload_requiring([self.f2_id], description='Activate [[fb]].'), '[[fb]]')
+
+    def test_an_alias_defined_by_the_texts_can_be_referenced(self):
+        self.assertSaved(self.payload_requiring(
+            [self.f2_id],
+            easy_prerequisites='[[FB|outlet]] on the battlefield.',
+            description='Activate [[outlet]].',
+        ))
+
+    def test_an_inclusion_of_a_feature_not_required_is_rejected(self):
+        self.assertRejected(self.payload_requiring([], description='{{FB}}'), '{{FB}}')
+
+    def test_the_states_of_the_ingredients_are_checked_too(self):
+        payload = self.payload_requiring([self.f3_id])
+        payload['cardincombo_set-0-battlefield_card_state'] = 'Enchanted by [[FB]].'
+        self.assertRejected(payload, '[[FB]]')
+
+    def test_a_deleted_required_feature_no_longer_counts(self):
+        payload = self.payload_requiring([self.f2_id], description='Activate [[FB]].')
+        payload['featureneededincombo_set-0-DELETE'] = 'on'
+        self.assertRejected(payload, '[[FB]]')
+
+
 class ComboAdminMultipleCopiesTests(ComboAdminTestCase):
     '''A combo can require more than one copy of a card or template only if it allows multiple copies.'''
     rejection_message = 'Cannot require more than one copy of the same card or template'

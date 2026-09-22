@@ -18,6 +18,8 @@ from django.shortcuts import redirect
 from django.utils import timezone
 from django.tasks import TaskResult
 from spellbook.models import Card, FeatureNeededInCombo, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, ZoneLocation
+from spellbook.models.references import references_to_features_not_needed
+from spellbook.models.utils import sanitize_newlines_apostrophes_and_quotes
 from spellbook.tasks import generate_variants_task
 from .utils import SpellbookModelAdmin, SpellbookAdminForm, CustomFilter, IngredientCountListFilter
 from .ingredient_admin import ComboIngredientAdmin, IngredientForm
@@ -517,6 +519,7 @@ class ComboAdmin(SpellbookModelAdmin):
         formsets, inline_instances = super()._create_formsets(request, obj, change)  # type: ignore  # private method
         if request.method == 'POST':
             self.reject_combo_without_replacements(formsets)
+            self.reject_references_to_features_not_needed(request, formsets)
             if DUPLICATE_CONFIRMATION_INPUT_NAME not in request.POST:
                 self.reject_duplicate_combo(request, obj, formsets)
         return formsets, inline_instances
@@ -537,6 +540,31 @@ class ComboAdmin(SpellbookModelAdmin):
             formsets_by_model[CardInCombo].non_form_errors().append(
                 'This combo was not saved, because none of its ingredients is in replacements.'
                 ' Check that box on at least one of them, so that the features it produces have something to be replaced with.'
+            )
+
+    def reject_references_to_features_not_needed(self, request: HttpRequest, formsets: list[BaseModelFormSet]):
+        '''
+        Reject a combo whose texts reference a feature it does not require, which its variants only replace
+        when one of their cards happens to produce it. The combo form is cleaned only after its formsets are
+        built, so its texts are read the way its widgets read them.
+        '''
+        formsets_by_model = {formset.model: formset for formset in formsets}
+        texts = [sanitize_newlines_apostrophes_and_quotes(request.POST.get(field, '')) for field in Combo.text_fields_with_references()]
+        needed_feature_names = set[str]()
+        for model in (CardInCombo, TemplateInCombo, FeatureNeededInCombo):
+            formset = formsets_by_model.get(model)
+            if formset is None or not formset.is_valid():
+                return  # the submitted data has errors of its own, and is going to be shown back to the editor anyway
+            for form_data in formset.cleaned_data:
+                if form_data and not form_data.get('DELETE'):
+                    texts.extend(form_data.get(field) or '' for field in model.text_fields_with_references())
+                    if model is FeatureNeededInCombo:
+                        needed_feature_names.add(form_data['feature'].name)
+        references = references_to_features_not_needed(texts, needed_feature_names)
+        if references:
+            formsets_by_model[FeatureNeededInCombo].non_form_errors().append(
+                f'This combo was not saved, because its texts reference features it does not require: {", ".join(references)}.'
+                ' Require those features, or reference the ones it requires by their exact names or by the aliases its texts define.'
             )
 
     def reject_duplicate_combo(self, request: HttpRequest, obj: Combo | None, formsets: list[BaseModelFormSet]):

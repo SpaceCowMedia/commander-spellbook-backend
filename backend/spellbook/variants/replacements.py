@@ -3,7 +3,8 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Callable, Generic, Iterable, Mapping, Sequence, TypeVar
 from .variant_data import Data
-from .combo_graph import FeatureWithAttributes, cardid, comboid, featureid, templateid
+from .variant_set import cardid, templateid
+from .combo_graph import FeatureWithAttributes, comboid, featureid
 from spellbook.models import Card, CardInVariant, CardType, Combo, FeatureNeededInCombo, FeatureOfCard, Ingredient, Template, TemplateInVariant, ZoneLocation, join_with_conjunction
 from spellbook.models.references import FEATURE_INCLUSION_PATTERN, FEATURE_REPLACEMENT_PATTERN
 from spellbook.models.validators import LINE_REFERENCE_PATTERN, referenced_line

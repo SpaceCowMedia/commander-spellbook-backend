@@ -8,8 +8,8 @@ from django.db import transaction
 from multiprocessing_utils import fork_pool, parallelism_is_available, resolve_workers, split_into_chunks
 from .multiset import FrozenMultiset
 from .variant_data import Data, CardInVariantRow, TemplateInVariantRow, FeatureProducedByVariantRow
-from .variant_set import VariantSet
-from .combo_graph import FeatureWithAttributes, Graph, GraphError, cardid, templateid, featureid
+from .variant_set import VariantSet, cardid, templateid
+from .combo_graph import FeatureWithAttributes, Graph, GraphError, featureid
 from .replacements import IngredientPositions, VariantContext
 from .generation_tracking import (
     GenerationPlan, GenerationScope, plan_full_generation, plan_incremental_generation,

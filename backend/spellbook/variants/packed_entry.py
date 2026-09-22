@@ -22,11 +22,11 @@ class PackedEntry:
     '''
 
     __slots__ = ('_packed', '_total', '_hash')
-    _packed: tuple
+    _packed: tuple[int, ...]
     _total: int
     _hash: int
 
-    def __init__(self, _internal: tuple = ()):
+    def __init__(self, _internal: tuple[int, ...] = ()):
         self._packed = _internal
         total = 0
         for packed_item in _internal:
@@ -34,12 +34,12 @@ class PackedEntry:
         self._total = total
 
     @classmethod
-    def from_items(cls, items: Iterable) -> 'PackedEntry':
+    def from_items(cls, items: Iterable[tuple[int, int]]) -> 'PackedEntry':
         '''
         Builds an entry from (element, count) pairs. Elements must be distinct.
         Pairs with a zero count are skipped.
         '''
-        packed_items = []
+        packed_items: list[int] = []
         for element, count in items:
             if count == 0:
                 continue
@@ -51,10 +51,10 @@ class PackedEntry:
         packed_items.sort()
         return cls(tuple(packed_items))
 
-    def items(self) -> list:
+    def items(self) -> list[tuple[int, int]]:
         return [divmod(packed_item, COUNT_LIMIT) for packed_item in self._packed]
 
-    def distinct_elements(self) -> list:
+    def distinct_elements(self) -> list[int]:
         return [packed_item // COUNT_LIMIT for packed_item in self._packed]
 
     def distinct_count(self) -> int:
@@ -103,7 +103,7 @@ class PackedEntry:
         second = other._packed
         first_length: int = len(first)
         second_length: int = len(second)
-        result = []
+        result: list[int] = []
         i: int = 0
         j: int = 0
         while i < first_length and j < second_length:
@@ -131,7 +131,7 @@ class PackedEntry:
         second = other._packed
         first_length: int = len(first)
         second_length: int = len(second)
-        result = []
+        result: list[int] = []
         i: int = 0
         j: int = 0
         while i < first_length and j < second_length:
@@ -170,7 +170,7 @@ class PackedEntry:
             return self._packed == other._packed
         return False
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         try:
             h = self._hash
         except AttributeError:

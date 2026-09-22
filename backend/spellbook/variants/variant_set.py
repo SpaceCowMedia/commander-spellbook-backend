@@ -13,6 +13,12 @@ Entry = PackedEntry
 
 
 @dataclass(frozen=True)
+class VariantIngredients:
+    cards: FrozenMultiset[cardid]
+    templates: FrozenMultiset[templateid]
+
+
+@dataclass(frozen=True)
 class VariantSetParameters:
     max_depth: int | float = float('inf')
     allow_multiple_copies: bool = True
@@ -53,7 +59,7 @@ class VariantSet:
         ))
 
     @classmethod
-    def entry_to_ingredients(cls, entry: Entry) -> tuple[FrozenMultiset[cardid], FrozenMultiset[templateid]]:
+    def entry_to_ingredients(cls, entry: Entry) -> VariantIngredients:
         cards = dict[cardid, int]()
         templates = dict[templateid, int]()
         for item, quantity in entry.items():
@@ -61,7 +67,7 @@ class VariantSet:
                 cards[item] = quantity
             else:
                 templates[-item] = quantity
-        return (FrozenMultiset(cards), FrozenMultiset(templates))
+        return VariantIngredients(FrozenMultiset(cards), FrozenMultiset(templates))
 
     def entries(self) -> Iterable[Entry]:
         return self.sets
@@ -112,8 +118,23 @@ class VariantSet:
                 result.add(entry)
         return self.__class__(parameters=self.parameters, _internal=result)
 
-    def variants(self) -> list[tuple[FrozenMultiset[cardid], FrozenMultiset[templateid]]]:
+    def variants(self) -> list[VariantIngredients]:
         return [self.entry_to_ingredients(e) for e in self.entries()]
+
+    def firing_count(self, ingredients: VariantIngredients) -> int:
+        '''How many times a combo with this variant set fires with the given ingredients: once for every copy they hold of each of its variants.'''
+        count = 0
+        for variant in self.variants():
+            count_for_cards: int | None = ingredients.cards // variant.cards if variant.cards else None
+            count_for_templates: int | None = ingredients.templates // variant.templates if variant.templates else None
+            if count_for_cards is not None:
+                if count_for_templates is not None:
+                    count += min(count_for_cards, count_for_templates)
+                else:
+                    count += count_for_cards
+            elif count_for_templates is not None:
+                count += count_for_templates
+        return count
 
     @classmethod
     def or_sets(cls, sets: list[Self], parameters: VariantSetParameters | None = None):

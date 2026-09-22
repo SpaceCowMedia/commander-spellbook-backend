@@ -1,12 +1,12 @@
 from typing import Iterable
 from unittest import TestCase
-from spellbook.variants.variant_set import VariantSet, VariantSetParameters
-from spellbook.variants.multiset import FrozenMultiset, BaseMultiset
+from spellbook.variants.variant_set import VariantIngredients, VariantSet, VariantSetParameters
+from spellbook.variants.multiset import FrozenMultiset
 from spellbook.variants.packed_entry import PackedEntry
 
 
-def use_hashable_dict(tuples: Iterable[tuple[BaseMultiset[int], BaseMultiset[int]]]) -> set[tuple[tuple[tuple[int, int], ...], ...]]:
-    return set(tuple(tuple(sorted(dict.items())) for dict in t) for t in tuples)
+def use_hashable_dict(variants: Iterable[VariantIngredients]) -> set[tuple[tuple[tuple[int, int], ...], ...]]:
+    return set((tuple(sorted(v.cards.items())), tuple(sorted(v.templates.items()))) for v in variants)
 
 
 class VariantSetTests(TestCase):
@@ -21,12 +21,12 @@ class VariantSetTests(TestCase):
         self.assertEqual(variant_set.variants(), [])
 
     def test_ingredients_to_key(self):
-        self.assertEqual(VariantSet.entry_to_ingredients(VariantSet.ingredients_to_entry(FrozenMultiset({1: 1, 2: 1, 3: 1, 4: 1}), FrozenMultiset({}))), (FrozenMultiset({1: 1, 2: 1, 3: 1, 4: 1}), FrozenMultiset()))
-        self.assertEqual(VariantSet.entry_to_ingredients(VariantSet.ingredients_to_entry(FrozenMultiset({1: 1, 2: 1, 3: 1, 4: 1}), FrozenMultiset({1: 1, 2: 1, 3: 1}))), (FrozenMultiset({1: 1, 2: 1, 3: 1, 4: 1}), FrozenMultiset({1: 1, 2: 1, 3: 1})))
-        self.assertEqual(VariantSet.entry_to_ingredients(VariantSet.ingredients_to_entry(FrozenMultiset({1: 1, 2: 2, 3: 3, 4: 4}), FrozenMultiset({1: 5, 2: 6, 3: 7}))), (FrozenMultiset({1: 1, 2: 2, 3: 3, 4: 4}), FrozenMultiset({1: 5, 2: 6, 3: 7})))
-        self.assertEqual(VariantSet.entry_to_ingredients(VariantSet.ingredients_to_entry(FrozenMultiset({}), FrozenMultiset({1: 1, 2: 1, 3: 1}))), (FrozenMultiset(), FrozenMultiset({1: 1, 2: 1, 3: 1})))
-        self.assertEqual(VariantSet.entry_to_ingredients(VariantSet.ingredients_to_entry(FrozenMultiset({}), FrozenMultiset({}))), (FrozenMultiset(), FrozenMultiset()))
-        self.assertEqual(VariantSet.entry_to_ingredients(VariantSet.ingredients_to_entry(FrozenMultiset({1: 1}), FrozenMultiset({1: 2}))), (FrozenMultiset({1: 1}), FrozenMultiset({1: 2})))
+        self.assertEqual(VariantSet.entry_to_ingredients(VariantSet.ingredients_to_entry(FrozenMultiset({1: 1, 2: 1, 3: 1, 4: 1}), FrozenMultiset({}))), VariantIngredients(FrozenMultiset({1: 1, 2: 1, 3: 1, 4: 1}), FrozenMultiset()))
+        self.assertEqual(VariantSet.entry_to_ingredients(VariantSet.ingredients_to_entry(FrozenMultiset({1: 1, 2: 1, 3: 1, 4: 1}), FrozenMultiset({1: 1, 2: 1, 3: 1}))), VariantIngredients(FrozenMultiset({1: 1, 2: 1, 3: 1, 4: 1}), FrozenMultiset({1: 1, 2: 1, 3: 1})))
+        self.assertEqual(VariantSet.entry_to_ingredients(VariantSet.ingredients_to_entry(FrozenMultiset({1: 1, 2: 2, 3: 3, 4: 4}), FrozenMultiset({1: 5, 2: 6, 3: 7}))), VariantIngredients(FrozenMultiset({1: 1, 2: 2, 3: 3, 4: 4}), FrozenMultiset({1: 5, 2: 6, 3: 7})))
+        self.assertEqual(VariantSet.entry_to_ingredients(VariantSet.ingredients_to_entry(FrozenMultiset({}), FrozenMultiset({1: 1, 2: 1, 3: 1}))), VariantIngredients(FrozenMultiset(), FrozenMultiset({1: 1, 2: 1, 3: 1})))
+        self.assertEqual(VariantSet.entry_to_ingredients(VariantSet.ingredients_to_entry(FrozenMultiset({}), FrozenMultiset({}))), VariantIngredients(FrozenMultiset(), FrozenMultiset()))
+        self.assertEqual(VariantSet.entry_to_ingredients(VariantSet.ingredients_to_entry(FrozenMultiset({1: 1}), FrozenMultiset({1: 2}))), VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset({1: 2})))
 
     def test_key_to_ingredients(self):
         for entry in [
@@ -35,66 +35,67 @@ class VariantSetTests(TestCase):
             PackedEntry.from_items([(1, 1), (2, 2), (-1, 1), (-2, 1)]),
             PackedEntry.from_items([(1, 10), (2, 10), (-1, 10), (-3, 10)]),
         ]:
-            self.assertEqual(VariantSet.ingredients_to_entry(*VariantSet.entry_to_ingredients(entry)), entry)
+            ingredients = VariantSet.entry_to_ingredients(entry)
+            self.assertEqual(VariantSet.ingredients_to_entry(ingredients.cards, ingredients.templates), entry)
 
     def test_variant_set_add(self):
         variant_set = VariantSet(entries=[
             VariantSet.ingredients_to_entry(FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 4}), FrozenMultiset({1: 1, 2: 2, 3: 129})),
         ])
         self.assertEqual(use_hashable_dict(variant_set.variants()), use_hashable_dict([
-            (FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 4}), FrozenMultiset({1: 1, 2: 2, 3: 129})),
+            VariantIngredients(FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 4}), FrozenMultiset({1: 1, 2: 2, 3: 129})),
         ]))
         variant_set = VariantSet(entries=[
             *variant_set.entries(),
             VariantSet.ingredients_to_entry(FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 4}), FrozenMultiset({1: 1, 2: 2, 3: 129})),
         ])
         self.assertEqual(use_hashable_dict(variant_set.variants()), use_hashable_dict([
-            (FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 4}), FrozenMultiset({1: 1, 2: 2, 3: 129})),
+            VariantIngredients(FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 4}), FrozenMultiset({1: 1, 2: 2, 3: 129})),
         ]))
         variant_set = VariantSet(entries=[
             *variant_set.entries(),
             VariantSet.ingredients_to_entry(FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 4}), FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 4})),
         ])
         self.assertEqual(use_hashable_dict(variant_set.variants()), use_hashable_dict([
-            (FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 4}), FrozenMultiset({1: 1, 2: 2, 3: 129})),
+            VariantIngredients(FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 4}), FrozenMultiset({1: 1, 2: 2, 3: 129})),
         ]))
         variant_set = VariantSet(entries=[
             *variant_set.entries(),
             VariantSet.ingredients_to_entry(FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 4, 5: 5}), FrozenMultiset({1: 1, 2: 2, 3: 129})),
         ])
         self.assertEqual(use_hashable_dict(variant_set.variants()), use_hashable_dict([
-            (FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 4}), FrozenMultiset({1: 1, 2: 2, 3: 129})),
+            VariantIngredients(FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 4}), FrozenMultiset({1: 1, 2: 2, 3: 129})),
         ]))
         variant_set = VariantSet(entries=[
             *variant_set.entries(),
             VariantSet.ingredients_to_entry(FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 4, 5: 5, 6: 6}), FrozenMultiset({1: 1, 2: 2})),
         ])
         self.assertEqual(use_hashable_dict(variant_set.variants()), use_hashable_dict([
-            (FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 4}), FrozenMultiset({1: 1, 2: 2, 3: 129})),
-            (FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 4, 5: 5, 6: 6}), FrozenMultiset({1: 1, 2: 2})),
+            VariantIngredients(FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 4}), FrozenMultiset({1: 1, 2: 2, 3: 129})),
+            VariantIngredients(FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 4, 5: 5, 6: 6}), FrozenMultiset({1: 1, 2: 2})),
         ]))
         variant_set = VariantSet(entries=[
             *variant_set.entries(),
             VariantSet.ingredients_to_entry(FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 4, 5: 5}), FrozenMultiset({1: 1, 2: 2})),
         ])
         self.assertEqual(use_hashable_dict(variant_set.variants()), use_hashable_dict([
-            (FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 4}), FrozenMultiset({1: 1, 2: 2, 3: 129})),
-            (FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 4, 5: 5}), FrozenMultiset({1: 1, 2: 2})),
+            VariantIngredients(FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 4}), FrozenMultiset({1: 1, 2: 2, 3: 129})),
+            VariantIngredients(FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 4, 5: 5}), FrozenMultiset({1: 1, 2: 2})),
         ]))
         variant_set = VariantSet(entries=[
             *variant_set.entries(),
             VariantSet.ingredients_to_entry(FrozenMultiset({2: 2, 3: 129, 4: 4}), FrozenMultiset({1: 1, 2: 2, 3: 129})),
         ])
         self.assertEqual(use_hashable_dict(variant_set.variants()), use_hashable_dict([
-            (FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 4, 5: 5}), FrozenMultiset({1: 1, 2: 2})),
-            (FrozenMultiset({2: 2, 3: 129, 4: 4}), FrozenMultiset({1: 1, 2: 2, 3: 129})),
+            VariantIngredients(FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 4, 5: 5}), FrozenMultiset({1: 1, 2: 2})),
+            VariantIngredients(FrozenMultiset({2: 2, 3: 129, 4: 4}), FrozenMultiset({1: 1, 2: 2, 3: 129})),
         ]))
         variant_set = VariantSet(entries=[
             *variant_set.entries(),
             VariantSet.ingredients_to_entry(FrozenMultiset({2: 2, 4: 4}), FrozenMultiset({})),
         ])
         self.assertEqual(use_hashable_dict(variant_set.variants()), use_hashable_dict([
-            (FrozenMultiset({2: 2, 4: 4}), FrozenMultiset({})),
+            VariantIngredients(FrozenMultiset({2: 2, 4: 4}), FrozenMultiset({})),
         ]))
 
         variant_set_params = VariantSetParameters(max_depth=2, allow_multiple_copies=False, filter=VariantSet.ingredients_to_entry(FrozenMultiset({1: 1, 2: 2}), FrozenMultiset({1: 500})))
@@ -116,7 +117,7 @@ class VariantSetTests(TestCase):
             VariantSet.ingredients_to_entry(FrozenMultiset({1: 1}), FrozenMultiset({1: 500})),
         ])
         self.assertEqual(use_hashable_dict(variant_set.variants()), use_hashable_dict([
-            (FrozenMultiset({1: 1}), FrozenMultiset({1: 500})),
+            VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset({1: 500})),
         ]))
 
     def test_len(self):
@@ -152,30 +153,30 @@ class VariantSetTests(TestCase):
             VariantSet.ingredients_to_entry(FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 4}), FrozenMultiset()),
         ])
         self.assertEqual(use_hashable_dict((variant_set_1 | variant_set_2).variants()), use_hashable_dict([
-            (FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 4}), FrozenMultiset()),
+            VariantIngredients(FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 4}), FrozenMultiset()),
         ]))
         variant_set_2 = VariantSet(entries=[
             *variant_set_2.entries(),
             VariantSet.ingredients_to_entry(FrozenMultiset({2: 1}), FrozenMultiset()),
         ])
         self.assertEqual(use_hashable_dict((variant_set_1 | variant_set_2).variants()), use_hashable_dict([
-            (FrozenMultiset({2: 1}), FrozenMultiset()),
+            VariantIngredients(FrozenMultiset({2: 1}), FrozenMultiset()),
         ]))
         variant_set_1 = VariantSet(entries=[
             *variant_set_1.entries(),
             VariantSet.ingredients_to_entry(FrozenMultiset({1: 1}), FrozenMultiset()),
         ])
         self.assertEqual(use_hashable_dict((variant_set_1 | variant_set_2).variants()), use_hashable_dict([
-            (FrozenMultiset({1: 1}), FrozenMultiset()),
-            (FrozenMultiset({2: 1}), FrozenMultiset()),
+            VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset()),
+            VariantIngredients(FrozenMultiset({2: 1}), FrozenMultiset()),
         ]))
         variant_set_2 = VariantSet(entries=[
             *variant_set_2.entries(),
             VariantSet.ingredients_to_entry(FrozenMultiset({1: 1}), FrozenMultiset()),
         ])
         self.assertEqual(use_hashable_dict((variant_set_1 | variant_set_2).variants()), use_hashable_dict([
-            (FrozenMultiset({1: 1}), FrozenMultiset()),
-            (FrozenMultiset({2: 1}), FrozenMultiset()),
+            VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset()),
+            VariantIngredients(FrozenMultiset({2: 1}), FrozenMultiset()),
         ]))
 
     def test_and(self):
@@ -192,7 +193,7 @@ class VariantSetTests(TestCase):
             VariantSet.ingredients_to_entry(FrozenMultiset({2: 1}), FrozenMultiset()),
         ])
         self.assertEqual(use_hashable_dict((variant_set_1 & variant_set_2).variants()), use_hashable_dict([
-            (FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 4}), FrozenMultiset()),
+            VariantIngredients(FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 4}), FrozenMultiset()),
         ]))
         variant_set_1 = VariantSet(entries=[
             *variant_set_1.entries(),
@@ -205,11 +206,11 @@ class VariantSetTests(TestCase):
             VariantSet.ingredients_to_entry(FrozenMultiset({5: 1}), FrozenMultiset({1: 1, 2: 1})),
         ])
         self.assertEqual(use_hashable_dict((variant_set_1 & variant_set_2).variants()), use_hashable_dict([
-            (FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 4}), FrozenMultiset()),
-            (FrozenMultiset({2: 1}), FrozenMultiset({1: 1})),
-            (FrozenMultiset({3: 100}), FrozenMultiset({1: 1, 2: 1})),
-            (FrozenMultiset({4: 5}), FrozenMultiset({1: 1, 2: 1})),
-            (FrozenMultiset({5: 1}), FrozenMultiset({1: 1, 2: 1})),
+            VariantIngredients(FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 4}), FrozenMultiset()),
+            VariantIngredients(FrozenMultiset({2: 1}), FrozenMultiset({1: 1})),
+            VariantIngredients(FrozenMultiset({3: 100}), FrozenMultiset({1: 1, 2: 1})),
+            VariantIngredients(FrozenMultiset({4: 5}), FrozenMultiset({1: 1, 2: 1})),
+            VariantIngredients(FrozenMultiset({5: 1}), FrozenMultiset({1: 1, 2: 1})),
         ]))
 
     def test_sum(self):
@@ -226,7 +227,7 @@ class VariantSetTests(TestCase):
             VariantSet.ingredients_to_entry(FrozenMultiset({2: 1}), FrozenMultiset()),
         ])
         self.assertEqual(use_hashable_dict((variant_set_1 + variant_set_2).variants()), use_hashable_dict([
-            (FrozenMultiset({1: 1, 2: 3, 3: 129, 4: 4}), FrozenMultiset()),
+            VariantIngredients(FrozenMultiset({1: 1, 2: 3, 3: 129, 4: 4}), FrozenMultiset()),
         ]))
         variant_set_1 = VariantSet(entries=[
             *variant_set_1.entries(),
@@ -239,13 +240,13 @@ class VariantSetTests(TestCase):
             VariantSet.ingredients_to_entry(FrozenMultiset({5: 1}), FrozenMultiset({1: 1, 2: 1})),
         ])
         self.assertEqual(use_hashable_dict((variant_set_1 + variant_set_2).variants()), use_hashable_dict([
-            (FrozenMultiset({1: 1, 2: 3, 3: 129, 4: 4}), FrozenMultiset()),
-            (FrozenMultiset({1: 1, 2: 2, 3: 229, 4: 4}), FrozenMultiset({2: 1})),
-            (FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 9}), FrozenMultiset({2: 1})),
-            (FrozenMultiset({2: 1}), FrozenMultiset({1: 1})),
-            (FrozenMultiset({3: 100}), FrozenMultiset({1: 1, 2: 1})),
-            (FrozenMultiset({4: 5}), FrozenMultiset({1: 1, 2: 1})),
-            (FrozenMultiset({5: 1}), FrozenMultiset({1: 2, 2: 1})),
+            VariantIngredients(FrozenMultiset({1: 1, 2: 3, 3: 129, 4: 4}), FrozenMultiset()),
+            VariantIngredients(FrozenMultiset({1: 1, 2: 2, 3: 229, 4: 4}), FrozenMultiset({2: 1})),
+            VariantIngredients(FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 9}), FrozenMultiset({2: 1})),
+            VariantIngredients(FrozenMultiset({2: 1}), FrozenMultiset({1: 1})),
+            VariantIngredients(FrozenMultiset({3: 100}), FrozenMultiset({1: 1, 2: 1})),
+            VariantIngredients(FrozenMultiset({4: 5}), FrozenMultiset({1: 1, 2: 1})),
+            VariantIngredients(FrozenMultiset({5: 1}), FrozenMultiset({1: 2, 2: 1})),
         ]))
         disallow_multiple_copies = VariantSetParameters(allow_multiple_copies=False)
         variant_set_1 = VariantSet(disallow_multiple_copies, entries=[
@@ -256,9 +257,9 @@ class VariantSetTests(TestCase):
             VariantSet.ingredients_to_entry(FrozenMultiset({1: 1}), FrozenMultiset({1: 500})),
         ])
         self.assertEqual(use_hashable_dict((variant_set_1 + variant_set_2).variants()), use_hashable_dict([
-            (FrozenMultiset({2: 1}), FrozenMultiset({1: 1})),
-            (FrozenMultiset({5: 1}), FrozenMultiset({1: 2, 2: 1})),
-            (FrozenMultiset({1: 1}), FrozenMultiset({1: 501})),
+            VariantIngredients(FrozenMultiset({2: 1}), FrozenMultiset({1: 1})),
+            VariantIngredients(FrozenMultiset({5: 1}), FrozenMultiset({1: 2, 2: 1})),
+            VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset({1: 501})),
         ]))
 
     def test_product_sets(self):
@@ -269,15 +270,15 @@ class VariantSetTests(TestCase):
         self.assertEqual(use_hashable_dict(VariantSet.product_sets([]).variants()), use_hashable_dict([]))
         self.assertEqual(use_hashable_dict(VariantSet.product_sets([variant_set]).variants()), use_hashable_dict(variant_set.variants()))
         self.assertEqual(use_hashable_dict(VariantSet.product_sets([variant_set] * 2).variants()), use_hashable_dict([
-            (FrozenMultiset({1: 4, 2: 4}), FrozenMultiset()),
-            (FrozenMultiset({1: 6, 2: 2}), FrozenMultiset()),
-            (FrozenMultiset({1: 8}), FrozenMultiset()),
+            VariantIngredients(FrozenMultiset({1: 4, 2: 4}), FrozenMultiset()),
+            VariantIngredients(FrozenMultiset({1: 6, 2: 2}), FrozenMultiset()),
+            VariantIngredients(FrozenMultiset({1: 8}), FrozenMultiset()),
         ]))
         self.assertEqual(use_hashable_dict(VariantSet.product_sets([variant_set] * 3).variants()), use_hashable_dict([
-            (FrozenMultiset({1: 6, 2: 6}), FrozenMultiset()),
-            (FrozenMultiset({1: 8, 2: 4}), FrozenMultiset()),
-            (FrozenMultiset({1: 10, 2: 2}), FrozenMultiset()),
-            (FrozenMultiset({1: 12}), FrozenMultiset()),
+            VariantIngredients(FrozenMultiset({1: 6, 2: 6}), FrozenMultiset()),
+            VariantIngredients(FrozenMultiset({1: 8, 2: 4}), FrozenMultiset()),
+            VariantIngredients(FrozenMultiset({1: 10, 2: 2}), FrozenMultiset()),
+            VariantIngredients(FrozenMultiset({1: 12}), FrozenMultiset()),
         ]))
         variant_set = VariantSet(entries=[
             VariantSet.ingredients_to_entry(FrozenMultiset({1: 1, 2: 1}), FrozenMultiset({1: 2})),
@@ -290,23 +291,23 @@ class VariantSetTests(TestCase):
         self.assertEqual(use_hashable_dict(VariantSet.product_sets([], disallow_multiple_copies).variants()), use_hashable_dict([]))
         self.assertEqual(use_hashable_dict(VariantSet.product_sets([variant_set], disallow_multiple_copies).variants()), use_hashable_dict(VariantSet(entries=variant_set.entries(), parameters=disallow_multiple_copies).variants()))
         self.assertEqual(use_hashable_dict(VariantSet.product_sets([variant_set] * 2, disallow_multiple_copies).variants()), use_hashable_dict([
-            (FrozenMultiset({1: 1, 2: 1, 4: 1}), FrozenMultiset({1: 2})),
-            (FrozenMultiset({1: 1, 2: 1, 5: 1}), FrozenMultiset({1: 7})),
-            (FrozenMultiset({1: 1, 2: 1}), FrozenMultiset({1: 2, 2: 2})),
-            (FrozenMultiset({4: 1, 5: 1}), FrozenMultiset({1: 5})),
-            (FrozenMultiset({4: 1}), FrozenMultiset({2: 2})),
-            (FrozenMultiset({5: 1}), FrozenMultiset({1: 5, 2: 2})),
-            (FrozenMultiset(), FrozenMultiset({2: 4})),
+            VariantIngredients(FrozenMultiset({1: 1, 2: 1, 4: 1}), FrozenMultiset({1: 2})),
+            VariantIngredients(FrozenMultiset({1: 1, 2: 1, 5: 1}), FrozenMultiset({1: 7})),
+            VariantIngredients(FrozenMultiset({1: 1, 2: 1}), FrozenMultiset({1: 2, 2: 2})),
+            VariantIngredients(FrozenMultiset({4: 1, 5: 1}), FrozenMultiset({1: 5})),
+            VariantIngredients(FrozenMultiset({4: 1}), FrozenMultiset({2: 2})),
+            VariantIngredients(FrozenMultiset({5: 1}), FrozenMultiset({1: 5, 2: 2})),
+            VariantIngredients(FrozenMultiset(), FrozenMultiset({2: 4})),
         ]))
         self.assertEqual(use_hashable_dict(VariantSet.product_sets([variant_set] * 3, disallow_multiple_copies).variants()), use_hashable_dict([
-            (FrozenMultiset({1: 1, 2: 1, 4: 1, 5: 1}), FrozenMultiset({1: 7})),
-            (FrozenMultiset({1: 1, 2: 1, 4: 1}), FrozenMultiset({1: 2, 2: 2})),
-            (FrozenMultiset({1: 1, 2: 1, 5: 1}), FrozenMultiset({1: 7, 2: 2})),
-            (FrozenMultiset({4: 1, 5: 1}), FrozenMultiset({1: 5, 2: 2})),
-            (FrozenMultiset({1: 1, 2: 1}), FrozenMultiset({1: 2, 2: 4})),
-            (FrozenMultiset({4: 1}), FrozenMultiset({2: 4})),
-            (FrozenMultiset({5: 1}), FrozenMultiset({1: 5, 2: 4})),
-            (FrozenMultiset(), FrozenMultiset({2: 6})),
+            VariantIngredients(FrozenMultiset({1: 1, 2: 1, 4: 1, 5: 1}), FrozenMultiset({1: 7})),
+            VariantIngredients(FrozenMultiset({1: 1, 2: 1, 4: 1}), FrozenMultiset({1: 2, 2: 2})),
+            VariantIngredients(FrozenMultiset({1: 1, 2: 1, 5: 1}), FrozenMultiset({1: 7, 2: 2})),
+            VariantIngredients(FrozenMultiset({4: 1, 5: 1}), FrozenMultiset({1: 5, 2: 2})),
+            VariantIngredients(FrozenMultiset({1: 1, 2: 1}), FrozenMultiset({1: 2, 2: 4})),
+            VariantIngredients(FrozenMultiset({4: 1}), FrozenMultiset({2: 4})),
+            VariantIngredients(FrozenMultiset({5: 1}), FrozenMultiset({1: 5, 2: 4})),
+            VariantIngredients(FrozenMultiset(), FrozenMultiset({2: 6})),
         ]))
 
     def test_variants(self):
@@ -317,22 +318,22 @@ class VariantSetTests(TestCase):
             VariantSet.ingredients_to_entry(FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 4}), FrozenMultiset()),
         ])
         self.assertEqual(variant_set.variants(), [
-            (FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 4}), FrozenMultiset()),
+            VariantIngredients(FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 4}), FrozenMultiset()),
         ])
         variant_set = VariantSet(entries=[
             *variant_set.entries(),
             VariantSet.ingredients_to_entry(FrozenMultiset({1: 1}), FrozenMultiset()),
         ])
         self.assertEqual(variant_set.variants(), [
-            (FrozenMultiset({1: 1}), FrozenMultiset()),
+            VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset()),
         ])
         variant_set = VariantSet(entries=[
             *variant_set.entries(),
             VariantSet.ingredients_to_entry(FrozenMultiset(), FrozenMultiset({1: 1})),
         ])
         self.assertEqual(use_hashable_dict(variant_set.variants()), use_hashable_dict([
-            (FrozenMultiset({1: 1}), FrozenMultiset()),
-            (FrozenMultiset(), FrozenMultiset({1: 1})),
+            VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset()),
+            VariantIngredients(FrozenMultiset(), FrozenMultiset({1: 1})),
         ]))
 
     def test_filter(self):
@@ -352,16 +353,16 @@ class VariantSetTests(TestCase):
         self.assertEqual(variant_set.filter(variant_set.ingredients_to_entry(FrozenMultiset(), FrozenMultiset())).variants(), [])
         self.assertEqual(variant_set.filter(variant_set.ingredients_to_entry(FrozenMultiset({1: 1}), FrozenMultiset())).variants(), [])
         self.assertEqual(variant_set.filter(variant_set.ingredients_to_entry(FrozenMultiset({1: 1}), FrozenMultiset({1: 2}))).variants(), [
-            (FrozenMultiset({1: 1}), FrozenMultiset({1: 2})),
+            VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset({1: 2})),
         ])
         self.assertEqual(variant_set.filter(variant_set.ingredients_to_entry(FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 4}), FrozenMultiset())).variants(), [
-            (FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 4}), FrozenMultiset()),
+            VariantIngredients(FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 4}), FrozenMultiset()),
         ])
         self.assertEqual(use_hashable_dict(variant_set.filter(variant_set.ingredients_to_entry(FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 4}), FrozenMultiset({1: 2}))).variants()), use_hashable_dict([
-            (FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 4}), FrozenMultiset()),
-            (FrozenMultiset({1: 1}), FrozenMultiset({1: 2})),
+            VariantIngredients(FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 4}), FrozenMultiset()),
+            VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset({1: 2})),
         ]))
         self.assertEqual(use_hashable_dict(variant_set.filter(variant_set.ingredients_to_entry(FrozenMultiset({1: 2, 2: 3, 3: 129, 4: 4, 5: 11}), FrozenMultiset({1: 11, 2: 20}))).variants()), use_hashable_dict([
-            (FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 4}), FrozenMultiset()),
-            (FrozenMultiset({1: 1}), FrozenMultiset({1: 2})),
+            VariantIngredients(FrozenMultiset({1: 1, 2: 2, 3: 129, 4: 4}), FrozenMultiset()),
+            VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset({1: 2})),
         ]))

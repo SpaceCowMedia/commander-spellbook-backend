@@ -14,6 +14,7 @@
 cimport cython
 
 from spellbook.variants.multiset cimport FrozenMultiset, Multiset
+from spellbook.variants.packed_entry cimport PackedEntry
 from spellbook.variants.variant_set cimport VariantSet, VariantSetParameters
 from spellbook.variants.variant_data cimport Data
 
@@ -57,11 +58,12 @@ cdef class FeatureOfCardNode(NodeWithoutState):
     cdef readonly Py_ssize_t quantity
     cdef readonly CardNode card
     cdef readonly FeatureWithAttributesNode feature
+    cdef readonly PackedEntry entry
 
 
 cdef class FeatureWithAttributesNode(NodeWithState):
-    cdef readonly list produced_by_cards
-    cdef readonly list produced_by_combos
+    cdef dict _produced_by_cards
+    cdef dict _produced_by_combos
     cdef readonly list matches
 
 
@@ -75,6 +77,8 @@ cdef class ComboNode(NodeWithState):
     cdef readonly Multiset templates
     cdef readonly dict features_needed
     cdef readonly list features_produced
+    cdef readonly list countable_features_produced
+    cdef readonly PackedEntry entry
     cdef readonly Multiset cards_for_replacements
     cdef readonly Multiset templates_for_replacements
     cdef readonly dict features_needed_for_replacements
@@ -88,6 +92,7 @@ cdef class Graph:
     cdef public VariantSetParameters variant_set_parameters
     cdef VariantSet _empty_variant_set
     cdef public bint subgraph
+    cdef readonly set satisfiable_combos
     cdef readonly Data data
     cdef readonly dict card_nodes
     cdef readonly dict template_nodes

@@ -6,7 +6,7 @@ from enum import Enum
 from dataclasses import dataclass
 from spellbook.models import Card, Feature, FeatureNeededInCombo, FeatureOfCard, Combo, Template
 from .variant_data import AttributesMatcher, Data
-from .variant_set import VariantSet, VariantSetParameters, cardid, templateid
+from .variant_set import VariantIngredients, VariantSet, VariantSetParameters, cardid
 
 
 class NodeState(Enum):
@@ -177,7 +177,8 @@ class FeatureOfCardNode(NodeWithoutState):
         self.quantity = quantity
         self.card = card
         self.feature = feature
-        feature.produced_by_cards.append(self)
+        self.entry = VariantSet.ingredients_to_entry(FrozenMultiset({feature_of_card.card_id: quantity}), FrozenMultiset())
+        feature.add_producing_card(self)
 
 
 @dataclass(frozen=True)
@@ -187,11 +188,49 @@ class FeatureWithAttributes:
 
 
 class FeatureWithAttributesNode(NodeWithState):
+    '''A feature produced with some attributes. Its producers are kept so that the ones fitting in the
+    ingredients of a variant are found without going through all the others: a card is looked up by its
+    number, while a combo is indexed by one of its ingredients, which the variant has to hold for it to fit.'''
+
     def __init__(self, graph: 'Graph', feature: FeatureWithAttributes):
         super().__init__(graph, feature)
-        self.produced_by_cards = list[FeatureOfCardNode]()
-        self.produced_by_combos = list['ComboNode']()
+        self._produced_by_cards = dict[cardid, FeatureOfCardNode]()
+        self._produced_by_combos = dict[int | None, list['ComboNode']]()
         self.matches = list['FeatureWithAttributesMatcherNode']()
+
+    def add_producing_card(self, card: FeatureOfCardNode) -> None:
+        self._produced_by_cards[card.item.card_id] = card
+
+    def add_producing_combo(self, combo: 'ComboNode') -> None:
+        ingredients = combo.entry.distinct_elements()
+        self._produced_by_combos.setdefault(ingredients[0] if ingredients else None, []).append(combo)
+
+    @property
+    def produced_by_cards(self) -> Iterable[FeatureOfCardNode]:
+        '''The cards producing this feature that the ingredients the graph is filtered by hold, or all of them without a filter.'''
+        ingredients = self._graph.variant_set_parameters.filter
+        if ingredients is None:
+            return self._produced_by_cards.values()
+        return [
+            card
+            for ingredient in ingredients.distinct_elements()
+            if (card := self._produced_by_cards.get(ingredient)) is not None and card.entry.issubset(ingredients)
+        ]
+
+    @property
+    def produced_by_combos(self) -> Iterable['ComboNode']:
+        '''The combos producing this feature that fit in the ingredients the graph is filtered by, only the satisfiable
+        ones among them once a walk up has found them all, or all of them without a filter.'''
+        ingredients = self._graph.variant_set_parameters.filter
+        if ingredients is None:
+            return chain.from_iterable(self._produced_by_combos.values())
+        satisfiable_combos = self._graph.satisfiable_combos
+        return [
+            combo
+            for ingredient in chain((None,), ingredients.distinct_elements())
+            for combo in self._produced_by_combos.get(ingredient, ())
+            if combo.entry.issubset(ingredients) and (satisfiable_combos is None or combo in satisfiable_combos)
+        ]
 
 
 @dataclass(frozen=True)
@@ -251,6 +290,10 @@ class ComboNode(NodeWithState):
         self.templates = Multiset[TemplateNode]({graph.template_nodes[i.template_id]: i.quantity for i in templates_in_combo})
         for template_node, quantity in self.templates.items():
             template_node.combos[self] = quantity
+        self.entry = VariantSet.ingredients_to_entry(
+            FrozenMultiset({i.card_id: i.quantity for i in cards_in_combo}),
+            FrozenMultiset({i.template_id: i.quantity for i in templates_in_combo}),
+        )
         self.features_needed = count_needed_features(features_needed_in_combo)
         for features_needed in self.features_needed.values():
             for feature_needed, quantity in features_needed.items():
@@ -265,7 +308,8 @@ class ComboNode(NodeWithState):
             # the same feature can be produced with the same attributes by more than one row
             if feature_produced not in self.features_produced:
                 self.features_produced.append(feature_produced)
-                feature_produced.produced_by_combos.append(self)
+                feature_produced.add_producing_combo(self)
+        self.countable_features_produced = [f for f in self.features_produced if not f.item.feature.uncountable]
         if all(i.in_replacements for i in chain(cards_in_combo, templates_in_combo, data.combo_to_needed_features[combo.id])):
             self.cards_for_replacements = self.cards
             self.templates_for_replacements = self.templates
@@ -274,12 +318,6 @@ class ComboNode(NodeWithState):
             self.cards_for_replacements = Multiset[CardNode]({graph.card_nodes[i.card_id]: i.quantity for i in cards_in_combo if i.in_replacements})
             self.templates_for_replacements = Multiset[TemplateNode]({graph.template_nodes[i.template_id]: i.quantity for i in templates_in_combo if i.in_replacements})
             self.features_needed_for_replacements = count_needed_features((i, matcher) for i, matcher in features_needed_in_combo if i.in_replacements)
-
-
-@dataclass(frozen=True)
-class VariantIngredients:
-    cards: FrozenMultiset[cardid]
-    templates: FrozenMultiset[templateid]
 
 
 featureid = int
@@ -321,6 +359,7 @@ class Graph:
         self.variant_set_parameters = VariantSetParameters(max_depth=card_limit, allow_multiple_copies=allow_multiple_copies)
         self._empty_variant_set = VariantSet(parameters=self.variant_set_parameters)
         self.subgraph = False
+        self.satisfiable_combos: set[ComboNode] | None = None
         self.data = data
         # shared so that every producer and consumer of a feature gets the same node, and local because they die with the construction
         feature_with_attributes_nodes = dict[featureid, dict[frozenset[int], FeatureWithAttributesNode]]()
@@ -453,6 +492,7 @@ class Graph:
         for node in self._to_reset_nodes_filtered_replacement_variant_set:
             node._reset_filtered_replacement_variant_set()
         self._to_reset_nodes_filtered_replacement_variant_set.clear()
+        self.satisfiable_combos = None
         self.variant_set_parameters = VariantSetParameters(
             max_depth=self.variant_set_parameters.max_depth,
             allow_multiple_copies=self.variant_set_parameters.allow_multiple_copies,
@@ -466,9 +506,9 @@ class Graph:
 
     def results(self, variant_set: VariantSet) -> list[VariantRecipe]:
         result = list[VariantRecipe]()
-        for cards, templates in variant_set.variants():
+        for ingredients in variant_set.variants():
             self._reset()
-            recipe = self._card_nodes_up(VariantIngredients(cards, templates))
+            recipe = self._card_nodes_up(ingredients)
             result.append(recipe)
         return result
 
@@ -580,6 +620,15 @@ class Graph:
         replacement_variant_set = VariantSet.or_sets(card_variant_sets + produced_combos_replacement_variant_sets, parameters=self.variant_set_parameters) if feature.replacements_differ else variant_set
         return self._resolved(feature, variant_set, replacement_variant_set, complete)
 
+    def _combo_nodes_down_in_subgraph(self, combo: ComboNode) -> tuple[VariantSet, VariantSet]:
+        '''The variant set of a combo met by the walk up, and its replacement counterpart, walked with
+        states of their own so that the walk up is left where it was.'''
+        self.subgraph = True
+        self._reset()
+        variant_set, replacement_variant_set, _ = self._combo_nodes_down(combo)
+        self.subgraph = False
+        return variant_set, replacement_variant_set
+
     def _card_nodes_up(self, ingredients: VariantIngredients) -> VariantRecipe:
         self.variant_set_parameters = VariantSetParameters(
             max_depth=self.variant_set_parameters.max_depth,
@@ -595,15 +644,9 @@ class Graph:
         parked_combo_nodes: set[ComboNode] = set()
         parked_combo_nodes_by_blocking_feature = defaultdict[FeatureWithAttributesNode, list[ComboNode]](list)
         combo_nodes: set[ComboNode] = set()
+        replacement_variant_sets = dict[ComboNode, VariantSet]()
+        unfired_combo_nodes = list[ComboNode]()
         replacements = defaultdict[FeatureWithAttributes, list[VariantIngredients]](list)
-
-        def unpark_combo_nodes_blocked_on(feature: FeatureWithAttributesNode) -> None:
-            parked = parked_combo_nodes_by_blocking_feature.pop(feature, None)
-            if parked:
-                for parked_combo in parked:
-                    if parked_combo in parked_combo_nodes:
-                        parked_combo_nodes.remove(parked_combo)
-                        combo_nodes_to_visit.append(parked_combo)
 
         for ingredient, quantity in chain(cards.items(), templates.items()):
             for combo in ingredient.combos:  # type: ignore[attr-defined]
@@ -646,14 +689,14 @@ class Graph:
 
         while combo_nodes_to_visit:
             combo = combo_nodes_to_visit.popleft()
-            variant_set: VariantSet | None = None
-            replacement_variant_set: VariantSet | None = None
-            if combo.variant_set is not None:
-                variant_set = combo.variant_set
+            quantity = 0
+            if cached := self._cached(combo):
+                variant_set, replacement_variant_set, _ = cached
                 if not variant_set:
-                    combo.state = NodeState.VISITED
                     continue
-                replacement_variant_set = combo.replacement_variant_set
+                replacement_variant_sets[combo] = replacement_variant_set
+                if combo.countable_features_produced:
+                    quantity = variant_set.firing_count(ingredients)
             else:
                 blocking_features = self._uncountable_feature_blockers(combo, uncountable_feature_nodes)
                 if blocking_features is None:
@@ -663,41 +706,23 @@ class Graph:
                     for blocking_feature in blocking_features:
                         parked_combo_nodes_by_blocking_feature[blocking_feature].append(combo)
                     continue
-                if not all(f.item.feature.uncountable for f in combo.features_produced):
-                    # the variant set only serves to count how many times the combo fires, so an all-uncountable combo does not need it
-                    self.subgraph = True
-                    self._reset()
-                    variant_set, replacement_variant_set, _ = self._combo_nodes_down(combo)
-                    self.subgraph = False
-            combo.state = NodeState.VISITED
+                if combo.countable_features_produced:
+                    variant_set, replacement_variant_set = self._combo_nodes_down_in_subgraph(combo)
+                    replacement_variant_sets[combo] = replacement_variant_set
+                    quantity = variant_set.firing_count(ingredients)
+                else:
+                    unfired_combo_nodes.append(combo)
+                combo.state = NodeState.VISITED
             combo_nodes.add(combo)
-            if variant_set is not None and replacement_variant_set is not None:
-                variants_list = variant_set.variants()
-                # replacements leave out the opted out ingredients; the firing count does not
-                replacements_for_combo: list[VariantIngredients] = [
-                    VariantIngredients(cards_replacing, templates_replacing)
-                    for cards_replacing, templates_replacing in replacement_variant_set.variants()
-                ]
-                quantity = 0
-                for cards_satisfying, templates_satisfying in variants_list:
-                    count_for_cards: int | None = ingredients.cards // cards_satisfying if cards_satisfying else None
-                    count_for_templates: int | None = ingredients.templates // templates_satisfying if templates_satisfying else None
-                    if count_for_cards is not None:
-                        if count_for_templates is not None:
-                            quantity += min(count_for_cards, count_for_templates)
-                        else:
-                            quantity += count_for_cards
-                    elif count_for_templates is not None:
-                        quantity += count_for_templates
-                for feature in combo.features_produced:
-                    if not feature.item.feature.uncountable:
-                        replacements[feature.item].extend(replacements_for_combo)
-                        countable_feature_nodes[feature] = countable_feature_nodes.get(feature, 0) + quantity
-                        unpark_combo_nodes_blocked_on(feature)
             for feature in combo.features_produced:
-                if feature.item.feature.uncountable and feature not in uncountable_feature_nodes:
+                if feature.item.feature.uncountable:
                     uncountable_feature_nodes.add(feature)
-                    unpark_combo_nodes_blocked_on(feature)
+                else:
+                    countable_feature_nodes[feature] = countable_feature_nodes.get(feature, 0) + quantity
+                for parked_combo in parked_combo_nodes_by_blocking_feature.pop(feature, ()):
+                    if parked_combo in parked_combo_nodes:
+                        parked_combo_nodes.remove(parked_combo)
+                        combo_nodes_to_visit.append(parked_combo)
                 if feature.state is NodeState.NOT_VISITED:
                     feature.state = NodeState.VISITED
                     for matching_feature in feature.matches:
@@ -760,6 +785,24 @@ class Graph:
                 for features_needed in combo_node.features_needed.values():
                     for fam_node in features_needed:
                         new_features_needed_by_needed_combos.add(fam_node.item)
+
+        features_needed_by_needed_combos = {
+            feature
+            for combo_node in needed_combo_nodes
+            for features_needed in combo_node.features_needed.values()
+            for feature_needed in features_needed
+            for feature in feature_needed.matches
+        }
+        self.satisfiable_combos = combo_nodes
+        for combo_node in chain(replacement_variant_sets, unfired_combo_nodes):
+            produced_features_needed = [f for f in combo_node.features_produced if f in features_needed_by_needed_combos]
+            if produced_features_needed:
+                replacement_variant_set = replacement_variant_sets.get(combo_node)
+                if replacement_variant_set is None:
+                    _, replacement_variant_set = self._combo_nodes_down_in_subgraph(combo_node)
+                replacements_for_combo = replacement_variant_set.variants()
+                for feature in produced_features_needed:
+                    replacements[feature.item].extend(replacements_for_combo)
         self._reset()
         return VariantRecipe(
             cards=ingredients.cards,

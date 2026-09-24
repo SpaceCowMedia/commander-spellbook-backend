@@ -1,4 +1,4 @@
-from spellbook.models import Card, CardInCombo, Combo, FeatureAttribute
+from spellbook.models import Card, CardInCombo, Combo, FeatureAttribute, FeatureNeededInCombo
 from spellbook.models.feature import Feature
 from spellbook.variants.multiset import FrozenMultiset
 from spellbook.variants.variant_data import Data
@@ -1226,3 +1226,49 @@ class ComboGraphReplacementsTest(SpellbookTestCase):
         self.assertEqual(len(variants), 1)
         self.assertMultisetEqual(variants[0].cards, {1: 1, 2: 1, 3: 1})
         self.assertEqual(variants[0].replacements, {FeatureWithAttributes(Feature.objects.get(name='x'), frozenset()): []})
+
+
+class ComboGraphTransitiveReferenceTest(SpellbookTestCase):
+    '''A combo is only allowed to mention a feature it requires, so a combo consuming a feature that
+    a utility combo derives from a narrower version of another one ends up requiring both. Requiring
+    the broader one must not widen what the combo matches: whatever also satisfies the narrower one
+    already satisfies it, so the variant naming a second producer is a superset of the one that does
+    not, and never survives.'''
+
+    def setup_transitive_reference(self):
+        self.setup_combo_graph({
+            'X': ('ua/x',),          # card 1 produces ua with the attribute x
+            'Y': ('ua',),            # card 2 produces ua with no attributes
+            ('ua!x',): ('ub',),      # combo 1: ua[x] -> ub
+            ('ua', 'ub'): ('c',),    # combo 2: ua + ub -> c, mentioning ua
+        })
+        Combo.objects.filter(pk=1).update(status=Combo.Status.UTILITY)
+
+    def test_requiring_the_mentioned_feature_adds_no_variant(self):
+        self.setup_transitive_reference()
+        combo_graph = Graph(Data())
+        variants = combo_graph.results(combo_graph.variants(2))
+        self.assertEqual(len(variants), 1)
+        self.assertMultisetEqual(variants[0].cards, {1: 1})
+
+    def test_the_mentioned_feature_is_replaced_with_the_card_that_produces_it(self):
+        self.setup_transitive_reference()
+        combo_graph = Graph(Data())
+        variants = combo_graph.results(combo_graph.variants(2))
+        self.assertEqual(variants[0].replacements, {
+            FeatureWithAttributes(Feature.objects.get(name='ua'), frozenset({FeatureAttribute.objects.get(name='x').id})): [
+                VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset()),
+            ],
+            FeatureWithAttributes(Feature.objects.get(name='ub'), frozenset()): [
+                VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset()),
+            ],
+        })
+
+    def test_requiring_the_mentioned_feature_changes_nothing(self):
+        '''The same shape without the requirement the mention now needs, which has to match the same.'''
+        self.setup_transitive_reference()
+        with_requirement = Graph(Data())
+        expected = [str(v.cards) for v in with_requirement.results(with_requirement.variants(2))]
+        FeatureNeededInCombo.objects.filter(combo_id=2, feature__name='ua').delete()
+        without_requirement = Graph(Data())
+        self.assertEqual([str(v.cards) for v in without_requirement.results(without_requirement.variants(2))], expected)

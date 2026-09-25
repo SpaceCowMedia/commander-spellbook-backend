@@ -16,7 +16,6 @@ class CardUsedInVariantSuggestionAdminInline(OrderedIngredientAdmin):
     model = CardUsedInVariantSuggestion
     verbose_name = 'Card'
     verbose_name_plural = 'Cards'
-    extra = 1
     max_num = VariantSuggestion.max_cards
 
 

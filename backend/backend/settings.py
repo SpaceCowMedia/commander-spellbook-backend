@@ -162,6 +162,13 @@ MOXFIELD_USER_AGENT = os.getenv('MOXFIELD_USER_AGENT', None)
 ARCHIDEKT_USER_AGENT = 'CommanderSpellbook'
 
 
+# Salt votes
+SALT_VOTE_WINDOW = timedelta(days=365)
+SALT_VOTE_MIN_COUNT = 5
+SALT_VOTE_TARGET_COUNT = 100
+SALT_VOTE_QUEUE_POPULARITY_EXPONENT = 0.5
+
+
 # Python Social Auth
 # https://python-social-auth.readthedocs.io/en/latest/backends/index.html
 SOCIAL_AUTH_DISCORD_KEY = os.getenv('DISCORD_CLIENTID', None)

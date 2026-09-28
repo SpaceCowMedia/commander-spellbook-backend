@@ -50,6 +50,8 @@ class VariantViewsTests(SpellbookTestCaseWithSeeding):
         self.assertEqual(variant_result.status, v.status)
         self.assertEqual(variant_result.identity, v.identity)
         self.assertEqual(variant_result.popularity, v.popularity)
+        self.assertEqual(variant_result.salt, v.salt)
+        self.assertEqual(variant_result.salt_vote_count, v.salt_vote_count)
         if v.status == Variant.Status.EXAMPLE:
             self.assertEqual(variant_result.mana_needed, None)
             self.assertEqual(variant_result.easy_prerequisites, None)
@@ -1011,6 +1013,52 @@ class VariantViewsTests(SpellbookTestCaseWithSeeding):
                     for v in result.results:
                         self.variant_assertions(v)
 
+    def test_variants_list_view_query_by_decimal_price(self):
+        prices = {price for field in Variant.prices_fields() for price in Variant.objects.values_list(field, flat=True)}
+        self.assertTrue(any(price != int(price) for price in prices))
+        for price in prices:
+            queries = [
+                (f'price<{price}', models.Q(price_cardkingdom__lt=price)),
+                (f'usd>={price}', models.Q(price_cardkingdom__gte=price)),
+                (f'eur={price}', models.Q(price_cardmarket=price)),
+                (f'tcgplayer<={price}', models.Q(price_tcgplayer__lte=price)),
+                (f'cardmarket>{price}', models.Q(price_cardmarket__gt=price)),
+            ]
+            for q, q_django in queries:
+                with self.subTest(f'query by decimal price with query {q}'):
+                    self.assertSetEqual(self.query_ids(q), {v.id for v in self.public_variants.filter(q_django)})
+
+    def seed_salt(self):
+        variants = list[Variant](Variant.objects.all())
+        for i, variant in enumerate(variants):
+            variant.salt = (None, 0.0, 1.25, 2.5, 3.33, 4.0)[i % 6]  # pyright: ignore[reportAttributeAccessIssue]
+            variant.salt_vote_count = i  # pyright: ignore[reportAttributeAccessIssue]
+        self.bulk_serialize_variants(q=variants, extra_fields=['salt', 'salt_vote_count'])
+
+    def test_variants_list_view_query_by_salt(self):
+        self.seed_salt()
+        queries = [
+            ('salt>2', models.Q(salt__gt=2)),
+            ('salt>=2.5', models.Q(salt__gte=2.5)),
+            ('salt=3.33', models.Q(salt=3.33)),
+            ('salt:4', models.Q(salt=4)),
+            ('salt<1', models.Q(salt__lt=1)),
+            ('saltiness<=1.25', models.Q(salt__lte=1.25)),
+            ('salt>=0', models.Q(salt__isnull=False)),
+            ('-salt>2', models.Q(salt__lte=2)),
+        ]
+        for q, q_django in queries:
+            with self.subTest(f'query by salt with query {q}'):
+                expected = {v.id for v in self.public_variants.filter(q_django)}
+                self.assertGreater(len(expected), 0)
+                self.assertSetEqual(self.query_ids(q), expected)
+
+    def test_variants_list_view_query_by_invalid_decimals(self):
+        for q in ('salt>5', 'salt>1e3', 'salt:abc', 'price<1e3', 'price<"1.5"'):
+            with self.subTest(f'invalid query: {q}'):
+                response = self.client.get(reverse('variants-list'), query_params={'q': q}, follow=True)  # type: ignore
+                self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
     def test_variants_list_view_query_by_bracket(self):
         with self.subTest('query by bracket with number'):
             for bracket in range(1, 6):
@@ -1416,6 +1464,18 @@ class VariantViewsTests(SpellbookTestCaseWithSeeding):
                 result = json.loads(response.content, object_hook=json_to_python_lambda)
                 self.assertGreater(len(result.results), 1)
                 self.assertIsNotNone(result.results[0].popularity)
+
+    def test_variants_list_view_ordering_by_salt(self):
+        self.seed_salt()
+        for order, descending in (('salt', False), ('-salt', True)):
+            with self.subTest(f'order by {order}'):
+                response = self.client.get(reverse('variants-list'), data={'ordering': order}, follow=True)
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
+                salts = [v.salt for v in json.loads(response.content, object_hook=json_to_python_lambda).results]
+                rated = [salt for salt in salts if salt is not None]
+                self.assertGreater(len(rated), 1)
+                self.assertEqual(salts, rated + [None] * (len(salts) - len(rated)))
+                self.assertEqual(rated, sorted(rated, reverse=descending))
 
     def test_variants_list_view_grouping_by_combo(self):
         parameter = VariantGroupedByComboFilter.query_param

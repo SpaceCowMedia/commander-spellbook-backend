@@ -2,7 +2,7 @@ import logging
 from django.tasks import task
 from django_tasks import TaskContext
 from django.db import transaction
-from spellbook.models import Variant, DEFAULT_BATCH_SIZE, recompute_all_counts
+from spellbook.models import Variant, DEFAULT_BATCH_SIZE, recompute_all_counts, recompute_salt
 from .edhrec import update_variants, edhrec
 
 
@@ -57,6 +57,9 @@ def update_variants_task(context: TaskContext):
         del variants, variants_to_save
     del variant_ids
     log(f'Updating variants...done, updated {updated_variant_count} variants')
+    log('Recomputing salt...')
+    salted = recompute_salt()
+    log(f'Recomputing salt...done, updated {salted} variants')
     # The counters are maintained as their inputs change, so this only has to confirm it: a rebuild
     # of the whole dataset is a second of set based work, and anything it finds is a bug in a write
     # path that failed to report what it touched.

@@ -53,6 +53,8 @@ class SpellbookTestCase(BaseTestCase):
                 self.assertEqual(variant.variant_count, public.filter(of__variants=variant.id).distinct().count())
                 if variant.serialized is not None:
                     self.assertEqual(variant.serialized['variant_count'], variant.variant_count)
+                    self.assertEqual(variant.serialized['salt'], variant.salt)
+                    self.assertEqual(variant.serialized['salt_vote_count'], variant.salt_vote_count)
         for card in Card.objects.all():
             with self.subTest(card=card.id):
                 self.assertEqual(card.variant_count, public.filter(uses=card).distinct().count())

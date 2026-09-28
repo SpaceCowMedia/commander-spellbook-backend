@@ -6,5 +6,6 @@ from .find_my_combos import FindMyCombosView
 from .variant_suggestions import VariantSuggestionViewSet
 from .variant_update_suggestions import VariantUpdateSuggestionViewSet
 from .variant_aliases import VariantAliasViewSet
+from .salt_votes import SaltVoteViewSet
 from .estimate_bracket import EstimateBracketView
 from .query_explanation import QueryExplanationView

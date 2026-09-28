@@ -24,6 +24,7 @@ from .variants_query_filters.commander_search_filters import commander_filter
 from .variants_query_filters.variant_legality_filters import legality_filter
 from .variants_query_filters.variant_price_filters import price_filter
 from .variants_query_filters.variant_popularity_filters import popularity_filter
+from .variants_query_filters.variant_salt_filters import salt_filter
 from .variants_query_filters.bracket_filters import bracket_filter
 from .variants_query_filters.base import QueryValue, VariantQuery
 from ..parsers.variants_query_grammar import VARIANTS_QUERY_GRAMMAR
@@ -126,6 +127,10 @@ class VariantsQueryTransformer(Transformer):
     def popularity_search(self, values):
         q = QueryValue.from_string(values[0])
         return popularity_filter(q)
+
+    def salt_search(self, values):
+        q = QueryValue.from_string(values[0])
+        return salt_filter(q)
 
     def variants_search(self, values):
         q = QueryValue.from_string(values[0])

@@ -1,7 +1,7 @@
 from django.db.models import QuerySet
 from rest_framework import serializers
 from drf_spectacular.utils import extend_schema_field
-from spellbook.models import Variant, CardInVariant, TemplateInVariant, FeatureProducedByVariant
+from spellbook.models import Variant, CardInVariant, TemplateInVariant, FeatureProducedByVariant, MAX_SALT
 from .bracket_tag_serializer import BracketTagSerializer
 from .combo_serializer import ComboSerializer
 from .feature_serializer import FeatureSerializer
@@ -117,6 +117,8 @@ class VariantSerializer(serializers.ModelSerializer):
     description = serializers.SerializerMethodField()
     notes = serializers.SerializerMethodField()
     popularity = serializers.IntegerField(read_only=True, min_value=0, allow_null=True)
+    salt = serializers.FloatField(read_only=True, min_value=0, max_value=MAX_SALT, allow_null=True)
+    salt_vote_count = serializers.IntegerField(read_only=True, min_value=0)
     legalities = VariantLegalitiesSerializer(source='*', read_only=True)
     prices = VariantPricesSerializer(source='*', read_only=True)
     bracket_tag = BracketTagSerializer()
@@ -175,6 +177,8 @@ class VariantSerializer(serializers.ModelSerializer):
             'description',
             'notes',
             'popularity',
+            'salt',
+            'salt_vote_count',
             'spoiler',
             'bracket_tag',
             'legalities',

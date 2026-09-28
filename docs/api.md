@@ -52,6 +52,26 @@ Routes are wired in [`backend/spellbook/urls.py`](https://github.com/SpaceCowMed
 | `… /variant-suggestions/` | Community-submitted combos awaiting review. |
 | `… /variant-update-suggestions/` | Suggested edits to existing variants. |
 | `… /variant-aliases/` | Redirects from alternative ids to canonical variants. |
+| `… /salt-votes/` | The logged-in user's [salt votes](#salt-votes) on variants. |
+| `GET /salt-votes/queue/` | Variants to vote the salt of. |
+
+### Salt votes
+
+Logged-in users vote how salty a variant is, that is how unfun it is to play against, from 0 (not at all) to 4 (the most), like EDHREC's salt score for cards. Each user has a single vote per variant, addressed by the variant id and private to its author:
+
+| Request | Effect |
+|---------|--------|
+| `PUT /salt-votes/{variantId}/` with `{"score": 3}` | Casts the vote (`201`) or changes it (`200`). Only public variants can be voted. |
+| `GET /salt-votes/{variantId}/` | Reads the vote. |
+| `DELETE /salt-votes/{variantId}/` | Retracts the vote. |
+| `GET /salt-votes/?variant={variantId}` | Lists the user's votes, optionally just the one on a variant, answering an empty list rather than `404`. |
+| `GET /salt-votes/queue/?limit=10` | Serves variants to vote on, to anonymous callers too. |
+
+- A vote comes back with the live `average` and `voteCount` of the recent votes on its variant, to show right after voting.
+- Recent means cast or changed within `SALT_VOTE_WINDOW`, a year: voting never closes, and old votes stop counting.
+- Every variant carries `salt`, the average of its recent votes once they are at least `SALT_VOTE_MIN_COUNT` (5), and their number as `saltVoteCount`. The `update_variants` task refreshes both, so they lag up to a couple of hours. `GET /variants/?q=salt>=0&ordering=-salt` ranks the saltiest combos.
+- The queue draws commander-legal, non-spoiler variants the caller has not voted on recently, with Efraimidis–Spirakis weighted random sampling. A variant weighs `sqrt(decks + 1)`, shrinking linearly to 1 as its recent votes approach `SALT_VOTE_TARGET_COUNT` (100): popular combos come first, until their score is statistically settled.
+- Voting needs the `add_saltvote` and `change_saltvote` permissions, which every Discord login grants: revoking them from a user in the admin stops them from voting.
 
 ### Naming a card
 
@@ -97,7 +117,7 @@ Most read endpoints are public; writing and reviewing require authentication and
 
 ## The search query language
 
-`variants` (and template matching) accept a **Scryfall-style search query** — e.g. `ci:temur mana result:"infinite mana"`. The grammar is defined with [Lark](https://github.com/lark-parser/lark) in [`spellbook/parsers/`](https://github.com/SpaceCowMedia/commander-spellbook-backend/tree/master/backend/spellbook/parsers) and turned into ORM filters by the transformers in [`spellbook/transformers/`](https://github.com/SpaceCowMedia/commander-spellbook-backend/tree/master/backend/spellbook/transformers). Extend the query language by editing the `.lark` grammar and its transformer together.
+`variants` (and template matching) accept a **Scryfall-style search query** — e.g. `ci:temur mana result:"infinite mana"`. Numeric terms take whole numbers, except `price` and `salt`, which take decimals too, like `price<2.5` or `salt>=3.2`. The grammar is defined with [Lark](https://github.com/lark-parser/lark) in [`spellbook/parsers/`](https://github.com/SpaceCowMedia/commander-spellbook-backend/tree/master/backend/spellbook/parsers) and turned into ORM filters by the transformers in [`spellbook/transformers/`](https://github.com/SpaceCowMedia/commander-spellbook-backend/tree/master/backend/spellbook/transformers). Extend the query language by editing the `.lark` grammar and its transformer together.
 
 The same grammar drives a second transformer, which turns a query into an English sentence instead of a filter: `GET /explain-query?q=ci:temur mana` answers *"Combos that have a color identity within green, blue, and red and use a card whose name contains “mana”."* A new search term needs a phrase in [`variants_query_explanations/`](https://github.com/SpaceCowMedia/commander-spellbook-backend/tree/master/backend/spellbook/transformers/variants_query_explanations) alongside its filter, so that both endpoints accept and reject exactly the same queries.
 

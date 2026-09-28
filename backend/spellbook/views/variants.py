@@ -139,6 +139,7 @@ class VariantViewSet(viewsets.ReadOnlyModelViewSet):
     ordering = DEFAULT_VIEW_ORDERING
     ordering_fields = [
         'popularity',
+        'salt',
         *Variant.prices_fields(),
         'identity_count',
         'result_count',

@@ -1,5 +1,6 @@
 import re
 from dataclasses import dataclass, field
+from decimal import Decimal
 from functools import reduce
 from operator import and_
 from django.core.exceptions import ValidationError
@@ -10,6 +11,7 @@ from spellbook.models import Card, CardInVariant, FeatureProducedByVariant, Temp
 _QUOTED_OR_SHORT_VALUE_REGEX = r'"(?P<long_value>(?:[^"\\]|\\")+)"|(?P<short_value>.+)'
 QUERY_VALUE_PATTERN = re.compile(r'(?P<prefix>all-|@)?(?P<key>[a-zA-Z_]+)(?P<operator><=|>=|:|=|<|>)(?:' + _QUOTED_OR_SHORT_VALUE_REGEX + r')', re.IGNORECASE)
 SHORT_QUERY_VALUE_PATTERN = re.compile(_QUOTED_OR_SHORT_VALUE_REGEX, re.IGNORECASE)
+DECIMAL_VALUE_PATTERN = re.compile(r'\d+(?:\.\d*)?|\.\d+')
 
 # How a condition on each searchable model reaches the variant it is being tested against. Variant
 # maps to nothing: a condition on it is a predicate on the row, not a subquery. A model missing from
@@ -66,6 +68,14 @@ class QueryValue:
 
     def is_numeric(self) -> bool:
         return not self.quotes and self.value.isdigit()
+
+    def decimal_value(self, search: str, maximum: int | None = None) -> Decimal:
+        if self.quotes or not DECIMAL_VALUE_PATTERN.fullmatch(self.value):
+            raise ValidationError(f'Value {self.value} is not supported for {search} search.')
+        value = Decimal(self.value)
+        if maximum is not None and value > maximum:
+            raise ValidationError(f'Value {self.value} is not supported for {search} search. Choose a value between 0 and {maximum}.')
+        return value
 
 
 @dataclass(frozen=True)

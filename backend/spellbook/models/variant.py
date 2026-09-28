@@ -158,6 +158,8 @@ class Variant(Recipe, Playable, Explanation, PreSaveSerializedModelMixin, Scryfa
     updated = models.DateTimeField(auto_now=True, editable=False)
     generated_by = models.CharField(max_length=255, null=True, blank=True, editable=False, help_text='Task that generated this variant')
     popularity = models.PositiveIntegerField(db_default=None, null=True, editable=False, help_text='Popularity of this variant, provided by EDHREC')
+    salt = models.FloatField(null=True, default=None, editable=False, help_text='Average salt score of the recent votes, once they are enough')
+    salt_vote_count = models.PositiveIntegerField(default=0, db_default=0, editable=False, help_text='Number of recent salt votes')
     description_line_count = models.PositiveIntegerField(editable=False, help_text='Number of lines in the description')
     prerequisites_line_count = models.PositiveIntegerField(editable=False, help_text='Number of lines in the other prerequisites')
     published = models.BooleanField(editable=False, default=False, help_text='Whether the variant has been published')
@@ -243,6 +245,7 @@ class Variant(Recipe, Playable, Explanation, PreSaveSerializedModelMixin, Scryfa
             models.Index(*('variant_count',) + DEFAULT_VIEW_ORDERING, name='variant_vc_view_ordering_idx'),
             models.Index(*('card_count',) + DEFAULT_VIEW_ORDERING, name='variant_cc_view_ordering_idx'),
             models.Index(*('result_count',) + DEFAULT_VIEW_ORDERING, name='variant_rc_view_ordering_idx'),
+            models.Index(models.F('salt').desc(nulls_last=True), *DEFAULT_VIEW_ORDERING, name='variant_salt_ordering_idx'),
         ] if connection.vendor == 'postgresql' else []) + case_insensitive_trigram_indexes(
             'variant',
             'description',
@@ -284,7 +287,7 @@ class Variant(Recipe, Playable, Explanation, PreSaveSerializedModelMixin, Scryfa
     def update_variant(self):
         return self.update_variant_from_recipe(self.get_recipe())
 
-    def get_recipe(self) -> Variant.Recipe:
+    def get_recipe(self) -> 'Variant.Recipe':
         cards: dict[int, Card] = {c.number: c for c in self.uses.all() if c.number is not None}
         civs = [(civ, cards[civ.card_id]) for civ in self.cardinvariant_set.all()]
         templates: dict[int, Template] = {t.id: t for t in self.requires.all()}
@@ -295,7 +298,7 @@ class Variant(Recipe, Playable, Explanation, PreSaveSerializedModelMixin, Scryfa
 
     def update_variant_from_recipe(
             self,
-            recipe: Variant.Recipe,
+            recipe: 'Variant.Recipe',
     ) -> bool:
         previous_values = {field: getattr(self, field) for field in self.computed_fields()}
         self.update_recipe_from_memory(

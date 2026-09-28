@@ -81,7 +81,13 @@ class QueryExplanationTests(SpellbookTestCase):
         self.assertExplanation('price<=10', 'Combos that cost $10 or less on Card Kingdom.')
         self.assertExplanation('eur>5', 'Combos that cost more than €5 on Cardmarket.')
         self.assertExplanation('tcgplayer:20', 'Combos that cost exactly $20 on TCGPlayer.')
+        self.assertExplanation('price<1.5', 'Combos that cost less than $1.5 on Card Kingdom.')
+        self.assertExplanation('eur>=2.65', 'Combos that cost €2.65 or more on Cardmarket.')
         self.assertExplanation('popularity>1000', 'Combos that are in more than 1000 decks.')
+        self.assertExplanation('salt>2.5', 'Combos that have an average salt score of more than 2.5.')
+        self.assertExplanation('saltiness<=1', 'Combos that have an average salt score of 1 or less.')
+        self.assertExplanation('salt=4', 'Combos that have an average salt score of exactly 4.')
+        self.assertExplanation('salt>=.5', 'Combos that have an average salt score of 0.5 or more.')
         self.assertExplanation('variants<=2', 'Combos that have at most 2 variants.')
         self.assertExplanation('bracket<=3', 'Combos that are in bracket 3 or lower.')
         self.assertExplanation('bracket:spicy', 'Combos that are tagged as “Spicy”.')
@@ -98,6 +104,7 @@ class QueryExplanationTests(SpellbookTestCase):
         self.assertExplanation('-card:Basalt', 'Combos that do not use a card with “Basalt” in the name.')
         self.assertExplanation('-is:example', 'Combos that are not an example combo.')
         self.assertExplanation('-price>10', 'Combos that do not cost more than $10 on Card Kingdom.')
+        self.assertExplanation('-salt>=3', 'Combos that do not have an average salt score of 3 or more.')
 
     def test_shared_verbs_are_said_once(self):
         self.assertExplanation(
@@ -172,6 +179,9 @@ class QueryExplanationTests(SpellbookTestCase):
         self.assertInvalid('ci:xyz', 'Invalid color identity: xyz')
         self.assertInvalid('produces:mono', 'Invalid color: mono')
         self.assertInvalid('bracket:9', 'Value 9 is not supported for bracket search. Choose a value between 1 and 5.')
+        self.assertInvalid('salt>5', 'Value 5 is not supported for salt search. Choose a value between 0 and 4.')
+        self.assertInvalid('salt>1e3', 'Value 1e3 is not supported for salt search.')
+        self.assertInvalid('price<1e3', 'Value 1e3 is not supported for price search.')
         self.assertInvalid('@cards>2', 'Prefix @ is not supported for card search with numbers.')
         self.assertInvalid('a' * (MAX_QUERY_LENGTH + 1), 'Search query is too long.')
         self.assertInvalid('card:a ' * (MAX_QUERY_PARAMETERS + 1), 'Too many search parameters.')

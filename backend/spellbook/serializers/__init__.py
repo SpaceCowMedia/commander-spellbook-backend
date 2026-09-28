@@ -12,3 +12,4 @@ from .variant_suggestion_serializer import VariantSuggestionSerializer
 from .variant_update_suggestion_serializer import VariantUpdateSuggestionSerializer
 from .variant_alias_serializer import VariantAliasSerializer
 from .bracket_tag_serializer import BracketTagSerializer
+from .salt_vote_serializer import SaltVoteSerializer

@@ -21,6 +21,7 @@ from .variants_query_explanations.commander_search_explanations import commander
 from .variants_query_explanations.variant_legality_explanations import legality_explanation
 from .variants_query_explanations.variant_price_explanations import price_explanation
 from .variants_query_explanations.variant_popularity_explanations import popularity_explanation
+from .variants_query_explanations.variant_salt_explanations import salt_explanation
 from .variants_query_explanations.bracket_explanations import bracket_explanation
 from .variants_query_explanations.base import Explanation, Junction, QueryValue, combine, sentence
 from .query_parsing import parse_query
@@ -127,6 +128,10 @@ class VariantsQueryExplanationTransformer(Transformer):
     def popularity_search(self, values):
         q = QueryValue.from_string(values[0])
         return popularity_explanation(q)
+
+    def salt_search(self, values):
+        q = QueryValue.from_string(values[0])
+        return salt_explanation(q)
 
     def variants_search(self, values):
         q = QueryValue.from_string(values[0])

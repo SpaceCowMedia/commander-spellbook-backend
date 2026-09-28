@@ -45,3 +45,16 @@ Every endpoint is documented in the [OpenAPI schema](/schema/), browsable as
 VARIANTS_DESCRIPTION = f'''The combo variants the engine generated, searchable with the same query language the website uses.
 
 {BULK_DATA_SECTION}'''
+
+SALT_VOTES_DESCRIPTION = '''Votes on how salty a combo is, that is how unfun it is to play against, from 0 (not at all) to 4 (the most).
+
+Voting requires logging in. Each user has a single vote per variant, addressed by the variant id: `PUT` casts or changes it,
+`DELETE` retracts it, and nobody but its author can read it. A vote comes back with the live average and count of the recent
+votes on its variant.
+
+Only the votes cast or changed in the last year are recent. Every variant shows the average of its recent votes as `salt`,
+once they are at least five, and their number as `saltVoteCount`, both refreshed every couple of hours: order the variants by
+`salt`, or search them with terms like `salt>2.5`, to find the saltiest combos.
+
+`queue` serves variants to vote on, drawn at random with a preference for popular ones still short of a hundred recent votes,
+leaving out those the user already voted on recently.'''

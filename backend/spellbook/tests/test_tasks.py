@@ -7,9 +7,9 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.tasks import TaskResult, TaskResultStatus
 from multiprocessing_utils import split_into_chunks
-from spellbook.models import Combo, Variant, VariantAlias, recompute_all_counts
+from spellbook.models import Combo, SaltVote, Variant, VariantAlias, recompute_all_counts
 from constants import VARIANTS_FILE_NAME
-from spellbook.tasks import combo_of_the_day_task, generate_variants_task, export_variants_task
+from spellbook.tasks import combo_of_the_day_task, generate_variants_task, export_variants_task, update_variants_task
 from spellbook.tasks.export_variants import build_document, export_variants_chunk, export_variant_aliases_chunk
 from website.models import COMBO_OF_THE_DAY_PROPERTY, WebsiteProperty
 from .testing import SpellbookTestCaseWithSeeding
@@ -89,6 +89,9 @@ class TasksTest(SpellbookTestCaseWithSeeding):
                     with open(file_path) as f:
                         data = json.load(f)
                     self.assertEqual(len(data['variants']), Variant.objects.count())
+                    for variant in data['variants']:
+                        self.assertIn('salt', variant)
+                        self.assertIn('saltVoteCount', variant)
 
     def test_export_variants_in_multiple_batches(self):
         super().generate_and_publish_variants()
@@ -117,6 +120,19 @@ class TasksTest(SpellbookTestCaseWithSeeding):
         self.assertEqual([variant['id'] for variant in document['variants']], variants_ids)
         self.assertEqual([alias['id'] for alias in document['aliases']], aliases_ids)
         self.assertEqual(document['version'], settings.VERSION)
+
+    def test_update_variants_recomputes_salt(self):
+        super().generate_and_publish_variants()
+        variant_id = Variant.objects.values_list('id', flat=True)[0]
+        for score in (0, 1, 2, 3, 3):
+            SaltVote.objects.create(user=User.objects.create(username=f'voter{score}{User.objects.count()}'), variant_id=variant_id, score=score)
+        with patch('spellbook.tasks.update_variants.edhrec', return_value={}):
+            result: TaskResult = update_variants_task.enqueue()
+        self.assertTrue(result.is_finished)
+        self.assertEqual(result.status, TaskResultStatus.SUCCESSFUL)
+        variant = Variant.objects.defer(None).get(pk=variant_id)
+        self.assertEqual((variant.salt, variant.salt_vote_count), (1.8, 5))
+        self.assertEqual((variant.serialized['salt'], variant.serialized['salt_vote_count']), (1.8, 5))
 
     def test_notify(self):
         # The only meaningful test is to check that discord utils are available

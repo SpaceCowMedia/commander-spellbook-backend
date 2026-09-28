@@ -350,8 +350,9 @@ def update_cards(cards: list[Card], scryfall: Scryfall, log=lambda t: print(t), 
     The second list is what grows the table to the whole oracle universe: those cards get no number,
     so nothing can reference them until an editor curates one, and a card no format was ever meant to
     allow is not among them. The third is that same growth undone, for the cards an earlier run added
-    before they were ruled out. Only what an editor curated is safe from it, and keeps being updated
-    like any other card.'''
+    before they were ruled out and for the ones Scryfall no longer publishes. Only what an editor curated
+    is safe from it: it keeps being updated like any other card, and one Scryfall drops only loses its
+    oracle id.'''
     oracle_db = {card_object['oracle_id']: card_object for card_object in scryfall.cards.values()}
     existing_names = {card.name: card for card in cards}
     existing_oracle_ids = {card.oracle_id: card for card in cards if card.oracle_id is not None}
@@ -391,14 +392,20 @@ def update_cards(cards: list[Card], scryfall: Scryfall, log=lambda t: print(t), 
             apply_scryfall_fields(card, card_in_db, scryfall)
             if fields_before != scryfall_fields_of(card):
                 updated = True
+        elif card.number is None:
+            log_warning(f'Card {card.name} with oracle id {oracle_id} not found in scryfall dataset. Card has been removed.')
+            cards_to_delete.append(card)
+            continue
         else:
             log_warning(f'Card {card.name} with oracle id {oracle_id} not found in scryfall dataset. Oracle id has been removed.')
             card.oracle_id = None
             updated = True
         if updated:
             cards_to_save.append(card)
-    known_oracle_ids = {str(card.oracle_id) for card in cards if card.oracle_id is not None}
-    taken_names = [set(keys) for keys in zip(*(name_keys(card.name) for card in cards))]
+    deleted = {card.pk for card in cards_to_delete}
+    kept = [card for card in cards if card.pk not in deleted]
+    known_oracle_ids = {str(card.oracle_id) for card in kept if card.oracle_id is not None}
+    taken_names = [set(keys) for keys in zip(*(name_keys(card.name) for card in kept))]
     cards_to_create: list[Card] = []
     missing = [oracle_id for oracle_id in oracle_db if oracle_id not in known_oracle_ids]
     missing_count = len(missing) or 1

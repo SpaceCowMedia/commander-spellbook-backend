@@ -1,5 +1,8 @@
 import uuid
-from spellbook.models import Card, CardInCombo, Combo, ZoneLocation, as_number
+from unittest.mock import patch
+from django.tasks import TaskResult, TaskResultStatus
+from spellbook.models import Card, CardInCombo, CardOracleTag, Combo, OracleTag, ZoneLocation, as_number
+from spellbook.tasks import update_cards_task
 from spellbook.tasks.scryfall import Scryfall, expand_taggings, face_field, name_keys, update_cards
 from spellbook.tasks.oracle_tags import update_oracle_tags
 from .testing import SpellbookTestCaseWithSeeding, curated_card
@@ -185,6 +188,46 @@ class UnplayableCardTests(SpellbookTestCaseWithSeeding):
         updated = next(card for card in to_save if card.pk == acorn.pk)
         self.assertEqual(updated.type_line, 'Creature — Squirrel')
         self.assertEqual(updated.oracle_id, oracle_id)
+
+
+class CardDroppedByScryfallTests(SpellbookTestCaseWithSeeding):
+    '''Oracle cards Scryfall stops publishing, as when it retracts one or reissues it under a new oracle id.'''
+
+    def sync(self, *cards: dict) -> tuple[list[Card], list[Card], list[Card]]:
+        return update_cards(list(Card.objects.order_by()), scryfall_data(*cards), log=lambda t: None, log_warning=lambda t: None, log_error=lambda t: None)
+
+    def test_one_nobody_curated_is_removed(self):
+        dropped = Card.objects.create(name='Dropped Card', oracle_id=uuid.uuid4(), type_line='Creature — Elf')
+        to_save, _, to_delete = self.sync()
+        self.assertEqual([card.pk for card in to_delete], [dropped.pk])
+        self.assertNotIn(dropped.pk, [card.pk for card in to_save])
+
+    def test_one_an_editor_has_taken_in_only_loses_its_oracle_id(self):
+        dropped = curated_card(name='Dropped Card', oracle_id=uuid.uuid4(), type_line='Creature — Elf')
+        to_save, _, to_delete = self.sync()
+        self.assertEqual(to_delete, [])
+        unlinked = next(card for card in to_save if card.pk == dropped.pk)
+        self.assertIsNone(unlinked.oracle_id)
+        self.assertEqual(unlinked.number, dropped.number)
+
+    def test_one_nobody_curated_makes_way_for_its_reissue_in_the_same_run(self):
+        dropped = Card.objects.create(name='Reissued Card', oracle_id=uuid.uuid4(), type_line='Creature — Elf')
+        reissued = bulk_card('Reissued Card', str(uuid.uuid4()))
+        _, to_create, to_delete = self.sync(reissued)
+        self.assertEqual([card.pk for card in to_delete], [dropped.pk])
+        self.assertEqual([str(card.oracle_id) for card in to_create], [reissued['oracle_id']])
+
+    def test_the_task_writes_both_outcomes(self):
+        uncurated = Card.objects.create(name='Dropped Card', oracle_id=uuid.uuid4(), type_line='Creature — Elf')
+        CardOracleTag.objects.create(card=uncurated, tag=OracleTag.objects.create(id=uuid.uuid4(), slug='mana-dork'))
+        curated = curated_card(name='Dropped Curated Card', oracle_id=uuid.uuid4(), type_line='Creature — Elf')
+        with patch('spellbook.tasks.update_cards.scryfall', return_value=scryfall_data()):
+            result: TaskResult = update_cards_task.enqueue()
+        self.assertEqual(result.status, TaskResultStatus.SUCCESSFUL)
+        self.assertFalse(Card.objects.filter(pk=uncurated.pk).exists())
+        curated.refresh_from_db()
+        self.assertIsNone(curated.oracle_id)
+        self.assertIsNotNone(curated.number)
 
 
 class OracleTagExpansionTests(SpellbookTestCaseWithSeeding):

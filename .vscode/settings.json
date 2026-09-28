@@ -6,7 +6,8 @@
         "statusBarItem.remoteBackground": "#bca943",
         "statusBarItem.remoteForeground": "#e7e7e7",
         "statusBar.debuggingBackground": "#ab47bd",
-        "statusBar.debuggingForeground": "#e7e7e7"
+        "statusBar.debuggingForeground": "#e7e7e7",
+        "statusBar.inactiveBackground": "#ab47bd"
     },
     "peacock.color": "#ab47bd",
     // Each project has its own uv-managed .venv; the backend one runs the whole pytest suite.

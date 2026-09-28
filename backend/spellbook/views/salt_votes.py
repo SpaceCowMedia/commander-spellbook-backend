@@ -35,6 +35,7 @@ class SaltVoteViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.D
     filter_backends = [DjangoFilterBackend]
     filterset_class = SaltVoteFilterSet
     lookup_field = 'variant_id'
+    lookup_url_kwarg = 'variant'
 
     def get_queryset(self):
         if getattr(self, 'swagger_fake_view', False) or not self.request.user.is_authenticated:
@@ -46,7 +47,7 @@ class SaltVoteViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.D
 
     @extend_schema(responses={200: SaltVoteSerializer, 201: SaltVoteSerializer})
     def update(self, request: Request, *args, **kwargs):
-        variant_id = self.kwargs[self.lookup_field]
+        variant_id = self.kwargs[self.lookup_url_kwarg]
         if not Variant.objects.filter(pk=variant_id, status__in=Variant.public_statuses()).exists():
             raise NotFound
         serializer = self.get_serializer(data=request.data)

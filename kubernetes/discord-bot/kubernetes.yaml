@@ -26,18 +26,6 @@ spec:
       containers:
         - name: spellbook-discord-bot-app
           image: 083767677168.dkr.ecr.us-east-2.amazonaws.com/spellbook-prod-discord-ecr
-          ports:
-            - containerPort: 80
-          livenessProbe:
-            exec:
-              command:
-                - wget
-                - --output-document=/dev/null
-                - --quiet
-                - https://backend.commanderspellbook.com
-            initialDelaySeconds: 40
-            periodSeconds: 20
-            timeoutSeconds: 5
           env:
             - name: DISCORD_TOKEN
               valueFrom:

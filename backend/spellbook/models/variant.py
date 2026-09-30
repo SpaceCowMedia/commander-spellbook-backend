@@ -92,6 +92,7 @@ class Variant(Recipe, Playable, Explanation, PreSaveSerializedModelMixin, Scryfa
         EXAMPLE = 'E'
         RESTORE = 'R'
         NOT_WORKING = 'NW'
+        REFERENCE = 'RF'
 
     class BracketTag(models.TextChoices):
         RUTHLESS = 'R'
@@ -108,7 +109,7 @@ class Variant(Recipe, Playable, Explanation, PreSaveSerializedModelMixin, Scryfa
 
     @classmethod
     def preview_statuses(cls):
-        return (cls.Status.DRAFT, cls.Status.NEEDS_REVIEW)
+        return (cls.Status.DRAFT, cls.Status.NEEDS_REVIEW, cls.Status.REFERENCE)
 
     id = models.CharField(max_length=128, primary_key=True, help_text='Unique ID for this variant', verbose_name='ID')
     uses: 'models.ManyToManyField[Card, CardInVariant]' = models.ManyToManyField(
@@ -218,8 +219,9 @@ class Variant(Recipe, Playable, Explanation, PreSaveSerializedModelMixin, Scryfa
                 models.When(status='D', then=models.Value(1)),
                 models.When(status='OK', then=models.Value(2)),
                 models.When(status='E', then=models.Value(3)),
-                models.When(status='R', then=models.Value(4)),
-                models.When(status='NW', then=models.Value(5)),
+                models.When(status='RF', then=models.Value(4)),
+                models.When(status='R', then=models.Value(5)),
+                models.When(status='NW', then=models.Value(6)),
                 default=models.Value(10),
             ),
             '-created',

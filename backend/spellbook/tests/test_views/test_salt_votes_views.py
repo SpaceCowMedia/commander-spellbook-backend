@@ -121,7 +121,7 @@ class SaltVoteViewsTests(SpellbookTestCaseWithSeeding):
     def test_only_public_variants_can_be_voted(self):
         self.client.force_login(self.voter)
         self.assertEqual(self.put('missing', {'score': 2}).status_code, status.HTTP_404_NOT_FOUND)
-        for variant_status in (Variant.Status.NEW, Variant.Status.DRAFT, Variant.Status.EXAMPLE):
+        for variant_status in (Variant.Status.NEW, Variant.Status.DRAFT, Variant.Status.REFERENCE, Variant.Status.EXAMPLE):
             with self.subTest(status=variant_status):
                 Variant.objects.filter(pk=self.variant_id).update(status=variant_status)
                 expected = status.HTTP_201_CREATED if variant_status in Variant.public_statuses() else status.HTTP_404_NOT_FOUND

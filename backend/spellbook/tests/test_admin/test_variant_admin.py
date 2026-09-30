@@ -105,6 +105,23 @@ class VariantStatusActionTests(SpellbookTestCaseWithSeeding):
         )
         self.assertTrue(all(Variant.objects.filter(pk__in=ids).values_list('published', flat=True)))
 
+    def test_reference_variants_are_visible_only_to_editors(self):
+        ids = self.selection(3)
+        self.set_status('set_ok', ids)
+        response = self.set_status('set_reference', ids[1:])
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            set(Variant.objects.filter(status=Variant.Status.REFERENCE).values_list('pk', flat=True)),
+            set(ids[1:]),
+        )
+        response = self.client.get(reverse('variants-list'))
+        self.assertEqual({variant['id'] for variant in response.json()['results']}, set(ids))
+        self.client.logout()
+        response = self.client.get(reverse('variants-list'))
+        self.assertEqual([variant['id'] for variant in response.json()['results']], ids[:1])
+        for variant_id in ids[1:]:
+            self.assertEqual(self.client.get(reverse('variants-detail', args=[variant_id])).status_code, 404)
+
     def test_the_action_names_the_database_it_works_on(self):
         '''The admin answers its requests on a connection of its own, so a block opened on the default
         alias leaves the row lock, and the writes it guards, outside any transaction. PostgreSQL then

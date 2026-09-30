@@ -101,39 +101,12 @@ def set_status(request, queryset, status: Variant.Status):
             )
 
 
-@admin.action(description='Mark selected variants as RESTORE')
-def set_restore(modeladmin, request, queryset: QuerySet):
-    set_status(request, queryset, Variant.Status.RESTORE)
-
-
-@admin.action(description='Mark selected variants as DRAFT')
-def set_draft(modeladmin, request, queryset: QuerySet):
-    set_status(request, queryset, Variant.Status.DRAFT)
-
-
-@admin.action(description='Mark selected variants as NEEDS REVIEW')
-def set_needs_review(modeladmin, request, queryset: QuerySet):
-    set_status(request, queryset, Variant.Status.NEEDS_REVIEW)
-
-
-@admin.action(description='Mark selected variants as NEW')
-def set_new(modeladmin, request, queryset: QuerySet):
-    set_status(request, queryset, Variant.Status.NEW)
-
-
-@admin.action(description='Mark selected variants as NOT WORKING')
-def set_not_working(modeladmin, request, queryset: QuerySet):
-    set_status(request, queryset, Variant.Status.NOT_WORKING)
-
-
-@admin.action(description='Mark selected variants as EXAMPLE')
-def set_example(modeladmin, request, queryset):
-    set_status(request, queryset, Variant.Status.EXAMPLE)
-
-
-@admin.action(description='Mark selected variants as OK')
-def set_ok(modeladmin, request, queryset):
-    set_status(request, queryset, Variant.Status.OK)
+def status_action(status: Variant.Status):
+    @admin.action(description=f'Mark selected variants as {status.name.replace("_", " ")}')
+    def action(modeladmin, request, queryset: QuerySet):
+        set_status(request, queryset, status)
+    action.__name__ = f'set_{status.name.lower()}'
+    return action
 
 
 @admin.register(Variant)
@@ -183,7 +156,7 @@ class VariantAdmin(SpellbookModelAdmin):
     ]
     list_filter = ['status', CardCountListFilter, IdentityFilter, 'legal_commander', 'spoiler']
     list_display = ['name', 'id', 'status', 'identity', 'updated', 'created']
-    actions = [set_restore, set_draft, set_new, set_needs_review, set_not_working, set_example, set_ok]
+    actions = [status_action(status) for status in Variant.Status]
     search_fields = ['id']
     search_help_text = 'You can search variants using the usual Commander Spellbook query syntax.'
 

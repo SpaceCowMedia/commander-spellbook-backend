@@ -18,7 +18,7 @@ from spellbook.variants.minimal_set_of_multisets cimport MinimalSetOfMultisets
 
 
 cdef class VariantSetParameters:
-    cdef readonly object max_depth
+    cdef readonly double max_depth
     cdef readonly bint allow_multiple_copies
     cdef readonly PackedEntry filter
 
@@ -31,5 +31,6 @@ cdef class VariantSet:
 
     cpdef MinimalSetOfMultisets entries(self)
     cpdef VariantSet filter(self, PackedEntry entry)
+    cpdef bint has_same_parameters(self, VariantSet other)
     cpdef bint implies(self, VariantSet other)
     cpdef list variants(self)

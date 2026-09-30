@@ -47,6 +47,13 @@ class PackedEntryTests(TestCase):
         self.assertEqual((first | PackedEntry()).items(), first.items())
         self.assertEqual((PackedEntry() | first).items(), first.items())
 
+    def test_union_with_negative_elements(self):
+        first = PackedEntry.from_items([(-2, 1), (1, 1)])
+        second = PackedEntry.from_items([(-2, 3), (-1, 1)])
+        self.assertEqual((first | second).items(), [(-2, 3), (-1, 1), (1, 1)])
+        self.assertEqual((second | first).items(), [(-2, 3), (-1, 1), (1, 1)])
+        self.assertEqual(len(first | second), 5)
+
     def test_combine(self):
         first = PackedEntry.from_items([(-1, 1), (2, 3)])
         second = PackedEntry.from_items([(2, 2), (3, 4)])

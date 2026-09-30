@@ -11,6 +11,14 @@ COUNT_LIMIT = MAX_INGREDIENT_QUANTITY * MAX_INGREDIENT_QUANTITY
 _HASH_NOT_COMPUTED = 0
 
 
+def total_count(packed: tuple[int, ...]) -> int:
+    limit = COUNT_LIMIT
+    total = 0
+    for packed_item in packed:
+        total += packed_item % limit
+    return total
+
+
 class PackedEntry:
     '''
     An immutable multiset of integer elements, packed as a sorted tuple of
@@ -28,10 +36,7 @@ class PackedEntry:
 
     def __init__(self, _internal: tuple[int, ...] = ()):
         self._packed = _internal
-        total = 0
-        for packed_item in _internal:
-            total += packed_item % COUNT_LIMIT
-        self._total = total
+        self._total = total_count(_internal)
 
     @classmethod
     def from_items(cls, items: Iterable[tuple[int, int]]) -> 'PackedEntry':
@@ -55,7 +60,11 @@ class PackedEntry:
         return [divmod(packed_item, COUNT_LIMIT) for packed_item in self._packed]
 
     def distinct_elements(self) -> list[int]:
-        return [packed_item // COUNT_LIMIT for packed_item in self._packed]
+        limit = COUNT_LIMIT
+        elements = []
+        for packed_item in self._packed:
+            elements.append(packed_item // limit)
+        return elements
 
     def distinct_count(self) -> int:
         return len(self._packed)
@@ -66,12 +75,13 @@ class PackedEntry:
     def issubset(self, other: 'PackedEntry') -> bool:
         first = self._packed
         second = other._packed
-        first_length: int = len(first)
-        second_length: int = len(second)
+        first_length = len(first)
+        second_length = len(second)
         if first_length > second_length or self._total > other._total:
             return False
-        i: int = 0
-        j: int = 0
+        limit = COUNT_LIMIT
+        i = 0
+        j = 0
         while i < first_length:
             if second_length - j < first_length - i:
                 return False
@@ -81,8 +91,8 @@ class PackedEntry:
                 i += 1
                 j += 1
                 continue
-            element_first = packed_first // COUNT_LIMIT
-            element_second = packed_second // COUNT_LIMIT
+            element_first = packed_first // limit
+            element_second = packed_second // limit
             if element_first == element_second:
                 # same element: the packed comparison is a count comparison
                 if packed_first > packed_second:
@@ -101,26 +111,27 @@ class PackedEntry:
     def union(self, other: 'PackedEntry') -> 'PackedEntry':
         first = self._packed
         second = other._packed
-        first_length: int = len(first)
-        second_length: int = len(second)
-        result: list[int] = []
-        i: int = 0
-        j: int = 0
+        first_length = len(first)
+        second_length = len(second)
+        limit = COUNT_LIMIT
+        result = []
+        i = 0
+        j = 0
         while i < first_length and j < second_length:
             packed_first = first[i]
             packed_second = second[j]
-            element_first = packed_first // COUNT_LIMIT
-            element_second = packed_second // COUNT_LIMIT
+            element_first = packed_first // limit
+            element_second = packed_second // limit
             if element_first == element_second:
                 # same element: the greater packed value carries the greater count
-                result.append(packed_first if packed_first >= packed_second else packed_second)
+                result.append(first[i] if packed_first >= packed_second else second[j])
                 i += 1
                 j += 1
             elif element_first < element_second:
-                result.append(packed_first)
+                result.append(first[i])
                 i += 1
             else:
-                result.append(packed_second)
+                result.append(second[j])
                 j += 1
         result.extend(first[i:])
         result.extend(second[j:])
@@ -129,33 +140,35 @@ class PackedEntry:
     def combine(self, other: 'PackedEntry') -> 'PackedEntry':
         first = self._packed
         second = other._packed
-        first_length: int = len(first)
-        second_length: int = len(second)
-        result: list[int] = []
-        i: int = 0
-        j: int = 0
+        first_length = len(first)
+        second_length = len(second)
+        limit = COUNT_LIMIT
+        result = []
+        i = 0
+        j = 0
         while i < first_length and j < second_length:
             packed_first = first[i]
             packed_second = second[j]
-            element_first = packed_first // COUNT_LIMIT
-            element_second = packed_second // COUNT_LIMIT
+            element_first = packed_first // limit
+            element_second = packed_second // limit
             if element_first == element_second:
-                result.append(packed_first + packed_second - element_first * COUNT_LIMIT)
+                result.append(packed_first + packed_second - element_first * limit)
                 i += 1
                 j += 1
             elif element_first < element_second:
-                result.append(packed_first)
+                result.append(first[i])
                 i += 1
             else:
-                result.append(packed_second)
+                result.append(second[j])
                 j += 1
         result.extend(first[i:])
         result.extend(second[j:])
         return PackedEntry(tuple(result))
 
     def has_repeated_positive_elements(self) -> bool:
+        limit = COUNT_LIMIT
         for packed_item in self._packed:
-            if packed_item >= COUNT_LIMIT and packed_item % COUNT_LIMIT > 1:
+            if packed_item >= limit and packed_item % limit > 1:
                 return True
         return False
 

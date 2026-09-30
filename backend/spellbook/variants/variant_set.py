@@ -20,7 +20,7 @@ class VariantIngredients:
 
 @dataclass(frozen=True)
 class VariantSetParameters:
-    max_depth: int | float = float('inf')
+    max_depth: float = float('inf')
     allow_multiple_copies: bool = True
     filter: Entry | None = None
 
@@ -70,53 +70,60 @@ class VariantSet:
         return VariantIngredients(FrozenMultiset(cards), FrozenMultiset(templates))
 
     def entries(self) -> MinimalSetOfMultisets:
-        return self.sets
+        return self.__sets
 
     def filter(self, entry: Entry):
         return self.__class__(
             parameters=VariantSetParameters(
-                max_depth=self.parameters.max_depth,
-                allow_multiple_copies=self.parameters.allow_multiple_copies,
+                max_depth=self.__parameters.max_depth,
+                allow_multiple_copies=self.__parameters.allow_multiple_copies,
                 filter=entry,
             ),
-            _internal=self.sets.subtree(entry),
+            _internal=self.__sets.subtree(entry),
         )
 
     def __str__(self) -> str:
-        return str(self.sets)
+        return str(self.__sets)
 
     def __len__(self) -> int:
-        return len(self.sets)
+        return len(self.__sets)
 
-    def __or__(self, other: Self):
-        assert self.parameters == other.parameters, 'Cannot union VariantSets with different parameters'
-        return self.__class__(parameters=self.parameters, _internal=self.sets | other.sets)
+    def has_same_parameters(self, other: 'VariantSet') -> bool:
+        return self.__parameters is other.__parameters or self.__parameters == other.__parameters
 
-    def __and__(self, other: Self):
-        assert self.parameters == other.parameters, 'Cannot intersect VariantSets with different parameters'
+    def __or__(self, other: 'VariantSet'):
+        assert self.has_same_parameters(other), 'Cannot union VariantSets with different parameters'
+        return self.__class__(parameters=self.__parameters, _internal=self.__sets | other.__sets)
+
+    def __and__(self, other: 'VariantSet'):
+        assert self.has_same_parameters(other), 'Cannot intersect VariantSets with different parameters'
         parameters = self.__parameters
         result: MinimalSetOfMultisets = MinimalSetOfMultisets()
+        right_entries: list[PackedEntry] = list(other.__sets)
         left_entry: PackedEntry
         right_entry: PackedEntry
         entry: PackedEntry
-        for left_entry, right_entry in product(self.entries(), other.entries()):
-            entry = left_entry | right_entry
-            if parameters._check_entry(entry):
-                result.add(entry)
-        return self.__class__(parameters=self.parameters, _internal=result)
+        for left_entry in self.__sets:
+            for right_entry in right_entries:
+                entry = left_entry.union(right_entry)
+                if parameters._check_entry(entry):
+                    result.add(entry)
+        return self.__class__(parameters=parameters, _internal=result)
 
-    def __add__(self, other: Self):
-        assert self.parameters == other.parameters, 'Cannot sum VariantSets with different parameters'
+    def __add__(self, other: 'VariantSet'):
+        assert self.has_same_parameters(other), 'Cannot sum VariantSets with different parameters'
         parameters = self.__parameters
         result: MinimalSetOfMultisets = MinimalSetOfMultisets()
-        left_key: PackedEntry
-        right_key: PackedEntry
+        right_entries: list[PackedEntry] = list(other.__sets)
+        left_entry: PackedEntry
+        right_entry: PackedEntry
         entry: PackedEntry
-        for left_key, right_key in product(self.entries(), other.entries()):
-            entry = left_key + right_key
-            if parameters._check_entry(entry):
-                result.add(entry)
-        return self.__class__(parameters=self.parameters, _internal=result)
+        for left_entry in self.__sets:
+            for right_entry in right_entries:
+                entry = left_entry.combine(right_entry)
+                if parameters._check_entry(entry):
+                    result.add(entry)
+        return self.__class__(parameters=parameters, _internal=result)
 
     def implies(self, other: 'VariantSet') -> bool:
         '''Whether every variant of this set satisfies the other one too, each of its entries holding one of the other's.'''

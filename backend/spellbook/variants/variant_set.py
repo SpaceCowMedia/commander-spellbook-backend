@@ -69,7 +69,7 @@ class VariantSet:
                 templates[-item] = quantity
         return VariantIngredients(FrozenMultiset(cards), FrozenMultiset(templates))
 
-    def entries(self) -> Iterable[Entry]:
+    def entries(self) -> MinimalSetOfMultisets:
         return self.sets
 
     def filter(self, entry: Entry):
@@ -118,6 +118,15 @@ class VariantSet:
                 result.add(entry)
         return self.__class__(parameters=self.parameters, _internal=result)
 
+    def implies(self, other: 'VariantSet') -> bool:
+        '''Whether every variant of this set satisfies the other one too, each of its entries holding one of the other's.'''
+        other_entries = other.entries()
+        entry: PackedEntry
+        for entry in self.entries():
+            if not other_entries.contains_subset_of(entry):
+                return False
+        return True
+
     def variants(self) -> list[VariantIngredients]:
         return [self.entry_to_ingredients(e) for e in self.entries()]
 
@@ -137,18 +146,6 @@ class VariantSet:
         return count
 
     @classmethod
-    def or_sets(cls, sets: list[Self], parameters: VariantSetParameters | None = None):
-        return cls.aggregate_sets(sets, strategy=lambda x, y: x | y, parameters=parameters)
-
-    @classmethod
-    def and_sets(cls, sets: list[Self], parameters: VariantSetParameters | None = None):
-        return cls.aggregate_sets(sorted(sets, key=len), strategy=lambda x, y: x & y, parameters=parameters)
-
-    @classmethod
-    def sum_sets(cls, sets: list[Self], parameters: VariantSetParameters | None = None):
-        return cls.aggregate_sets(sets, strategy=lambda x, y: x + y, parameters=parameters)
-
-    @classmethod
     def aggregate_sets(cls, sets: list[Self], strategy: Callable[[Self, Self], Self], parameters: VariantSetParameters | None = None):
         if len(sets) == 0:
             return cls(parameters=parameters)
@@ -158,7 +155,7 @@ class VariantSet:
     def product_sets(cls, sets: list[Self], parameters: VariantSetParameters | None = None):
         parameters = parameters if parameters is not None else VariantSetParameters()
         if parameters.allow_multiple_copies:
-            return cls.sum_sets(sets, parameters=parameters)
+            return cls.aggregate_sets(sets, strategy=add, parameters=parameters)
         if len(sets) == 0:
             return cls(parameters=parameters)
         result: MinimalSetOfMultisets = MinimalSetOfMultisets()

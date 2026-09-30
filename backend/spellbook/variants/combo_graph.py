@@ -2,6 +2,8 @@ from typing import Mapping, Iterable
 from collections import deque, defaultdict, Counter
 from .multiset import FrozenMultiset, Multiset
 from itertools import chain
+from functools import partial
+from operator import or_
 from enum import Enum
 from dataclasses import dataclass
 from spellbook.models import Card, Feature, FeatureNeededInCombo, FeatureOfCard, Combo, Template
@@ -473,6 +475,31 @@ class Graph:
             empty = self._empty_variant_set = VariantSet(parameters=self.variant_set_parameters)
         return empty, empty, False
 
+    def _variant_and(self, combo: ComboNode, left: VariantSet, right: VariantSet) -> VariantSet:
+        '''The strategy intersecting the requirements of a combo, bounding the pairs each step goes through.
+        Over the limit, a side implying the other already is the intersection, as when the combo needs
+        several features produced by the same cards.'''
+        variant_count_estimate = len(left) * len(right)
+        if variant_count_estimate > self.variant_limit:
+            if left.implies(right):
+                return left
+            if right.implies(left):
+                return right
+            raise GraphError(f'Combo {combo.item} has too many variants, approx. {variant_count_estimate}')
+        return left & right
+
+    def _variant_or(self, feature: FeatureWithAttributesNode, left: VariantSet, right: VariantSet) -> VariantSet:
+        '''The strategy uniting the producers of a feature, bounding the entries each step can hold.
+        Over the limit, a side the other implies already is the union, as when a producer contains another.'''
+        variant_count_estimate = len(left) + len(right)
+        if variant_count_estimate > self.variant_limit:
+            if right.implies(left):
+                return left
+            if left.implies(right):
+                return right
+            raise GraphError(f'Feature "{feature.item}" has too many variants, approx. {variant_count_estimate}')
+        return left | right
+
     def _error(self, msg: str):
         raise Exception(msg)
 
@@ -562,15 +589,12 @@ class Graph:
             needed_features_variant_sets.append(variant_set)
             if replacement_variant_sets:
                 replacement_variant_sets_of_ingredients.append(VariantSet.product_sets(replacement_variant_sets, parameters=self.variant_set_parameters))
-        variant_sets = card_variant_sets + template_variant_sets + needed_features_variant_sets
-        variant_count_estimate = 1
-        for vs in variant_sets:
-            variant_count_estimate *= len(vs)
-        if variant_count_estimate > self.variant_limit:
-            raise GraphError(f'Combo {combo.item} has too many variants, approx. {variant_count_estimate}')
-        variant_set = VariantSet.and_sets(variant_sets, parameters=self.variant_set_parameters)
-        # no estimate needed: these sets are a subset of the ones already counted
-        replacement_variant_set = VariantSet.and_sets(replacement_variant_sets_of_ingredients, parameters=self.variant_set_parameters) if combo.replacements_differ else variant_set
+        and_within_limit = partial(self._variant_and, combo)
+        variant_set = VariantSet.aggregate_sets(sorted(card_variant_sets + template_variant_sets + needed_features_variant_sets, key=len), strategy=and_within_limit, parameters=self.variant_set_parameters)
+        # a lone operand never reaches the strategy
+        if len(variant_set) > self.variant_limit:
+            raise GraphError(f'Combo {combo.item} has too many variants, approx. {len(variant_set)}')
+        replacement_variant_set = VariantSet.aggregate_sets(sorted(replacement_variant_sets_of_ingredients, key=len), strategy=and_within_limit, parameters=self.variant_set_parameters) if combo.replacements_differ else variant_set
         return self._resolved(combo, variant_set, replacement_variant_set, complete)
 
     def _feature_with_attribute_matchers_nodes_down(self, feature: FeatureWithAttributesMatcherNode) -> tuple[VariantSet, VariantSet, bool]:
@@ -589,8 +613,8 @@ class Graph:
             variant_sets.append(variant_set)
             if feature.replacements_differ:
                 replacement_variant_sets.append(replacement_variant_set)
-        variant_set = VariantSet.or_sets(variant_sets, parameters=self.variant_set_parameters)
-        replacement_variant_set = VariantSet.or_sets(replacement_variant_sets, parameters=self.variant_set_parameters) if feature.replacements_differ else variant_set
+        variant_set = VariantSet.aggregate_sets(variant_sets, strategy=or_, parameters=self.variant_set_parameters)
+        replacement_variant_set = VariantSet.aggregate_sets(replacement_variant_sets, strategy=or_, parameters=self.variant_set_parameters) if feature.replacements_differ else variant_set
         return self._resolved(feature, variant_set, replacement_variant_set, complete)
 
     def _feature_with_attributes_nodes_down(self, feature: FeatureWithAttributesNode) -> tuple[VariantSet, VariantSet, bool]:
@@ -610,14 +634,9 @@ class Graph:
             produced_combos_variant_sets.append(variant_set)
             if feature.replacements_differ:
                 produced_combos_replacement_variant_sets.append(replacement_variant_set)
-        variant_sets = card_variant_sets + produced_combos_variant_sets
-        variant_count_estimate = 0
-        for vs in variant_sets:
-            variant_count_estimate += len(vs)
-        if variant_count_estimate > self.variant_limit:
-            raise GraphError(f'Feature "{feature.item}" has too many variants, approx. {variant_count_estimate}')
-        variant_set = VariantSet.or_sets(variant_sets, parameters=self.variant_set_parameters)
-        replacement_variant_set = VariantSet.or_sets(card_variant_sets + produced_combos_replacement_variant_sets, parameters=self.variant_set_parameters) if feature.replacements_differ else variant_set
+        or_within_limit = partial(self._variant_or, feature)
+        variant_set = VariantSet.aggregate_sets(card_variant_sets + produced_combos_variant_sets, strategy=or_within_limit, parameters=self.variant_set_parameters)
+        replacement_variant_set = VariantSet.aggregate_sets(card_variant_sets + produced_combos_replacement_variant_sets, strategy=or_within_limit, parameters=self.variant_set_parameters) if feature.replacements_differ else variant_set
         return self._resolved(feature, variant_set, replacement_variant_set, complete)
 
     def _combo_nodes_down_in_subgraph(self, combo: ComboNode) -> tuple[VariantSet, VariantSet]:

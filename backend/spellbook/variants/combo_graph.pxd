@@ -105,6 +105,8 @@ cdef class Graph:
     cpdef _mark_nodes_with_differing_replacements(self)
     cpdef _reset(self)
     cpdef list results(self, VariantSet variant_set)
+    cpdef VariantSet _variant_and(self, ComboNode combo, VariantSet left, VariantSet right)
+    cpdef VariantSet _variant_or(self, FeatureWithAttributesNode feature, VariantSet left, VariantSet right)
     cpdef tuple _combo_nodes_down(self, ComboNode combo)
     cpdef tuple _feature_with_attribute_matchers_nodes_down(self, FeatureWithAttributesMatcherNode feature)
     cpdef tuple _feature_with_attributes_nodes_down(self, FeatureWithAttributesNode feature)

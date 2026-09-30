@@ -24,6 +24,7 @@ cdef class MinimalSetOfMultisets:
     cpdef _index_remove(self, PackedEntry entry)
     cpdef set _candidates_sharing_elements(self, PackedEntry entry)
     cpdef MinimalSetOfMultisets subtree(self, PackedEntry under)
+    cpdef bint contains_subset_of(self, PackedEntry aset)
     cpdef add(self, PackedEntry aset)
     cpdef extend(self, object sets)
     cpdef MinimalSetOfMultisets copy(self)

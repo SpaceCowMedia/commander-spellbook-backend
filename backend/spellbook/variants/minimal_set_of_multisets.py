@@ -87,6 +87,22 @@ class MinimalSetOfMultisets:
                 result.add(entry)
         return MinimalSetOfMultisets(_internal=result)
 
+    def contains_subset_of(self, aset: PackedEntry) -> bool:
+        '''
+        Returns whether some set in the collection is a subset of the given set.
+        '''
+        if _EMPTY_ENTRY in self.__sets:
+            return True
+        element_to_entries = self.__element_to_entries
+        s: PackedEntry
+        for element in aset.distinct_elements():
+            bucket = element_to_entries.get(element)
+            if bucket is not None:
+                for s in bucket:
+                    if s.issubset(aset):
+                        return True
+        return False
+
     def add(self, aset: PackedEntry):
         '''
         Adds a set to the collection if it is not a superset of any set in the collection.

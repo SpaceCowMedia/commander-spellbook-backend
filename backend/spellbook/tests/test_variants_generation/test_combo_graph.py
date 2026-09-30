@@ -1084,6 +1084,73 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         self.assertEqual(actual[0].features[k_id], 2)
 
 
+class ComboGraphVariantLimitTest(SpellbookTestCase):
+    '''The variant limit bounds each step of the intersections and unions building a variant set, not the
+    product or the sum of every size involved: the entries a step drops as redundant can keep the result far
+    below them.'''
+
+    def test_features_produced_by_the_same_cards_stay_within_the_limit(self):
+        self.setup_combo_graph({
+            **{f'S{i}': ('fso', 'step', 'mana') for i in range(30)},
+            ('E', 'F', 'fso', 'step', 'mana'): ('z',),
+        })
+        variants = Graph(Data(), variant_limit=100).variants(1).variants()
+        self.assertCountEqual([dict(v.cards.items()) for v in variants], [{i: 1, 31: 1, 32: 1} for i in range(1, 31)])
+
+    def test_a_requirement_implied_by_another_is_kept_as_it_is(self):
+        self.setup_combo_graph({
+            'E': ('o',),
+            'G': ('o',),
+            **{('E', f'P{i}'): ('x',) for i in range(60)},
+            ('o', 'x'): ('z',),
+        })
+        variants = Graph(Data(), variant_limit=100).variants(61).variants()
+        self.assertCountEqual([dict(v.cards.items()) for v in variants], [{1: 1, i: 1} for i in range(3, 63)])
+
+    def test_independent_features_are_bounded_by_their_pairs(self):
+        self.setup_combo_graph({
+            **{f'P{i}': ('x',) for i in range(11)},
+            **{f'Q{i}': ('y',) for i in range(11)},
+            ('E', 'x', 'y'): ('z',),
+        })
+        self.assertRaises(GraphError, lambda: Graph(Data(), variant_limit=120).variants(1))
+        self.assertEqual(len(Graph(Data(), variant_limit=121).variants(1)), 121)
+
+    def test_a_lone_requirement_is_bounded_by_its_size(self):
+        self.setup_combo_graph({
+            **{f'P{i}': ('x',) for i in range(40)},
+            ('2 * x',): ('z',),
+        })
+        self.assertRaises(GraphError, lambda: Graph(Data(), variant_limit=779).variants(1))
+        self.assertEqual(len(Graph(Data(), variant_limit=780).variants(1)), 780)
+
+    def test_producers_absorbed_by_another_do_not_count_toward_a_feature(self):
+        self.setup_combo_graph({
+            'C': ('x',),
+            **{('C', f'D{i}'): ('x',) for i in range(150)},
+            ('x', 'E'): ('z',),
+        })
+        variants = Graph(Data(), variant_limit=100).variants(151).variants()
+        self.assertEqual([dict(v.cards.items()) for v in variants], [{1: 1, 152: 1}])
+
+    def setup_implied_producer(self, recipes: list[tuple[str, ...]]):
+        self.setup_combo_graph({
+            **{f'Y{i}': ('y',) for i in range(150)},
+            **{recipe: ('x',) for recipe in recipes},
+            ('x', 'E'): ('z',),
+        })
+
+    def test_a_producer_implied_by_an_earlier_one_stays_within_the_limit(self):
+        self.setup_implied_producer([('C', 'y'), ('C', 'y', 'W')])
+        variants = Graph(Data(), variant_limit=200).variants(3).variants()
+        self.assertCountEqual([dict(v.cards.items()) for v in variants], [{i: 1, 151: 1, 153: 1} for i in range(1, 151)])
+
+    def test_a_producer_implying_a_later_one_stays_within_the_limit(self):
+        self.setup_implied_producer([('C', 'y', 'W'), ('C', 'y')])
+        variants = Graph(Data(), variant_limit=200).variants(3).variants()
+        self.assertCountEqual([dict(v.cards.items()) for v in variants], [{i: 1, 151: 1, 153: 1} for i in range(1, 151)])
+
+
 class ComboGraphCycleCachingTest(SpellbookTestCase):
     '''A variant set computed while a node it depends on was still being visited is an under-approximation
     owed to the combo the walk started from. Caching it would let whichever combo a graph happened to walk

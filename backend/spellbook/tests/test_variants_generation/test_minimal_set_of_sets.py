@@ -101,6 +101,21 @@ class MinimalSetOfMultisetsTests(TestCase):
         self.subject.add(packed())
         self.assertEqual(self.subject.subtree(packed(1, 1)), MinimalSetOfMultisets({packed()}))
 
+    def test_contains_subset_of(self):
+        self.assertTrue(self.subject.contains_subset_of(packed(1, 1, 2, 3)))
+        self.assertTrue(self.subject.contains_subset_of(packed(1, 1, 2, 3, 9)))
+        self.assertTrue(self.subject.contains_subset_of(packed(3, 4, 5, 5, 5, 5)))
+        self.assertFalse(self.subject.contains_subset_of(packed(1, 2, 3, 4)))
+        self.assertFalse(self.subject.contains_subset_of(packed(3, 4, 5, 5)))
+        self.assertFalse(self.subject.contains_subset_of(packed(9)))
+        self.assertFalse(self.subject.contains_subset_of(packed()))
+        self.assertFalse(MinimalSetOfMultisets().contains_subset_of(packed(1)))
+
+    def test_contains_subset_of_with_empty_entry(self):
+        self.subject.add(packed())
+        self.assertTrue(self.subject.contains_subset_of(packed()))
+        self.assertTrue(self.subject.contains_subset_of(packed(9)))
+
     def test_copy(self):
         self.assertEqual(self.subject, self.subject.copy())
         c = self.subject.copy()

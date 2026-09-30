@@ -213,6 +213,19 @@ class VariantSetTests(TestCase):
             VariantIngredients(FrozenMultiset({5: 1}), FrozenMultiset({1: 1, 2: 1})),
         ]))
 
+    def test_implies(self):
+        def cards(*variants: dict[int, int]) -> VariantSet:
+            return VariantSet(entries=[VariantSet.ingredients_to_entry(FrozenMultiset(v), FrozenMultiset()) for v in variants])
+        companions = cards({1: 1}, {2: 1})
+        self.assertTrue(cards({1: 1, 3: 1}, {2: 1, 4: 1}).implies(companions))
+        self.assertTrue(companions.implies(companions))
+        self.assertFalse(cards({1: 1, 3: 1}, {4: 1}).implies(companions))
+        self.assertFalse(companions.implies(cards({1: 1, 3: 1})))
+        self.assertTrue(cards({1: 2}).implies(cards({1: 1})))
+        self.assertFalse(cards({1: 1}).implies(cards({1: 2})))
+        self.assertTrue(VariantSet().implies(companions))
+        self.assertFalse(companions.implies(VariantSet()))
+
     def test_sum(self):
         variant_set_1 = VariantSet()
         variant_set_2 = VariantSet()

@@ -308,6 +308,26 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
         self.assertSetEqual({c.name for c in variant.uses.all()}, {'Transitive Card One', 'Transitive Card Two'})
         self.assertEqual(variant.description, 'a mention of Transitive Card Two here')
 
+    def test_a_card_used_by_two_faces_names_each_feature_by_its_face(self):
+        '''The shape of the Pious Evangel // Wayward Disciple report: the faces of the card disagree, so the
+        variant uses the whole card, but each feature is still named by the face producing it.'''
+        dfc = curated_card(name='Day Face // Night Face', type_line='Creature - Human // Creature - Vampire', faces=2)
+        day_feature = Feature.objects.create(name='DayF', status=Feature.Status.HIDDEN_UTILITY)
+        night_feature = Feature.objects.create(name='NightF', status=Feature.Status.HIDDEN_UTILITY)
+        produced_feature = Feature.objects.create(name='BothF', status=Feature.Status.STANDALONE)
+        FeatureOfCard.objects.create(card=dfc, feature=day_feature, used_face=1, zone_locations=ZoneLocation.BATTLEFIELD)
+        FeatureOfCard.objects.create(card=dfc, feature=night_feature, used_face=2, zone_locations=ZoneLocation.BATTLEFIELD)
+        main = Combo.objects.create(status=Combo.Status.GENERATOR, description='[[DayF]] then [[NightF]] trigger')
+        FeatureNeededInCombo.objects.create(combo=main, feature=day_feature, order=1)
+        FeatureNeededInCombo.objects.create(combo=main, feature=night_feature, order=2)
+        main.produces.add(produced_feature)
+
+        self.generate_variants()
+
+        variant = Variant.objects.get(of=main)
+        self.assertEqual(variant.description, 'Day Face then Night Face trigger')
+        self.assertIsNone(variant.cardinvariant_set.get().used_face)
+
     def test_replacement_leaves_out_an_ingredient_not_in_replacements(self):
         '''The shape of issue #1213: a utility combo needs two cards to produce its feature, but only
         one of them is worth naming in the texts referencing that feature.'''

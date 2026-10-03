@@ -200,11 +200,11 @@ def is_asked_for(data: Data, feature: FeatureWithAttributes, rows: Sequence[Feat
     )
 
 
-def replacement_of(recipe: Recipe, used_faces: Mapping[cardid, int | None]) -> Replacement:
+def replacement_of(recipe: Recipe, used_faces: 'UsedFaces', feature_id: featureid) -> Replacement:
     '''The name a text shows for one way of producing a feature. A card used by one of its faces shows
     that half of its name, and a lone card is kept, so that a face override in the text still resolves.'''
     cards, templates = recipe
-    names = [c.face_name(used_faces.get(card_number(c)), short=True) for c in cards] + [t.name for t in templates]
+    names = [c.face_name(used_faces.of(card_number(c), feature_id), short=True) for c in cards] + [t.name for t in templates]
     return Replacement(
         text=' + '.join(names),
         card=cards[0] if len(cards) == 1 and not templates else None,
@@ -215,7 +215,7 @@ def replacement_alternatives(
     data: Data,
     replacements: Mapping[FeatureWithAttributes, Sequence[Recipe]],
     needed_combos: Sequence[Combo],
-    used_faces: Mapping[cardid, int | None],
+    used_faces: 'UsedFaces',
     positions: IngredientPositions,
 ) -> dict[FeatureName, list[Alternative[Replacement]]]:
     '''What every feature name is replaced with, one alternative per set of attributes it was produced
@@ -227,7 +227,7 @@ def replacement_alternatives(
             continue
         by_name[feature.feature.name].append(Alternative(
             candidates=tuple(
-                replacement_of(recipe, used_faces)
+                replacement_of(recipe, used_faces, feature.feature.id)
                 for recipe in sorted(recipes, key=lambda recipe: positions.position_of(*recipe))
             ),
             attribute_ids=feature.attributes,
@@ -349,6 +349,31 @@ class InitialStates(ByIngredient[Sequence[SourcedState]]):
 
     def used_faces(self) -> dict[cardid, int | None]:
         return {card_id: merge_used_faces(state.row for state in states) for card_id, states in self.cards.items()}
+
+
+@dataclass(frozen=True)
+class UsedFaces:
+    '''The face a text names each card of a variant by. Rows disagreeing on the face of a card leave
+    the whole card to the variant, since it is used by more than one face, while a feature it produces
+    is still named by the face the rows producing that feature agree on.'''
+    of_cards: Mapping[cardid, int | None]
+    of_producers: Mapping[tuple[featureid, cardid], int | None]
+
+    @classmethod
+    def collect(cls, data: Data, sources: Sequence[TextSource], initial_states: InitialStates) -> 'UsedFaces':
+        rows = defaultdict[tuple[featureid, cardid], list[Ingredient]](list)
+        for card_id, states in initial_states.cards.items():
+            for state in states:
+                for feature_id, _ in produced_features(data, sources[state.source]):
+                    rows[feature_id, card_id].append(state.row)
+        return cls(
+            of_cards=initial_states.used_faces(),
+            of_producers={key: merge_used_faces(producing) for key, producing in rows.items()},
+        )
+
+    def of(self, card_id: cardid, feature_id: featureid) -> int | None:
+        face = self.of_producers.get((feature_id, card_id))
+        return face if face is not None else self.of_cards.get(card_id)
 
 
 @dataclass
@@ -642,7 +667,7 @@ class VariantContext:
         return cls(
             data=data,
             replacements=index_of(data, needed_combos, replacement_alternatives(
-                data, replacements, needed_combos, initial_states.used_faces(), positions,
+                data, replacements, needed_combos, UsedFaces.collect(data, sources, initial_states), positions,
             )),
             producers=index_of(data, needed_combos, producer_alternatives(data, sources)),
             sources=sources,

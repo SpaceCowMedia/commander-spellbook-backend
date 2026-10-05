@@ -193,3 +193,13 @@ class SaltVoteViewsTests(SpellbookTestCaseWithSeeding):
         recompute_salt()
         Variant.objects.filter(pk=self.other_variant_id).update(popularity=10**3)
         self.assertEqual(self.queue_ids(limit=1), {self.other_variant_id})
+
+    @override_settings(SALT_VOTE_QUEUE_POPULARITY_EXPONENT=0.25)
+    def test_queue_draws_unpopular_variants_less_often(self):
+        Variant.objects.filter(pk=self.variant_id).update(popularity=10**8)
+        Variant.objects.exclude(pk=self.variant_id).update(popularity=0)
+        draws = 0
+        for _ in range(200):
+            draws += self.variant_id in self.queue_ids(limit=1)
+        self.assertGreater(draws, 170)
+        self.assertLess(draws, 200)

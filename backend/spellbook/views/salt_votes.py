@@ -1,6 +1,6 @@
 from django.conf import settings
 from django.db.models import Exists, FloatField, OuterRef
-from django.db.models.functions import Cast, Coalesce, Greatest, Least, Power, Random
+from django.db.models.functions import Cast, Coalesce, Least, Power, Random
 from django_filters.rest_framework import DjangoFilterBackend, FilterSet
 from django_filters.filters import CharFilter
 from drf_spectacular.utils import extend_schema
@@ -67,7 +67,7 @@ class SaltVoteViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.D
         target = settings.SALT_VOTE_TARGET_COUNT
         boost = Power(Cast(Coalesce('popularity', 0), FloatField()) + 1.0, settings.SALT_VOTE_QUEUE_POPULARITY_EXPONENT)
         undersampling = 1.0 - Cast(Least('salt_vote_count', target), FloatField()) / target
-        weight = Greatest(boost * undersampling, 1.0)
+        weight = boost * undersampling
         # Efraimidis–Spirakis weighted sampling without replacement: https://doi.org/10.1016/j.ipl.2005.11.003
         drawn = variants.order_by(Power(Random(), 1.0 / weight).desc())[:parameters.validated_data['limit']]
         return Response(PreSerializedSerializer(drawn, many=True).data)

@@ -66,7 +66,7 @@ class SaltVoteViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.D
             variants = variants.exclude(Exists(SaltVote.objects.filter(user=request.user, variant_id=OuterRef('pk'), updated__gte=salt_window_start())))
         target = settings.SALT_VOTE_TARGET_COUNT
         boost = Power(Cast(Coalesce('popularity', 0), FloatField()) + 1.0, settings.SALT_VOTE_QUEUE_POPULARITY_EXPONENT)
-        undersampling = 1.0 - Cast(Least('salt_vote_count', target), FloatField()) / target
+        undersampling = 1.0 - (1.0 - settings.SALT_VOTE_QUEUE_SETTLED_FACTOR) * Cast(Least('salt_vote_count', target), FloatField()) / target
         weight = Greatest(boost * undersampling, 1.0)
         # Efraimidis–Spirakis weighted sampling without replacement: https://doi.org/10.1016/j.ipl.2005.11.003
         drawn = variants.order_by(Power(Random(), 1.0 / weight).desc())[:parameters.validated_data['limit']]

@@ -185,7 +185,7 @@ class SaltVoteViewsTests(SpellbookTestCaseWithSeeding):
             with self.subTest(limit=limit):
                 self.assertEqual(self.queue(limit=limit).status_code, status.HTTP_400_BAD_REQUEST)
 
-    @override_settings(SALT_VOTE_QUEUE_POPULARITY_EXPONENT=8, SALT_VOTE_TARGET_COUNT=1)
+    @override_settings(SALT_VOTE_QUEUE_POPULARITY_EXPONENT=8, SALT_VOTE_TARGET_COUNT=1, SALT_VOTE_QUEUE_SETTLED_FACTOR=1e-36)
     def test_queue_favors_popular_variants_until_they_have_enough_votes(self):
         Variant.objects.filter(pk=self.variant_id).update(popularity=10**6)
         self.assertEqual(self.queue_ids(limit=1), {self.variant_id})
@@ -193,3 +193,4 @@ class SaltVoteViewsTests(SpellbookTestCaseWithSeeding):
         recompute_salt()
         Variant.objects.filter(pk=self.other_variant_id).update(popularity=10**3)
         self.assertEqual(self.queue_ids(limit=1), {self.other_variant_id})
+        self.assertEqual(self.queue_ids(limit=2), {self.other_variant_id, self.variant_id})

@@ -65,6 +65,9 @@ class SaltVoteViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.D
         if request.user.is_authenticated:
             variants = variants.exclude(Exists(SaltVote.objects.filter(user=request.user, variant_id=OuterRef('pk'), updated__gte=salt_window_start())))
         target = settings.SALT_VOTE_TARGET_COUNT
+        if target <= 0:
+            return Response([])
+        variants = variants.filter(salt_vote_count__lt=target)
         boost = Power(Cast(Coalesce('popularity', 0), FloatField()) + 1.0, settings.SALT_VOTE_QUEUE_POPULARITY_EXPONENT)
         undersampling = 1.0 - Cast(Least('salt_vote_count', target), FloatField()) / target
         weight = boost * undersampling

@@ -70,7 +70,7 @@ Logged-in users vote how salty a variant is, that is how unfun it is to play aga
 - A vote comes back with the live `average` and `voteCount` of the recent votes on its variant, to show right after voting.
 - Recent means cast or changed within `SALT_VOTE_WINDOW`, a year: voting never closes, and old votes stop counting.
 - Every variant carries `salt`, the average of its recent votes once they are at least `SALT_VOTE_MIN_COUNT` (5), and their number as `saltVoteCount`. The `update_variants` task refreshes both, so they lag up to a couple of hours. `GET /variants/?q=salt>=0&ordering=-salt` ranks the saltiest combos.
-- The queue draws commander-legal, non-spoiler variants the caller has not voted on recently, with Efraimidis–Spirakis weighted random sampling. A variant weighs `sqrt(decks + 1)`, shrinking linearly to 1 as its recent votes approach `SALT_VOTE_TARGET_COUNT` (100): popular combos come first, until their score is statistically settled.
+- The queue draws commander-legal, non-spoiler variants the caller has not voted on recently, with Efraimidis–Spirakis weighted random sampling. A variant weighs `decks + 1`, shrinking linearly to 1 as its recent votes approach `SALT_VOTE_TARGET_COUNT` (100): popular combos come first, until their score is statistically settled.
 - Voting needs the `add_saltvote` and `change_saltvote` permissions, which every Discord login grants: revoking them from a user in the admin stops them from voting.
 
 ### Naming a card

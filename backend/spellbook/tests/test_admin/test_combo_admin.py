@@ -205,6 +205,9 @@ class ComboAdminReferencesTests(ComboAdminTestCase):
     def test_an_inclusion_of_a_feature_not_required_is_rejected(self):
         self.assertRejected(self.payload_requiring([], description='{{FB}}'), '{{FB}}')
 
+    def test_line_references_are_saved(self):
+        self.assertSaved(self.payload_requiring([], description='\n'.join(f'Step {i}' for i in range(1, 8)) + '\nBack to {{-5}}, then {{7}}.'))
+
     def test_the_states_of_the_ingredients_are_checked_too(self):
         payload = self.payload_requiring([self.f3_id])
         payload['cardincombo_set-0-battlefield_card_state'] = 'Enchanted by [[FB]].'

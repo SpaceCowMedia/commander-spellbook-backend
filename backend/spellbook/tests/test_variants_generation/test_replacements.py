@@ -103,3 +103,7 @@ class ReferencesToFeaturesNotNeededTests(TestCase):
 
     def test_an_alias_is_no_feature_for_an_inclusion(self):
         self.assertEqual(references_to_features_not_needed(['[[Feature|alias]] {{alias}}'], {'Feature'}), ['{{alias}}'])
+
+    def test_line_references_are_no_inclusions(self):
+        texts = ['First\nSecond\nBack to {{-2}}, forward to {{+1}}\nRepeat {{3}}', 'Then {{Unneeded}}']
+        self.assertEqual(references_to_features_not_needed(texts, {'Feature'}), ['{{Unneeded}}'])

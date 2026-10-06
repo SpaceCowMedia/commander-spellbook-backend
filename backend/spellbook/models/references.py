@@ -8,6 +8,7 @@ from .feature import Feature
 from .feature_attribute import FeatureAttribute
 from .ingredient import Ingredient
 from .utils import DEFAULT_BATCH_SIZE
+from .validators import LINE_REFERENCE_PATTERN
 from .variant import Variant
 
 
@@ -54,7 +55,8 @@ def format_feature_inclusion(key: str, selector: str | None) -> str:
 def references_to_features_not_needed(texts: Sequence[str], needed_feature_names: Collection[str]) -> list[str]:
     '''The replacements and inclusions in the texts of a combo whose key is neither the name of a feature
     the combo needs nor an alias its texts define, each once, in the order they appear. Names are
-    matched exactly, the way the texts of a variant resolve them.'''
+    matched exactly, the way the texts of a variant resolve them. A line reference looks like an
+    inclusion but names no feature, since no feature can be named like one, so it is left alone.'''
     aliases = {
         alias
         for text in texts
@@ -68,7 +70,7 @@ def references_to_features_not_needed(texts: Sequence[str], needed_feature_names
             if match['key'] not in needed_feature_names and match['key'] not in aliases:
                 result.setdefault(match[0])
         for match in FEATURE_INCLUSION_PATTERN.finditer(text):
-            if match['key'] not in needed_feature_names:
+            if match['key'] not in needed_feature_names and not LINE_REFERENCE_PATTERN.fullmatch(match[0]):
                 result.setdefault(match[0])
     return list(result)
 

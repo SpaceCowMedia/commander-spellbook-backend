@@ -3,7 +3,7 @@ from unittest.mock import patch
 from django.tasks import TaskResult, TaskResultStatus
 from spellbook.models import Card, CardInCombo, CardOracleTag, Combo, OracleTag, ZoneLocation, as_number
 from spellbook.tasks import update_cards_task
-from spellbook.tasks.scryfall import Scryfall, expand_taggings, face_field, name_keys, update_cards
+from spellbook.tasks.scryfall import Scryfall, cards_by_name, expand_taggings, face_field, name_keys, update_cards
 from spellbook.tasks.oracle_tags import update_oracle_tags
 from .testing import SpellbookTestCaseWithSeeding, curated_card
 
@@ -52,7 +52,7 @@ def bulk_card(name: str, oracle_id: str, **overrides) -> dict:
 def scryfall_data(*cards: dict, tags: list[dict] | None = None) -> Scryfall:
     tags = tags or []
     return Scryfall(
-        cards={card['name'].lower(): card for card in cards},
+        cards=cards_by_name(cards),
         tags=tags,
         taggings=expand_taggings(tags),
         tutor=frozenset(),
@@ -228,6 +228,39 @@ class CardDroppedByScryfallTests(SpellbookTestCaseWithSeeding):
         curated.refresh_from_db()
         self.assertIsNone(curated.oracle_id)
         self.assertIsNotNone(curated.number)
+
+
+class NameSharedByTwoOracleCardsTests(SpellbookTestCaseWithSeeding):
+    '''Two oracle cards printed under one name, as a playtest card and the card later named after it.'''
+
+    playtest = bulk_card('Pick Your Poison', str(uuid.uuid4()), released_at='2021-08-20', legalities=NO_LEGALITIES)
+    legal = bulk_card('Pick Your Poison', str(uuid.uuid4()), released_at='2024-02-09')
+
+    def test_the_one_a_format_allows_stands_for_the_name(self):
+        for bulk in ([self.playtest, self.legal], [self.legal, self.playtest]):
+            self.assertEqual(cards_by_name(bulk)['pick your poison']['oracle_id'], self.legal['oracle_id'])
+
+    def test_a_card_with_faces_takes_a_face_name_from_one_no_format_allows(self):
+        playtest = bulk_card('Start // Fire', str(uuid.uuid4()), released_at='2021-08-20', legalities=NO_LEGALITIES, card_faces=[{'name': 'Start'}, {'name': 'Fire'}])
+        legal = bulk_card('Fire // Ice', str(uuid.uuid4()), released_at='2023-01-13', card_faces=[{'name': 'Fire'}, {'name': 'Ice'}])
+        for bulk in ([playtest, legal], [legal, playtest]):
+            by_name = cards_by_name(bulk)
+            self.assertEqual(by_name['fire']['oracle_id'], legal['oracle_id'])
+            self.assertEqual(by_name['start']['oracle_id'], playtest['oracle_id'])
+
+    def test_between_two_a_format_allows_the_first_printed_stands_for_the_name(self):
+        first = bulk_card('Ancestral Recall', str(uuid.uuid4()), released_at='2014-06-16')
+        faced = bulk_card('Emeritus of Ideation // Ancestral Recall', str(uuid.uuid4()), released_at='2026-04-24', card_faces=[{'name': 'Emeritus of Ideation'}, {'name': 'Ancestral Recall'}])
+        later = bulk_card('Ancestral Recall', str(uuid.uuid4()), released_at='2026-04-24')
+        for bulk in ([first, faced, later], [later, faced, first]):
+            self.assertEqual(cards_by_name(bulk)['ancestral recall']['oracle_id'], first['oracle_id'])
+
+    def test_the_sync_swaps_the_row_holding_the_playtest_card_in_one_run(self):
+        held = Card.objects.create(name='Pick Your Poison', oracle_id=uuid.UUID(self.playtest['oracle_id']), type_line='Sorcery')
+        _, to_create, to_delete = update_cards(list(Card.objects.order_by()), scryfall_data(self.playtest, self.legal), log=lambda t: None, log_warning=lambda t: None, log_error=lambda t: None)
+        self.assertEqual([card.pk for card in to_delete], [held.pk])
+        self.assertEqual([str(card.oracle_id) for card in to_create], [self.legal['oracle_id']])
+        self.assertTrue(to_create[0].legal_commander)
 
 
 class OracleTagExpansionTests(SpellbookTestCaseWithSeeding):

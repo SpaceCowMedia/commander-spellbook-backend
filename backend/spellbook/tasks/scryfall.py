@@ -5,6 +5,7 @@ import gzip
 import uuid
 import datetime
 from decimal import Decimal
+from typing import Iterable
 from urllib.request import Request, urlopen
 from urllib.parse import urlencode
 from django.utils import timezone
@@ -73,40 +74,38 @@ def expand_taggings(tags: list[dict]) -> dict[str, frozenset[str]]:
     return {tag_id: frozenset(oracle_ids) for tag_id, oracle_ids in result.items()}
 
 
+def cards_by_name(bulk: Iterable[dict]) -> dict[str, dict]:
+    '''The bulk cards a deck can name, under their name and under the name of each of their faces.
+
+    When two cards share a name, one some format allows takes it from one printed to be playable nowhere,
+    the way Pick Your Poison from Karlov Manor takes it from the playtest card it was named after. Between
+    two cards alike in that, the first printed keeps it, and a card with faces never takes it.'''
+    card_db = dict[str, dict]()
+    for card in bulk:
+        if (any(game in card['games'] for game in ['paper', 'arena', 'mtgo']) or not card['games']) and card['layout'] not in {'art_series', 'vanguard', 'scheme', 'token'}:
+            card_and_faces = [card]
+            faces = card.get('card_faces', [])
+            if len(faces) > 1:
+                card_and_faces += faces
+            for face in card_and_faces:
+                name = standardize_name(face['name'])
+                holder = card_db.get(name)
+                if holder is None:
+                    card_db[name] = card
+                elif never_legal(holder) != never_legal(card):
+                    if never_legal(holder):
+                        card_db[name] = card
+                elif card['released_at'] < holder['released_at'] and len(card_and_faces) == 1:
+                    card_db[name] = card
+    return card_db
+
+
 def scryfall(bulk_collection: str | None = None) -> Scryfall:
     if bulk_collection is None:
         bulk_collection = 'oracle-cards'
     if bulk_collection not in {'oracle-cards', 'default-cards'}:
         raise ValueError('Invalid bulk collection type')
-    # Scryfall card database fetching
-    req = Request(
-        f'https://api.scryfall.com/bulk-data/{bulk_collection}?format=json',
-        headers=HEADERS,
-    )
-    card_db = dict[str, dict]()
-    with urlopen(req) as response:
-        data = json.loads(response.read().decode())
-        req = Request(
-            data['jsonl_download_uri'],
-            headers=HEADERS,
-        )
-        with urlopen(req) as response:
-            for card_raw in gzip.decompress(response.read()).decode().splitlines():
-                card = json.loads(card_raw)
-                if (any(game in card['games'] for game in ['paper', 'arena', 'mtgo']) or not card['games']) and card['layout'] not in {'art_series', 'vanguard', 'scheme', 'token'}:
-                    card_and_faces = [card]
-                    faces = card.get('card_faces', [])
-                    if len(faces) > 1:
-                        card_and_faces += faces
-                    released_at = card['released_at']
-                    for face in card_and_faces:
-                        # Fix for double faced cards
-                        face['released_at'] = released_at
-                        name = standardize_name(face['name'])
-                        other_reprint = card_db.get(name, None)
-                        if other_reprint is None or released_at < other_reprint['released_at'] and len(card_and_faces) == 1:
-                            card_db[name] = card
-
+    card_db = cards_by_name(bulk_data(bulk_collection))
     # EDHREC card database fetching
     req = Request(
         'https://json.edhrec.com/static/prices',

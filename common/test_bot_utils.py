@@ -1,7 +1,7 @@
 from unittest import TestCase
 from unittest.mock import patch, MagicMock
 from bot_utils import (
-    parse_queries, patch_query, url_from_query, summary_from_query, url_from_variant,
+    parse_queries, patch_query, url_from_query, summary_from_query, url_from_variant, preview_url_from_variant,
     compute_variant_name, compute_variant_recipe, uri_validator, SpellbookQuery
 )
 from constants import WEBSITE_URL
@@ -36,6 +36,12 @@ class TestBotUtils(TestCase):
         variant.id = '1234'
         url = url_from_variant(variant)
         self.assertEqual(url, f'{WEBSITE_URL}/combo/1234')
+
+    def test_preview_url_from_variant(self):
+        variant = MagicMock()
+        variant.id = '1234'
+        url = preview_url_from_variant(variant)
+        self.assertEqual(url, f'{WEBSITE_URL}/api/combo/1234/generate-image/')
 
     def test_compute_variant_name(self):
         card1 = MagicMock()

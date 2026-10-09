@@ -46,6 +46,10 @@ def url_from_variant_id(variant_id: str) -> str:
     return f'{WEBSITE_URL}/combo/{variant_id}'
 
 
+def preview_url_from_variant(variant: Variant) -> str:
+    return f'{WEBSITE_URL}/api/combo/{variant.id}/generate-image/'
+
+
 def compute_variant_name(variant: Variant, separator=' + ') -> str:
     return separator.join(chain(
         ((f'{card.quantity}x ' if card.quantity and card.quantity > 1 else '') + card.card.name for card in variant.uses),

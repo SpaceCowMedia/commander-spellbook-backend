@@ -9,7 +9,7 @@ from spellbook_client import ApiException, Variant, VariantsApi, CardsApi, Inval
 from spellbook_client.extensions import find_my_combos_create_plain
 from text_utils import discord_chunk
 from constants import WEBSITE_URL
-from bot_utils import parse_queries, SpellbookQuery, url_from_variant, compute_variant_name, compute_variant_results, API, compute_variant_recipe, uri_validator
+from bot_utils import parse_queries, SpellbookQuery, url_from_variant, preview_url_from_variant, compute_variant_name, compute_variant_results, API, compute_variant_recipe, uri_validator
 
 
 intents = discord.Intents(messages=True, guilds=True)
@@ -127,6 +127,7 @@ def variant_view(variant: Variant) -> ui.LayoutView:
     variant_identity: str = variant.identity  # type: ignore
     container = ui.Container(
         ui.TextDisplay(f'## [{compute_variant_name(variant)}]({url_from_variant(variant)})\n### Identity: {convert_mana_identity_to_emoji(variant_identity)}\n### Results\n{compute_variant_results(variant)}'),
+        ui.MediaGallery(discord.MediaGalleryItem(preview_url_from_variant(variant))),
         accent_colour=identity_colour(variant_identity),
     )
     images = [discord.MediaGalleryItem(card.card.image_uri_front_normal) for card in variant.uses if card.card.image_uri_front_normal]

@@ -1,6 +1,11 @@
+from types import SimpleNamespace
+from unittest.mock import patch
+
 from django.contrib.auth.models import User
 from django.test import TestCase
-from backend.login.discord import set_default_permissions
+from social_core.exceptions import AuthProviderError
+
+from backend.login.discord import is_member_of_guild, set_default_permissions
 
 
 class DefaultPermissionsTests(TestCase):
@@ -15,3 +20,21 @@ class DefaultPermissionsTests(TestCase):
         user = User.objects.create(username='returning')
         set_default_permissions(user=user, is_new=False)
         self.assertFalse(User.objects.get(pk=user.pk).has_perm('spellbook.add_saltvote'))
+
+
+class DiscordGuildMembershipTests(TestCase):
+    @patch('backend.login.discord.requests.get')
+    def test_discord_api_errors_raise_auth_provider_error(self, get):
+        get.return_value.status_code = 503
+
+        with self.assertRaises(AuthProviderError) as context:
+            is_member_of_guild(
+                backend=SimpleNamespace(name='discord', HOSTNAME='discord.com'),
+                details={},
+                response={'access_token': 'access-token'},
+                uid='discord-user',
+                user=None,
+            )
+
+        self.assertEqual(context.exception.code, 'unavailable')
+        self.assertEqual(context.exception.status_code, 503)

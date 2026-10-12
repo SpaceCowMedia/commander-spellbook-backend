@@ -2,7 +2,7 @@ import requests
 from django.contrib.auth.models import Permission
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import PermissionDenied
-from social_core.exceptions import AuthUnreachableProvider
+from social_core.exceptions import AuthProviderError
 from social_core.backends.discord import DiscordOAuth2 as BaseDiscordOAuth2
 
 from spellbook.models import SaltVote, VariantSuggestion, VariantUpdateSuggestion
@@ -29,7 +29,7 @@ def is_member_of_guild(backend, details, response, uid, user, *args, **kwargs):
                     return
             raise PermissionDenied('You must join the Commander Spellbook Discord server to login with Discord.')
         else:
-            raise AuthUnreachableProvider(backend, 'Could not reach Discord API.')
+            raise AuthProviderError(backend, code='unavailable', stage='pipeline', status_code=r.status_code)
 
 
 def set_default_permissions(user, is_new, *args, **kwargs):

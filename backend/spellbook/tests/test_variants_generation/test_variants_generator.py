@@ -1226,15 +1226,34 @@ class FeatureInclusionTests(TextSourcesTestCase):
         self.assertEqual(variant.description, 'First, win.\na loop over')
         self.assertEqual(Combo.objects.get(id=producer.id).description, 'a loop over {{IFMana}}')
 
-    def test_an_unresolvable_inclusion_is_deleted_with_the_separators_after_it(self):
+    def test_an_unresolvable_inclusion_is_deleted_alone(self):
         self.make_producer('Inclusion Mana Card', self.mana, description='make infinite mana')
-        main = self.make_main(self.mana, description='First, {{IFUnknown}}, then win with {{IFMana$Unknown}}.')
+        main = self.make_main(self.mana, description='First{{IFUnknown}}, then win{{IFMana$Unknown}}.\nGain 3 life.')
 
         self.generate_variants()
 
-        # nothing was selected, so each inclusion goes away with the separators after it, the last one
-        # taking the full stop too, while the producer text, which none of them consumed, is appended
-        self.assertEqual(Variant.objects.get(of=main).description, 'First, then win with\nmake infinite mana')
+        # nothing was selected, so each inclusion goes away leaving the separators after it, while the
+        # producer text, which none of them consumed, is appended
+        self.assertEqual(Variant.objects.get(of=main).description, 'First, then win.\nGain 3 life.\nmake infinite mana')
+
+    def test_an_inclusion_of_producers_writing_nothing_is_deleted_alone(self):
+        outlet_mana = Feature.objects.create(name='IFOutletMana', status=Feature.Status.CONTEXTUAL)
+        outlet_step = Feature.objects.create(name='IFOutletStep', status=Feature.Status.CONTEXTUAL)
+        main = self.make_main(outlet_mana, description='Sacrifice it{{IFOutletMana}}.\nGain 3 life.\n{{IFOutletStep}}')
+        FeatureNeededInCombo.objects.create(combo=main, feature=outlet_step, order=2)
+        for card_name, mana_description, step_description in (
+            ('Inclusion Mana Outlet', ', adding one mana', ''),
+            ('Inclusion Step Outlet', '', 'Resolve its ability.'),
+        ):
+            card = curated_card(name=card_name, type_line='Creature - Bird')
+            card.featureofcard_set.create(feature=outlet_mana, zone_locations=ZoneLocation.BATTLEFIELD, description=mana_description)
+            card.featureofcard_set.create(feature=outlet_step, zone_locations=ZoneLocation.BATTLEFIELD, description=step_description)
+
+        self.generate_variants()
+
+        variants = Variant.objects.filter(of=main)
+        self.assertEqual(variants.get(uses__name='Inclusion Mana Outlet').description, 'Sacrifice it, adding one mana.\nGain 3 life.')
+        self.assertEqual(variants.get(uses__name='Inclusion Step Outlet').description, 'Sacrifice it.\nGain 3 life.\nResolve its ability.')
 
     def test_a_deleted_inclusion_takes_the_line_it_was_alone_on(self):
         self.make_producer('Inclusion Mana Card', self.mana, description='make infinite mana')
@@ -1243,6 +1262,16 @@ class FeatureInclusionTests(TextSourcesTestCase):
         self.generate_variants()
 
         self.assertEqual(Variant.objects.get(of=main).description, 'First.\nThen win.\nmake infinite mana')
+
+    def test_only_a_line_left_empty_by_a_deletion_is_dropped(self):
+        self.make_producer('Inclusion Mana Card', self.mana)
+        main = self.make_main(self.mana, description='First.\n\n {{IFUnknown}} \nThen win.', notes='A note.\n\nAnother note.')
+
+        self.generate_variants()
+
+        variant = Variant.objects.get(of=main)
+        self.assertEqual(variant.description, 'First.\n\nThen win.')
+        self.assertEqual(variant.notes, 'A note.\n\nAnother note.')
 
     def test_an_inclusion_resolves_the_replacements_of_the_text_it_comes_from(self):
         self.make_producer('Inclusion Mana Card', self.mana, description='tap [[IFMana]] for infinite mana')
@@ -1303,7 +1332,7 @@ class FeatureInclusionTests(TextSourcesTestCase):
         self.assertEqual(card_in_variant.battlefield_card_state, 'untapped, tapped')
 
     def test_an_unresolvable_inclusion_in_a_starting_card_state_is_deleted(self):
-        main, shared = self.make_sharing_main('tapped', 'in play, {{IFUnknown}} untapped')
+        main, shared = self.make_sharing_main('tapped', 'in play{{IFUnknown}}, untapped')
 
         self.generate_variants()
 
@@ -1326,6 +1355,12 @@ class LineReferenceTests(TextSourcesTestCase):
 
         self.assertEqual(self.description_of(main), 'A\nX\nRepeat from step 2.')
         self.assertEqual(Combo.objects.get(id=main.id).description, text)
+
+    def test_a_deletion_inside_a_line_keeps_its_line(self):
+        self.make_producer('Inclusion Mana Card', self.mana)
+        main = self.make_main(self.mana, description='Cast it{{IFUnknown}}.\nTap it.\nRepeat from step {{2}}.')
+
+        self.assertEqual(self.description_of(main), 'Cast it.\nTap it.\nRepeat from step 2.')
 
     def test_relative_references_count_from_their_own_line(self):
         self.make_producer('Inclusion Mana Card', self.mana)

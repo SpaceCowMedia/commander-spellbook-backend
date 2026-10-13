@@ -23,12 +23,6 @@ _C = TypeVar('_C')
 _V = TypeVar('_V')
 
 
-# An unresolved inclusion is deleted together with the separators that follow it, so that the text
-# closes over the gap it leaves: `x, {{A}}, y` reads `x, y`, and a line holding only an inclusion
-# goes away with it. The separators come back untouched when the inclusion resolves.
-INCLUSION_PATTERN = re.compile(r'(?P<inclusion>' + FEATURE_INCLUSION_PATTERN.pattern + r')(?P<separators>[\s,;:.]*)', re.IGNORECASE)
-
-
 # ---------------------------------------------------------------------------
 # What a feature name resolves to
 # ---------------------------------------------------------------------------
@@ -461,32 +455,28 @@ class WrittenText:
 
 @dataclass(frozen=True)
 class Substitution:
-    '''An inclusion as written into a text: the span it took in the text of its source, separators
-    included, and what replaced it, which is nothing when it was deleted.'''
+    '''An inclusion as written into a text: the span it took in the text of its source, the span it
+    takes in the written text, and what replaced it, which is nothing when it was deleted.'''
     start: int
     end: int
-    separators: str
+    written_start: int
+    written_end: int
     included: WrittenText | None
 
 
-def landing_line(text: str, substitutions: Sequence[Substitution], offset: int) -> int:
-    '''The line of a written text that a position of the text of its source lands on. A position inside
-    a deleted inclusion lands where the inclusion was, which is where whatever followed it now is.'''
-    line = 1
-    position = 0
+def landing_line(written: str, substitutions: Sequence[Substitution], dropped: frozenset[int], offset: int) -> int:
+    '''The line of a written text that a position of the text of its source lands on, once the lines
+    its inclusions left empty are dropped. A position inside an inclusion lands where the inclusion was
+    written, and one on a dropped line lands on the line taking its place.'''
+    position = offset
     for substitution in substitutions:
-        if offset < substitution.start:
-            break
-        line += text.count('\n', position, substitution.start)
         if offset < substitution.end:
-            separators_start = substitution.end - len(substitution.separators)
-            if substitution.included is None or offset < separators_start:
-                return line
-            return line + substitution.included.text.count('\n') + text.count('\n', separators_start, offset)
-        if substitution.included is not None:
-            line += substitution.included.text.count('\n') + substitution.separators.count('\n')
-        position = substitution.end
-    return line + text.count('\n', position, offset)
+            if offset > substitution.start:
+                position = substitution.written_start
+            break
+        position = offset + substitution.written_end - substitution.end
+    line = written.count('\n', 0, position)
+    return line + 1 - sum(1 for index in dropped if index < line)
 
 
 @dataclass(frozen=True)
@@ -560,7 +550,7 @@ class FieldAssembly:
         pending = [source for source in self.texts if source not in self.only_when_included]
         while pending:
             source = pending.pop()
-            for inclusion in INCLUSION_PATTERN.finditer(self.texts.get(source, '')):
+            for inclusion in FEATURE_INCLUSION_PATTERN.finditer(self.texts.get(source, '')):
                 for other in self.named_by(source, inclusion):
                     if other not in included:
                         included.add(other)
@@ -570,48 +560,56 @@ class FieldAssembly:
     def write(self, source: SourceIndex, ancestors: frozenset[SourceIndex]) -> WrittenText:
         '''The text of one source, with its inclusions written out in place. A source already being
         written higher up is skipped, so that a cycle of inclusions terminates. An inclusion left with
-        nothing to write, because it names no source or only sources being written already, goes away
-        with the separators after it, and the text it was deleted from is trimmed, lines along with it.
+        nothing to write, because it names no source or only sources being written already, is deleted
+        without touching the text around it, and a line it leaves empty is dropped: the text it was
+        deleted from is then trimmed, lines along with it.
         A line reference names no feature, since no feature can be named like one, so it is left as
         written for the whole field to number.'''
         written = ancestors | {source}
         substitutions = list[Substitution]()
+        growth = 0
 
         def include(inclusion: re.Match[str]) -> str:
-            if LINE_REFERENCE_PATTERN.fullmatch(inclusion['inclusion']):
+            nonlocal growth
+            if LINE_REFERENCE_PATTERN.fullmatch(inclusion[0]):
                 return inclusion[0]
             named = self.named_by(source, inclusion)
             included = self.join(self.write(other, written) for other in named if other not in written)
-            substitutions.append(Substitution(inclusion.start(), inclusion.end(), inclusion['separators'], included if included.text else None))
-            return included.text + inclusion['separators'] if included.text else ''
+            written_start = inclusion.start() + growth
+            growth += len(included.text) - len(inclusion[0])
+            substitutions.append(Substitution(inclusion.start(), inclusion.end(), written_start, written_start + len(included.text), included if included.text else None))
+            return included.text
 
         source_text = self.texts.get(source, '')
-        text = INCLUSION_PATTERN.sub(include, source_text)
-        lines = self.lines_of(source_text, substitutions) if self.follows_lines else ()
+        text = FEATURE_INCLUSION_PATTERN.sub(include, source_text)
         if all(substitution.included is not None for substitution in substitutions):
-            return WrittenText(text, lines)
+            return WrittenText(text, self.lines_of(source_text, text, substitutions, frozenset()) if self.follows_lines else ())
+        lines = text.split('\n')
+        dropped = frozenset(index for index in {text.count('\n', 0, s.written_start) for s in substitutions} if not lines[index].strip())
+        references = self.lines_of(source_text, text, substitutions, dropped) if self.follows_lines else ()
+        text = '\n'.join(line for index, line in enumerate(lines) if index not in dropped)
         stripped = text.strip()
         removed = text[:len(text) - len(text.lstrip())].count('\n')
         last = stripped.count('\n') + 1
-        return WrittenText(stripped, tuple(min(max(line - removed, 1), last) if line is not None else None for line in lines))
+        return WrittenText(stripped, tuple(min(max(line - removed, 1), last) if line is not None else None for line in references))
 
-    def lines_of(self, text: str, substitutions: Sequence[Substitution]) -> tuple[int | None, ...]:
+    def lines_of(self, source_text: str, written: str, substitutions: Sequence[Substitution], dropped: frozenset[int]) -> tuple[int | None, ...]:
         '''The lines the line references of one writing of a text resolve to, in the order they are
         written: its own ones take the line their target landed on, while the ones of an included text
         are moved down to where it was included. No reference is ever part of a substitution, so where
         they are in the text of the source orders them the way they are written.'''
-        references = list(LINE_REFERENCE_PATTERN.finditer(text))
+        references = list(LINE_REFERENCE_PATTERN.finditer(source_text))
         nested = [(s.start, s.included) for s in substitutions if s.included is not None and s.included.lines]
         if not references and not nested:
             return ()
-        line_starts = [0, *(newline.end() for newline in re.finditer('\n', text))]
+        line_starts = [0, *(newline.end() for newline in re.finditer('\n', source_text))]
         resolved = list[tuple[int, tuple[int | None, ...]]]()
         for reference in references:
-            target = referenced_line(reference, text.count('\n', 0, reference.start()) + 1)
-            landed = landing_line(text, substitutions, line_starts[target - 1]) if 1 <= target <= len(line_starts) else None
+            target = referenced_line(reference, source_text.count('\n', 0, reference.start()) + 1)
+            landed = landing_line(written, substitutions, dropped, line_starts[target - 1]) if 1 <= target <= len(line_starts) else None
             resolved.append((reference.start(), (landed,)))
         for start, included in nested:
-            resolved.append((start, included.shifted(landing_line(text, substitutions, start) - 1)))
+            resolved.append((start, included.shifted(landing_line(written, substitutions, dropped, start) - 1)))
         return tuple(line for _, lines in sorted(resolved, key=lambda r: r[0]) for line in lines)
 
 

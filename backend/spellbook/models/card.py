@@ -17,6 +17,9 @@ from .feature_attribute import WithFeatureAttributes
 from .explanation import Explanation
 
 
+IMAGE_URI_HELP_TEXT = 'The image format, and with it the file extension, may vary'
+
+
 class LayoutRotation(models.TextChoices):
     CLOCKWISE = 'clockwise', 'Clockwise'
     COUNTERCLOCKWISE = 'counterclockwise', 'Counterclockwise'
@@ -102,17 +105,17 @@ class Card(NamedModel, Playable, PreSaveModelMixin, ScryfallLinkMixin):
     mass_land_denial = models.BooleanField(default=False, help_text='Whether this card can inhibit or destroy numerous lands', verbose_name='mass land denial card')
     extra_turn = models.BooleanField(default=False, help_text='Whether this card grants an extra turn', verbose_name='extra turn card')
     game_changer = models.BooleanField(default=False, help_text='Whether this card is in the official Game Changer card list', verbose_name='game changer card')
-    image_uri_front_png = models.URLField(blank=True, null=True, verbose_name='image URI of the front of the card in PNG format')
-    image_uri_front_large = models.URLField(blank=True, null=True, verbose_name='image URI of the front of the card in large format')
-    image_uri_front_normal = models.URLField(blank=True, null=True, verbose_name='image URI of the front of the card in normal format')
-    image_uri_front_small = models.URLField(blank=True, null=True, verbose_name='image URI of the front of the card in small format')
-    image_uri_front_art_crop = models.URLField(blank=True, null=True, verbose_name='image URI of the card art crop')
+    image_uri_front_png = models.URLField(blank=True, null=True, help_text=IMAGE_URI_HELP_TEXT, verbose_name='image URI of the front of the card in full size, not for hotlinking')
+    image_uri_front_large = models.URLField(blank=True, null=True, help_text=IMAGE_URI_HELP_TEXT, verbose_name='image URI of the front of the card in large size')
+    image_uri_front_normal = models.URLField(blank=True, null=True, help_text=IMAGE_URI_HELP_TEXT, verbose_name='image URI of the front of the card in normal size')
+    image_uri_front_small = models.URLField(blank=True, null=True, help_text=IMAGE_URI_HELP_TEXT, verbose_name='image URI of the front of the card in small size')
+    image_uri_front_art_crop = models.URLField(blank=True, null=True, help_text=IMAGE_URI_HELP_TEXT, verbose_name='image URI of the card art crop')
     layout_rotation_front = models.CharField(max_length=20, choices=LayoutRotation.choices, blank=True, null=True, verbose_name='layout rotation of the front of the card')
-    image_uri_back_png = models.URLField(blank=True, null=True, verbose_name='image URI of the back of the card in PNG format')
-    image_uri_back_large = models.URLField(blank=True, null=True, verbose_name='image URI of the back of the card in large format')
-    image_uri_back_normal = models.URLField(blank=True, null=True, verbose_name='image URI of the back of the card in normal format')
-    image_uri_back_small = models.URLField(blank=True, null=True, verbose_name='image URI of the back of the card in small format')
-    image_uri_back_art_crop = models.URLField(blank=True, null=True, verbose_name='image URI of the back of the card art crop')
+    image_uri_back_png = models.URLField(blank=True, null=True, help_text=IMAGE_URI_HELP_TEXT, verbose_name='image URI of the back of the card in full size, not for hotlinking')
+    image_uri_back_large = models.URLField(blank=True, null=True, help_text=IMAGE_URI_HELP_TEXT, verbose_name='image URI of the back of the card in large size')
+    image_uri_back_normal = models.URLField(blank=True, null=True, help_text=IMAGE_URI_HELP_TEXT, verbose_name='image URI of the back of the card in normal size')
+    image_uri_back_small = models.URLField(blank=True, null=True, help_text=IMAGE_URI_HELP_TEXT, verbose_name='image URI of the back of the card in small size')
+    image_uri_back_art_crop = models.URLField(blank=True, null=True, help_text=IMAGE_URI_HELP_TEXT, verbose_name='image URI of the back of the card art crop')
 
     features: 'models.ManyToManyField[Feature, FeatureOfCard]' = models.ManyToManyField(
         to=Feature,

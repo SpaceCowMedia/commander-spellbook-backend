@@ -291,15 +291,15 @@ def apply_scryfall_fields(card: Card, card_in_db: dict, scryfall: Scryfall):
         front_images: dict[str, str] = card_in_db.get('image_uris', {}) if single_face else card_in_db['card_faces'][0].get('image_uris', {})
         back_images: dict[str, str] = {} if single_face else card_in_db['card_faces'][1].get('image_uris', {})
         card.image_uri_front_png = front_images.get('png', None)
-        card.image_uri_front_large = front_images.get('large', None)
-        card.image_uri_front_normal = front_images.get('normal', None)
-        card.image_uri_front_small = front_images.get('small', None)
-        card.image_uri_front_art_crop = front_images.get('art_crop', None)
+        card.image_uri_front_large = front_images.get('display', None)
+        card.image_uri_front_normal = front_images.get('grid', None)
+        card.image_uri_front_small = front_images.get('thumb', None)
+        card.image_uri_front_art_crop = front_images.get('art', None)
         card.image_uri_back_png = back_images.get('png', None)
-        card.image_uri_back_large = back_images.get('large', None)
-        card.image_uri_back_normal = back_images.get('normal', None)
-        card.image_uri_back_small = back_images.get('small', None)
-        card.image_uri_back_art_crop = back_images.get('art_crop', None)
+        card.image_uri_back_large = back_images.get('display', None)
+        card.image_uri_back_normal = back_images.get('grid', None)
+        card.image_uri_back_small = back_images.get('thumb', None)
+        card.image_uri_back_art_crop = back_images.get('art', None)
     else:
         card.image_uri_front_png = None
         card.image_uri_front_large = None

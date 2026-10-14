@@ -15,7 +15,7 @@ const card_info = {
     },
     get_cardface_image_html: function (card) {
         const alt = this.get_cardface_text(card);
-        const html = `<img class="card-image" src="${card.image_uris.normal}" alt="${alt}"/>`;
+        const html = `<img class="card-image" src="${card.image_uris.grid}" alt="${alt}"/>`;
         return html;
     },
     get_card_image_html: function (card) {

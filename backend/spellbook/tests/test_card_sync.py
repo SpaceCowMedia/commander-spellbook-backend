@@ -330,3 +330,43 @@ class DerivedCharacteristicTests(SpellbookTestCaseWithSeeding):
         Card.objects.bulk_update([card], ['power', 'power_value'])
         card.refresh_from_db()
         self.assertEqual(card.power_value, 7)
+
+
+def bulk_images(side: str) -> dict[str, str]:
+    '''Every image version Scryfall ships for a face, the JPEG ones it is retiring included.'''
+    extensions = {'png': 'png', 'thumb': 'webp', 'grid': 'webp', 'display': 'webp', 'art': 'webp', 'crop': 'webp'}
+    extensions |= dict.fromkeys(('small', 'normal', 'large', 'art_crop', 'border_crop', 'jpeg'), 'jpg')
+    return {version: f'https://cards.scryfall.io/{version}/{side}/x.{extension}' for version, extension in extensions.items()}
+
+
+class CardImageTests(SpellbookTestCaseWithSeeding):
+    '''Scryfall retires all of its JPEG images but one in favour of WebP versions, which are what a card links.'''
+
+    def sync(self, card: dict) -> Card:
+        _, to_create, _ = update_cards(list(Card.objects.order_by()), scryfall_data(card), log=lambda t: None, log_warning=lambda t: None, log_error=lambda t: None)
+        return to_create[0]
+
+    def image_fields(self, card: Card, side: str) -> dict[str, str | None]:
+        return {size: getattr(card, f'image_uri_{side}_{size}') for size in ('png', 'large', 'normal', 'small', 'art_crop')}
+
+    def webp_fields(self, side: str) -> dict[str, str]:
+        images = bulk_images(side)
+        return {'png': images['png'], 'large': images['display'], 'normal': images['grid'], 'small': images['thumb'], 'art_crop': images['art']}
+
+    def test_a_single_faced_card_links_the_webp_versions(self):
+        card = self.sync(bulk_card('Pictured Card', str(uuid.uuid4()), image_status='highres_scan', image_uris=bulk_images('front')))
+        self.assertEqual(self.image_fields(card, 'front'), self.webp_fields('front'))
+        self.assertEqual(self.image_fields(card, 'back'), dict.fromkeys(self.webp_fields('back')))
+
+    def test_a_double_faced_card_links_the_webp_versions_of_each_face(self):
+        card = self.sync(bulk_card(
+            'Day Face // Night Face',
+            str(uuid.uuid4()),
+            image_status='highres_scan',
+            card_faces=[
+                {'name': 'Day Face', 'oracle_text': 'Day.', 'image_uris': bulk_images('front')},
+                {'name': 'Night Face', 'oracle_text': 'Night.', 'image_uris': bulk_images('back')},
+            ],
+        ))
+        self.assertEqual(self.image_fields(card, 'front'), self.webp_fields('front'))
+        self.assertEqual(self.image_fields(card, 'back'), self.webp_fields('back'))

@@ -76,12 +76,13 @@ RAW_DIR = ASSETS_DIR / "raw"
 BUILT_DIR = ASSETS_DIR / "built"
 
 # "abstract" => blueprint-like card with real Scryfall art crop in frame
-# "real" => full card image from Scryfall (normal image)
+# "real" => full card image from Scryfall (grid image)
 CARD_MODE = "abstract"
 
 # Keep this True if you want first render to fetch remote assets.
 # If False, script only uses local files and generated placeholders.
 ALLOW_SCRYFALL_DOWNLOAD = True
+SCRYFALL_HEADERS = {"User-Agent": "CommanderSpellbookDocs/1.0"}
 
 
 @dataclass(frozen=True)
@@ -155,7 +156,7 @@ def _download_scryfall_json(query: str) -> dict | None:
         return None
     try:
         url = "https://api.scryfall.com/cards/named"
-        response = requests.get(url, params={"exact": query}, timeout=15)
+        response = requests.get(url, params={"exact": query}, headers=SCRYFALL_HEADERS, timeout=15)
         response.raise_for_status()
         return response.json()
     except Exception:
@@ -164,7 +165,7 @@ def _download_scryfall_json(query: str) -> dict | None:
 
 def _download_image(url: str, destination: Path) -> bool:
     try:
-        response = requests.get(url, timeout=20)
+        response = requests.get(url, headers=SCRYFALL_HEADERS, timeout=20)
         response.raise_for_status()
         destination.write_bytes(response.content)
         return True
@@ -262,8 +263,8 @@ def _ensure_card_asset(spec: CardSpec, mode: str) -> Path:
             return manual_path
 
     base_name = _slug(spec.key + "_" + spec.scryfall_query)
-    raw_art = RAW_DIR / f"{base_name}_art.jpg"
-    raw_full = RAW_DIR / f"{base_name}_full.jpg"
+    raw_art = RAW_DIR / f"{base_name}_art.webp"
+    raw_full = RAW_DIR / f"{base_name}_full.webp"
     built_abstract = BUILT_DIR / f"{base_name}_abstract.png"
 
     if mode == "real":
@@ -280,8 +281,8 @@ def _ensure_card_asset(spec: CardSpec, mode: str) -> Path:
         if not image_uris and "card_faces" in card_json and card_json["card_faces"]:
             image_uris = card_json["card_faces"][0].get("image_uris", {})
 
-        art_url = image_uris.get("art_crop")
-        full_url = image_uris.get("normal")
+        art_url = image_uris.get("art")
+        full_url = image_uris.get("grid")
 
         if art_url and not raw_art.exists():
             _download_image(art_url, raw_art)

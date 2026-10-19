@@ -92,6 +92,7 @@ jobs:
       matrix:
         python-version:
           - '3.14'
+          - '3.15'
     env:
       SECRET_KEY: ci_check_secret_key
     steps:

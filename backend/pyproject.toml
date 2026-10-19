@@ -49,7 +49,7 @@ force-include = { "manage.py" = "manage.py" }
 py-modules = []
 
 [dependency-groups]
-prod = ["gunicorn", "psycopg[binary,pool]"]
+prod = ["gunicorn", "psycopg[binary,pool]==3.3.4"]  # Dependabot only tracks a requirement with extras when it is pinned
 cython = ["cython", "setuptools"]
 dev = [
     "tblib",

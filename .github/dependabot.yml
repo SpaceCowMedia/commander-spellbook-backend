@@ -1,4 +1,11 @@
 version: 2
+multi-ecosystem-groups:
+  # psycopg-binary ships wheels per Python ABI, so a Python bump needs the psycopg release built for it.
+  python:
+    labels:
+      - dependencies
+    schedule:
+      interval: weekly
 updates:
   - package-ecosystem: uv
     labels:
@@ -14,6 +21,8 @@ updates:
     cooldown:
       # Supply chain attack defense - don't use packages published within 1 day
       default-days: 1
+    ignore:
+      - dependency-name: "psycopg*"
     groups:
       bot-common:
         # Group dependencies shared across bots into a single PR
@@ -45,11 +54,17 @@ updates:
     cooldown:
       # Supply chain attack defense - don't use packages published within 1 day
       default-days: 1
+  - package-ecosystem: uv
+    directory: backend/
+    multi-ecosystem-group: python
+    patterns:
+      - "psycopg*"
+    cooldown:
+      default-days: 1
   - package-ecosystem: docker
     labels:
       - dependencies
     directories:
-      - backend/
       - bot/discord/
       - bot/telegram/
       - bot/reddit/
@@ -57,6 +72,17 @@ updates:
       interval: weekly
     cooldown:
       # Supply chain attack defense - don't use packages published within 1 day
+      default-days: 1
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-patch
+  - package-ecosystem: docker
+    directory: backend/
+    multi-ecosystem-group: python
+    patterns:
+      - python
+    cooldown:
       default-days: 1
     ignore:
       - dependency-name: "*"

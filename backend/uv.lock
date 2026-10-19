@@ -1506,7 +1506,7 @@ dev = [
 ]
 prod = [
     { name = "gunicorn" },
-    { name = "psycopg", extras = ["binary", "pool"] },
+    { name = "psycopg", extras = ["binary", "pool"], specifier = "==3.3.4" },
 ]
 
 [[package]]

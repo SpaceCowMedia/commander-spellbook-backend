@@ -28,6 +28,7 @@ demo/
 .vscode/
 common/**/test_*
 common/tests/
+bot/**/test_*
 kubernetes/
 backend/backend/debug_settings.py
 client/*/tests

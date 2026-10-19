@@ -438,4 +438,5 @@ async def find_my_combos(interaction: discord.Interaction, decklist: str | None 
         await interaction.response.send_modal(FindMyCombosModal())
 
 
-bot.run(os.getenv('DISCORD_TOKEN', ''), root_logger=True)
+if __name__ == '__main__':
+    bot.run(os.getenv('DISCORD_TOKEN', ''), root_logger=True)

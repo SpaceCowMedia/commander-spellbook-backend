@@ -693,6 +693,28 @@ jobs:
           name: spellbook-client-python
           path: client/python/spellbook_client
 
+      # the tests build the backend's responses from the schema
+      - name: Download OpenApi artifact ⬇
+        uses: actions/download-artifact@v8
+        with:
+          name: spellbook-openapi
+          path: client
+
+      - name: Setup Python 🐍
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+          cache: pip
+
+      - name: Install uv 🚀
+        run: pip install uv -c "$GITHUB_WORKSPACE/requirements.txt"
+
+      - name: Install dependencies 🧶
+        run: uv sync --locked --no-install-project
+
+      - name: Run bot tests 🧪
+        run: PYTHONPATH="$GITHUB_WORKSPACE/common:$GITHUB_WORKSPACE/client/python" uv run --no-sync python -m unittest
+
       - name: Build and export image 🏗️
         uses: docker/build-push-action@v7
         with:
@@ -730,6 +752,28 @@ jobs:
           name: spellbook-client-python
           path: client/python/spellbook_client
 
+      # the tests build the backend's responses from the schema
+      - name: Download OpenApi artifact ⬇
+        uses: actions/download-artifact@v8
+        with:
+          name: spellbook-openapi
+          path: client
+
+      - name: Setup Python 🐍
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+          cache: pip
+
+      - name: Install uv 🚀
+        run: pip install uv -c "$GITHUB_WORKSPACE/requirements.txt"
+
+      - name: Install dependencies 🧶
+        run: uv sync --locked --no-install-project
+
+      - name: Run bot tests 🧪
+        run: PYTHONPATH="$GITHUB_WORKSPACE/common:$GITHUB_WORKSPACE/client/python" uv run --no-sync python -m unittest
+
       - name: Build and export image 🏗️
         uses: docker/build-push-action@v7
         with:
@@ -766,6 +810,28 @@ jobs:
         with:
           name: spellbook-client-python
           path: client/python/spellbook_client
+
+      # the tests build the backend's responses from the schema
+      - name: Download OpenApi artifact ⬇
+        uses: actions/download-artifact@v8
+        with:
+          name: spellbook-openapi
+          path: client
+
+      - name: Setup Python 🐍
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+          cache: pip
+
+      - name: Install uv 🚀
+        run: pip install uv -c "$GITHUB_WORKSPACE/requirements.txt"
+
+      - name: Install dependencies 🧶
+        run: uv sync --locked --no-install-project
+
+      - name: Run bot tests 🧪
+        run: PYTHONPATH="$GITHUB_WORKSPACE/common:$GITHUB_WORKSPACE/client/python" uv run --no-sync python -m unittest
 
       - name: Build and export image 🏗️
         uses: docker/build-push-action@v7

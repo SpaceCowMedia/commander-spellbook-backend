@@ -2,6 +2,7 @@ from django.db.models import QuerySet
 from rest_framework import serializers
 from drf_spectacular.utils import extend_schema_field
 from spellbook.models import Card, FeatureOfCard
+from .card_serializer import CardSerializer
 from .feature_serializer import FeatureSerializer
 from .legalities_serializer import LegalitiesSerializer
 from .prices_serializer import PricesSerializer
@@ -40,22 +41,36 @@ class FeatureOfCardSerializer(serializers.ModelSerializer):
         ]
 
 
-class CardDetailSerializer(serializers.ModelSerializer):
-    id = serializers.IntegerField(source='number', read_only=True)
+class CardDetailSerializer(CardSerializer):
     features = FeatureOfCardSerializer(source='featureofcard_set', many=True, read_only=True)
     legalities = CardLegalitiesSerializer(source='*', read_only=True)
     prices = CardPricesSerializer(source='*', read_only=True)
 
-    class Meta:
-        model = Card
+    class Meta(CardSerializer.Meta):
         fields = [
-            'id',
-            'name',
-            'oracle_id',
-            'identity',
+            *CardSerializer.Meta.fields,
             'variant_count',
-            *Card.scryfall_fields(),
-            'spoiler',
+            'identity',
+            'color',
+            'oracle_text',
+            'keywords',
+            'mana_value',
+            'mana_cost',
+            'power',
+            'toughness',
+            'loyalty',
+            'power_value',
+            'toughness_value',
+            'loyalty_value',
+            'layout',
+            'produced_mana',
+            'reserved',
+            'latest_printing_set',
+            'reprinted',
+            'game_changer',
+            'tutor',
+            'mass_land_denial',
+            'extra_turn',
             'features',
             'legalities',
             'prices',

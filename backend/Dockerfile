@@ -1,7 +1,7 @@
 ##########
 # PYTHON #
 ##########
-FROM python:3.14-alpine AS python
+FROM python:3.15-alpine AS python
 
 # set environment variables; the uv environment lives at a fixed path so that it stays
 # valid when copied between stages

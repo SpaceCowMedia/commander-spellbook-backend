@@ -1,7 +1,7 @@
 ###########
 # BUILDER #
 ###########
-FROM python:3.14-alpine AS builder
+FROM python:3.15-alpine AS builder
 
 # set work directory
 WORKDIR /usr/src/app
@@ -28,7 +28,7 @@ RUN uv sync --locked --no-install-project --no-dev
 #########
 # BASE  #
 #########
-FROM python:3.14-alpine AS base
+FROM python:3.15-alpine AS base
 
 # set environment variables
 ENV PYTHONUNBUFFERED=1 PATH="/opt/venv/bin:$PATH"

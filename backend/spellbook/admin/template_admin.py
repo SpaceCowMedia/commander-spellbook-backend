@@ -55,7 +55,7 @@ class TemplateAdmin(SpellbookModelAdmin):
     form = TemplateAdminForm
     readonly_fields = ['id', 'scryfall_link', 'updated', 'created']
     fields = ['name', 'id', 'updated', 'created', 'scryfall_query', 'scryfall_link', 'description']
-    list_display = ['name', 'id', 'scryfall_query', 'updated']
+    list_display = ['name', 'id', 'scryfall_query', 'updated', 'variant_count']
     search_fields = [
         '=pk',
         'name',

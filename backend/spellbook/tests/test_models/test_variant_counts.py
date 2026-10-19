@@ -2,7 +2,7 @@ from django.contrib.messages.storage.base import BaseStorage
 from django.db.models import Count
 from django.test import RequestFactory
 from spellbook.admin.variant_admin import set_status
-from spellbook.models import Card, Combo, Variant, recompute_all_counts
+from spellbook.models import Card, Combo, Template, Variant, recompute_all_counts
 from ..testing import SpellbookTestCaseWithSeeding
 
 
@@ -51,6 +51,8 @@ class VariantCountsTests(SpellbookTestCaseWithSeeding):
             self.assertEqual(combo.public_variant_count, 1)
         for card in Card.objects.filter(used_in_variants=variant.pk):
             self.assertEqual(card.variant_count, 1)
+        for template in Template.objects.filter(required_by_variants=variant.pk):
+            self.assertEqual(template.variant_count, 1)
         self.assertEqual(recompute_all_counts(), 0)
 
     def test_unpublishing_moves_them_back(self):
@@ -61,6 +63,7 @@ class VariantCountsTests(SpellbookTestCaseWithSeeding):
         self.assertFalse(Variant.objects.exclude(variant_count=0).exists())
         self.assertFalse(Combo.objects.exclude(public_variant_count=0).exists())
         self.assertFalse(Card.objects.exclude(variant_count=0).exists())
+        self.assertFalse(Template.objects.exclude(variant_count=0).exists())
         self.assertEqual(recompute_all_counts(), 0)
 
     def test_a_single_save_that_crosses_the_public_boundary_is_enough(self):

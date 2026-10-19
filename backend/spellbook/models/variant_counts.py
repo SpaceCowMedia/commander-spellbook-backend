@@ -6,8 +6,9 @@ from django.db.models.signals import post_delete, post_save, pre_delete
 from django.dispatch import receiver
 from .card import Card
 from .combo import Combo
+from .template import Template
 from .utils import DEFAULT_BATCH_SIZE
-from .variant import CardInVariant, Variant, VariantOfCombo
+from .variant import CardInVariant, TemplateInVariant, Variant, VariantOfCombo
 
 
 def recompute_combo_counts(combos: QuerySet[Combo]) -> int:
@@ -130,6 +131,25 @@ def recompute_card_counts(cards: QuerySet[Card]) -> int:
     return len(drifted)
 
 
+def recompute_template_counts(templates: QuerySet[Template]) -> int:
+    truth = dict(
+        Template
+        .objects
+        .filter(pk__in=templates.values('pk'))
+        .order_by()
+        .annotate(updated_variant_count=Count('required_by_variants', distinct=True, filter=Q(required_by_variants__status__in=Variant.public_statuses())))
+        .exclude(variant_count=F('updated_variant_count'))
+        .values_list('pk', 'updated_variant_count')
+    )
+    if not truth:
+        return 0
+    drifted = list[Template](Template.objects.filter(pk__in=truth).only('pk', 'variant_count').order_by())
+    for template in drifted:
+        template.variant_count = truth[template.pk]
+    Template.objects.bulk_update(drifted, fields=['variant_count'], batch_size=DEFAULT_BATCH_SIZE)
+    return len(drifted)
+
+
 def recompute_all_counts() -> int:
     '''Rebuilds every counter from scratch, cheaply enough to be the safety net rather than the mechanism.'''
     with transaction.atomic(using=router.db_for_write(Variant)):
@@ -137,6 +157,7 @@ def recompute_all_counts() -> int:
         drifted = recompute_combo_counts(Combo.objects.all())
         drifted += recompute_variant_counts(Variant.objects.all())
         drifted += recompute_card_counts(Card.objects.filter(number__isnull=False))
+        drifted += recompute_template_counts(Template.objects.all())
         return drifted
 
 
@@ -157,6 +178,7 @@ def recompute_counts(*, combo_ids=(), variant_ids=()) -> int:
     if not combos and not variants:
         return 0
     cards = CardInVariant.objects.filter(variant_id__in=variants).values('card_id')
+    templates = TemplateInVariant.objects.filter(variant_id__in=variants).values('template_id')
     # The block is opened on the routed database rather than on the default one, so that a recompute
     # made from an admin request, which runs on a connection of its own, is atomic on the connection
     # actually writing the rows.
@@ -165,6 +187,7 @@ def recompute_counts(*, combo_ids=(), variant_ids=()) -> int:
         drifted = recompute_combo_counts(Combo.objects.filter(pk__in=combos))
         drifted += recompute_variant_counts(Variant.objects.filter(pk__in=variants))
         drifted += recompute_card_counts(Card.objects.filter(number__in=cards))
+        drifted += recompute_template_counts(Template.objects.filter(pk__in=templates))
         return drifted
 
 

@@ -6,6 +6,7 @@ from .feature_serializer import FeatureSerializer
 from .legalities_serializer import LegalitiesSerializer
 from .prices_serializer import PricesSerializer
 from .template_serializer import TemplateSerializer
+from .template_detail_serializer import TemplateDetailSerializer
 from .user_serializer import UserSerializer
 from .variant_serializer import VariantSerializer
 from .variant_suggestion_serializer import VariantSuggestionSerializer

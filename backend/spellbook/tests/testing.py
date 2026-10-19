@@ -58,6 +58,9 @@ class SpellbookTestCase(BaseTestCase):
         for card in Card.objects.all():
             with self.subTest(card=card.id):
                 self.assertEqual(card.variant_count, public.filter(uses=card).distinct().count())
+        for template in Template.objects.all():
+            with self.subTest(template=template.id):
+                self.assertEqual(template.variant_count, public.filter(requires=template).distinct().count())
 
     def assertMultisetEqual(self, a, b):
         if isinstance(a, FrozenMultiset):

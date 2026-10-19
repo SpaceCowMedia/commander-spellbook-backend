@@ -13,6 +13,7 @@ class TemplateViewsTests(SpellbookTestCaseWithSeeding):
         self.assertEqual(template_result.name, t.name)
         self.assertEqual(template_result.scryfall_query, t.scryfall_query)
         self.assertEqual(template_result.scryfall_api, t.scryfall_api())
+        self.assertEqual(template_result.variant_count, t.variant_count)
 
     def test_templates_list_view(self):
         response = self.client.get(reverse('templates-list'), follow=True)
@@ -23,6 +24,28 @@ class TemplateViewsTests(SpellbookTestCaseWithSeeding):
         self.assertEqual(len(result.results), template_count)
         for i in range(template_count):
             self.template_assertions(result.results[i])
+
+    def test_templates_list_view_ordering(self):
+        self.generate_and_publish_variants()
+        for ordering, assertion in [
+            ('variant_count', lambda a, b: self.assertGreaterEqual(a.variant_count, b.variant_count)),
+            ('-variant_count', lambda a, b: self.assertLessEqual(a.variant_count, b.variant_count)),
+            ('name', lambda a, b: self.assertGreaterEqual(a.name, b.name)),
+            ('-name', lambda a, b: self.assertLessEqual(a.name, b.name)),
+        ]:
+            response = self.client.get(reverse('templates-list'), query_params={'ordering': ordering}, follow=True)  # type: ignore
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(response.get('Content-Type'), 'application/json')
+            result = json.loads(response.content, object_hook=json_to_python_lambda)
+            template_count = Template.objects.count()
+            self.assertEqual(len(result.results), template_count)
+            variant_count_values = set[int]()
+            for i in range(template_count):
+                self.template_assertions(result.results[i])
+                if i > 0:
+                    assertion(result.results[i], result.results[i - 1])
+                variant_count_values.add(result.results[i].variant_count)
+            self.assertGreater(len(variant_count_values), 1)
 
     def test_templates_detail_view(self):
         response = self.client.get(reverse('templates-detail', args=[self.t1_id]), follow=True)

@@ -2,8 +2,8 @@ from rest_framework import viewsets
 from django_filters.rest_framework import DjangoFilterBackend, FilterSet
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
 from spellbook.models import Template
-from spellbook.serializers import TemplateSerializer
-from .filters import CARD_REFERENCE_HELP, CardReferenceFilter, NameAndScryfallAutocompleteQueryFilter
+from spellbook.serializers import TemplateDetailSerializer
+from .filters import CARD_REFERENCE_HELP, CardReferenceFilter, NameAndScryfallAutocompleteQueryFilter, OrderingFilterWithNullsLast
 
 
 class TemplateFilterSet(FilterSet):
@@ -22,7 +22,8 @@ class TemplateFilterSet(FilterSet):
     ]),
 )
 class TemplateViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = TemplateSerializer.prefetch_related(Template.objects.all())
-    serializer_class = TemplateSerializer
-    filter_backends = [DjangoFilterBackend, NameAndScryfallAutocompleteQueryFilter]
+    queryset = TemplateDetailSerializer.prefetch_related(Template.objects.all())
+    serializer_class = TemplateDetailSerializer
+    ordering_fields = ['variant_count', 'name']
+    filter_backends = [DjangoFilterBackend, NameAndScryfallAutocompleteQueryFilter, OrderingFilterWithNullsLast]
     filterset_class = TemplateFilterSet

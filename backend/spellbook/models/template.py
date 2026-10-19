@@ -35,6 +35,7 @@ class Template(NamedModel):
         verbose_name='cards matching template',
         help_text='Cards this template stands for, whether its query found them or an editor listed them',
     )
+    variant_count = models.PositiveIntegerField(default=0, editable=False)
 
     _scryfall_query: str | None = None
 

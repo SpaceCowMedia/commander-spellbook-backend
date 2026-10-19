@@ -78,6 +78,12 @@ div.inline-related fieldset div.wrapper table thead tr > th.original + th {
     }
 }
 
+/* The delete checkbox is the last cell of a wide row, often scrolled out of
+   sight, so a row marked for deletion is dimmed as a whole. */
+div.inline-related fieldset div.wrapper table tr:has(> td.delete input:checked) {
+    opacity: 0.5;
+}
+
 .floating-inline-scrollbar {
     position: fixed;
     bottom: 0;

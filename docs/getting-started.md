@@ -81,6 +81,22 @@ uv run python -Wd manage.py test --no-input --parallel auto --pythonpath ../comm
 uv run --project backend pytest backend client/python common
 ```
 
+### Client and bot tests
+
+These need the [generated clients](api.md#generated-clients). Besides the Python client's tests against a live test server, the clients and the bots are tested against a fake backend, whose responses are built from `client/openapi.json` and carry fields the schema does not declare: a client must keep working when the backend grows new fields.
+
+```bash
+# Python client, in the backend environment
+uv run --project backend python backend/manage.py test client/python/tests/ --no-input --pythonpath common
+
+# TypeScript client
+cd client/typescript && npm ci && npm test
+
+# A bot, in its own environment
+cd bot/discord && uv sync
+PYTHONPATH=../../common:../../client/python uv run python -m unittest
+```
+
 Every code change **must** ship with tests — the CI enforces the suite across Linux, Windows, and macOS.
 
 ## Linting

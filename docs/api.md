@@ -142,7 +142,7 @@ The SDKs are generated from `openapi.yaml` with [openapi-generator](https://open
 
 ```bash
 cd client
-./generate-openapi.sh              # 1. refresh the schema
+./generate-openapi.sh              # 1. refresh the schema (openapi.yaml, plus openapi.json for the tests)
 ./generate-client-python.sh        # 2a. Python client  -> client/python/
 ./generate-client-typescript.sh    # 2b. TypeScript client -> client/typescript/
 ```
@@ -150,4 +150,4 @@ cd client
 - **Python** — package `spellbook_client` (async, `asyncio` library). Used by the [bots](architecture.md#repository-layout) and the Python integration tests.
 - **TypeScript** — published to npm as [`@space-cow-media/spellbook-client`](https://www.npmjs.com/package/@space-cow-media/spellbook-client) and consumed by the [React frontend](https://github.com/SpaceCowMedia/commander-spellbook-site).
 
-The CI regenerates and publishes both on release; you only need to run these locally when changing the API and testing a client against it.
+The CI regenerates and publishes both on release; you only need to run these locally when changing the API and testing a client against it. See [Client and bot tests](getting-started.md#client-and-bot-tests) for how the clients and the bots are tested.

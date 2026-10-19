@@ -31,7 +31,9 @@
     },
     "scripts": {
         "build": "tsc",
-        "watch": "tsc -w"
+        "watch": "tsc -w",
+        "pretest": "npm run build",
+        "test": "node --test test/*.test.js"
     },
     "version": ""
 }

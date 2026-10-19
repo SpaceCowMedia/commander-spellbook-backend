@@ -38,7 +38,7 @@ class TestFindMyCombos(SpellbookClientTest):
             result = await api_instance.find_my_combos_create(
                 deck_request=DeckRequest(
                     commanders=[
-                        CardInDeckRequest(card='F F'),
+                        CardInDeckRequest(card='F "F"'),
                     ],
                     main=[
                         CardInDeckRequest(card='B B'),
@@ -57,7 +57,7 @@ class TestFindMyCombos(SpellbookClientTest):
                 decklist=dedent(  # type: ignore
                     '''
                     // Commander
-                    1x F F
+                    1x F "F"
                     // Main
                     1x B B
                     1x C C
@@ -90,7 +90,7 @@ class TestFindMyCombos(SpellbookClientTest):
             result = await api_instance.find_my_combos_create(
                 deck_request=DeckRequest(
                     commanders=[
-                        CardInDeckRequest(card='F F'),
+                        CardInDeckRequest(card='F "F"'),
                     ],
                     main=[
                         CardInDeckRequest(card='B B'),
@@ -107,7 +107,7 @@ class TestFindMyCombos(SpellbookClientTest):
             result = await api_instance.find_my_combos_create(
                 deck_request=DeckRequest(
                     commanders=[
-                        CardInDeckRequest(card='F F'),
+                        CardInDeckRequest(card='F "F"'),
                     ],
                     main=[
                         CardInDeckRequest(card='B B'),

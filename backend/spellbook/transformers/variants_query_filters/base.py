@@ -26,6 +26,13 @@ CORRELATIONS: dict[type[Model], str] = {
 }
 
 
+def literal(match: re.Match[str]) -> str:
+    '''The text a matched value stands for; the grammar admits a backslash only to escape a quote.'''
+    if match['long_value']:
+        return match['long_value'].replace('\\"', '"')
+    return match['short_value']
+
+
 @dataclass(frozen=True)
 class QueryValue:
     prefix: str
@@ -50,7 +57,7 @@ class QueryValue:
                 raise ValidationError(f'Invalid query value: {string}')
             case match:
                 quotes = bool(match['long_value'])
-                return cls(match['prefix'] or '', match['key'], match['operator'], match['long_value'] if quotes else match['short_value'], quotes)
+                return cls(match['prefix'] or '', match['key'], match['operator'], literal(match), quotes)
 
     @classmethod
     def from_short_string(cls, string: str, key: str, operator: str) -> 'QueryValue':
@@ -58,7 +65,7 @@ class QueryValue:
             case None:
                 raise ValidationError(f'Invalid query value: {string}')
             case match:
-                return cls('', key, operator, match['long_value'] or match['short_value'], quotes=True)  # Treat short values as quoted strings
+                return cls('', key, operator, literal(match), quotes=True)  # Treat short values as quoted strings
 
     def to_filter(self, q: Q, model: type[Model] = Variant) -> 'VariantQuery':
         if self.is_for_all_related():

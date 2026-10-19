@@ -255,13 +255,13 @@ class SpellbookTestCaseWithSeeding(SpellbookTestCase):
         '''
         Populate the database with some test data.
         If used to generate variants, the expected generated variants are:
-        - <Variant: A A + B B + C C + D' D + E É + F F ➜ 2 FB + 2 FC + FD> with id '1-2-3-4-5-6'
+        - <Variant: A A + B B + C C + D' D + E É + F "F" ➜ 2 FB + 2 FC + FD> with id '1-2-3-4-5-6'
         - <Variant: H-H + A A ➜ FB> with id '1-8'
-        - <Variant: B B + E É + C C + F F + TA ➜ FB + FD> with id '2-3-5-6--1'
+        - <Variant: B B + E É + C C + F "F" + TA ➜ FB + FD> with id '2-3-5-6--1'
         - <Variant: B B + C C + A A + TA ➜ FB + FD> with id '1-2-3--1'
         - <Variant: H-H + A A + TA ➜ FB + FD> with id '1-8--1'
         - <Variant: B B + C C + A A ➜ FB + FC> with id '1-2-3'
-        - <Variant: B B + C C + E É + F F ➜ FB + FC> with id '2-3-5-6'
+        - <Variant: B B + C C + E É + F "F" ➜ FB + FC> with id '2-3-5-6'
         - <Variant: A A + B B + TA + TB ➜ FD> with id '1-2--1-2'
         '''
         super().setUpTestData()
@@ -272,7 +272,7 @@ class SpellbookTestCaseWithSeeding(SpellbookTestCase):
         c3 = Card.objects.create(number=3, name='C C', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000003'), identity='B', color='B', legal_commander=True, spoiler=False, type_line='Creature', oracle_text='xx4', price_tcgplayer=2.71, price_cardkingdom=3.14, price_cardmarket=1.59)
         c4 = Card.objects.create(number=4, name='D\' D', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000004'), identity='R', color='R', legal_commander=True, spoiler=True, type_line='Battle', oracle_text='x5x', keywords=['keyword3'], price_tcgplayer=3.14, price_cardkingdom=1.59, price_cardmarket=2.65)
         c5 = Card.objects.create(number=5, name='E É', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000005'), identity='G', color='G', legal_commander=False, spoiler=True, type_line='Planeswalker', oracle_text='', price_tcgplayer=1.23, price_cardkingdom=4.56, price_cardmarket=7.89)
-        c6 = Card.objects.create(number=6, name='F F', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000006'), identity='WU', color='WU', legal_commander=True, spoiler=False, type_line='Enchantment', oracle_text='x6', mana_value=6, legal_brawl=False)
+        c6 = Card.objects.create(number=6, name='F "F"', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000006'), identity='WU', color='WU', legal_commander=True, spoiler=False, type_line='Enchantment', oracle_text='x6', mana_value=6, legal_brawl=False)
         c7 = Card.objects.create(number=7, name='G G _____', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000007'), identity='WB', color='WB', legal_commander=True, spoiler=False, type_line='Artifact', oracle_text='x7x7')
         c8 = Card.objects.create(number=8, name='H-H', oracle_id=uuid.UUID('00000000-0000-0000-0000-000000000008'), identity='C', color='C', legal_commander=True, spoiler=False, type_line='Land', oracle_text='x8. x9.', mana_value=8)
         f1 = Feature.objects.create(name='FA', description='Feature A', status=Feature.Status.HIDDEN_UTILITY)

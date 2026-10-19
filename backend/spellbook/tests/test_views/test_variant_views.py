@@ -15,6 +15,10 @@ from website.models import WebsiteProperty, FEATURED_SET_CODES_PROPERTIES
 from ..testing import SpellbookTestCaseWithSeeding
 
 
+def quoted(value: str) -> str:
+    return '"' + value.replace('"', '\\"') + '"'
+
+
 class VariantViewsTests(SpellbookTestCaseWithSeeding):
     public_variants: models.Manager[Variant]
     ok_variants: models.QuerySet[Variant]
@@ -198,16 +202,16 @@ class VariantViewsTests(SpellbookTestCaseWithSeeding):
             search_with_simplified_underscores = search.replace('_____', '_')
             queries += [
                 (prefix_without_spaces, prefix_without_spaces),
-                (f'"{prefix_without_spaces}"', prefix_without_spaces),
-                (f'"{search}"', search),
-                (f'"{search_without_underscores}"', search_without_underscores),
-                (f'"{search_with_simplified_underscores}"', search_with_simplified_underscores),
+                (quoted(prefix_without_spaces), prefix_without_spaces),
+                (quoted(search), search),
+                (quoted(search_without_underscores), search_without_underscores),
+                (quoted(search_with_simplified_underscores), search_with_simplified_underscores),
                 (f'card:{prefix_without_spaces}', prefix_without_spaces),
-                (f'card:"{prefix_without_spaces}"', prefix_without_spaces),
-                (f'card:"{search}"', search),
-                (f'card="{search}"', search),
+                (f'card:{quoted(prefix_without_spaces)}', prefix_without_spaces),
+                (f'card:{quoted(search)}', search),
+                (f'card={quoted(search)}', search),
                 (f'@card:{prefix_without_spaces}', prefix_without_spaces),
-                (f'@card:"{prefix_without_spaces}"', prefix_without_spaces),
+                (f'@card:{quoted(prefix_without_spaces)}', prefix_without_spaces),
             ]
         queries = list(dict.fromkeys(queries))
         # case insensitive queries: isascii() is used to filter out case insensitive accented queries, incompatible with sqlite:
@@ -242,7 +246,7 @@ class VariantViewsTests(SpellbookTestCaseWithSeeding):
                 self.assertSetEqual({v.id for v in result.results}, {v.id for v in variants})
                 for v in result.results:
                     self.variant_assertions(v)
-            qq = f'{q} card:"{a_card.name}"'
+            qq = f'{q} card:{quoted(a_card.name)}'
             with self.subTest(f'query by card name: {term} with additional card {a_card} and query {q}'):
                 response = self.client.get(reverse('variants-list'), query_params={'q': qq}, follow=True)  # type: ignore
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -929,15 +933,15 @@ class VariantViewsTests(SpellbookTestCaseWithSeeding):
             search_with_simplfied_underscores_without_accents = search_without_accents.replace('_____', '_')
             queries = [
                 (f'commander:{prefix_without_spaces}', models.Q(cardinvariant__card__name__icontains=prefix_without_spaces)),
-                (f'commander:"{prefix_without_spaces}"', models.Q(cardinvariant__card__name__icontains=prefix_without_spaces)),
-                (f'commander:"{search}"', models.Q(cardinvariant__card__name__icontains=search)),
-                (f'commander:"{search_without_accents}"', models.Q(cardinvariant__card__name_unaccented__icontains=search_without_accents)),
-                (f'commander:"{search_with_simplfied_underscores_without_accents}"', models.Q(cardinvariant__card__name_unaccented_simplified__icontains=search_with_simplfied_underscores_without_accents)),
+                (f'commander:{quoted(prefix_without_spaces)}', models.Q(cardinvariant__card__name__icontains=prefix_without_spaces)),
+                (f'commander:{quoted(search)}', models.Q(cardinvariant__card__name__icontains=search)),
+                (f'commander:{quoted(search_without_accents)}', models.Q(cardinvariant__card__name_unaccented__icontains=search_without_accents)),
+                (f'commander:{quoted(search_with_simplfied_underscores_without_accents)}', models.Q(cardinvariant__card__name_unaccented_simplified__icontains=search_with_simplfied_underscores_without_accents)),
                 (f'commander={prefix_without_spaces}', models.Q(cardinvariant__card__name__iexact=prefix_without_spaces)),
-                (f'commander="{prefix_without_spaces}"', models.Q(cardinvariant__card__name__iexact=prefix_without_spaces)),
-                (f'commander="{search}"', models.Q(cardinvariant__card__name__iexact=search)),
-                (f'commander="{search_without_accents}"', models.Q(cardinvariant__card__name_unaccented__iexact=search_without_accents)),
-                (f'commander="{search_with_simplfied_underscores_without_accents}"', models.Q(cardinvariant__card__name_unaccented_simplified__iexact=search_with_simplfied_underscores_without_accents)),
+                (f'commander={quoted(prefix_without_spaces)}', models.Q(cardinvariant__card__name__iexact=prefix_without_spaces)),
+                (f'commander={quoted(search)}', models.Q(cardinvariant__card__name__iexact=search)),
+                (f'commander={quoted(search_without_accents)}', models.Q(cardinvariant__card__name_unaccented__iexact=search_without_accents)),
+                (f'commander={quoted(search_with_simplfied_underscores_without_accents)}', models.Q(cardinvariant__card__name_unaccented_simplified__iexact=search_with_simplfied_underscores_without_accents)),
             ]
             for q, q_django in queries:
                 with self.subTest(f'query by commander name: {search} with query {q}'):
@@ -1289,7 +1293,7 @@ class VariantViewsTests(SpellbookTestCaseWithSeeding):
             self.assertSetEqual(self.query_ids(f'-pre:{prereq}'), not_matching_prereq)
         with self.subTest('the guard does not leak onto the other side of an or'):
             self.assertSetEqual(
-                self.query_ids(f'pre:{prereq} OR card:"{example_card.name}"'),
+                self.query_ids(f'pre:{prereq} OR card:{quoted(example_card.name)}'),
                 matching_prereq | reachable_by_card,
             )
 

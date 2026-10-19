@@ -28,6 +28,8 @@ class QueryExplanationTests(SpellbookTestCase):
         self.assertExplanation('"Basalt Monolith"', 'Combos that use a card with “Basalt Monolith” in the name.')
         self.assertExplanation('card:Basalt', 'Combos that use a card with “Basalt” in the name.')
         self.assertExplanation('card="Basalt Monolith"', 'Combos that use a card named exactly “Basalt Monolith”.')
+        self.assertExplanation(r'card="Henzie \"Toolbox\" Torre"', 'Combos that use a card named exactly “Henzie "Toolbox" Torre”.')
+        self.assertExplanation(r'"Henzie \"Toolbox\""', 'Combos that use a card with “Henzie "Toolbox"” in the name.')
         self.assertExplanation('@card:Monolith', 'Combos that use only cards with “Monolith” in the name.')
         self.assertExplanation('cards>2', 'Combos that use more than 2 cards.')
         self.assertExplanation('cards=1', 'Combos that use exactly 1 card.')

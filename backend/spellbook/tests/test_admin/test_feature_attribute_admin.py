@@ -1,7 +1,7 @@
 from django.core.exceptions import ValidationError
 from spellbook.admin.feature_attribute_admin import merge_feature_attribute
 from spellbook.models import CardInCombo, Combo, Feature, FeatureAttribute, FeatureNeededInCombo, FeatureOfCard, FeatureProducedInCombo, ZoneLocation
-from spellbook.models.references import replace_attribute_reference
+from spellbook.models.references import rename_references
 from ..testing import SpellbookTestCaseWithSeeding
 
 
@@ -13,18 +13,18 @@ class FeatureAttributeAdminTests(SpellbookTestCaseWithSeeding):
                     FeatureAttribute(name=name).full_clean()
         FeatureAttribute(name='With Spaces').full_clean()
 
-    def test_replace_attribute_reference(self):
+    def test_rename_attribute_references(self):
         for test_text, verified_text, old_name, new_name in [
             ('[[Feature$Attr]]', '[[Feature$Other]]', 'Attr', 'Other'),
             ('[[Feature$attr]]', '[[Feature$Other]]', 'Attr', 'Other'),
             ('[[Feature$Attr]] and [[Feature$Attr]]', '[[Feature$Other]] and [[Feature$Other]]', 'Attr', 'Other'),
             ('[[Feature$Attr]] and [[Feature$Untouched]]', '[[Feature$Other]] and [[Feature$Untouched]]', 'Attr', 'Other'),
             ('[[Attr$Attr]]', '[[Attr$Other]]', 'Attr', 'Other'),
-            ('[[Feature$Attr|post]]', '[[Feature$Other|post]]', 'Attr', 'Other'),
-            ('[[Feature#2|alias$Attr|post]]', '[[Feature#2|alias$Other|post]]', 'Attr', 'Other'),
+            ('[[Feature$Attr|alias]]', '[[Feature$Other|alias]]', 'Attr', 'Other'),
+            ('[[Feature#2$Attr|alias]]', '[[Feature#2$Other|alias]]', 'Attr', 'Other'),
             # attribute names with spaces, on both ends of the rename
             ('[[Feature$Old Attribute]]', '[[Feature$New Attribute]]', 'Old Attribute', 'New Attribute'),
-            ('[[Feature$old attribute|post]]', '[[Feature$New Attribute|post]]', 'Old Attribute', 'New Attribute'),
+            ('[[Feature$old attribute|alias]]', '[[Feature$New Attribute|alias]]', 'Old Attribute', 'New Attribute'),
             ('[[Feature$Old]] [[Feature$Old Attribute]]', '[[Feature$Old]] [[Feature$New]]', 'Old Attribute', 'New'),
             # a positional selector is never an attribute name
             ('[[Feature$2]]', '[[Feature$2]]', '2', 'Other'),
@@ -36,7 +36,7 @@ class FeatureAttributeAdminTests(SpellbookTestCaseWithSeeding):
             ('{{Attr}}', '{{Attr}}', 'Attr', 'Other'),
         ]:
             with self.subTest(test_text=test_text, old_name=old_name, new_name=new_name):
-                self.assertEqual(replace_attribute_reference(old_name, new_name, test_text), verified_text)
+                self.assertEqual(rename_references(test_text, 'selector', old_name, new_name), verified_text)
 
     def test_replace_attribute_references(self):
         attribute = FeatureAttribute.objects.create(name='Old Attribute')

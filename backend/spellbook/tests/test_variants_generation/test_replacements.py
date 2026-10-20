@@ -1,10 +1,11 @@
 from itertools import product
 from unittest import TestCase
-from spellbook.models.references import FEATURE_INCLUSION_PATTERN, FEATURE_REPLACEMENT_PATTERN, format_feature_inclusion, format_feature_replacement, references_to_features_not_needed
+from spellbook.models.references import FEATURE_INCLUSION_PATTERN, FEATURE_REPLACEMENT_PATTERN, LINE_REFERENCE_PATTERN, expand_aliases, format_alias_inclusion, format_alias_replacement, format_feature_inclusion, format_feature_replacement, format_line_reference, references_to_features_not_needed, referenced_line
 
 KEYS = [
     'Feature',
     'Feature 1',
+    '3 Mana',
     'lowercase feature',
     'Feature [x]',
     "Card's ability",
@@ -12,13 +13,12 @@ KEYS = [
     'Ünïcödé feature',
 ]
 FACES = [None, '1', '2', '10']
-ALIASES = [None, 'alias', 'Alias 2', 'an alias with [brackets]']
 SELECTORS = [None, '1', '3', 'Attribute', 'attribute name']
-POSTFIX_ALIASES = [None, 'post', 'post alias']
+ALIASES = [None, 'alias', 'Alias 2']
 
 
 def all_parts():
-    return product(KEYS, FACES, ALIASES, SELECTORS, POSTFIX_ALIASES)
+    return product(KEYS, FACES, SELECTORS, ALIASES)
 
 
 def all_inclusion_parts():
@@ -26,49 +26,35 @@ def all_inclusion_parts():
 
 
 class FeatureReplacementPatternTests(TestCase):
-    def test_pattern_matches_formatted_replacement(self):
-        for key, face, alias, selector, postfix_alias in all_parts():
-            with self.subTest(key=key, face=face, alias=alias, selector=selector, postfix_alias=postfix_alias):
-                text = format_feature_replacement(key, face, alias, selector, postfix_alias)
-                self.assertIsNotNone(FEATURE_REPLACEMENT_PATTERN.fullmatch(text))
-
     def test_pattern_recovers_the_formatted_parts(self):
-        for key, face, alias, selector, postfix_alias in all_parts():
-            with self.subTest(key=key, face=face, alias=alias, selector=selector, postfix_alias=postfix_alias):
-                text = format_feature_replacement(key, face, alias, selector, postfix_alias)
-                match = FEATURE_REPLACEMENT_PATTERN.fullmatch(text)
+        for key, face, selector, alias in all_parts():
+            with self.subTest(key=key, face=face, selector=selector, alias=alias):
+                match = FEATURE_REPLACEMENT_PATTERN.fullmatch(format_feature_replacement(key, face, selector, alias))
                 assert match is not None
-                self.assertEqual(match.group('key'), key)
-                self.assertEqual(match.group('face'), face)
-                self.assertEqual(match.group('alias'), alias)
-                self.assertEqual(match.group('selector'), selector)
-                # a postfix alias is only meaningful for a selected replacement, so it is dropped without a selector
-                self.assertEqual(match.group('postfix_alias'), postfix_alias if selector is not None else None)
+                self.assertEqual(match.groups(), (key, face, selector, alias))
 
     def test_formatting_back_a_match_leaves_the_text_untouched(self):
-        for key, face, alias, selector, postfix_alias in all_parts():
-            with self.subTest(key=key, face=face, alias=alias, selector=selector, postfix_alias=postfix_alias):
-                replacement = format_feature_replacement(key, face, alias, selector, postfix_alias)
+        for key, face, selector, alias in all_parts():
+            with self.subTest(key=key, face=face, selector=selector, alias=alias):
+                replacement = format_feature_replacement(key, face, selector, alias)
                 for text in (replacement, f'before {replacement} after', f'{replacement}{replacement}', f'[[{replacement}]]'):
                     result, count = FEATURE_REPLACEMENT_PATTERN.subn(lambda m: format_feature_replacement(*m.groups()), text)
                     self.assertGreater(count, 0)
                     self.assertEqual(result, text)
 
+    def test_pattern_ignores_the_syntaxes_it_is_not(self):
+        for text in (format_alias_replacement('alias'), format_feature_inclusion('Feature'), '[[Feature|alias$1]]', '[[Feature|alias$1|post]]'):
+            with self.subTest(text=text):
+                self.assertIsNone(FEATURE_REPLACEMENT_PATTERN.fullmatch(text))
+
 
 class FeatureInclusionPatternTests(TestCase):
-    def test_pattern_matches_formatted_inclusion(self):
-        for key, selector in all_inclusion_parts():
-            with self.subTest(key=key, selector=selector):
-                text = format_feature_inclusion(key, selector)
-                self.assertIsNotNone(FEATURE_INCLUSION_PATTERN.fullmatch(text))
-
     def test_pattern_recovers_the_formatted_parts(self):
         for key, selector in all_inclusion_parts():
             with self.subTest(key=key, selector=selector):
                 match = FEATURE_INCLUSION_PATTERN.fullmatch(format_feature_inclusion(key, selector))
                 assert match is not None
-                self.assertEqual(match.group('key'), key)
-                self.assertEqual(match.group('selector'), selector)
+                self.assertEqual(match.groups(), (key, selector))
 
     def test_formatting_back_a_match_leaves_the_text_untouched(self):
         for key, selector in all_inclusion_parts():
@@ -80,30 +66,58 @@ class FeatureInclusionPatternTests(TestCase):
                     self.assertEqual(result, text)
 
     def test_pattern_ignores_the_syntaxes_it_is_not(self):
-        for text in ('{{}}', '{{unpaired}', '{W}', '[[Feature]]', '{{Feature|alias}}', '{{Feature$1$2}}'):
+        for text in ('{{}}', '{{unpaired}', '{W}', '[[Feature]]', '{{Feature|alias}}', '{{Feature$1$2}}', format_alias_inclusion('alias'), format_line_reference(3), format_line_reference(2, '+')):
             with self.subTest(text=text):
                 self.assertIsNone(FEATURE_INCLUSION_PATTERN.search(text))
 
 
+class LineReferencePatternTests(TestCase):
+    def test_a_reference_points_at_its_line(self):
+        for sign, number, line, expected in (('', 3, 5, 3), ('+', 2, 5, 7), ('-', 1, 5, 4)):
+            with self.subTest(sign=sign, number=number):
+                match = LINE_REFERENCE_PATTERN.fullmatch(format_line_reference(number, sign))
+                assert match is not None
+                self.assertEqual(referenced_line(match, line), expected)
+
+    def test_a_feature_named_like_a_number_is_no_line_reference(self):
+        self.assertIsNone(LINE_REFERENCE_PATTERN.search(format_feature_inclusion('3')))
+
+
+class ExpandAliasesTests(TestCase):
+    def test_a_use_repeats_the_reference_defining_it(self):
+        definition = format_feature_replacement('Feature', '2', '1', 'x')
+        text = f'{definition}, then {format_alias_replacement("x")} and {format_alias_inclusion("x")}'
+        expected = f'{definition}, then {format_feature_replacement("Feature", "2", "1")} and {format_feature_inclusion("Feature", "1")}'
+        self.assertEqual(expand_aliases(text), expected)
+
+    def test_a_use_before_its_definition_is_expanded_too(self):
+        text = f'{format_alias_replacement("x")} and {format_feature_replacement("Feature", alias="x")}'
+        self.assertEqual(expand_aliases(text), f'{format_feature_replacement("Feature")} and {format_feature_replacement("Feature", alias="x")}')
+
+    def test_an_alias_the_text_does_not_define_is_left_as_written(self):
+        text = f'{format_alias_replacement("y")} and {format_alias_inclusion("y")} next to {format_feature_replacement("Feature", alias="x")}'
+        self.assertEqual(expand_aliases(text), text)
+
+
 class ReferencesToFeaturesNotNeededTests(TestCase):
     def test_references_to_needed_features_pass(self):
-        texts = ['Activate [[Feature#2|alias$1|post]], then [[Other feature$attribute]].', 'Include {{Feature$1}}.']
+        texts = [
+            f'Activate {format_feature_replacement("Feature", "2", "1", "alias")}, then {format_feature_replacement("Other feature", selector="attribute")} and {format_alias_replacement("alias")}.',
+            f'Include {format_feature_inclusion("Feature", "1")}.',
+        ]
         self.assertEqual(references_to_features_not_needed(texts, {'Feature', 'Other feature'}), [])
 
-    def test_references_to_other_features_are_returned_once_in_order(self):
+    def test_references_to_other_features_are_returned_once_sorted(self):
         texts = ['[[Unneeded]] and {{Included}}', '[[Feature]], [[Unneeded]] and [[Another]]']
-        self.assertEqual(references_to_features_not_needed(texts, {'Feature'}), ['[[Unneeded]]', '{{Included}}', '[[Another]]'])
+        self.assertEqual(references_to_features_not_needed(texts, {'Feature'}), ['[[Another]]', '[[Unneeded]]', '{{Included}}'])
 
     def test_names_are_matched_exactly(self):
         self.assertEqual(references_to_features_not_needed(['[[feature]] and {{feature}}'], {'Feature'}), ['[[feature]]', '{{feature}}'])
 
-    def test_aliases_defined_by_any_of_the_texts_pass(self):
-        texts = ['Use [[alias]] and [[post]].', 'Where [[Feature|alias]] and [[Feature$1|post]] are defined.']
-        self.assertEqual(references_to_features_not_needed(texts, {'Feature'}), [])
-
-    def test_an_alias_is_no_feature_for_an_inclusion(self):
-        self.assertEqual(references_to_features_not_needed(['[[Feature|alias]] {{alias}}'], {'Feature'}), ['{{alias}}'])
+    def test_an_alias_is_checked_through_its_definition(self):
+        texts = [f'{format_feature_replacement("Unneeded", alias="alias")} then {format_alias_replacement("alias")} and {format_alias_inclusion("alias")}']
+        self.assertEqual(references_to_features_not_needed(texts, {'Feature'}), [format_feature_replacement('Unneeded', alias='alias')])
 
     def test_line_references_are_no_inclusions(self):
-        texts = ['First\nSecond\nBack to {{-2}}, forward to {{+1}}\nRepeat {{3}}', 'Then {{Unneeded}}']
+        texts = [f'First\nSecond\nBack to {format_line_reference(2, "-")}, forward to {format_line_reference(1, "+")}\nRepeat {format_line_reference(3)}', 'Then {{Unneeded}}']
         self.assertEqual(references_to_features_not_needed(texts, {'Feature'}), ['{{Unneeded}}'])

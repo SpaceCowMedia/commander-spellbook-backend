@@ -4,6 +4,7 @@ from html import unescape
 from django.urls import reverse
 from spellbook.admin.combo_admin import ALL_ZONE_LOCATIONS
 from spellbook.models import Card, CardInCombo, CardUsedInVariantSuggestion, Combo, FeatureProducedInVariantSuggestion, Variant, VariantSuggestion, ZoneLocation
+from spellbook.models.references import format_alias_inclusion, format_alias_replacement, format_line_reference
 from spellbook.models.utils import sanitize_newlines_apostrophes_and_quotes
 from ..testing import SpellbookTestCaseWithSeeding
 
@@ -160,8 +161,9 @@ class ComboAdminReplacementsTests(ComboAdminTestCase):
 
 
 class ComboAdminReferencesTests(ComboAdminTestCase):
-    '''The texts of a combo can only reference the features it requires, by their exact names or by the
-    aliases the texts define, since those are the ones its variants are sure to replace.'''
+    '''The texts of a combo can only reference the features it requires, by their exact names, since
+    those are the ones its variants are sure to replace, and each text can repeat them by the aliases
+    it defines.'''
 
     def payload_requiring(self, features: list[int], **overrides) -> dict:
         payload = self.combo_payload(cards=[self.c7_id], **overrides)
@@ -195,18 +197,36 @@ class ComboAdminReferencesTests(ComboAdminTestCase):
     def test_names_are_matched_exactly(self):
         self.assertRejected(self.payload_requiring([self.f2_id], description='Activate [[fb]].'), '[[fb]]')
 
-    def test_an_alias_defined_by_the_texts_can_be_referenced(self):
+    def test_a_long_list_of_references_is_cut_short(self):
+        references = sorted(f'[[Unneeded {i}]]' for i in range(12))
+        response = self.client.post(self.add_url(), data=self.payload_requiring([], description=' '.join(references)))
+        self.assertIn(f'its texts reference features it does not require: {", ".join(references[:10])} and 2 more.', unescape(response.content.decode()))
+
+    def test_an_alias_can_be_used_and_included_by_the_text_defining_it(self):
         self.assertSaved(self.payload_requiring(
             [self.f2_id],
-            easy_prerequisites='[[FB|outlet]] on the battlefield.',
-            description='Activate [[outlet]].',
+            description=f'When it enters, [[FB|outlet]] triggers.\nActivate {format_alias_replacement("outlet")}.\n{format_alias_inclusion("outlet")}',
         ))
+
+    def test_an_alias_can_be_named_like_a_feature(self):
+        self.assertSaved(self.payload_requiring([self.f2_id], description=f'[[FB|FC]] triggers, then {format_alias_replacement("FC")} resolves.'))
+
+    def test_an_alias_another_text_defines_is_rejected(self):
+        combo_count = Combo.objects.count()
+        response = self.client.post(self.add_url(), data=self.payload_requiring(
+            [self.f2_id],
+            easy_prerequisites='[[FB|outlet]] on the battlefield.',
+            description=f'Activate {format_alias_replacement("outlet")}.',
+        ))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(f'{format_alias_replacement("outlet")} uses an alias this text does not define.', unescape(response.content.decode()))
+        self.assertEqual(Combo.objects.count(), combo_count)
 
     def test_an_inclusion_of_a_feature_not_required_is_rejected(self):
         self.assertRejected(self.payload_requiring([], description='{{FB}}'), '{{FB}}')
 
     def test_line_references_are_saved(self):
-        self.assertSaved(self.payload_requiring([], description='\n'.join(f'Step {i}' for i in range(1, 8)) + '\nBack to {{-5}}, then {{7}}.'))
+        self.assertSaved(self.payload_requiring([], description='\n'.join(f'Step {i}' for i in range(1, 8)) + f'\nBack to {format_line_reference(5, "-")}, then {format_line_reference(7)}.'))
 
     def test_the_states_of_the_ingredients_are_checked_too(self):
         payload = self.payload_requiring([self.f3_id])

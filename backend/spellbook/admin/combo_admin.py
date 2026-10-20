@@ -21,7 +21,7 @@ from spellbook.models import Card, FeatureNeededInCombo, Template, Feature, Comb
 from spellbook.models.references import references_to_features_not_needed
 from spellbook.models.utils import sanitize_newlines_apostrophes_and_quotes
 from spellbook.tasks import generate_variants_task
-from .utils import SpellbookModelAdmin, SpellbookAdminForm, CustomFilter, IngredientCountListFilter
+from .utils import SpellbookModelAdmin, SpellbookAdminForm, CustomFilter, IngredientCountListFilter, join_for_message
 from .ingredient_admin import ComboIngredientAdmin, IngredientForm
 
 
@@ -563,8 +563,8 @@ class ComboAdmin(SpellbookModelAdmin):
         references = references_to_features_not_needed(texts, needed_feature_names)
         if references:
             formsets_by_model[FeatureNeededInCombo].non_form_errors().append(
-                f'This combo was not saved, because its texts reference features it does not require: {", ".join(references)}.'
-                ' Require those features, or reference the ones it requires by their exact names or by the aliases its texts define.'
+                f'This combo was not saved, because its texts reference features it does not require: {join_for_message(references)}.'
+                ' Require those features, or reference the ones it requires by their exact names.'
             )
 
     def reject_duplicate_combo(self, request: HttpRequest, obj: Combo | None, formsets: list[BaseModelFormSet]):

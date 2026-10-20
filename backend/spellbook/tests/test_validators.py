@@ -2,7 +2,8 @@ from unittest import TestCase
 from django.core.exceptions import ValidationError
 from spellbook.regexs import DOUBLE_CURLY_BRACKET_TEXT_REGEX, DOUBLE_SQUARE_BRACKET_TEXT_REGEX, MANA_REGEX, ORACLE_SYMBOL, SYMBOLS_TEXT_REGEX
 from spellbook.regexs import MANA_SYMBOL, ORDINARY_CHARACTERS_REGEX, URL_REGEX
-from spellbook.models.validators import LINE_REFERENCE_VALIDATOR, NOT_LINE_REFERENCE_VALIDATOR, SCRYFALL_QUERY_VALIDATOR
+from spellbook.models.references import REFERENCE_PREFIXES, format_alias_inclusion, format_alias_replacement, format_feature_inclusion, format_feature_replacement, format_line_reference
+from spellbook.models.validators import FEATURE_NAME_VALIDATORS, REFERENCES_VALIDATOR, SCRYFALL_QUERY_VALIDATOR
 
 
 class TestValidators(TestCase):
@@ -123,35 +124,48 @@ class TestValidators(TestCase):
         self.assertNotRegex('{{unpaired}', DOUBLE_CURLY_BRACKET_TEXT_REGEX)
         self.assertRegex('Repeat from step {{2}}, then {{+1}} and {{-3}}', DOUBLE_CURLY_BRACKET_TEXT_REGEX)
 
-    def test_line_references(self):
+    def test_references(self):
+        definition = format_feature_replacement('Feature', '2', '1', 'alias')
         for text in (
-            'First\nRepeat from step {{1}}.',
-            '{{+1}}\nSecond',
-            'Only line {{-0}} and {{+0}}',
-            'First\nSecond\nBack to {{-2}}, forward to {{3}}',
-            '{{Feature}} is no line reference',
+            f'First\nRepeat from step {format_line_reference(1)}.',
+            f'{format_line_reference(1, "+")}\nSecond',
+            f'Only line {format_line_reference(0, "-")} and {format_line_reference(0, "+")}',
+            f'First\nSecond\nBack to {format_line_reference(2, "-")}, forward to {format_line_reference(3)}',
+            f'{format_feature_inclusion("Feature")} and {format_feature_inclusion("3", "2")} are no line references',
+            f'{format_alias_replacement("alias")} before {definition}, then {format_alias_inclusion("alias")}',
+            '{{{ triple curly brackets are } fine too }}}',
         ):
             with self.subTest(text=text):
-                LINE_REFERENCE_VALIDATOR(text)
+                REFERENCES_VALIDATOR(text)
         for text in (
-            'Repeat from step {{2}}.',
-            'Back to {{-1}}',
-            'Step {{0}}',
-            'First\nForward to {{+1}}',
-            'First\r\nSecond\r\n{{4}}',
+            f'Repeat from step {format_line_reference(2)}.',
+            f'Back to {format_line_reference(1, "-")}',
+            f'Step {format_line_reference(0)}',
+            f'First\nForward to {format_line_reference(1, "+")}',
+            f'First\r\nSecond\r\n{format_line_reference(4)}',
+            f'Step {format_line_reference("two")}',
+            f'{format_alias_replacement("alias")} is not defined',
+            f'{format_alias_inclusion("alias")} is not defined',
+            f'{definition} repeated as {format_alias_replacement("alias$2")}',
+            f'{definition} defined twice: {format_feature_replacement("Other", alias="alias")}',
+            '[[Feature|alias$1]] names the feature, not the reference',
         ):
             with self.subTest(text=text):
                 with self.assertRaises(ValidationError):
-                    LINE_REFERENCE_VALIDATOR(text)
+                    REFERENCES_VALIDATOR(text)
 
-    def test_not_line_reference(self):
-        for name in ('Feature', '3 Mana', '+4 Power', 'Step 3'):
+    def test_feature_names(self):
+        def validate(name: str):
+            for validator in FEATURE_NAME_VALIDATORS:
+                validator(name)
+
+        for name in ('Feature', '3 Mana', '3', 'Step 3'):
             with self.subTest(name=name):
-                NOT_LINE_REFERENCE_VALIDATOR(name)
-        for name in ('3', '+4', '-3', '0'):
+                validate(name)
+        for name in ('lowercase', '+4 Power', *(f'{prefix}Feature' for prefix in REFERENCE_PREFIXES)):
             with self.subTest(name=name):
                 with self.assertRaises(ValidationError):
-                    NOT_LINE_REFERENCE_VALIDATOR(name)
+                    validate(name)
 
     def test_oracle_symbol(self):
         regex = f'^{ORACLE_SYMBOL}$'

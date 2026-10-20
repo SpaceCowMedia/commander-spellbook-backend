@@ -1,6 +1,7 @@
 import re
 import time
 from collections import defaultdict
+from typing import Callable
 from dataclasses import dataclass
 from functools import partial
 from django.db import OperationalError, migrations, transaction
@@ -304,3 +305,33 @@ class LockTables(migrations.RunPython):
 
     def __init__(self, modes: dict[str, str]) -> None:
         super().__init__(code=partial(lock_tables, modes), reverse_code=migrations.RunPython.noop)
+
+
+EXPLANATION_TEXT_FIELDS = ('mana_needed', 'easy_prerequisites', 'notable_prerequisites', 'description', 'notes', 'comment')
+CARD_STATE_TEXT_FIELDS = ('battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state')
+
+
+def rewrite_reference_texts(apps, rewrite: Callable[[str, int | None], str]) -> None:
+    '''Rewrites every text that can hold references, the ones of combos, of their ingredients and of
+    the features of cards, saving only the rows that changed. The rewrite is given each text along with
+    the combo it belongs to, if any. A change of the reference syntax reuses it to convert the texts.'''
+    for model_name, fields, combo_field in (
+        ('Combo', EXPLANATION_TEXT_FIELDS, 'id'),
+        ('CardInCombo', CARD_STATE_TEXT_FIELDS, 'combo_id'),
+        ('TemplateInCombo', CARD_STATE_TEXT_FIELDS, 'combo_id'),
+        ('FeatureNeededInCombo', CARD_STATE_TEXT_FIELDS, 'combo_id'),
+        ('FeatureOfCard', CARD_STATE_TEXT_FIELDS + EXPLANATION_TEXT_FIELDS, None),
+    ):
+        model = apps.get_model('spellbook', model_name)
+        with_references = Q()
+        for field in fields:
+            with_references |= Q(**{f'{field}__contains': '[['}) | Q(**{f'{field}__contains': '{{'})
+        changed = []
+        for row in model.objects.filter(with_references).only('pk', *fields, *([combo_field] if combo_field else [])).order_by().iterator(chunk_size=DEFAULT_BATCH_SIZE):
+            combo_id = getattr(row, combo_field) if combo_field else None
+            texts = {field: rewrite(getattr(row, field), combo_id) for field in fields}
+            if any(getattr(row, field) != text for field, text in texts.items()):
+                for field, text in texts.items():
+                    setattr(row, field, text)
+                changed.append(row)
+        model.objects.bulk_update(changed, fields, batch_size=DEFAULT_BATCH_SIZE)

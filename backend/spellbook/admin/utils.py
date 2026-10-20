@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Iterable
 from datetime import datetime
 from django.db.models import Model, TextField, DateTimeField, Count, Q, When, Case, Max
 from django.contrib import admin, messages
@@ -20,6 +20,16 @@ from constants import SORTED_COLORS
 from adminsortable2.admin import SortableAdminBase
 from spellbook.variants.variants_generator import DEFAULT_CARD_LIMIT
 from spellbook.models.utils import sanitize_newlines_apostrophes_and_quotes, sanitize_mana, sanitize_scryfall_query
+
+
+MESSAGE_LIST_LIMIT = 10
+
+
+def join_for_message(items: Iterable[object]) -> str:
+    '''Joins a list shown in a message, cutting it short when it is too long to read.'''
+    items = list(items)
+    shown = ', '.join(map(str, items[:MESSAGE_LIST_LIMIT]))
+    return shown if len(items) <= MESSAGE_LIST_LIMIT else f'{shown} and {len(items) - MESSAGE_LIST_LIMIT} more'
 
 
 def datetime_to_html(datetime: datetime | None) -> SafeText:

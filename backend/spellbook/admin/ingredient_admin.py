@@ -4,6 +4,7 @@ from django.forms import TextInput, Textarea
 from adminsortable2.admin import SortableTabularInline
 from django.http import HttpRequest
 from spellbook.models import FeatureOfCard, Ingredient
+from spellbook.models.references import format_feature_inclusion
 from .utils import SpellbookAdminForm
 
 
@@ -40,7 +41,7 @@ class FeatureOfCardForm(IngredientForm):
     class Meta(IngredientForm.Meta):
         help_texts = {
             'description': 'How the card produces the feature. Unlike the other fields, this one is never appended to the description of a variant on its own:'
-            ' it is written only where a text names this feature with the {{name}} syntax, so that it lands among the steps that need it.',
+            f' it is written only where a text names this feature with the {format_feature_inclusion("name")} syntax, so that it lands among the steps that need it.',
         }
 
 

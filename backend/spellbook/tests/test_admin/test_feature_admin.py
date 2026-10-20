@@ -1,11 +1,11 @@
 from ..testing import SpellbookTestCaseWithSeeding
 from spellbook.admin.feature_admin import merge_feature
 from spellbook.models import CardInCombo, Combo, Feature, FeatureNeededInCombo, FeatureOfCard, FeatureProducedInCombo, FeatureRemovedInCombo, Variant, ZoneLocation
-from spellbook.models.references import replace_feature_reference
+from spellbook.models.references import format_alias_inclusion, format_alias_replacement, format_line_reference, rename_references
 
 
 class FeatureAdminTests(SpellbookTestCaseWithSeeding):
-    def test_replace_feature_reference(self):
+    def test_rename_feature_references(self):
         for test_text, verified_text, old_name, new_name in [
             ('[[Feature1]]', '[[Feature2]]', 'Feature1', 'Feature2'),
             ('[[fEature1]]', '[[Feature2]]', 'Feature1', 'Feature2'),
@@ -13,25 +13,27 @@ class FeatureAdminTests(SpellbookTestCaseWithSeeding):
             ('[[Feature1|alias]] and [[Feature1]]', '[[Feature2|alias]] and [[Feature2]]', 'Feature1', 'Feature2'),
             ('[[Feature1|alias]] and [[Feature2|alias]]', '[[Feature2|alias]] and [[Feature2|alias]]', 'Feature1', 'Feature2'),
             ('[[feature1]] and [[feature2]]', '[[feature2]] and [[feature2]]', 'feature1', 'feature2'),
-            ('[[Feature1|alias]] asd [[alias]]', '[[Feature2|alias]] asd [[alias]]', 'Feature1', 'Feature2'),
+            (f'[[Feature1|alias]] asd {format_alias_replacement("alias")}', f'[[Feature2|alias]] asd {format_alias_replacement("alias")}', 'Feature1', 'Feature2'),
+            (f'[[Other|Feature1]] then {format_alias_replacement("Feature1")} and {format_alias_inclusion("Feature1")}', f'[[Other|Feature1]] then {format_alias_replacement("Feature1")} and {format_alias_inclusion("Feature1")}', 'Feature1', 'Feature2'),
             ('[[Feature1 [x]|alias]] [[Feature1 [x]|another alias]]', '[[Feature2|alias]] [[Feature2|another alias]]', 'Feature1 [x]', 'Feature2'),
             ('[[ASD$4|CHECK]] [ASD] [[XASD]] [[X ASD]]', '[[DEF$4|CHECK]] [ASD] [[XASD]] [[X ASD]]', 'ASD', 'DEF'),
-            ('[[A|B$2|C]]', '[[A|B$2|C]]', 'A', 'A'),
-            ('[[A|B$2|C]] [[A|B|C]]', '[[Z|B$2|C]] [[A|B|C]]', 'A', 'Z'),
+            ('[[A$2|C]]', '[[A$2|C]]', 'A', 'A'),
+            ('[[A$2|C]] [[A|C]]', '[[Z$2|C]] [[Z|C]]', 'A', 'Z'),
             ('[[A#2]]', '[[Z#2]]', 'A', 'Z'),
             ('[[A#2|alias]]', '[[Z#2|alias]]', 'A', 'Z'),
-            ('[[A#1|alias$3|post]]', '[[Z#1|alias$3|post]]', 'A', 'Z'),
+            ('[[A#1$3|alias]]', '[[Z#1$3|alias]]', 'A', 'Z'),
             ('[[A$Attribute]]', '[[Z$Attribute]]', 'A', 'Z'),
-            ('[[A$Attribute|post]]', '[[Z$Attribute|post]]', 'A', 'Z'),
+            ('[[A$Attribute|alias]]', '[[Z$Attribute|alias]]', 'A', 'Z'),
+            ('[[3 Mana|x]] and {{3 Mana}}', '[[4 Mana|x]] and {{4 Mana}}', '3 Mana', '4 Mana'),
             ('{{Feature1}}', '{{Feature2}}', 'Feature1', 'Feature2'),
             ('{{fEature1}}', '{{Feature2}}', 'Feature1', 'Feature2'),
             ('{{Feature1$2}}', '{{Feature2$2}}', 'Feature1', 'Feature2'),
             ('{{Feature1$Attribute}} and [[Feature1]]', '{{Feature2$Attribute}} and [[Feature2]]', 'Feature1', 'Feature2'),
             ('{{Feature1}} {{Other}} {Feature1}', '{{Feature2}} {{Other}} {Feature1}', 'Feature1', 'Feature2'),
+            (f'{{{{3}}}} and {format_line_reference(3)}', f'{{{{4}}}} and {format_line_reference(3)}', '3', '4'),
         ]:
             with self.subTest(test_text=test_text, old_name=old_name, new_name=new_name):
-                result = replace_feature_reference(old_name, new_name, test_text)
-                self.assertEqual(result, verified_text)
+                self.assertEqual(rename_references(test_text, 'key', old_name, new_name), verified_text)
 
     def test_replace_feature_references(self):
         feature = Feature.objects.create(name='Old Feature')

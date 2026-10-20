@@ -358,8 +358,6 @@ def _restore_variant(
             cards={c.card_id: c.order for c in ordered_uses},
             templates={t.template_id: t.order for t in ordered_requires},
         )
-        # One context for the whole variant: an alias registered by any text is visible to every text
-        # rendered after it, which is why the ingredients below are walked in their display order
         context = VariantContext.build(data, replacements, needed_combos, needed_feature_of_cards, positions)
 
         ingredients: list[CardInVariant | TemplateInVariant] = [*ordered_uses, *ordered_requires]

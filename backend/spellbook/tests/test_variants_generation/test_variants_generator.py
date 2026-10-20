@@ -7,6 +7,7 @@ from spellbook.models.feature_attribute import FeatureAttribute
 from spellbook.tests.testing import SpellbookTestCase, SpellbookTestCaseWithSeeding, curated_card
 from spellbook.models import Variant, Card, OrderedIngredient, CardInVariant, TemplateInVariant, Template, Combo, Feature, VariantAlias, FeatureOfCard, ZoneLocation, recompute_all_counts
 from spellbook.models import VariantGenerationFingerprints, VariantOfCombo, FeatureProducedByVariant, id_from_cards_and_templates_ids
+from spellbook.models.references import format_alias_inclusion, format_alias_replacement, format_feature_inclusion, format_line_reference
 from spellbook.variants.combo_graph import FeatureWithAttributes
 from spellbook.variants.multiset import FrozenMultiset
 from spellbook.variants.variant_data import Data
@@ -204,9 +205,10 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
             ('combined replacement with [[FC]]', 'combined replacement with A A + B B + TA + TB'),
             ('not found [[XYZ]] replacement.', 'not found [[XYZ]] replacement.'),
             ('replacement with alias: [[FA|XYZ]]', 'replacement with alias: A A'),
-            ('alias [[FA|XYZ]] invocation in [[XYZ]]', 'alias A A invocation in A A'),
-            ('alias [[FA|asd ok]] invocation in [[asd ok]]', 'alias A A invocation in A A'),
-            ('alias edge case [[FA|FB]] invocation in [[FB]]', 'alias edge case A A invocation in A A'),
+            (f'alias [[FA|XYZ]] invocation in {format_alias_replacement("XYZ")}', 'alias A A invocation in A A'),
+            (f'alias [[FA|asd ok]] invocation in {format_alias_replacement("asd ok")}', 'alias A A invocation in A A'),
+            (f'invocation in {format_alias_replacement("XYZ")} before alias [[FA|XYZ]]', 'invocation in A A before alias A A'),
+            (f'alias named like a feature [[FA|FB]] in {format_alias_replacement("FB")} next to [[FB]]', 'alias named like a feature A A in A A next to TA'),
             ('Legendary name cut before comma: [[FX]]', 'Legendary name cut before comma: The Name'),
             ('Non-legendary name not cut before comma: [[FY]]', 'Non-legendary name not cut before comma: The Name, different Title'),
             ('Test replacement selector: [[FY$1]] - [[FY$2]]', 'Test replacement selector: The Name, different Title - Normal Card'),
@@ -214,9 +216,9 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
             ('Test replacement attribute selector case insensitivity: [[FY$fattr]]', 'Test replacement attribute selector case insensitivity: Normal Card'),
             ('Test unknown attribute selector: [[FY$Unknown]]', 'Test unknown attribute selector: [[FY$Unknown]]'),
             ('Test attribute selector with spaces: [[FZ$Spaced Attr]]', 'Test attribute selector with spaces: Normal Card'),
-            ('Test attribute selector with spaces and alias: [[FZ|X$Spaced Attr|Y]] - [[Y]]', 'Test attribute selector with spaces and alias: Normal Card - Normal Card'),
-            ('Test replacement selector alias: [[FY$1|X]] - [[FY$2|Y]] - [[X]] - [[Y]]', 'Test replacement selector alias: The Name, different Title - Normal Card - The Name, different Title - Normal Card'),
-            ('Test replacement selector postfix alias: [[FY|X$1|Y]] - [[X]] - [[X$2]] - [[Y]] - [[Y$2]]', 'Test replacement selector postfix alias: The Name, different Title - The Name, different Title - Normal Card - The Name, different Title - [[Y$2]]'),
+            (f'Test attribute selector with spaces and alias: [[FZ$Spaced Attr|Y]] - {format_alias_replacement("Y")}', 'Test attribute selector with spaces and alias: Normal Card - Normal Card'),
+            (f'Test replacement selector alias: [[FY$1|X]] - [[FY$2|Y]] - {format_alias_replacement("X")} - {format_alias_replacement("Y")}', 'Test replacement selector alias: The Name, different Title - Normal Card - The Name, different Title - Normal Card'),
+            (f'Test an alias use takes no selector: [[FY|X]] - {format_alias_replacement("X$2")}', f'Test an alias use takes no selector: The Name, different Title - {format_alias_replacement("X$2")}'),
             ('Legendary modal name never cut: [[FZ]]', 'Legendary modal name never cut: The Name, the Title  // Another Name, Another Title'),
             ('Multiple replacements: [[FW]]', 'Multiple replacements: The Name + The Name, different Title + The Name, the Title  // Another Name, Another Title + Normal Card'),
             # Face selector in the text: whole name by default, a specific half when a valid face is given
@@ -224,16 +226,15 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
             ('Face selector front: [[FDFC#1]]', 'Face selector front: Front Face'),
             ('Face selector back: [[FDFC#2]]', 'Face selector back: Back Face'),
             ('Out of range face falls back to default: [[FDFC#3]]', 'Out of range face falls back to default: Front Face // Back Face'),
-            ('Face selector alias saves the face name: [[FDFC#1|f]] then [[f]]', 'Face selector alias saves the face name: Front Face then Front Face'),
+            (f'Face selector alias saves the face name: [[FDFC#1|f]] then {format_alias_replacement("f")}', 'Face selector alias saves the face name: Front Face then Front Face'),
             ('Face selector ignored on single-faced card: [[FA#2]]', 'Face selector ignored on single-faced card: A A'),
             ('Whole modal name never cut: [[FLDFC]]', 'Whole modal name never cut: Enchanted Front, with Words // The Lord, the Legend'),
             ('Legendary creature face cut before comma: [[FLDFC#2]]', 'Legendary creature face cut before comma: The Lord'),
             ('Non-legendary face not cut before comma: [[FLDFC#1]]', 'Non-legendary face not cut before comma: Enchanted Front, with Words'),
         ]
         data = Data()
-        # A context per case, so that the aliases registered by one do not leak into the next
+        context = VariantContext.build(data, replacements, [combo], [])
         for test in tests:
-            context = VariantContext.build(data, replacements, [combo], [])
             self.assertEqual(context.apply(test[0]), test[1])
         # When the used_face field is specified, the placeholder defaults to that half of the name,
         # while a face selector in the text still overrides it
@@ -245,12 +246,9 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
         for test in face_tests:
             context = VariantContext.build(data, replacements, [combo], [], IngredientPositions(cards={dfc_card.number: 1, legendary_face_card.number: 2}))
             self.assertEqual(context.apply(test[0]), test[1])
-        # One context spans a whole variant, so an alias registered by one text is visible to the next
-        context = VariantContext.build(data, replacements, [combo], [])
-        self.assertEqual(context.apply('alias registered here: [[FA|XYZ]]'), 'alias registered here: A A')
-        self.assertEqual(context.apply('and used in another text: [[XYZ]]'), 'and used in another text: A A')
-        # while a newly built one starts over without it
-        self.assertEqual(VariantContext.build(data, replacements, [combo], []).apply('unknown here: [[XYZ]]'), 'unknown here: [[XYZ]]')
+        # an alias is known only to the text defining it
+        self.assertEqual(context.apply('alias defined here: [[FA|XYZ]]'), 'alias defined here: A A')
+        self.assertEqual(context.apply(f'unknown in another text: {format_alias_replacement("XYZ")}'), f'unknown in another text: {format_alias_replacement("XYZ")}')
 
     def test_replacement_order_follows_needed_features(self):
         landfall = FeatureAttribute.objects.create(name='Landfall')
@@ -1293,23 +1291,29 @@ class FeatureInclusionTests(TextSourcesTestCase):
 
         self.assertEqual(Variant.objects.get(of=main).easy_prerequisites, 'To start, untap it first.')
 
-    def test_a_selector_leaves_the_producers_it_does_not_pick_appended(self):
+    def make_attributed_main(self, description: str) -> Combo:
+        '''A main combo needing IFMana twice, first with Landfall, then with Untapper Effect, each
+        produced by a combo of its own.'''
         landfall = FeatureAttribute.objects.create(name='Landfall')
         untapper = FeatureAttribute.objects.create(name='Untapper Effect')
-        for card_name, attribute, description in (
+        for card_name, attribute, producer_description in (
             ('Inclusion Landfall Card', landfall, 'play a land'),
             ('Inclusion Untapper Card', untapper, 'untap it'),
         ):
-            producer = self.make_producer(card_name, self.mana, description=description)
+            producer = self.make_producer(card_name, self.mana, description=producer_description)
             produced = producer.featureproducedincombo_set.get(feature=self.mana)
             produced.attributes.add(attribute)
-        main = Combo.objects.create(status=Combo.Status.GENERATOR, description='First, {{IFMana$Landfall}}, then win.')
+        main = Combo.objects.create(status=Combo.Status.GENERATOR, description=description)
         CardInCombo.objects.create(combo=main, card=self.main_card, order=1, zone_locations=ZoneLocation.HAND)
         needs_landfall = FeatureNeededInCombo.objects.create(combo=main, feature=self.mana, order=1)
         needs_landfall.any_of_attributes.add(landfall)
         needs_untapper = FeatureNeededInCombo.objects.create(combo=main, feature=self.mana, order=2)
         needs_untapper.any_of_attributes.add(untapper)
         main.produces.add(self.win)
+        return main
+
+    def test_a_selector_leaves_the_producers_it_does_not_pick_appended(self):
+        main = self.make_attributed_main('First, {{IFMana$Landfall}}, then win.')
 
         self.generate_variants()
 
@@ -1321,6 +1325,21 @@ class FeatureInclusionTests(TextSourcesTestCase):
         main.save()
         self.generate_variants()
         self.assertEqual(Variant.objects.get(of=main).description, 'First, play a land, then win.\nuntap it')
+
+    def test_an_alias_includes_the_feature_it_was_given_to(self):
+        self.make_producer('Inclusion Mana Card', self.mana, description='Tap it for infinite mana.')
+        main = self.make_main(self.mana, description=f'Cast [[IFMana|mana]].\n{format_alias_inclusion("mana")}\nWin.')
+
+        self.generate_variants()
+
+        self.assertEqual(Variant.objects.get(of=main).description, 'Cast Inclusion Mana Card.\nTap it for infinite mana.\nWin.')
+
+    def test_an_alias_includes_what_its_selector_picked(self):
+        main = self.make_attributed_main(f'With [[IFMana$Landfall|land]], {format_alias_inclusion("land")}, then {{{{IFMana$2}}}}.')
+
+        self.generate_variants()
+
+        self.assertEqual(Variant.objects.get(of=main).description, 'With Inclusion Landfall Card, play a land, then untap it.')
 
     def test_an_inclusion_in_a_starting_card_state_writes_the_state_of_its_producer(self):
         main, shared = self.make_sharing_main('tapped', 'untapped, {{IFMana}}')
@@ -1341,8 +1360,8 @@ class FeatureInclusionTests(TextSourcesTestCase):
 
 
 class LineReferenceTests(TextSourcesTestCase):
-    '''End to end coverage of the {{+X}}, {{-Y}} and {{Z}} syntax, which points at a line of the text it
-    is written in and is replaced with the number that line ends up at in the variant.'''
+    '''End to end coverage of line references, which point at a line of the text they are written in
+    and are replaced with the number that line ends up at in the variant.'''
 
     def description_of(self, main: Combo) -> str:
         self.generate_variants()
@@ -1350,7 +1369,7 @@ class LineReferenceTests(TextSourcesTestCase):
 
     def test_a_reference_follows_its_line_past_the_inclusions_around_it(self):
         self.make_producer('Inclusion Mana Card', self.mana, description='X')
-        text = 'A\n{{IFUnknown}}\n{{IFMana}}\n{{IFOther}}\nRepeat from step {{3}}.'
+        text = f'A\n{{{{IFUnknown}}}}\n{{{{IFMana}}}}\n{{{{IFOther}}}}\nRepeat from step {format_line_reference(3)}.'
         main = self.make_main(self.mana, description=text)
 
         self.assertEqual(self.description_of(main), 'A\nX\nRepeat from step 2.')
@@ -1358,60 +1377,67 @@ class LineReferenceTests(TextSourcesTestCase):
 
     def test_a_deletion_inside_a_line_keeps_its_line(self):
         self.make_producer('Inclusion Mana Card', self.mana)
-        main = self.make_main(self.mana, description='Cast it{{IFUnknown}}.\nTap it.\nRepeat from step {{2}}.')
+        main = self.make_main(self.mana, description=f'Cast it{{{{IFUnknown}}}}.\nTap it.\nRepeat from step {format_line_reference(2)}.')
 
         self.assertEqual(self.description_of(main), 'Cast it.\nTap it.\nRepeat from step 2.')
 
     def test_relative_references_count_from_their_own_line(self):
         self.make_producer('Inclusion Mana Card', self.mana)
-        main = self.make_main(self.mana, description='{{IFUnknown}}\nIf needed, jump to step {{+2}}.\nTap it.\nUntap it.\nRepeat from step {{-2}}.')
+        main = self.make_main(self.mana, description=f'{{{{IFUnknown}}}}\nIf needed, jump to step {format_line_reference(2, "+")}.\nTap it.\nUntap it.\nRepeat from step {format_line_reference(2, "-")}.')
 
         self.assertEqual(self.description_of(main), 'If needed, jump to step 3.\nTap it.\nUntap it.\nRepeat from step 2.')
 
     def test_a_line_expanding_into_several_is_referenced_by_its_first(self):
         self.make_producer('Inclusion Mana Card', self.mana, description='Tap it.\nUntap it.')
-        main = self.make_main(self.mana, description='Cast it.\n{{IFMana}}\nRepeat from step {{2}}.\nStop at step {{-1}}.')
+        main = self.make_main(self.mana, description=f'Cast it.\n{{{{IFMana}}}}\nRepeat from step {format_line_reference(2)}.\nStop at step {format_line_reference(1, "-")}.')
 
         self.assertEqual(self.description_of(main), 'Cast it.\nTap it.\nUntap it.\nRepeat from step 2.\nStop at step 4.')
 
     def test_an_appended_text_counts_the_lines_before_it(self):
-        self.make_producer('Inclusion Mana Card', self.mana, description='Tap it.\nUntap it.\nRepeat from step {{1}}.')
+        self.make_producer('Inclusion Mana Card', self.mana, description=f'Tap it.\nUntap it.\nRepeat from step {format_line_reference(1)}.')
         main = self.make_main(self.mana, description='Cast it.\nWin.')
 
         self.assertEqual(self.description_of(main), 'Cast it.\nWin.\nTap it.\nUntap it.\nRepeat from step 3.')
 
     def test_a_reference_in_an_included_text_follows_it_where_it_is_included(self):
-        self.make_producer('Inclusion Mana Card', self.mana, description='Tap it.\nUntap it, then go back to step {{-1}}.')
+        self.make_producer('Inclusion Mana Card', self.mana, description=f'Tap it.\nUntap it, then go back to step {format_line_reference(1, "-")}.')
         main = self.make_main(self.mana, description='Cast it.\n{{IFMana}}\nWin.')
 
         self.assertEqual(self.description_of(main), 'Cast it.\nTap it.\nUntap it, then go back to step 2.\nWin.')
 
     def test_a_deleted_line_is_referenced_by_the_one_taking_its_place(self):
         self.make_producer('Inclusion Mana Card', self.mana)
-        main = self.make_main(self.mana, description='Cast it.\n{{IFUnknown}}\nTap it.\nRepeat from step {{2}}.')
+        main = self.make_main(self.mana, description=f'Cast it.\n{{{{IFUnknown}}}}\nTap it.\nRepeat from step {format_line_reference(2)}.')
 
         self.assertEqual(self.description_of(main), 'Cast it.\nTap it.\nRepeat from step 2.')
 
     def test_a_text_included_twice_resolves_each_copy_on_its_own(self):
-        self.make_producer('Inclusion Mana Card', self.mana, description='Tap it.\nRepeat from step {{-1}}.')
+        self.make_producer('Inclusion Mana Card', self.mana, description=f'Tap it.\nRepeat from step {format_line_reference(1, "-")}.')
         main = self.make_main(self.mana, description='{{IFMana}}\n{{IFMana}}')
 
         self.assertEqual(self.description_of(main), 'Tap it.\nRepeat from step 1.\nTap it.\nRepeat from step 3.')
 
     def test_a_reference_outside_of_its_text_is_left_as_written(self):
         self.make_producer('Inclusion Mana Card', self.mana)
-        main = self.make_main(self.mana, description='Tap it.\nRepeat from step {{5}} or {{-2}}.')
+        main = self.make_main(self.mana, description=f'Tap it.\nRepeat from step {format_line_reference(5)} or {format_line_reference(2, "-")}.')
 
-        self.assertEqual(self.description_of(main), 'Tap it.\nRepeat from step {{5}} or {{-2}}.')
+        self.assertEqual(self.description_of(main), f'Tap it.\nRepeat from step {format_line_reference(5)} or {format_line_reference(2, "-")}.')
 
     def test_a_trimmed_text_moves_its_references_up(self):
         self.make_producer('Inclusion Mana Card', self.mana)
-        main = self.make_main(self.mana, description='\n{{IFUnknown}}\nTap it.\nRepeat from step {{3}}.')
+        main = self.make_main(self.mana, description=f'\n{{{{IFUnknown}}}}\nTap it.\nRepeat from step {format_line_reference(3)}.')
 
         self.assertEqual(self.description_of(main), 'Tap it.\nRepeat from step 1.')
 
     def test_a_line_vanishing_at_the_end_of_its_text_is_referenced_by_its_last_line(self):
         self.make_producer('Inclusion Mana Card', self.mana)
-        main = self.make_main(self.mana, description='Tap it.\nRepeat until step {{+1}}.\n{{IFUnknown}}')
+        main = self.make_main(self.mana, description=f'Tap it.\nRepeat until step {format_line_reference(1, "+")}.\n{{{{IFUnknown}}}}')
 
         self.assertEqual(self.description_of(main), 'Tap it.\nRepeat until step 2.')
+
+    def test_a_feature_named_like_a_number_is_no_line_reference(self):
+        number = Feature.objects.create(name='3', status=Feature.Status.HIDDEN_UTILITY)
+        self.make_producer('Inclusion Number Card', number, description='make three mana')
+        main = self.make_main(number, description=f'Cast it.\n{format_feature_inclusion("3")}\nRepeat from step {format_line_reference(2)}.')
+
+        self.assertEqual(self.description_of(main), 'Cast it.\nmake three mana\nRepeat from step 2.')

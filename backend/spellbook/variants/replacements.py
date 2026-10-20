@@ -1,13 +1,14 @@
 import re
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Callable, Generic, Iterable, Mapping, Sequence, TypeVar
+from functools import cached_property
+from itertools import count
+from typing import Callable, Generic, Iterable, Iterator, Mapping, Sequence, TypeVar
 from .variant_data import Data
 from .variant_set import cardid, templateid
 from .combo_graph import FeatureWithAttributes, comboid, featureid
 from spellbook.models import Card, CardInVariant, CardType, Combo, FeatureNeededInCombo, FeatureOfCard, Ingredient, Template, TemplateInVariant, ZoneLocation, join_with_conjunction
-from spellbook.models.references import FEATURE_INCLUSION_PATTERN, FEATURE_REPLACEMENT_PATTERN
-from spellbook.models.validators import LINE_REFERENCE_PATTERN, referenced_line
+from spellbook.models.references import FEATURE_INCLUSION_PATTERN, FEATURE_REPLACEMENT_PATTERN, LINE_REFERENCE_PATTERN, expand_aliases, referenced_line
 
 
 FeatureName = str
@@ -71,11 +72,6 @@ def select(alternatives: Sequence[Alternative[_C]], selector: str | None) -> Seq
     position = int(selector) - 1
     candidates = candidates_of(alternatives)
     return candidates[position:position + 1] if position >= 0 else []
-
-
-def already_resolved(text: str) -> Alternative[Replacement]:
-    '''A name a text already resolved, saved under an alias for the texts rendered after it.'''
-    return Alternative(candidates=(Replacement(text=text),))
 
 
 # ---------------------------------------------------------------------------
@@ -441,42 +437,25 @@ def owning_combo_id(source: TextSource) -> comboid | None:
     return source.id if isinstance(source, Combo) else None
 
 
-@dataclass(frozen=True)
-class WrittenText:
-    '''A text as written into a field, with the line each of its line references resolves to, counted
-    from its first line, in the order the references appear in it. A reference pointing outside of the
-    text it was written in resolves to None, and is left as written.'''
-    text: str
-    lines: tuple[int | None, ...] = ()
-
-    def shifted(self, by: int) -> tuple[int | None, ...]:
-        return tuple(line + by if line is not None else None for line in self.lines)
-
-
-@dataclass(frozen=True)
-class Substitution:
-    '''An inclusion as written into a text: the span it took in the text of its source, the span it
-    takes in the written text, and what replaced it, which is nothing when it was deleted.'''
-    start: int
-    end: int
-    written_start: int
-    written_end: int
-    included: WrittenText | None
+# Private use characters, which no text can hold, mark in a field being written where each line of its
+# texts landed and which line each line reference points at, until the whole field is numbered at once
+LINE_MARK = ''
+TARGET_MARK = ''
+MARK_END = ''
+DELETION_MARK = ''
+LINE_MARK_PATTERN = re.compile(f'{LINE_MARK}\\d+{MARK_END}')
+TARGET_MARK_PATTERN = re.compile(f'{TARGET_MARK}(\\d+){MARK_END}')
+LEADING_BLANK_PATTERN = re.compile(f'^(?:{LINE_MARK}\\d+{MARK_END}|\\s)+')
+TRAILING_BLANK_PATTERN = re.compile(f'(?:{LINE_MARK}\\d+{MARK_END}|\\s)+$')
 
 
-def landing_line(written: str, substitutions: Sequence[Substitution], dropped: frozenset[int], offset: int) -> int:
-    '''The line of a written text that a position of the text of its source lands on, once the lines
-    its inclusions left empty are dropped. A position inside an inclusion lands where the inclusion was
-    written, and one on a dropped line lands on the line taking its place.'''
-    position = offset
-    for substitution in substitutions:
-        if offset < substitution.end:
-            if offset > substitution.start:
-                position = substitution.written_start
-            break
-        position = offset + substitution.written_end - substitution.end
-    line = written.count('\n', 0, position)
-    return line + 1 - sum(1 for index in dropped if index < line)
+def line_marks(text: str) -> str:
+    '''The marks of the lines that landed on a piece of text, to move along when the piece goes away.'''
+    return ''.join(LINE_MARK_PATTERN.findall(text))
+
+
+def is_blank(text: str) -> bool:
+    return not LINE_MARK_PATTERN.sub('', text).replace(DELETION_MARK, '').strip()
 
 
 @dataclass(frozen=True)
@@ -492,55 +471,37 @@ class FieldAssembly:
     where an inclusion names it, and so do the inclusions that text holds.
 
     A line reference is replaced with the line of the field that the line it points at landed on, which
-    only the whole field knows: every writing of a text keeps track of where its own lines went, and
-    the fields joining their texts line by line are the only ones whose lines are counted.
+    only the whole field knows: every writing of a text marks its own lines, and the field numbers them
+    all at once. The fields joining their texts line by line are the only ones whose lines are counted,
+    and only when one of their texts points at a line.
     '''
     producers: FeatureIndex[SourceIndex]
     combo_ids: Sequence[comboid | None]
     texts: Mapping[SourceIndex, str]
     merge: MergeTexts
     only_when_included: frozenset[SourceIndex] = frozenset()
+    line_ids: Iterator[int] = field(default_factory=count)
 
-    @property
-    def follows_lines(self) -> bool:
-        return self.merge is join_texts
+    @cached_property
+    def numbered(self) -> bool:
+        return self.merge is join_texts and any(LINE_REFERENCE_PATTERN.search(text) for text in self.texts.values())
 
     def assemble(self) -> str:
         included = self.included_sources()
-        written = self.join(
-            self.write(source, frozenset())
-            for source in self.texts
-            if source not in included and source not in self.only_when_included
-        )
-        if not written.lines:
-            return written.text
-        lines = iter(written.lines)
+        text = self.write_all((source for source in self.texts if source not in included and source not in self.only_when_included), frozenset())
+        if not self.numbered:
+            return text
+        landed = {mark[1:-1]: str(number) for number, line in enumerate(text.split('\n'), start=1) for mark in LINE_MARK_PATTERN.findall(line)}
+        return LINE_MARK_PATTERN.sub('', TARGET_MARK_PATTERN.sub(lambda target: landed[target[1]], text))
 
-        def number(reference: re.Match[str]) -> str:
-            line = next(lines, None)
-            return str(line) if line is not None else reference[0]
+    def write_all(self, sources: Iterable[SourceIndex], ancestors: frozenset[SourceIndex]) -> str:
+        '''Writes the given sources and merges their texts the way the field does, leaving out the empty ones.'''
+        return self.merge(text for text in (self.write(source, ancestors) for source in sources) if text)
 
-        return LINE_REFERENCE_PATTERN.sub(number, written.text)
-
-    def join(self, pieces: Iterable[WrittenText]) -> WrittenText:
-        '''Merges written texts the way the field merges them, leaving out the empty ones, and moves the
-        lines of each one down to where it starts.'''
-        kept = [piece for piece in pieces if piece.text]
-        text = self.merge(piece.text for piece in kept)
-        if not any(piece.lines for piece in kept):
-            return WrittenText(text)
-        lines = list[int | None]()
-        start = 1
-        for piece in kept:
-            lines.extend(piece.shifted(start - 1))
-            start += piece.text.count('\n') + 1
-        return WrittenText(text, tuple(lines))
-
-    def named_by(self, source: SourceIndex, inclusion: re.Match[str]) -> Sequence[SourceIndex]:
+    def named_by(self, source: SourceIndex, inclusion: re.Match[str]) -> list[SourceIndex]:
         '''The sources an inclusion names, never the one writing it: a text does not write itself, so
         the sole producer of a feature its own text mentions has nothing to write there.'''
-        named = self.producers.select(inclusion['key'], inclusion['selector'], self.combo_ids[source])
-        return [other for other in named if other != source]
+        return [other for other in self.producers.select(inclusion['key'], inclusion['selector'], self.combo_ids[source]) if other != source]
 
     def included_sources(self) -> set[SourceIndex]:
         '''Every source named by an inclusion the field ends up writing, which is what keeps its text
@@ -557,60 +518,52 @@ class FieldAssembly:
                         pending.append(other)
         return included
 
-    def write(self, source: SourceIndex, ancestors: frozenset[SourceIndex]) -> WrittenText:
+    def write(self, source: SourceIndex, ancestors: frozenset[SourceIndex]) -> str:
         '''The text of one source, with its inclusions written out in place. A source already being
         written higher up is skipped, so that a cycle of inclusions terminates. An inclusion left with
         nothing to write, because it names no source or only sources being written already, is deleted
         without touching the text around it, and a line it leaves empty is dropped: the text it was
-        deleted from is then trimmed, lines along with it.
-        A line reference names no feature, since no feature can be named like one, so it is left as
-        written for the whole field to number.'''
+        deleted from is then trimmed, lines along with it. The marks of a dropped line move to the line
+        taking its place, and the ones trimmed away to the nearest line kept.'''
         written = ancestors | {source}
-        substitutions = list[Substitution]()
-        growth = 0
 
         def include(inclusion: re.Match[str]) -> str:
-            nonlocal growth
-            if LINE_REFERENCE_PATTERN.fullmatch(inclusion[0]):
-                return inclusion[0]
-            named = self.named_by(source, inclusion)
-            included = self.join(self.write(other, written) for other in named if other not in written)
-            written_start = inclusion.start() + growth
-            growth += len(included.text) - len(inclusion[0])
-            substitutions.append(Substitution(inclusion.start(), inclusion.end(), written_start, written_start + len(included.text), included if included.text else None))
-            return included.text
+            return self.write_all((other for other in self.named_by(source, inclusion) if other not in written), written) or DELETION_MARK
 
-        source_text = self.texts.get(source, '')
-        text = FEATURE_INCLUSION_PATTERN.sub(include, source_text)
-        if all(substitution.included is not None for substitution in substitutions):
-            return WrittenText(text, self.lines_of(source_text, text, substitutions, frozenset()) if self.follows_lines else ())
+        text = FEATURE_INCLUSION_PATTERN.sub(include, self.marked(self.texts.get(source, '')))
+        if DELETION_MARK not in text:
+            return text
+        kept = list[str]()
+        moving = ''
+        for line in text.split('\n'):
+            if DELETION_MARK in line and is_blank(line):
+                moving += line_marks(line)
+            else:
+                kept.append(moving + line.replace(DELETION_MARK, ''))
+                moving = ''
+        text = '\n'.join(kept) + moving
+        if is_blank(text):
+            return ''
+        text = LEADING_BLANK_PATTERN.sub(lambda blank: line_marks(blank[0]), text)
+        return TRAILING_BLANK_PATTERN.sub(lambda blank: line_marks(blank[0]), text)
+
+    def marked(self, text: str) -> str:
+        '''One writing of a text, with each line marked by an id of its own and each line reference
+        pointing at the id of the line it means, for the field to number. A reference pointing outside of
+        the text is left as written, and so is a text in a field whose lines are not counted.'''
+        if not self.numbered or not text:
+            return text
         lines = text.split('\n')
-        dropped = frozenset(index for index in {text.count('\n', 0, s.written_start) for s in substitutions} if not lines[index].strip())
-        references = self.lines_of(source_text, text, substitutions, dropped) if self.follows_lines else ()
-        text = '\n'.join(line for index, line in enumerate(lines) if index not in dropped)
-        stripped = text.strip()
-        removed = text[:len(text) - len(text.lstrip())].count('\n')
-        last = stripped.count('\n') + 1
-        return WrittenText(stripped, tuple(min(max(line - removed, 1), last) if line is not None else None for line in references))
+        ids = [next(self.line_ids) for _ in lines]
 
-    def lines_of(self, source_text: str, written: str, substitutions: Sequence[Substitution], dropped: frozenset[int]) -> tuple[int | None, ...]:
-        '''The lines the line references of one writing of a text resolve to, in the order they are
-        written: its own ones take the line their target landed on, while the ones of an included text
-        are moved down to where it was included. No reference is ever part of a substitution, so where
-        they are in the text of the source orders them the way they are written.'''
-        references = list(LINE_REFERENCE_PATTERN.finditer(source_text))
-        nested = [(s.start, s.included) for s in substitutions if s.included is not None and s.included.lines]
-        if not references and not nested:
-            return ()
-        line_starts = [0, *(newline.end() for newline in re.finditer('\n', source_text))]
-        resolved = list[tuple[int, tuple[int | None, ...]]]()
-        for reference in references:
-            target = referenced_line(reference, source_text.count('\n', 0, reference.start()) + 1)
-            landed = landing_line(written, substitutions, dropped, line_starts[target - 1]) if 1 <= target <= len(line_starts) else None
-            resolved.append((reference.start(), (landed,)))
-        for start, included in nested:
-            resolved.append((start, included.shifted(landing_line(written, substitutions, dropped, start) - 1)))
-        return tuple(line for _, lines in sorted(resolved, key=lambda r: r[0]) for line in lines)
+        def target(reference: re.Match[str], line: int) -> str:
+            pointed = referenced_line(reference, line)
+            return f'{TARGET_MARK}{ids[pointed - 1]}{MARK_END}' if 1 <= pointed <= len(lines) else reference[0]
+
+        return '\n'.join(
+            f'{LINE_MARK}{ids[index]}{MARK_END}' + LINE_REFERENCE_PATTERN.sub(lambda reference: target(reference, index + 1), line)
+            for index, line in enumerate(lines)
+        )
 
 
 class VariantContext:
@@ -622,10 +575,6 @@ class VariantContext:
     is built per variant and reused by all of them, along with everything else derived from the same
     sources: what replaces a feature name, which sources produce it, what the ingredients start as, and
     what the needed feature rows ask of them.
-
-    An alias registered while rendering one text is visible to every text rendered afterwards, so the
-    rendering order matters: the ingredients first, in their display order, then the text fields of the
-    variant.
     '''
 
     def __init__(
@@ -646,7 +595,6 @@ class VariantContext:
         self.source_combo_ids = [owning_combo_id(source) for source in sources]
         self.source_of_combo = {combo_id: index for index, combo_id in enumerate(self.source_combo_ids) if combo_id is not None}
         self.feature_of_card_sources = frozenset(index for index, source in enumerate(sources) if isinstance(source, FeatureOfCard))
-        self.aliases = dict[str, Sequence[Alternative[Replacement]]]()
 
     @classmethod
     def build(
@@ -674,24 +622,14 @@ class VariantContext:
         )
 
     def apply(self, text: str, combo_id: comboid | None = None) -> str:
-        '''Substitutes the replacements of a single text. An inclusion is left untouched: writing one
+        '''Substitutes the replacements of a single text, the ones its aliases stand for included. A
+        replacement selecting nothing stays as written, and an inclusion is left untouched: writing one
         needs the other texts of the field it belongs to, which only render_field has.'''
         def replace(match: re.Match[str]) -> str:
-            key = match['key']
-            alternatives = self.aliases[key] if key in self.aliases else self.replacements.alternatives(key, combo_id)
-            selected = select(alternatives, match['selector'])
-            if not selected:
-                return match[0]
-            face = int(match['face']) if match['face'] else None
-            name = selected[0].resolve(face)
-            if alias := match['alias']:
-                # a face selection aliases the half of the name it resolved, anything else the whole feature
-                self.aliases[alias] = (already_resolved(name),) if face is not None else alternatives
-            if postfix_alias := match['postfix_alias']:
-                self.aliases[postfix_alias] = (*self.aliases.get(postfix_alias, ()), already_resolved(name))
-            return name
+            selected = self.replacements.select(match['key'], match['selector'], combo_id)
+            return selected[0].resolve(int(match['face']) if match['face'] else None) if selected else match[0]
 
-        return FEATURE_REPLACEMENT_PATTERN.sub(replace, text)
+        return FEATURE_REPLACEMENT_PATTERN.sub(replace, expand_aliases(text))
 
     def assemble(self, texts: Mapping[SourceIndex, str], merge: MergeTexts, only_when_included: frozenset[SourceIndex] = frozenset()) -> str:
         '''Writes one field of the variant out of the texts its sources wrote for it, resolving the

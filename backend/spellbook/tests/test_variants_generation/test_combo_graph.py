@@ -188,6 +188,30 @@ class ComboGraphTestGeneration(SpellbookTestCase):
         self.assertSetEqual(variants[0].needed_combos, {1, 2})
         self.assertSetEqual(variants[0].needed_feature_of_cards, set())
 
+    def test_a_generator_combo_without_results_is_needed_with_what_it_needs(self):
+        self.setup_combo_graph({
+            'A': ('ua',),
+            ('C',): ('ub',),
+            ('B', 'ua', 'ub'): (),
+        })
+        combo_graph = Graph(Data())
+        variants = combo_graph.results(combo_graph.variants(2), (2,))
+        self.assertEqual(len(variants), 1)
+        self.assertMultisetEqual(variants[0].features, {1: 1, 2: 1})
+        self.assertReplacementsEqual(variants[0].replacements, {
+            1: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset())],
+            2: [VariantIngredients(FrozenMultiset({2: 1}), FrozenMultiset())],
+        })
+        self.assertSetEqual(variants[0].needed_combos, {1, 2})
+        self.assertSetEqual(variants[0].needed_feature_of_cards, {1})
+        # without knowing its generator combo, nothing leads to what the variant needs
+        variants = combo_graph.results(combo_graph.variants(2))
+        self.assertReplacementsEqual(variants[0].replacements, {
+            1: [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset())],
+        })
+        self.assertSetEqual(variants[0].needed_combos, set())
+        self.assertSetEqual(variants[0].needed_feature_of_cards, set())
+
     def test_two_one_card_combo(self):
         self.setup_combo_graph({
             ('A',): ('x',),

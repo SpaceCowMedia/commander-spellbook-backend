@@ -1178,6 +1178,64 @@ class FeatureInclusionTests(TextSourcesTestCase):
         # the notes hold no inclusion, so they are appended the way they always were
         self.assertEqual(variant.notes, 'a note of the main combo\na note of the producer')
 
+    def test_an_inclusion_writes_the_producer_text_in_a_variant_without_results(self):
+        self.make_producer('Inclusion Mana Card', self.mana, description='make infinite mana')
+        main = self.make_main(self.mana, description='First, {{IFMana}}, then win.')
+        main.produces.clear()
+
+        self.generate_variants()
+
+        variant = Variant.objects.get(of=main)
+        self.assertFalse(variant.produces.exists())
+        self.assertEqual(variant.description, 'First, make infinite mana, then win.')
+
+    def test_an_inclusion_writes_the_card_feature_text_in_a_variant_without_results(self):
+        card = curated_card(name='Inclusion Feature Card', type_line='Creature - Elf')
+        FeatureOfCard.objects.create(card=card, feature=self.mana, zone_locations=ZoneLocation.BATTLEFIELD, description='tap it for infinite mana')
+        main = self.make_main(self.mana, description='First, {{IFMana}}, then win.')
+        main.produces.clear()
+
+        self.generate_variants()
+
+        variant = Variant.objects.get(of=main)
+        self.assertFalse(variant.produces.exists())
+        self.assertEqual(variant.description, 'First, tap it for infinite mana, then win.')
+
+    def make_generators_of_the_same_variant(self) -> tuple[Combo, Combo, Combo, Combo]:
+        '''Two generator combos with the same variant, each needing a feature produced by a combo of its
+        own: the first one has a result, the second one has none and includes what it needs.'''
+        step = Feature.objects.create(name='IFStep', status=Feature.Status.HIDDEN_UTILITY)
+        producer = self.make_producer('Inclusion Mana Card', self.mana, description='make infinite mana')
+        stepper = Combo.objects.create(status=Combo.Status.UTILITY, description='untap it')
+        CardInCombo.objects.create(combo=stepper, card=producer.cardincombo_set.get().card, order=1, zone_locations=ZoneLocation.BATTLEFIELD)
+        stepper.produces.add(step)
+        with_result = self.make_main(self.mana, description='Cast it.')
+        without_result = Combo.objects.create(status=Combo.Status.GENERATOR, description='Then {{IFStep}}.')
+        CardInCombo.objects.create(combo=without_result, card=self.main_card, order=1, zone_locations=ZoneLocation.HAND)
+        FeatureNeededInCombo.objects.create(combo=without_result, feature=step, order=1)
+        return with_result, without_result, producer, stepper
+
+    def test_a_variant_needs_what_every_one_of_its_generator_combos_needs(self):
+        with_result, without_result, producer, stepper = self.make_generators_of_the_same_variant()
+
+        self.generate_variants()
+
+        variant = Variant.objects.get(of=without_result)
+        self.assertSetEqual(set(variant.of.values_list('id', flat=True)), {with_result.id, without_result.id})
+        self.assertSetEqual(set(variant.includes.values_list('id', flat=True)), {with_result.id, without_result.id, producer.id, stepper.id})
+        self.assertEqual(variant.description, 'Cast it.\nThen untap it.\nmake infinite mana')
+
+    def test_a_generator_combo_outside_of_the_regeneration_scope_keeps_what_it_needs(self):
+        with_result, without_result, producer, stepper = self.make_generators_of_the_same_variant()
+        self.generate_variants()
+        Variant.objects.update(status=Variant.Status.RESTORE)
+
+        generate_variants(with_result.id)
+
+        variant = Variant.objects.get(of=without_result)
+        self.assertSetEqual(set(variant.includes.values_list('id', flat=True)), {with_result.id, without_result.id, producer.id, stepper.id})
+        self.assertEqual(variant.description, 'Cast it.\nThen untap it.\nmake infinite mana')
+
     def test_a_repeated_inclusion_repeats_the_text_and_consumes_the_producer_once(self):
         self.make_producer('Inclusion Mana Card', self.mana, description='make infinite mana')
         main = self.make_main(self.mana, description='{{IFMana}}, and again {{IFMana}}.')

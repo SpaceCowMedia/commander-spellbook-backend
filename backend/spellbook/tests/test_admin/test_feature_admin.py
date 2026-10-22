@@ -1,4 +1,4 @@
-from ..testing import SpellbookTestCaseWithSeeding
+from ..testing import SpellbookTestCaseWithSeeding, curated_card
 from spellbook.admin.feature_admin import merge_feature
 from spellbook.models import CardInCombo, Combo, Feature, FeatureNeededInCombo, FeatureOfCard, FeatureProducedInCombo, FeatureRemovedInCombo, Variant, ZoneLocation
 from spellbook.models.references import format_alias_inclusion, format_alias_replacement, format_line_reference, rename_references
@@ -228,6 +228,27 @@ class FeatureAdminTests(SpellbookTestCaseWithSeeding):
         self.assertEqual(list(combo.needs.all()), [target])
         combo.refresh_from_db()
         self.assertEqual(combo.description, '[[Target Feature]] does something')
+
+    def test_change_form_links_to_the_cards_producing_the_feature(self):
+        self.client.force_login(self.admin)
+        feature = Feature.objects.create(name='Linked Feature')
+        producers = [curated_card(name=f'Linked Card {i}', type_line='Creature - Elf') for i in (1, 2)]
+        for card in (*producers, producers[0]):
+            FeatureOfCard.objects.create(card=card, feature=feature, zone_locations=ZoneLocation.BATTLEFIELD)
+
+        response = self.client.get(f'/admin/spellbook/feature/{feature.id}/change/')
+        self.assertContains(response, f'<a href="/admin/spellbook/card/?features__id={feature.id}">View all 2 cards that produce Linked Feature...</a>', html=True)
+
+        response = self.client.get(f'/admin/spellbook/card/?features__id={feature.id}')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual({card.name for card in response.context['cl'].result_list}, {card.name for card in producers})
+
+    def test_change_form_of_a_feature_no_card_produces_has_no_card_link(self):
+        self.client.force_login(self.admin)
+        feature = Feature.objects.create(name='Unproduced Feature')
+
+        response = self.client.get(f'/admin/spellbook/feature/{feature.id}/change/')
+        self.assertNotContains(response, '/admin/spellbook/card/?features__id=')
 
     def test_rename_from_admin_updates_references(self):
         self.client.force_login(self.admin)

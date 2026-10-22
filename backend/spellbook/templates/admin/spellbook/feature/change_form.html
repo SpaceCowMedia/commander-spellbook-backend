@@ -134,6 +134,26 @@
     <table>
         <thead>
             <tr>
+                <th class="column-card">Produced by cards</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% with card_count=original.cards.distinct.count %}
+            {% if card_count > 0 %}
+                <tr class="form-row">
+                    <td class="field-card">
+                        <p>
+                            <a href="{% url 'admin:spellbook_card_changelist' %}?features__id={{ original.id }}">View all {{ card_count }} cards that produce {{ original.name }}...</a>
+                        </p>
+                    </td>
+                </tr>
+            {% endif %}
+            {% endwith %}
+        </tbody>
+    </table>
+    <table>
+        <thead>
+            <tr>
                 <th class="column-variant">Produced by combos</th>
             </tr>
         </thead>
@@ -158,5 +178,6 @@
                 </tr>
             {% endif %}
             {% endwith %}
+        </tbody>
     </table>
 {% endblock %}

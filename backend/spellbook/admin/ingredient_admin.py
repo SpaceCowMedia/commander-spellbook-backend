@@ -41,7 +41,8 @@ class FeatureOfCardForm(IngredientForm):
     class Meta(IngredientForm.Meta):
         help_texts = {
             'description': 'How the card produces the feature. Unlike the other fields, this one is never appended to the description of a variant on its own:'
-            f' it is written only where a text names this feature with the {format_feature_inclusion("name")} syntax, so that it lands among the steps that need it.',
+            f' it is written only where a text names this feature with the {format_feature_inclusion("name")} syntax, so that it lands among the steps that need it.'
+            ' Like every text of a card feature, it cannot reference features itself.',
         }
 
 

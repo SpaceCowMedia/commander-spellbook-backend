@@ -1,6 +1,6 @@
 import re
 from functools import partial
-from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Literal, Sequence, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Iterator, Literal, Mapping, Sequence, TypeVar
 from django.db.models import Manager, Q
 from .utils import DEFAULT_BATCH_SIZE
 if TYPE_CHECKING:
@@ -59,7 +59,7 @@ RESERVED_CHARACTERS_REGEX = '|'.join(map(re.escape, RESERVED_CHARACTERS))
 # A feature replacement looks like [[key#face$selector|alias]], where every part but the key is optional:
 # - #face selects which face of a multi-faced card to display;
 # - $selector picks one among the multiple replacements of the same feature, either by position
-#   (the position of the needed feature row of the combo the text belongs to) or by attribute name;
+#   (counting through the copies the combo the text belongs to needs, row after row) or by attribute name;
 # - |alias names the reference, so that the rest of the text can repeat it as [[!alias]] or {{!alias}}.
 FEATURE_REPLACEMENT_PATTERN = re.compile(
     f'{re.escape(REPLACEMENT_BRACKETS[0])}'
@@ -147,16 +147,28 @@ def expand_aliases(text: str) -> str:
     return ALIAS_USE_PATTERN.sub(expand, text) if definitions else text
 
 
+def feature_references(texts: Iterable[str]) -> Iterator[re.Match[str]]:
+    '''The feature replacements and inclusions in the texts. An alias use is none of them, since the
+    reference defining it stands for it.'''
+    for text in texts:
+        for pattern in (FEATURE_REPLACEMENT_PATTERN, FEATURE_INCLUSION_PATTERN):
+            yield from pattern.finditer(text)
+
+
 def references_to_features_not_needed(texts: Iterable[str], needed_feature_names: Collection[str]) -> list[str]:
-    '''The feature replacements and inclusions in the texts of a combo whose key is not the name of a
-    feature the combo needs, each once, sorted. Names are matched exactly, the way the texts of a variant
-    resolve them. An alias use needs no check of its own, since its definition is one of them.'''
+    '''The feature references in the texts of a combo whose key is not the name of a feature the combo
+    needs, each once, sorted. Names are matched exactly, the way the texts of a variant resolve them.'''
+    return sorted({match[0] for match in feature_references(texts) if match['key'] not in needed_feature_names})
+
+
+def references_past_copies_needed(texts: Iterable[str], copies_needed: Mapping[str, int]) -> list[str]:
+    '''The feature references in the texts of a combo whose position selects none of the copies the
+    combo needs of that feature, each once, sorted. A reference to a feature the combo does not need is
+    left to references_to_features_not_needed.'''
     return sorted({
         match[0]
-        for text in texts
-        for pattern in (FEATURE_REPLACEMENT_PATTERN, FEATURE_INCLUSION_PATTERN)
-        for match in pattern.finditer(text)
-        if match['key'] not in needed_feature_names
+        for match in feature_references(texts)
+        if match['key'] in copies_needed and (selector := match['selector']) is not None and selector.isdigit() and not 1 <= int(selector) <= copies_needed[match['key']]
     })
 
 

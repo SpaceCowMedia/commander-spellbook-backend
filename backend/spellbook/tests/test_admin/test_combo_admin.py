@@ -181,12 +181,15 @@ class ComboAdminReferencesTests(ComboAdminTestCase):
         response = self.client.post(self.add_url(), data=payload)
         self.assertEqual(response.status_code, 302)
 
-    def assertRejected(self, payload: dict, *references: str):
+    def assertRejected(self, payload: dict, *references: str, problem: str = 'reference features it does not require'):
         combo_count = Combo.objects.count()
         response = self.client.post(self.add_url(), data=payload)
         self.assertEqual(response.status_code, 200)
-        self.assertIn(f'its texts reference features it does not require: {", ".join(references)}.', unescape(response.content.decode()))
+        self.assertIn(f'its texts {problem}: {", ".join(references)}.', unescape(response.content.decode()))
         self.assertEqual(Combo.objects.count(), combo_count)
+
+    def assertPositionsRejected(self, payload: dict, *references: str):
+        self.assertRejected(payload, *references, problem='select copies of features it does not require')
 
     def test_a_reference_to_a_required_feature_is_saved(self):
         self.assertSaved(self.payload_requiring([self.f2_id], description='Activate [[FB]].'))
@@ -232,6 +235,20 @@ class ComboAdminReferencesTests(ComboAdminTestCase):
         payload = self.payload_requiring([self.f3_id])
         payload['cardincombo_set-0-battlefield_card_state'] = 'Enchanted by [[FB]].'
         self.assertRejected(payload, '[[FB]]')
+
+    def test_a_position_among_the_copies_required_is_saved(self):
+        self.assertSaved(self.payload_requiring([self.f2_id, self.f2_id], description='Activate [[FB$1]], then {{FB$2}}.'))
+
+    def test_a_position_past_the_copies_required_is_rejected(self):
+        self.assertPositionsRejected(self.payload_requiring([self.f2_id], description='Activate [[FB$2]], then [[FB$0]].'), '[[FB$0]]', '[[FB$2]]')
+
+    def test_the_quantity_of_a_row_counts_its_copies(self):
+        payload = self.payload_requiring([self.f2_id], description='Activate [[FB$2]].')
+        payload['featureneededincombo_set-0-quantity'] = '2'
+        self.assertSaved(payload)
+
+    def test_an_uncountable_feature_is_a_single_copy(self):
+        self.assertPositionsRejected(self.payload_requiring([self.f5_id, self.f5_id], description='Activate [[FE$2]].'), '[[FE$2]]')
 
     def test_a_deleted_required_feature_no_longer_counts(self):
         payload = self.payload_requiring([self.f2_id], description='Activate [[FB]].')

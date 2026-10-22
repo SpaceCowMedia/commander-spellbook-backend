@@ -13,7 +13,7 @@ from spellbook.variants.multiset import FrozenMultiset
 from spellbook.variants.variant_data import Data
 from spellbook.variants import variants_generator
 from spellbook.variants.variants_generator import get_variants_from_graph
-from spellbook.variants.replacements import FeatureIndex, IngredientPositions, InitialStates, NeededFeatureOverrides, SourcedState, VariantContext
+from spellbook.variants.replacements import IngredientPositions, InitialStates, NeededFeatureOverrides, SourcedState, VariantContext
 from spellbook.variants.replacements import get_default_zone_location_for_card, merge_used_faces
 from spellbook.variants.variants_generator import generate_variants, subtract_features
 from spellbook.variants.variants_generator import sync_variant_aliases, restore_variants
@@ -87,8 +87,8 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
         '''A context with nothing to resolve, to render an ingredient against rows given by hand.'''
         return VariantContext(
             data=Data(),
-            replacements=FeatureIndex({}, {}),
-            producers=FeatureIndex({}, {}),
+            replacements={},
+            producers={},
             sources=[Combo(id=1), Combo(id=2), Combo(id=3)],
             initial_states=initial_states,
             overrides=NeededFeatureOverrides(cards={}, templates={}),
@@ -178,6 +178,8 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
         combo = Combo.objects.create(status=Combo.Status.UTILITY)
         fn = FeatureNeededInCombo.objects.create(combo=combo, feature=fx)
         fn.none_of_attributes.add(fattr)
+        for feature_id in (self.f1_id, self.f2_id, self.f3_id, fy.id, fz.id, fw.id, fd.id, fl.id):
+            FeatureNeededInCombo.objects.create(combo=combo, feature_id=feature_id)
         # the face a card is used by is taken from the rows contributing it, so the two below are what
         # the face tests at the end of this test read, once the ingredients are given a position
         CardInCombo.objects.create(combo=combo, card=dfc_card, order=1, zone_locations=ZoneLocation.BATTLEFIELD, used_face=2)
@@ -235,7 +237,7 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
         data = Data()
         context = VariantContext.build(data, replacements, [combo], [])
         for test in tests:
-            self.assertEqual(context.apply(test[0]), test[1])
+            self.assertEqual(context.apply(test[0], combo.id), test[1])
         # When the used_face field is specified, the placeholder defaults to that half of the name,
         # while a face selector in the text still overrides it
         face_tests = [
@@ -245,10 +247,10 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
         ]
         for test in face_tests:
             context = VariantContext.build(data, replacements, [combo], [], IngredientPositions(cards={dfc_card.number: 1, legendary_face_card.number: 2}))
-            self.assertEqual(context.apply(test[0]), test[1])
+            self.assertEqual(context.apply(test[0], combo.id), test[1])
         # an alias is known only to the text defining it
-        self.assertEqual(context.apply('alias defined here: [[FA|XYZ]]'), 'alias defined here: A A')
-        self.assertEqual(context.apply(f'unknown in another text: {format_alias_replacement("XYZ")}'), f'unknown in another text: {format_alias_replacement("XYZ")}')
+        self.assertEqual(context.apply('alias defined here: [[FA|XYZ]]', combo.id), 'alias defined here: A A')
+        self.assertEqual(context.apply(f'unknown in another text: {format_alias_replacement("XYZ")}', combo.id), f'unknown in another text: {format_alias_replacement("XYZ")}')
 
     def test_replacement_order_follows_needed_features(self):
         landfall = FeatureAttribute.objects.create(name='Landfall')
@@ -294,8 +296,8 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
         producing_a = Combo.objects.create(status=Combo.Status.UTILITY)
         FeatureNeededInCombo.objects.create(combo=producing_a, feature=feature_c, order=1)
         producing_a.produces.add(feature_a)
-        # TFC is never needed by this combo: it only reaches it through TFA, produced by the combo above
-        main = Combo.objects.create(status=Combo.Status.GENERATOR, description='a mention of [[TFC]] here')
+        # TFA is replaced with the card producing TFC, which the combo producing TFA needs
+        main = Combo.objects.create(status=Combo.Status.GENERATOR, description='a mention of [[TFA]] here')
         CardInCombo.objects.create(combo=main, card=card1, order=1, zone_locations=ZoneLocation.BATTLEFIELD)
         FeatureNeededInCombo.objects.create(combo=main, feature=feature_a, order=1)
         main.produces.add(feature_b)
@@ -369,6 +371,96 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
         zone_locations = {c.card.name: c.zone_locations for c in variant.cardinvariant_set.all()}
         self.assertEqual(zone_locations['Overridden Card'], ZoneLocation.GRAVEYARD)
         self.assertEqual(zone_locations['Untouched Card'], ZoneLocation.BATTLEFIELD)
+
+    def test_rows_needing_the_same_feature_start_their_own_producers(self):
+        '''The shape of issue #1250: a combo needs a feature twice, asking one copy to start exiled and the
+        other in hand, so each card producing it starts where the row it satisfies asks.'''
+        exiler = curated_card(name='Exiler', type_line='Creature - Human')
+        banishers = [curated_card(name=f'Banisher {i}', type_line='Creature - Elf') for i in (1, 2)]
+        banish = Feature.objects.create(name='Banish', status=Feature.Status.HIDDEN_UTILITY)
+        produced_feature = Feature.objects.create(name='Banish Loop', status=Feature.Status.STANDALONE)
+        for banisher in banishers:
+            FeatureOfCard.objects.create(card=banisher, feature=banish, zone_locations=ZoneLocation.BATTLEFIELD)
+        main = Combo.objects.create(status=Combo.Status.GENERATOR, description='[[Banish$1]] is exiled, [[Banish$2]] is cast')
+        CardInCombo.objects.create(combo=main, card=exiler, order=1, zone_locations=ZoneLocation.BATTLEFIELD)
+        FeatureNeededInCombo.objects.create(combo=main, feature=banish, order=1, zone_locations=ZoneLocation.EXILE, exile_card_state='exiled by Exiler')
+        FeatureNeededInCombo.objects.create(combo=main, feature=banish, order=2, zone_locations=ZoneLocation.HAND)
+        main.produces.add(produced_feature)
+
+        self.generate_variants()
+
+        variant = Variant.objects.get(of=main)
+        starts = {c.zone_locations: c for c in variant.cardinvariant_set.exclude(card=exiler)}
+        self.assertSetEqual(set(starts), {ZoneLocation.EXILE, ZoneLocation.HAND})
+        exiled, cast = starts[ZoneLocation.EXILE], starts[ZoneLocation.HAND]
+        self.assertEqual(exiled.exile_card_state, 'exiled by Exiler')
+        self.assertEqual(cast.exile_card_state, '')
+        self.assertEqual(variant.description, f'{exiled.card.name} is exiled, {cast.card.name} is cast')
+
+    def render_zone_locations(self, context: VariantContext, cards: list[Card]) -> list[str]:
+        result = []
+        for card in cards:
+            ingredient = CardInVariant(card=card)
+            context.render_ingredient(ingredient)
+            result.append(ingredient.zone_locations)
+        return result
+
+    def test_rows_needing_the_same_feature_are_dealt_producers_they_accept(self):
+        '''The first row accepts any copy, so it is dealt the one the second row does not accept, even
+        though the other one comes first.'''
+        landfall = FeatureAttribute.objects.create(name='Landfall')
+        untapper = FeatureAttribute.objects.create(name='Untapper Effect')
+        feature = Feature.objects.create(name='FDealt')
+        landfall_card = curated_card(name='Landfall Card', type_line='Creature - Elf')
+        untapper_card = curated_card(name='Untapper Card', type_line='Creature - Elf')
+        combo = Combo.objects.create(status=Combo.Status.UTILITY)
+        FeatureNeededInCombo.objects.create(combo=combo, feature=feature, order=1, zone_locations=ZoneLocation.GRAVEYARD)
+        picky = FeatureNeededInCombo.objects.create(combo=combo, feature=feature, order=2, zone_locations=ZoneLocation.HAND)
+        picky.any_of_attributes.add(landfall)
+        replacements = {
+            FeatureWithAttributes(feature, frozenset({landfall.id})): [([landfall_card], [])],
+            FeatureWithAttributes(feature, frozenset({untapper.id})): [([untapper_card], [])],
+        }
+
+        context = VariantContext.build(Data(), replacements, [combo], [])
+
+        self.assertEqual(context.apply('[[FDealt$1]] then [[FDealt$2]]', combo.id), 'Untapper Card then Landfall Card')
+        self.assertEqual(self.render_zone_locations(context, [untapper_card, landfall_card]), [ZoneLocation.GRAVEYARD, ZoneLocation.HAND])
+
+    def test_a_producer_dealt_to_no_row_or_to_every_row_starts_where_they_all_ask(self):
+        feature = Feature.objects.create(name='FShared')
+        cards = [curated_card(name=f'Shared Card {i}', type_line='Creature - Elf') for i in (1, 2, 3)]
+        combo = Combo.objects.create(status=Combo.Status.UTILITY)
+        FeatureNeededInCombo.objects.create(combo=combo, feature=feature, order=1, zone_locations=ZoneLocation.GRAVEYARD)
+        FeatureNeededInCombo.objects.create(combo=combo, feature=feature, order=2, zone_locations=ZoneLocation.HAND)
+        both = ZoneLocation.GRAVEYARD + ZoneLocation.HAND
+        for producers, expected in ((cards, [ZoneLocation.GRAVEYARD, ZoneLocation.HAND, both]), (cards[:1], [both])):
+            with self.subTest(producers=len(producers)):
+                replacements = {FeatureWithAttributes(feature, frozenset()): [([card], []) for card in producers]}
+                context = VariantContext.build(Data(), replacements, [combo], [])
+                self.assertEqual(self.render_zone_locations(context, producers), expected)
+
+    def test_a_combo_text_sees_only_the_producers_its_own_rows_accept(self):
+        '''The shape of issue #548: the variant holds a card producing the feature with an attribute this
+        combo rules out, because another combo asks for it, so the texts of this combo never name it.'''
+        landfall = FeatureAttribute.objects.create(name='Landfall')
+        afterlife = FeatureAttribute.objects.create(name='Afterlife')
+        feature = Feature.objects.create(name='FAsked')
+        landfall_card = curated_card(name='Landfall Card', type_line='Creature - Elf')
+        afterlife_card = curated_card(name='Afterlife Card', type_line='Creature - Elf')
+        combo, other_combo = (Combo.objects.create(status=Combo.Status.UTILITY) for _ in range(2))
+        for needing, attribute in ((combo, landfall), (other_combo, afterlife)):
+            FeatureNeededInCombo.objects.create(combo=needing, feature=feature, order=1).any_of_attributes.add(attribute)
+        replacements = {
+            FeatureWithAttributes(feature, frozenset({afterlife.id})): [([afterlife_card], [])],
+            FeatureWithAttributes(feature, frozenset({landfall.id})): [([landfall_card], [])],
+        }
+
+        context = VariantContext.build(Data(), replacements, [combo, other_combo], [])
+
+        text = '[[FAsked]], [[FAsked$2]], [[FAsked$Afterlife]]'
+        self.assertEqual(context.apply(text, combo.id), 'Landfall Card, [[FAsked$2]], [[FAsked$Afterlife]]')
+        self.assertEqual(context.apply(text, other_combo.id), 'Afterlife Card, [[FAsked$2]], Afterlife Card')
 
     def test_restore_variant(self):
         data = Data()
@@ -808,12 +900,14 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
         self.assertEqual(v.notable_prerequisites, 'C\nA\nB')
 
     def generator_needing_a_card_feature(self, **feature_of_card_fields) -> Combo:
-        """A generator combo using the card whose feature carries the given texts. FB is contextual, so
-        the row producing it is kept in the variant, and the combo produces a standalone feature of its own."""
+        """A generator combo using the card whose feature carries the given texts, and needing that feature,
+        so that its texts can name it. FB is contextual, so the row producing it is kept in the variant, and
+        the combo produces a standalone feature of its own."""
         card = Card.objects.get(number=self.c1_id)
         card.featureofcard_set.create(feature_id=self.f2_id, zone_locations=ZoneLocation.BATTLEFIELD, **feature_of_card_fields)
         combo = Combo.objects.create(status=Combo.Status.GENERATOR, **self.combo_fields)
         combo.cardincombo_set.create(card_id=self.c1_id, order=1, zone_locations=ZoneLocation.BATTLEFIELD)
+        combo.featureneededincombo_set.create(feature_id=self.f2_id, order=1)
         combo.produces.add(self.f4_id)
         generate_variants(combo.id)
         return combo
@@ -828,12 +922,6 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
     def test_the_description_of_a_card_feature_is_dropped_when_nothing_names_it(self):
         self.combo_fields = {'description': 'and win'}
         combo = self.generator_needing_a_card_feature(description='sacrifice a creature')
-        v: Variant = Variant.objects.get(of=combo)
-        self.assertEqual(v.description, 'and win')
-
-    def test_the_inclusions_of_an_unnamed_card_feature_description_are_dropped_with_it(self):
-        self.combo_fields = {'description': 'and win'}
-        combo = self.generator_needing_a_card_feature(description='sacrifice a creature, then {{FD}}')
         v: Variant = Variant.objects.get(of=combo)
         self.assertEqual(v.description, 'and win')
 
@@ -1186,20 +1274,6 @@ class FeatureInclusionTests(TextSourcesTestCase):
 
         self.assertEqual(Variant.objects.get(of=main).description, 'make infinite mana, and again make infinite mana.')
 
-    def test_an_included_card_feature_expands_its_own_inclusion_without_repeating_it(self):
-        '''A feature of a card writes only where an inclusion names it, so what its text names in turn is
-        reached through it: the producer writes there and nowhere else.'''
-        card_feature = Feature.objects.create(name='IFCard', status=Feature.Status.CONTEXTUAL)
-        card = curated_card(name='Inclusion Feature Card', type_line='Creature - Elf')
-        card.featureofcard_set.create(feature=card_feature, zone_locations=ZoneLocation.BATTLEFIELD, description='tap it, then {{IFMana}}')
-        self.make_producer('Inclusion Mana Card', self.mana, description='make infinite mana')
-        main = self.make_main(card_feature, description='First, {{IFCard}}, then win.')
-        FeatureNeededInCombo.objects.create(combo=main, feature=self.mana, order=2)
-
-        self.generate_variants()
-
-        self.assertEqual(Variant.objects.get(of=main).description, 'First, tap it, then make infinite mana, then win.')
-
     def test_an_inclusion_inside_an_included_text_expands_in_turn(self):
         top = Feature.objects.create(name='IFTop', status=Feature.Status.HIDDEN_UTILITY)
         self.make_producer('Inclusion Mana Card', self.mana, description='make infinite mana')
@@ -1272,14 +1346,18 @@ class FeatureInclusionTests(TextSourcesTestCase):
         self.assertEqual(variant.notes, 'A note.\n\nAnother note.')
 
     def test_an_inclusion_resolves_the_replacements_of_the_text_it_comes_from(self):
-        self.make_producer('Inclusion Mana Card', self.mana, description='tap [[IFMana]] for infinite mana')
+        untapper = Feature.objects.create(name='IFUntapper', status=Feature.Status.HIDDEN_UTILITY)
+        untapper_card = curated_card(name='Inclusion Untapper Card', type_line='Creature - Elf')
+        untapper_card.featureofcard_set.create(feature=untapper, zone_locations=ZoneLocation.BATTLEFIELD)
+        producer = self.make_producer('Inclusion Mana Card', self.mana, description='untap it with [[IFUntapper]] for infinite mana')
+        FeatureNeededInCombo.objects.create(combo=producer, feature=untapper, order=1, in_replacements=False)
         main = self.make_main(self.mana, description='First, {{IFMana}}, then win with [[IFMana]].')
 
         self.generate_variants()
 
         self.assertEqual(
             Variant.objects.get(of=main).description,
-            'First, tap Inclusion Mana Card for infinite mana, then win with Inclusion Mana Card.',
+            'First, untap it with Inclusion Untapper Card for infinite mana, then win with Inclusion Mana Card.',
         )
 
     def test_a_card_feature_is_a_producer_of_its_own(self):

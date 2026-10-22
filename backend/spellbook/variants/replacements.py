@@ -30,24 +30,32 @@ _V = TypeVar('_V')
 
 @dataclass(frozen=True)
 class Replacement:
-    '''What `[[name]]` is replaced with: the names of the ingredients producing the feature. The card
-    behind a lone one is kept, so that a face override in the text can still resolve to a face name.'''
+    '''What `[[name]]` is replaced with: the names of the ingredients producing the feature. The
+    ingredients are kept too, for the needed feature row they satisfy to reach them, and so that a face
+    override in the text can still resolve to the face name of a lone card.'''
     text: str
-    card: Card | None = None
+    cards: tuple[Card, ...] = ()
+    templates: tuple[Template, ...] = ()
+
+    @classmethod
+    def of(cls, recipe: Recipe, used_faces: 'UsedFaces', feature_id: featureid) -> 'Replacement':
+        '''The replacement of one way of producing a feature: a card used by one of its faces is named
+        by that half of its name.'''
+        cards, templates = recipe
+        names = [c.face_name(used_faces.of(card_number(c), feature_id), short=True) for c in cards] + [t.name for t in templates]
+        return cls(text=' + '.join(names), cards=tuple(cards), templates=tuple(templates))
 
     def resolve(self, face: int | None) -> str:
-        if face is not None and self.card is not None and 1 <= face <= self.card.faces:
-            return self.card.face_name(face, short=True)
+        if face is not None and len(self.cards) == 1 and not self.templates and 1 <= face <= self.cards[0].faces:
+            return self.cards[0].face_name(face, short=True)
         return self.text
 
 
 @dataclass(frozen=True)
 class Alternative(Generic[_C]):
-    '''One of the things a feature name resolves to in a variant, and the attributes the feature was
-    produced with. Alternatives are what an attribute selector picks between and what a needed feature
-    row is matched against; a positional selector counts through their candidates instead, because one
-    alternative can be produced in more than one way.'''
-    candidates: tuple[_C, ...]
+    '''One way a feature name resolves in a variant, and the attributes the feature was produced with.
+    Alternatives are what a selector picks between and what the needed feature rows of a combo are dealt.'''
+    candidate: _C
     attribute_ids: frozenset[int] = frozenset()
     # sorted, in their original case: they order the alternatives of a feature and answer a selector
     attribute_names: tuple[str, ...] = ()
@@ -56,101 +64,108 @@ class Alternative(Generic[_C]):
         return any(attribute.casefold() == name.casefold() for attribute in self.attribute_names)
 
 
-def candidates_of(alternatives: Iterable[Alternative[_C]]) -> list[_C]:
-    return [candidate for alternative in alternatives for candidate in alternative.candidates]
-
-
 def select(alternatives: Sequence[Alternative[_C]], selector: str | None) -> Sequence[_C]:
     '''What a selector picks among the alternatives of a feature: an attribute name keeps the ones the
-    feature was produced with it, a number counts through their candidates, and no selector keeps them
+    feature was produced with it, a number picks the one at that position, and no selector keeps them
     all. Nothing selected means the text has nothing to resolve to: a replacement stays as it was
     written, while an inclusion is deleted.'''
     if selector is None:
-        return candidates_of(alternatives)
+        return [alternative.candidate for alternative in alternatives]
     if not selector.isdigit():
-        return candidates_of(alternative for alternative in alternatives if alternative.has_attribute(selector))
+        return [alternative.candidate for alternative in alternatives if alternative.has_attribute(selector)]
     position = int(selector) - 1
-    candidates = candidates_of(alternatives)
-    return candidates[position:position + 1] if position >= 0 else []
+    return [alternatives[position].candidate] if 0 <= position < len(alternatives) else []
 
 
 # ---------------------------------------------------------------------------
 # The feature names of one variant
 # ---------------------------------------------------------------------------
 
-class FeatureIndex(Generic[_C]):
-    '''What every feature name resolves to in a single variant.
-
-    A name can offer several alternatives, so the order they come in decides what a positional selector
-    points at. A combo needing the same feature more than once gets its own order, following its needed
-    feature rows, which is what makes `[[name$2]]` mean "whatever satisfies the second row" in every
-    variant of that combo rather than something different in each.
-    '''
-
-    def __init__(
-        self,
-        base: Mapping[FeatureName, Sequence[Alternative[_C]]],
-        per_combo: Mapping[comboid, Mapping[FeatureName, Sequence[Alternative[_C]]]],
-    ) -> None:
-        self.base = base
-        self.per_combo = per_combo
-
-    def alternatives(self, name: FeatureName, combo_id: comboid | None) -> Sequence[Alternative[_C]]:
-        for_combo = self.per_combo.get(combo_id) if combo_id is not None else None
-        if for_combo is not None and name in for_combo:
-            return for_combo[name]
-        return self.base.get(name, ())
-
-    def select(self, name: FeatureName, selector: str | None, combo_id: comboid | None) -> Sequence[_C]:
-        return select(self.alternatives(name, combo_id), selector)
+# What every feature name resolves to in a single variant, for each combo needing that feature
+FeatureIndex = Mapping[comboid, Mapping[FeatureName, Sequence[Alternative[_C]]]]
+# The needed feature rows of each combo, grouped by the feature they ask for
+NeededRows = Mapping[comboid, Mapping[featureid, Sequence[FeatureNeededInCombo]]]
 
 
-def needed_rows_by_feature(data: Data, combos: Iterable[Combo]) -> dict[featureid, list[FeatureNeededInCombo]]:
-    '''The needed feature rows of the given combos, grouped by the feature they ask for.'''
-    rows = dict[featureid, list[FeatureNeededInCombo]]()
+def select_in(index: FeatureIndex[_C], combo_id: comboid | None, name: FeatureName, selector: str | None) -> Sequence[_C]:
+    '''What a reference picks in a text of the given combo, which resolves only the features the combo
+    needs. A text written on a card has no combo, and resolves nothing.'''
+    return select(index.get(combo_id, {}).get(name, ()), selector) if combo_id is not None else []
+
+
+def needed_rows_by_feature(data: Data, combos: Iterable[Combo]) -> dict[comboid, dict[featureid, list[FeatureNeededInCombo]]]:
+    rows = dict[comboid, dict[featureid, list[FeatureNeededInCombo]]]()
     for combo in combos:
+        by_feature = rows.setdefault(combo.id, {})
         for row in data.combo_to_needed_features[combo.id]:
-            rows.setdefault(row.feature_id, []).append(row)
+            by_feature.setdefault(row.feature_id, []).append(row)
     return rows
 
 
-def matched_first(
-    data: Data,
-    rows: Iterable[FeatureNeededInCombo],
-    alternatives: Sequence[Alternative[_C]],
-) -> list[Alternative[_C]]:
-    '''The alternatives a combo asks for, first: each needed feature row takes the ones its attributes
-    match that no earlier row took, in row order. The ones no row asks for stay reachable after them.'''
-    ordered = list[Alternative[_C]]()
-    taken = set[int]()
-    for row in rows:
-        matcher = data.feature_needed_in_combo_to_attributes_matcher[row.id]
-        for position, alternative in enumerate(alternatives):
-            if position not in taken and matcher.matches(alternative.attribute_ids):
-                taken.add(position)
-                ordered.append(alternative)
-    ordered.extend(a for position, a in enumerate(alternatives) if position not in taken)
-    return ordered
+def deal(rows: Sequence[FeatureNeededInCombo], accepted: Sequence[Sequence[int]]) -> list[list[int]]:
+    '''Which alternatives satisfy each needed feature row of a combo, by position, given the ones each row
+    accepts: a row gets one per copy it needs, and no two rows get the same one. Earlier rows get earlier
+    alternatives, unless that would leave a later row short of one it accepts.'''
+    slots = [index for index, row in enumerate(rows) for _ in range(row.quantity)]
+    owners = dict[int, int]()
+
+    def take(slot: int, visited: set[int]) -> bool:
+        choices = accepted[slots[slot]]
+        free = next((position for position in choices if position not in owners), None)
+        if free is not None:
+            owners[free] = slot
+            return True
+        for position in choices:
+            if position not in visited:
+                visited.add(position)
+                if take(owners[position], visited):
+                    owners[position] = slot
+                    return True
+        return False
+
+    for slot in range(len(slots)):
+        take(slot, set())
+    shares = [list[int]() for _ in rows]
+    for position in sorted(owners):
+        shares[slots[owners[position]]].append(position)
+    return shares
 
 
 def index_of(
     data: Data,
-    needed_combos: Sequence[Combo],
+    needed_rows: NeededRows,
     alternatives: Mapping[FeatureName, Sequence[Alternative[_C]]],
-) -> FeatureIndex[_C]:
-    '''Indexes the alternatives of every feature name, adding the order each combo sees them in. Only a
-    feature offering more than one alternative can be ordered differently, so only those are stored.'''
-    per_combo = dict[comboid, Mapping[FeatureName, Sequence[Alternative[_C]]]]()
-    for combo in needed_combos:
-        for_combo = dict[FeatureName, Sequence[Alternative[_C]]]()
-        for feature_id, rows in needed_rows_by_feature(data, [combo]).items():
+) -> tuple[FeatureIndex[_C], dict[int, list[_C]]]:
+    '''What each combo sees of the features it needs, and the candidates each of its needed feature rows
+    reaches, by row id.
+
+    A combo sees only the alternatives its rows accept, the ones dealt to each row first, in row order:
+    that is what makes `[[name$2]]` mean "whatever satisfies the second row" in every variant of that
+    combo, and what keeps its texts from naming a card the variant holds for another reason. A row
+    reaches the ones dealt to it. The ones dealt to no row are reached by every row accepting them, and
+    so is every one a row accepts when it was dealt none, because one candidate satisfies them all.
+    '''
+    index = dict[comboid, dict[FeatureName, list[Alternative[_C]]]]()
+    reached = dict[int, list[_C]]()
+    for combo_id, rows_by_feature in needed_rows.items():
+        for feature_id, rows in rows_by_feature.items():
             name = data.id_to_feature[feature_id].name
             offered = alternatives.get(name, ())
-            if len(offered) > 1:
-                for_combo[name] = matched_first(data, rows, offered)
-        if for_combo:
-            per_combo[combo.id] = for_combo
-    return FeatureIndex(alternatives, per_combo)
+            accepted = [{position for position, alternative in enumerate(offered) if data.feature_needed_in_combo_to_attributes_matcher[row.id].matches(alternative.attribute_ids)} for row in rows]
+            shares = deal(rows, [sorted(positions) for positions in accepted])
+            dealt = [position for share in shares for position in share]
+            index.setdefault(combo_id, {})[name] = [offered[position] for position in dealt] + [
+                alternative
+                for position, alternative in enumerate(offered)
+                if position not in dealt and any(position in positions for positions in accepted)
+            ]
+            for row, share, positions in zip(rows, shares, accepted):
+                reached[row.id] = [
+                    alternative.candidate
+                    for position, alternative in enumerate(offered)
+                    if position in share or ((not share or position not in dealt) and position in positions)
+                ]
+    return index, reached
 
 
 # ---------------------------------------------------------------------------
@@ -181,49 +196,22 @@ def attribute_names_of(data: Data, attribute_ids: Iterable[int]) -> tuple[str, .
     return tuple(sorted(data.id_to_feature_attribute[a].name for a in attribute_ids if a in data.id_to_feature_attribute))
 
 
-def is_asked_for(data: Data, feature: FeatureWithAttributes, rows: Sequence[FeatureNeededInCombo]) -> bool:
-    '''Whether any combo needing that feature accepts the attributes it was produced with. What no
-    combo asks for is not offered as a replacement, even though the variant produces it.'''
-    return not rows or any(
-        data.feature_needed_in_combo_to_attributes_matcher[row.id].matches(feature.attributes)
-        for row in rows
-    )
-
-
-def replacement_of(recipe: Recipe, used_faces: 'UsedFaces', feature_id: featureid) -> Replacement:
-    '''The name a text shows for one way of producing a feature. A card used by one of its faces shows
-    that half of its name, and a lone card is kept, so that a face override in the text still resolves.'''
-    cards, templates = recipe
-    names = [c.face_name(used_faces.of(card_number(c), feature_id), short=True) for c in cards] + [t.name for t in templates]
-    return Replacement(
-        text=' + '.join(names),
-        card=cards[0] if len(cards) == 1 and not templates else None,
-    )
-
-
 def replacement_alternatives(
     data: Data,
     replacements: Mapping[FeatureWithAttributes, Sequence[Recipe]],
-    needed_combos: Sequence[Combo],
     used_faces: 'UsedFaces',
     positions: IngredientPositions,
 ) -> dict[FeatureName, list[Alternative[Replacement]]]:
-    '''What every feature name is replaced with, one alternative per set of attributes it was produced
-    with, holding the ways of producing it in the display order of the ingredients they name.'''
-    rows = needed_rows_by_feature(data, needed_combos)
+    '''What every feature name is replaced with, one alternative per way of producing it, offered by the
+    names of the attributes it was produced with, an order every variant agrees on, and then in the
+    display order of the ingredients they name.'''
     by_name = defaultdict[FeatureName, list[Alternative[Replacement]]](list)
     for feature, recipes in replacements.items():
-        if not is_asked_for(data, feature, rows.get(feature.feature.id, [])):
-            continue
-        by_name[feature.feature.name].append(Alternative(
-            candidates=tuple(
-                replacement_of(recipe, used_faces, feature.feature.id)
-                for recipe in sorted(recipes, key=lambda recipe: positions.position_of(*recipe))
-            ),
-            attribute_ids=feature.attributes,
-            attribute_names=attribute_names_of(data, feature.attributes),
-        ))
-    # the alternatives of a feature are offered by attribute name, an order every variant agrees on
+        attribute_names = attribute_names_of(data, feature.attributes)
+        by_name[feature.feature.name].extend(
+            Alternative(Replacement.of(recipe, used_faces, feature.feature.id), feature.attributes, attribute_names)
+            for recipe in sorted(recipes, key=lambda recipe: positions.position_of(*recipe))
+        )
     return {name: sorted(alternatives, key=lambda a: a.attribute_names) for name, alternatives in by_name.items()}
 
 
@@ -248,7 +236,7 @@ def producer_alternatives(data: Data, sources: Sequence[TextSource]) -> dict[Fea
             attribute_ids[name][index] = attribute_ids[name].get(index, frozenset()) | attributes
     return {
         name: [
-            Alternative(candidates=(index,), attribute_ids=attributes, attribute_names=attribute_names_of(data, attributes))
+            Alternative(index, attributes, attribute_names_of(data, attributes))
             for index, attributes in by_source.items()
         ]
         for name, by_source in attribute_ids.items()
@@ -394,31 +382,22 @@ class NeededFeatureOverrides(ByIngredient[NeededFeatureOverride]):
     need, which overrides what those ingredients inherit from the combos they appear in.'''
 
     @classmethod
-    def collect(
-        cls,
-        data: Data,
-        replacements: Mapping[FeatureWithAttributes, Sequence[Recipe]],
-        needed_combos: Sequence[Combo],
-    ) -> 'NeededFeatureOverrides':
-        '''What every needed feature row asking for a starting location reaches: every ingredient naming
-        the feature it needs, produced with attributes it accepts. The rows are met combo by combo, in
-        the order each combo asks for them, which is the order their states are written in.'''
+    def collect(cls, data: Data, needed_combos: Sequence[Combo], reached: Mapping[int, Sequence[Replacement]]) -> 'NeededFeatureOverrides':
+        '''What every needed feature row asking for a starting location reaches: the ingredients of the
+        replacements satisfying it, so that two rows of a combo needing the same feature each start their
+        own. The rows are met combo by combo, in the order each combo asks for them, which is the order
+        their states are written in.'''
         cards = defaultdict[cardid, NeededFeatureOverride](NeededFeatureOverride)
         templates = defaultdict[templateid, NeededFeatureOverride](NeededFeatureOverride)
         for combo in needed_combos:
             for row in data.combo_to_needed_features[combo.id]:
                 if not row.zone_locations:
                     continue
-                matcher = data.feature_needed_in_combo_to_attributes_matcher[row.id]
-                for feature, recipes in replacements.items():
-                    if feature.feature.id != row.feature_id or not matcher.matches(feature.attributes):
-                        continue
-                    for recipe_cards, recipe_templates in recipes:
-                        for card in recipe_cards:
-                            assert card.number is not None
-                            cards[card.number].add(row)
-                        for template in recipe_templates:
-                            templates[template.id].add(row)
+                for replacement in reached.get(row.id, ()):
+                    for card in replacement.cards:
+                        cards[card_number(card)].add(row)
+                    for template in replacement.templates:
+                        templates[template.id].add(row)
         return cls(cards=cards, templates=templates)
 
 
@@ -468,7 +447,7 @@ class FieldAssembly:
     An inclusion with nothing to write is deleted instead, so that no variant displays one.
 
     A source listed in only_when_included never writes on its own: its text reaches the field only
-    where an inclusion names it, and so do the inclusions that text holds.
+    where an inclusion names it.
 
     A line reference is replaced with the line of the field that the line it points at landed on, which
     only the whole field knows: every writing of a text marks its own lines, and the field numbers them
@@ -501,22 +480,18 @@ class FieldAssembly:
     def named_by(self, source: SourceIndex, inclusion: re.Match[str]) -> list[SourceIndex]:
         '''The sources an inclusion names, never the one writing it: a text does not write itself, so
         the sole producer of a feature its own text mentions has nothing to write there.'''
-        return [other for other in self.producers.select(inclusion['key'], inclusion['selector'], self.combo_ids[source]) if other != source]
+        return [other for other in select_in(self.producers, self.combo_ids[source], inclusion['key'], inclusion['selector']) if other != source]
 
     def included_sources(self) -> set[SourceIndex]:
-        '''Every source named by an inclusion the field ends up writing, which is what keeps its text
-        from being appended on its own. The search starts at the sources that write on their own and
-        follows the ones they name, so that an inclusion held by a text nothing writes names nothing.'''
-        included = set[SourceIndex]()
-        pending = [source for source in self.texts if source not in self.only_when_included]
-        while pending:
-            source = pending.pop()
-            for inclusion in FEATURE_INCLUSION_PATTERN.finditer(self.texts.get(source, '')):
-                for other in self.named_by(source, inclusion):
-                    if other not in included:
-                        included.add(other)
-                        pending.append(other)
-        return included
+        '''Every source named by an inclusion, which is what keeps its text from being appended on its
+        own. Only the texts of combos hold inclusions, and each of them is written somewhere, on its own
+        or where it is included.'''
+        return {
+            other
+            for source, text in self.texts.items()
+            for inclusion in FEATURE_INCLUSION_PATTERN.finditer(text)
+            for other in self.named_by(source, inclusion)
+        }
 
     def write(self, source: SourceIndex, ancestors: frozenset[SourceIndex]) -> str:
         '''The text of one source, with its inclusions written out in place. A source already being
@@ -610,15 +585,16 @@ class VariantContext:
         a card used by one face show that half of its name.'''
         sources: list[TextSource] = [*needed_feature_of_cards, *needed_combos]
         initial_states = InitialStates.collect(data, sources, positions)
+        needed_rows = needed_rows_by_feature(data, needed_combos)
+        replacement_index, reached = index_of(data, needed_rows, replacement_alternatives(data, replacements, UsedFaces.collect(data, sources, initial_states), positions))
+        producer_index, _ = index_of(data, needed_rows, producer_alternatives(data, sources))
         return cls(
             data=data,
-            replacements=index_of(data, needed_combos, replacement_alternatives(
-                data, replacements, needed_combos, UsedFaces.collect(data, sources, initial_states), positions,
-            )),
-            producers=index_of(data, needed_combos, producer_alternatives(data, sources)),
+            replacements=replacement_index,
+            producers=producer_index,
             sources=sources,
             initial_states=initial_states,
-            overrides=NeededFeatureOverrides.collect(data, replacements, needed_combos),
+            overrides=NeededFeatureOverrides.collect(data, needed_combos, reached),
         )
 
     def apply(self, text: str, combo_id: comboid | None = None) -> str:
@@ -626,7 +602,7 @@ class VariantContext:
         replacement selecting nothing stays as written, and an inclusion is left untouched: writing one
         needs the other texts of the field it belongs to, which only render_field has.'''
         def replace(match: re.Match[str]) -> str:
-            selected = self.replacements.select(match['key'], match['selector'], combo_id)
+            selected = select_in(self.replacements, combo_id, match['key'], match['selector'])
             return selected[0].resolve(int(match['face']) if match['face'] else None) if selected else match[0]
 
         return FEATURE_REPLACEMENT_PATTERN.sub(replace, expand_aliases(text))

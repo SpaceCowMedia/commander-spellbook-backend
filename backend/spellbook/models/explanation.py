@@ -10,9 +10,9 @@ from .validators import MANA_VALIDATOR, TEXT_VALIDATORS
 
 DESCRIPTION_HELP_TEXT = (
     'Long description, in steps.'
-    f' Here and in every other text field you can reference feature replacements with the {format_feature_replacement("name")} syntax.'
+    f' Here and in every other text field you can reference the features this combo needs with the {format_feature_replacement("name")} syntax.'
     f' Optionally, you can select one of the multiple copies with {format_feature_replacement("name", selector="number")},'
-    ' where the number is the position of the needed feature row among the ones this combo needs for that feature,'
+    ' where the number counts through the copies this combo needs of that feature, in the order of its needed feature rows,'
     f' or with {format_feature_replacement("name", selector="attribute")}, where the attribute is the name of one of the attributes the feature was produced with.'
     ' Uncheck "in replacements" on an ingredient to keep it out of the replacements of the features this combo produces.'
     f' With the {format_feature_inclusion("name")} syntax, and the same selectors, you can instead write here the text of this same field,'

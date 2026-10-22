@@ -18,7 +18,7 @@ from django.shortcuts import redirect
 from django.utils import timezone
 from django.tasks import TaskResult
 from spellbook.models import Card, FeatureNeededInCombo, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, ZoneLocation
-from spellbook.models.references import references_to_features_not_needed
+from spellbook.models.references import references_past_copies_needed, references_to_features_not_needed
 from spellbook.models.utils import sanitize_newlines_apostrophes_and_quotes
 from spellbook.tasks import generate_variants_task
 from .utils import SpellbookModelAdmin, SpellbookAdminForm, CustomFilter, IngredientCountListFilter, join_for_message
@@ -519,7 +519,7 @@ class ComboAdmin(SpellbookModelAdmin):
         formsets, inline_instances = super()._create_formsets(request, obj, change)  # type: ignore  # private method
         if request.method == 'POST':
             self.reject_combo_without_replacements(formsets)
-            self.reject_references_to_features_not_needed(request, formsets)
+            self.reject_references_beyond_requirements(request, formsets)
             if DUPLICATE_CONFIRMATION_INPUT_NAME not in request.POST:
                 self.reject_duplicate_combo(request, obj, formsets)
         return formsets, inline_instances
@@ -542,15 +542,16 @@ class ComboAdmin(SpellbookModelAdmin):
                 ' Check that box on at least one of them, so that the features it produces have something to be replaced with.'
             )
 
-    def reject_references_to_features_not_needed(self, request: HttpRequest, formsets: list[BaseModelFormSet]):
+    def reject_references_beyond_requirements(self, request: HttpRequest, formsets: list[BaseModelFormSet]):
         '''
         Reject a combo whose texts reference a feature it does not require, which its variants only replace
-        when one of their cards happens to produce it. The combo form is cleaned only after its formsets are
-        built, so its texts are read the way its widgets read them.
+        when one of their cards happens to produce it, or select by position a copy of a feature past the
+        ones it requires, which none of its rows is satisfied by. The combo form is cleaned only after its
+        formsets are built, so its texts are read the way its widgets read them.
         '''
         formsets_by_model = {formset.model: formset for formset in formsets}
         texts = [sanitize_newlines_apostrophes_and_quotes(request.POST.get(field, '')) for field in Combo.text_fields_with_references()]
-        needed_feature_names = set[str]()
+        copies_needed = dict[str, int]()
         for model in (CardInCombo, TemplateInCombo, FeatureNeededInCombo):
             formset = formsets_by_model.get(model)
             if formset is None or not formset.is_valid():
@@ -559,12 +560,18 @@ class ComboAdmin(SpellbookModelAdmin):
                 if form_data and not form_data.get('DELETE'):
                     texts.extend(form_data.get(field) or '' for field in model.text_fields_with_references())
                     if model is FeatureNeededInCombo:
-                        needed_feature_names.add(form_data['feature'].name)
-        references = references_to_features_not_needed(texts, needed_feature_names)
-        if references:
-            formsets_by_model[FeatureNeededInCombo].non_form_errors().append(
+                        feature = form_data['feature']
+                        copies_needed[feature.name] = 1 if feature.uncountable else copies_needed.get(feature.name, 0) + form_data['quantity']
+        errors = formsets_by_model[FeatureNeededInCombo].non_form_errors()
+        if references := references_to_features_not_needed(texts, copies_needed):
+            errors.append(
                 f'This combo was not saved, because its texts reference features it does not require: {join_for_message(references)}.'
                 ' Require those features, or reference the ones it requires by their exact names.'
+            )
+        if references := references_past_copies_needed(texts, copies_needed):
+            errors.append(
+                f'This combo was not saved, because its texts select copies of features it does not require: {join_for_message(references)}.'
+                ' A number counts through the copies the combo requires of that feature, from 1, in the order of its rows.'
             )
 
     def reject_duplicate_combo(self, request: HttpRequest, obj: Combo | None, formsets: list[BaseModelFormSet]):

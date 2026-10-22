@@ -15,6 +15,7 @@ from .fields import KeywordsField
 from .ingredient import Ingredient
 from .feature_attribute import WithFeatureAttributes
 from .explanation import Explanation
+from .references import references_to_features_not_needed
 
 
 IMAGE_URI_HELP_TEXT = 'The image format, and with it the file extension, may vary'
@@ -287,6 +288,18 @@ class FeatureOfCard(Ingredient, Explanation, WithFeatureAttributes, WithUsedFace
     @classmethod
     def text_fields_with_references(cls) -> list[str]:
         return [*Ingredient.text_fields_with_references(), *Explanation.text_fields_with_references()]
+
+    def clean(self):
+        '''A feature of a card needs no feature, so its texts cannot reference one: no variant would be
+        sure to replace it, and a card is named by its own name.'''
+        super().clean()
+        errors = {
+            field: f'A card feature cannot reference features, since it needs none: {", ".join(references)}.'
+            for field in self.text_fields_with_references()
+            if (references := references_to_features_not_needed([getattr(self, field)], ()))
+        }
+        if errors:
+            raise ValidationError(errors)
 
     class Meta(Ingredient.Meta):
         indexes = Ingredient.card_state_trigram_indexes('foc') + Explanation.text_trigram_indexes('foc')

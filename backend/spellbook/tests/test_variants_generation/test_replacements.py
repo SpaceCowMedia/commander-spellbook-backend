@@ -1,6 +1,6 @@
 from itertools import product
 from unittest import TestCase
-from spellbook.models.references import FEATURE_INCLUSION_PATTERN, FEATURE_REPLACEMENT_PATTERN, LINE_REFERENCE_PATTERN, expand_aliases, format_alias_inclusion, format_alias_replacement, format_feature_inclusion, format_feature_replacement, format_line_reference, references_to_features_not_needed, referenced_line
+from spellbook.models.references import FEATURE_INCLUSION_PATTERN, FEATURE_REPLACEMENT_PATTERN, LINE_REFERENCE_PATTERN, expand_aliases, format_alias_inclusion, format_alias_replacement, format_feature_inclusion, format_feature_replacement, format_line_reference, references_past_copies_needed, references_to_features_not_needed, referenced_line
 
 KEYS = [
     'Feature',
@@ -121,3 +121,20 @@ class ReferencesToFeaturesNotNeededTests(TestCase):
     def test_line_references_are_no_inclusions(self):
         texts = [f'First\nSecond\nBack to {format_line_reference(2, "-")}, forward to {format_line_reference(1, "+")}\nRepeat {format_line_reference(3)}', 'Then {{Unneeded}}']
         self.assertEqual(references_to_features_not_needed(texts, {'Feature'}), ['{{Unneeded}}'])
+
+
+class ReferencesPastCopiesNeededTests(TestCase):
+    def test_positions_among_the_copies_needed_pass(self):
+        texts = [f'{format_feature_replacement("Feature", selector="1")} and {format_feature_inclusion("Feature", "2")}, {format_feature_replacement("Feature", selector="attribute")}']
+        self.assertEqual(references_past_copies_needed(texts, {'Feature': 2}), [])
+
+    def test_positions_past_the_copies_needed_are_returned_once_sorted(self):
+        texts = ['[[Feature$3]], {{Feature$0}} and [[Feature$3]]', '[[Other$2]]']
+        self.assertEqual(references_past_copies_needed(texts, {'Feature': 2, 'Other': 1}), ['[[Feature$3]]', '[[Other$2]]', '{{Feature$0}}'])
+
+    def test_a_feature_not_needed_is_left_to_the_other_check(self):
+        self.assertEqual(references_past_copies_needed(['[[Unneeded$5]]'], {'Feature': 1}), [])
+
+    def test_an_alias_is_checked_through_its_definition(self):
+        texts = [f'{format_feature_replacement("Feature", selector="2", alias="x")} then {format_alias_replacement("x")}']
+        self.assertEqual(references_past_copies_needed(texts, {'Feature': 1}), [format_feature_replacement('Feature', selector='2', alias='x')])

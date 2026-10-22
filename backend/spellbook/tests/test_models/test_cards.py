@@ -2,7 +2,8 @@ from django.test import TestCase
 from spellbook.tests.testing import SpellbookTestCaseWithSeeding, curated_card
 from django.core.exceptions import ValidationError
 from common.inspection import count_methods
-from spellbook.models import Card, CardType, Combo, Variant
+from spellbook.models import Card, CardType, Combo, FeatureOfCard, Variant, ZoneLocation
+from spellbook.models.references import format_feature_inclusion, format_feature_replacement, format_line_reference
 from spellbook.models.scryfall import SCRYFALL_WEBSITE_CARD_SEARCH
 from urllib.parse import quote_plus
 
@@ -165,6 +166,24 @@ class CardTests(SpellbookTestCaseWithSeeding):
         Card.objects.bulk_create([Card(name='àààèèèìììòòòùùù', oracle_id='47d6f04b-a6fe-4274-bd27-888475158e82')])
         c = Card.objects.get(name='àààèèèìììòòòùùù')
         self.assertEqual(c.name_unaccented, 'aaaeeeiiiooouuu')
+
+
+class FeatureOfCardTests(SpellbookTestCaseWithSeeding):
+    '''A feature of a card needs no feature, so none of its texts can reference one.'''
+
+    def feature_of_card(self, **texts) -> FeatureOfCard:
+        return FeatureOfCard(card_id=self.c1_id, feature_id=self.f2_id, zone_locations=''.join(ZoneLocation.values), **texts)
+
+    def test_texts_without_feature_references_are_valid(self):
+        self.feature_of_card(description=f'Tap it.\nRepeat from {format_line_reference(1)}.').full_clean()
+
+    def test_a_feature_reference_in_any_text_is_rejected(self):
+        for field in FeatureOfCard.text_fields_with_references():
+            for reference in (format_feature_replacement('FA'), format_feature_inclusion('FA')):
+                with self.subTest(field=field, reference=reference):
+                    with self.assertRaises(ValidationError) as raised:
+                        self.feature_of_card(**{field: f'Use {reference}.'}).full_clean()
+                    self.assertIn(f'A card feature cannot reference features, since it needs none: {reference}.', raised.exception.message_dict[field])
 
 
 class IsCommanderTests(TestCase):

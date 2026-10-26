@@ -8,7 +8,7 @@ dependencies = [
     # spellbook_client is provided on PYTHONPATH rather than installed, so its runtime
     # dependencies are listed here.
     "urllib3==2.8.0",
-    "python-dateutil==2.9.0.post0",
+    "python-dateutil==3.0.0",
     "aiohttp==3.14.5",
     "aiohttp-retry==2.9.1",
     "pydantic==2.14.1",

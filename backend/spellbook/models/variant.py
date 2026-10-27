@@ -547,7 +547,7 @@ def estimate_bracket(cards: dict[Card, int], commanders: set[Card] | None, inclu
         for card_in_variant, card in chain(recipe.cards, recipe.templates):
             if ZoneLocation.LIBRARY in card_in_variant.zone_locations:
                 continue
-            if commanders is not None and card in commanders:
+            if commanders is not None and card in commanders or commanders is None and card_in_variant.must_be_commander:
                 continue
             if commanders is None and isinstance(card, Card) and card.is_commander or isinstance(card, Template) and (ZoneLocation.COMMAND_ZONE in card_in_variant.zone_locations or card_in_variant.must_be_commander):
                 arguable_cards += card_in_variant.quantity

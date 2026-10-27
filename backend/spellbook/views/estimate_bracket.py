@@ -74,17 +74,26 @@ class EstimateBracketView(DecklistAPIView):
         deck = self.parse(request)
         unknown_commanders = UnknownCommandersFilter().is_enabled(request)
         cards: dict[Card, int] = dict(deck.cards.items())
-        commanders: set[Card] = set(deck.commanders.distinct_elements())
+        commanders: set[Card] | None = set(deck.commanders.distinct_elements())
+        if unknown_commanders and not commanders:
+            commanders = None
         variant_id_list = find_variants(deck, missing=0)
         variants_query = Variant.recipes_prefetched \
             .filter(status__in=Variant.public_statuses()) \
             .filter(id__in=variant_id_list)
-        variants = list(variants_query)
+        included_variants = [(v, v.get_recipe()) for v in variants_query]
+        if commanders is not None:
+            # a combo that needs another commander is only included by changing commanders
+            included_variants = [
+                (v, recipe)
+                for v, recipe in included_variants
+                if all(card in commanders for card_in_variant, card in recipe.cards if card_in_variant.must_be_commander)
+            ]
 
         result = estimate_bracket(
             cards=cards,
-            commanders=None if unknown_commanders and not commanders else commanders,
-            included_variants=tuple((v, v.get_recipe()) for v in variants),
+            commanders=commanders,
+            included_variants=included_variants,
         )
         serializer = self.response(result)
         return Response(serializer.data)

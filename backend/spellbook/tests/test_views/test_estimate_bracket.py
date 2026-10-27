@@ -43,6 +43,8 @@ class EstimateBracketViewTests(SpellbookTestCaseWithSeeding):
             for card in combo.uses:
                 name = card.card.name
                 self.assertIn(name, cards or commanders)
+                if card.must_be_commander:
+                    self.assertIn(name, commanders)
 
     def test_estimate_bracket_views(self):
         for content_type in ['text/plain', 'application/json']:
@@ -184,3 +186,45 @@ class EstimateBracketUnknownCommandersViewTests(SpellbookTestCaseWithSeeding):
         response = self.client.get(reverse('estimate-bracket'), headers={'accept': 'text/html'}, follow=True, query_params={param: 'true'})  # type: ignore
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn('list-group-item active', response.content.decode())
+
+
+class EstimateBracketMustBeCommanderViewTests(SpellbookTestCaseWithSeeding):
+    deck_cards = ['A A', 'B B', 'C C', 'D\' D', 'E É', 'F "F"']
+    commander_card = 'E É'
+    variant_id: str
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.generate_and_publish_variants()
+        cls.variant_id = id_from_cards_and_templates_ids([cls.c1_id, cls.c2_id, cls.c3_id, cls.c4_id, cls.c5_id, cls.c6_id], [])
+        cls.bulk_serialize_variants()
+
+    def _combo_ids(self, content_type: str, commanders: Iterable[str] = (), unknown_commanders: str | None = None) -> list[str]:
+        commanders = list(commanders)
+        main = [card for card in self.deck_cards if card not in commanders]
+        if 'json' in content_type:
+            data = json.dumps({
+                'main': [{'card': card} for card in main],
+                'commanders': [{'card': card} for card in commanders],
+            })
+        else:
+            data = '\n'.join(main)
+            if commanders:
+                data += '\nCommanders\n' + '\n'.join(commanders)
+        query_params = {} if unknown_commanders is None else {'unknown_commanders': unknown_commanders}
+        response = self.client.post(reverse('estimate-bracket'), data, follow=True, content_type=content_type, query_params=query_params)  # type: ignore
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        result = json.loads(response.content, object_hook=json_to_python_lambda)
+        return [c.combo.id for c in result.combos]
+
+    def test_combo_needing_another_commander_is_not_included(self):
+        for content_type in ['text/plain', 'application/json']:
+            with self.subTest('its commander', content_type=content_type):
+                self.assertIn(self.variant_id, self._combo_ids(content_type, commanders=[self.commander_card]))
+            with self.subTest('another commander', content_type=content_type):
+                self.assertNotIn(self.variant_id, self._combo_ids(content_type, commanders=['A A']))
+            with self.subTest('no commanders', content_type=content_type):
+                self.assertNotIn(self.variant_id, self._combo_ids(content_type))
+            with self.subTest('unknown commanders', content_type=content_type):
+                self.assertIn(self.variant_id, self._combo_ids(content_type, unknown_commanders='true'))

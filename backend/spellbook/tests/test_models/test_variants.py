@@ -200,13 +200,13 @@ class EstimateBracketTests(TestCase):
         self.assertFalse(combo.definitely_two_card)
         self.assertTrue(combo.arguably_two_card)
 
-    def test_must_be_commander_template_is_classified_as_arguable_not_sure(self):
+    def test_command_zone_template_is_classified_as_arguable_not_sure(self):
         sure1 = Card(pk=1, name='Sure One', mana_value=1, legal_commander=True, type_line='Creature', oracle_text='')
         sure2 = Card(pk=2, name='Sure Two', mana_value=1, legal_commander=True, type_line='Creature', oracle_text='')
         template = Template(pk=1, name='Commander Template', scryfall_query='o:test')
         variant, recipe = self._make_recipe(
             cards=[(sure1, 1, False), (sure2, 1, False)],
-            templates=[(template, 1, ZoneLocation.COMMAND_ZONE, True)],
+            templates=[(template, 1, ZoneLocation.COMMAND_ZONE, False)],
         )
         result = estimate_bracket(
             cards={sure1: 1, sure2: 1},
@@ -216,6 +216,25 @@ class EstimateBracketTests(TestCase):
         combo = result.combos[0]
         self.assertFalse(combo.definitely_two_card)
         self.assertTrue(combo.arguably_two_card)
+
+    def test_must_be_commander_card_and_template_are_excluded_entirely(self):
+        sure1 = Card(pk=1, name='Sure One', mana_value=1, legal_commander=True, type_line='Creature', oracle_text='')
+        sure2 = Card(pk=2, name='Sure Two', mana_value=1, legal_commander=True, type_line='Creature', oracle_text='')
+        commander = Card(pk=3, name='Commander Card', mana_value=3, legal_commander=True, type_line='Legendary Creature - Human', oracle_text='')
+        template = Template(pk=1, name='Commander Template', scryfall_query='o:test')
+        for cards, templates in (
+            ([(sure1, 1, False), (sure2, 1, False), (commander, 1, True)], []),
+            ([(sure1, 1, False), (sure2, 1, False)], [(template, 1, ZoneLocation.COMMAND_ZONE, True)]),
+        ):
+            with self.subTest(cards=cards, templates=templates):
+                variant, recipe = self._make_recipe(cards=cards, templates=templates)
+                result = estimate_bracket(
+                    cards={card: quantity for card, quantity, _ in cards},
+                    commanders=None,
+                    included_variants=[(variant, recipe)],
+                )
+                combo = result.combos[0]
+                self.assertTrue(combo.definitely_two_card)
 
     def test_plain_template_is_classified_as_sure(self):
         sure1 = Card(pk=1, name='Sure One', mana_value=1, legal_commander=True, type_line='Creature', oracle_text='')

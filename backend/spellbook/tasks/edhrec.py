@@ -1,17 +1,24 @@
 import json
 from urllib.request import Request, urlopen
+from urllib.error import HTTPError
 from constants import FILES_URL
 from spellbook.models import Variant
 
 
 def edhrec():
     # Old ID -> new ID mapping fetching
-    req = Request(
-        f'{FILES_URL}/variant_id_map.json'
-    )
     variants_id_map = dict[str, str]()
-    with urlopen(req) as response:
-        variants_id_map: dict[str, str] = json.loads(response.read().decode())
+    if FILES_URL:
+        req = Request(
+            f'{FILES_URL}/variant_id_map.json'
+        )
+        try:
+            with urlopen(req) as response:
+                variants_id_map = json.loads(response.read().decode())
+        except HTTPError as e:
+            # S3 answers 403 for a missing object when listing is not allowed
+            if e.code not in (403, 404):
+                raise
     # EDHREC popularity database fetching
     req = Request(
         'https://edhrec.com/data/spellbook_counts.json'

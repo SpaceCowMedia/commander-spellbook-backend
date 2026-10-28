@@ -214,8 +214,14 @@ def never_legal(card_in_db: dict) -> bool:
 
 def spoiler(card_in_db: dict) -> bool:
     '''Whether the card is new and not playable yet, because its set is still to be released or because it
-    is out but legal only from a later date.'''
-    return not card_in_db['reprint'] and (unreleased(card_in_db) or legal_nowhere(card_in_db) and not never_legal(card_in_db))
+    is out but legal only from a later date.
+
+    A card some format already allows is not new, whatever its printing says: Scryfall leaves the reprint
+    flag off some reprints in an unreleased set, as it did on the Star Trek Commander ones. Future Standard
+    is the exception, since it allows a card before its set is out.'''
+    if card_in_db['reprint'] or any(legality in ('legal', 'restricted') for format, legality in card_in_db['legalities'].items() if format != 'future'):
+        return False
+    return unreleased(card_in_db) or legal_nowhere(card_in_db) and not never_legal(card_in_db)
 
 
 def face_field(card_in_db: dict, key: str) -> str:

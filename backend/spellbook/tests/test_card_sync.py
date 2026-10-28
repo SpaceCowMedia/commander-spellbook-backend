@@ -152,6 +152,7 @@ class CardSyncTests(SpellbookTestCaseWithSeeding):
         for reprint in (
             bulk_card('Unreleased Reprint', str(uuid.uuid4()), released_at='2999-01-01', reprint=True),
             bulk_card('Pending Reprint', str(uuid.uuid4()), legalities=NO_LEGALITIES, reprint=True),
+            bulk_card('Unflagged Reprint', str(uuid.uuid4()), released_at='2999-01-01', legalities=NO_LEGALITIES | {'commander': 'legal'}),
         ):
             _, to_create, _ = update_cards(list(Card.objects.order_by()), scryfall_data(reprint), log=lambda t: None, log_warning=lambda t: None, log_error=lambda t: None)
             self.assertFalse(to_create[0].spoiler, reprint['name'])

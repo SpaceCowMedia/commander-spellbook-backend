@@ -14,6 +14,7 @@ from constants import USER_AGENT
 
 
 HEADERS = {'User-Agent': USER_AGENT, 'Accept': 'application/json'}
+DECK_CARD_TYPES = frozenset(('Artifact', 'Battle', 'Creature', 'Enchantment', 'Instant', 'Kindred', 'Land', 'Planeswalker', 'Sorcery'))
 
 
 def standardize_name(name: str) -> str:
@@ -185,16 +186,36 @@ def unreleased(card_in_db: dict) -> bool:
     return datetime.datetime.strptime(card_in_db['released_at'], '%Y-%m-%d').date() > timezone.now().date()
 
 
-def never_legal(card_in_db: dict) -> bool:
-    '''Whether the card is printed to be playable nowhere, the way an acorn stamped or a silver bordered
-    one is, and the way a plane or an emblem is not a deck card to begin with.
+def legal_nowhere(card_in_db: dict) -> bool:
+    '''Whether no format says anything about the card: one that bans or restricts it still counts it as its own.'''
+    return all(legality == 'not_legal' for legality in card_in_db['legalities'].values())
 
-    A format that bans or restricts a card still counts it as one of its own, so only the cards no format
-    says anything about are caught. An unreleased card is not one of them: every format calls it not legal
-    until its set is out, so what it was printed to be is read off its stamp and its border instead.'''
-    if any(legality != 'not_legal' for legality in card_in_db['legalities'].values()):
+
+def never_legal(card_in_db: dict) -> bool:
+    '''Whether the card is printed to be playable nowhere, the way an acorn stamped, a silver bordered or a
+    playtest card is, and the way a token, a plane or a Jumpstart front card is not a deck card to begin with.
+
+    No format allows a new card either until its set is legal, which can be later than its release, so what
+    the card was printed to be is read off the card itself and never off its dates. Cards printed only for
+    digital play are legal as soon as they are out, and Scryfall lists no games at all for some unreleased ones.'''
+    if not legal_nowhere(card_in_db):
         return False
-    return not unreleased(card_in_db) or card_in_db['border_color'] == 'silver' or card_in_db.get('security_stamp') == 'acorn'
+    types = card_in_db['type_line'].split()
+    return any((
+        card_in_db['set_type'] in ('funny', 'memorabilia'),
+        'playtest' in card_in_db.get('promo_types', []),
+        card_in_db.get('security_stamp') == 'acorn',
+        card_in_db['border_color'] == 'silver',
+        card_in_db['games'] != [] and 'paper' not in card_in_db['games'],
+        'Token' in types,
+        DECK_CARD_TYPES.isdisjoint(types),
+    ))
+
+
+def spoiler(card_in_db: dict) -> bool:
+    '''Whether the card is new and not playable yet, because its set is still to be released or because it
+    is out but legal only from a later date.'''
+    return not card_in_db['reprint'] and (unreleased(card_in_db) or legal_nowhere(card_in_db) and not never_legal(card_in_db))
 
 
 def face_field(card_in_db: dict, key: str) -> str:
@@ -212,7 +233,7 @@ def apply_scryfall_fields(card: Card, card_in_db: dict, scryfall: Scryfall):
     oracle_id = card_in_db['oracle_id']
     card.identity = merge_color_identities(card_in_db['color_identity'])
     card.color = merge_color_identities(card_in_db['colors'] if 'colors' in card_in_db else card_in_db['card_faces'][0]['colors'])
-    card.spoiler = not card_in_db['reprint'] and unreleased(card_in_db)
+    card.spoiler = spoiler(card_in_db)
     card.type_line = card_in_db['type_line']
     card.faces = len(card_in_db['card_faces']) if len(card_in_db.get('card_faces', [])) > 1 else 1
     if 'card_faces' in card_in_db:

@@ -42,6 +42,7 @@ def bulk_card(name: str, oracle_id: str, **overrides) -> dict:
         'game_changer': False,
         'legalities': dict(LEGALITIES),
         'set': 'TST',
+        'set_type': 'expansion',
         'games': ['paper'],
         'border_color': 'black',
         'rarity': 'common',
@@ -139,6 +140,22 @@ class CardSyncTests(SpellbookTestCaseWithSeeding):
         self.assertTrue(created.legal_standard_brawl)
         self.assertFalse(created.legal_competitive_brawl)
 
+    def test_a_released_card_no_format_allows_yet_is_a_spoiler(self):
+        pending = bulk_card('Pending Card', str(uuid.uuid4()), legalities=NO_LEGALITIES)
+        _, to_create, _ = update_cards(list(Card.objects.order_by()), scryfall_data(pending), log=lambda t: None, log_warning=lambda t: None, log_error=lambda t: None)
+        created = to_create[0]
+        self.assertTrue(created.spoiler)
+        self.assertTrue(created.legal_commander)
+        self.assertTrue(created.legal_pauper)
+
+    def test_a_reprint_is_never_a_spoiler(self):
+        for reprint in (
+            bulk_card('Unreleased Reprint', str(uuid.uuid4()), released_at='2999-01-01', reprint=True),
+            bulk_card('Pending Reprint', str(uuid.uuid4()), legalities=NO_LEGALITIES, reprint=True),
+        ):
+            _, to_create, _ = update_cards(list(Card.objects.order_by()), scryfall_data(reprint), log=lambda t: None, log_warning=lambda t: None, log_error=lambda t: None)
+            self.assertFalse(to_create[0].spoiler, reprint['name'])
+
 
 class UnplayableCardTests(SpellbookTestCaseWithSeeding):
     '''Cards printed to be legal in no format at all, such as acorn stamped or silver bordered ones.'''
@@ -150,7 +167,11 @@ class UnplayableCardTests(SpellbookTestCaseWithSeeding):
         for unplayable in (
             bulk_card('Silver Bordered Card', str(uuid.uuid4()), legalities=NO_LEGALITIES, border_color='silver'),
             bulk_card('Acorn Stamped Card', str(uuid.uuid4()), legalities=NO_LEGALITIES, security_stamp='acorn'),
-            bulk_card('Playtest Card', str(uuid.uuid4()), legalities=NO_LEGALITIES),
+            bulk_card('Playtest Card', str(uuid.uuid4()), legalities=NO_LEGALITIES, set_type='masters', promo_types=['playtest']),
+            bulk_card('Hero\'s Path Card', str(uuid.uuid4()), legalities=NO_LEGALITIES, set_type='memorabilia', type_line='Sorcery'),
+            bulk_card('Role Card', str(uuid.uuid4()), legalities=NO_LEGALITIES, set_type='masters', type_line='Token Enchantment — Aura Role'),
+            bulk_card('Plane Card', str(uuid.uuid4()), legalities=NO_LEGALITIES, set_type='commander', type_line='Plane — Strixhaven'),
+            bulk_card('Specialized Card', str(uuid.uuid4()), legalities=NO_LEGALITIES, set_type='alchemy', games=['arena']),
         ):
             _, to_create, _ = self.sync(unplayable)
             self.assertEqual(to_create, [], unplayable['name'])
@@ -160,15 +181,17 @@ class UnplayableCardTests(SpellbookTestCaseWithSeeding):
         _, to_create, _ = self.sync(banned)
         self.assertEqual([card.name for card in to_create], ['Banned Everywhere'])
 
-    def test_an_unreleased_card_is_added_unless_its_stamp_or_border_says_otherwise(self):
-        # every format calls an unreleased card not legal, so only its stamp and its border tell it apart
-        spoiled = bulk_card('Spoiled Card', str(uuid.uuid4()), legalities=NO_LEGALITIES, released_at='2999-01-01')
+    def test_an_unreleased_card_is_added_unless_it_is_printed_to_be_playable_nowhere(self):
+        spoiled = bulk_card('Spoiled Card', str(uuid.uuid4()), legalities=NO_LEGALITIES, released_at='2999-01-01', games=[])
         _, to_create, _ = self.sync(spoiled)
         self.assertEqual([card.name for card in to_create], ['Spoiled Card'])
         self.assertTrue(to_create[0].spoiler)
-        spoiled_acorn = bulk_card('Spoiled Acorn Card', str(uuid.uuid4()), legalities=NO_LEGALITIES, released_at='2999-01-01', security_stamp='acorn')
-        _, to_create, _ = self.sync(spoiled_acorn)
-        self.assertEqual(to_create, [])
+        for unplayable in (
+            bulk_card('Spoiled Acorn Card', str(uuid.uuid4()), legalities=NO_LEGALITIES, released_at='2999-01-01', security_stamp='acorn'),
+            bulk_card('Spoiled Token', str(uuid.uuid4()), legalities=NO_LEGALITIES, released_at='2999-01-01', set_type='token', type_line='Token Creature — Spirit'),
+        ):
+            _, to_create, _ = self.sync(unplayable)
+            self.assertEqual(to_create, [], unplayable['name'])
 
     def test_one_an_earlier_run_added_is_removed(self):
         oracle_id = uuid.uuid4()
@@ -233,7 +256,7 @@ class CardDroppedByScryfallTests(SpellbookTestCaseWithSeeding):
 class NameSharedByTwoOracleCardsTests(SpellbookTestCaseWithSeeding):
     '''Two oracle cards printed under one name, as a playtest card and the card later named after it.'''
 
-    playtest = bulk_card('Pick Your Poison', str(uuid.uuid4()), released_at='2021-08-20', legalities=NO_LEGALITIES)
+    playtest = bulk_card('Pick Your Poison', str(uuid.uuid4()), released_at='2021-08-20', legalities=NO_LEGALITIES, set_type='funny', promo_types=['playtest'])
     legal = bulk_card('Pick Your Poison', str(uuid.uuid4()), released_at='2024-02-09')
 
     def test_the_one_a_format_allows_stands_for_the_name(self):
@@ -241,7 +264,7 @@ class NameSharedByTwoOracleCardsTests(SpellbookTestCaseWithSeeding):
             self.assertEqual(cards_by_name(bulk)['pick your poison']['oracle_id'], self.legal['oracle_id'])
 
     def test_a_card_with_faces_takes_a_face_name_from_one_no_format_allows(self):
-        playtest = bulk_card('Start // Fire', str(uuid.uuid4()), released_at='2021-08-20', legalities=NO_LEGALITIES, card_faces=[{'name': 'Start'}, {'name': 'Fire'}])
+        playtest = bulk_card('Start // Fire', str(uuid.uuid4()), released_at='2021-08-20', legalities=NO_LEGALITIES, set_type='funny', promo_types=['playtest'], card_faces=[{'name': 'Start'}, {'name': 'Fire'}])
         legal = bulk_card('Fire // Ice', str(uuid.uuid4()), released_at='2023-01-13', card_faces=[{'name': 'Fire'}, {'name': 'Ice'}])
         for bulk in ([playtest, legal], [legal, playtest]):
             by_name = cards_by_name(bulk)

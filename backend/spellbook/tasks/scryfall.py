@@ -212,16 +212,17 @@ def never_legal(card_in_db: dict) -> bool:
     ))
 
 
+def reprint(card_in_db: dict) -> bool:
+    '''Whether the card was printed before, which Scryfall leaves unflagged on some printings in an unreleased
+    set, as it did on the Star Trek Commander ones: an unreleased card some format already allows has been
+    printed before. Future Standard does not count, since it allows a card before its set is out.'''
+    return card_in_db['reprint'] or unreleased(card_in_db) and any(legality in ('legal', 'restricted') for format, legality in card_in_db['legalities'].items() if format != 'future')
+
+
 def spoiler(card_in_db: dict) -> bool:
     '''Whether the card is new and not playable yet, because its set is still to be released or because it
-    is out but legal only from a later date.
-
-    A card some format already allows is not new, whatever its printing says: Scryfall leaves the reprint
-    flag off some reprints in an unreleased set, as it did on the Star Trek Commander ones. Future Standard
-    is the exception, since it allows a card before its set is out.'''
-    if card_in_db['reprint'] or any(legality in ('legal', 'restricted') for format, legality in card_in_db['legalities'].items() if format != 'future'):
-        return False
-    return unreleased(card_in_db) or legal_nowhere(card_in_db) and not never_legal(card_in_db)
+    is out but legal only from a later date.'''
+    return not reprint(card_in_db) and (unreleased(card_in_db) or legal_nowhere(card_in_db) and not never_legal(card_in_db))
 
 
 def face_field(card_in_db: dict, key: str) -> str:
@@ -312,7 +313,7 @@ def apply_scryfall_fields(card: Card, card_in_db: dict, scryfall: Scryfall):
         p = card_prices['cardmarket']['price'] if card_prices['cardmarket'] is not None and card_prices['cardmarket'].get('price') else 0.0
         card.price_cardmarket = round(Decimal.from_float(p), 2)
     card.latest_printing_set = card_in_db['set'].lower()
-    card.reprinted = card_in_db['reprint']
+    card.reprinted = reprint(card_in_db)
     if card_in_db['image_status'] != 'missing':
         single_face = bool(card_in_db.get('image_uris')) or 'card_faces' not in card_in_db
         front_images: dict[str, str] = card_in_db.get('image_uris', {}) if single_face else card_in_db['card_faces'][0].get('image_uris', {})

@@ -156,6 +156,7 @@ class CardSyncTests(SpellbookTestCaseWithSeeding):
         ):
             _, to_create, _ = update_cards(list(Card.objects.order_by()), scryfall_data(reprint), log=lambda t: None, log_warning=lambda t: None, log_error=lambda t: None)
             self.assertFalse(to_create[0].spoiler, reprint['name'])
+            self.assertTrue(to_create[0].reprinted, reprint['name'])
 
 
 class UnplayableCardTests(SpellbookTestCaseWithSeeding):

@@ -11,7 +11,7 @@ dependencies = [
     "python-dateutil==3.0.0",
     "aiohttp==3.14.5",
     "aiohttp-retry==2.9.1",
-    "pydantic==2.14.1",
+    "pydantic==2.14.2",
 ]
 
 [build-system]

@@ -90,6 +90,7 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
             replacements={},
             producers={},
             sources=[Combo(id=1), Combo(id=2), Combo(id=3)],
+            out_of_replacements=frozenset(),
             initial_states=initial_states,
             overrides=NeededFeatureOverrides(cards={}, templates={}),
         )
@@ -235,7 +236,7 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
             ('Non-legendary face not cut before comma: [[FLDFC#1]]', 'Non-legendary face not cut before comma: Enchanted Front, with Words'),
         ]
         data = Data()
-        context = VariantContext.build(data, replacements, [combo], [])
+        context = VariantContext.build(data, replacements, [combo], [], [])
         for test in tests:
             self.assertEqual(context.apply(test[0], combo.id), test[1])
         # When the used_face field is specified, the placeholder defaults to that half of the name,
@@ -246,7 +247,7 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
             ('Used face is cut before comma as well: [[FLDFC]]', 'Used face is cut before comma as well: The Lord'),
         ]
         for test in face_tests:
-            context = VariantContext.build(data, replacements, [combo], [], IngredientPositions(cards={dfc_card.number: 1, legendary_face_card.number: 2}))
+            context = VariantContext.build(data, replacements, [combo], [], [], IngredientPositions(cards={dfc_card.number: 1, legendary_face_card.number: 2}))
             self.assertEqual(context.apply(test[0], combo.id), test[1])
         # an alias is known only to the text defining it
         self.assertEqual(context.apply('alias defined here: [[FA|XYZ]]', combo.id), 'alias defined here: A A')
@@ -278,7 +279,7 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
             dict([untapper_replacement, landfall_replacement]),
         ):
             with self.subTest(replacements=list(replacements)):
-                context = VariantContext.build(data, replacements, [combo, other_combo], [])
+                context = VariantContext.build(data, replacements, [combo, other_combo], [], [])
                 self.assertEqual(context.apply(text, combo.id), 'Landfall Card then Untapper Card')
                 # The same text renders against the needed features of the combo it belongs to
                 self.assertEqual(context.apply(text, other_combo.id), 'Untapper Card then Landfall Card')
@@ -422,7 +423,7 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
             FeatureWithAttributes(feature, frozenset({untapper.id})): [([untapper_card], [])],
         }
 
-        context = VariantContext.build(Data(), replacements, [combo], [])
+        context = VariantContext.build(Data(), replacements, [combo], [], [])
 
         self.assertEqual(context.apply('[[FDealt$1]] then [[FDealt$2]]', combo.id), 'Untapper Card then Landfall Card')
         self.assertEqual(self.render_zone_locations(context, [untapper_card, landfall_card]), [ZoneLocation.GRAVEYARD, ZoneLocation.HAND])
@@ -437,7 +438,7 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
         for producers, expected in ((cards, [ZoneLocation.GRAVEYARD, ZoneLocation.HAND, both]), (cards[:1], [both])):
             with self.subTest(producers=len(producers)):
                 replacements = {FeatureWithAttributes(feature, frozenset()): [([card], []) for card in producers]}
-                context = VariantContext.build(Data(), replacements, [combo], [])
+                context = VariantContext.build(Data(), replacements, [combo], [], [])
                 self.assertEqual(self.render_zone_locations(context, producers), expected)
 
     def test_a_combo_text_sees_only_the_producers_its_own_rows_accept(self):
@@ -456,7 +457,7 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
             FeatureWithAttributes(feature, frozenset({landfall.id})): [([landfall_card], [])],
         }
 
-        context = VariantContext.build(Data(), replacements, [combo, other_combo], [])
+        context = VariantContext.build(Data(), replacements, [combo, other_combo], [], [])
 
         text = '[[FAsked]], [[FAsked$2]], [[FAsked$Afterlife]]'
         self.assertEqual(context.apply(text, combo.id), 'Landfall Card, [[FAsked$2]], [[FAsked$Afterlife]]')
@@ -1229,10 +1230,10 @@ class TextSourcesTestCase(SpellbookTestCase):
         combo.produces.add(feature)
         return combo
 
-    def make_main(self, feature: Feature, **texts) -> Combo:
+    def make_main(self, feature: Feature, in_replacements: bool = True, **texts) -> Combo:
         combo = Combo.objects.create(status=Combo.Status.GENERATOR, **texts)
         CardInCombo.objects.create(combo=combo, card=self.main_card, order=1, zone_locations=ZoneLocation.HAND)
-        FeatureNeededInCombo.objects.create(combo=combo, feature=feature, order=1)
+        FeatureNeededInCombo.objects.create(combo=combo, feature=feature, order=1, in_replacements=in_replacements)
         combo.produces.add(self.win)
         return combo
 
@@ -1435,6 +1436,113 @@ class FeatureInclusionTests(TextSourcesTestCase):
 
         card_in_variant = Variant.objects.get(of=main).cardinvariant_set.get(card=shared)
         self.assertEqual(card_in_variant.battlefield_card_state, 'in play, untapped and tapped')
+
+
+class OutOfReplacementsTests(TextSourcesTestCase):
+    '''A needed feature row out of replacements keeps the texts of whatever the variant holds only to
+    satisfy it out of the variant, unless a text includes them, while the texts of its own combo still
+    replace and include that feature.'''
+
+    def setUp(self):
+        super().setUp()
+        self.spell = Feature.objects.create(name='IFSpell', status=Feature.Status.PUBLIC_UTILITY)
+        self.untapper = Feature.objects.create(name='IFUntapper', status=Feature.Status.HIDDEN_UTILITY)
+
+    def make_card_producer(self, card_name: str, feature: Feature, **texts) -> Card:
+        card = curated_card(name=card_name, type_line='Sorcery')
+        FeatureOfCard.objects.create(card=card, feature=feature, zone_locations=ZoneLocation.HAND, **texts)
+        return card
+
+    def test_a_card_cast_for_free_writes_none_of_its_texts(self):
+        self.make_card_producer('Free Spell Card', self.spell, mana_needed='{5}{U}{U}', easy_prerequisites='Free Spell Card in hand', notes='a note of the spell')
+        main = self.make_main(self.spell, in_replacements=False, mana_needed='{1}', description='Cast [[IFSpell]] for free.')
+
+        self.generate_variants()
+
+        variant = Variant.objects.get(of=main)
+        self.assertEqual(variant.mana_needed, '{1}')
+        self.assertEqual(variant.easy_prerequisites, '')
+        self.assertEqual(variant.notes, '')
+        self.assertEqual(variant.description, 'Cast Free Spell Card for free.')
+
+    def test_a_producer_out_of_replacements_is_written_where_included(self):
+        self.make_card_producer('Free Spell Card', self.spell, mana_needed='{5}{U}{U}', easy_prerequisites=', with Free Spell Card in hand')
+        main = self.make_main(self.spell, in_replacements=False, easy_prerequisites='Start{{IFSpell}}.')
+
+        self.generate_variants()
+
+        variant = Variant.objects.get(of=main)
+        self.assertEqual(variant.easy_prerequisites, 'Start, with Free Spell Card in hand.')
+        self.assertEqual(variant.mana_needed, '')
+
+    def test_what_a_producer_out_of_replacements_needs_writes_nothing_either(self):
+        producer = self.make_producer('Inclusion Mana Card', self.mana, notes='a note of the producer')
+        FeatureNeededInCombo.objects.create(combo=producer, feature=self.untapper, order=1, in_replacements=False)
+        untapper = self.make_producer('Inclusion Untapper Card', self.untapper, notes='a note of the untapper')
+        FeatureNeededInCombo.objects.create(combo=untapper, feature=self.spell, order=1)
+        self.make_card_producer('Free Spell Card', self.spell, notes='a note of the spell')
+        main = self.make_main(self.mana, notes='a note of the main combo', description='Win with [[IFMana]].')
+
+        self.generate_variants()
+
+        variant = Variant.objects.get(of=main)
+        self.assertEqual(variant.notes, 'a note of the main combo\na note of the producer')
+        self.assertEqual(variant.description, 'Win with Inclusion Mana Card.')
+
+    def test_a_producer_needed_in_replacements_elsewhere_writes_by_default(self):
+        producer = self.make_producer('Inclusion Mana Card', self.mana, notes='a note of the producer')
+        FeatureNeededInCombo.objects.create(combo=producer, feature=self.spell, order=1, in_replacements=False)
+        self.make_card_producer('Free Spell Card', self.spell, notes='a note of the spell')
+        main = self.make_main(self.mana, notes='a note of the main combo')
+        FeatureNeededInCombo.objects.create(combo=main, feature=self.spell, order=2)
+
+        self.generate_variants()
+
+        self.assertEqual(Variant.objects.get(of=main).notes, 'a note of the spell\na note of the main combo\na note of the producer')
+
+    def test_a_producer_of_a_result_writes_by_default(self):
+        '''The variant displays what the producer makes, so it explains how, whatever the row asks.'''
+        infinite = Feature.objects.create(name='IFInfinite', status=Feature.Status.STANDALONE)
+        self.make_producer('Inclusion Infinite Card', infinite, notes='a note of the producer')
+        main = self.make_main(infinite, in_replacements=False, notes='a note of the main combo')
+
+        self.generate_variants()
+
+        self.assertEqual(Variant.objects.get(of=main).notes, 'a note of the main combo\na note of the producer')
+
+    def test_the_mana_left_out_is_not_judged_accurate_or_not(self):
+        self.make_card_producer('Free Spell Card', self.spell, mana_needed='{X}{U} for each copy', is_mana_needed_an_accurate_minimum=False)
+        main = self.make_main(self.spell, in_replacements=False, mana_needed='{1}')
+
+        self.generate_variants()
+
+        variant = Variant.objects.get(of=main)
+        self.assertEqual(variant.mana_needed, '{1}')
+        self.assertTrue(variant.is_mana_needed_an_accurate_minimum)
+
+    def test_an_inclusion_in_a_text_left_out_takes_nothing(self):
+        '''The producer of IFMana is left out, so the untapper text it includes is appended instead.'''
+        producer = self.make_producer('Inclusion Mana Card', self.mana, notes='untap it: {{IFUntapper}}')
+        FeatureNeededInCombo.objects.create(combo=producer, feature=self.untapper, order=1)
+        self.make_card_producer('Inclusion Untapper Card', self.untapper, notes='a note of the untapper')
+        main = self.make_main(self.mana, in_replacements=False, notes='a note of the main combo')
+        FeatureNeededInCombo.objects.create(combo=main, feature=self.untapper, order=2)
+
+        self.generate_variants()
+
+        self.assertEqual(Variant.objects.get(of=main).notes, 'a note of the untapper\na note of the main combo')
+
+    def test_a_card_left_out_still_starts_where_its_feature_asks(self):
+        card = curated_card(name='Milled Spell Card', type_line='Creature - Elf')
+        FeatureOfCard.objects.create(card=card, feature=self.spell, zone_locations=ZoneLocation.GRAVEYARD, graveyard_card_state='milled', notes='a note of the spell')
+        main = self.make_main(self.spell, in_replacements=False)
+
+        self.generate_variants()
+
+        variant = Variant.objects.get(of=main)
+        card_in_variant = variant.cardinvariant_set.get(card=card)
+        self.assertEqual((card_in_variant.zone_locations, card_in_variant.graveyard_card_state), (ZoneLocation.GRAVEYARD, 'milled'))
+        self.assertEqual(variant.notes, '')
 
 
 class LineReferenceTests(TextSourcesTestCase):

@@ -3,7 +3,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from functools import cached_property
 from itertools import count
-from typing import Callable, Generic, Iterable, Iterator, Mapping, Sequence, TypeVar
+from typing import Callable, Collection, Generic, Iterable, Iterator, Mapping, Sequence, TypeVar
 from .variant_data import Data
 from .variant_set import cardid, templateid
 from .combo_graph import FeatureWithAttributes, comboid, featureid
@@ -223,6 +223,44 @@ def produced_features(data: Data, source: TextSource) -> Iterable[tuple[featurei
             for row in data.combo_to_produced_features[source.id]
         ]
     return [(source.feature_id, frozenset(data.feature_of_card_to_attributes[source.id]))]
+
+
+def sources_out_of_replacements(
+    data: Data,
+    sources: Sequence[TextSource],
+    generator_combo_ids: Collection[comboid],
+    reached: Mapping[int, Sequence[SourceIndex]],
+) -> frozenset[SourceIndex]:
+    '''The sources a variant holds only to satisfy needed feature rows out of replacements, which write
+    only where an inclusion names them. A source held for its own sake writes by default, the way the
+    combo graph starts collecting the needed ones: a generator combo, or a source producing a feature
+    that is no utility, or removing one the variant produces. So does every source a row in
+    replacements of a source writing by default reaches.'''
+    results = {
+        feature_id
+        for source in sources
+        for feature_id, _ in produced_features(data, source)
+        if feature_id not in data.utility_features_ids
+    }
+
+    def held_for_its_own_sake(source: TextSource) -> bool:
+        if any(feature_id in results for feature_id, _ in produced_features(data, source)):
+            return True
+        return isinstance(source, Combo) and (source.id in generator_combo_ids or any(row.feature_id in results for row in data.combo_to_removed_features[source.id]))
+
+    writing = {index for index, source in enumerate(sources) if held_for_its_own_sake(source)}
+    to_visit = list(writing)
+    while to_visit:
+        source = sources[to_visit.pop()]
+        if not isinstance(source, Combo):
+            continue
+        for row in data.combo_to_needed_features[source.id]:
+            if row.in_replacements:
+                for producer in reached.get(row.id, ()):
+                    if producer not in writing:
+                        writing.add(producer)
+                        to_visit.append(producer)
+    return frozenset(index for index in range(len(sources)) if index not in writing)
 
 
 def producer_alternatives(data: Data, sources: Sequence[TextSource]) -> dict[FeatureName, list[Alternative[SourceIndex]]]:
@@ -447,7 +485,7 @@ class FieldAssembly:
     An inclusion with nothing to write is deleted instead, so that no variant displays one.
 
     A source listed in only_when_included never writes on its own: its text reaches the field only
-    where an inclusion names it.
+    where an inclusion of a written text names it.
 
     A line reference is replaced with the line of the field that the line it points at landed on, which
     only the whole field knows: every writing of a text marks its own lines, and the field numbers them
@@ -466,8 +504,7 @@ class FieldAssembly:
         return self.merge is join_texts and any(LINE_REFERENCE_PATTERN.search(text) for text in self.texts.values())
 
     def assemble(self) -> str:
-        included = self.included_sources()
-        text = self.write_all((source for source in self.texts if source not in included and source not in self.only_when_included), frozenset())
+        text = self.write_all((source for source in self.texts if source not in self.included_sources and source not in self.only_when_included), frozenset())
         if not self.numbered:
             return text
         landed = {mark[1:-1]: str(number) for number, line in enumerate(text.split('\n'), start=1) for mark in LINE_MARK_PATTERN.findall(line)}
@@ -482,16 +519,27 @@ class FieldAssembly:
         the sole producer of a feature its own text mentions has nothing to write there.'''
         return [other for other in select_in(self.producers, self.combo_ids[source], inclusion['key'], inclusion['selector']) if other != source]
 
-    def included_sources(self) -> set[SourceIndex]:
-        '''Every source named by an inclusion, which is what keeps its text from being appended on its
-        own. Only the texts of combos hold inclusions, and each of them is written somewhere, on its own
-        or where it is included.'''
-        return {
-            other
-            for source, text in self.texts.items()
-            for inclusion in FEATURE_INCLUSION_PATTERN.finditer(text)
-            for other in self.named_by(source, inclusion)
-        }
+    @cached_property
+    def included_sources(self) -> frozenset[SourceIndex]:
+        '''Every source an inclusion of a written text names, which is what keeps its text from being
+        appended on its own. A text is written when its source writes on its own or when it is
+        included, so the inclusions of a text written nowhere name nothing.'''
+        written = [source for source in self.texts if source not in self.only_when_included]
+        included = set[SourceIndex]()
+        while written:
+            source = written.pop()
+            for inclusion in FEATURE_INCLUSION_PATTERN.finditer(self.texts[source]):
+                for other in self.named_by(source, inclusion):
+                    if other not in included:
+                        included.add(other)
+                        if other in self.texts and other in self.only_when_included:
+                            written.append(other)
+        return frozenset(included)
+
+    @cached_property
+    def written_sources(self) -> frozenset[SourceIndex]:
+        '''The sources whose text the field writes, on their own or where they are included.'''
+        return frozenset(source for source in self.texts if source not in self.only_when_included or source in self.included_sources)
 
     def write(self, source: SourceIndex, ancestors: frozenset[SourceIndex]) -> str:
         '''The text of one source, with its inclusions written out in place. A source already being
@@ -548,8 +596,8 @@ class VariantContext:
     The texts come from the sources of the variant, the features of its cards followed by the combos it
     needs, each identified by its position among them. That numbering spans every field, so one context
     is built per variant and reused by all of them, along with everything else derived from the same
-    sources: what replaces a feature name, which sources produce it, what the ingredients start as, and
-    what the needed feature rows ask of them.
+    sources: what replaces a feature name, which sources produce it, which of them are out of
+    replacements, what the ingredients start as, and what the needed feature rows ask of them.
     '''
 
     def __init__(
@@ -558,6 +606,7 @@ class VariantContext:
         replacements: FeatureIndex[Replacement],
         producers: FeatureIndex[SourceIndex],
         sources: Sequence[TextSource],
+        out_of_replacements: frozenset[SourceIndex],
         initial_states: InitialStates,
         overrides: NeededFeatureOverrides,
     ) -> None:
@@ -565,6 +614,7 @@ class VariantContext:
         self.replacements = replacements
         self.producers = producers
         self.sources = sources
+        self.out_of_replacements = out_of_replacements
         self.initial_states = initial_states
         self.overrides = overrides
         self.source_combo_ids = [owning_combo_id(source) for source in sources]
@@ -576,23 +626,26 @@ class VariantContext:
         cls,
         data: Data,
         replacements: Mapping[FeatureWithAttributes, Sequence[Recipe]],
-        needed_combos: Sequence[Combo],
+        generator_combos: Sequence[Combo],
+        other_combos: Sequence[Combo],
         needed_feature_of_cards: Sequence[FeatureOfCard],
         positions: IngredientPositions = IngredientPositions(),
     ) -> 'VariantContext':
         '''Builds the context of a variant from its replacements, its sources and where its ingredients
         are displayed. The states collected for a card give the face it is used by, which is what makes
         a card used by one face show that half of its name.'''
+        needed_combos = [*generator_combos, *other_combos]
         sources: list[TextSource] = [*needed_feature_of_cards, *needed_combos]
         initial_states = InitialStates.collect(data, sources, positions)
         needed_rows = needed_rows_by_feature(data, needed_combos)
         replacement_index, reached = index_of(data, needed_rows, replacement_alternatives(data, replacements, UsedFaces.collect(data, sources, initial_states), positions))
-        producer_index, _ = index_of(data, needed_rows, producer_alternatives(data, sources))
+        producer_index, producers_reached = index_of(data, needed_rows, producer_alternatives(data, sources))
         return cls(
             data=data,
             replacements=replacement_index,
             producers=producer_index,
             sources=sources,
+            out_of_replacements=sources_out_of_replacements(data, sources, {combo.id for combo in generator_combos}, producers_reached),
             initial_states=initial_states,
             overrides=NeededFeatureOverrides.collect(data, needed_combos, reached),
         )
@@ -653,15 +706,21 @@ class VariantContext:
                 join_texts if overriding else join_with_conjunction,
             ))
 
-    def render_field(self, field: str, merge: MergeTexts = join_texts, only_when_included: frozenset[SourceIndex] = frozenset()) -> str:
-        '''Renders one text field of the variant, from what each of its sources wrote for it, in source
-        order. A source with nothing to say writes nothing.'''
-        return self.assemble(
-            {
+    def field_assembly(self, field: str, merge: MergeTexts = join_texts, only_when_included: frozenset[SourceIndex] = frozenset()) -> FieldAssembly:
+        '''One text field of the variant, out of what each of its sources wrote for it, in source order.
+        A source with nothing to say writes nothing, and one out of replacements writes only where it
+        is included.'''
+        return FieldAssembly(
+            producers=self.producers,
+            combo_ids=self.source_combo_ids,
+            texts={
                 index: self.apply(text, combo_id)
                 for index, (source, combo_id) in enumerate(zip(self.sources, self.source_combo_ids))
                 if (text := getattr(source, field, ''))
             },
-            merge,
-            only_when_included,
+            merge=merge,
+            only_when_included=only_when_included | self.out_of_replacements,
         )
+
+    def render_field(self, field: str, merge: MergeTexts = join_texts, only_when_included: frozenset[SourceIndex] = frozenset()) -> str:
+        return self.field_assembly(field, merge, only_when_included).assemble()

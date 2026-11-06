@@ -298,7 +298,6 @@ def _restore_variant(
         required_templates.append(template_in_variant)
     generator_combos = [data.id_to_combo[c_id] for c_id in sorted(variant_def.generator_combos)]
     other_combos = [data.id_to_combo[c_id] for c_id in sorted(variant_def.needed_combos - variant_def.generator_combos)]
-    needed_combos = [*generator_combos, *other_combos]
     needed_feature_of_cards = [data.id_to_feature_of_card[f_id] for f_id in sorted(variant_def.needed_features_of_cards)]
     produces_ids = subtract_features(data, variant_def.needed_combos, variant_def.features)
     produced_features = list[FeatureProducedByVariant]()
@@ -358,17 +357,18 @@ def _restore_variant(
             cards={c.card_id: c.order for c in ordered_uses},
             templates={t.template_id: t.order for t in ordered_requires},
         )
-        context = VariantContext.build(data, replacements, needed_combos, needed_feature_of_cards, positions)
+        context = VariantContext.build(data, replacements, generator_combos, other_combos, needed_feature_of_cards, positions)
 
         ingredients: list[CardInVariant | TemplateInVariant] = [*ordered_uses, *ordered_requires]
         for ingredient in ingredients:
             context.render_ingredient(ingredient)
 
         # The variant text fields come last, in the order the combo admin form displays them
-        variant.mana_needed = context.render_field('mana_needed', merge_mana_costs)
+        mana_needed = context.field_assembly('mana_needed', merge_mana_costs)
+        variant.mana_needed = mana_needed.assemble()
         variant.is_mana_needed_an_accurate_minimum = not variant.mana_needed or all(
-            source.is_mana_needed_an_accurate_minimum
-            for source in context.sources
+            context.sources[source].is_mana_needed_an_accurate_minimum
+            for source in mana_needed.written_sources
         )
         variant.easy_prerequisites = context.render_field('easy_prerequisites')
         variant.notable_prerequisites = context.render_field('notable_prerequisites')

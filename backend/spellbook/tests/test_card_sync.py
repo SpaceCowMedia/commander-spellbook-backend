@@ -152,11 +152,22 @@ class CardSyncTests(SpellbookTestCaseWithSeeding):
         for reprint in (
             bulk_card('Unreleased Reprint', str(uuid.uuid4()), released_at='2999-01-01', reprint=True),
             bulk_card('Pending Reprint', str(uuid.uuid4()), legalities=NO_LEGALITIES, reprint=True),
-            bulk_card('Unflagged Reprint', str(uuid.uuid4()), released_at='2999-01-01', legalities=NO_LEGALITIES | {'commander': 'legal'}),
+            bulk_card('Unflagged Reprint', str(uuid.uuid4()), released_at='2999-01-01'),
         ):
             _, to_create, _ = update_cards(list(Card.objects.order_by()), scryfall_data(reprint), log=lambda t: None, log_warning=lambda t: None, log_error=lambda t: None)
             self.assertFalse(to_create[0].spoiler, reprint['name'])
             self.assertTrue(to_create[0].reprinted, reprint['name'])
+
+    def test_an_unreleased_card_vintage_does_not_allow_yet_is_a_spoiler(self):
+        for new in (
+            bulk_card('Tiny Leaders Card', str(uuid.uuid4()), released_at='2999-01-01', legalities=NO_LEGALITIES | {'future': 'legal', 'tlr': 'legal'}),
+            bulk_card('Promo of a Spoiled Card', str(uuid.uuid4()), released_at='2999-01-01', legalities=NO_LEGALITIES, reprint=True),
+        ):
+            _, to_create, _ = update_cards(list(Card.objects.order_by()), scryfall_data(new), log=lambda t: None, log_warning=lambda t: None, log_error=lambda t: None)
+            created = to_create[0]
+            self.assertTrue(created.spoiler, new['name'])
+            self.assertFalse(created.reprinted, new['name'])
+            self.assertTrue(created.legal_commander, new['name'])
 
 
 class UnplayableCardTests(SpellbookTestCaseWithSeeding):

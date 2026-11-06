@@ -213,10 +213,13 @@ def never_legal(card_in_db: dict) -> bool:
 
 
 def reprint(card_in_db: dict) -> bool:
-    '''Whether the card was printed before, which Scryfall leaves unflagged on some printings in an unreleased
-    set, as it did on the Star Trek Commander ones: an unreleased card some format already allows has been
-    printed before. Future Standard does not count, since it allows a card before its set is out.'''
-    return card_in_db['reprint'] or unreleased(card_in_db) and any(legality in ('legal', 'restricted') for format, legality in card_in_db['legalities'].items() if format != 'future')
+    '''Whether the card was printed before. Scryfall's flag cannot tell for an unreleased printing: it left the
+    flag off the Star Trek Commander reprints, and it sets it on a promo of a card whose own set is not out
+    either. So an unreleased card is a reprint when Vintage already allows it, since Vintage takes in a card
+    only once its set is out, unlike Future Standard and Tiny Leaders, which list the new cards ahead of it.'''
+    if unreleased(card_in_db):
+        return card_in_db['legalities']['vintage'] in ('legal', 'restricted')
+    return card_in_db['reprint']
 
 
 def spoiler(card_in_db: dict) -> bool:

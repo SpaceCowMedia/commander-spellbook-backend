@@ -64,4 +64,4 @@ These are the papers/links to refer for the implementation of an optimized MSM (
 
 ## Considerations
 
-Cython works way better with simple Python code than with over-engineered data structures, so the currently fastest implementation of the MSM is the naive one, which uses a Python set to store the multisets and checks for supersets/subsets using simple loops.
+Cython works way better with simple Python code than with over-engineered data structures, so the MSM stores its multisets in a plain Python set with two indexes on top. Each multiset is indexed under every element it holds, so that its supersets are looked for among the multisets holding its least shared element, and under a single key, the element of it that was least shared when it was added, so that its subsets are looked for among the multisets keyed by its elements. Elements held by every multiset, like the cards a combo always needs, then never make a search go through the whole collection.

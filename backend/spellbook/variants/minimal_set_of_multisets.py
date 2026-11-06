@@ -13,14 +13,18 @@ class MinimalSetOfMultisets:
     It ensures that the stored sets are minimal, meaning that no subset of another set
     in the collection is also present.
 
-    An index from element to the entries containing it keeps subset and superset
-    searches proportional to the entries sharing elements with the probed entry,
-    instead of the whole collection.
+    Every entry is indexed under each of its elements, so that its supersets are found among
+    the entries holding its least shared element, and under a single key, the element of it that
+    was least shared when it was added, so that its subsets are found among the entries keyed by
+    its elements. Elements every entry holds, like the cards a combo always needs, then never make
+    a search go through the whole collection.
     '''
 
-    __slots__ = ('__sets', '__element_to_entries')
+    __slots__ = ('__sets', '__element_to_entries', '__key_to_entries', '__entry_to_key')
     __sets: set[PackedEntry]
     __element_to_entries: dict
+    __key_to_entries: dict
+    __entry_to_key: dict
 
     def __init__(
         self,
@@ -37,6 +41,8 @@ class MinimalSetOfMultisets:
         '''
         self.__sets = set()
         self.__element_to_entries = {}
+        self.__key_to_entries = {}
+        self.__entry_to_key = {}
         if _internal is not None:
             for entry in _internal:
                 self.__sets.add(entry)
@@ -46,12 +52,27 @@ class MinimalSetOfMultisets:
 
     def _index_add(self, entry: PackedEntry):
         element_to_entries = self.__element_to_entries
+        key = None
+        key_sharing = -1
         for element in entry.distinct_elements():
             bucket = element_to_entries.get(element)
             if bucket is None:
                 element_to_entries[element] = {entry}
+                sharing = 0
             else:
+                sharing = len(bucket)
                 bucket.add(entry)
+            if key_sharing < 0 or sharing < key_sharing:
+                key = element
+                key_sharing = sharing
+        if key_sharing < 0:
+            return
+        self.__entry_to_key[entry] = key
+        bucket = self.__key_to_entries.get(key)
+        if bucket is None:
+            self.__key_to_entries[key] = {entry}
+        else:
+            bucket.add(entry)
 
     def _index_remove(self, entry: PackedEntry):
         element_to_entries = self.__element_to_entries
@@ -61,19 +82,12 @@ class MinimalSetOfMultisets:
                 bucket.discard(entry)
                 if not bucket:
                     del element_to_entries[element]
-
-    def _candidates_sharing_elements(self, entry: PackedEntry) -> set:
-        '''
-        Returns the entries in the collection sharing at least one element with the given entry.
-        Every subset and every superset of the entry is among them, except for the empty entry.
-        '''
-        candidates = set()
-        element_to_entries = self.__element_to_entries
-        for element in entry.distinct_elements():
-            bucket = element_to_entries.get(element)
-            if bucket is not None:
-                candidates.update(bucket)
-        return candidates
+        if entry in self.__entry_to_key:
+            key = self.__entry_to_key.pop(entry)
+            bucket = self.__key_to_entries[key]
+            bucket.discard(entry)
+            if not bucket:
+                del self.__key_to_entries[key]
 
     def subtree(self, under: PackedEntry) -> 'MinimalSetOfMultisets':
         '''
@@ -82,9 +96,14 @@ class MinimalSetOfMultisets:
         result = set()
         if _EMPTY_ENTRY in self.__sets:
             result.add(_EMPTY_ENTRY)
-        for entry in self._candidates_sharing_elements(under):
-            if entry.issubset(under):
-                result.add(entry)
+        key_to_entries = self.__key_to_entries
+        entry: PackedEntry
+        for element in under.distinct_elements():
+            bucket = key_to_entries.get(element)
+            if bucket is not None:
+                for entry in bucket:
+                    if entry.issubset(under):
+                        result.add(entry)
         return MinimalSetOfMultisets(_internal=result)
 
     def contains_subset_of(self, aset: PackedEntry) -> bool:
@@ -93,15 +112,36 @@ class MinimalSetOfMultisets:
         '''
         if _EMPTY_ENTRY in self.__sets:
             return True
-        element_to_entries = self.__element_to_entries
+        key_to_entries = self.__key_to_entries
         s: PackedEntry
         for element in aset.distinct_elements():
-            bucket = element_to_entries.get(element)
+            bucket = key_to_entries.get(element)
             if bucket is not None:
                 for s in bucket:
                     if s.issubset(aset):
                         return True
         return False
+
+    def _supersets_of(self, aset: PackedEntry) -> list:
+        '''
+        Returns the sets in the collection that are supersets of the given non-empty set.
+        '''
+        element_to_entries = self.__element_to_entries
+        smallest = None
+        for element in aset.distinct_elements():
+            bucket = element_to_entries.get(element)
+            if bucket is None:
+                return []
+            if smallest is None or len(bucket) < len(smallest):
+                smallest = bucket
+        if smallest is None:
+            return []
+        result = []
+        s: PackedEntry
+        for s in smallest:
+            if aset.issubset(s):
+                result.append(s)
+        return result
 
     def add(self, aset: PackedEntry):
         '''
@@ -115,17 +155,16 @@ class MinimalSetOfMultisets:
         if not aset:
             sets.clear()
             self.__element_to_entries.clear()
+            self.__key_to_entries.clear()
+            self.__entry_to_key.clear()
             sets.add(aset)
             return
-        candidates = self._candidates_sharing_elements(aset)
+        if self.contains_subset_of(aset):
+            return
         s: PackedEntry
-        for s in candidates:
-            if s.issubset(aset):
-                return
-        for s in candidates:
-            if aset.issubset(s):
-                sets.remove(s)
-                self._index_remove(s)
+        for s in self._supersets_of(aset):
+            sets.remove(s)
+            self._index_remove(s)
         sets.add(aset)
         self._index_add(aset)
 
@@ -160,6 +199,8 @@ class MinimalSetOfMultisets:
         result = MinimalSetOfMultisets()
         result.__sets = self.__sets.copy()
         result.__element_to_entries = {element: bucket.copy() for element, bucket in self.__element_to_entries.items()}
+        result.__key_to_entries = {key: bucket.copy() for key, bucket in self.__key_to_entries.items()}
+        result.__entry_to_key = self.__entry_to_key.copy()
         return result
 
     def copy(self):

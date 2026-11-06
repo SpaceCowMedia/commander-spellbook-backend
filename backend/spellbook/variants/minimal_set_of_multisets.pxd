@@ -19,12 +19,15 @@ from spellbook.variants.packed_entry cimport PackedEntry
 cdef class MinimalSetOfMultisets:
     cdef readonly set __sets
     cdef dict __element_to_entries
+    cdef dict __key_to_entries
+    cdef dict __entry_to_key
 
+    @cython.locals(key_sharing=Py_ssize_t, sharing=Py_ssize_t)
     cpdef _index_add(self, PackedEntry entry)
     cpdef _index_remove(self, PackedEntry entry)
-    cpdef set _candidates_sharing_elements(self, PackedEntry entry)
     cpdef MinimalSetOfMultisets subtree(self, PackedEntry under)
     cpdef bint contains_subset_of(self, PackedEntry aset)
+    cpdef list _supersets_of(self, PackedEntry aset)
     cpdef add(self, PackedEntry aset)
     cpdef extend(self, object sets)
     cpdef MinimalSetOfMultisets copy(self)

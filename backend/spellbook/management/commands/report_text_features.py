@@ -18,6 +18,13 @@ class TextFeature:
     needed_by: list[Combo]
 
 
+def texts_of(producer: FeatureOfCard | Combo) -> dict[str, object]:
+    '''The texts a producer carries: every key of the dictionary of a card feature, the text fields of a combo.'''
+    if isinstance(producer, FeatureOfCard):
+        return {key: value for key, value in producer.dictionary.items() if value}
+    return {key: text for key in TEXT_KEYS if (text := getattr(producer, key))}
+
+
 def single_card_combos() -> dict[int, int]:
     '''The card of every combo that is a single card needing nothing else, by combo.'''
     cards = defaultdict[int, list[int]](list)
@@ -60,7 +67,7 @@ def text_features() -> list[TextFeature]:
             *Combo.objects.filter(id__in=list(single), produces=feature_id).order_by('id'),
         ]
         # of two features made by the same cards for the same combos, the one carrying text is the companion
-        if any(getattr(producer, key) for producer in producers for key in TEXT_KEYS):
+        if any(texts_of(producer) for producer in producers):
             result.append(TextFeature(
                 feature=feature,
                 companions=companions,
@@ -80,8 +87,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.MIGRATE_HEADING(f'{feature.name} (feature {feature.id}) carries text for {", ".join(f"{companion.name} (feature {companion.id})" for companion in text_feature.companions)}'))
             for producer in text_feature.producers:
                 producer_name = producer.card.name if isinstance(producer, FeatureOfCard) else f'combo {producer.id}'
-                texts = {key: text for key in TEXT_KEYS if (text := getattr(producer, key))}
-                self.stdout.write(f'  produced by {producer_name}: {texts or "no text"}')
+                self.stdout.write(f'  produced by {producer_name}: {texts_of(producer) or "no text"}')
             for combo in text_feature.needed_by:
                 texts = [getattr(combo, key) for key in TEXT_KEYS]
                 references = sorted({reference[0] for reference in feature_references(texts) if reference['feature'] == feature.name})

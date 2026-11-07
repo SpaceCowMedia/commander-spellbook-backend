@@ -86,7 +86,6 @@ def compute_fingerprints(data: Data) -> Fingerprints:
                 feature_of_card.feature_id,
                 *(getattr(feature_of_card, field) for field in _INGREDIENT_FINGERPRINT_FIELDS),
                 feature_of_card.used_face,
-                *(getattr(feature_of_card, field) for field in _EXPLANATION_FINGERPRINT_FIELDS),
                 tuple(sorted(data.feature_of_card_to_attributes.get(feature_of_card.id, ()))),
                 canonical_dictionary(feature_of_card.dictionary),
             )

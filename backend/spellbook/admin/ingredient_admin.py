@@ -5,7 +5,6 @@ from adminsortable2.admin import SortableTabularInline
 from django.http import HttpRequest
 from spellbook.models import FeatureOfCard, Ingredient
 from spellbook.models.fields import DictionaryField
-from spellbook.models.references import format_feature_reference
 from .utils import DictionaryWidget, SpellbookAdminForm
 
 
@@ -41,30 +40,13 @@ class IngredientAdmin(TabularInline):
     ]
 
 
-class FeatureOfCardForm(IngredientForm):
-    class Meta(IngredientForm.Meta):
-        help_texts = {
-            'description': 'How the card produces the feature. Unlike the other fields, this one is never appended to the description of a variant on its own:'
-            f' it is written only where a text names this feature with the {format_feature_reference("name", key="description")} syntax, so that it lands among the steps that need it.'
-            ' Like every text of a card feature, it cannot reference features itself.',
-        }
-
-
 class FeatureOfCardAdmin(IngredientAdmin):
-    form = FeatureOfCardForm
     related_field: str
     fields = [
         'attributes',
         IngredientAdmin.fields[0],  # pyright: ignore[reportGeneralTypeIssues]
         'used_face',
-        'mana_needed',
-        'is_mana_needed_an_accurate_minimum',
         *IngredientAdmin.fields[1:],
-        'easy_prerequisites',
-        'notable_prerequisites',
-        'description',
-        'notes',
-        'comment',
         'dictionary',
     ]
     model = FeatureOfCard

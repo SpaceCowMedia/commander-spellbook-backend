@@ -175,7 +175,7 @@ class FeatureOfCardTests(SpellbookTestCaseWithSeeding):
         return FeatureOfCard(card_id=self.c1_id, feature_id=self.f2_id, zone_locations=''.join(ZoneLocation.values), **texts)
 
     def test_texts_without_feature_references_are_valid(self):
-        self.feature_of_card(description=f'Tap it.\nRepeat from {format_line_reference(1)}.').full_clean()
+        self.feature_of_card(dictionary={'description': f'Tap it.\nRepeat from {format_line_reference(1)}.'}).full_clean()
 
     def test_a_feature_reference_in_any_text_is_rejected(self):
         for field in FeatureOfCard.text_fields_with_references():

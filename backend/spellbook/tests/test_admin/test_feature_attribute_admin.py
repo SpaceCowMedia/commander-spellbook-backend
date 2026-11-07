@@ -69,7 +69,7 @@ class FeatureAttributeAdminTests(SpellbookTestCaseWithSeeding):
             card_id=self.c2_id,
             feature=feature,
             zone_locations=ZoneLocation.BATTLEFIELD,
-            notable_prerequisites='needs [[Renaming Feature$Old Attribute]]',
+            dictionary={'notable_prerequisites': 'needs [[Renaming Feature$Old Attribute]]'},
         )
         feature_of_card.attributes.add(attribute)
         untouched = Combo.objects.create(status=Combo.Status.UTILITY, description='[[Renaming Feature$Other Attribute]]')
@@ -89,7 +89,7 @@ class FeatureAttributeAdminTests(SpellbookTestCaseWithSeeding):
         feature_in_combo.refresh_from_db()
         self.assertEqual(feature_in_combo.graveyard_card_state, 'below [[Renaming Feature$New Attribute]]')
         feature_of_card.refresh_from_db()
-        self.assertEqual(feature_of_card.notable_prerequisites, 'needs [[Renaming Feature$New Attribute]]')
+        self.assertEqual(feature_of_card.dictionary, {'notable_prerequisites': 'needs [[Renaming Feature$New Attribute]]'})
         untouched.refresh_from_db()
         self.assertEqual(untouched.description, '[[Renaming Feature$Other Attribute]]')
 
@@ -111,7 +111,7 @@ class FeatureAttributeAdminTests(SpellbookTestCaseWithSeeding):
             card_id=self.c2_id,
             feature=feature,
             zone_locations=ZoneLocation.BATTLEFIELD,
-            notable_prerequisites='needs [[Some Feature$Old Attribute]]',
+            dictionary={'notable_prerequisites': 'needs [[Some Feature$Old Attribute]]'},
         )
 
         attribute.name = 'New Attribute'
@@ -122,7 +122,7 @@ class FeatureAttributeAdminTests(SpellbookTestCaseWithSeeding):
         card_in_unrelated_combo.refresh_from_db()
         self.assertEqual(card_in_unrelated_combo.battlefield_card_state, 'next to [[Some Feature$New Attribute]]')
         feature_of_card.refresh_from_db()
-        self.assertEqual(feature_of_card.notable_prerequisites, 'needs [[Some Feature$New Attribute]]')
+        self.assertEqual(feature_of_card.dictionary, {'notable_prerequisites': 'needs [[Some Feature$New Attribute]]'})
 
     def test_rename_from_admin_updates_references(self):
         self.client.force_login(self.admin)

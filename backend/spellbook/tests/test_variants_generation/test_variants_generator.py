@@ -891,7 +891,7 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
         c2.removes.add(self.f1_id)
         c2.produces.add(self.f3_id)
         card = Card.objects.get(number=self.c1_id)
-        card.featureofcard_set.create(feature_id=self.f2_id, zone_locations=ZoneLocation.HAND, mana_needed='{X}{U}{1}', easy_prerequisites='C', notable_prerequisites='C')
+        card.featureofcard_set.create(feature_id=self.f2_id, zone_locations=ZoneLocation.HAND, dictionary={'mana_needed': '{X}{U}{1}', 'easy_prerequisites': 'C', 'notable_prerequisites': 'C'})
         generate_variants(c.id)
         v: Variant = Variant.objects.get(of=c)
         self.assertEqual(v.mana_value_needed, 8)
@@ -900,12 +900,12 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
         self.assertEqual(v.easy_prerequisites, 'C\nA\nB')
         self.assertEqual(v.notable_prerequisites, 'C\nA\nB')
 
-    def generator_needing_a_card_feature(self, **feature_of_card_fields) -> Combo:
-        """A generator combo using the card whose feature carries the given texts, and needing that feature,
-        so that its texts can name it. FB is contextual, so the row producing it is kept in the variant, and
-        the combo produces a standalone feature of its own."""
+    def generator_needing_a_card_feature(self, **texts) -> Combo:
+        """A generator combo using the card whose feature carries the given texts in its dictionary, and
+        needing that feature, so that its texts can name it. FB is contextual, so the row producing it is
+        kept in the variant, and the combo produces a standalone feature of its own."""
         card = Card.objects.get(number=self.c1_id)
-        card.featureofcard_set.create(feature_id=self.f2_id, zone_locations=ZoneLocation.BATTLEFIELD, **feature_of_card_fields)
+        card.featureofcard_set.create(feature_id=self.f2_id, zone_locations=ZoneLocation.BATTLEFIELD, dictionary=texts)
         combo = Combo.objects.create(status=Combo.Status.GENERATOR, **self.combo_fields)
         combo.cardincombo_set.create(card_id=self.c1_id, order=1, zone_locations=ZoneLocation.BATTLEFIELD)
         combo.featureneededincombo_set.create(feature_id=self.f2_id, order=1)
@@ -934,16 +934,11 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
         self.assertEqual(v.notable_prerequisites, 'C\nA')
         self.assertEqual(v.notes, 'C\nA')
 
-    def test_a_card_feature_can_make_the_mana_needed_an_inaccurate_minimum(self):
-        self.combo_fields = {'mana_needed': '{U}', 'is_mana_needed_an_accurate_minimum': True}
-        combo = self.generator_needing_a_card_feature(mana_needed='{U}', is_mana_needed_an_accurate_minimum=False)
-        v: Variant = Variant.objects.get(of=combo)
-        self.assertFalse(v.is_mana_needed_an_accurate_minimum)
-
-    def test_a_card_feature_leaves_an_accurate_minimum_alone(self):
+    def test_the_mana_of_a_card_feature_is_added_and_left_accurate(self):
         self.combo_fields = {'mana_needed': '{U}', 'is_mana_needed_an_accurate_minimum': True}
         combo = self.generator_needing_a_card_feature(mana_needed='{U}')
         v: Variant = Variant.objects.get(of=combo)
+        self.assertEqual(v.mana_needed, '{U}{U}')
         self.assertTrue(v.is_mana_needed_an_accurate_minimum)
 
     def test_a_combo_that_only_removes_a_feature_is_included(self):
@@ -1329,8 +1324,8 @@ class FeatureInclusionTests(TextSourcesTestCase):
             ('Inclusion Step Outlet', '', 'Resolve its ability.'),
         ):
             card = curated_card(name=card_name, type_line='Creature - Bird')
-            card.featureofcard_set.create(feature=outlet_mana, zone_locations=ZoneLocation.BATTLEFIELD, description=mana_description)
-            card.featureofcard_set.create(feature=outlet_step, zone_locations=ZoneLocation.BATTLEFIELD, description=step_description)
+            card.featureofcard_set.create(feature=outlet_mana, zone_locations=ZoneLocation.BATTLEFIELD, dictionary={'description': mana_description})
+            card.featureofcard_set.create(feature=outlet_step, zone_locations=ZoneLocation.BATTLEFIELD, dictionary={'description': step_description})
 
         self.generate_variants()
 
@@ -1373,7 +1368,7 @@ class FeatureInclusionTests(TextSourcesTestCase):
 
     def test_a_card_feature_is_a_producer_of_its_own(self):
         card = curated_card(name='Inclusion Feature Card', type_line='Creature - Elf')
-        FeatureOfCard.objects.create(card=card, feature=self.mana, zone_locations=ZoneLocation.BATTLEFIELD, easy_prerequisites='untap it first')
+        FeatureOfCard.objects.create(card=card, feature=self.mana, zone_locations=ZoneLocation.BATTLEFIELD, dictionary={'easy_prerequisites': 'untap it first'})
         main = self.make_main(self.mana, easy_prerequisites='To start, [[IFMana@easy_prerequisites]].')
 
         self.generate_variants()
@@ -1459,8 +1454,9 @@ class DictionaryTests(TextSourcesTestCase):
         self.untapper = Feature.objects.create(name='IFUntapper', status=Feature.Status.HIDDEN_UTILITY)
 
     def make_card_producer(self, card_name: str, feature: Feature, dictionary: dict | None = None, **texts) -> Card:
+        '''A card producing the feature, whose dictionary holds the given texts under the names of their fields.'''
         card = curated_card(name=card_name, type_line='Sorcery')
-        FeatureOfCard.objects.create(card=card, feature=feature, zone_locations=ZoneLocation.HAND, dictionary=dictionary or {}, **texts)
+        FeatureOfCard.objects.create(card=card, feature=feature, zone_locations=ZoneLocation.HAND, dictionary={**texts, **(dictionary or {})})
         return card
 
     def variant_of(self, main: Combo) -> Variant:
@@ -1517,7 +1513,7 @@ class DictionaryTests(TextSourcesTestCase):
         self.assertEqual(self.variant_of(main).notes, 'a note of the main combo\na note of the producer')
 
     def test_the_mana_left_out_is_not_judged_accurate_or_not(self):
-        self.make_card_producer('Free Spell Card', self.spell, mana_needed='{X}{U} for each copy', is_mana_needed_an_accurate_minimum=False)
+        self.make_producer('Inclusion Mana Card', self.spell, mana_needed='{X}{U} for each copy', is_mana_needed_an_accurate_minimum=False)
         main = self.make_main(self.spell, {'mana_needed': ''}, mana_needed='{1}')
 
         variant = self.variant_of(main)
@@ -1537,7 +1533,7 @@ class DictionaryTests(TextSourcesTestCase):
 
     def test_a_card_left_out_still_starts_where_its_feature_asks(self):
         card = curated_card(name='Milled Spell Card', type_line='Creature - Elf')
-        FeatureOfCard.objects.create(card=card, feature=self.spell, zone_locations=ZoneLocation.GRAVEYARD, graveyard_card_state='milled', notes='a note of the spell')
+        FeatureOfCard.objects.create(card=card, feature=self.spell, zone_locations=ZoneLocation.GRAVEYARD, graveyard_card_state='milled', dictionary={'notes': 'a note of the spell'})
         main = self.make_main(self.spell, {'name': '', **{key: '' for key in TEXT_KEYS}})
 
         variant = self.variant_of(main)

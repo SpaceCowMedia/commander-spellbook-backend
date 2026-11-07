@@ -73,7 +73,10 @@ class DictionaryWidget(Textarea):
             return value
         if not isinstance(parsed, dict) or not all(isinstance(item, str) or isinstance(item, list) and all(isinstance(text, str) for text in item) for item in parsed.values()):
             return value
-        return json.dumps(map_dictionary_texts(parsed, sanitize_newlines_apostrophes_and_quotes), ensure_ascii=False)
+        sanitized = map_dictionary_texts(parsed, sanitize_newlines_apostrophes_and_quotes)
+        if 'mana_needed' in sanitized:
+            sanitized['mana_needed'] = map_dictionary_texts({'mana_needed': sanitized['mana_needed']}, sanitize_mana)['mana_needed']
+        return json.dumps(sanitized, ensure_ascii=False)
 
 
 class SpellbookAdminForm(ModelForm):

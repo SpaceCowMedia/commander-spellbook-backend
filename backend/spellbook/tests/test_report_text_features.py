@@ -17,7 +17,7 @@ class ReportTextFeaturesTests(SpellbookTestCase):
         for name, mana_text in (('Phyrexian Altar', ', adding one mana of any color'), ('Ashnod Altar', ', adding two colorless mana')):
             card = curated_card(name=name, type_line='Artifact')
             FeatureOfCard.objects.create(card=card, feature=self.outlet, zone_locations=ZoneLocation.BATTLEFIELD)
-            FeatureOfCard.objects.create(card=card, feature=self.mana, zone_locations=ZoneLocation.BATTLEFIELD, description=mana_text)
+            FeatureOfCard.objects.create(card=card, feature=self.mana, zone_locations=ZoneLocation.BATTLEFIELD, dictionary={'description': mana_text})
         self.combo = Combo.objects.create(status=Combo.Status.GENERATOR, description='Sacrifice it[[FSO mana@description]].')
         CardInCombo.objects.create(combo=self.combo, card=curated_card(name='Protean Hulk', type_line='Creature'), order=1, zone_locations=ZoneLocation.BATTLEFIELD)
         FeatureNeededInCombo.objects.create(combo=self.combo, feature=self.outlet, order=1)

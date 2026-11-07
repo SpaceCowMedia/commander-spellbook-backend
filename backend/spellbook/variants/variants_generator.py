@@ -366,9 +366,11 @@ def _restore_variant(
         # The variant text fields come last, in the order the combo admin form displays them
         mana_needed = context.field_assembly('mana_needed', merge_mana_costs)
         variant.mana_needed = mana_needed.assemble()
+        # a combo says whether its mana is an accurate minimum, while the mana a dictionary writes is
         variant.is_mana_needed_an_accurate_minimum = not variant.mana_needed or all(
-            context.sources[source].is_mana_needed_an_accurate_minimum
-            for source in mana_needed.written_sources
+            source.is_mana_needed_an_accurate_minimum
+            for index in mana_needed.written_sources
+            if isinstance(source := context.sources[index], Combo)
         )
         variant.easy_prerequisites = context.render_field('easy_prerequisites')
         variant.notable_prerequisites = context.render_field('notable_prerequisites')

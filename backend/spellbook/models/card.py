@@ -14,8 +14,7 @@ from .feature import Feature
 from .fields import DictionaryField, KeywordsField
 from .ingredient import Ingredient
 from .feature_attribute import WithFeatureAttributes
-from .explanation import Explanation
-from .references import dictionary_texts, format_feature_reference, references_to_features_not_needed
+from .references import TEXT_KEYS, dictionary_texts, format_feature_reference, references_to_features_not_needed
 
 
 IMAGE_URI_HELP_TEXT = 'The image format, and with it the file extension, may vary'
@@ -282,13 +281,18 @@ class WithUsedFace(models.Model):
             raise ValidationError({'used_face': f'The used face must be a number between 1 and {card.faces}.'})
 
 
-class FeatureOfCard(Ingredient, Explanation, WithFeatureAttributes, WithUsedFace):
+class FeatureOfCard(Ingredient, WithFeatureAttributes, WithUsedFace):
+    '''A card producing a feature on its own. Besides its name, whatever it provides to the combos
+    needing the feature is in its dictionary, its texts included under the names of the fields of a
+    combo: they reach a variant the way the texts of a combo do, except its description, which is only
+    ever written where a combo references it.'''
     id: int
-    dictionary = DictionaryField(help_text=f'What this card provides when it produces this feature, besides its name and its texts, which are keys of their own: each key maps to a text or a list of texts, which a combo needing the feature writes with the {format_feature_reference("feature", key="key")} syntax.')
-
-    @classmethod
-    def text_fields_with_references(cls) -> list[str]:
-        return [*Ingredient.text_fields_with_references(), *Explanation.text_fields_with_references()]
+    dictionary = DictionaryField(help_text=(
+        'What this card provides when it produces this feature, besides its name: each key maps to a text or a list of texts,'
+        f' which a combo needing the feature writes with the {format_feature_reference("feature", key="key")} syntax.'
+        f' The keys {", ".join(TEXT_KEYS)} are the texts the variants needing it write:'
+        f' each of them is appended to the field of the same name, except the description, written only where a combo references it with {format_feature_reference("feature", key="description")}.'
+    ))
 
     def clean(self):
         '''A feature of a card needs no feature, so its texts cannot reference one: no variant would be
@@ -304,7 +308,7 @@ class FeatureOfCard(Ingredient, Explanation, WithFeatureAttributes, WithUsedFace
             raise ValidationError(errors)
 
     class Meta(Ingredient.Meta):
-        indexes = Ingredient.card_state_trigram_indexes('foc') + Explanation.text_trigram_indexes('foc')
+        indexes = Ingredient.card_state_trigram_indexes('foc')
 
     def __str__(self):
         return f'{self.feature} for card {self.card_id}'

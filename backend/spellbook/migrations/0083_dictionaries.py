@@ -4,9 +4,10 @@ import re
 import django.core.validators
 import spellbook.models.fields
 import spellbook.models.validators
-from django.db import migrations, models
+from django.db import connection, migrations, models
 from django.db.models import Q
 from spellbook.migrations._utils import EXPLANATION_TEXT_FIELDS, LockTables, rewrite_reference_texts
+from spellbook.models.utils import DEFAULT_BATCH_SIZE
 
 # The syntax this migration converts from, kept as it was, and the parts of the one it converts to that
 # it writes or undoes
@@ -69,6 +70,32 @@ def revert_references(apps, schema_editor):
     rewrite_reference_texts(apps, lambda text, combo_id, field: revert_text(text, field))
 
 
+def move_card_feature_texts(apps, schema_editor):
+    '''A card feature provides its texts from its dictionary, under the names of the fields they were
+    in. A key its dictionary already holds overrode the field, and keeps doing so.'''
+    FeatureOfCard = apps.get_model('spellbook', 'FeatureOfCard')
+    with_texts = Q()
+    for field in EXPLANATION_TEXT_FIELDS:
+        with_texts |= ~Q(**{field: ''})
+    changed = []
+    for row in FeatureOfCard.objects.filter(with_texts).only('pk', 'dictionary', *EXPLANATION_TEXT_FIELDS).order_by().iterator(chunk_size=DEFAULT_BATCH_SIZE):
+        row.dictionary = {**{field: text for field in EXPLANATION_TEXT_FIELDS if (text := getattr(row, field))}, **row.dictionary}
+        changed.append(row)
+    FeatureOfCard.objects.bulk_update(changed, ['dictionary'], batch_size=DEFAULT_BATCH_SIZE)
+
+
+def restore_card_feature_texts(apps, schema_editor):
+    FeatureOfCard = apps.get_model('spellbook', 'FeatureOfCard')
+    changed = []
+    for row in FeatureOfCard.objects.exclude(dictionary={}).only('pk', 'dictionary', *EXPLANATION_TEXT_FIELDS).order_by().iterator(chunk_size=DEFAULT_BATCH_SIZE):
+        for field in EXPLANATION_TEXT_FIELDS:
+            value = row.dictionary.pop(field, None)
+            if value is not None:
+                setattr(row, field, value if isinstance(value, str) else '\n'.join(value))
+        changed.append(row)
+    FeatureOfCard.objects.bulk_update(changed, ['dictionary', *EXPLANATION_TEXT_FIELDS], batch_size=DEFAULT_BATCH_SIZE)
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -97,7 +124,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='featureofcard',
             name='dictionary',
-            field=spellbook.models.fields.DictionaryField(blank=True, default=dict, help_text='What this card provides when it produces this feature, besides its name and its texts, which are keys of their own: each key maps to a text or a list of texts, which a combo needing the feature writes with the [[feature@key]] syntax.', validators=[spellbook.models.validators.DictionaryValidator()], verbose_name='dictionary'),
+            field=spellbook.models.fields.DictionaryField(blank=True, default=dict, help_text='What this card provides when it produces this feature, besides its name: each key maps to a text or a list of texts, which a combo needing the feature writes with the [[feature@key]] syntax. The keys mana_needed, easy_prerequisites, notable_prerequisites, description, notes, comment are the texts the variants needing it write: each of them is appended to the field of the same name, except the description, written only where a combo references it with [[feature@description]].', validators=[spellbook.models.validators.DictionaryValidator()], verbose_name='dictionary'),
         ),
         migrations.AddField(
             model_name='featureproducedincombo',
@@ -111,6 +138,62 @@ class Migration(migrations.Migration):
         ),
         migrations.RunPython(convert_flags, reverse_code=revert_flags),
         migrations.RunPython(convert_references, reverse_code=revert_references),
+        migrations.RunPython(move_card_feature_texts, reverse_code=restore_card_feature_texts),
+        # the trigram indexes of the texts exist only on PostgreSQL, like the migrations adding them
+        *([
+            migrations.RemoveIndex(
+                model_name='featureofcard',
+                name='foc_mana_needed_trgm_idx',
+            ),
+            migrations.RemoveIndex(
+                model_name='featureofcard',
+                name='foc_easy_prereq_trgm_idx',
+            ),
+            migrations.RemoveIndex(
+                model_name='featureofcard',
+                name='foc_notable_prereq_trgm_idx',
+            ),
+            migrations.RemoveIndex(
+                model_name='featureofcard',
+                name='foc_description_trgm_idx',
+            ),
+            migrations.RemoveIndex(
+                model_name='featureofcard',
+                name='foc_notes_trgm_idx',
+            ),
+            migrations.RemoveIndex(
+                model_name='featureofcard',
+                name='foc_comment_trgm_idx',
+            ),
+        ] if connection.vendor == 'postgresql' else []),
+        migrations.RemoveField(
+            model_name='featureofcard',
+            name='comment',
+        ),
+        migrations.RemoveField(
+            model_name='featureofcard',
+            name='description',
+        ),
+        migrations.RemoveField(
+            model_name='featureofcard',
+            name='easy_prerequisites',
+        ),
+        migrations.RemoveField(
+            model_name='featureofcard',
+            name='is_mana_needed_an_accurate_minimum',
+        ),
+        migrations.RemoveField(
+            model_name='featureofcard',
+            name='mana_needed',
+        ),
+        migrations.RemoveField(
+            model_name='featureofcard',
+            name='notable_prerequisites',
+        ),
+        migrations.RemoveField(
+            model_name='featureofcard',
+            name='notes',
+        ),
         migrations.RemoveField(
             model_name='cardincombo',
             name='in_replacements',
@@ -250,21 +333,6 @@ class Migration(migrations.Migration):
         ),
         migrations.AlterField(
             model_name='featureofcard',
-            name='comment',
-            field=models.TextField(blank=True, help_text='Notes for the editors, not displayed on the site', validators=[django.core.validators.RegexValidator(message='Unpaired double square brackets are not allowed.', regex='^(?:[^\\[]*(?:\\[(?!\\[)|\\[{2}[^\\[]+\\]{2}|\\[{3,}))*[^\\[]*$'), django.core.validators.RegexValidator(message='Symbols must be in the {1}{W}{U}{B}{R}{G}{B/P}{A}{E}{T}{Q}... format.', regex='^(?:[^\\{]*\\{(?:(?:2\\/[WUBRG]|W\\/U|W\\/B|B\\/R|B\\/G|U\\/B|U\\/R|R\\/G|R\\/W|G\\/W|G\\/U)(?:\\/P)?|CHAOS|PW|TK|[WUBRG](?:\\/P)?|[1-9][0-9]{1,2}|H[WUBRG]|[0-9CPXYZSTQEA½∞])\\})*[^\\{]*$'), django.core.validators.RegexValidator(message='Only ordinary characters are allowed.', regex='^[\\x0A\\x0D\\x20-\\x7E\\x80\\x95\\x99\\xA1\\xA9\\xAE\\xB0\\xB1-\\xB3\\xBC-\\xFF\\u0100-\\u024F\\u0300-\\u036F\\u1E00-\\u1EFF\\u2014\\uA720-\\uA7FF]*$'), spellbook.models.validators.ReferencesValidator()]),
-        ),
-        migrations.AlterField(
-            model_name='featureofcard',
-            name='description',
-            field=models.TextField(blank=True, help_text='Long description, in steps. Here and in every other text field you can reference the features this combo needs with the [[name]] syntax, which writes the names of what produces them. Add a key to write something else they provide: [[name@description]] writes their descriptions, along with the ones of what they need in turn, [[name@mana_needed]] their mana needed, and any key in their dictionaries works the same way, while a key nothing provides writes nothing. A text written in the field of its own name, as a description in this one, is then not appended to it again. Optionally, you can select one of the multiple copies with [[name$number]], where the number counts through the copies this combo needs of that feature, in the order of its needed feature rows, or with [[name$attribute]], where the attribute is the name of one of the attributes the feature was produced with. The dictionary of an ingredient overrides what it brings to the features this combo produces and to its variants: a text replaces, a list adds to a list, and a blank text leaves it out. Give a reference an alias, as in [[name|alias]] or [[name$number|alias]], to repeat it anywhere in the same text as [[!alias]], or with another key as [[!alias@key]]. To mention a step, write [[#+X]] for the line X lines below, [[#-Y]] for the line Y lines above, or [[#Z]] for the Zth line of this text: each variant replaces it with the number that line ends up at.', validators=[django.core.validators.RegexValidator(message='Unpaired double square brackets are not allowed.', regex='^(?:[^\\[]*(?:\\[(?!\\[)|\\[{2}[^\\[]+\\]{2}|\\[{3,}))*[^\\[]*$'), django.core.validators.RegexValidator(message='Symbols must be in the {1}{W}{U}{B}{R}{G}{B/P}{A}{E}{T}{Q}... format.', regex='^(?:[^\\{]*\\{(?:(?:2\\/[WUBRG]|W\\/U|W\\/B|B\\/R|B\\/G|U\\/B|U\\/R|R\\/G|R\\/W|G\\/W|G\\/U)(?:\\/P)?|CHAOS|PW|TK|[WUBRG](?:\\/P)?|[1-9][0-9]{1,2}|H[WUBRG]|[0-9CPXYZSTQEA½∞])\\})*[^\\{]*$'), django.core.validators.RegexValidator(message='Only ordinary characters are allowed.', regex='^[\\x0A\\x0D\\x20-\\x7E\\x80\\x95\\x99\\xA1\\xA9\\xAE\\xB0\\xB1-\\xB3\\xBC-\\xFF\\u0100-\\u024F\\u0300-\\u036F\\u1E00-\\u1EFF\\u2014\\uA720-\\uA7FF]*$'), spellbook.models.validators.ReferencesValidator()]),
-        ),
-        migrations.AlterField(
-            model_name='featureofcard',
-            name='easy_prerequisites',
-            field=models.TextField(blank=True, help_text='Easily achievable prerequisites.', validators=[django.core.validators.RegexValidator(message='Unpaired double square brackets are not allowed.', regex='^(?:[^\\[]*(?:\\[(?!\\[)|\\[{2}[^\\[]+\\]{2}|\\[{3,}))*[^\\[]*$'), django.core.validators.RegexValidator(message='Symbols must be in the {1}{W}{U}{B}{R}{G}{B/P}{A}{E}{T}{Q}... format.', regex='^(?:[^\\{]*\\{(?:(?:2\\/[WUBRG]|W\\/U|W\\/B|B\\/R|B\\/G|U\\/B|U\\/R|R\\/G|R\\/W|G\\/W|G\\/U)(?:\\/P)?|CHAOS|PW|TK|[WUBRG](?:\\/P)?|[1-9][0-9]{1,2}|H[WUBRG]|[0-9CPXYZSTQEA½∞])\\})*[^\\{]*$'), django.core.validators.RegexValidator(message='Only ordinary characters are allowed.', regex='^[\\x0A\\x0D\\x20-\\x7E\\x80\\x95\\x99\\xA1\\xA9\\xAE\\xB0\\xB1-\\xB3\\xBC-\\xFF\\u0100-\\u024F\\u0300-\\u036F\\u1E00-\\u1EFF\\u2014\\uA720-\\uA7FF]*$'), spellbook.models.validators.ReferencesValidator()]),
-        ),
-        migrations.AlterField(
-            model_name='featureofcard',
             name='exile_card_state',
             field=models.CharField(blank=True, help_text='State of the card in exile, if present.', max_length=512, validators=[django.core.validators.RegexValidator(message='Unpaired double square brackets are not allowed.', regex='^(?:[^\\[]*(?:\\[(?!\\[)|\\[{2}[^\\[]+\\]{2}|\\[{3,}))*[^\\[]*$'), django.core.validators.RegexValidator(message='Symbols must be in the {1}{W}{U}{B}{R}{G}{B/P}{A}{E}{T}{Q}... format.', regex='^(?:[^\\{]*\\{(?:(?:2\\/[WUBRG]|W\\/U|W\\/B|B\\/R|B\\/G|U\\/B|U\\/R|R\\/G|R\\/W|G\\/W|G\\/U)(?:\\/P)?|CHAOS|PW|TK|[WUBRG](?:\\/P)?|[1-9][0-9]{1,2}|H[WUBRG]|[0-9CPXYZSTQEA½∞])\\})*[^\\{]*$'), django.core.validators.RegexValidator(message='Only ordinary characters are allowed.', regex='^[\\x0A\\x0D\\x20-\\x7E\\x80\\x95\\x99\\xA1\\xA9\\xAE\\xB0\\xB1-\\xB3\\xBC-\\xFF\\u0100-\\u024F\\u0300-\\u036F\\u1E00-\\u1EFF\\u2014\\uA720-\\uA7FF]*$'), spellbook.models.validators.ReferencesValidator()], verbose_name='exile starting card state'),
         ),
@@ -277,21 +345,6 @@ class Migration(migrations.Migration):
             model_name='featureofcard',
             name='library_card_state',
             field=models.CharField(blank=True, help_text='State of the card in the library, if present.', max_length=512, validators=[django.core.validators.RegexValidator(message='Unpaired double square brackets are not allowed.', regex='^(?:[^\\[]*(?:\\[(?!\\[)|\\[{2}[^\\[]+\\]{2}|\\[{3,}))*[^\\[]*$'), django.core.validators.RegexValidator(message='Symbols must be in the {1}{W}{U}{B}{R}{G}{B/P}{A}{E}{T}{Q}... format.', regex='^(?:[^\\{]*\\{(?:(?:2\\/[WUBRG]|W\\/U|W\\/B|B\\/R|B\\/G|U\\/B|U\\/R|R\\/G|R\\/W|G\\/W|G\\/U)(?:\\/P)?|CHAOS|PW|TK|[WUBRG](?:\\/P)?|[1-9][0-9]{1,2}|H[WUBRG]|[0-9CPXYZSTQEA½∞])\\})*[^\\{]*$'), django.core.validators.RegexValidator(message='Only ordinary characters are allowed.', regex='^[\\x0A\\x0D\\x20-\\x7E\\x80\\x95\\x99\\xA1\\xA9\\xAE\\xB0\\xB1-\\xB3\\xBC-\\xFF\\u0100-\\u024F\\u0300-\\u036F\\u1E00-\\u1EFF\\u2014\\uA720-\\uA7FF]*$'), spellbook.models.validators.ReferencesValidator()], verbose_name='library starting card state'),
-        ),
-        migrations.AlterField(
-            model_name='featureofcard',
-            name='mana_needed',
-            field=models.CharField(blank=True, help_text='Mana needed. Use the {1}{W}{U}{B}{R}{G}{B/P}... format.', max_length=512, validators=[django.core.validators.RegexValidator(message='Mana needed must be in the {1}{W}{U}{B}{R}{G}{B/P}... format, and must start with mana symbols, but can contain normal text later.', regex='^(?:(?:\\{(?:C\\/[WUBRG]|[WUBRG](?:\\/P)?|[0-9CPXYZS∞]|[1-9][0-9]{1,2}|(?:2\\/[WUBRG]|W\\/U|W\\/B|U\\/B|U\\/R|B\\/R|B\\/G|R\\/G|R\\/W|G\\/W|G\\/U)(?:\\/P)?)\\})[^\\{\\}]*)*$'), django.core.validators.RegexValidator(message='Unpaired double square brackets are not allowed.', regex='^(?:[^\\[]*(?:\\[(?!\\[)|\\[{2}[^\\[]+\\]{2}|\\[{3,}))*[^\\[]*$'), django.core.validators.RegexValidator(message='Symbols must be in the {1}{W}{U}{B}{R}{G}{B/P}{A}{E}{T}{Q}... format.', regex='^(?:[^\\{]*\\{(?:(?:2\\/[WUBRG]|W\\/U|W\\/B|B\\/R|B\\/G|U\\/B|U\\/R|R\\/G|R\\/W|G\\/W|G\\/U)(?:\\/P)?|CHAOS|PW|TK|[WUBRG](?:\\/P)?|[1-9][0-9]{1,2}|H[WUBRG]|[0-9CPXYZSTQEA½∞])\\})*[^\\{]*$'), django.core.validators.RegexValidator(message='Only ordinary characters are allowed.', regex='^[\\x0A\\x0D\\x20-\\x7E\\x80\\x95\\x99\\xA1\\xA9\\xAE\\xB0\\xB1-\\xB3\\xBC-\\xFF\\u0100-\\u024F\\u0300-\\u036F\\u1E00-\\u1EFF\\u2014\\uA720-\\uA7FF]*$'), spellbook.models.validators.ReferencesValidator()]),
-        ),
-        migrations.AlterField(
-            model_name='featureofcard',
-            name='notable_prerequisites',
-            field=models.TextField(blank=True, help_text='Notable prerequisites.', validators=[django.core.validators.RegexValidator(message='Unpaired double square brackets are not allowed.', regex='^(?:[^\\[]*(?:\\[(?!\\[)|\\[{2}[^\\[]+\\]{2}|\\[{3,}))*[^\\[]*$'), django.core.validators.RegexValidator(message='Symbols must be in the {1}{W}{U}{B}{R}{G}{B/P}{A}{E}{T}{Q}... format.', regex='^(?:[^\\{]*\\{(?:(?:2\\/[WUBRG]|W\\/U|W\\/B|B\\/R|B\\/G|U\\/B|U\\/R|R\\/G|R\\/W|G\\/W|G\\/U)(?:\\/P)?|CHAOS|PW|TK|[WUBRG](?:\\/P)?|[1-9][0-9]{1,2}|H[WUBRG]|[0-9CPXYZSTQEA½∞])\\})*[^\\{]*$'), django.core.validators.RegexValidator(message='Only ordinary characters are allowed.', regex='^[\\x0A\\x0D\\x20-\\x7E\\x80\\x95\\x99\\xA1\\xA9\\xAE\\xB0\\xB1-\\xB3\\xBC-\\xFF\\u0100-\\u024F\\u0300-\\u036F\\u1E00-\\u1EFF\\u2014\\uA720-\\uA7FF]*$'), spellbook.models.validators.ReferencesValidator()]),
-        ),
-        migrations.AlterField(
-            model_name='featureofcard',
-            name='notes',
-            field=models.TextField(blank=True, help_text='Notes that will be displayed on the site', validators=[django.core.validators.RegexValidator(message='Unpaired double square brackets are not allowed.', regex='^(?:[^\\[]*(?:\\[(?!\\[)|\\[{2}[^\\[]+\\]{2}|\\[{3,}))*[^\\[]*$'), django.core.validators.RegexValidator(message='Symbols must be in the {1}{W}{U}{B}{R}{G}{B/P}{A}{E}{T}{Q}... format.', regex='^(?:[^\\{]*\\{(?:(?:2\\/[WUBRG]|W\\/U|W\\/B|B\\/R|B\\/G|U\\/B|U\\/R|R\\/G|R\\/W|G\\/W|G\\/U)(?:\\/P)?|CHAOS|PW|TK|[WUBRG](?:\\/P)?|[1-9][0-9]{1,2}|H[WUBRG]|[0-9CPXYZSTQEA½∞])\\})*[^\\{]*$'), django.core.validators.RegexValidator(message='Only ordinary characters are allowed.', regex='^[\\x0A\\x0D\\x20-\\x7E\\x80\\x95\\x99\\xA1\\xA9\\xAE\\xB0\\xB1-\\xB3\\xBC-\\xFF\\u0100-\\u024F\\u0300-\\u036F\\u1E00-\\u1EFF\\u2014\\uA720-\\uA7FF]*$'), spellbook.models.validators.ReferencesValidator()]),
         ),
         migrations.AlterField(
             model_name='featureproducedinvariantsuggestion',

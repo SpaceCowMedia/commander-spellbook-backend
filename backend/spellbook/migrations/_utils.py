@@ -324,6 +324,8 @@ def rewrite_reference_texts(apps, rewrite: Callable[[str, int | None, str], str]
         ('FeatureOfCard', CARD_STATE_TEXT_FIELDS + EXPLANATION_TEXT_FIELDS, None),
     ):
         model = apps.get_model('spellbook', model_name)
+        # the texts of a card feature moved into its dictionary in 0083
+        fields = tuple(field for field in fields if field in {model_field.name for model_field in model._meta.get_fields()})
         with_references = Q()
         for field in fields:
             with_references |= Q(**{f'{field}__contains': '[['}) | Q(**{f'{field}__contains': '{{'})

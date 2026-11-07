@@ -1,0 +1,8 @@
+{
+  "name": "run-backend-driver",
+  "private": true,
+  "description": "Drives the backend admin in a real browser for agents",
+  "dependencies": {
+    "playwright-core": "1.48.2"
+  }
+}

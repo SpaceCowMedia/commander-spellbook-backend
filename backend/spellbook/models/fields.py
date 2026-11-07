@@ -50,3 +50,36 @@ class KeywordsField(JSONField):
                 **kwargs,
             }
         )
+
+
+DICTIONARY_EMPTY_VALUES = [value for value in EMPTY_VALUES if not isinstance(value, dict)]
+
+
+class DictionaryFormField(JSONFormField):
+    empty_values = DICTIONARY_EMPTY_VALUES
+
+    def to_python(self, value):
+        value = super().to_python(value)
+        return {} if value is None else value
+
+
+class DictionaryField(JSONField):
+    '''A mapping of keys to a text or a list of texts stored as JSON, which the texts of a combo read
+    with the [[feature@key]] syntax. An empty mapping is a valid value rather than a blank one.'''
+    empty_values = DICTIONARY_EMPTY_VALUES
+
+    def __init__(self, *args, **kwargs):
+        from .validators import DICTIONARY_VALIDATOR
+        kwargs.setdefault('default', dict)
+        kwargs.setdefault('blank', True)
+        kwargs.setdefault('verbose_name', 'dictionary')
+        kwargs.setdefault('validators', [DICTIONARY_VALIDATOR])
+        super().__init__(*args, **kwargs)
+
+    def formfield(self, **kwargs):
+        return super().formfield(
+            **{
+                'form_class': DictionaryFormField,
+                **kwargs,
+            }
+        )

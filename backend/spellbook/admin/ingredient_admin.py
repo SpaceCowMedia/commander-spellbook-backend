@@ -4,8 +4,9 @@ from django.forms import TextInput, Textarea
 from adminsortable2.admin import SortableTabularInline
 from django.http import HttpRequest
 from spellbook.models import FeatureOfCard, Ingredient
-from spellbook.models.references import format_feature_inclusion
-from .utils import SpellbookAdminForm
+from spellbook.models.fields import DictionaryField
+from spellbook.models.references import format_feature_reference
+from .utils import DictionaryWidget, SpellbookAdminForm
 
 
 def _textarea():
@@ -29,6 +30,9 @@ class IngredientAdmin(TabularInline):
     form = IngredientForm
     extra = 0
     classes = ['ingredient']
+    formfield_overrides = {
+        DictionaryField: {'widget': DictionaryWidget},
+    }
     fields = [
         'quantity',
         'zone_locations',
@@ -41,7 +45,7 @@ class FeatureOfCardForm(IngredientForm):
     class Meta(IngredientForm.Meta):
         help_texts = {
             'description': 'How the card produces the feature. Unlike the other fields, this one is never appended to the description of a variant on its own:'
-            f' it is written only where a text names this feature with the {format_feature_inclusion("name")} syntax, so that it lands among the steps that need it.'
+            f' it is written only where a text names this feature with the {format_feature_reference("name", key="description")} syntax, so that it lands among the steps that need it.'
             ' Like every text of a card feature, it cannot reference features itself.',
         }
 
@@ -61,10 +65,12 @@ class FeatureOfCardAdmin(IngredientAdmin):
         'description',
         'notes',
         'comment',
+        'dictionary',
     ]
     model = FeatureOfCard
     autocomplete_fields = ['attributes']
     formfield_overrides = {
+        **IngredientAdmin.formfield_overrides,
         CharField: {'widget': TextInput(attrs={'size': '12'})},
         TextField: {'widget': _textarea()},
     }
@@ -81,4 +87,4 @@ class OrderedIngredientAdmin(IngredientAdmin, SortableTabularInline):
 
 
 class ComboIngredientAdmin(OrderedIngredientAdmin):
-    fields = [*OrderedIngredientAdmin.fields, 'in_replacements']
+    fields = [*OrderedIngredientAdmin.fields, 'dictionary']

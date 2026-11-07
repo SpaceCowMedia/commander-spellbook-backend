@@ -22,9 +22,6 @@ from spellbook.variants.variant_data cimport Data
 cdef class Node:
     cdef VariantSet _variant_set
     cdef VariantSet _filtered_variant_set
-    cdef VariantSet _replacement_variant_set
-    cdef VariantSet _filtered_replacement_variant_set
-    cdef public bint replacements_differ
     cdef Graph _graph
     cdef readonly object item
     cdef Py_hash_t _hash
@@ -34,7 +31,6 @@ cdef class Node:
     cpdef _reset_state(self)
     cpdef _reset_subgraph_state(self)
     cpdef _reset_filtered_variant_set(self)
-    cpdef _reset_filtered_replacement_variant_set(self)
 
 
 cdef class NodeWithState(Node):
@@ -79,9 +75,6 @@ cdef class ComboNode(NodeWithState):
     cdef readonly list features_produced
     cdef readonly list countable_features_produced
     cdef readonly PackedEntry entry
-    cdef readonly Multiset cards_for_replacements
-    cdef readonly Multiset templates_for_replacements
-    cdef readonly dict features_needed_for_replacements
 
 
 cpdef bint satisfies(object produced, object needed)
@@ -100,9 +93,7 @@ cdef class Graph:
     cdef set _to_reset_nodes_state
     cdef set _to_reset_nodes_subgraph_state
     cdef set _to_reset_nodes_filtered_variant_set
-    cdef set _to_reset_nodes_filtered_replacement_variant_set
 
-    cpdef _mark_nodes_with_differing_replacements(self)
     cpdef _reset(self)
     cpdef list results(self, VariantSet variant_set)
     cpdef VariantSet _variant_and(self, ComboNode combo, VariantSet left, VariantSet right)

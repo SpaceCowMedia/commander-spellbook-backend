@@ -1,3 +1,4 @@
+import json
 from typing import Any, Iterable
 from datetime import datetime
 from django.db.models import Model, TextField, DateTimeField, Count, Q, When, Case, Max
@@ -20,6 +21,7 @@ from constants import SORTED_COLORS
 from adminsortable2.admin import SortableAdminBase
 from spellbook.variants.variants_generator import DEFAULT_CARD_LIMIT
 from spellbook.models.utils import sanitize_newlines_apostrophes_and_quotes, sanitize_mana, sanitize_scryfall_query
+from spellbook.models.references import map_dictionary_texts
 
 
 MESSAGE_LIST_LIMIT = 10
@@ -42,6 +44,36 @@ class NormalizedTextareaWidget(Textarea):
     def value_from_datadict(self, data, files, name: str):
         s = super().value_from_datadict(data, files, name)
         return sanitize_newlines_apostrophes_and_quotes(s)
+
+
+class DictionaryWidget(Textarea):
+    '''A dictionary shown as a summary of its keys, which opens an editor of its keys and values, or of
+    the whole of it as YAML or JSON. The JSON it holds is submitted as it is, its texts normalized the way
+    the other texts of the admin are.'''
+    template_name = 'admin/spellbook/widgets/dictionary.html'
+
+    class Media:
+        js = ['admin/js/js-yaml/4.1.0/js-yaml.min.js', 'admin/js/dictionary_editor.js']
+        css = {'all': ['admin/css/dictionary_editor.css']}
+
+    def get_context(self, name, value, attrs):
+        context = super().get_context(name, value, attrs)
+        try:
+            parsed = json.loads(context['widget']['value'] or '{}')
+        except ValueError:
+            parsed = None
+        context['widget']['keys'] = list(parsed) if isinstance(parsed, dict) else None
+        return context
+
+    def value_from_datadict(self, data, files, name: str):
+        value = super().value_from_datadict(data, files, name)
+        try:
+            parsed = json.loads(value)
+        except (TypeError, ValueError):
+            return value
+        if not isinstance(parsed, dict) or not all(isinstance(item, str) or isinstance(item, list) and all(isinstance(text, str) for text in item) for item in parsed.values()):
+            return value
+        return json.dumps(map_dictionary_texts(parsed, sanitize_newlines_apostrophes_and_quotes), ensure_ascii=False)
 
 
 class SpellbookAdminForm(ModelForm):

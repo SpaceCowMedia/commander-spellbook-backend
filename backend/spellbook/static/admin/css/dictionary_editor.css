@@ -1,0 +1,173 @@
+/* the value of the field, opening its editor the way the admin marks what can be changed */
+.dictionary-summary {
+    display: inline-block;
+    max-width: 14em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: middle;
+    padding: 5px 6px 5px 26px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--body-bg) url(../img/icon-changelink.svg) 6px 50% / 14px no-repeat;
+    color: var(--body-fg);
+    cursor: pointer;
+    font-size: 0.8125rem;
+    font-family: inherit;
+}
+
+.dictionary-summary:hover, .dictionary-summary:focus {
+    border-color: var(--body-quiet-color);
+}
+
+.dictionary-empty {
+    color: var(--body-quiet-color);
+}
+
+.dictionary-invalid {
+    border-color: var(--error-fg);
+    color: var(--error-fg);
+}
+
+.dictionary-dialog {
+    width: min(48rem, 95vw);
+    max-height: 90vh;
+    padding: 0;
+    border: 1px solid var(--hairline-color);
+    border-radius: 4px;
+    background: var(--body-bg);
+    color: var(--body-fg);
+}
+
+.dictionary-dialog::backdrop {
+    background: rgba(0, 0, 0, 0.4);
+}
+
+/* a module of the admin: its header, then its content */
+.dictionary-dialog h2 {
+    margin: 0;
+    padding: 8px 12px;
+    background: var(--header-bg);
+    color: var(--header-link-color);
+    font-size: 0.8125rem;
+    font-weight: 400;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.dictionary-dialog > :not(h2):not(datalist) {
+    margin-left: 16px;
+    margin-right: 16px;
+}
+
+.dictionary-help {
+    margin-top: 12px;
+    margin-bottom: 12px;
+    color: var(--body-quiet-color);
+    font-size: 0.8125rem;
+}
+
+.dictionary-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.dictionary-tab {
+    padding: 6px 14px;
+}
+
+.dictionary-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--hairline-color);
+}
+
+.dictionary-key {
+    flex: 0 1 11em;
+    min-width: 6em;
+}
+
+.dictionary-texts {
+    display: flex;
+    flex: 1 1 18em;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.dictionary-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+}
+
+.dictionary-text {
+    flex: 1;
+    min-width: 0;
+    resize: vertical;
+}
+
+.dictionary-listed {
+    white-space: nowrap;
+}
+
+/* the one of widgets.css, which not every change view loads */
+.dictionary-dialog .inline-deletelink {
+    display: inline-block;
+    flex: none;
+    width: 16px;
+    height: 16px;
+    margin-top: 6px;
+    text-indent: -9999px;
+    overflow: hidden;
+    background: url(../img/inline-delete.svg) 0 0 no-repeat;
+}
+
+.dictionary-add {
+    display: inline-block;
+    margin-top: 10px;
+}
+
+.dictionary-add-item {
+    align-self: flex-start;
+}
+
+.dictionary-panel-yaml textarea, .dictionary-panel-json textarea {
+    box-sizing: border-box;
+    width: 100%;
+    font-family: var(--font-family-monospace);
+    resize: vertical;
+}
+
+.dictionary-problem {
+    margin-top: 10px;
+    margin-bottom: 0;
+}
+
+/* the admin displays every error note, hidden or not */
+.dictionary-problem[hidden] {
+    display: none;
+}
+
+/* a submit row of the admin */
+.dictionary-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin: 14px 0 0 0 !important;
+    padding: 12px 16px;
+    background: var(--darkened-bg);
+    border-top: 1px solid var(--hairline-color);
+}
+
+.dictionary-cancel {
+    background: var(--close-button-bg);
+}
+
+.dictionary-cancel:active, .dictionary-cancel:focus, .dictionary-cancel:hover {
+    background: var(--close-button-hover-bg);
+}

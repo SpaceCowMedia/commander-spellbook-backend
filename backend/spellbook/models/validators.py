@@ -3,8 +3,8 @@ from typing import Any, Callable
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from django.utils.deconstruct import deconstructible
-from ..regexs import URL_REGEX, FIRST_CAPITAL_LETTER_REGEX, FIRST_CAPITAL_LETTER_OR_DIGIT_REGEX, NO_TRAILING_PUNCTUATION_REGEX, MANA_REGEX, DOUBLE_SQUARE_BRACKET_TEXT_REGEX, DOUBLE_CURLY_BRACKET_TEXT_REGEX, SYMBOLS_TEXT_REGEX, ORDINARY_CHARACTERS_REGEX
-from .references import ALIAS_USE_PATTERN, FEATURE_INCLUSION_PATTERN, FEATURE_REPLACEMENT_PATTERN, LINE_REFERENCE_PATTERN, REFERENCE_PATTERN, REFERENCE_PREFIX_REGEX, REFERENCE_PREFIXES, RESERVED_CHARACTERS, RESERVED_CHARACTERS_REGEX, format_alias_inclusion, format_alias_replacement, format_feature_inclusion, format_feature_replacement, format_line_reference, referenced_line
+from ..regexs import URL_REGEX, FIRST_CAPITAL_LETTER_REGEX, FIRST_CAPITAL_LETTER_OR_DIGIT_REGEX, NO_TRAILING_PUNCTUATION_REGEX, MANA_REGEX, DOUBLE_SQUARE_BRACKET_TEXT_REGEX, SYMBOLS_TEXT_REGEX, ORDINARY_CHARACTERS_REGEX
+from .references import ALIAS_REFERENCE_PATTERN, ATTRIBUTE_NAME_RESERVED_CHARACTERS, ATTRIBUTE_NAME_RESERVED_CHARACTERS_REGEX, CARD_STATE_KEYS, FEATURE_NAME_RESERVED_CHARACTERS, FEATURE_NAME_RESERVED_CHARACTERS_REGEX, FEATURE_REFERENCE_PATTERN, LINE_REFERENCE_PATTERN, REFERENCE_PATTERN, RESERVED_CHARACTERS, RESERVED_CHARACTERS_REGEX, TEXT_KEYS, expand_aliases, feature_references, format_alias_reference, format_feature_reference, format_line_reference, key_of, referenced_line
 from ..parsers.scryfall_query_grammar import SCRYFALL_GRAMMAR, VARIABLES_SUPPORTED
 from ..parsers.lark_validator import LarkGrammarValidator
 from ..parsers.safe_regex import MAX_REGEX_LENGTH, validate_query_regexes
@@ -15,21 +15,21 @@ FIRST_CAPITAL_LETTER_VALIDATOR = RegexValidator(regex=FIRST_CAPITAL_LETTER_REGEX
 
 FIRST_CAPITAL_LETTER_OR_DIGIT_VALIDATOR = RegexValidator(regex=FIRST_CAPITAL_LETTER_OR_DIGIT_REGEX, message='Must start with a capital letter or a digit.')
 
-NO_REFERENCE_PREFIX_VALIDATOR = RegexValidator(regex=REFERENCE_PREFIX_REGEX, inverse_match=True, message=f'Must not start with {" or ".join(REFERENCE_PREFIXES)}, which begin aliases and line references.')
-
 NO_TRAILING_PUNCTUATION_VALIDATOR = RegexValidator(regex=NO_TRAILING_PUNCTUATION_REGEX, message='Must not end with punctuation.')
 
 MANA_VALIDATOR = RegexValidator(regex=MANA_REGEX, message='Mana needed must be in the {1}{W}{U}{B}{R}{G}{B/P}... format, and must start with mana symbols, but can contain normal text later.')
 
 DOUBLE_SQUARE_BRACKET_TEXT_VALIDATOR = RegexValidator(regex=DOUBLE_SQUARE_BRACKET_TEXT_REGEX, message='Unpaired double square brackets are not allowed.')
 
-DOUBLE_CURLY_BRACKET_TEXT_VALIDATOR = RegexValidator(regex=DOUBLE_CURLY_BRACKET_TEXT_REGEX, message='Unpaired double curly brackets are not allowed.')
-
 SYMBOLS_TEXT_VALIDATOR = RegexValidator(regex=SYMBOLS_TEXT_REGEX, message='Symbols must be in the {1}{W}{U}{B}{R}{G}{B/P}{A}{E}{T}{Q}... format.')
 
 ORDINARY_CHARACTERS_VALIDATOR = RegexValidator(regex=ORDINARY_CHARACTERS_REGEX, message='Only ordinary characters are allowed.')
 
 NO_RESERVED_CHARACTERS_VALIDATOR = RegexValidator(regex=RESERVED_CHARACTERS_REGEX, inverse_match=True, message=f'Reserved characters are not allowed. Examples of reserved characters: {", ".join(RESERVED_CHARACTERS)}.')
+
+NO_FEATURE_NAME_RESERVED_CHARACTERS_VALIDATOR = RegexValidator(regex=FEATURE_NAME_RESERVED_CHARACTERS_REGEX, inverse_match=True, message=f'Must not contain {" ".join(FEATURE_NAME_RESERVED_CHARACTERS)}, which delimit the parts of a reference.')
+
+NO_ATTRIBUTE_NAME_RESERVED_CHARACTERS_VALIDATOR = RegexValidator(regex=ATTRIBUTE_NAME_RESERVED_CHARACTERS_REGEX, inverse_match=True, message=f'Must not contain {" ".join(ATTRIBUTE_NAME_RESERVED_CHARACTERS)}, which delimit the parts of a reference.')
 
 
 @deconstructible
@@ -38,21 +38,21 @@ class ReferencesValidator:
     being defined once in the same text, or a line reference pointing at a line the text does not have.'''
     code = 'invalid'
     syntax = (
-        f'Write a feature as {format_feature_replacement("feature", "face", "selector", "alias")} or {format_feature_inclusion("feature", "selector")},'
+        f'Write a feature as {format_feature_reference("feature", "face", "selector", "key", "alias")},'
         ' where only the feature is required, an alias the same text defines as'
-        f' {format_alias_replacement("alias")} or {format_alias_inclusion("alias")},'
+        f' {format_alias_reference("alias")} or {format_alias_reference("alias", key="key")},'
         f' and a line as {format_line_reference(3)}, {format_line_reference(2, "+")} or {format_line_reference(1, "-")}.'
     )
 
     def __call__(self, value: str) -> None:
-        defined = Counter(match['alias'] for match in FEATURE_REPLACEMENT_PATTERN.finditer(value) if match['alias'])
+        defined = Counter(match['alias'] for match in FEATURE_REFERENCE_PATTERN.finditer(value) if match['alias'])
         if twice := sorted(alias for alias, count in defined.items() if count > 1):
             raise ValidationError(f'An alias can be defined only once in a text: {", ".join(twice)}.', code=self.code)
         for reference in REFERENCE_PATTERN.finditer(value):
-            if use := ALIAS_USE_PATTERN.fullmatch(reference[0]):
-                if (use['replaced'] or use['included']) not in defined:
+            if use := ALIAS_REFERENCE_PATTERN.fullmatch(reference[0]):
+                if use['alias'] not in defined:
                     raise ValidationError(f'{reference[0]} uses an alias this text does not define.', code=self.code)
-            elif not any(pattern.fullmatch(reference[0]) for pattern in (FEATURE_REPLACEMENT_PATTERN, FEATURE_INCLUSION_PATTERN, LINE_REFERENCE_PATTERN)):
+            elif not any(pattern.fullmatch(reference[0]) for pattern in (FEATURE_REFERENCE_PATTERN, LINE_REFERENCE_PATTERN)):
                 raise ValidationError(f'{reference[0]} is not a reference. {self.syntax}', code=self.code)
         lines = value.split('\n')
         for position, line in enumerate(lines, start=1):
@@ -66,10 +66,51 @@ class ReferencesValidator:
 
 REFERENCES_VALIDATOR = ReferencesValidator()
 
-TEXT_VALIDATORS: list[Callable[[Any], None]] = [DOUBLE_SQUARE_BRACKET_TEXT_VALIDATOR, DOUBLE_CURLY_BRACKET_TEXT_VALIDATOR, SYMBOLS_TEXT_VALIDATOR, ORDINARY_CHARACTERS_VALIDATOR, REFERENCES_VALIDATOR]
+TEXT_VALIDATORS: list[Callable[[Any], None]] = [DOUBLE_SQUARE_BRACKET_TEXT_VALIDATOR, SYMBOLS_TEXT_VALIDATOR, ORDINARY_CHARACTERS_VALIDATOR, REFERENCES_VALIDATOR]
 NAME_BODY_VALIDATORS: list[Callable[[Any], None]] = [NO_TRAILING_PUNCTUATION_VALIDATOR, NOT_URL_VALIDATOR, NO_RESERVED_CHARACTERS_VALIDATOR, *TEXT_VALIDATORS]
 NAME_VALIDATORS: list[Callable[[Any], None]] = [FIRST_CAPITAL_LETTER_VALIDATOR, *NAME_BODY_VALIDATORS]
-FEATURE_NAME_VALIDATORS: list[Callable[[Any], None]] = [FIRST_CAPITAL_LETTER_OR_DIGIT_VALIDATOR, NO_REFERENCE_PREFIX_VALIDATOR, *NAME_BODY_VALIDATORS]
+FEATURE_NAME_VALIDATORS: list[Callable[[Any], None]] = [FIRST_CAPITAL_LETTER_OR_DIGIT_VALIDATOR, NO_FEATURE_NAME_RESERVED_CHARACTERS_VALIDATOR, *NAME_BODY_VALIDATORS]
+ATTRIBUTE_NAME_VALIDATORS: list[Callable[[Any], None]] = [NO_ATTRIBUTE_NAME_RESERVED_CHARACTERS_VALIDATOR]
+
+
+@deconstructible
+class DictionaryValidator:
+    '''Accepts a mapping of keys to a text or a list of texts, each valid the way the field of the same
+    name would be. A key holds none of the characters delimiting a reference, and a value that is no text
+    of a variant can only reference names and keys of its own kind: it is written inline, where no text
+    can be included.'''
+    code = 'invalid'
+
+    def __call__(self, value: Any) -> None:
+        if not isinstance(value, dict):
+            raise ValidationError('A dictionary must map keys to values.', code=self.code)
+        for key, item in value.items():
+            if not key or key != key.strip() or '\n' in key or any(character in key for character in FEATURE_NAME_RESERVED_CHARACTERS):
+                raise ValidationError(f'"{key}" is not a valid key: a key is not blank, has no surrounding spaces and holds none of {" ".join(FEATURE_NAME_RESERVED_CHARACTERS)}.', code=self.code)
+            if key in CARD_STATE_KEYS:
+                raise ValidationError(f'"{key}" cannot be overridden: a starting state is written in its own field.', code=self.code)
+            if isinstance(item, str):
+                texts = [item]
+            elif isinstance(item, list) and all(isinstance(text, str) for text in item):
+                texts = item
+            else:
+                raise ValidationError(f'The value of "{key}" must be a text or a list of texts.', code=self.code)
+            for text in texts:
+                try:
+                    for validator in TEXT_VALIDATORS:
+                        validator(text)
+                    if key == 'mana_needed' and text:
+                        MANA_VALIDATOR(text)
+                except ValidationError as error:
+                    raise ValidationError(f'The value of "{key}" is not valid: {" ".join(error.messages)}', code=self.code)
+                if key not in TEXT_KEYS and (included := sorted({reference[0] for reference in feature_references([expand_aliases(text)]) if key_of(reference) in TEXT_KEYS + CARD_STATE_KEYS})):
+                    raise ValidationError(f'The value of "{key}" cannot write texts, being written inline: {", ".join(included)}.', code=self.code)
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, DictionaryValidator)
+
+
+DICTIONARY_VALIDATOR = DictionaryValidator()
 
 SCRYFALL_QUERY_VALIDATOR = LarkGrammarValidator(SCRYFALL_GRAMMAR)
 

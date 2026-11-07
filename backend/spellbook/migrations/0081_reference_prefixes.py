@@ -77,7 +77,7 @@ def convert_references(apps, schema_editor):
     by_combo = defaultdict[int, defaultdict[str, set[Reference]]](lambda: defaultdict(set))
     everywhere = defaultdict[str, set[Reference]](set)
 
-    def collect(text: str, combo_id: int | None) -> str:
+    def collect(text: str, combo_id: int | None, field: str) -> str:
         for match in OLD_REPLACEMENT_PATTERN.finditer(text):
             if found := defined_alias(match):
                 everywhere[found[0]].add(found[1])
@@ -85,7 +85,7 @@ def convert_references(apps, schema_editor):
                     by_combo[combo_id][found[0]].add(found[1])
         return text
 
-    def convert(text: str, combo_id: int | None) -> str:
+    def convert(text: str, combo_id: int | None, field: str) -> str:
         in_combo = by_combo.get(combo_id, {}) if combo_id is not None else {}
         return convert_text(text, lambda name: single(in_combo.get(name, set())) or single(everywhere.get(name, set())), feature_names)
 
@@ -94,7 +94,7 @@ def convert_references(apps, schema_editor):
 
 
 def revert_references(apps, schema_editor):
-    rewrite_reference_texts(apps, lambda text, combo_id: ALIAS_USE_PATTERN.sub(r'\1\2\3', LINE_REFERENCE_PATTERN.sub(r'{{\1}}', text)))
+    rewrite_reference_texts(apps, lambda text, combo_id, field: ALIAS_USE_PATTERN.sub(r'\1\2\3', LINE_REFERENCE_PATTERN.sub(r'{{\1}}', text)))
 
 
 class Migration(migrations.Migration):

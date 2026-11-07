@@ -29,11 +29,11 @@ class FeatureAttributeAdminTests(SpellbookTestCaseWithSeeding):
             # a positional selector is never an attribute name
             ('[[Feature$2]]', '[[Feature$2]]', '2', 'Other'),
             ('[[Feature]]', '[[Feature]]', 'Attr', 'Other'),
-            ('{{Feature$Attr}}', '{{Feature$Other}}', 'Attr', 'Other'),
-            ('{{Feature$attr}} and [[Feature$Attr]]', '{{Feature$Other}} and [[Feature$Other]]', 'Attr', 'Other'),
-            ('{{Feature$Old Attribute}}', '{{Feature$New Attribute}}', 'Old Attribute', 'New Attribute'),
-            ('{{Feature$2}}', '{{Feature$2}}', '2', 'Other'),
-            ('{{Attr}}', '{{Attr}}', 'Attr', 'Other'),
+            ('[[Feature$Attr@description]]', '[[Feature$Other@description]]', 'Attr', 'Other'),
+            ('[[Feature$attr@notes]] and [[Feature$Attr]]', '[[Feature$Other@notes]] and [[Feature$Other]]', 'Attr', 'Other'),
+            ('[[Feature$Old Attribute@sac step|alias]]', '[[Feature$New Attribute@sac step|alias]]', 'Old Attribute', 'New Attribute'),
+            ('[[Feature$2@description]]', '[[Feature$2@description]]', '2', 'Other'),
+            ('[[Attr@Attr]]', '[[Attr@Attr]]', 'Attr', 'Other'),
         ]:
             with self.subTest(test_text=test_text, old_name=old_name, new_name=new_name):
                 self.assertEqual(rename_references(test_text, 'selector', old_name, new_name), verified_text)

@@ -11,11 +11,11 @@ from .utils import PRODUCED_MANA_KINDS, as_number, strip_accents, simplify_card_
 from .recipe import update_variants, update_combo_names
 from .mixins import ScryfallLinkMixin, PreSaveModelMixin, NamedModel
 from .feature import Feature
-from .fields import KeywordsField
+from .fields import DictionaryField, KeywordsField
 from .ingredient import Ingredient
 from .feature_attribute import WithFeatureAttributes
 from .explanation import Explanation
-from .references import references_to_features_not_needed
+from .references import dictionary_texts, format_feature_reference, references_to_features_not_needed
 
 
 IMAGE_URI_HELP_TEXT = 'The image format, and with it the file extension, may vary'
@@ -284,6 +284,7 @@ class WithUsedFace(models.Model):
 
 class FeatureOfCard(Ingredient, Explanation, WithFeatureAttributes, WithUsedFace):
     id: int
+    dictionary = DictionaryField(help_text=f'What this card provides when it produces this feature, besides its name and its texts, which are keys of their own: each key maps to a text or a list of texts, which a combo needing the feature writes with the {format_feature_reference("feature", key="key")} syntax.')
 
     @classmethod
     def text_fields_with_references(cls) -> list[str]:
@@ -293,10 +294,11 @@ class FeatureOfCard(Ingredient, Explanation, WithFeatureAttributes, WithUsedFace
         '''A feature of a card needs no feature, so its texts cannot reference one: no variant would be
         sure to replace it, and a card is named by its own name.'''
         super().clean()
+        texts = {field: [getattr(self, field)] for field in self.text_fields_with_references()} | {'dictionary': dictionary_texts(self.dictionary or {})}
         errors = {
             field: f'A card feature cannot reference features, since it needs none: {", ".join(references)}.'
-            for field in self.text_fields_with_references()
-            if (references := references_to_features_not_needed([getattr(self, field)], ()))
+            for field, field_texts in texts.items()
+            if (references := references_to_features_not_needed(field_texts, ()))
         }
         if errors:
             raise ValidationError(errors)

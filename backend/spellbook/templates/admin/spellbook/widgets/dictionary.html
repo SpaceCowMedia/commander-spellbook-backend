@@ -1,0 +1,4 @@
+<div class="dictionary-field">
+    <textarea name="{{ widget.name }}"{% include "django/forms/widgets/attrs.html" %} hidden>{% if widget.value %}{{ widget.value }}{% endif %}</textarea>
+    <button type="button" class="dictionary-summary{% if widget.keys is None %} dictionary-invalid{% elif not widget.keys %} dictionary-empty{% endif %}" title="Edit the dictionary">{% if widget.keys is None %}Invalid, edit to fix{% elif widget.keys %}{{ widget.keys|length }} key{{ widget.keys|length|pluralize }}: {{ widget.keys|join:", " }}{% else %}No keys{% endif %}</button>
+</div>

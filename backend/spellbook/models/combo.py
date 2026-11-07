@@ -9,6 +9,8 @@ from .card import Card, WithUsedFace
 from .feature import Feature
 from .template import Template
 from .ingredient import ComboIngredient, ZoneLocationsField
+from .fields import DictionaryField
+from .references import format_feature_reference
 from .constants import HIGHER_CARD_LIMIT, DEFAULT_CARD_LIMIT, LOWER_VARIANT_LIMIT, DEFAULT_VARIANT_LIMIT
 from .feature_attribute import WithFeatureAttributes, WithFeatureAttributesMatcher
 
@@ -187,6 +189,7 @@ class FeatureProducedInCombo(WithFeatureAttributes):
     feature_id: int
     combo = models.ForeignKey(to=Combo, on_delete=models.CASCADE)
     combo_id: int
+    dictionary = DictionaryField(help_text=f'What this combo provides for this feature, overriding what its ingredients bring, key by key: a text replaces, a list adds to a list, and a blank text leaves it out. A combo needing the feature writes each key with the {format_feature_reference("feature", key="key")} syntax.')
 
     def __str__(self):
         return f'{self.feature} produced in combo {self.combo_id}'

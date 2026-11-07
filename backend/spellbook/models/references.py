@@ -1,7 +1,7 @@
 import re
 from functools import partial
 from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Iterator, Literal, Mapping, Sequence, TypeVar
-from django.db.models import Manager, Q
+from django.db.models import Manager, Model, Q
 from .utils import DEFAULT_BATCH_SIZE
 if TYPE_CHECKING:
     from .combo import Combo
@@ -17,13 +17,25 @@ _T = TypeVar('_T')
 ALIAS_PREFIX = '!'
 LINE_REFERENCE_PREFIX = '#'
 REFERENCE_PREFIXES = (ALIAS_PREFIX, LINE_REFERENCE_PREFIX)
-REPLACEMENT_BRACKETS = ('[[', ']]')
-INCLUSION_BRACKETS = ('{{', '}}')
+REFERENCE_BRACKETS = ('[[', ']]')
 FACE_MARKER = '#'
 SELECTOR_MARKER = '$'
+KEY_MARKER = '@'
 ALIAS_MARKER = '|'
-# the characters a feature or attribute name cannot hold, since they end the key of a reference
+BRACKET_CHARACTERS = ('[', ']')
+# the characters every part of a reference is delimited by, which a feature name, a key or an alias
+# cannot hold anywhere
+FEATURE_NAME_RESERVED_CHARACTERS = tuple(dict.fromkeys((*REFERENCE_PREFIXES, FACE_MARKER, SELECTOR_MARKER, KEY_MARKER, ALIAS_MARKER, *BRACKET_CHARACTERS)))
+# an attribute name is written after the selector marker, up to the key or the alias
+ATTRIBUTE_NAME_RESERVED_CHARACTERS = (SELECTOR_MARKER, KEY_MARKER, ALIAS_MARKER, *BRACKET_CHARACTERS)
+# the characters no name can hold, since they end the feature of a reference
 RESERVED_CHARACTERS = (SELECTOR_MARKER, ALIAS_MARKER)
+
+# What a reference without a key writes, and the keys every producer provides from its own fields: the
+# texts of a variant, and the starting states of a card, which only a starting state can reference
+DEFAULT_KEY = 'name'
+TEXT_KEYS = ('mana_needed', 'easy_prerequisites', 'notable_prerequisites', 'description', 'notes', 'comment')
+CARD_STATE_KEYS = ('battlefield_card_state', 'exile_card_state', 'graveyard_card_state', 'library_card_state')
 
 
 def escaped(*parts: str) -> str:
@@ -35,8 +47,8 @@ def character_class(*excluded: str) -> str:
     return f'[^{escaped(*sorted(set("".join(excluded))))}\\n]'
 
 
-def bracketed(brackets: tuple[str, str], content: str) -> str:
-    return f'{brackets[0]}{content}{brackets[1]}'
+def bracketed(content: str) -> str:
+    return f'{REFERENCE_BRACKETS[0]}{content}{REFERENCE_BRACKETS[1]}'
 
 
 def optional(marker: str, part: str | None) -> str:
@@ -50,69 +62,56 @@ def between(brackets: tuple[str, str]) -> str:
     return f'(?<!{run}){re.escape(brackets[0])}(?!{run}).*?{re.escape(brackets[1])}'
 
 
-PREFIX_ALTERNATIVES = '|'.join(map(re.escape, REFERENCE_PREFIXES))
-NOT_A_PREFIX = f'(?!{PREFIX_ALTERNATIVES})'
-REFERENCE_PREFIX_REGEX = f'^(?:{PREFIX_ALTERNATIVES})'
-ALIAS_NAME = character_class(*REFERENCE_PREFIXES, *REPLACEMENT_BRACKETS, *INCLUSION_BRACKETS, FACE_MARKER, *RESERVED_CHARACTERS) + '+'
+FEATURE_NAME_CHARACTER = character_class(*FEATURE_NAME_RESERVED_CHARACTERS)
+ATTRIBUTE_NAME_CHARACTER = character_class(*ATTRIBUTE_NAME_RESERVED_CHARACTERS)
+FEATURE_NAME_RESERVED_CHARACTERS_REGEX = '|'.join(map(re.escape, FEATURE_NAME_RESERVED_CHARACTERS))
+ATTRIBUTE_NAME_RESERVED_CHARACTERS_REGEX = '|'.join(map(re.escape, ATTRIBUTE_NAME_RESERVED_CHARACTERS))
 RESERVED_CHARACTERS_REGEX = '|'.join(map(re.escape, RESERVED_CHARACTERS))
+OPENING = re.escape(REFERENCE_BRACKETS[0])
+CLOSING = re.escape(REFERENCE_BRACKETS[1])
+KEY_PART = f'(?:{re.escape(KEY_MARKER)}(?P<key>{FEATURE_NAME_CHARACTER}+))?'
 
-# A feature replacement looks like [[key#face$selector|alias]], where every part but the key is optional:
+# A feature reference looks like [[feature#face$selector@key|alias]], where every part but the feature is optional:
 # - #face selects which face of a multi-faced card to display;
-# - $selector picks one among the multiple replacements of the same feature, either by position
+# - $selector picks one among the multiple producers of the same feature, either by position
 #   (counting through the copies the combo the text belongs to needs, row after row) or by attribute name;
-# - |alias names the reference, so that the rest of the text can repeat it as [[!alias]] or {{!alias}}.
-FEATURE_REPLACEMENT_PATTERN = re.compile(
-    f'{re.escape(REPLACEMENT_BRACKETS[0])}'
-    f'(?P<key>{NOT_A_PREFIX}{character_class(*RESERVED_CHARACTERS)}+?)'
+# - @key picks what of the producers to write, their names by default;
+# - |alias names the reference, so that the rest of the text can repeat it as [[!alias]].
+FEATURE_REFERENCE_PATTERN = re.compile(
+    f'{OPENING}'
+    f'(?P<feature>{FEATURE_NAME_CHARACTER}+)'
     f'(?:{re.escape(FACE_MARKER)}(?P<face>[1-9]\\d*))?'
-    f'(?:{re.escape(SELECTOR_MARKER)}(?P<selector>{character_class(*RESERVED_CHARACTERS, REPLACEMENT_BRACKETS[1])}+))?'
-    f'(?:{re.escape(ALIAS_MARKER)}(?P<alias>{ALIAS_NAME}))?'
-    f'{re.escape(REPLACEMENT_BRACKETS[1])}'
+    f'(?:{re.escape(SELECTOR_MARKER)}(?P<selector>{ATTRIBUTE_NAME_CHARACTER}+))?'
+    f'{KEY_PART}'
+    f'(?:{re.escape(ALIAS_MARKER)}(?P<alias>{FEATURE_NAME_CHARACTER}+))?'
+    f'{CLOSING}'
 )
 
-# A feature inclusion looks like {{key$selector}}, where the selector is optional: it is replaced with
-# the text box it appears in, taken from every combo or card feature producing that feature, so that
-# those texts are written where they are mentioned instead of being appended. The optional selector
-# picks among the producers the same way the one of a replacement picks among the replacements.
-FEATURE_INCLUSION_PATTERN = re.compile(
-    f'{re.escape(INCLUSION_BRACKETS[0])}'
-    f'(?P<key>{NOT_A_PREFIX}{character_class(*RESERVED_CHARACTERS, *INCLUSION_BRACKETS)}+?)'
-    f'(?:{re.escape(SELECTOR_MARKER)}(?P<selector>{character_class(*RESERVED_CHARACTERS, *INCLUSION_BRACKETS)}+))?'
-    f'{re.escape(INCLUSION_BRACKETS[1])}'
-)
+# [[!alias]] repeats the reference defining the alias, and [[!alias@key]] repeats it with another key
+ALIAS_REFERENCE_PATTERN = re.compile(f'{OPENING}{re.escape(ALIAS_PREFIX)}(?P<alias>{FEATURE_NAME_CHARACTER}+){KEY_PART}{CLOSING}')
 
-ALIAS_USE_PATTERN = re.compile(
-    f'{escaped(REPLACEMENT_BRACKETS[0], ALIAS_PREFIX)}(?P<replaced>{ALIAS_NAME}){re.escape(REPLACEMENT_BRACKETS[1])}'
-    f'|{escaped(INCLUSION_BRACKETS[0], ALIAS_PREFIX)}(?P<included>{ALIAS_NAME}){re.escape(INCLUSION_BRACKETS[1])}'
-)
-
-# {{#Z}} points at the Zth line of its text, {{#+X}} at the line X lines below, {{#-Y}} at the one Y lines above
-LINE_REFERENCE_PATTERN = re.compile(f'{escaped(INCLUSION_BRACKETS[0], LINE_REFERENCE_PREFIX)}(?P<sign>[+-]?)(?P<number>\\d+){re.escape(INCLUSION_BRACKETS[1])}')
+# [[#Z]] points at the Zth line of its text, [[#+X]] at the line X lines below, [[#-Y]] at the one Y lines above
+LINE_REFERENCE_PATTERN = re.compile(f'{OPENING}{re.escape(LINE_REFERENCE_PREFIX)}(?P<sign>[+-]?)(?P<number>\\d+){CLOSING}')
 
 # whatever a text holds between double brackets, which has to be one of the references above
-REFERENCE_PATTERN = re.compile(f'{between(REPLACEMENT_BRACKETS)}|{between(INCLUSION_BRACKETS)}')
+REFERENCE_PATTERN = re.compile(between(REFERENCE_BRACKETS))
 
 
-def format_feature_replacement(key: str, face: str | None = None, selector: str | None = None, alias: str | None = None) -> str:
-    '''Writes a feature replacement from its parts, the inverse of FEATURE_REPLACEMENT_PATTERN.'''
-    return bracketed(REPLACEMENT_BRACKETS, key + optional(FACE_MARKER, face) + optional(SELECTOR_MARKER, selector) + optional(ALIAS_MARKER, alias))
+def format_feature_reference(feature: str, face: str | None = None, selector: str | None = None, key: str | None = None, alias: str | None = None) -> str:
+    '''Writes a feature reference from its parts, the inverse of FEATURE_REFERENCE_PATTERN.'''
+    return bracketed(feature + optional(FACE_MARKER, face) + optional(SELECTOR_MARKER, selector) + optional(KEY_MARKER, key) + optional(ALIAS_MARKER, alias))
 
 
-def format_feature_inclusion(key: str, selector: str | None = None) -> str:
-    '''Writes a feature inclusion from its parts, the inverse of FEATURE_INCLUSION_PATTERN.'''
-    return bracketed(INCLUSION_BRACKETS, key + optional(SELECTOR_MARKER, selector))
-
-
-def format_alias_replacement(alias: str) -> str:
-    return bracketed(REPLACEMENT_BRACKETS, ALIAS_PREFIX + alias)
-
-
-def format_alias_inclusion(alias: str) -> str:
-    return bracketed(INCLUSION_BRACKETS, ALIAS_PREFIX + alias)
+def format_alias_reference(alias: str, key: str | None = None) -> str:
+    return bracketed(ALIAS_PREFIX + alias + optional(KEY_MARKER, key))
 
 
 def format_line_reference(number: int | str, sign: str = '') -> str:
-    return bracketed(INCLUSION_BRACKETS, f'{LINE_REFERENCE_PREFIX}{sign}{number}')
+    return bracketed(f'{LINE_REFERENCE_PREFIX}{sign}{number}')
+
+
+def key_of(reference: re.Match[str]) -> str:
+    return reference['key'] or DEFAULT_KEY
 
 
 def referenced_line(reference: re.Match[str], line: int) -> int:
@@ -128,37 +127,34 @@ def referenced_line(reference: re.Match[str], line: int) -> int:
 
 
 def expand_aliases(text: str) -> str:
-    '''Writes every alias a text uses as the reference defining it, so that whatever reads the result
-    only meets feature names. An alias is known to the whole text defining it, before its definition
-    too, and one the text does not define is left as written.'''
+    '''Writes every alias a text uses as the reference defining it, with the key the use asks for if
+    any, so that whatever reads the result only meets feature names. An alias is known to the whole text
+    defining it, before its definition too, and one the text does not define is left as written.'''
     definitions = dict[str, re.Match[str]]()
-    for match in FEATURE_REPLACEMENT_PATTERN.finditer(text):
+    for match in FEATURE_REFERENCE_PATTERN.finditer(text):
         if match['alias']:
             definitions.setdefault(match['alias'], match)
 
     def expand(use: re.Match[str]) -> str:
-        definition = definitions.get(use['replaced'] or use['included'])
+        definition = definitions.get(use['alias'])
         if definition is None:
             return use[0]
-        if use['replaced']:
-            return format_feature_replacement(definition['key'], definition['face'], definition['selector'])
-        return format_feature_inclusion(definition['key'], definition['selector'])
+        return format_feature_reference(definition['feature'], definition['face'], definition['selector'], use['key'] or definition['key'])
 
-    return ALIAS_USE_PATTERN.sub(expand, text) if definitions else text
+    return ALIAS_REFERENCE_PATTERN.sub(expand, text) if definitions else text
 
 
 def feature_references(texts: Iterable[str]) -> Iterator[re.Match[str]]:
-    '''The feature replacements and inclusions in the texts. An alias use is none of them, since the
-    reference defining it stands for it.'''
+    '''The feature references in the texts. An alias use is none of them, since the reference defining
+    it stands for it.'''
     for text in texts:
-        for pattern in (FEATURE_REPLACEMENT_PATTERN, FEATURE_INCLUSION_PATTERN):
-            yield from pattern.finditer(text)
+        yield from FEATURE_REFERENCE_PATTERN.finditer(text)
 
 
 def references_to_features_not_needed(texts: Iterable[str], needed_feature_names: Collection[str]) -> list[str]:
-    '''The feature references in the texts of a combo whose key is not the name of a feature the combo
-    needs, each once, sorted. Names are matched exactly, the way the texts of a variant resolve them.'''
-    return sorted({match[0] for match in feature_references(texts) if match['key'] not in needed_feature_names})
+    '''The feature references in the texts of a combo whose feature is not one the combo needs, each
+    once, sorted. Names are matched exactly, the way the texts of a variant resolve them.'''
+    return sorted({match[0] for match in feature_references(texts) if match['feature'] not in needed_feature_names})
 
 
 def references_past_copies_needed(texts: Iterable[str], copies_needed: Mapping[str, int]) -> list[str]:
@@ -168,12 +164,21 @@ def references_past_copies_needed(texts: Iterable[str], copies_needed: Mapping[s
     return sorted({
         match[0]
         for match in feature_references(texts)
-        if match['key'] in copies_needed and (selector := match['selector']) is not None and selector.isdigit() and not 1 <= int(selector) <= copies_needed[match['key']]
+        if match['feature'] in copies_needed and (selector := match['selector']) is not None and selector.isdigit() and not 1 <= int(selector) <= copies_needed[match['feature']]
     })
 
 
-# A feature is named by the key of a reference, an attribute by its selector
-ReferencePart = Literal['key', 'selector']
+def dictionary_texts(dictionary: Mapping[str, str | list[str]]) -> list[str]:
+    '''Every text a dictionary holds, the items of its lists included.'''
+    return [text for value in dictionary.values() for text in ([value] if isinstance(value, str) else value)]
+
+
+def map_dictionary_texts(dictionary: Mapping[str, str | list[str]], function: Callable[[str], str]) -> dict[str, str | list[str]]:
+    return {key: function(value) if isinstance(value, str) else [function(text) for text in value] for key, value in dictionary.items()}
+
+
+# A feature is named by the feature of a reference, an attribute by its selector
+ReferencePart = Literal['feature', 'selector']
 
 
 def ingredient_models() -> tuple[type[Ingredient], ...]:
@@ -183,28 +188,32 @@ def ingredient_models() -> tuple[type[Ingredient], ...]:
     return CardInCombo, TemplateInCombo, FeatureNeededInCombo, FeatureOfCard
 
 
+def dictionary_models() -> tuple[type[Model], ...]:
+    '''The models whose rows hold a dictionary, whose texts can hold references.'''
+    from .combo import FeatureProducedInCombo
+    return (*ingredient_models(), FeatureProducedInCombo)
+
+
 def references_filter(model: type[Combo] | type[Ingredient], part: ReferencePart, name: str) -> Q:
     '''Matches the rows of the given model whose texts could reference the given name as the given part
     of a reference, so that a rename only loads the rows that mention it.'''
-    starts = [REPLACEMENT_BRACKETS[0] + name, INCLUSION_BRACKETS[0] + name] if part == 'key' else [SELECTOR_MARKER + name]
+    start = REFERENCE_BRACKETS[0] + name if part == 'feature' else SELECTOR_MARKER + name
     query = Q()
     for field in model.text_fields_with_references():
-        for start in starts:
-            query |= Q(**{f'{field}__icontains': start})
+        query |= Q(**{f'{field}__icontains': start})
     return query
 
 
 def rename_references(text: str, part: ReferencePart, old_name: str, new_name: str) -> str:
     '''Renames a feature or an attribute in the references of a text. Names are matched ignoring case,
     the way they are unique, and a numeric selector is a position, never an attribute.'''
-    def rename(match: re.Match[str], formatter: Callable[..., str]) -> str:
+    def rename(match: re.Match[str]) -> str:
         name = match[part]
         if name is None or name.lower() != old_name.lower() or (part == 'selector' and name.isdigit()):
             return match[0]
-        return formatter(**(match.groupdict() | {part: new_name}))
+        return format_feature_reference(**(match.groupdict() | {part: new_name}))
 
-    text = FEATURE_REPLACEMENT_PATTERN.sub(partial(rename, formatter=format_feature_replacement), text)
-    return FEATURE_INCLUSION_PATTERN.sub(partial(rename, formatter=format_feature_inclusion), text)
+    return FEATURE_REFERENCE_PATTERN.sub(rename, text)
 
 
 def replace_in_text_fields(objects: Iterable[_T], fields: Sequence[str], replacement: Callable[[str], str]) -> list[_T]:
@@ -232,12 +241,27 @@ def rename_in_rows(model: type[Combo] | type[Ingredient], rename: Callable[[str]
     manager.bulk_update(replace_in_text_fields(rows, fields, rename), fields, batch_size=DEFAULT_BATCH_SIZE)
 
 
+def rename_in_dictionaries(model: type[Model], rename: Callable[[str], str]) -> None:
+    '''Renames in the dictionaries of the rows of the model. Their texts are not searchable alike on
+    every database, so every row holding a dictionary is loaded, which few of them do.'''
+    manager: Manager[Any] = model._default_manager
+    changed = []
+    for row in manager.exclude(dictionary={}).order_by().only('dictionary').iterator(chunk_size=DEFAULT_BATCH_SIZE):
+        dictionary = map_dictionary_texts(row.dictionary, rename)
+        if dictionary != row.dictionary:
+            row.dictionary = dictionary
+            changed.append(row)
+    manager.bulk_update(changed, ['dictionary'], batch_size=DEFAULT_BATCH_SIZE)
+
+
 def rename_in_models(models: Iterable[type[Combo] | type[Ingredient]], part: ReferencePart, old_name: str, new_name: str) -> Callable[[str], str]:
-    '''Renames a feature or an attribute in the texts of the given models that mention it, and returns
-    the rename for the texts left to the caller.'''
+    '''Renames a feature or an attribute in the texts and the dictionaries of the given models that
+    mention it, and returns the rename for the texts left to the caller.'''
     rename = partial(rename_references, part=part, old_name=old_name, new_name=new_name)
     for model in models:
         rename_in_rows(model, rename, references_filter(model, part, old_name))
+    for dictionary_model in dictionary_models():
+        rename_in_dictionaries(dictionary_model, rename)
     return rename
 
 
@@ -251,11 +275,11 @@ def replace_feature_references(instance: Feature, old_name: str):
 
 def replace_feature_references_in_combos(instance: Feature, old_name: str):
     from .combo import Combo
-    rename = rename_in_models(ingredient_models(), 'key', old_name, instance.name)
+    rename = rename_in_models(ingredient_models(), 'feature', old_name, instance.name)
     combo_text_fields = Combo.text_fields_with_references()
     combo_recipe_fields = Combo.recipe_fields()
     combos = list(Combo.rename_prefetched.filter(
-        Q(needs=instance, name__contains=old_name) | Q(produces=instance, name__contains=old_name) | Q(removes=instance, name__contains=old_name) | references_filter(Combo, 'key', old_name),
+        Q(needs=instance, name__contains=old_name) | Q(produces=instance, name__contains=old_name) | Q(removes=instance, name__contains=old_name) | references_filter(Combo, 'feature', old_name),
     ).order_by().distinct().only(*combo_text_fields, *combo_recipe_fields))
     # the two groups barely overlap, so writing each one only the columns it changed keeps the
     # updates from carrying the columns the other group needs

@@ -4,6 +4,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.forms import MultipleChoiceField, ValidationError as FormValidationError, CheckboxSelectMultiple
 from .validators import TEXT_VALIDATORS
+from .fields import DictionaryField
 from .constants import MAX_LOCATION_STATE_LENGTH, MAX_INGREDIENT_QUANTITY
 from .utils import case_insensitive_trigram_indexes
 
@@ -112,7 +113,7 @@ class OrderedIngredient(Ingredient):
 
 
 class ComboIngredient(OrderedIngredient):
-    in_replacements = models.BooleanField(default=True, help_text='Does this ingredient take part in the replacements of the features this combo produces? Unchecking it leaves the ingredient out of the replacement texts, and out of the starting state and location overrides too. Unchecking a needed feature also leaves what its producers write out of the variants, unless a text includes it.', verbose_name='in replacements')
+    dictionary = DictionaryField(help_text='Overrides what this ingredient brings to the features this combo produces, key by key: a text replaces, a list adds to a list, and a blank text leaves it out, as in {"name": ""} to keep it out of their names. The keys are the ones its producers provide, such as name, mana_needed or description, and any other.')
 
     class Meta(OrderedIngredient.Meta):
         abstract = True

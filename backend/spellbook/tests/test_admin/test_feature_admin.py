@@ -1,7 +1,7 @@
 from ..testing import SpellbookTestCaseWithSeeding, curated_card
 from spellbook.admin.feature_admin import merge_feature
 from spellbook.models import CardInCombo, Combo, Feature, FeatureNeededInCombo, FeatureOfCard, FeatureProducedInCombo, FeatureRemovedInCombo, Variant, ZoneLocation
-from spellbook.models.references import format_alias_inclusion, format_alias_replacement, format_line_reference, rename_references
+from spellbook.models.references import format_alias_reference, format_line_reference, rename_references
 
 
 class FeatureAdminTests(SpellbookTestCaseWithSeeding):
@@ -13,9 +13,9 @@ class FeatureAdminTests(SpellbookTestCaseWithSeeding):
             ('[[Feature1|alias]] and [[Feature1]]', '[[Feature2|alias]] and [[Feature2]]', 'Feature1', 'Feature2'),
             ('[[Feature1|alias]] and [[Feature2|alias]]', '[[Feature2|alias]] and [[Feature2|alias]]', 'Feature1', 'Feature2'),
             ('[[feature1]] and [[feature2]]', '[[feature2]] and [[feature2]]', 'feature1', 'feature2'),
-            (f'[[Feature1|alias]] asd {format_alias_replacement("alias")}', f'[[Feature2|alias]] asd {format_alias_replacement("alias")}', 'Feature1', 'Feature2'),
-            (f'[[Other|Feature1]] then {format_alias_replacement("Feature1")} and {format_alias_inclusion("Feature1")}', f'[[Other|Feature1]] then {format_alias_replacement("Feature1")} and {format_alias_inclusion("Feature1")}', 'Feature1', 'Feature2'),
-            ('[[Feature1 [x]|alias]] [[Feature1 [x]|another alias]]', '[[Feature2|alias]] [[Feature2|another alias]]', 'Feature1 [x]', 'Feature2'),
+            (f'[[Feature1|alias]] asd {format_alias_reference("alias")}', f'[[Feature2|alias]] asd {format_alias_reference("alias")}', 'Feature1', 'Feature2'),
+            (f'[[Other|Feature1]] then {format_alias_reference("Feature1")} and {format_alias_reference("Feature1", "description")}', f'[[Other|Feature1]] then {format_alias_reference("Feature1")} and {format_alias_reference("Feature1", "description")}', 'Feature1', 'Feature2'),
+            ('[[Feature1 (x)|alias]] [[Feature1 (x)|another alias]]', '[[Feature2|alias]] [[Feature2|another alias]]', 'Feature1 (x)', 'Feature2'),
             ('[[ASD$4|CHECK]] [ASD] [[XASD]] [[X ASD]]', '[[DEF$4|CHECK]] [ASD] [[XASD]] [[X ASD]]', 'ASD', 'DEF'),
             ('[[A$2|C]]', '[[A$2|C]]', 'A', 'A'),
             ('[[A$2|C]] [[A|C]]', '[[Z$2|C]] [[Z|C]]', 'A', 'Z'),
@@ -24,23 +24,23 @@ class FeatureAdminTests(SpellbookTestCaseWithSeeding):
             ('[[A#1$3|alias]]', '[[Z#1$3|alias]]', 'A', 'Z'),
             ('[[A$Attribute]]', '[[Z$Attribute]]', 'A', 'Z'),
             ('[[A$Attribute|alias]]', '[[Z$Attribute|alias]]', 'A', 'Z'),
-            ('[[3 Mana|x]] and {{3 Mana}}', '[[4 Mana|x]] and {{4 Mana}}', '3 Mana', '4 Mana'),
-            ('{{Feature1}}', '{{Feature2}}', 'Feature1', 'Feature2'),
-            ('{{fEature1}}', '{{Feature2}}', 'Feature1', 'Feature2'),
-            ('{{Feature1$2}}', '{{Feature2$2}}', 'Feature1', 'Feature2'),
-            ('{{Feature1$Attribute}} and [[Feature1]]', '{{Feature2$Attribute}} and [[Feature2]]', 'Feature1', 'Feature2'),
-            ('{{Feature1}} {{Other}} {Feature1}', '{{Feature2}} {{Other}} {Feature1}', 'Feature1', 'Feature2'),
-            (f'{{{{3}}}} and {format_line_reference(3)}', f'{{{{4}}}} and {format_line_reference(3)}', '3', '4'),
+            ('[[3 Mana|x]] and [[3 Mana@description]]', '[[4 Mana|x]] and [[4 Mana@description]]', '3 Mana', '4 Mana'),
+            ('[[Feature1@description]]', '[[Feature2@description]]', 'Feature1', 'Feature2'),
+            ('[[fEature1@notes]]', '[[Feature2@notes]]', 'Feature1', 'Feature2'),
+            ('[[Feature1$2@description]]', '[[Feature2$2@description]]', 'Feature1', 'Feature2'),
+            ('[[Feature1$Attribute@sac step]] and [[Feature1]]', '[[Feature2$Attribute@sac step]] and [[Feature2]]', 'Feature1', 'Feature2'),
+            ('[[Feature1@x]] [[Other@x]] {Feature1}', '[[Feature2@x]] [[Other@x]] {Feature1}', 'Feature1', 'Feature2'),
+            (f'[[3]] and {format_line_reference(3)}', f'[[4]] and {format_line_reference(3)}', '3', '4'),
         ]:
             with self.subTest(test_text=test_text, old_name=old_name, new_name=new_name):
-                self.assertEqual(rename_references(test_text, 'key', old_name, new_name), verified_text)
+                self.assertEqual(rename_references(test_text, 'feature', old_name, new_name), verified_text)
 
     def test_replace_feature_references(self):
         feature = Feature.objects.create(name='Old Feature')
         combo = Combo.objects.create(
             status=Combo.Status.UTILITY,
             description='[[Old Feature]] does something',
-            notes='{{Old Feature}} was included',
+            notes='[[Old Feature@notes]] was included',
             comment='[[Old Feature]]',
             easy_prerequisites='[[Old Feature]]',
             notable_prerequisites='[[Old Feature]]',
@@ -59,10 +59,11 @@ class FeatureAdminTests(SpellbookTestCaseWithSeeding):
             order=1,
             zone_locations=ZoneLocation.GRAVEYARD,
             graveyard_card_state='below [[Old Feature]]',
+            dictionary={'description': 'Cast [[Old Feature]] for free', 'targets': ['[[Old Feature$2]]', 'a creature']},
         )
         removing_combo = Combo.objects.create(status=Combo.Status.UTILITY)
         FeatureRemovedInCombo.objects.create(combo=removing_combo, feature=feature)
-        only_included = Combo.objects.create(status=Combo.Status.UTILITY, description='{{Old Feature$Attribute}} only')
+        only_included = Combo.objects.create(status=Combo.Status.UTILITY, description='[[Old Feature$Attribute@description]] only')
         untouched = Combo.objects.create(status=Combo.Status.UTILITY, description='[[Other Feature]]')
 
         feature = Feature.objects.get(pk=feature.pk)
@@ -71,7 +72,7 @@ class FeatureAdminTests(SpellbookTestCaseWithSeeding):
 
         combo.refresh_from_db()
         self.assertEqual(combo.description, '[[New Feature]] does something')
-        self.assertEqual(combo.notes, '{{New Feature}} was included')
+        self.assertEqual(combo.notes, '[[New Feature@notes]] was included')
         self.assertEqual(combo.comment, '[[New Feature]]')
         self.assertEqual(combo.easy_prerequisites, '[[New Feature]]')
         self.assertEqual(combo.notable_prerequisites, '[[New Feature]]')
@@ -82,10 +83,11 @@ class FeatureAdminTests(SpellbookTestCaseWithSeeding):
         self.assertEqual(card_in_combo.battlefield_card_state, 'next to [[New Feature]]')
         feature_in_combo.refresh_from_db()
         self.assertEqual(feature_in_combo.graveyard_card_state, 'below [[New Feature]]')
+        self.assertEqual(feature_in_combo.dictionary, {'description': 'Cast [[New Feature]] for free', 'targets': ['[[New Feature$2]]', 'a creature']})
         removing_combo.refresh_from_db()
         self.assertIn('New Feature', removing_combo.name)
         only_included.refresh_from_db()
-        self.assertEqual(only_included.description, '{{New Feature$Attribute}} only')
+        self.assertEqual(only_included.description, '[[New Feature$Attribute@description]] only')
         untouched.refresh_from_db()
         self.assertEqual(untouched.description, '[[Other Feature]]')
 

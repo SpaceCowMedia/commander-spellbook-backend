@@ -1,9 +1,10 @@
 from unittest import TestCase
 from django.core.exceptions import ValidationError
-from spellbook.regexs import DOUBLE_CURLY_BRACKET_TEXT_REGEX, DOUBLE_SQUARE_BRACKET_TEXT_REGEX, MANA_REGEX, ORACLE_SYMBOL, SYMBOLS_TEXT_REGEX
+from spellbook.regexs import DOUBLE_SQUARE_BRACKET_TEXT_REGEX, MANA_REGEX, ORACLE_SYMBOL, SYMBOLS_TEXT_REGEX
 from spellbook.regexs import MANA_SYMBOL, ORDINARY_CHARACTERS_REGEX, URL_REGEX
-from spellbook.models.references import REFERENCE_PREFIXES, format_alias_inclusion, format_alias_replacement, format_feature_inclusion, format_feature_replacement, format_line_reference
-from spellbook.models.validators import FEATURE_NAME_VALIDATORS, REFERENCES_VALIDATOR, SCRYFALL_QUERY_VALIDATOR
+from spellbook.models.references import ATTRIBUTE_NAME_RESERVED_CHARACTERS, CARD_STATE_KEYS, FEATURE_NAME_RESERVED_CHARACTERS, TEXT_KEYS, format_alias_reference, format_feature_reference, format_line_reference
+from spellbook.models.validators import ATTRIBUTE_NAME_VALIDATORS, DICTIONARY_VALIDATOR, FEATURE_NAME_VALIDATORS, REFERENCES_VALIDATOR, SCRYFALL_QUERY_VALIDATOR
+from spellbook.models import Explanation, Ingredient
 
 
 class TestValidators(TestCase):
@@ -113,27 +114,16 @@ class TestValidators(TestCase):
         self.assertNotRegex('[[]]', DOUBLE_SQUARE_BRACKET_TEXT_REGEX)
         self.assertNotRegex('[[', DOUBLE_SQUARE_BRACKET_TEXT_REGEX)
 
-    def test_double_curly_bracket_text(self):
-        self.assertRegex('{{Infinite Mana}}', DOUBLE_CURLY_BRACKET_TEXT_REGEX)
-        self.assertRegex('{{random}} and {{stuff}}', DOUBLE_CURLY_BRACKET_TEXT_REGEX)
-        self.assertRegex('{{random$1}} and {{stuff$Some Attribute}}', DOUBLE_CURLY_BRACKET_TEXT_REGEX)
-        self.assertRegex('{T}: add {W}, the single brackets of a symbol are fine', DOUBLE_CURLY_BRACKET_TEXT_REGEX)
-        self.assertRegex('{{{ triple curly brackets are } fine too }}}', DOUBLE_CURLY_BRACKET_TEXT_REGEX)
-        self.assertNotRegex('{{}}', DOUBLE_CURLY_BRACKET_TEXT_REGEX)
-        self.assertNotRegex('{{', DOUBLE_CURLY_BRACKET_TEXT_REGEX)
-        self.assertNotRegex('{{unpaired}', DOUBLE_CURLY_BRACKET_TEXT_REGEX)
-        self.assertRegex('Repeat from step {{2}}, then {{+1}} and {{-3}}', DOUBLE_CURLY_BRACKET_TEXT_REGEX)
-
     def test_references(self):
-        definition = format_feature_replacement('Feature', '2', '1', 'alias')
+        definition = format_feature_reference('Feature', '2', '1', alias='alias')
         for text in (
             f'First\nRepeat from step {format_line_reference(1)}.',
             f'{format_line_reference(1, "+")}\nSecond',
             f'Only line {format_line_reference(0, "-")} and {format_line_reference(0, "+")}',
             f'First\nSecond\nBack to {format_line_reference(2, "-")}, forward to {format_line_reference(3)}',
-            f'{format_feature_inclusion("Feature")} and {format_feature_inclusion("3", "2")} are no line references',
-            f'{format_alias_replacement("alias")} before {definition}, then {format_alias_inclusion("alias")}',
-            '{{{ triple curly brackets are } fine too }}}',
+            f'{format_feature_reference("Feature", key="description")} and {format_feature_reference("3", selector="2", key="sac step")} are no line references',
+            f'{format_alias_reference("alias")} before {definition}, then {format_alias_reference("alias", "description")}',
+            '[[[ triple square brackets are ] fine too ]]]',
         ):
             with self.subTest(text=text):
                 REFERENCES_VALIDATOR(text)
@@ -144,11 +134,12 @@ class TestValidators(TestCase):
             f'First\nForward to {format_line_reference(1, "+")}',
             f'First\r\nSecond\r\n{format_line_reference(4)}',
             f'Step {format_line_reference("two")}',
-            f'{format_alias_replacement("alias")} is not defined',
-            f'{format_alias_inclusion("alias")} is not defined',
-            f'{definition} repeated as {format_alias_replacement("alias$2")}',
-            f'{definition} defined twice: {format_feature_replacement("Other", alias="alias")}',
+            f'{format_alias_reference("alias")} is not defined',
+            f'{format_alias_reference("alias", "notes")} is not defined',
+            f'{definition} repeated as {format_alias_reference("alias$2")}',
+            f'{definition} defined twice: {format_feature_reference("Other", alias="alias")}',
             '[[Feature|alias$1]] names the feature, not the reference',
+            '[[Feature@key$1]] puts the selector after the key',
         ):
             with self.subTest(text=text):
                 with self.assertRaises(ValidationError):
@@ -159,13 +150,60 @@ class TestValidators(TestCase):
             for validator in FEATURE_NAME_VALIDATORS:
                 validator(name)
 
-        for name in ('Feature', '3 Mana', '3', 'Step 3'):
+        for name in ('Feature', '3 Mana', '3', 'Step 3', 'Creature with +1/+1 counters', 'Aura that grants {T}: deal damage'):
             with self.subTest(name=name):
                 validate(name)
-        for name in ('lowercase', '+4 Power', *(f'{prefix}Feature' for prefix in REFERENCE_PREFIXES)):
+        for name in ('lowercase', '+4 Power', *(f'Feature {character} name' for character in FEATURE_NAME_RESERVED_CHARACTERS), '!Feature', '#Feature'):
             with self.subTest(name=name):
                 with self.assertRaises(ValidationError):
                     validate(name)
+
+    def test_attribute_names(self):
+        def validate(name: str):
+            for validator in ATTRIBUTE_NAME_VALIDATORS:
+                validator(name)
+
+        for name in ('Landfall', 'requires creature with pow>=4', '+1/+1-counter-doubler', 'step #2'):
+            with self.subTest(name=name):
+                validate(name)
+        for character in ATTRIBUTE_NAME_RESERVED_CHARACTERS:
+            with self.subTest(character=character):
+                with self.assertRaises(ValidationError):
+                    validate(f'attribute {character} name')
+
+    def test_dictionaries(self):
+        for dictionary in (
+            {},
+            {'name': ''},
+            {'mana_needed': '{2}{U}', 'description': ['Sacrifice it.', 'Draw a card.']},
+            {'sac activation': 'Activate it by sacrificing', 'targets': ['a creature', '[[Feature]]']},
+            {'notes': 'see [[Feature@description]]', 'empty list': []},
+        ):
+            with self.subTest(dictionary=dictionary):
+                DICTIONARY_VALIDATOR(dictionary)
+        for dictionary in (
+            [],
+            'text',
+            {'': 'blank key'},
+            {' padded': 'key'},
+            {'key@other': 'reserved'},
+            {'key|alias': 'reserved'},
+            {'battlefield_card_state': 'tapped'},
+            {'number': 3},
+            {'mixed': ['text', 3]},
+            {'nested': {'key': 'value'}},
+            {'mana_needed': 'two mana'},
+            {'broken': '[[Feature'},
+            {'curly': '{{Feature}}'},
+            {'inline': 'cast [[Feature@description]]'},
+        ):
+            with self.subTest(dictionary=dictionary):
+                with self.assertRaises(ValidationError):
+                    DICTIONARY_VALIDATOR(dictionary)
+
+    def test_built_in_keys_are_the_fields_of_their_models(self):
+        self.assertEqual(list(TEXT_KEYS), Explanation.text_fields_with_references())
+        self.assertEqual(list(CARD_STATE_KEYS), list(Ingredient.CARD_STATE_FIELDS.values()))
 
     def test_oracle_symbol(self):
         regex = f'^{ORACLE_SYMBOL}$'
@@ -222,10 +260,11 @@ class TestValidators(TestCase):
         self.assertRegex('{C} {P} {X} anything {X}{Y}{Z}', SYMBOLS_TEXT_REGEX)
         self.assertRegex('{W/U} {W/B} {U/B} {U/R} {B/R/P} {B/G} {R/G} {R/G/P} {W/U/P}', SYMBOLS_TEXT_REGEX)
         self.assertRegex('{W/U/P} {W/B/P} {U/B/P} {U/R/P} {B/R/P} {B/G/P} {R/G/P} {R/G/P}{W}', SYMBOLS_TEXT_REGEX)
-        self.assertRegex('{{Infinite Mana}}', SYMBOLS_TEXT_REGEX)
-        self.assertRegex('{2}, then {{Infinite Mana$1}} and {{Infinite Colorless Mana}}', SYMBOLS_TEXT_REGEX)
+        self.assertRegex('{2}, then [[Infinite Mana$1@description]]', SYMBOLS_TEXT_REGEX)
         self.assertNotRegex('{W/U/P/}', SYMBOLS_TEXT_REGEX)
         self.assertNotRegex('{W/U/P{}', SYMBOLS_TEXT_REGEX)
+        # double curly brackets wrote inclusions, which are references between square brackets now
+        self.assertNotRegex('{{Infinite Mana}}', SYMBOLS_TEXT_REGEX)
         self.assertNotRegex('{{Infinite Mana}', SYMBOLS_TEXT_REGEX)
 
     def test_ordinary_characters(self):

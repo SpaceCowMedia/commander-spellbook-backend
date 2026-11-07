@@ -1,4 +1,4 @@
-from typing import Mapping, Iterable
+from typing import Iterable
 from collections import deque, defaultdict, Counter
 from .multiset import FrozenMultiset, Multiset
 from itertools import chain
@@ -21,9 +21,6 @@ class Node:
     def __init__(self, graph: 'Graph', item):
         self._variant_set: VariantSet | None = None
         self._filtered_variant_set: VariantSet | None = None
-        self._replacement_variant_set: VariantSet | None = None
-        self._filtered_replacement_variant_set: VariantSet | None = None
-        self.replacements_differ = False
         self._graph = graph
         self.item = item
         self._hash = hash(item) + 31 * hash(self.__class__.__name__)
@@ -45,31 +42,6 @@ class Node:
             self._filtered_variant_set = value
             self._graph._to_reset_nodes_filtered_variant_set.add(self)
 
-    @property
-    def replacement_variant_set(self) -> VariantSet | None:
-        '''The variant set of this node, restricted to the ingredients taking part in replacements.
-        It is what the features produced here are replaced with, both in the texts referencing them and
-        in their state and location overrides. Nodes no opted out ingredient can reach share the variant
-        set itself, so they cost nothing to keep.'''
-        if not self.replacements_differ:
-            return self.variant_set
-        if self._graph.variant_set_parameters.filter is None:
-            return self._replacement_variant_set
-        if self._replacement_variant_set is not None and self._filtered_replacement_variant_set is None:
-            self._filtered_replacement_variant_set = self._replacement_variant_set.filter(self._graph.variant_set_parameters.filter)
-            self._graph._to_reset_nodes_filtered_replacement_variant_set.add(self)
-        return self._filtered_replacement_variant_set
-
-    @replacement_variant_set.setter
-    def replacement_variant_set(self, value: VariantSet | None):
-        if not self.replacements_differ:
-            return  # the whole variant set is what the replacements use, so there is nothing of its own to keep
-        if self._graph.variant_set_parameters.filter is None:
-            self._replacement_variant_set = value
-        else:
-            self._filtered_replacement_variant_set = value
-            self._graph._to_reset_nodes_filtered_replacement_variant_set.add(self)
-
     def __str__(self) -> str:
         return f'{self.__class__.__name__} of {self.item}'
 
@@ -84,9 +56,6 @@ class Node:
 
     def _reset_filtered_variant_set(self):
         self._filtered_variant_set = None
-
-    def _reset_filtered_replacement_variant_set(self):
-        self._filtered_replacement_variant_set = None
 
     def __hash__(self):
         # equality is left as identity on purpose: the graph memoizes one node per item, so two nodes
@@ -260,9 +229,6 @@ def count_needed_features(needed: Iterable[tuple[FeatureNeededInCombo, FeatureWi
 
 
 class ComboNode(NodeWithState):
-    '''A combo, holding what it requires both as a whole and as the part of it taking part in the
-    replacements. The two are the same collections unless one of its ingredients opted out, so a combo
-    where every ingredient participates, which is the norm, keeps a single copy of each.'''
 
     def __init__(
         self,
@@ -312,14 +278,6 @@ class ComboNode(NodeWithState):
                 self.features_produced.append(feature_produced)
                 feature_produced.add_producing_combo(self)
         self.countable_features_produced = [f for f in self.features_produced if not f.item.feature.uncountable]
-        if all(i.in_replacements for i in chain(cards_in_combo, templates_in_combo, data.combo_to_needed_features[combo.id])):
-            self.cards_for_replacements = self.cards
-            self.templates_for_replacements = self.templates
-            self.features_needed_for_replacements = self.features_needed
-        else:
-            self.cards_for_replacements = Multiset[CardNode]({graph.card_nodes[i.card_id]: i.quantity for i in cards_in_combo if i.in_replacements})
-            self.templates_for_replacements = Multiset[TemplateNode]({graph.template_nodes[i.template_id]: i.quantity for i in templates_in_combo if i.in_replacements})
-            self.features_needed_for_replacements = count_needed_features((i, matcher) for i, matcher in features_needed_in_combo if i.in_replacements)
 
 
 featureid = int
@@ -386,42 +344,9 @@ class Graph:
                     if feature_with_attributes_matcher_node.item.matcher.matches(attributes):
                         feature_with_attributes_matcher_node.matches.add(matching_node)
                         matching_node.matches.append(feature_with_attributes_matcher_node)
-        self._mark_nodes_with_differing_replacements()
         self._to_reset_nodes_state: set[Node] = set()
         self._to_reset_nodes_subgraph_state: set[Node] = set()
         self._to_reset_nodes_filtered_variant_set: set[Node] = set()
-        self._to_reset_nodes_filtered_replacement_variant_set: set[Node] = set()
-
-    def _mark_nodes_with_differing_replacements(self) -> None:
-        '''Marks every node whose replacements could differ from its whole variant set: the combos
-        with an opted out ingredient, and everything reachable from them by producing a feature another
-        combo needs. Marking each node at most once makes this terminate on the cyclic graphs the rest
-        of the generation already copes with, and leaves every other node sharing its variant set.'''
-        to_visit = deque[Node]()
-        for combo_node in self.combo_nodes.values():
-            if combo_node.cards_for_replacements is not combo_node.cards \
-                    or combo_node.templates_for_replacements is not combo_node.templates \
-                    or combo_node.features_needed_for_replacements is not combo_node.features_needed:
-                combo_node.replacements_differ = True
-                to_visit.append(combo_node)
-        while to_visit:
-            node = to_visit.popleft()
-            if isinstance(node, ComboNode):
-                successors: Iterable[Node] = node.features_produced
-            elif isinstance(node, FeatureWithAttributesNode):
-                successors = node.matches
-            else:
-                assert isinstance(node, FeatureWithAttributesMatcherNode)
-                # the difference only travels through rows that are in replacements
-                successors = [
-                    combo_node
-                    for combo_node in node.needed_by_combos
-                    if node in combo_node.features_needed_for_replacements.get(node.item.feature, ())
-                ]
-            for successor in successors:
-                if not successor.replacements_differ:
-                    successor.replacements_differ = True
-                    to_visit.append(successor)
 
     def feature_with_attributes_node(self, nodes: dict[featureid, dict[frozenset[int], FeatureWithAttributesNode]], feature_id: int, attributes: frozenset[int]) -> FeatureWithAttributesNode:
         '''The node of a feature produced with the given attributes, shared by every card and combo producing it.
@@ -443,29 +368,25 @@ class Graph:
         return node
 
     @staticmethod
-    def _cached(node: NodeWithState) -> tuple[VariantSet, VariantSet, bool] | None:
-        '''The way out of a walk of a node an earlier one already resolved, and None when there is nothing
-        to walk out of. The same _resolved call stored its replacement counterpart, so that is there too,
-        and both are complete.'''
+    def _cached(node: NodeWithState) -> tuple[VariantSet, bool] | None:
+        '''The way out of a walk of a node an earlier one already resolved, which is complete, and None
+        when there is nothing to walk out of.'''
         variant_set = node.variant_set
         if variant_set is None:
             return None
-        replacement_variant_set = node.replacement_variant_set
-        assert replacement_variant_set is not None
         node.state = NodeState.VISITED
-        return variant_set, replacement_variant_set, True
+        return variant_set, True
 
     @staticmethod
-    def _resolved(node: NodeWithState, variant_set: VariantSet, replacement_variant_set: VariantSet, complete: bool) -> tuple[VariantSet, VariantSet, bool]:
+    def _resolved(node: NodeWithState, variant_set: VariantSet, complete: bool) -> tuple[VariantSet, bool]:
         '''The way out of a walk that resolved the node. Only a complete result is stored, so that what is
         cached can never be an under-approximation owed to the cycle the walk happened to be in the middle of.'''
         if complete:
             node.variant_set = variant_set
-            node.replacement_variant_set = replacement_variant_set
         node.state = NodeState.VISITED
-        return variant_set, replacement_variant_set, complete
+        return variant_set, complete
 
-    def _unresolved(self) -> tuple[VariantSet, VariantSet, bool]:
+    def _unresolved(self) -> tuple[VariantSet, bool]:
         '''The way out of a walk that ran into the cycle the node belongs to. Nothing is cached and the node
         is left visiting on purpose: this emptiness only says the walk was in the middle of that cycle, and
         the node can be resolved for real later on. The empty set is shared, being read only, and rebuilt
@@ -473,7 +394,7 @@ class Graph:
         empty = self._empty_variant_set
         if empty.parameters is not self.variant_set_parameters:
             empty = self._empty_variant_set = VariantSet(parameters=self.variant_set_parameters)
-        return empty, empty, False
+        return empty, False
 
     def _variant_and(self, combo: ComboNode, left: VariantSet, right: VariantSet) -> VariantSet:
         '''The strategy intersecting the requirements of a combo, bounding the pairs each step goes through.
@@ -516,9 +437,6 @@ class Graph:
         for node in self._to_reset_nodes_filtered_variant_set:
             node._reset_filtered_variant_set()
         self._to_reset_nodes_filtered_variant_set.clear()
-        for node in self._to_reset_nodes_filtered_replacement_variant_set:
-            node._reset_filtered_replacement_variant_set()
-        self._to_reset_nodes_filtered_replacement_variant_set.clear()
         self.satisfiable_combos = None
         self.variant_set_parameters = VariantSetParameters(
             max_depth=self.variant_set_parameters.max_depth,
@@ -528,7 +446,7 @@ class Graph:
     def variants(self, combo_id: int) -> VariantSet:
         combo_node = self.combo_nodes[combo_id]
         self._reset()
-        variant_set, _, _ = self._combo_nodes_down(combo_node)
+        variant_set, _ = self._combo_nodes_down(combo_node)
         return variant_set
 
     def results(self, variant_set: VariantSet) -> list[VariantRecipe]:
@@ -539,45 +457,33 @@ class Graph:
             result.append(recipe)
         return result
 
-    def _combo_nodes_down(self, combo: ComboNode) -> tuple[VariantSet, VariantSet, bool]:
-        '''The variant set of a combo, the one restricted to its ingredients in replacements, and
-        whether the walk saw everything it depends on. The second is the first itself for the combos no
-        opted out ingredient reaches.'''
+    def _combo_nodes_down(self, combo: ComboNode) -> tuple[VariantSet, bool]:
+        '''The variant set of a combo, and whether the walk saw everything it depends on.'''
         if cached := self._cached(combo):
             return cached
         combo.state = NodeState.VISITING
         complete = True
         card_variant_sets: list[VariantSet] = []
-        replacement_variant_sets_of_ingredients: list[VariantSet] = []
         for c, q in combo.cards.items():
             variant_set = VariantSet.product_sets([c.variant_set] * q, parameters=self.variant_set_parameters)
             if not variant_set:
-                return self._resolved(combo, variant_set, variant_set, complete)
+                return self._resolved(combo, variant_set, complete)
             card_variant_sets.append(variant_set)
-            if combo.replacements_differ and c in combo.cards_for_replacements:
-                replacement_variant_sets_of_ingredients.append(variant_set)
         template_variant_sets: list[VariantSet] = []
         for t, q in combo.templates.items():
             variant_set = VariantSet.product_sets([t.variant_set] * q, parameters=self.variant_set_parameters)
             if not variant_set:
-                return self._resolved(combo, variant_set, variant_set, complete)
+                return self._resolved(combo, variant_set, complete)
             template_variant_sets.append(variant_set)
-            if combo.replacements_differ and t in combo.templates_for_replacements:
-                replacement_variant_sets_of_ingredients.append(variant_set)
         needed_features_variant_sets: list[VariantSet] = []
         for feature, features_needed in combo.features_needed.items():
             variant_sets = list[VariantSet]()
-            replacement_variant_sets = list[VariantSet]()
-            # the same matcher can be needed by both participating and opted out rows, so the quantity
-            # in replacements is the one counted over the participating rows alone
-            features_needed_for_replacements: Mapping[FeatureWithAttributesMatcherNode, int] = combo.features_needed_for_replacements.get(feature, {}) if combo.replacements_differ else {}
             for f, q in features_needed.items():
                 if f.state is NodeState.VISITING:
                     return self._unresolved()
-                variant_set, replacement_variant_set, complete_below = self._feature_with_attribute_matchers_nodes_down(f)
+                variant_set, complete_below = self._feature_with_attribute_matchers_nodes_down(f)
                 complete = complete and complete_below
                 variant_sets.extend([variant_set] * q)
-                replacement_variant_sets.extend([replacement_variant_set] * features_needed_for_replacements.get(f, 0))
             variant_count_estimate = 0
             for vs in variant_sets:
                 variant_count_estimate += len(vs)
@@ -585,68 +491,57 @@ class Graph:
                 raise GraphError(f'{len(variant_sets)} x Feature "{feature}" has too many variants, approx. {variant_count_estimate}')
             variant_set = VariantSet.product_sets(variant_sets, parameters=self.variant_set_parameters)
             if not variant_set:
-                return self._resolved(combo, variant_set, variant_set, complete)
+                return self._resolved(combo, variant_set, complete)
             needed_features_variant_sets.append(variant_set)
-            if replacement_variant_sets:
-                replacement_variant_sets_of_ingredients.append(VariantSet.product_sets(replacement_variant_sets, parameters=self.variant_set_parameters))
         and_within_limit = partial(self._variant_and, combo)
         variant_set = VariantSet.aggregate_sets(sorted(card_variant_sets + template_variant_sets + needed_features_variant_sets, key=len), strategy=and_within_limit, parameters=self.variant_set_parameters)
         # a lone operand never reaches the strategy
         if len(variant_set) > self.variant_limit:
             raise GraphError(f'Combo {combo.item} has too many variants, approx. {len(variant_set)}')
-        replacement_variant_set = VariantSet.aggregate_sets(sorted(replacement_variant_sets_of_ingredients, key=len), strategy=and_within_limit, parameters=self.variant_set_parameters) if combo.replacements_differ else variant_set
-        return self._resolved(combo, variant_set, replacement_variant_set, complete)
+        return self._resolved(combo, variant_set, complete)
 
-    def _feature_with_attribute_matchers_nodes_down(self, feature: FeatureWithAttributesMatcherNode) -> tuple[VariantSet, VariantSet, bool]:
+    def _feature_with_attribute_matchers_nodes_down(self, feature: FeatureWithAttributesMatcherNode) -> tuple[VariantSet, bool]:
         if cached := self._cached(feature):
             return cached
         feature.state = NodeState.VISITING
         variant_sets: list[VariantSet] = []
-        replacement_variant_sets: list[VariantSet] = []
         complete = True
         for m in feature.matches:
             if m.state is NodeState.VISITING:
                 complete = False
                 continue
-            variant_set, replacement_variant_set, complete_below = self._feature_with_attributes_nodes_down(m)
+            variant_set, complete_below = self._feature_with_attributes_nodes_down(m)
             complete = complete and complete_below
             variant_sets.append(variant_set)
-            if feature.replacements_differ:
-                replacement_variant_sets.append(replacement_variant_set)
         variant_set = VariantSet.aggregate_sets(variant_sets, strategy=or_, parameters=self.variant_set_parameters)
-        replacement_variant_set = VariantSet.aggregate_sets(replacement_variant_sets, strategy=or_, parameters=self.variant_set_parameters) if feature.replacements_differ else variant_set
-        return self._resolved(feature, variant_set, replacement_variant_set, complete)
+        return self._resolved(feature, variant_set, complete)
 
-    def _feature_with_attributes_nodes_down(self, feature: FeatureWithAttributesNode) -> tuple[VariantSet, VariantSet, bool]:
+    def _feature_with_attributes_nodes_down(self, feature: FeatureWithAttributesNode) -> tuple[VariantSet, bool]:
         if cached := self._cached(feature):
             return cached
         feature.state = NodeState.VISITING
         complete = True
         card_variant_sets: list[VariantSet] = [f.variant_set for f in feature.produced_by_cards]
         produced_combos_variant_sets: list[VariantSet] = []
-        produced_combos_replacement_variant_sets: list[VariantSet] = []
         for c in feature.produced_by_combos:
             if c.state is NodeState.VISITING:
                 complete = False
                 continue
-            variant_set, replacement_variant_set, complete_below = self._combo_nodes_down(c)
+            variant_set, complete_below = self._combo_nodes_down(c)
             complete = complete and complete_below
             produced_combos_variant_sets.append(variant_set)
-            if feature.replacements_differ:
-                produced_combos_replacement_variant_sets.append(replacement_variant_set)
         or_within_limit = partial(self._variant_or, feature)
         variant_set = VariantSet.aggregate_sets(card_variant_sets + produced_combos_variant_sets, strategy=or_within_limit, parameters=self.variant_set_parameters)
-        replacement_variant_set = VariantSet.aggregate_sets(card_variant_sets + produced_combos_replacement_variant_sets, strategy=or_within_limit, parameters=self.variant_set_parameters) if feature.replacements_differ else variant_set
-        return self._resolved(feature, variant_set, replacement_variant_set, complete)
+        return self._resolved(feature, variant_set, complete)
 
-    def _combo_nodes_down_in_subgraph(self, combo: ComboNode) -> tuple[VariantSet, VariantSet]:
-        '''The variant set of a combo met by the walk up, and its replacement counterpart, walked with
-        states of their own so that the walk up is left where it was.'''
+    def _combo_nodes_down_in_subgraph(self, combo: ComboNode) -> VariantSet:
+        '''The variant set of a combo met by the walk up, walked with states of their own so that the
+        walk up is left where it was.'''
         self.subgraph = True
         self._reset()
-        variant_set, replacement_variant_set, _ = self._combo_nodes_down(combo)
+        variant_set, _ = self._combo_nodes_down(combo)
         self.subgraph = False
-        return variant_set, replacement_variant_set
+        return variant_set
 
     def _card_nodes_up(self, ingredients: VariantIngredients) -> VariantRecipe:
         self.variant_set_parameters = VariantSetParameters(
@@ -663,7 +558,7 @@ class Graph:
         parked_combo_nodes: set[ComboNode] = set()
         parked_combo_nodes_by_blocking_feature = defaultdict[FeatureWithAttributesNode, list[ComboNode]](list)
         combo_nodes: set[ComboNode] = set()
-        replacement_variant_sets = dict[ComboNode, VariantSet]()
+        fired_variant_sets = dict[ComboNode, VariantSet]()
         unfired_combo_nodes = list[ComboNode]()
         replacements = defaultdict[FeatureWithAttributes, list[VariantIngredients]](list)
 
@@ -710,10 +605,10 @@ class Graph:
             combo = combo_nodes_to_visit.popleft()
             quantity = 0
             if cached := self._cached(combo):
-                variant_set, replacement_variant_set, _ = cached
+                variant_set, _ = cached
                 if not variant_set:
                     continue
-                replacement_variant_sets[combo] = replacement_variant_set
+                fired_variant_sets[combo] = variant_set
                 if combo.countable_features_produced:
                     quantity = variant_set.firing_count(ingredients)
             else:
@@ -726,8 +621,8 @@ class Graph:
                         parked_combo_nodes_by_blocking_feature[blocking_feature].append(combo)
                     continue
                 if combo.countable_features_produced:
-                    variant_set, replacement_variant_set = self._combo_nodes_down_in_subgraph(combo)
-                    replacement_variant_sets[combo] = replacement_variant_set
+                    variant_set = self._combo_nodes_down_in_subgraph(combo)
+                    fired_variant_sets[combo] = variant_set
                     quantity = variant_set.firing_count(ingredients)
                 else:
                     unfired_combo_nodes.append(combo)
@@ -813,13 +708,13 @@ class Graph:
             for feature in feature_needed.matches
         }
         self.satisfiable_combos = combo_nodes
-        for combo_node in chain(replacement_variant_sets, unfired_combo_nodes):
+        for combo_node in chain(fired_variant_sets, unfired_combo_nodes):
             produced_features_needed = [f for f in combo_node.features_produced if f in features_needed_by_needed_combos]
             if produced_features_needed:
-                replacement_variant_set = replacement_variant_sets.get(combo_node)
-                if replacement_variant_set is None:
-                    _, replacement_variant_set = self._combo_nodes_down_in_subgraph(combo_node)
-                replacements_for_combo = replacement_variant_set.variants()
+                variant_set = fired_variant_sets.get(combo_node)
+                if variant_set is None:
+                    variant_set = self._combo_nodes_down_in_subgraph(combo_node)
+                replacements_for_combo = variant_set.variants()
                 for feature in produced_features_needed:
                     replacements[feature.item].extend(replacements_for_combo)
         self._reset()

@@ -3,23 +3,24 @@ from django.db import models
 from django.db.models import Index
 from django.core.exceptions import ValidationError
 from .constants import MAX_MANA_NEEDED_LENGTH
-from .references import format_alias_inclusion, format_alias_replacement, format_feature_inclusion, format_feature_replacement, format_line_reference
+from .references import format_alias_reference, format_feature_reference, format_line_reference
 from .utils import case_insensitive_trigram_indexes
 from .validators import MANA_VALIDATOR, TEXT_VALIDATORS
 
 
 DESCRIPTION_HELP_TEXT = (
     'Long description, in steps.'
-    f' Here and in every other text field you can reference the features this combo needs with the {format_feature_replacement("name")} syntax.'
-    f' Optionally, you can select one of the multiple copies with {format_feature_replacement("name", selector="number")},'
+    f' Here and in every other text field you can reference the features this combo needs with the {format_feature_reference("name")} syntax, which writes the names of what produces them.'
+    f' Add a key to write something else they provide: {format_feature_reference("name", key="description")} writes their descriptions, along with the ones of what they need in turn,'
+    f' {format_feature_reference("name", key="mana_needed")} their mana needed, and any key in their dictionaries works the same way, while a key nothing provides writes nothing.'
+    ' A text written in the field of its own name, as a description in this one, is then not appended to it again.'
+    f' Optionally, you can select one of the multiple copies with {format_feature_reference("name", selector="number")},'
     ' where the number counts through the copies this combo needs of that feature, in the order of its needed feature rows,'
-    f' or with {format_feature_replacement("name", selector="attribute")}, where the attribute is the name of one of the attributes the feature was produced with.'
-    ' Uncheck "in replacements" on an ingredient to keep it out of the replacements of the features this combo produces:'
-    ' on a needed feature, that also keeps the texts of whatever produces it out of the variants, unless you include them.'
-    f' With the {format_feature_inclusion("name")} syntax, and the same selectors, you can instead write here the text of this same field,'
-    ' taken from every combo or card producing that feature: those texts are then not appended to this one, because they have already been written where you mentioned them.'
-    f' Give a reference an alias, as in {format_feature_replacement("name", alias="alias")} or {format_feature_replacement("name", selector="number", alias="alias")},'
-    f' to repeat it anywhere in the same text as {format_alias_replacement("alias")}, or as {format_alias_inclusion("alias")} to write its text.'
+    f' or with {format_feature_reference("name", selector="attribute")}, where the attribute is the name of one of the attributes the feature was produced with.'
+    ' The dictionary of an ingredient overrides what it brings to the features this combo produces and to its variants:'
+    ' a text replaces, a list adds to a list, and a blank text leaves it out.'
+    f' Give a reference an alias, as in {format_feature_reference("name", alias="alias")} or {format_feature_reference("name", selector="number", alias="alias")},'
+    f' to repeat it anywhere in the same text as {format_alias_reference("alias")}, or with another key as {format_alias_reference("alias", key="key")}.'
     f' To mention a step, write {format_line_reference("X", "+")} for the line X lines below, {format_line_reference("Y", "-")} for the line Y lines above,'
     f' or {format_line_reference("Z")} for the Zth line of this text: each variant replaces it with the number that line ends up at.'
 )

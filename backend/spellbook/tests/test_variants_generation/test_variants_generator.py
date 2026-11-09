@@ -2,7 +2,7 @@ import os
 from itertools import chain
 from unittest import mock, skipUnless
 from django.db.models import Count
-from spellbook.models.combo import CardInCombo, FeatureNeededInCombo
+from spellbook.models.combo import CardInCombo, FeatureNeededInCombo, FeatureProducedInCombo
 from spellbook.models.feature_attribute import FeatureAttribute
 from spellbook.tests.testing import SpellbookTestCase, SpellbookTestCaseWithSeeding, curated_card
 from spellbook.models import Variant, Card, OrderedIngredient, CardInVariant, TemplateInVariant, Template, Combo, Feature, VariantAlias, FeatureOfCard, ZoneLocation, recompute_all_counts
@@ -900,12 +900,12 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
         self.assertEqual(v.easy_prerequisites, 'C\nA\nB')
         self.assertEqual(v.notable_prerequisites, 'C\nA\nB')
 
-    def generator_needing_a_card_feature(self, **texts) -> Combo:
+    def generator_needing_a_card_feature(self, is_mana_needed_an_accurate_minimum: bool = True, **texts) -> Combo:
         """A generator combo using the card whose feature carries the given texts in its dictionary, and
         needing that feature, so that its texts can name it. FB is contextual, so the row producing it is
         kept in the variant, and the combo produces a standalone feature of its own."""
         card = Card.objects.get(number=self.c1_id)
-        card.featureofcard_set.create(feature_id=self.f2_id, zone_locations=ZoneLocation.BATTLEFIELD, dictionary=texts)
+        card.featureofcard_set.create(feature_id=self.f2_id, zone_locations=ZoneLocation.BATTLEFIELD, dictionary=texts, is_mana_needed_an_accurate_minimum=is_mana_needed_an_accurate_minimum)
         combo = Combo.objects.create(status=Combo.Status.GENERATOR, **self.combo_fields)
         combo.cardincombo_set.create(card_id=self.c1_id, order=1, zone_locations=ZoneLocation.BATTLEFIELD)
         combo.featureneededincombo_set.create(feature_id=self.f2_id, order=1)
@@ -940,6 +940,13 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
         v: Variant = Variant.objects.get(of=combo)
         self.assertEqual(v.mana_needed, '{U}{U}')
         self.assertTrue(v.is_mana_needed_an_accurate_minimum)
+
+    def test_a_card_feature_can_make_the_mana_needed_an_inaccurate_minimum(self):
+        self.combo_fields = {'mana_needed': '{U}', 'is_mana_needed_an_accurate_minimum': True}
+        combo = self.generator_needing_a_card_feature(is_mana_needed_an_accurate_minimum=False, mana_needed='{4}{B} at most')
+        v: Variant = Variant.objects.get(of=combo)
+        self.assertEqual(v.mana_needed, '{U} plus {4}{B} at most')
+        self.assertFalse(v.is_mana_needed_an_accurate_minimum)
 
     def test_a_combo_that_only_removes_a_feature_is_included(self):
         c = Combo.objects.create(mana_needed='{U}', status=Combo.Status.GENERATOR)
@@ -1262,6 +1269,22 @@ class FeatureInclusionTests(TextSourcesTestCase):
         # the notes hold no inclusion, so they are appended the way they always were
         self.assertEqual(variant.notes, 'a note of the main combo\na note of the producer')
 
+    def test_a_copy_dealt_to_no_row_is_written_in_place_too(self):
+        '''The same card makes IFMana in two combos, with different attributes, so the variant holds two
+        copies of it and the row needing one is dealt the first: the other, dealt to no row, is written
+        where the reference of the row writes its copy instead of being appended, while names stay with
+        the copy dealt.'''
+        card = curated_card(name='Inclusion Mana Card', type_line='Creature - Elf')
+        for attribute, description in (('Sorcery', 'make mana'), ('Nontoken', 'make mana with nontoken creatures')):
+            producer = Combo.objects.create(status=Combo.Status.UTILITY, description=description)
+            CardInCombo.objects.create(combo=producer, card=card, order=1, zone_locations=ZoneLocation.BATTLEFIELD)
+            FeatureProducedInCombo.objects.create(combo=producer, feature=self.mana).attributes.add(FeatureAttribute.objects.create(name=attribute))
+        main = self.make_main(self.mana, description='Use [[IFMana]]: [[IFMana@description]].\nWin.')
+
+        self.generate_variants()
+
+        self.assertEqual(Variant.objects.get(of=main).description, 'Use Inclusion Mana Card: make mana\nmake mana with nontoken creatures.\nWin.')
+
     def test_a_repeated_inclusion_repeats_the_text_and_consumes_the_producer_once(self):
         self.make_producer('Inclusion Mana Card', self.mana, description='make infinite mana')
         main = self.make_main(self.mana, description='[[IFMana@description]], and again [[IFMana@description]].')
@@ -1563,6 +1586,16 @@ class DictionaryTests(TextSourcesTestCase):
 
     def test_the_mana_left_out_is_not_judged_accurate_or_not(self):
         self.make_producer('Inclusion Mana Card', self.spell, mana_needed='{X}{U} for each copy', is_mana_needed_an_accurate_minimum=False)
+        main = self.make_main(self.spell, {'mana_needed': ''}, mana_needed='{1}')
+
+        variant = self.variant_of(main)
+
+        self.assertEqual(variant.mana_needed, '{1}')
+        self.assertTrue(variant.is_mana_needed_an_accurate_minimum)
+
+    def test_the_mana_of_a_card_feature_left_out_is_not_judged_accurate_or_not(self):
+        card = self.make_card_producer('Free Spell Card', self.spell, mana_needed='{X}{U} for each copy')
+        FeatureOfCard.objects.filter(card=card).update(is_mana_needed_an_accurate_minimum=False)
         main = self.make_main(self.spell, {'mana_needed': ''}, mana_needed='{1}')
 
         variant = self.variant_of(main)

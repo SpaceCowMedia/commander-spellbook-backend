@@ -169,7 +169,8 @@ class CardTests(SpellbookTestCaseWithSeeding):
 
 
 class FeatureOfCardTests(SpellbookTestCaseWithSeeding):
-    '''A feature of a card needs no feature, so none of its texts can reference one.'''
+    '''A feature of a card needs no feature, so none of its texts can reference one, and only mana it
+    provides can be an inaccurate minimum.'''
 
     def feature_of_card(self, **texts) -> FeatureOfCard:
         return FeatureOfCard(card_id=self.c1_id, feature_id=self.f2_id, zone_locations=''.join(ZoneLocation.values), **texts)
@@ -193,6 +194,18 @@ class FeatureOfCardTests(SpellbookTestCaseWithSeeding):
 
     def test_a_dictionary_without_feature_references_is_valid(self):
         self.feature_of_card(dictionary={'sac activation': 'Sacrifice it', 'mana_needed': '{1}'}).full_clean()
+
+    def test_an_inaccurate_minimum_needs_mana(self):
+        for dictionary in ({}, {'mana_needed': ''}, {'notes': '{1}'}):
+            with self.subTest(dictionary=dictionary):
+                with self.assertRaises(ValidationError) as raised:
+                    self.feature_of_card(dictionary=dictionary, is_mana_needed_an_accurate_minimum=False).full_clean()
+                self.assertIn('It must be checked when the dictionary provides no mana_needed.', raised.exception.message_dict['is_mana_needed_an_accurate_minimum'])
+
+    def test_mana_can_be_an_inaccurate_minimum(self):
+        for mana in ('{4}{B} at most', ['{1}', '{X}']):
+            with self.subTest(mana=mana):
+                self.feature_of_card(dictionary={'mana_needed': mana}, is_mana_needed_an_accurate_minimum=False).full_clean()
 
 
 class IsCommanderTests(TestCase):

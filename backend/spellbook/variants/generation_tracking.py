@@ -88,6 +88,7 @@ def compute_fingerprints(data: Data) -> Fingerprints:
                 feature_of_card.used_face,
                 tuple(sorted(data.feature_of_card_to_attributes.get(feature_of_card.id, ()))),
                 canonical_dictionary(feature_of_card.dictionary),
+                feature_of_card.is_mana_needed_an_accurate_minimum,
             )
             for feature_of_card in data.card_to_features.get(card_id, ())
         )

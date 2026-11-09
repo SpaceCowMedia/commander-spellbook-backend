@@ -48,6 +48,7 @@ class FeatureOfCardAdmin(IngredientAdmin):
         'used_face',
         *IngredientAdmin.fields[1:],
         'dictionary',
+        'is_mana_needed_an_accurate_minimum',
     ]
     model = FeatureOfCard
     autocomplete_fields = ['attributes']

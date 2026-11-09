@@ -178,9 +178,10 @@ class Migration(migrations.Migration):
             model_name='featureofcard',
             name='easy_prerequisites',
         ),
-        migrations.RemoveField(
+        migrations.AlterField(
             model_name='featureofcard',
             name='is_mana_needed_an_accurate_minimum',
+            field=models.BooleanField(default=True, help_text='Does the first mana cost the dictionary provides under mana_needed represent the MINIMUM needed to start, ignoring all other text?'),
         ),
         migrations.RemoveField(
             model_name='featureofcard',

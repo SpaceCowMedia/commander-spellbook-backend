@@ -36,7 +36,8 @@ MAX_REFERENCE_DEPTH = 8
 class Override:
     '''A text a dictionary writes for one field of a variant in place of what its row brings, kept as a
     source of its own placed right after the source owning the dictionary, so that it is written,
-    included and ordered like any other text. It resolves its references against the combo owning it.'''
+    included and ordered like any other text. It resolves its references against the combo owning it.
+    Its mana is an accurate minimum unless the card feature owning it says otherwise.'''
     owner: SourceIndex
     combo_id: comboid | None
     field: str
@@ -78,18 +79,18 @@ def collect_sources(data: Data, feature_of_cards: Sequence[FeatureOfCard], combo
     sources = list[TextSource]()
     overrides = dict[tuple[Model, Key], list[SourceIndex]]()
 
-    def add_overrides(owner: SourceIndex, combo_id: comboid | None, row: Model) -> None:
+    def add_overrides(owner: SourceIndex, combo_id: comboid | None, row: Model, accurate: bool = True) -> None:
         for key, value in row.dictionary.items():  # type: ignore[attr-defined]
             if key in TEXT_KEYS:
                 indices = overrides.setdefault((row, key), [])
                 for text in stored_texts(value):
                     indices.append(len(sources))
-                    sources.append(Override(owner, combo_id, key, text))
+                    sources.append(Override(owner, combo_id, key, text, accurate or key != 'mana_needed'))
 
     for feature_of_card in feature_of_cards:
         owner = len(sources)
         sources.append(feature_of_card)
-        add_overrides(owner, None, feature_of_card)
+        add_overrides(owner, None, feature_of_card, feature_of_card.is_mana_needed_an_accurate_minimum)
     for combo in combos:
         owner = len(sources)
         sources.append(combo)
@@ -442,13 +443,14 @@ class Offer:
     dealt: int = 0
 
 
-def select(offer: Offer, selector: str | None) -> list[Way]:
+def select(offer: Offer, selector: str | None, surplus: bool = False) -> list[Way]:
     '''What a selector picks among the alternatives of a feature: an attribute name keeps the ones the
     feature was produced with it, a number picks the one at that position, and no selector keeps the
-    ones dealt to the rows of the combo, or all of them when none was. Nothing selected means the
-    reference has nothing to write.'''
+    ones dealt to the rows of the combo, or all of them when none was. With the surplus, no selector
+    also keeps the ones dealt to no row, which every row accepting them reaches. Nothing selected means
+    the reference has nothing to write.'''
     if selector is None:
-        return [alternative.way for alternative in offer.alternatives[:offer.dealt or len(offer.alternatives)]]
+        return [alternative.way for alternative in (offer.alternatives if surplus else offer.alternatives[:offer.dealt or len(offer.alternatives)])]
     if not selector.isdigit():
         return [alternative.way for alternative in offer.alternatives if alternative.has_attribute(selector)]
     position = int(selector) - 1
@@ -465,10 +467,10 @@ FeatureIndex = Mapping[comboid, Mapping[FeatureName, Offer]]
 NeededRows = Mapping[comboid, Mapping[featureid, Sequence[FeatureNeededInCombo]]]
 
 
-def select_in(index: FeatureIndex, combo_id: comboid | None, name: FeatureName, selector: str | None) -> list[Way]:
+def select_in(index: FeatureIndex, combo_id: comboid | None, name: FeatureName, selector: str | None, surplus: bool = False) -> list[Way]:
     '''What a reference picks in a text of the given combo, which resolves only the features the combo
     needs. A text written on a card has no combo, and resolves nothing.'''
-    return select(index.get(combo_id, {}).get(name, Offer()), selector) if combo_id is not None else []
+    return select(index.get(combo_id, {}).get(name, Offer()), selector, surplus) if combo_id is not None else []
 
 
 def needed_rows_by_feature(data: Data, combos: Iterable[Combo]) -> dict[comboid, dict[featureid, list[FeatureNeededInCombo]]]:
@@ -1004,8 +1006,9 @@ class VariantContext:
         return self.knows(self.source_combo_ids[source], reference)
 
     def value(self, combo_id: comboid | None, reference: re.Match[str]) -> tuple[Value, list[Way]]:
-        '''What a reference in a text of the given combo resolves to, and the ways it selected.'''
-        ways = select_in(self.index, combo_id, reference['feature'], reference['selector'])
+        '''What a reference in a text of the given combo resolves to, and the ways it selected. A text of
+        the variant takes the surplus too, which it would otherwise append on its own.'''
+        ways = select_in(self.index, combo_id, reference['feature'], reference['selector'], key_of(reference) in TEXT_KEYS)
         return combine(way.dictionary for way in ways).get(key_of(reference), EMPTY_VALUE), ways
 
     def named_by(self, source: SourceIndex, reference: re.Match[str]) -> list[SourceIndex]:

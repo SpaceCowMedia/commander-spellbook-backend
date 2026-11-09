@@ -287,6 +287,7 @@ class FeatureOfCard(Ingredient, WithFeatureAttributes, WithUsedFace):
     combo: they reach a variant the way the texts of a combo do, except its description, which is only
     ever written where a combo references it.'''
     id: int
+    is_mana_needed_an_accurate_minimum = models.BooleanField(default=True, help_text='Does the first mana cost the dictionary provides under mana_needed represent the MINIMUM needed to start, ignoring all other text?')
 
     def clean(self):
         '''A feature of a card needs no feature, so its texts cannot reference one: no variant would be
@@ -298,6 +299,8 @@ class FeatureOfCard(Ingredient, WithFeatureAttributes, WithUsedFace):
             for field, field_texts in texts.items()
             if (references := references_to_features_not_needed(field_texts, ()))
         }
+        if not self.is_mana_needed_an_accurate_minimum and not any(dictionary_texts({'mana_needed': (self.dictionary or {}).get('mana_needed', '')})):
+            errors['is_mana_needed_an_accurate_minimum'] = 'It must be checked when the dictionary provides no mana_needed.'
         if errors:
             raise ValidationError(errors)
 

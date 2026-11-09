@@ -79,12 +79,17 @@
         return dictionary;
     }
 
+    // mirrors the widget's template, which writes the summary before this script runs
     function summarize(field, dictionary) {
         const summary = field.querySelector('.dictionary-summary');
         const keys = Object.keys(dictionary);
+        const names = keys.flatMap((key, index) => [...(index ? [', '] : []), dictionary[key] === '' ? element('s', { textContent: key }) : key]);
         summary.classList.remove('dictionary-invalid');
         summary.classList.toggle('dictionary-empty', !keys.length);
-        summary.textContent = keys.length ? `${keys.length} key${keys.length === 1 ? '' : 's'}: ${keys.join(', ')}` : 'No keys';
+        summary.replaceChildren(
+            element('span', { className: 'dictionary-keys' }, keys.length ? names : ['Add keys']),
+            ...(keys.length ? [element('span', { className: 'dictionary-count', textContent: keys.length, title: `${keys.length} key${keys.length === 1 ? '' : 's'}` })] : []),
+        );
         summary.title = keys.length ? toYaml(dictionary) : 'Edit the dictionary';
     }
 
@@ -265,14 +270,13 @@
 
     document.addEventListener('DOMContentLoaded', () => {
         for (const field of document.querySelectorAll('.dictionary-field')) {
-            const summary = field.querySelector('.dictionary-summary');
             try {
                 const dictionary = fromJson(field.querySelector('textarea').value);
-                if (Object.keys(dictionary).length && !problemOf(dictionary)) {
-                    summary.title = toYaml(dictionary);
+                if (!problemOf(dictionary)) {
+                    summarize(field, dictionary);
                 }
             } catch {
-                summary.classList.add('dictionary-invalid');
+                field.querySelector('.dictionary-summary').classList.add('dictionary-invalid');
             }
         }
     });

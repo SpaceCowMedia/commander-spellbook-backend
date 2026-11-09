@@ -47,9 +47,9 @@ class NormalizedTextareaWidget(Textarea):
 
 
 class DictionaryWidget(Textarea):
-    '''A dictionary shown as a summary of its keys, which opens an editor of its keys and values, or of
-    the whole of it as YAML or JSON. The JSON it holds is submitted as it is, its texts normalized the way
-    the other texts of the admin are.'''
+    '''A dictionary shown as a summary of its keys, the ones blanking a text struck through, which opens
+    an editor of its keys and values, or of the whole of it as YAML or JSON. The JSON it holds is
+    submitted as it is, its texts normalized the way the other texts of the admin are.'''
     template_name = 'admin/spellbook/widgets/dictionary.html'
 
     class Media:
@@ -62,7 +62,7 @@ class DictionaryWidget(Textarea):
             parsed = json.loads(context['widget']['value'] or '{}')
         except ValueError:
             parsed = None
-        context['widget']['keys'] = list(parsed) if isinstance(parsed, dict) else None
+        context['widget']['keys'] = [(key, value == '') for key, value in parsed.items()] if isinstance(parsed, dict) else None
         return context
 
     def value_from_datadict(self, data, files, name: str):

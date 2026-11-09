@@ -186,8 +186,8 @@ class ComboAdminDictionaryWidgetTests(ComboAdminTestCase):
         content = response.content.decode()
         self.assertIn('admin/js/dictionary_editor.js', content)
         self.assertIn('admin/js/js-yaml/4.1.0/js-yaml.min.js', content)
-        self.assertIn('2 keys: name, sac step', content)
-        self.assertIn('No keys', content)
+        self.assertIn('<span class="dictionary-keys"><s>name</s>, sac step</span><span class="dictionary-count" title="2 keys">2</span>', content)
+        self.assertIn('<span class="dictionary-keys">Add keys</span></button>', content)
 
     def test_submitted_texts_are_normalized_like_the_other_texts(self):
         widget = DictionaryWidget()

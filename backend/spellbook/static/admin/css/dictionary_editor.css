@@ -1,9 +1,10 @@
 /* the value of the field, opening its editor the way the admin marks what can be changed */
 .dictionary-summary {
-    display: inline-block;
-    max-width: 14em;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    box-sizing: border-box;
+    width: 14em;
     white-space: nowrap;
     vertical-align: middle;
     padding: 5px 6px 5px 26px;
@@ -18,6 +19,31 @@
 
 .dictionary-summary:hover, .dictionary-summary:focus {
     border-color: var(--body-quiet-color);
+}
+
+.dictionary-keys {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: left;
+}
+
+/* a key blanking a text, which leaves it out */
+.dictionary-keys s {
+    color: var(--body-quiet-color);
+}
+
+.dictionary-count {
+    flex: none;
+    min-width: 1.5em;
+    padding: 0 5px;
+    border-radius: 9px;
+    background: var(--darkened-bg);
+    color: var(--body-quiet-color);
+    font-size: 0.6875rem;
+    line-height: 1.5;
+    text-align: center;
 }
 
 .dictionary-empty {

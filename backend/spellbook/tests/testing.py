@@ -13,9 +13,21 @@ from spellbook.models import CardUsedInVariantSuggestion, TemplateRequiredInVari
 from spellbook.models import VariantSuggestion, VariantAlias, Variant, ZoneLocation
 from spellbook.models import FeatureOfCard, FeatureNeededInCombo, FeatureProducedInCombo, FeatureRemovedInCombo, FeatureAttribute
 from spellbook.serializers import VariantSerializer
+from spellbook.models.references import BUILT_IN_KEYS
 
 
 FEATURE_WITH_ATTRIBUTES_PATTERN = re.compile(r'([^?!-]+)(\?[^?!-]+)?(![^?!-]+)?(-[^?!-]+)?')
+
+
+def save_dictionary(producer: FeatureOfCard | FeatureProducedInCombo, dictionary: dict) -> None:
+    '''Saves a dictionary on a producer the way the admin does: its built-in keys in the dictionary, and
+    every other key as an attribute holding its text, if any.'''
+    producer.dictionary = {key: value for key, value in dictionary.items() if key in BUILT_IN_KEYS}
+    producer.save(update_fields=['dictionary'])
+    for key, value in dictionary.items():
+        if key not in BUILT_IN_KEYS:
+            attribute, _ = FeatureAttribute.objects.get_or_create(name=key)
+            producer.attributes.add(attribute, through_defaults={'value': value or ''})
 
 
 def card_number(card: Card) -> int:

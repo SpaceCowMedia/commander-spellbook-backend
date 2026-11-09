@@ -1,10 +1,11 @@
 from unittest import TestCase
+from django.test import TestCase as DjangoTestCase
 from django.core.exceptions import ValidationError
 from spellbook.regexs import DOUBLE_SQUARE_BRACKET_TEXT_REGEX, MANA_REGEX, ORACLE_SYMBOL, SYMBOLS_TEXT_REGEX
 from spellbook.regexs import MANA_SYMBOL, ORDINARY_CHARACTERS_REGEX, URL_REGEX
 from spellbook.models.references import ATTRIBUTE_NAME_RESERVED_CHARACTERS, CARD_STATE_KEYS, FEATURE_NAME_RESERVED_CHARACTERS, TEXT_KEYS, format_alias_reference, format_feature_reference, format_line_reference
-from spellbook.models.validators import ATTRIBUTE_NAME_VALIDATORS, DICTIONARY_VALIDATOR, FEATURE_NAME_VALIDATORS, REFERENCES_VALIDATOR, SCRYFALL_QUERY_VALIDATOR
-from spellbook.models import Explanation, Ingredient
+from spellbook.models.validators import ATTRIBUTE_NAME_VALIDATORS, DICTIONARY_VALIDATOR, FEATURE_NAME_VALIDATORS, PRODUCER_ATTRIBUTES_VALIDATOR, PRODUCER_DICTIONARY_VALIDATOR, REFERENCES_VALIDATOR, SCRYFALL_QUERY_VALIDATOR
+from spellbook.models import Explanation, FeatureAttribute, Ingredient
 
 
 class TestValidators(TestCase):
@@ -176,8 +177,7 @@ class TestValidators(TestCase):
             {},
             {'name': ''},
             {'mana_needed': '{2}{U}', 'description': ['Sacrifice it.', 'Draw a card.']},
-            {'sac activation': 'Activate it by sacrificing', 'targets': ['a creature', '[[Feature]]']},
-            {'notes': 'see [[Feature@description]]', 'empty list': []},
+            {'notes': 'see [[Feature@description]]', 'name': []},
         ):
             with self.subTest(dictionary=dictionary):
                 DICTIONARY_VALIDATOR(dictionary)
@@ -196,10 +196,18 @@ class TestValidators(TestCase):
             {'broken': '[[Feature'},
             {'curly': '{{Feature}}'},
             {'inline': 'cast [[Feature@description]]'},
+            {'tag': None},
         ):
             with self.subTest(dictionary=dictionary):
                 with self.assertRaises(ValidationError):
                     DICTIONARY_VALIDATOR(dictionary)
+
+    def test_attribute_names_are_no_built_in_keys(self):
+        for name in ('name', 'Description', 'battlefield_card_state'):
+            with self.subTest(name=name):
+                with self.assertRaises(ValidationError):
+                    for validator in ATTRIBUTE_NAME_VALIDATORS:
+                        validator(name)
 
     def test_built_in_keys_are_the_fields_of_their_models(self):
         self.assertEqual(list(TEXT_KEYS), Explanation.text_fields_with_references())
@@ -329,3 +337,36 @@ class TestValidators(TestCase):
         self.assertNotRegex('example', URL_REGEX)
         self.assertNotRegex('example.', URL_REGEX)
         self.assertNotRegex('example 2', URL_REGEX)
+
+
+class DictionaryAttributeKeysTests(DjangoTestCase):
+    '''Every key but the built-in ones is an existing feature attribute: the dictionary of a row of a
+    combo overrides it like any key, the one of a producer keeps it among its attributes instead, which
+    hold a single text or none.'''
+
+    def setUp(self):
+        for name in ('sac activation', 'targets', 'Landfall'):
+            FeatureAttribute.objects.create(name=name)
+
+    def test_a_row_of_a_combo_overrides_attributes(self):
+        DICTIONARY_VALIDATOR({'sac activation': 'Activate it by sacrificing', 'targets': ['a creature', '[[Feature]]'], 'name': ''})
+
+    def test_a_key_must_be_an_existing_attribute(self):
+        for validator in (DICTIONARY_VALIDATOR, PRODUCER_ATTRIBUTES_VALIDATOR):
+            with self.subTest(validator=validator):
+                with self.assertRaisesMessage(ValidationError, 'these are none: sac step, step'):
+                    validator({'sac activation': 'x', 'step': 'y', 'sac step': 'z'})
+
+    def test_the_dictionary_of_a_producer_holds_no_attribute(self):
+        PRODUCER_DICTIONARY_VALIDATOR({'name': ['it'], 'mana_needed': '{1}'})
+        with self.assertRaisesMessage(ValidationError, 'is no built-in key'):
+            PRODUCER_DICTIONARY_VALIDATOR({'sac activation': 'Activate it'})
+
+    def test_an_attribute_of_a_producer_holds_a_single_text_or_none(self):
+        PRODUCER_ATTRIBUTES_VALIDATOR({'Landfall': None, 'sac activation': 'Activate it', 'name': ['it']})
+        with self.assertRaisesMessage(ValidationError, 'must be a single text, or nothing'):
+            PRODUCER_ATTRIBUTES_VALIDATOR({'targets': ['a creature']})
+        with self.assertRaisesMessage(ValidationError, 'only a producer can hold an attribute with nothing'):
+            DICTIONARY_VALIDATOR({'Landfall': None})
+        with self.assertRaisesMessage(ValidationError, 'a built-in key is no attribute'):
+            PRODUCER_ATTRIBUTES_VALIDATOR({'name': None})

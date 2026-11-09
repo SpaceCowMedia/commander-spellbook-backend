@@ -1,6 +1,6 @@
 from ..testing import SpellbookTestCaseWithSeeding, curated_card
 from spellbook.admin.feature_admin import merge_feature
-from spellbook.models import CardInCombo, Combo, Feature, FeatureNeededInCombo, FeatureOfCard, FeatureProducedInCombo, FeatureRemovedInCombo, Variant, ZoneLocation
+from spellbook.models import CardInCombo, Combo, Feature, FeatureAttribute, FeatureNeededInCombo, FeatureOfCard, FeatureProducedInCombo, FeatureRemovedInCombo, Variant, ZoneLocation
 from spellbook.models.references import format_alias_reference, format_line_reference, rename_references
 
 
@@ -276,3 +276,41 @@ class FeatureAdminTests(SpellbookTestCaseWithSeeding):
         self.assertEqual(combo.description, '[[New Feature]] does something')
         self.assertIn('New Feature', combo.name)
         self.assertNotIn('Old Feature', combo.name)
+
+    def post_card_row(self, feature: Feature, dictionary: str):
+        self.client.force_login(self.admin)
+        return self.client.post(f'/admin/spellbook/feature/{feature.id}/change/', {
+            'name': feature.name,
+            'status': feature.status,
+            'description': '',
+            'featureofcard_set-TOTAL_FORMS': '1',
+            'featureofcard_set-INITIAL_FORMS': '0',
+            'featureofcard_set-MIN_NUM_FORMS': '0',
+            'featureofcard_set-MAX_NUM_FORMS': '1000',
+            'featureofcard_set-0-card': str(self.c1_id),
+            'featureofcard_set-0-quantity': '1',
+            'featureofcard_set-0-zone_locations': ZoneLocation.BATTLEFIELD,
+            'featureofcard_set-0-is_mana_needed_an_accurate_minimum': 'on',
+            'featureofcard_set-0-dictionary': dictionary,
+        })
+
+    def test_a_card_row_keeps_its_attributes_apart_from_its_dictionary(self):
+        feature = Feature.objects.create(name='Attributed Feature', status=Feature.Status.HIDDEN_UTILITY)
+        FeatureAttribute.objects.create(name='effect')
+
+        response = self.post_card_row(feature, '{"mana_needed": "{1}", "effect": "adding {C}"}')
+
+        self.assertEqual(response.status_code, 302)
+        row = feature.featureofcard_set.get()
+        self.assertEqual(row.dictionary, {'mana_needed': '{1}'})
+        self.assertEqual(list(row.attributes.through.objects.filter(producer=row).values_list('attribute__name', 'value')), [('effect', 'adding {C}')])
+
+    def test_the_attributes_of_a_card_reference_no_feature(self):
+        feature = Feature.objects.create(name='Attributed Feature', status=Feature.Status.HIDDEN_UTILITY)
+        FeatureAttribute.objects.create(name='effect')
+
+        response = self.post_card_row(feature, '{"effect": "untap [[Attributed Feature]]"}')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'A card feature cannot reference features, since it needs none: [[Attributed Feature]].')
+        self.assertFalse(feature.featureofcard_set.exists())

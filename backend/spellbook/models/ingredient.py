@@ -113,7 +113,7 @@ class OrderedIngredient(Ingredient):
 
 
 class ComboIngredient(OrderedIngredient):
-    dictionary = DictionaryField(help_text='Overrides what this ingredient brings to the features this combo produces, key by key: a text replaces, a list adds to a list, and a blank text leaves it out, as in {"name": ""} to keep it out of their names. The keys are the ones its producers provide, such as name, mana_needed or description, and any other.')
+    dictionary = DictionaryField(help_text='Overrides what this ingredient brings to the features this combo produces, key by key: a text replaces, a list adds to a list, and a blank text leaves it out, as in {"name": ""} to keep it out of their names. The keys are the ones its producers provide, such as name, mana_needed or description, and any feature attribute, which only takes a value here.')
 
     class Meta(OrderedIngredient.Meta):
         abstract = True

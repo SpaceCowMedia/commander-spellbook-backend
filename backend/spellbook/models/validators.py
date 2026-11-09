@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from django.utils.deconstruct import deconstructible
 from ..regexs import URL_REGEX, FIRST_CAPITAL_LETTER_REGEX, FIRST_CAPITAL_LETTER_OR_DIGIT_REGEX, NO_TRAILING_PUNCTUATION_REGEX, MANA_REGEX, DOUBLE_SQUARE_BRACKET_TEXT_REGEX, SYMBOLS_TEXT_REGEX, ORDINARY_CHARACTERS_REGEX
-from .references import ALIAS_REFERENCE_PATTERN, ATTRIBUTE_NAME_RESERVED_CHARACTERS, ATTRIBUTE_NAME_RESERVED_CHARACTERS_REGEX, CARD_STATE_KEYS, FEATURE_NAME_RESERVED_CHARACTERS, FEATURE_NAME_RESERVED_CHARACTERS_REGEX, FEATURE_REFERENCE_PATTERN, LINE_REFERENCE_PATTERN, REFERENCE_PATTERN, RESERVED_CHARACTERS, RESERVED_CHARACTERS_REGEX, TEXT_KEYS, expand_aliases, feature_references, format_alias_reference, format_feature_reference, format_line_reference, key_of, referenced_line
+from .references import ALIAS_REFERENCE_PATTERN, ATTRIBUTE_NAME_RESERVED_CHARACTERS, ATTRIBUTE_NAME_RESERVED_CHARACTERS_REGEX, BUILT_IN_KEYS, CARD_STATE_KEYS, FEATURE_NAME_RESERVED_CHARACTERS, FEATURE_NAME_RESERVED_CHARACTERS_REGEX, FEATURE_REFERENCE_PATTERN, LINE_REFERENCE_PATTERN, REFERENCE_PATTERN, RESERVED_CHARACTERS, RESERVED_CHARACTERS_REGEX, TEXT_KEYS, attribute_keys, expand_aliases, feature_references, format_alias_reference, format_feature_reference, format_line_reference, key_of, referenced_line
 from ..parsers.scryfall_query_grammar import SCRYFALL_GRAMMAR, VARIABLES_SUPPORTED
 from ..parsers.lark_validator import LarkGrammarValidator
 from ..parsers.safe_regex import MAX_REGEX_LENGTH, validate_query_regexes
@@ -70,31 +70,51 @@ TEXT_VALIDATORS: list[Callable[[Any], None]] = [DOUBLE_SQUARE_BRACKET_TEXT_VALID
 NAME_BODY_VALIDATORS: list[Callable[[Any], None]] = [NO_TRAILING_PUNCTUATION_VALIDATOR, NOT_URL_VALIDATOR, NO_RESERVED_CHARACTERS_VALIDATOR, *TEXT_VALIDATORS]
 NAME_VALIDATORS: list[Callable[[Any], None]] = [FIRST_CAPITAL_LETTER_VALIDATOR, *NAME_BODY_VALIDATORS]
 FEATURE_NAME_VALIDATORS: list[Callable[[Any], None]] = [FIRST_CAPITAL_LETTER_OR_DIGIT_VALIDATOR, NO_FEATURE_NAME_RESERVED_CHARACTERS_VALIDATOR, *NAME_BODY_VALIDATORS]
-ATTRIBUTE_NAME_VALIDATORS: list[Callable[[Any], None]] = [NO_ATTRIBUTE_NAME_RESERVED_CHARACTERS_VALIDATOR]
+
+
+def not_a_built_in_key(name: str) -> None:
+    if name.lower() in BUILT_IN_KEYS:
+        raise ValidationError(f'"{name}" is a key every producer provides, which no attribute can be named after.')
+
+
+ATTRIBUTE_NAME_VALIDATORS: list[Callable[[Any], None]] = [NO_ATTRIBUTE_NAME_RESERVED_CHARACTERS_VALIDATOR, not_a_built_in_key]
 
 
 @deconstructible
 class DictionaryValidator:
     '''Accepts a mapping of keys to a text or a list of texts, each valid the way the field of the same
-    name would be. A key holds none of the characters delimiting a reference, and a value that is no text
-    of a variant can only reference names and keys of its own kind: it is written inline, where no text
-    can be included.'''
-    code = 'invalid'
+    name would be. A key is either a built-in one or an existing feature attribute, which a dictionary
+    refusing attribute keys cannot hold, and which the attributes of a producer, allowing tags, hold with
+    a single text or none. A value that is no text of a variant can only reference names and keys of its
+    own kind: it is written inline, where no text can be included.'''
+    # a code of its own, since the JSON field replaces the message of any code it knows, as invalid
+    code = 'invalid_dictionary'
+
+    def __init__(self, tags: bool = False, attribute_keys: bool = True) -> None:
+        self.tags = tags
+        self.attribute_keys = attribute_keys
 
     def __call__(self, value: Any) -> None:
         if not isinstance(value, dict):
             raise ValidationError('A dictionary must map keys to values.', code=self.code)
         for key, item in value.items():
-            if not key or key != key.strip() or '\n' in key or any(character in key for character in FEATURE_NAME_RESERVED_CHARACTERS):
-                raise ValidationError(f'"{key}" is not a valid key: a key is not blank, has no surrounding spaces and holds none of {" ".join(FEATURE_NAME_RESERVED_CHARACTERS)}.', code=self.code)
+            if not key or key != key.strip() or '\n' in key or any(character in key for character in ATTRIBUTE_NAME_RESERVED_CHARACTERS):
+                raise ValidationError(f'"{key}" is not a valid key: a key is not blank, has no surrounding spaces and holds none of {" ".join(ATTRIBUTE_NAME_RESERVED_CHARACTERS)}.', code=self.code)
             if key in CARD_STATE_KEYS:
                 raise ValidationError(f'"{key}" cannot be overridden: a starting state is written in its own field.', code=self.code)
+            attribute = key not in BUILT_IN_KEYS
+            if attribute and not self.attribute_keys:
+                raise ValidationError(f'"{key}" is no built-in key: an attribute of a producer is held among its attributes.', code=self.code)
+            if item is None and self.tags and attribute:
+                continue
             if isinstance(item, str):
                 texts = [item]
-            elif isinstance(item, list) and all(isinstance(text, str) for text in item):
+            elif isinstance(item, list) and all(isinstance(text, str) for text in item) and not (self.tags and attribute):
                 texts = item
+            elif item is None:
+                raise ValidationError(f'"{key}" needs a value: {"a built-in key is no attribute" if self.tags else "only a producer can hold an attribute with nothing"}.', code=self.code)
             else:
-                raise ValidationError(f'The value of "{key}" must be a text or a list of texts.', code=self.code)
+                raise ValidationError(f'The value of "{key}" must be {"a single text, or nothing" if self.tags and attribute else "a text or a list of texts"}.', code=self.code)
             for text in texts:
                 try:
                     for validator in TEXT_VALIDATORS:
@@ -105,12 +125,18 @@ class DictionaryValidator:
                     raise ValidationError(f'The value of "{key}" is not valid: {" ".join(error.messages)}', code=self.code)
                 if key not in TEXT_KEYS and (included := sorted({reference[0] for reference in feature_references([expand_aliases(text)]) if key_of(reference) in TEXT_KEYS + CARD_STATE_KEYS})):
                     raise ValidationError(f'The value of "{key}" cannot write texts, being written inline: {", ".join(included)}.', code=self.code)
+        from .feature_attribute import FeatureAttribute
+        if (keys := attribute_keys(value)) and (unknown := sorted(set(keys) - set(FeatureAttribute.objects.filter(name__in=keys).values_list('name', flat=True)))):
+            raise ValidationError(f'Every key but the built-in ones is a feature attribute, and these are none: {", ".join(unknown)}. Create them as attributes first.', code=self.code)
 
     def __eq__(self, other: object) -> bool:
-        return isinstance(other, DictionaryValidator)
+        return isinstance(other, DictionaryValidator) and (self.tags, self.attribute_keys) == (other.tags, other.attribute_keys)
 
 
 DICTIONARY_VALIDATOR = DictionaryValidator()
+# the dictionary of a producer, holding its built-in keys, and what it edits along with its attributes
+PRODUCER_DICTIONARY_VALIDATOR = DictionaryValidator(attribute_keys=False)
+PRODUCER_ATTRIBUTES_VALIDATOR = DictionaryValidator(tags=True)
 
 SCRYFALL_QUERY_VALIDATOR = LarkGrammarValidator(SCRYFALL_GRAMMAR)
 

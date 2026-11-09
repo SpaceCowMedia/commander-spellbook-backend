@@ -112,12 +112,12 @@ class Data:
         cardincombos = list(CardInCombo.objects.filter(combo__status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY)).order_by())
         templateincombos = list(TemplateInCombo.objects.filter(combo__status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY)).order_by())
         featureproducedincombos = list(FeatureProducedInCombo.objects.filter(combo__status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY)).order_by())
+        featureproducedincombo_attributes = list(FeatureProducedInCombo.attributes.through.objects.filter(producer__combo__status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY)).order_by())
         featureneededincombos = list(FeatureNeededInCombo.objects.filter(combo__status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY)).order_by())
         featureremovedincombos = list(FeatureRemovedInCombo.objects.filter(combo__status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY)).order_by())
         featureneededincombo_anyofattributes = list(FeatureNeededInCombo.any_of_attributes.through.objects.filter(featureneededincombo__combo__status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY)).order_by())
         featureneededincombo_allofattributes = list(FeatureNeededInCombo.all_of_attributes.through.objects.filter(featureneededincombo__combo__status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY)).order_by())
         featureneededincombo_noneofattributes = list(FeatureNeededInCombo.none_of_attributes.through.objects.filter(featureneededincombo__combo__status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY)).order_by())
-        featureproducedincombo_attributes = list(FeatureProducedInCombo.attributes.through.objects.filter(featureproducedincombo__combo__status__in=(Combo.Status.GENERATOR, Combo.Status.UTILITY)).order_by())
         # Variants, loaded as lightweight rows instead of model instances
         variants = _load_rows(VariantRow, Variant.objects)
         cardinvariants = _load_rows(CardInVariantRow, CardInVariant.objects)
@@ -188,11 +188,15 @@ class Data:
                 all_of=frozenset(feature_needed_in_combo_to_all_of_attributes[i.id]),
                 none_of=frozenset(feature_needed_in_combo_to_none_of_attributes[i.id]),
             )
+        # what a producer provides under an attribute, which a combo writes with [[feature@attribute]]
         self.feature_produced_in_combo_to_attributes = {f.id: set[int]() for f in featureproducedincombos}
+        self.feature_produced_in_combo_to_attribute_values = {f.id: dict[str, str]() for f in featureproducedincombos}
         for i in featureproducedincombo_attributes:
-            x = self.feature_produced_in_combo_to_attributes.get(i.featureproducedincombo_id)
+            x = self.feature_produced_in_combo_to_attributes.get(i.producer_id)
             if x is not None:
-                x.add(i.featureattribute_id)
+                x.add(i.attribute_id)
+                if i.value:
+                    self.feature_produced_in_combo_to_attribute_values[i.producer_id][self.id_to_feature_attribute[i.attribute_id].name] = i.value
         self.card_to_features = {c.number: list[FeatureOfCard]() for c in cards}
         self.features_to_cards = {f.id: list[FeatureOfCard]() for f in features}
         for i in featureofcards:
@@ -202,10 +206,13 @@ class Data:
                 x.append(i)
                 y.append(i)
         self.feature_of_card_to_attributes = {f.id: set[int]() for f in featureofcards}
+        self.feature_of_card_to_attribute_values = {f.id: dict[str, str]() for f in featureofcards}
         for i in featureofcard_attributes:
-            x = self.feature_of_card_to_attributes.get(i.featureofcard_id)
+            x = self.feature_of_card_to_attributes.get(i.producer_id)
             if x is not None:
-                x.add(i.featureattribute_id)
+                x.add(i.attribute_id)
+                if i.value:
+                    self.feature_of_card_to_attribute_values[i.producer_id][self.id_to_feature_attribute[i.attribute_id].name] = i.value
 
         self.variant_to_cards = {v.id: set[CardInVariantRow]() for v in variants}
         for i in cardinvariants:

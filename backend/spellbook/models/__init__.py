@@ -1,13 +1,13 @@
 from .playable import Playable
 from .explanation import Explanation
 from .feature import Feature
-from .card import Card, FeatureOfCard, LayoutRotation
+from .card import Card, FeatureOfCard, FeatureOfCardAttribute, LayoutRotation
 from .template import Template, TemplateReplacement, TemplateMatch
 from .oracle_tag import OracleTag, OracleTagName, CardOracleTag, oracle_tag_key, oracle_tag_condition
 from .recipe import Recipe
 from .ingredient import ComboIngredient, OrderedIngredient, Ingredient, ZoneLocation
 from .feature_attribute import FeatureAttribute, WithFeatureAttributes, WithFeatureAttributesMatcher
-from .combo import Combo, CardInCombo, TemplateInCombo, FeatureNeededInCombo, FeatureProducedInCombo, FeatureRemovedInCombo
+from .combo import Combo, CardInCombo, TemplateInCombo, FeatureNeededInCombo, FeatureProducedInCombo, FeatureProducedInComboAttribute, FeatureRemovedInCombo
 from .variant import Variant, CardInVariant, TemplateInVariant, FeatureProducedByVariant, VariantIncludesCombo, VariantOfCombo, estimate_bracket
 from .variant_counts import recompute_counts, recompute_all_counts
 from .salt_vote import SaltVote, MAX_SALT, salt_window_start, live_salt_annotations, recompute_salt

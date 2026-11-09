@@ -65,16 +65,25 @@ class DictionaryFormField(JSONFormField):
 
 class DictionaryField(JSONField):
     '''A mapping of keys to a text or a list of texts stored as JSON, which the texts of a combo read
-    with the [[feature@key]] syntax. An empty mapping is a valid value rather than a blank one.'''
+    with the [[feature@key]] syntax. An empty mapping is a valid value rather than a blank one. Every key
+    but the built-in ones is a feature attribute, which the dictionary of a producer cannot hold, keeping
+    its attributes apart.'''
     empty_values = DICTIONARY_EMPTY_VALUES
 
-    def __init__(self, *args, **kwargs):
-        from .validators import DICTIONARY_VALIDATOR
+    def __init__(self, *args, attribute_keys: bool = True, **kwargs):
+        from .validators import DICTIONARY_VALIDATOR, PRODUCER_DICTIONARY_VALIDATOR
+        self.attribute_keys = attribute_keys
         kwargs.setdefault('default', dict)
         kwargs.setdefault('blank', True)
         kwargs.setdefault('verbose_name', 'dictionary')
-        kwargs.setdefault('validators', [DICTIONARY_VALIDATOR])
+        kwargs.setdefault('validators', [DICTIONARY_VALIDATOR if attribute_keys else PRODUCER_DICTIONARY_VALIDATOR])
         super().__init__(*args, **kwargs)
+
+    def deconstruct(self):
+        name, path, args, kwargs = super().deconstruct()
+        if not self.attribute_keys:
+            kwargs['attribute_keys'] = False
+        return name, path, args, kwargs
 
     def formfield(self, **kwargs):
         return super().formfield(

@@ -4,7 +4,7 @@ from collections import defaultdict
 from html import unescape
 from django.urls import reverse
 from spellbook.admin.combo_admin import ALL_ZONE_LOCATIONS
-from spellbook.models import Card, CardInCombo, CardUsedInVariantSuggestion, Combo, FeatureProducedInVariantSuggestion, Variant, VariantSuggestion, ZoneLocation
+from spellbook.models import Card, CardInCombo, CardUsedInVariantSuggestion, Combo, FeatureAttribute, FeatureProducedInVariantSuggestion, Variant, VariantSuggestion, ZoneLocation
 from spellbook.models.references import format_alias_reference, format_line_reference
 from spellbook.admin.utils import DictionaryWidget
 from spellbook.models.utils import sanitize_newlines_apostrophes_and_quotes
@@ -275,7 +275,42 @@ class ComboAdminReferencesTests(ComboAdminTestCase):
         payload['cardincombo_set-0-dictionary'] = '{"name": "the card [[FB]] targets"}'
         self.assertRejected(payload, '[[FB]]')
 
+    def test_a_produced_row_keeps_its_attributes_apart_from_its_dictionary(self):
+        FeatureAttribute.objects.create(name='step')
+        FeatureAttribute.objects.create(name='Landfall')
+        payload = self.payload_requiring([])
+        payload.update({
+            'featureproducedincombo_set-TOTAL_FORMS': '1',
+            'featureproducedincombo_set-0-feature': str(self.f4_id),
+            'featureproducedincombo_set-0-dictionary': '{"name": "an engine", "step": "untap it", "Landfall": null}',
+        })
+        self.assertSaved(payload)
+        combo = Combo.objects.latest('created')
+        produced = combo.featureproducedincombo_set.get()
+        self.assertEqual(produced.dictionary, {'name': 'an engine'})
+        self.assertEqual(sorted(produced.attributes.through.objects.filter(producer=produced).values_list('attribute__name', 'value')), [('Landfall', ''), ('step', 'untap it')])
+        content = unescape(self.client.get(self.change_url(combo.id)).content.decode())
+        self.assertIn('{"name": "an engine", "Landfall": null, "step": "untap it"}', content)
+
+    def test_a_produced_row_holds_existing_attributes_only(self):
+        payload = self.payload_requiring([])
+        payload.update({
+            'featureproducedincombo_set-TOTAL_FORMS': '1',
+            'featureproducedincombo_set-0-feature': str(self.f4_id),
+            'featureproducedincombo_set-0-dictionary': '{"step": "untap it"}',
+        })
+        response = self.client.post(self.add_url(), data=payload)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('these are none: step. Create them as attributes first.', unescape(response.content.decode()))
+
+    def test_a_key_written_is_built_in_or_an_attribute(self):
+        payload = self.payload_requiring([self.f2_id], description='Sacrifice it[[FB@effect]], naming [[FB]], [[FB@description]].')
+        self.assertRejected(payload, '[[FB@effect]]', problem='write keys that are no feature attribute')
+        FeatureAttribute.objects.create(name='effect')
+        self.assertSaved(payload)
+
     def test_the_dictionaries_of_the_produced_features_are_checked_too(self):
+        FeatureAttribute.objects.create(name='sac step')
         payload = self.payload_requiring([self.f3_id])
         payload.update({
             'featureproducedincombo_set-TOTAL_FORMS': '1',

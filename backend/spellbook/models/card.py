@@ -13,7 +13,7 @@ from .mixins import ScryfallLinkMixin, PreSaveModelMixin, NamedModel
 from .feature import Feature
 from .fields import KeywordsField
 from .ingredient import Ingredient
-from .feature_attribute import WithFeatureAttributes
+from .feature_attribute import AttributeValue, FeatureAttribute, WithFeatureAttributes
 from .references import dictionary_texts, references_to_features_not_needed
 
 
@@ -284,8 +284,9 @@ class WithUsedFace(models.Model):
 class FeatureOfCard(Ingredient, WithFeatureAttributes, WithUsedFace):
     '''A card producing a feature on its own. Besides its name, whatever it provides to the combos
     needing the feature is in its dictionary, its texts included under the names of the fields of a
-    combo: they reach a variant the way the texts of a combo do.'''
+    combo, which reach a variant the way the texts of a combo do, and in its attributes.'''
     id: int
+    attributes = models.ManyToManyField(to=FeatureAttribute, through='FeatureOfCardAttribute', blank=True, related_name='used_as_attribute_in_featureofcard')
     is_mana_needed_an_accurate_minimum = models.BooleanField(default=True, help_text='Does the first mana cost the dictionary provides under mana_needed represent the MINIMUM needed to start, ignoring all other text?')
 
     def clean(self):
@@ -308,3 +309,12 @@ class FeatureOfCard(Ingredient, WithFeatureAttributes, WithUsedFace):
 
     def __str__(self):
         return f'{self.feature} for card {self.card_id}'
+
+
+class FeatureOfCardAttribute(AttributeValue):
+    producer = models.ForeignKey(to=FeatureOfCard, on_delete=models.CASCADE, db_column='featureofcard_id')
+    producer_id: int
+
+    class Meta:
+        db_table = 'spellbook_featureofcard_attributes'
+        unique_together = [('producer', 'attribute')]

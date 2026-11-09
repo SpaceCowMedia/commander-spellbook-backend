@@ -1,7 +1,8 @@
 '''A superuser and the smallest data showing the admin's dictionaries: two cards producing a feature
-with different keys in their dictionaries, and a combo needing it, whose rows override what it brings.'''
+with different keys, one of them giving two attributes a text, and a combo needing it, whose rows
+override what it brings.'''
 from django.contrib.auth.models import User
-from spellbook.models import Card, CardInCombo, Combo, Feature, FeatureNeededInCombo, FeatureOfCard, ZoneLocation
+from spellbook.models import Card, CardInCombo, Combo, Feature, FeatureAttribute, FeatureNeededInCombo, FeatureOfCard, ZoneLocation
 
 USERNAME = 'agent'
 PASSWORD = 'agent-password'
@@ -24,10 +25,10 @@ def seed() -> None:
     loop, _ = Feature.objects.get_or_create(name='Infinite death triggers', defaults={'status': Feature.Status.STANDALONE})
     altar = card('Phyrexian Altar', 'Artifact')
     viscera = card('Viscera Seer', 'Creature - Vampire Wizard')
-    FeatureOfCard.objects.update_or_create(card=altar, feature=outlet, defaults={
-        'zone_locations': ZoneLocation.BATTLEFIELD,
-        'dictionary': {'sac activation': 'Activate Phyrexian Altar by sacrificing', 'mana resolution': ', adding one mana of any color'},
-    })
+    altar_outlet, _ = FeatureOfCard.objects.update_or_create(card=altar, feature=outlet, defaults={'zone_locations': ZoneLocation.BATTLEFIELD})
+    for name, value in (('sac activation', 'Activate Phyrexian Altar by sacrificing'), ('mana resolution', ', adding one mana of any color')):
+        attribute, _ = FeatureAttribute.objects.get_or_create(name=name)
+        altar_outlet.attributes.through.objects.update_or_create(producer=altar_outlet, attribute=attribute, defaults={'value': value})
     FeatureOfCard.objects.update_or_create(card=viscera, feature=outlet, defaults={'zone_locations': ZoneLocation.BATTLEFIELD, 'dictionary': {'mana_needed': '{B}'}})
     combo = Combo.objects.filter(description__startswith='[[Free Sacrifice Outlet@sac activation]]').first()
     if combo is None:

@@ -23,10 +23,11 @@ SELECTOR_MARKER = '$'
 KEY_MARKER = '@'
 ALIAS_MARKER = '|'
 BRACKET_CHARACTERS = ('[', ']')
-# the characters every part of a reference is delimited by, which a feature name, a key or an alias
+# the characters every part of a reference is delimited by, which a feature name or an alias
 # cannot hold anywhere
 FEATURE_NAME_RESERVED_CHARACTERS = tuple(dict.fromkeys((*REFERENCE_PREFIXES, FACE_MARKER, SELECTOR_MARKER, KEY_MARKER, ALIAS_MARKER, *BRACKET_CHARACTERS)))
-# an attribute name is written after the selector marker, up to the key or the alias
+# an attribute name is written after the selector marker, up to the key or the alias, and after the
+# key marker, being a key too
 ATTRIBUTE_NAME_RESERVED_CHARACTERS = (SELECTOR_MARKER, KEY_MARKER, ALIAS_MARKER, *BRACKET_CHARACTERS)
 # the characters no name can hold, since they end the feature of a reference
 RESERVED_CHARACTERS = (SELECTOR_MARKER, ALIAS_MARKER)
@@ -36,6 +37,8 @@ RESERVED_CHARACTERS = (SELECTOR_MARKER, ALIAS_MARKER)
 DEFAULT_KEY = 'name'
 TEXT_KEYS = ('mana_needed', 'easy_prerequisites', 'notable_prerequisites', 'description', 'notes', 'comment')
 CARD_STATE_KEYS = ('battlefield_card_state', 'exile_card_state', 'graveyard_card_state', 'library_card_state')
+# every other key is a feature attribute, which no attribute can be named after
+BUILT_IN_KEYS = (DEFAULT_KEY, *TEXT_KEYS, *CARD_STATE_KEYS)
 
 
 def escaped(*parts: str) -> str:
@@ -69,7 +72,7 @@ ATTRIBUTE_NAME_RESERVED_CHARACTERS_REGEX = '|'.join(map(re.escape, ATTRIBUTE_NAM
 RESERVED_CHARACTERS_REGEX = '|'.join(map(re.escape, RESERVED_CHARACTERS))
 OPENING = re.escape(REFERENCE_BRACKETS[0])
 CLOSING = re.escape(REFERENCE_BRACKETS[1])
-KEY_PART = f'(?:{re.escape(KEY_MARKER)}(?P<key>{FEATURE_NAME_CHARACTER}+))?'
+KEY_PART = f'(?:{re.escape(KEY_MARKER)}(?P<key>{ATTRIBUTE_NAME_CHARACTER}+))?'
 
 # A feature reference looks like [[feature#face$selector@key|alias]], where every part but the feature is optional:
 # - #face selects which face of a multi-faced card to display;
@@ -168,17 +171,41 @@ def references_past_copies_needed(texts: Iterable[str], copies_needed: Mapping[s
     })
 
 
-def dictionary_texts(dictionary: Mapping[str, str | list[str]]) -> list[str]:
+def attribute_keys_referenced(texts: Iterable[str]) -> set[str]:
+    '''The keys the references of the texts write that are no built-in key, their aliases expanded.'''
+    return {match['key'] for match in feature_references(map(expand_aliases, texts)) if match['key'] is not None and match['key'] not in BUILT_IN_KEYS}
+
+
+def references_to_unknown_keys(texts: Iterable[str], attribute_names: Collection[str]) -> list[str]:
+    '''The references in the texts to a key that is neither built in nor one of the given attributes,
+    each once, sorted, their aliases expanded: every key a producer provides is one or the other.'''
+    return sorted({
+        match[0]
+        for match in feature_references(map(expand_aliases, texts))
+        if match['key'] is not None and match['key'] not in BUILT_IN_KEYS and match['key'] not in attribute_names
+    })
+
+
+# What a dictionary maps a key to: a text, a list of texts, or nothing for a key that is only an attribute
+DictionaryValue = str | list[str] | None
+
+
+def attribute_keys(dictionary: Mapping[str, DictionaryValue]) -> list[str]:
+    '''The keys of a dictionary that are feature attributes, in order.'''
+    return [key for key in dictionary if key not in BUILT_IN_KEYS]
+
+
+def dictionary_texts(dictionary: Mapping[str, DictionaryValue]) -> list[str]:
     '''Every text a dictionary holds, the items of its lists included.'''
-    return [text for value in dictionary.values() for text in ([value] if isinstance(value, str) else value)]
+    return [text for value in dictionary.values() if value is not None for text in ([value] if isinstance(value, str) else value)]
 
 
-def map_dictionary_texts(dictionary: Mapping[str, str | list[str]], function: Callable[[str], str]) -> dict[str, str | list[str]]:
-    return {key: function(value) if isinstance(value, str) else [function(text) for text in value] for key, value in dictionary.items()}
+def map_dictionary_texts(dictionary: Mapping[str, DictionaryValue], function: Callable[[str], str]) -> dict[str, DictionaryValue]:
+    return {key: None if value is None else function(value) if isinstance(value, str) else [function(text) for text in value] for key, value in dictionary.items()}
 
 
-# A feature is named by the feature of a reference, an attribute by its selector
-ReferencePart = Literal['feature', 'selector']
+# A feature is named by the feature of a reference, an attribute by its selector or its key
+ReferencePart = Literal['feature', 'selector', 'key']
 
 
 def ingredient_models() -> tuple[type[Ingredient], ...]:
@@ -197,7 +224,7 @@ def dictionary_models() -> tuple[type[Model], ...]:
 def references_filter(model: type[Combo] | type[Ingredient], part: ReferencePart, name: str) -> Q:
     '''Matches the rows of the given model whose texts could reference the given name as the given part
     of a reference, so that a rename only loads the rows that mention it.'''
-    start = REFERENCE_BRACKETS[0] + name if part == 'feature' else SELECTOR_MARKER + name
+    start = {'feature': REFERENCE_BRACKETS[0], 'selector': SELECTOR_MARKER, 'key': KEY_MARKER}[part] + name
     query = Q()
     for field in model.text_fields_with_references():
         query |= Q(**{f'{field}__icontains': start})
@@ -205,15 +232,20 @@ def references_filter(model: type[Combo] | type[Ingredient], part: ReferencePart
 
 
 def rename_references(text: str, part: ReferencePart, old_name: str, new_name: str) -> str:
-    '''Renames a feature or an attribute in the references of a text. Names are matched ignoring case,
-    the way they are unique, and a numeric selector is a position, never an attribute.'''
-    def rename(match: re.Match[str]) -> str:
-        name = match[part]
-        if name is None or name.lower() != old_name.lower() or (part == 'selector' and name.isdigit()):
-            return match[0]
-        return format_feature_reference(**(match.groupdict() | {part: new_name}))
+    '''Renames a feature or an attribute in the references of a text, the uses of an alias asking for
+    the attribute as their key included. Names are matched ignoring case, the way they are unique, and a
+    numeric selector is a position, never an attribute.'''
+    def renamed(name: str | None) -> bool:
+        return name is not None and name.lower() == old_name.lower() and not (part == 'selector' and name.isdigit())
 
-    return FEATURE_REFERENCE_PATTERN.sub(rename, text)
+    def rename(match: re.Match[str]) -> str:
+        return format_feature_reference(**(match.groupdict() | {part: new_name})) if renamed(match[part]) else match[0]
+
+    def rename_alias(match: re.Match[str]) -> str:
+        return format_alias_reference(match['alias'], new_name) if renamed(match['key']) else match[0]
+
+    text = FEATURE_REFERENCE_PATTERN.sub(rename, text)
+    return ALIAS_REFERENCE_PATTERN.sub(rename_alias, text) if part == 'key' else text
 
 
 def replace_in_text_fields(objects: Iterable[_T], fields: Sequence[str], replacement: Callable[[str], str]) -> list[_T]:
@@ -307,7 +339,33 @@ def replace_feature_references_in_variants(instance: Feature, old_name: str):
         Variant.objects.bulk_update(variants_to_save, ['name'], skip_pre_save=True, batch_size=DEFAULT_BATCH_SIZE)
 
 
+def move_dictionary_key(old_name: str, new_name: str) -> None:
+    '''Moves an attribute key of every dictionary to another name, in its place. A dictionary holding
+    both keeps the value of the new one, unless it holds none.'''
+    for model in dictionary_models():
+        manager: Manager[Any] = model._default_manager
+        changed = []
+        for row in manager.filter(dictionary__has_key=old_name).order_by().only('dictionary'):
+            moved = row.dictionary[old_name]
+            dictionary = dict[str, DictionaryValue]()
+            for key, value in row.dictionary.items():
+                if key == old_name:
+                    if new_name not in row.dictionary:
+                        dictionary[new_name] = moved
+                elif key == new_name:
+                    dictionary[key] = moved if value is None else value
+                else:
+                    dictionary[key] = value
+            row.dictionary = dictionary
+            changed.append(row)
+        manager.bulk_update(changed, ['dictionary'], batch_size=DEFAULT_BATCH_SIZE)
+
+
 def replace_attribute_references(instance: FeatureAttribute, old_name: str):
+    '''Propagates the loss of an attribute name, by a rename or by a merge into another attribute, to
+    the references selecting it or writing it as a key, and to the dictionaries holding it.'''
     if old_name and old_name != instance.name:
         from .combo import Combo
-        rename_in_models((Combo, *ingredient_models()), 'selector', old_name, instance.name)
+        for part in ('selector', 'key'):
+            rename_in_models((Combo, *ingredient_models()), part, old_name, instance.name)
+        move_dictionary_key(old_name, instance.name)

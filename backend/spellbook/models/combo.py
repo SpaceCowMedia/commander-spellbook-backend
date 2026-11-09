@@ -10,7 +10,7 @@ from .feature import Feature
 from .template import Template
 from .ingredient import ComboIngredient, ZoneLocationsField
 from .constants import HIGHER_CARD_LIMIT, DEFAULT_CARD_LIMIT, LOWER_VARIANT_LIMIT, DEFAULT_VARIANT_LIMIT
-from .feature_attribute import WithFeatureAttributes, WithFeatureAttributesMatcher
+from .feature_attribute import AttributeValue, FeatureAttribute, WithFeatureAttributes, WithFeatureAttributesMatcher
 
 
 class RecipePrefetchedManager(models.Manager):
@@ -187,9 +187,19 @@ class FeatureProducedInCombo(WithFeatureAttributes):
     feature_id: int
     combo = models.ForeignKey(to=Combo, on_delete=models.CASCADE)
     combo_id: int
+    attributes = models.ManyToManyField(to=FeatureAttribute, through='FeatureProducedInComboAttribute', blank=True, related_name='used_as_attribute_in_featureproducedincombo')
 
     def __str__(self):
         return f'{self.feature} produced in combo {self.combo_id}'
+
+
+class FeatureProducedInComboAttribute(AttributeValue):
+    producer = models.ForeignKey(to=FeatureProducedInCombo, on_delete=models.CASCADE, db_column='featureproducedincombo_id')
+    producer_id: int
+
+    class Meta:
+        db_table = 'spellbook_featureproducedincombo_attributes'
+        unique_together = [('producer', 'attribute')]
 
 
 class FeatureRemovedInCombo(models.Model):

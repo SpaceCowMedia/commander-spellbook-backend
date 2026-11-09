@@ -2,7 +2,7 @@ from django.test import TestCase
 from spellbook.tests.testing import SpellbookTestCaseWithSeeding, curated_card
 from django.core.exceptions import ValidationError
 from common.inspection import count_methods
-from spellbook.models import Card, CardType, Combo, FeatureOfCard, Variant, ZoneLocation
+from spellbook.models import Card, CardType, Combo, FeatureAttribute, FeatureOfCard, Variant, ZoneLocation
 from spellbook.models.references import format_feature_reference, format_line_reference
 from spellbook.models.scryfall import SCRYFALL_WEBSITE_CARD_SEARCH
 from urllib.parse import quote_plus
@@ -193,7 +193,13 @@ class FeatureOfCardTests(SpellbookTestCaseWithSeeding):
         self.assertIn(f'A card feature cannot reference features, since it needs none: {reference}.', raised.exception.message_dict['dictionary'])
 
     def test_a_dictionary_without_feature_references_is_valid(self):
-        self.feature_of_card(dictionary={'sac activation': 'Sacrifice it', 'mana_needed': '{1}'}).full_clean()
+        self.feature_of_card(dictionary={'notes': 'Sacrifice it', 'mana_needed': '{1}'}).full_clean()
+
+    def test_an_attribute_is_no_key_of_its_dictionary(self):
+        FeatureAttribute.objects.create(name='sac activation')
+        with self.assertRaises(ValidationError) as raised:
+            self.feature_of_card(dictionary={'sac activation': 'Sacrifice it'}).full_clean()
+        self.assertIn('"sac activation" is no built-in key: an attribute of a producer is held among its attributes.', raised.exception.message_dict['dictionary'])
 
     def test_an_inaccurate_minimum_needs_mana(self):
         for dictionary in ({}, {'mana_needed': ''}, {'notes': '{1}'}):

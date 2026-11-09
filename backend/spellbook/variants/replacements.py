@@ -257,12 +257,14 @@ class DictionaryBuilder:
         return {DEFAULT_KEY: Value((Item(order=(0, self.positions.of_template(template.id), 0), template=template),), listed=True)}
 
     def feature_of_card(self, index: SourceIndex) -> Dictionary:
-        '''What a card provides for a feature it produces: its name and its dictionary, whose texts and
-        names are lists, like the ones a combo brings, for a list overriding them to extend them.'''
+        '''What a card provides for a feature it produces: its name, the texts of its attributes and its
+        dictionary, whose texts and names are lists, like the ones a combo brings, for a list overriding
+        them to extend them.'''
         source = self.sources[index]
         assert isinstance(source, FeatureOfCard)
-        provided = override(self.card(self.data.id_to_card[source.card_id]), source.dictionary, self.item_of(source, index, None))
-        return {key: Value(value.items, listed=True) if key == DEFAULT_KEY or key in TEXT_KEYS else value for key, value in provided.items()}
+        attributes = self.data.feature_of_card_to_attribute_values[source.id]
+        provided = override(self.card(self.data.id_to_card[source.card_id]), {**attributes, **source.dictionary}, self.item_of(source, index, None))
+        return {key: Value(value.items, listed=True) if key == DEFAULT_KEY or key in TEXT_KEYS or key in attributes else value for key, value in provided.items()}
 
     def combo(self, index: SourceIndex, reached: Callable[[FeatureNeededInCombo], Dictionary]) -> Dictionary:
         '''What a combo brings: its own texts, the names of its cards and templates, and what each of its
@@ -288,10 +290,13 @@ class DictionaryBuilder:
         return None
 
     def produced(self, index: SourceIndex, feature: FeatureWithAttributes, dictionary: Dictionary) -> Dictionary:
-        '''What a combo provides for one feature it produces: what it brings, overridden by the
-        dictionary of the row producing that feature.'''
+        '''What a combo provides for one feature it produces: what it brings, overridden by the texts of
+        the attributes and the dictionary of the row producing that feature.'''
         row = self.produced_row(index, feature)
-        return override(dictionary, row.dictionary, self.item_of(row, index, row.combo_id)) if row is not None else dictionary
+        if row is None:
+            return dictionary
+        stored = {**self.data.feature_produced_in_combo_to_attribute_values[row.id], **row.dictionary}
+        return override(dictionary, stored, self.item_of(row, index, row.combo_id))
 
     def fits(self, index: SourceIndex, cards: frozenset[cardid], templates: frozenset[templateid]) -> bool:
         '''Whether every ingredient of a source is in a way.'''

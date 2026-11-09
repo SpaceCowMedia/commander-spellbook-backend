@@ -1,6 +1,6 @@
 from itertools import product
 from unittest import TestCase
-from spellbook.models.references import ALIAS_REFERENCE_PATTERN, FEATURE_REFERENCE_PATTERN, LINE_REFERENCE_PATTERN, expand_aliases, format_alias_reference, format_feature_reference, format_line_reference, references_past_copies_needed, references_to_features_not_needed, referenced_line
+from spellbook.models.references import ALIAS_REFERENCE_PATTERN, FEATURE_REFERENCE_PATTERN, LINE_REFERENCE_PATTERN, expand_aliases, format_alias_reference, format_feature_reference, format_line_reference, references_past_copies_needed, references_to_features_not_needed, references_to_unknown_keys, attribute_keys_referenced, referenced_line
 
 FEATURES = [
     'Feature',
@@ -141,3 +141,18 @@ class ReferencesPastCopiesNeededTests(TestCase):
     def test_an_alias_is_checked_through_its_definition(self):
         texts = [f'{format_feature_reference("Feature", selector="2", alias="x")} then {format_alias_reference("x")}']
         self.assertEqual(references_past_copies_needed(texts, {'Feature': 1}), [format_feature_reference('Feature', selector='2', alias='x')])
+
+
+class ReferencesToUnknownKeysTests(TestCase):
+    def test_built_in_keys_and_attributes_pass(self):
+        texts = ['[[Outlet]], [[Outlet@description]], [[Outlet$2@mana_needed]] and [[Outlet$Landfall@effect]]']
+        self.assertEqual(references_to_unknown_keys(texts, {'effect'}), [])
+
+    def test_keys_that_are_no_attribute_are_returned_once_sorted(self):
+        texts = ['[[Outlet@step]], [[Outlet@effect]] and [[Outlet@step]]', '[[Other@mana]]']
+        self.assertEqual(references_to_unknown_keys(texts, {'effect'}), ['[[Other@mana]]', '[[Outlet@step]]'])
+        self.assertEqual(attribute_keys_referenced(texts), {'step', 'effect', 'mana'})
+
+    def test_alias_uses_are_checked_as_the_reference_they_repeat(self):
+        texts = ['[[Outlet$1|outlet]] then [[!outlet@effect]] and [[!outlet@step]]']
+        self.assertEqual(references_to_unknown_keys(texts, {'effect'}), ['[[Outlet$1@step]]'])

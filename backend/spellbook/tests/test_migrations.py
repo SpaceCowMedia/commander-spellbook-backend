@@ -1,7 +1,7 @@
 from importlib import import_module
 from unittest import TestCase
 from django.apps import apps
-from spellbook.models import CardInCombo, Combo, Feature, FeatureAttribute, ZoneLocation
+from spellbook.models import CardInCombo, Combo, Feature, FeatureAttribute, FeatureNeededInCombo, ZoneLocation
 from .testing import SpellbookTestCase, curated_card
 
 # A migration converts between the syntaxes of its time, so its tests write both as they were
@@ -109,9 +109,10 @@ class DictionariesMigrationTests(SpellbookTestCase):
 
     def test_inclusions_follow_the_producers_with_an_effect_or_a_description(self):
         blood, outlet = Feature.objects.create(name='Blood'), Feature.objects.create(name='Outlet')
+        effect = FeatureAttribute.objects.create(name='effect')
         card = curated_card(name='Migration Card')
         for feature in (blood, outlet):
-            card.featureofcard_set.create(feature=feature, zone_locations=ZoneLocation.BATTLEFIELD, dictionary={'effect': 'adding {C}'})
+            card.featureofcard_set.create(feature=feature, zone_locations=ZoneLocation.BATTLEFIELD).attributes.add(effect, through_defaults={'value': 'adding {C}'})
         Combo.objects.create(status=Combo.Status.UTILITY, description='adding {B}{R}').produces.add(outlet)
         Combo.objects.create(status=Combo.Status.UTILITY).produces.add(blood)
         combo = Combo.objects.create(status=Combo.Status.UTILITY, description='{{Blood}}, {{Outlet}} and {{FSO}}', notes='{{Blood}}')
@@ -121,6 +122,16 @@ class DictionariesMigrationTests(SpellbookTestCase):
         combo.refresh_from_db()
         self.assertEqual(combo.description, '[[Blood@effect]], [[Outlet@effect]][[Outlet@description]] and [[FSO@description]]')
         self.assertEqual(combo.notes, '[[Blood@notes]]')
+
+    def test_the_keys_in_use_become_attributes(self):
+        outlet = Feature.objects.create(name='Outlet')
+        FeatureAttribute.objects.create(name='effect')
+        combo = Combo.objects.create(status=Combo.Status.UTILITY, description='[[Outlet|outlet]] then [[Outlet@mana]], [[!outlet@sac step]] and [[Outlet@description]]')
+        FeatureNeededInCombo.objects.create(combo=combo, feature=outlet, order=1, dictionary={'name': '', 'effect': 'it', 'step': ['first']})
+
+        dictionaries.create_key_attributes(apps, None)
+
+        self.assertEqual(sorted(FeatureAttribute.objects.values_list('name', flat=True)), ['effect', 'mana', 'sac step', 'step'])
 
     def test_names_holding_reserved_characters_stop_the_migration(self):
         dictionaries.refuse_reserved_names(apps, None)

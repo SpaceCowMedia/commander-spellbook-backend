@@ -87,6 +87,7 @@ def compute_fingerprints(data: Data) -> Fingerprints:
                 *(getattr(feature_of_card, field) for field in _INGREDIENT_FINGERPRINT_FIELDS),
                 feature_of_card.used_face,
                 tuple(sorted(data.feature_of_card_to_attributes.get(feature_of_card.id, ()))),
+                canonical_dictionary(data.feature_of_card_to_attribute_values.get(feature_of_card.id, {})),
                 canonical_dictionary(feature_of_card.dictionary),
                 feature_of_card.is_mana_needed_an_accurate_minimum,
             )
@@ -131,6 +132,7 @@ def compute_fingerprints(data: Data) -> Fingerprints:
             (
                 feature_produced_in_combo.feature_id,
                 tuple(sorted(data.feature_produced_in_combo_to_attributes.get(feature_produced_in_combo.id, ()))),
+                canonical_dictionary(data.feature_produced_in_combo_to_attribute_values.get(feature_produced_in_combo.id, {})),
                 canonical_dictionary(feature_produced_in_combo.dictionary),
             )
             for feature_produced_in_combo in data.combo_to_produced_features.get(combo_id, ())

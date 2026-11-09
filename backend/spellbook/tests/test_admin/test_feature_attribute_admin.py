@@ -180,6 +180,40 @@ class FeatureAttributeAdminTests(SpellbookTestCaseWithSeeding):
         self.assertCountEqual(needed.any_of_attributes.all(), [target, other])
         self.assertCountEqual(feature_of_card.attributes.all(), [target])
 
+    def test_renaming_an_attribute_renames_it_as_a_key(self):
+        attribute = FeatureAttribute.objects.create(name='effect')
+        feature = Feature.objects.create(name='Keyed Feature')
+        combo = Combo.objects.create(status=Combo.Status.UTILITY, description='[[Keyed Feature|outlet]], [[Keyed Feature@effect]] and [[!outlet@Effect]], not [[Keyed Feature@effects]]')
+        needed = FeatureNeededInCombo.objects.create(combo=combo, feature=feature, order=1, zone_locations=ZoneLocation.BATTLEFIELD, dictionary={'name': 'it', 'effect': 'adding {C}', 'mana_needed': ''})
+        feature_of_card = FeatureOfCard.objects.create(card_id=self.c1_id, feature=feature, zone_locations=ZoneLocation.BATTLEFIELD)
+        feature_of_card.attributes.add(attribute, through_defaults={'value': 'adding {C}'})
+
+        attribute.name = 'outcome'
+        attribute.save()
+
+        combo.refresh_from_db()
+        self.assertEqual(combo.description, '[[Keyed Feature|outlet]], [[Keyed Feature@outcome]] and [[!outlet@outcome]], not [[Keyed Feature@effects]]')
+        needed.refresh_from_db()
+        self.assertEqual(list(needed.dictionary.items()), [('name', 'it'), ('outcome', 'adding {C}'), ('mana_needed', '')])
+        self.assertEqual(list(feature_of_card.attributes.through.objects.filter(producer=feature_of_card).values_list('attribute__name', 'value')), [('outcome', 'adding {C}')])
+
+    def test_merging_keeps_the_value_a_producer_gives_the_target(self):
+        source = FeatureAttribute.objects.create(name='Source Attribute')
+        target = FeatureAttribute.objects.create(name='Target Attribute')
+        feature = Feature.objects.create(name='Merging Feature')
+        valued = FeatureOfCard.objects.create(card_id=self.c1_id, feature=feature, zone_locations=ZoneLocation.BATTLEFIELD)
+        valued.attributes.add(source, through_defaults={'value': 'from the source'})
+        valued.attributes.add(target, through_defaults={'value': 'from the target'})
+        tagged = FeatureOfCard.objects.create(card_id=self.c2_id, feature=feature, zone_locations=ZoneLocation.BATTLEFIELD)
+        tagged.attributes.add(source, through_defaults={'value': 'from the source'})
+        tagged.attributes.add(target)
+
+        merge_feature_attribute(source, target)
+
+        through = FeatureOfCard.attributes.through
+        self.assertEqual(list(through.objects.filter(producer=valued).values_list('attribute__name', 'value')), [('Target Attribute', 'from the target')])
+        self.assertEqual(list(through.objects.filter(producer=tagged).values_list('attribute__name', 'value')), [('Target Attribute', 'from the source')])
+
     def test_merge_feature_attribute_updates_references(self):
         source = FeatureAttribute.objects.create(name='Source Attribute')
         target = FeatureAttribute.objects.create(name='Target Attribute')

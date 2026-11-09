@@ -137,8 +137,14 @@
     resize: vertical;
 }
 
-.dictionary-listed {
-    white-space: nowrap;
+.dictionary-kind {
+    flex: none;
+}
+
+.dictionary-no-value {
+    align-self: center;
+    color: var(--body-quiet-color);
+    font-style: italic;
 }
 
 /* the one of widgets.css, which not every change view loads */

@@ -48,8 +48,9 @@ class NormalizedTextareaWidget(Textarea):
 
 class DictionaryWidget(Textarea):
     '''A dictionary shown as a summary of its keys, the ones blanking a text struck through, which opens
-    an editor of its keys and values, or of the whole of it as YAML or JSON. The JSON it holds is
-    submitted as it is, its texts normalized the way the other texts of the admin are.'''
+    an editor of its keys and values, or of the whole of it as YAML or JSON, suggesting every attribute
+    as a key. The JSON it holds is submitted as it is, its texts normalized the way the other texts of
+    the admin are.'''
     template_name = 'admin/spellbook/widgets/dictionary.html'
 
     class Media:
@@ -63,6 +64,7 @@ class DictionaryWidget(Textarea):
         except ValueError:
             parsed = None
         context['widget']['keys'] = [(key, value == '') for key, value in parsed.items()] if isinstance(parsed, dict) else None
+        context['widget']['attributes_url'] = reverse('admin:spellbook_featureattribute_names')
         return context
 
     def value_from_datadict(self, data, files, name: str):
@@ -71,7 +73,7 @@ class DictionaryWidget(Textarea):
             parsed = json.loads(value)
         except (TypeError, ValueError):
             return value
-        if not isinstance(parsed, dict) or not all(isinstance(item, str) or isinstance(item, list) and all(isinstance(text, str) for text in item) for item in parsed.values()):
+        if not isinstance(parsed, dict) or not all(item is None or isinstance(item, str) or isinstance(item, list) and all(isinstance(text, str) for text in item) for item in parsed.values()):
             return value
         sanitized = map_dictionary_texts(parsed, sanitize_newlines_apostrophes_and_quotes)
         if 'mana_needed' in sanitized:

@@ -11,10 +11,10 @@ from .utils import PRODUCED_MANA_KINDS, as_number, strip_accents, simplify_card_
 from .recipe import update_variants, update_combo_names
 from .mixins import ScryfallLinkMixin, PreSaveModelMixin, NamedModel
 from .feature import Feature
-from .fields import DictionaryField, KeywordsField
+from .fields import KeywordsField
 from .ingredient import Ingredient
 from .feature_attribute import WithFeatureAttributes
-from .references import TEXT_KEYS, dictionary_texts, format_feature_reference, references_to_features_not_needed
+from .references import dictionary_texts, references_to_features_not_needed
 
 
 IMAGE_URI_HELP_TEXT = 'The image format, and with it the file extension, may vary'
@@ -287,12 +287,6 @@ class FeatureOfCard(Ingredient, WithFeatureAttributes, WithUsedFace):
     combo: they reach a variant the way the texts of a combo do, except its description, which is only
     ever written where a combo references it.'''
     id: int
-    dictionary = DictionaryField(help_text=(
-        'What this card provides when it produces this feature, besides its name: each key maps to a text or a list of texts,'
-        f' which a combo needing the feature writes with the {format_feature_reference("feature", key="key")} syntax.'
-        f' The keys {", ".join(TEXT_KEYS)} are the texts the variants needing it write:'
-        f' each of them is appended to the field of the same name, except the description, written only where a combo references it with {format_feature_reference("feature", key="description")}.'
-    ))
 
     def clean(self):
         '''A feature of a card needs no feature, so its texts cannot reference one: no variant would be

@@ -17,7 +17,8 @@ DESCRIPTION_HELP_TEXT = (
     f' Optionally, you can select one of the multiple copies with {format_feature_reference("name", selector="number")},'
     ' where the number counts through the copies this combo needs of that feature, in the order of its needed feature rows,'
     f' or with {format_feature_reference("name", selector="attribute")}, where the attribute is the name of one of the attributes the feature was produced with.'
-    ' The dictionary of an ingredient overrides what it brings to the features this combo produces and to its variants:'
+    ' The dictionary of an ingredient overrides what it brings to the features this combo produces and to its variants,'
+    ' and the dictionary of a produced feature what this combo provides for it, its own texts counting as lists of one, in its variants too:'
     ' a text replaces, a list adds to a list, and a blank text leaves it out.'
     f' Give a reference an alias, as in {format_feature_reference("name", alias="alias")} or {format_feature_reference("name", selector="number", alias="alias")},'
     f' to repeat it anywhere in the same text as {format_alias_reference("alias")}, or with another key as {format_alias_reference("alias", key="key")}.'
@@ -27,9 +28,9 @@ DESCRIPTION_HELP_TEXT = (
 
 
 class Explanation(models.Model):
-    '''What a combo, a variant, or a feature of a card says about itself: what it costs, what has to
-    already be true, and how it goes. A variant assembles its own out of the ones written by every
-    source it takes its texts from.'''
+    '''What a combo or a variant says about itself: what it costs, what has to already be true, and how
+    it goes. A variant assembles its own out of the texts of every combo it needs and the dictionaries
+    of the rows and card features on the way.'''
 
     mana_needed = models.CharField(blank=True, max_length=MAX_MANA_NEEDED_LENGTH, help_text='Mana needed. Use the {1}{W}{U}{B}{R}{G}{B/P}... format.', validators=[MANA_VALIDATOR, *TEXT_VALIDATORS])
     is_mana_needed_an_accurate_minimum = models.BooleanField(default=True, help_text='Does the first mana cost in this field represent the MINIMUM needed to start, ignoring all other text?')

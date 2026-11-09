@@ -110,23 +110,29 @@ def produced_features(data: Data, source: TextSource) -> Iterable[tuple[featurei
     return []
 
 
-def roots_of(data: Data, sources: Sequence[TextSource], generator_combo_ids: Collection[comboid]) -> list[SourceIndex]:
+Root = tuple[SourceIndex, FeatureWithAttributes | None]
+
+
+def roots_of(data: Data, sources: Sequence[TextSource], generator_combo_ids: Collection[comboid]) -> list[Root]:
     '''The sources a variant holds for their own sake, the way the combo graph starts collecting the
     needed ones: its generator combos, and every source producing a feature that is no utility, or
-    removing one the variant produces. Everything else is there to satisfy one of their rows.'''
+    removing one the variant produces. Everything else is there to satisfy one of their rows. A combo
+    producing such features is held as the producer of each of them, for the dictionary of the row
+    producing it to override what it writes there.'''
     results = {
         feature_id
         for source in sources
         for feature_id, _ in produced_features(data, source)
         if feature_id not in data.utility_features_ids
     }
-
-    def held_for_its_own_sake(source: TextSource) -> bool:
-        if any(feature_id in results for feature_id, _ in produced_features(data, source)):
-            return True
-        return isinstance(source, Combo) and (source.id in generator_combo_ids or any(row.feature_id in results for row in data.combo_to_removed_features[source.id]))
-
-    return [index for index, source in enumerate(sources) if held_for_its_own_sake(source)]
+    roots = list[Root]()
+    for index, source in enumerate(sources):
+        produced = [(feature_id, attributes) for feature_id, attributes in produced_features(data, source) if feature_id in results]
+        if produced and isinstance(source, Combo):
+            roots.extend((index, FeatureWithAttributes(data.id_to_feature[feature_id], attributes)) for feature_id, attributes in produced)
+        elif produced or isinstance(source, Combo) and (source.id in generator_combo_ids or any(row.feature_id in results for row in data.combo_to_removed_features[source.id])):
+            roots.append((index, None))
+    return roots
 
 
 # ---------------------------------------------------------------------------
@@ -371,11 +377,13 @@ class DictionaryBuilder:
         way.dictionary = combine(dictionaries)
         way.sources = frozenset(walked)
 
-    def written_by_default(self, roots: Iterable[SourceIndex], key: Key) -> frozenset[SourceIndex]:
+    def written_by_default(self, roots: Iterable[Root], key: Key) -> frozenset[SourceIndex]:
         '''The sources a variant writes one of its fields with on its own: the ones it holds for their own
         sake, and every one their needed rows reach in turn, each row reaching every source producing what
         it accepts, the way the variant itself was found. A dictionary overriding the key on the way writes
-        its texts instead, a text cutting off what that row brings, and a list adding to it.'''
+        its texts instead, a text cutting off what that row brings, and a list adding to it. The row a
+        combo produces a feature with does the same wherever the combo writes as its producer, the
+        variant's own results included.'''
         written = set[SourceIndex]()
 
         def overridden(row: Model) -> bool:
@@ -385,8 +393,8 @@ class DictionaryBuilder:
             written.update(self.overrides.get((row, key), ()))
             return isinstance(value, str)
 
-        visited = set[tuple[SourceIndex, FeatureWithAttributes | None]]()
-        to_visit: list[tuple[SourceIndex, FeatureWithAttributes | None]] = [(root, None) for root in roots]
+        visited = set[Root]()
+        to_visit = list(roots)
         while to_visit:
             index, feature = to_visit.pop()
             if (index, feature) in visited:

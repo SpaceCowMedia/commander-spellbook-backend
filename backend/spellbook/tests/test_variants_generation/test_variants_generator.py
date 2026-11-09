@@ -1512,6 +1512,55 @@ class DictionaryTests(TextSourcesTestCase):
 
         self.assertEqual(self.variant_of(main).notes, 'a note of the main combo\na note of the producer')
 
+    def make_result_main(self, *dictionaries: dict) -> Combo:
+        '''A generator needing IFInfinite from a producer paying {2} besides the {B} of the spell it needs,
+        which also makes a result of its own for each dictionary after the first, each produced row taking
+        its dictionary in turn.'''
+        infinite = Feature.objects.create(name='IFInfinite', status=Feature.Status.STANDALONE)
+        producer = self.make_producer('Inclusion Infinite Card', infinite, mana_needed='{2}', notes='a note of the producer')
+        FeatureNeededInCombo.objects.create(combo=producer, feature=self.spell, order=1)
+        self.make_card_producer('Free Spell Card', self.spell, mana_needed='{B}')
+        for position in range(1, len(dictionaries)):
+            producer.produces.add(Feature.objects.create(name=f'IFResult {position}', status=Feature.Status.STANDALONE))
+        for row, dictionary in zip(producer.featureproducedincombo_set.order_by('id'), dictionaries):
+            row.dictionary = dictionary
+            row.save()
+        return self.make_main(infinite, mana_needed='{U}', notes='a note of the main combo', description='Pay [[IFInfinite@mana_needed]].')
+
+    def test_a_result_row_text_replaces_what_its_producer_writes(self):
+        '''The variant writes what the producer provides for the result, as a combo needing it reads.'''
+        variant = self.variant_of(self.make_result_main({'mana_needed': '{1}'}))
+
+        self.assertEqual((variant.mana_needed, variant.description), ('{1}{U}', 'Pay {1}.'))
+        self.assertEqual(variant.notes, 'a note of the main combo\na note of the producer')
+
+    def test_a_result_row_list_adds_to_what_its_producer_writes(self):
+        variant = self.variant_of(self.make_result_main({'mana_needed': ['{1}']}))
+
+        self.assertEqual((variant.mana_needed, variant.description), ('{3}{U}{B}', 'Pay {3}{B}.'))
+
+    def test_a_blank_result_row_leaves_its_producer_out(self):
+        variant = self.variant_of(self.make_result_main({'mana_needed': ''}))
+
+        self.assertEqual((variant.mana_needed, variant.description), ('{U}', 'Pay .'))
+
+    def test_results_overriding_a_key_differently_write_each_override(self):
+        variant = self.variant_of(self.make_result_main({'notes': 'how it loops'}, {'notes': 'how it ends'}))
+
+        self.assertEqual(variant.notes, 'a note of the main combo\nhow it loops\nhow it ends')
+
+    def test_a_result_row_override_keeps_the_producer_for_its_other_results(self):
+        variant = self.variant_of(self.make_result_main({'notes': 'how it loops'}, {}))
+
+        self.assertEqual(variant.notes, 'a note of the main combo\na note of the producer\nhow it loops')
+
+    def test_a_generator_row_override_replaces_what_the_generator_writes(self):
+        self.make_producer('Inclusion Mana Card', self.mana, notes='a note of the producer')
+        main = self.make_main(self.mana, notes='a note of the main combo')
+        main.featureproducedincombo_set.update(dictionary={'notes': 'how it wins'})
+
+        self.assertEqual(self.variant_of(main).notes, 'how it wins')
+
     def test_the_mana_left_out_is_not_judged_accurate_or_not(self):
         self.make_producer('Inclusion Mana Card', self.spell, mana_needed='{X}{U} for each copy', is_mana_needed_an_accurate_minimum=False)
         main = self.make_main(self.spell, {'mana_needed': ''}, mana_needed='{1}')

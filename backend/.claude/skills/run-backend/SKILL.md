@@ -122,6 +122,8 @@ pid=$(netstat -ano | grep "127.0.0.1:8765" | grep LISTENING | awk '{print $NF}' 
   holding `: ` or starting with `{` triggers; quote such values in `fill`.
 - Inline rows are wider than the viewport and scroll sideways; `scroll <selector>` brings a row up
   before a `shot` of the whole page.
+- Run the test suite with `manage.py test --pythonpath ../common`, not through `serve.py`: under the run
+  settings two `backend.tests.test_admin` tests of the task results admin fail with `KeyError: 'task_name'`.
 
 ## Troubleshooting
 

@@ -4,7 +4,7 @@ from unittest import mock, skipUnless
 from django.db.models import Count
 from spellbook.models.combo import CardInCombo, FeatureNeededInCombo
 from spellbook.models.feature_attribute import FeatureAttribute
-from spellbook.tests.testing import SpellbookTestCase, SpellbookTestCaseWithSeeding, curated_card
+from spellbook.tests.testing import SpellbookTestCase, SpellbookTestCaseWithSeeding, card_number, curated_card
 from spellbook.models import Variant, Card, OrderedIngredient, CardInVariant, TemplateInVariant, Template, Combo, Feature, VariantAlias, FeatureOfCard, ZoneLocation, recompute_all_counts
 from spellbook.models import VariantGenerationFingerprints, VariantOfCombo, FeatureProducedByVariant, id_from_cards_and_templates_ids
 from spellbook.models.references import format_alias_inclusion, format_alias_replacement, format_feature_inclusion, format_line_reference
@@ -427,6 +427,31 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
 
         self.assertEqual(context.apply('[[FDealt$1]] then [[FDealt$2]]', combo.id), 'Untapper Card then Landfall Card')
         self.assertEqual(self.render_zone_locations(context, [untapper_card, landfall_card]), [ZoneLocation.GRAVEYARD, ZoneLocation.HAND])
+
+    def test_rows_are_dealt_producers_in_the_order_their_cards_are_listed(self):
+        '''Whatever attributes the producers hold, they are dealt in the order the variant lists their
+        cards, so that every combo of the variant deals them alike.'''
+        alpha = FeatureAttribute.objects.create(name='Alpha')
+        zeta = FeatureAttribute.objects.create(name='Zeta')
+        banish = Feature.objects.create(name='FBanish')
+        pick = Feature.objects.create(name='FPick')
+        first = curated_card(name='Listed First', type_line='Creature - Elf')
+        second = curated_card(name='Listed Second', type_line='Creature - Elf')
+        banishing, picking = (Combo.objects.create(status=Combo.Status.UTILITY) for _ in range(2))
+        for combo, feature in ((banishing, banish), (picking, pick)):
+            for order in (1, 2):
+                FeatureNeededInCombo.objects.create(combo=combo, feature=feature, order=order)
+        replacements = {
+            FeatureWithAttributes(banish, frozenset({alpha.id})): [([second], [])],
+            FeatureWithAttributes(banish, frozenset({zeta.id})): [([first], [])],
+            FeatureWithAttributes(pick, frozenset()): [([second], []), ([first], [])],
+        }
+        positions = IngredientPositions(cards={card_number(first): 1, card_number(second): 2})
+
+        context = VariantContext.build(Data(), replacements, [banishing, picking], [], [], positions)
+
+        self.assertEqual(context.apply('[[FBanish$1]] then [[FBanish$2]]', banishing.id), 'Listed First then Listed Second')
+        self.assertEqual(context.apply('[[FPick$1]] then [[FPick$2]]', picking.id), 'Listed First then Listed Second')
 
     def test_a_producer_dealt_to_no_row_or_to_every_row_starts_where_they_all_ask(self):
         feature = Feature.objects.create(name='FShared')

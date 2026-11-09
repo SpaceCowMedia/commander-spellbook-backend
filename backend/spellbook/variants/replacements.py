@@ -57,7 +57,7 @@ class Alternative(Generic[_C]):
     Alternatives are what a selector picks between and what the needed feature rows of a combo are dealt.'''
     candidate: _C
     attribute_ids: frozenset[int] = frozenset()
-    # sorted, in their original case: they order the alternatives of a feature and answer a selector
+    # sorted, in their original case: they break a tie between the alternatives of a feature and answer a selector
     attribute_names: tuple[str, ...] = ()
 
     def has_attribute(self, name: str) -> bool:
@@ -202,17 +202,17 @@ def replacement_alternatives(
     used_faces: 'UsedFaces',
     positions: IngredientPositions,
 ) -> dict[FeatureName, list[Alternative[Replacement]]]:
-    '''What every feature name is replaced with, one alternative per way of producing it, offered by the
-    names of the attributes it was produced with, an order every variant agrees on, and then in the
-    display order of the ingredients they name.'''
-    by_name = defaultdict[FeatureName, list[Alternative[Replacement]]](list)
+    '''What every feature name is replaced with, one alternative per way of producing it, in the display
+    order of the ingredients they name, which every combo of the variant then deals its rows by alike,
+    the names of the attributes it was produced with only breaking a tie.'''
+    by_name = defaultdict[FeatureName, list[tuple[tuple[tuple[int, ...], tuple[str, ...]], Alternative[Replacement]]]](list)
     for feature, recipes in replacements.items():
         attribute_names = attribute_names_of(data, feature.attributes)
         by_name[feature.feature.name].extend(
-            Alternative(Replacement.of(recipe, used_faces, feature.feature.id), feature.attributes, attribute_names)
-            for recipe in sorted(recipes, key=lambda recipe: positions.position_of(*recipe))
+            ((positions.position_of(*recipe), attribute_names), Alternative(Replacement.of(recipe, used_faces, feature.feature.id), feature.attributes, attribute_names))
+            for recipe in recipes
         )
-    return {name: sorted(alternatives, key=lambda a: a.attribute_names) for name, alternatives in by_name.items()}
+    return {name: [alternative for _, alternative in sorted(alternatives, key=lambda pair: pair[0])] for name, alternatives in by_name.items()}
 
 
 def produced_features(data: Data, source: TextSource) -> Iterable[tuple[featureid, frozenset[int]]]:

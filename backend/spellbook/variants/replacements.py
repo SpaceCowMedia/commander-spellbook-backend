@@ -403,8 +403,7 @@ class DictionaryBuilder:
             visited.add((index, feature))
             source = self.sources[index]
             if isinstance(source, FeatureOfCard):
-                if not overridden(source) and text_of(source, key):
-                    written.add(index)
+                overridden(source)
                 continue
             assert isinstance(source, Combo)
             if feature is not None and (row := self.produced_row(index, feature)) is not None and overridden(row):
@@ -959,11 +958,6 @@ class VariantContext:
         self.overrides = overrides
         self.source_combo_ids = [owning_combo_id(source) for source in sources]
         self.source_of_combo = {source.id: index for index, source in enumerate(sources) if isinstance(source, Combo)}
-        self.feature_of_card_sources = frozenset(
-            index
-            for index, source in enumerate(sources)
-            if isinstance(source, FeatureOfCard) or (isinstance(source, Override) and isinstance(sources[source.owner], FeatureOfCard))
-        )
 
     @classmethod
     def build(
@@ -1110,14 +1104,14 @@ class VariantContext:
                 join_texts if overriding else join_with_conjunction,
             ).assemble())
 
-    def field_assembly(self, field: str, merge: MergeTexts = join_texts, only_when_included: frozenset[SourceIndex] = frozenset()) -> FieldAssembly:
+    def field_assembly(self, field: str, merge: MergeTexts = join_texts) -> FieldAssembly:
         '''One text field of the variant, out of what each of its sources wrote for it, in source order.
         A source with nothing to say writes nothing, and one the variant does not write on its own writes
         only where it is included.'''
         texts = {index: expand_aliases(text) for index, source in enumerate(self.sources) if (text := text_of(source, field))}
         written = self.written_by_default.get(field)
         left_out = frozenset(index for index in texts if index not in written) if written is not None else frozenset()
-        return self.assembly(field, texts, merge, only_when_included | left_out)
+        return self.assembly(field, texts, merge, left_out)
 
-    def render_field(self, field: str, merge: MergeTexts = join_texts, only_when_included: frozenset[SourceIndex] = frozenset()) -> str:
-        return self.field_assembly(field, merge, only_when_included).assemble()
+    def render_field(self, field: str, merge: MergeTexts = join_texts) -> str:
+        return self.field_assembly(field, merge).assemble()

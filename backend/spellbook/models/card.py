@@ -284,8 +284,7 @@ class WithUsedFace(models.Model):
 class FeatureOfCard(Ingredient, WithFeatureAttributes, WithUsedFace):
     '''A card producing a feature on its own. Besides its name, whatever it provides to the combos
     needing the feature is in its dictionary, its texts included under the names of the fields of a
-    combo: they reach a variant the way the texts of a combo do, except its description, which is only
-    ever written where a combo references it.'''
+    combo: they reach a variant the way the texts of a combo do.'''
     id: int
     is_mana_needed_an_accurate_minimum = models.BooleanField(default=True, help_text='Does the first mana cost the dictionary provides under mana_needed represent the MINIMUM needed to start, ignoring all other text?')
 

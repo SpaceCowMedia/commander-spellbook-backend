@@ -40,7 +40,7 @@ class WithFeatureAttributes(models.Model):
         ' A key overrides what is provided without it, the name of the card or what the combo brings, its own texts counting as lists of one:'
         ' a text replaces it, a list adds to it, and a blank text leaves it out.'
         f' The keys {", ".join(TEXT_KEYS)} are texts of the variants, written in the field of the same name wherever they write what the feature provides,'
-        f' except the description of a card, written only where a combo references it with {format_feature_reference("feature", key="description")}.'
+        ' while any other key, such as effect, is written only where a combo references it.'
     ))
 
     class Meta:

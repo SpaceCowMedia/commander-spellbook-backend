@@ -920,11 +920,23 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
         # written where it was named, and not appended a second time
         self.assertEqual(v.description, 'then sacrifice a creature, and win')
 
-    def test_the_description_of_a_card_feature_is_dropped_when_nothing_names_it(self):
+    def test_the_description_of_a_card_feature_is_appended_when_nothing_names_it(self):
         self.combo_fields = {'description': 'and win'}
         combo = self.generator_needing_a_card_feature(description='sacrifice a creature')
         v: Variant = Variant.objects.get(of=combo)
-        self.assertEqual(v.description, 'and win')
+        self.assertEqual(v.description, 'sacrifice a creature\nand win')
+
+    def test_the_effect_of_a_card_feature_is_written_where_named(self):
+        self.combo_fields = {'description': 'Sacrifice a creature[[FB@effect]].\nWin.'}
+        combo = self.generator_needing_a_card_feature(effect=', adding {C}')
+        v: Variant = Variant.objects.get(of=combo)
+        self.assertEqual(v.description, 'Sacrifice a creature, adding {C}.\nWin.')
+
+    def test_the_effect_of_a_card_feature_is_not_appended(self):
+        self.combo_fields = {'description': 'Win.'}
+        combo = self.generator_needing_a_card_feature(effect=', adding {C}')
+        v: Variant = Variant.objects.get(of=combo)
+        self.assertEqual(v.description, 'Win.')
 
     def test_the_other_fields_of_a_card_feature_are_still_appended(self):
         self.combo_fields = {'easy_prerequisites': 'A', 'notable_prerequisites': 'A', 'notes': 'A'}

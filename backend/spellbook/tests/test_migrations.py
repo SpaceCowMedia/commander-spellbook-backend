@@ -80,6 +80,15 @@ class DictionariesConversionTests(TestCase):
         self.assertEqual(dictionaries.revert_text(converted, 'description'), text)
         self.assertEqual(dictionaries.revert_text('[[FSO@mana_needed]] and [[FSO@sac step]]', 'description'), '[[FSO@mana_needed]] and [[FSO@sac step]]')
 
+    def test_an_inclusion_in_a_description_references_what_the_card_descriptions_became(self):
+        keys = {'Blood': ('effect',), 'FSO': ('effect', 'description')}
+        text = '[[FSO|outlet]] then {{!outlet}}, {{FSO$2}}, {{Blood}} and {{Plain}}'
+        converted = dictionaries.convert_text(text, 'description', keys)
+        self.assertEqual(converted, '[[FSO|outlet]] then [[!outlet@effect]][[!outlet@description]], [[FSO$2@effect]][[FSO$2@description]], [[Blood@effect]] and [[Plain@description]]')
+        self.assertEqual(dictionaries.revert_text(converted, 'description'), text)
+        self.assertEqual(dictionaries.convert_text('{{Blood}}', 'notes', keys), '[[Blood@notes]]')
+        self.assertEqual(dictionaries.revert_text('[[Blood@effect]]', 'notes'), '[[Blood@effect]]')
+
 
 class DictionariesMigrationTests(SpellbookTestCase):
     def test_texts_are_converted_and_reverted(self):
@@ -97,6 +106,21 @@ class DictionariesMigrationTests(SpellbookTestCase):
 
         combo.refresh_from_db()
         self.assertEqual(combo.description, 'First {{FSO}}.\nRepeat from step {{#1}}.')
+
+    def test_inclusions_follow_the_producers_with_an_effect_or_a_description(self):
+        blood, outlet = Feature.objects.create(name='Blood'), Feature.objects.create(name='Outlet')
+        card = curated_card(name='Migration Card')
+        for feature in (blood, outlet):
+            card.featureofcard_set.create(feature=feature, zone_locations=ZoneLocation.BATTLEFIELD, dictionary={'effect': 'adding {C}'})
+        Combo.objects.create(status=Combo.Status.UTILITY, description='adding {B}{R}').produces.add(outlet)
+        Combo.objects.create(status=Combo.Status.UTILITY).produces.add(blood)
+        combo = Combo.objects.create(status=Combo.Status.UTILITY, description='{{Blood}}, {{Outlet}} and {{FSO}}', notes='{{Blood}}')
+
+        dictionaries.convert_references(apps, None)
+
+        combo.refresh_from_db()
+        self.assertEqual(combo.description, '[[Blood@effect]], [[Outlet@effect]][[Outlet@description]] and [[FSO@description]]')
+        self.assertEqual(combo.notes, '[[Blood@notes]]')
 
     def test_names_holding_reserved_characters_stop_the_migration(self):
         dictionaries.refuse_reserved_names(apps, None)

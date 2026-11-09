@@ -433,7 +433,7 @@ class Alternative:
     Alternatives are what a selector picks between and what the needed feature rows of a combo are dealt.'''
     way: Way
     attribute_ids: frozenset[int] = frozenset()
-    # sorted, in their original case: they order the alternatives of a feature and answer a selector
+    # sorted, in their original case: they break a tie between the alternatives of a feature and answer a selector
     attribute_names: tuple[str, ...] = ()
 
     def has_attribute(self, name: str) -> bool:
@@ -597,16 +597,20 @@ def way_alternatives(
     replacements: Mapping[FeatureWithAttributes, Sequence[Recipe]],
     positions: IngredientPositions,
 ) -> dict[FeatureName, list[Alternative]]:
-    '''Every way of producing each feature name, offered by the names of the attributes it was produced
-    with, an order every variant agrees on, and then in the display order of their ingredients.'''
+    '''Every way of producing each feature name, in the display order of their ingredients, which every
+    combo of the variant then deals its rows by alike, the names of the attributes it was produced with
+    only breaking a tie.'''
     by_name = defaultdict[FeatureName, list[Alternative]](list)
     for feature, recipes in replacements.items():
         attribute_names = attribute_names_of(data, feature.attributes)
         by_name[feature.feature.name].extend(
             Alternative(Way(feature, tuple(cards), tuple(templates)), feature.attributes, attribute_names)
-            for cards, templates in sorted(recipes, key=lambda recipe: positions.position_of(*recipe))
+            for cards, templates in recipes
         )
-    return {name: sorted(alternatives, key=lambda a: a.attribute_names) for name, alternatives in by_name.items()}
+    return {
+        name: sorted(alternatives, key=lambda a: (positions.position_of(a.way.cards, a.way.templates), a.attribute_names))
+        for name, alternatives in by_name.items()
+    }
 
 
 # ---------------------------------------------------------------------------

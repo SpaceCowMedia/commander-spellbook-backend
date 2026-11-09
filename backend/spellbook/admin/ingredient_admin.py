@@ -25,13 +25,32 @@ class IngredientForm(SpellbookAdminForm):
         widgets = {state: _textarea() for state in Ingredient.CARD_STATE_FIELDS.values()}
 
 
+class DictionaryAdminInline(TabularInline):
+    '''An inline whose rows hold a dictionary: its fields, then the dictionary, edited in a dialog of its own.'''
+    formfield_overrides = {
+        DictionaryField: {'widget': DictionaryWidget},
+    }
+
+    def get_fields(self, request: HttpRequest, obj=None):
+        return [*(self.fields or ()), 'dictionary']
+
+
+class WithFeatureAttributesAdminInline(DictionaryAdminInline):
+    '''An inline of the rows producing a feature: the related object, the attributes the feature is
+    produced with, its fields, then what the row provides for the feature.'''
+    related_field: str
+
+    def get_fields(self, request: HttpRequest, obj=None):
+        return [self.related_field, 'attributes', *super().get_fields(request, obj)]
+
+    def get_autocomplete_fields(self, request: HttpRequest):
+        return [self.related_field, 'attributes', *super().get_autocomplete_fields(request)]
+
+
 class IngredientAdmin(TabularInline):
     form = IngredientForm
     extra = 0
     classes = ['ingredient']
-    formfield_overrides = {
-        DictionaryField: {'widget': DictionaryWidget},
-    }
     fields = [
         'quantity',
         'zone_locations',
@@ -40,34 +59,24 @@ class IngredientAdmin(TabularInline):
     ]
 
 
-class FeatureOfCardAdmin(IngredientAdmin):
-    related_field: str
+class FeatureOfCardAdmin(WithFeatureAttributesAdminInline, IngredientAdmin):
     fields = [
-        'attributes',
         IngredientAdmin.fields[0],  # pyright: ignore[reportGeneralTypeIssues]
         'used_face',
         *IngredientAdmin.fields[1:],
-        'dictionary',
         'is_mana_needed_an_accurate_minimum',
     ]
     model = FeatureOfCard
-    autocomplete_fields = ['attributes']
     formfield_overrides = {
-        **IngredientAdmin.formfield_overrides,
+        **WithFeatureAttributesAdminInline.formfield_overrides,
         CharField: {'widget': TextInput(attrs={'size': '12'})},
         TextField: {'widget': _textarea()},
     }
-
-    def get_fields(self, request: HttpRequest, obj: FeatureOfCard | None = None):
-        return [self.related_field, *self.fields]
-
-    def get_autocomplete_fields(self, request: HttpRequest):
-        return [self.related_field, *self.autocomplete_fields]
 
 
 class OrderedIngredientAdmin(IngredientAdmin, SortableTabularInline):
     pass
 
 
-class ComboIngredientAdmin(OrderedIngredientAdmin):
-    fields = [*OrderedIngredientAdmin.fields, 'dictionary']
+class ComboIngredientAdmin(OrderedIngredientAdmin, DictionaryAdminInline):
+    '''Sortable first, so that its order field comes after the dictionary.'''

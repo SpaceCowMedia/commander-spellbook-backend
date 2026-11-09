@@ -18,12 +18,11 @@ from django.shortcuts import redirect
 from django.utils import timezone
 from django.tasks import TaskResult
 from spellbook.models import Card, FeatureNeededInCombo, FeatureProducedInCombo, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, ZoneLocation
-from spellbook.models.fields import DictionaryField
 from spellbook.models.references import DEFAULT_KEY, dictionary_texts, references_past_copies_needed, references_to_features_not_needed
 from spellbook.models.utils import sanitize_newlines_apostrophes_and_quotes
 from spellbook.tasks import generate_variants_task
-from .utils import DictionaryWidget, SpellbookModelAdmin, SpellbookAdminForm, CustomFilter, IngredientCountListFilter, join_for_message
-from .ingredient_admin import ComboIngredientAdmin, IngredientForm
+from .utils import SpellbookModelAdmin, SpellbookAdminForm, CustomFilter, IngredientCountListFilter, join_for_message
+from .ingredient_admin import ComboIngredientAdmin, IngredientForm, WithFeatureAttributesAdminInline
 
 
 DUPLICATE_CONFIRMATION_INPUT_NAME = '_confirm_duplicate'
@@ -222,16 +221,12 @@ class FeatureNeededInComboAdminInline(ComboIngredientAdmin):
         return result
 
 
-class FeatureProducedInComboAdminInline(admin.TabularInline):
-    model = Combo.produces.through
-    fields = ['feature', 'attributes', 'dictionary']
-    formfield_overrides = {
-        DictionaryField: {'widget': DictionaryWidget},
-    }
+class FeatureProducedInComboAdminInline(WithFeatureAttributesAdminInline):
+    model = FeatureProducedInCombo
+    related_field = 'feature'
     extra = 0
     verbose_name = 'Feature'
     verbose_name_plural = 'Produced Features'
-    autocomplete_fields = ['feature', 'attributes']
 
     def get_extra(self, request: HttpRequest, obj: Combo | None = None, **kwargs: Any) -> int:
         result = super().get_extra(request, obj, **kwargs)

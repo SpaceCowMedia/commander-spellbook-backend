@@ -133,6 +133,27 @@ class DictionariesMigrationTests(SpellbookTestCase):
 
         self.assertEqual(sorted(FeatureAttribute.objects.values_list('name', flat=True)), ['effect', 'mana', 'sac step'])
 
+    def test_reserved_characters_leave_the_names_of_the_features_no_combo_needs(self):
+        renamed = Feature.objects.create(name='Permanent with "[Pay Mana]: Untap a creature" $ now')
+        producing = Combo.objects.create(status=Combo.Status.UTILITY)
+        producing.produces.add(renamed)
+        Combo.objects.filter(pk=producing.pk).update(name='Sac Outlet + Permanent with "[Pay Mana]: Untap a creature" $ now')
+        needed = Feature.objects.create(name='Needed $ feature')
+        FeatureNeededInCombo.objects.create(combo=Combo.objects.create(status=Combo.Status.UTILITY), feature=needed, order=1)
+        taken = Feature.objects.create(name='Taken @ name')
+        Feature.objects.create(name='Taken name')
+
+        dictionaries.rename_reserved_feature_names(apps, None)
+
+        renamed.refresh_from_db()
+        self.assertEqual(renamed.name, 'Permanent with "(Pay Mana): Untap a creature" now')
+        producing.refresh_from_db()
+        self.assertEqual(producing.name, 'Sac Outlet + Permanent with "(Pay Mana): Untap a creature" now')
+        needed.refresh_from_db()
+        self.assertEqual(needed.name, 'Needed $ feature')
+        taken.refresh_from_db()
+        self.assertEqual(taken.name, 'Taken @ name')
+
     def test_names_holding_reserved_characters_stop_the_migration(self):
         dictionaries.refuse_reserved_names(apps, None)
         Feature.objects.create(name='Feature @ reserved')

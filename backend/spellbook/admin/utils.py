@@ -17,12 +17,14 @@ from django.core.validators import EMPTY_VALUES
 from django.forms import JSONField as JSONFormField, Media, Textarea
 from django.contrib.admin import ModelAdmin
 from django.contrib.admin.widgets import AutocompleteSelect
+from django.contrib.admin.options import IS_POPUP_VAR, TO_FIELD_VAR
 from django.contrib.admin.views.main import ORDER_VAR, ChangeList
+from django.template.loader import render_to_string
 from django.utils.safestring import SafeText
 from constants import SORTED_COLORS
 from adminsortable2.admin import SortableAdminBase
 from spellbook.variants.variants_generator import DEFAULT_CARD_LIMIT
-from spellbook.models import FeatureOfCardAttribute
+from spellbook.models import FeatureAttribute, FeatureOfCardAttribute
 from spellbook.models.utils import sanitize_newlines_apostrophes_and_quotes, sanitize_mana, sanitize_scryfall_query
 
 
@@ -54,6 +56,10 @@ class AttributesWidget(Textarea):
     whole of them as YAML or JSON. The JSON it carries is submitted as it is, its texts normalized the
     way the other texts of the admin are.'''
     template_name = 'admin/spellbook/widgets/dictionary.html'
+    # what the user may do with the attributes from the editor, which the form sets for each request
+    links: dict[str, bool] = {}
+    # what the ids of the select of an attribute and of its links hold, until the editor names them after the row
+    key_placeholder = '__key__'
 
     @property
     def autocomplete(self) -> AutocompleteSelect:
@@ -62,7 +68,23 @@ class AttributesWidget(Textarea):
 
     @property
     def media(self):
-        return self.autocomplete.media + Media(js=['admin/js/js-yaml/4.1.0/js-yaml.min.js', 'admin/js/dictionary_editor.js'], css={'all': ['admin/css/dictionary_editor.css']})
+        return self.autocomplete.media + Media(js=['admin/js/admin/RelatedObjectLookups.js', 'admin/js/js-yaml/4.1.0/js-yaml.min.js', 'admin/js/dictionary_editor.js'], css={'all': ['admin/css/dictionary_editor.css']})
+
+    def key_template(self) -> str:
+        '''The select of the attribute of a row, wrapped in the links of the admin to add, change or view
+        an attribute and to copy its name, which refer to attributes by name.'''
+        opts = FeatureAttribute._meta
+        return render_to_string('admin/widgets/related_widget_wrapper.html', {
+            'rendered_widget': format_html('<select class="dictionary-key" id="id_{}"></select>', self.key_placeholder),
+            'name': self.key_placeholder,
+            'model': opts.verbose_name,
+            'model_name': opts.model_name,
+            'url_params': f'{TO_FIELD_VAR}=name&{IS_POPUP_VAR}=1',
+            'view_related_url_params': f'{TO_FIELD_VAR}=name',
+            'add_related_url': reverse(f'admin:{opts.app_label}_{opts.model_name}_add'),
+            'change_related_template_url': reverse(f'admin:{opts.app_label}_{opts.model_name}_change', args=['__fk__']),
+            **self.links,
+        })
 
     def get_context(self, name, value, attrs):
         context = super().get_context(name, value, attrs)
@@ -78,6 +100,8 @@ class AttributesWidget(Textarea):
             'model_name': autocomplete.field.model._meta.model_name,
             'field_name': autocomplete.field.name,
         }
+        context['widget']['key_template'] = self.key_template()
+        context['widget']['key_placeholder'] = self.key_placeholder
         return context
 
     def value_from_datadict(self, data, files, name: str):

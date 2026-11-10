@@ -6,7 +6,8 @@ import django.core.validators
 import django.db.models.deletion
 import spellbook.models.validators
 from django.db import migrations, models
-from django.db.models import Q
+from django.db.models import Q, Value
+from django.db.models.functions import Replace
 from spellbook.migrations._utils import EXPLANATION_TEXT_FIELDS, LockTables, rewrite_reference_texts
 from spellbook.models.utils import DEFAULT_BATCH_SIZE
 
@@ -28,6 +29,28 @@ FEATURE_NAME_RESERVED_CHARACTERS = '!#$@|[]'
 ATTRIBUTE_NAME_RESERVED_CHARACTERS = '$@|[]'
 # every other key is a feature attribute
 BUILT_IN_KEYS = ('name', *EXPLANATION_TEXT_FIELDS, 'battlefield_card_state', 'exile_card_state', 'graveyard_card_state', 'library_card_state')
+
+
+def rename_reserved_feature_names(apps, schema_editor):
+    '''Rewrites the name of a feature holding a character that now delimits a reference, square brackets
+    becoming round ones and the others going, along with the names of the combos and variants producing
+    it. A feature a combo needs is left for an editor to rename, since the texts of the combo can
+    reference it, and so is one whose new name is taken.'''
+    Feature = apps.get_model('spellbook', 'Feature')
+    FeatureNeededInCombo = apps.get_model('spellbook', 'FeatureNeededInCombo')
+    query = Q()
+    for character in FEATURE_NAME_RESERVED_CHARACTERS:
+        query |= Q(name__contains=character)
+    for feature in Feature.objects.filter(query):
+        name = ''.join(character for character in feature.name.replace('[', '(').replace(']', ')') if character not in FEATURE_NAME_RESERVED_CHARACTERS)
+        name = ' '.join(name.split())
+        if not name or FeatureNeededInCombo.objects.filter(feature=feature).exists() or Feature.objects.filter(name__iexact=name).exists():
+            continue
+        for model_name in ('Combo', 'Variant'):
+            apps.get_model('spellbook', model_name).objects.filter(produces=feature, name__contains=feature.name).update(name=Replace('name', Value(feature.name), Value(name)))
+        print(f'\n  Renamed feature "{feature.name}" to "{name}"', end='')
+        feature.name = name
+        feature.save(update_fields=['name'])
 
 
 def refuse_reserved_names(apps, schema_editor):
@@ -157,6 +180,7 @@ class Migration(migrations.Migration):
             'FeatureOfCard': 'ACCESS EXCLUSIVE',
             'FeatureOfCard_attributes': 'ACCESS EXCLUSIVE',
         }),
+        migrations.RunPython(rename_reserved_feature_names, reverse_code=migrations.RunPython.noop),
         migrations.RunPython(refuse_reserved_names, reverse_code=migrations.RunPython.noop),
         # the relationship of a producer with its attributes becomes a model of its own, on the same table,
         # to hold the text the producer provides under each attribute

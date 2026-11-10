@@ -101,7 +101,24 @@
         return action;
     }
 
-    // the names are the ids, being what the attributes are written with
+    // django.contrib.admin.utils.quote, which the views of the admin undo on the ids of their urls
+    function quote(name) {
+        return name.replace(/[":/_#?;@&=+$,[\]<>%\n\\]/g, character => `_${character.charCodeAt(0).toString(16).toUpperCase().padStart(2, '0')}`);
+    }
+
+    // the select of the admin with its links, its ids named after the row for its popups to find it
+    function keyPicker(index) {
+        const template = editing.field.querySelector('.dictionary-key-template');
+        const picker = template.content.firstElementChild.cloneNode(true);
+        for (const node of picker.querySelectorAll('[id]')) {
+            node.id = node.id.replace(template.dataset.placeholder, `dictionary_key_${index}`);
+        }
+        return picker;
+    }
+
+    // an attribute is written by its name, which its option holds as its text: the admin puts the value
+    // of the option in the urls of its links, so the value is the name quoted, even after a popup of the
+    // admin left the name itself there
     function pickAttribute(key, row) {
         const source = editing.field.dataset;
         django.jQuery(key).select2({
@@ -113,9 +130,14 @@
                 delay: 250,
                 cache: true,
                 data: params => ({ term: params.term, page: params.page, app_label: source.appLabel, model_name: source.modelName, field_name: source.fieldName }),
-                processResults: ({ results, pagination }) => ({ results: results.map(({ text }) => ({ id: text, text })), pagination }),
+                processResults: ({ results, pagination }) => ({ results: results.map(({ text }) => ({ id: quote(text), text })), pagination }),
             },
-        }).on('change', () => { row.key = key.value; });
+        }).on('change', () => {
+            const option = key.selectedOptions[0];
+            option.value = quote(option.textContent);
+            row.key = option.textContent;
+        });
+        updateRelatedObjectLinks(key);
     }
 
     function renderRows() {
@@ -130,12 +152,14 @@
                 input.addEventListener('input', () => { row.text = input.value; });
                 texts = element('div', { className: 'dictionary-texts' }, [input]);
             }
-            const key = element('select', { className: 'dictionary-key' }, [element('option', { value: row.key, textContent: row.key })]);
+            const picker = keyPicker(index);
+            const key = picker.querySelector('select');
+            key.append(element('option', { value: quote(row.key), textContent: row.key }));
             const kind = element('select', { className: 'dictionary-kind', title: 'An attribute can hold a text, which a combo writes, or nothing' },
                 Object.entries(KINDS).map(([value, label]) => element('option', { value, textContent: label, selected: row.kind === value })));
             kind.addEventListener('change', () => { row.kind = kind.value; renderRows(); });
             const item = element('div', { className: 'dictionary-row' }, [
-                key,
+                picker,
                 texts,
                 kind,
                 link('inline-deletelink dictionary-remove', 'Remove this attribute', () => { editing.rows.splice(index, 1); renderRows(); }),

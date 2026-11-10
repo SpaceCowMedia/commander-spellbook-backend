@@ -1,4 +1,5 @@
 <div class="dictionary-field" data-autocomplete-url="{{ widget.autocomplete.url }}" data-app-label="{{ widget.autocomplete.app_label }}" data-model-name="{{ widget.autocomplete.model_name }}" data-field-name="{{ widget.autocomplete.field_name }}">
+    <template class="dictionary-key-template" data-placeholder="{{ widget.key_placeholder }}">{{ widget.key_template }}</template>
     <textarea name="{{ widget.name }}"{% include "django/forms/widgets/attrs.html" %} hidden>{% if widget.value %}{{ widget.value }}{% endif %}</textarea>
     <button type="button" class="dictionary-summary{% if widget.keys is None %} dictionary-invalid{% elif not widget.keys %} dictionary-empty{% endif %}" title="Edit the attributes"><span class="dictionary-keys">{% if widget.keys is None %}Invalid, edit to fix{% elif widget.keys %}{{ widget.keys|join:", " }}{% else %}Add attributes{% endif %}</span>{% if widget.keys %}<span class="dictionary-count" title="{{ widget.keys|length }} attribute{{ widget.keys|length|pluralize }}">{{ widget.keys|length }}</span>{% endif %}</button>
 </div>

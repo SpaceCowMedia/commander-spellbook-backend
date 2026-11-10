@@ -1,3 +1,4 @@
+from typing import cast
 from django.contrib.admin import TabularInline
 from django.core.exceptions import ValidationError
 from django.db.models import TextField, CharField
@@ -32,9 +33,12 @@ class AttributesForm(SpellbookAdminForm):
     it provides under that attribute or nothing, saved on its relationships with them.'''
     references_allowed = True
     attribute_texts = AttributesFormField(required=False, initial=dict, label='attributes', help_text='The attributes this produces the feature with, each holding nothing or a text a combo needing the feature writes with the [[feature@attribute]] syntax.')
+    # what the user may do with the attributes from the editor, set by the inline for each request
+    attribute_links: dict[str, bool] = {}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields['attribute_texts'].widget.links = self.attribute_links
         if self.instance.pk is not None:
             rows = self.instance.attributes.through.objects.filter(producer=self.instance).select_related('attribute').order_by('attribute__name')
             self.initial['attribute_texts'] = {row.attribute.name: row.value or None for row in rows}
@@ -86,6 +90,17 @@ class WithFeatureAttributesAdminInline(TabularInline):
 
     def get_autocomplete_fields(self, request: HttpRequest):
         return [self.related_field, *super().get_autocomplete_fields(request)]
+
+    def get_formset(self, request: HttpRequest, obj=None, **kwargs):
+        formset = super().get_formset(request, obj, **kwargs)
+        attributes = self.admin_site.get_model_admin(FeatureAttribute)
+        # the form is made anew for each request, so it can carry what this user may do
+        cast(type[AttributesForm], formset.form).attribute_links = {
+            'can_add_related': attributes.has_add_permission(request),
+            'can_change_related': attributes.has_change_permission(request),
+            'can_view_related': attributes.has_view_permission(request),
+        }
+        return formset
 
 
 class IngredientAdmin(TabularInline):

@@ -1,4 +1,7 @@
+import json
+from django.contrib.admin.utils import quote
 from django.core.exceptions import ValidationError
+from django.urls import reverse
 from spellbook.admin.feature_attribute_admin import merge_feature_attribute
 from spellbook.models import CardInCombo, Combo, Feature, FeatureAttribute, FeatureNeededInCombo, FeatureOfCard, FeatureProducedInCombo, ZoneLocation
 from spellbook.models.references import remove_references, rename_references
@@ -280,6 +283,18 @@ class FeatureAttributeAdminTests(SpellbookTestCaseWithSeeding):
         self.assertContains(response, 'Needs Other Feature with it in none of attributes')
         self.assertContains(response, 'Produces Keyed Feature with it')
         self.assertContains(response, 'In total there are 2 combos where effect is used.')
+
+    def test_the_popups_of_the_attributes_editor_refer_to_attributes_by_name(self):
+        self.client.force_login(self.admin)
+        name = 'A "quoted" one/50% ?#_5F'
+        response = self.client.post(f'{reverse("admin:spellbook_featureattribute_add")}?_to_field=name&_popup=1', {'name': name, '_to_field': 'name', '_popup': '1'})
+        self.assertEqual(json.loads(response.context['popup_response_data'])['value'], name)
+        attribute = FeatureAttribute.objects.get(name=name)
+        change_url = reverse('admin:spellbook_featureattribute_change', args=[quote(name)])
+        response = self.client.get(change_url, {'_to_field': 'name', '_popup': '1'})
+        self.assertEqual(response.context['original'], attribute)
+        response = self.client.post(f'{change_url}?_to_field=name&_popup=1', {'name': 'Renamed "one"', '_to_field': 'name', '_popup': '1'})
+        self.assertEqual(json.loads(response.context['popup_response_data']), {'action': 'change', 'value': quote(name), 'obj': 'Renamed "one"', 'new_value': 'Renamed "one"'})
 
     def test_merging_keeps_the_value_a_producer_gives_the_target(self):
         source = FeatureAttribute.objects.create(name='Source Attribute')

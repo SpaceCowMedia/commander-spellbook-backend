@@ -52,6 +52,10 @@ class FeatureAttributeAdmin(MergeableModelAdmin):
                 pass
         return super().get_search_results(request, queryset, search_term)
 
+    def to_field_allowed(self, request: HttpRequest, to_field: str) -> bool:
+        # the attributes editor refers to attributes by name, through the popups of the admin too
+        return to_field == 'name' or super().to_field_allowed(request, to_field)
+
     def merge_objects(self, from_obj: FeatureAttribute, to_obj: FeatureAttribute) -> None:
         merge_feature_attribute(from_obj, to_obj)
 

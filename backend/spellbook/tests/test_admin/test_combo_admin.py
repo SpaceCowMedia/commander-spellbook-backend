@@ -2,6 +2,7 @@ import json
 import re
 from collections import defaultdict
 from html import unescape
+from django.contrib.auth.models import Permission, User
 from django.urls import reverse
 from spellbook.admin.combo_admin import ALL_ZONE_LOCATIONS
 from spellbook.models import Card, CardInCombo, CardUsedInVariantSuggestion, Combo, FeatureAttribute, FeatureProducedInCombo, FeatureProducedInVariantSuggestion, Variant, VariantSuggestion, ZoneLocation
@@ -186,6 +187,19 @@ class ComboAdminAttributesWidgetTests(ComboAdminTestCase):
         }))
         self.assertEqual(response.status_code, 302)
         self.assertEqual(Combo.objects.count(), combo_count + 1)
+
+    def test_the_editor_links_each_attribute_to_the_admin_as_far_as_the_user_may_use_it(self):
+        content = self.client.get(self.change_url(self.b2_id)).content.decode()
+        for link in ('change_id___key__', 'add_id___key__', 'view_id___key__'):
+            self.assertIn(link, content)
+        self.assertIn(f'href="{reverse("admin:spellbook_featureattribute_add")}?_to_field=name&amp;_popup=1"', content)
+        viewer = User.objects.create_user(username='viewer', is_staff=True)
+        viewer.user_permissions.add(*Permission.objects.filter(codename__in=['view_combo', 'change_combo', 'view_featureproducedincombo', 'change_featureproducedincombo', 'view_featureattribute']))
+        self.client.force_login(viewer)
+        content = self.client.get(self.change_url(self.b2_id)).content.decode()
+        self.assertIn('view_id___key__', content)
+        self.assertNotIn('change_id___key__', content)
+        self.assertNotIn('add_id___key__', content)
 
     def test_the_editor_picks_the_attributes_from_the_autocomplete_of_the_admin(self):
         content = self.client.get(self.change_url(self.b2_id)).content.decode()

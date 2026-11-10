@@ -7,6 +7,7 @@ from django.urls import reverse
 from spellbook.admin.combo_admin import ALL_ZONE_LOCATIONS
 from spellbook.models import Card, CardInCombo, CardUsedInVariantSuggestion, Combo, Explanation, FeatureAttribute, FeatureProducedInCombo, FeatureProducedInVariantSuggestion, Variant, VariantSuggestion, ZoneLocation
 from spellbook.models.references import format_alias_reference, format_line_reference
+from spellbook.admin.ingredient_admin import AttributesForm
 from spellbook.admin.utils import AttributesWidget
 from spellbook.models.utils import sanitize_newlines_apostrophes_and_quotes
 from ..testing import SpellbookTestCaseWithSeeding, save_dictionary
@@ -182,6 +183,12 @@ class ComboAdminAttributesWidgetTests(ComboAdminTestCase):
                 self.assertIn(f'name="featureproducedincombo_set-0-{field}"', editor[0])
         self.assertIn('<input type="checkbox" name="featureproducedincombo_set-0-is_mana_needed_an_accurate_minimum"', editor[0])
         self.assertIn('<textarea name="featureproducedincombo_set-0-description"', editor[0])
+
+    def test_the_editor_tells_that_a_produced_feature_overrides_texts_and_attribute_texts(self):
+        content = self.client.get(self.change_url(self.b2_id)).content.decode()
+        self.assertIn(f'data-explanation-help="{AttributesForm.explanation_help}"', content)
+        self.assertIn(f'data-attributes-help="{AttributesForm.attributes_help}"', content)
+        self.assertIn('replaces the text a feature this combo needs brings under the same attribute', AttributesForm.attributes_help)
 
     def test_who_cannot_change_the_produced_features_reads_their_explanation_in_columns(self):
         viewer = User.objects.create_user(username='viewer', is_staff=True)

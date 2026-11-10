@@ -1,4 +1,4 @@
-<div class="dictionary-field" data-autocomplete-url="{{ widget.autocomplete.url }}" data-app-label="{{ widget.autocomplete.app_label }}" data-model-name="{{ widget.autocomplete.model_name }}" data-field-name="{{ widget.autocomplete.field_name }}">
+<div class="dictionary-field" data-autocomplete-url="{{ widget.autocomplete.url }}" data-app-label="{{ widget.autocomplete.app_label }}" data-model-name="{{ widget.autocomplete.model_name }}" data-field-name="{{ widget.autocomplete.field_name }}" data-explanation-help="{{ widget.explanation_help }}" data-attributes-help="{{ widget.attributes_help }}">
     <template class="dictionary-key-template" data-placeholder="{{ widget.key_placeholder }}">{{ widget.key_template }}</template>
     <textarea name="{{ widget.name }}"{% include "django/forms/widgets/attrs.html" %} hidden>{% if widget.value %}{{ widget.value }}{% endif %}</textarea>
     <div class="dictionary-explanation-fields" hidden>{% for field in widget.explanation %}

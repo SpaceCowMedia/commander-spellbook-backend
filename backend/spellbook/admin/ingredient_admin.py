@@ -28,6 +28,9 @@ class IngredientForm(SpellbookAdminForm):
         widgets = {state: _textarea() for state in Ingredient.CARD_STATE_FIELDS.values()}
 
 
+ATTRIBUTES_HELP = 'The attributes this produces the feature with. Each can hold a text, which a combo needing the feature writes with [[feature@attribute]], or nothing.'
+
+
 class AttributesForm(SpellbookAdminForm):
     '''The form of a producer, editing in one editor the fields of its explanation, with the widgets they
     resolve to, and the attributes it produces its feature with, each holding the text it provides under
@@ -36,12 +39,16 @@ class AttributesForm(SpellbookAdminForm):
     attribute_texts = AttributesFormField(required=False, initial=dict, label='explanation and attributes', help_text='The explanation of this, and the attributes it produces the feature with, each holding nothing or a text a combo needing the feature writes with the [[feature@attribute]] syntax.')
     # what the user may do with the attributes from the editor, set by the inline for each request
     attribute_links: dict[str, bool] = {}
+    explanation_help = 'Each text filled here replaces what the combo writes in the same field, only where it writes as the producer of this feature: for a combo needing the feature, and in the variants listing it as a result.'
+    attributes_help = f'{ATTRIBUTES_HELP} An attribute holding a text here replaces the text a feature this combo needs brings under the same attribute.'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         widget: AttributesWidget = self.fields['attribute_texts'].widget
         widget.links = self.attribute_links
         widget.explanation = [self[name] for name in Explanation.explanation_fields() if name in self.fields]
+        widget.explanation_help = self.explanation_help
+        widget.attributes_help = self.attributes_help
         if self.instance.pk is not None:
             rows = self.instance.attributes.through.objects.filter(producer=self.instance).select_related('attribute').order_by('attribute__name')
             self.initial['attribute_texts'] = {row.attribute.name: row.value or None for row in rows}
@@ -125,6 +132,8 @@ class IngredientAdmin(TabularInline):
 
 class FeatureOfCardForm(AttributesForm, IngredientForm):
     references_allowed = False
+    explanation_help = 'Each text filled here is added to the same field of the variants needing this feature from this card, ahead of the texts of their combos, unless a text of that field references it, as [[feature@description]] does in a description, writing it there instead. A needed row out of replacements leaves it out, unless a text references it.'
+    attributes_help = ATTRIBUTES_HELP
 
     class Meta(IngredientForm.Meta):
         pass

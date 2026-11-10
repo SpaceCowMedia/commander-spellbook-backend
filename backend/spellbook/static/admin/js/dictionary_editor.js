@@ -181,7 +181,6 @@
         django.jQuery(key).select2({
             theme: 'admin-autocomplete',
             dropdownParent: django.jQuery(dialog),
-            placeholder: 'attribute',
             ajax: {
                 url: source.autocompleteUrl,
                 delay: 250,
@@ -315,11 +314,12 @@
             element('div', { className: 'dictionary-body' }, [
                 element('section', { className: 'dictionary-explanation' }, [
                     element('h3', { textContent: 'Explanation' }),
+                    element('p', { className: 'dictionary-help dictionary-explanation-help' }),
                     element('div', { className: 'dictionary-explanation-rows' }),
                 ]),
                 element('section', { className: 'dictionary-attributes' }, [
                     element('h3', { textContent: 'Attributes' }),
-                    element('p', { className: 'dictionary-help', textContent: 'The attributes this produces the feature with. Each can hold a text, which a combo needing the feature writes with [[feature@attribute]], or nothing.' }),
+                    element('p', { className: 'dictionary-help dictionary-attributes-help' }),
                     element('div', { className: 'dictionary-tabs' }, tabs),
                     element('div', { className: 'dictionary-panel-keys' }, [element('div', { className: 'dictionary-rows' }), add]),
                     element('div', { className: 'dictionary-panel-yaml' }, [element('textarea', { className: 'dictionary-yaml', rows: 14, spellcheck: false })]),
@@ -342,6 +342,12 @@
         editing = { field, tab: null, rows: [], explanation, saved: controlsOf(explanation).map(control => [control, stateOf(control)]), done: false };
         dialog.querySelector('.dictionary-explanation-rows').replaceChildren(...explanation);
         dialog.querySelector('.dictionary-explanation').hidden = !explanation.length;
+        // what the explanation and the attributes do depends on the producer, which its form tells
+        for (const [selector, text] of [['.dictionary-explanation-help', field.dataset.explanationHelp], ['.dictionary-attributes-help', field.dataset.attributesHelp]]) {
+            const help = dialog.querySelector(selector);
+            help.textContent = text ?? '';
+            help.hidden = !help.textContent;
+        }
         showProblem(null);
         try {
             const attributes = fromJson(stored);

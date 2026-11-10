@@ -1,5 +1,6 @@
 from ..testing import SpellbookTestCaseWithSeeding, curated_card
 from spellbook.admin.feature_admin import merge_feature
+from spellbook.admin.ingredient_admin import ATTRIBUTES_HELP, FeatureOfCardForm
 from spellbook.models import CardInCombo, Combo, Feature, FeatureAttribute, FeatureNeededInCombo, FeatureOfCard, FeatureProducedInCombo, FeatureRemovedInCombo, Variant, ZoneLocation
 from spellbook.models.references import format_alias_reference, format_line_reference, rename_references
 
@@ -248,6 +249,15 @@ class FeatureAdminTests(SpellbookTestCaseWithSeeding):
         response = self.client.get(f'/admin/spellbook/card/?features__id={feature.id}')
         self.assertEqual(response.status_code, 200)
         self.assertEqual({card.name for card in response.context['cl'].result_list}, {card.name for card in producers})
+
+    def test_the_editor_of_a_card_row_tells_that_its_texts_are_added_unless_referenced(self):
+        self.client.force_login(self.admin)
+        feature = Feature.objects.create(name='Linked Feature')
+        FeatureOfCard.objects.create(card=curated_card(name='Linked Card', type_line='Creature - Elf'), feature=feature, zone_locations=ZoneLocation.BATTLEFIELD)
+
+        content = self.client.get(f'/admin/spellbook/feature/{feature.id}/change/').content.decode()
+
+        self.assertIn(f'data-explanation-help="{FeatureOfCardForm.explanation_help}" data-attributes-help="{ATTRIBUTES_HELP}"', content)
 
     def test_change_form_of_a_feature_no_card_produces_has_no_card_link(self):
         self.client.force_login(self.admin)

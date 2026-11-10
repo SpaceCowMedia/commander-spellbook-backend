@@ -60,8 +60,10 @@ class AttributesWidget(Textarea):
     template_name = 'admin/spellbook/widgets/dictionary.html'
     # what the user may do with the attributes from the editor, which the form sets for each request
     links: dict[str, bool] = {}
-    # the fields of the explanation of the producer, which the form sets
+    # the fields of the explanation of the producer and what they and the attributes do, which the form sets
     explanation: list[BoundField] = []
+    explanation_help = ''
+    attributes_help = ''
     # what the ids of the select of an attribute and of its links hold, until the editor names them after the row
     key_placeholder = '__key__'
 
@@ -107,6 +109,8 @@ class AttributesWidget(Textarea):
         context['widget']['key_template'] = self.key_template()
         context['widget']['key_placeholder'] = self.key_placeholder
         context['widget']['explanation'] = self.explanation
+        context['widget']['explanation_help'] = self.explanation_help
+        context['widget']['attributes_help'] = self.attributes_help
         context['widget']['written_texts'] = [field.label for field in self.explanation if isinstance(field.value(), str) and field.value()]
         context['widget']['explanation_errors'] = [f'{field.label}: {error}' for field in self.explanation for error in field.errors]
         return context

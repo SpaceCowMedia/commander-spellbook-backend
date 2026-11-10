@@ -1,7 +1,7 @@
 from django.core.exceptions import ValidationError
 from spellbook.admin.feature_attribute_admin import merge_feature_attribute
 from spellbook.models import CardInCombo, Combo, Feature, FeatureAttribute, FeatureNeededInCombo, FeatureOfCard, FeatureProducedInCombo, ZoneLocation
-from spellbook.models.references import rename_references
+from spellbook.models.references import remove_references, rename_references
 from ..testing import SpellbookTestCaseWithSeeding
 
 
@@ -199,6 +199,87 @@ class FeatureAttributeAdminTests(SpellbookTestCaseWithSeeding):
         self.assertEqual(produced.notes, 'then [[Keyed Feature@outcome]]')
         self.assertEqual(list(produced.attributes.through.objects.filter(producer=produced).values_list('attribute__name', 'value')), [('outcome', '[[!outlet@outcome]] twice')])
         self.assertEqual(list(feature_of_card.attributes.through.objects.filter(producer=feature_of_card).values_list('attribute__name', 'value')), [('outcome', 'adding {C}')])
+
+    def test_remove_attribute_references(self):
+        for test_text, verified_text in [
+            ('[[Feature$Attr]] does it', ' does it'),
+            ('[[Feature$attr@description]] and [[Feature#2$Attr|alias]]', ' and '),
+            ('[[Feature@Attr]] and [[Feature@Attrs]]', ' and [[Feature@Attrs]]'),
+            ('[[Feature$2@Attr]] but [[Feature$2]] and [[Feature$Other@notes]]', ' but [[Feature$2]] and [[Feature$Other@notes]]'),
+            ('[[Feature$Old Attribute]] [[Feature$Old]]', '[[Feature$Old Attribute]] [[Feature$Old]]'),
+            # the uses of an alias defined by a removed reference write nothing either
+            ('[[Feature$Attr|outlet]] then [[!outlet@notes]]', ' then '),
+            ('[[Feature|outlet]] then [[!outlet@Attr]] and [[!outlet]]', '[[Feature|outlet]] then  and [[!outlet]]'),
+            # unless they write another key, the first of them then defining the alias
+            ('[[Feature#2@Attr|outlet]], [[!outlet]], [[!outlet@notes]] and [[!outlet@name]]', ', , [[Feature#2@notes|outlet]] and [[!outlet@name]]'),
+        ]:
+            with self.subTest(test_text=test_text):
+                self.assertEqual(remove_references(test_text, 'Attr'), verified_text)
+
+    def test_deleting_an_attribute_removes_its_references_and_keys(self):
+        attribute = FeatureAttribute.objects.create(name='effect')
+        other = FeatureAttribute.objects.create(name='outcome')
+        feature = Feature.objects.create(name='Keyed Feature')
+        combo = Combo.objects.create(
+            status=Combo.Status.UTILITY,
+            description='Use [[Keyed Feature$Effect]] for [[Keyed Feature@effect]], then [[Keyed Feature@outcome]]',
+            notes='[[Keyed Feature@effect|outlet]] from [[!outlet@name]]',
+        )
+        needed = FeatureNeededInCombo.objects.create(combo=combo, feature=feature, order=1, zone_locations=ZoneLocation.BATTLEFIELD, battlefield_card_state='with [[Keyed Feature@effect]]')
+        needed.any_of_attributes.add(attribute, other)
+        produced = FeatureProducedInCombo.objects.create(combo=combo, feature=Feature.objects.create(name='Produced Feature'), notes='then [[Keyed Feature$effect]]')
+        produced.attributes.add(attribute, through_defaults={'value': 'its own text'})
+        produced.attributes.add(other, through_defaults={'value': '[[Keyed Feature@effect]] twice'})
+        feature_of_card = FeatureOfCard.objects.create(card_id=self.c1_id, feature=feature, zone_locations=ZoneLocation.BATTLEFIELD)
+        feature_of_card.attributes.add(attribute, other)
+        untouched = Combo.objects.create(status=Combo.Status.UTILITY, description='[[Keyed Feature@effects]]')
+
+        attribute.delete()
+
+        combo.refresh_from_db()
+        self.assertEqual(combo.description, 'Use  for , then [[Keyed Feature@outcome]]')
+        self.assertEqual(combo.notes, ' from [[Keyed Feature@name|outlet]]')
+        needed.refresh_from_db()
+        self.assertEqual(needed.battlefield_card_state, 'with ')
+        self.assertEqual(list(needed.any_of_attributes.all()), [other])
+        produced.refresh_from_db()
+        self.assertEqual(produced.notes, 'then ')
+        self.assertEqual(list(produced.attributes.through.objects.filter(producer=produced).values_list('attribute__name', 'value')), [('outcome', ' twice')])
+        self.assertEqual(list(feature_of_card.attributes.values_list('name', flat=True)), ['outcome'])
+        untouched.refresh_from_db()
+        self.assertEqual(untouched.description, '[[Keyed Feature@effects]]')
+
+    def test_delete_from_admin_removes_the_references(self):
+        self.client.force_login(self.admin)
+        attribute = FeatureAttribute.objects.create(name='Some Attribute')
+        combo = Combo.objects.create(status=Combo.Status.UTILITY, description='[[Some Feature$Some Attribute]] does it')
+
+        response = self.client.post(f'/admin/spellbook/featureattribute/{attribute.id}/delete/', {'post': 'yes'}, follow=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(FeatureAttribute.objects.filter(pk=attribute.pk).exists())
+        combo.refresh_from_db()
+        self.assertEqual(combo.description, ' does it')
+
+    def test_change_view_lists_the_combos_needing_or_producing_a_feature_with_the_attribute(self):
+        self.client.force_login(self.admin)
+        attribute = FeatureAttribute.objects.create(name='effect')
+        feature = Feature.objects.create(name='Keyed Feature')
+        needing = Combo.objects.create(status=Combo.Status.UTILITY)
+        FeatureNeededInCombo.objects.create(combo=needing, feature=feature, order=1, zone_locations=ZoneLocation.BATTLEFIELD).any_of_attributes.add(attribute)
+        FeatureNeededInCombo.objects.create(combo=needing, feature=Feature.objects.create(name='Other Feature'), order=2, zone_locations=ZoneLocation.BATTLEFIELD).none_of_attributes.add(attribute)
+        producing = Combo.objects.create(status=Combo.Status.UTILITY)
+        FeatureProducedInCombo.objects.create(combo=producing, feature=feature).attributes.add(attribute)
+        Combo.objects.create(status=Combo.Status.UTILITY, description='[[Keyed Feature@effect]]')
+
+        response = self.client.get(f'/admin/spellbook/featureattribute/{attribute.id}/change/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(list(response.context['adminform'].form.used_in_combos()), [producing, needing])
+        self.assertContains(response, 'Needs Keyed Feature with it in any of attributes')
+        self.assertContains(response, 'Needs Other Feature with it in none of attributes')
+        self.assertContains(response, 'Produces Keyed Feature with it')
+        self.assertContains(response, 'In total there are 2 combos where effect is used.')
 
     def test_merging_keeps_the_value_a_producer_gives_the_target(self):
         source = FeatureAttribute.objects.create(name='Source Attribute')

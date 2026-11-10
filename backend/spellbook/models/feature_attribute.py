@@ -1,6 +1,6 @@
 from django.db import models
 from django.dispatch import receiver
-from django.db.models.signals import post_save
+from django.db.models.signals import post_delete, post_save
 from .feature import Feature
 from .constants import MAX_ATTRIBUTE_VALUE_LENGTH, MAX_FEATURE_NAME_LENGTH
 from .mixins import NamedModel
@@ -29,14 +29,17 @@ def update_feature_attribute_references(sender, instance: FeatureAttribute, crea
     replace_attribute_references(instance, instance.renamed_from)
 
 
-class WithFeatureAttributes(models.Model):
-    '''A producer of a feature, with the attributes it produces the feature with, each holding the text
-    it provides under that attribute if any.'''
-    feature = models.ForeignKey(to=Feature, on_delete=models.CASCADE)
-    feature_id: int
+@receiver(post_delete, sender=FeatureAttribute, dispatch_uid='remove_feature_attribute_references')
+def remove_feature_attribute_references(sender, instance: FeatureAttribute, **kwargs):
+    from .references import remove_attribute_references
+    remove_attribute_references(instance.name)
 
-    class Meta:
-        abstract = True
+
+def attributes_field(through: str) -> models.ManyToManyField:
+    '''The attributes a producer produces its feature with, through the model holding the text it
+    provides under each of them, which Django cannot name after the producer the way it names the
+    related name.'''
+    return models.ManyToManyField(to=FeatureAttribute, through=through, blank=True, related_name='used_as_attribute_in_%(class)s')
 
 
 class AttributeValue(models.Model):

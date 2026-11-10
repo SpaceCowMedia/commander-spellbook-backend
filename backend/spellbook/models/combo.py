@@ -10,7 +10,7 @@ from .feature import Feature
 from .template import Template
 from .ingredient import ComboIngredient, ZoneLocationsField
 from .constants import HIGHER_CARD_LIMIT, DEFAULT_CARD_LIMIT, LOWER_VARIANT_LIMIT, DEFAULT_VARIANT_LIMIT
-from .feature_attribute import AttributeValue, FeatureAttribute, WithFeatureAttributes, WithFeatureAttributesMatcher
+from .feature_attribute import AttributeValue, WithFeatureAttributesMatcher, attributes_field
 
 
 class RecipePrefetchedManager(models.Manager):
@@ -181,7 +181,7 @@ class FeatureNeededInCombo(ComboIngredient, WithFeatureAttributesMatcher):
         indexes = ComboIngredient.card_state_trigram_indexes('fnic')
 
 
-class FeatureProducedInCombo(Explanation, WithFeatureAttributes):
+class FeatureProducedInCombo(Explanation):
     '''A feature a combo produces, with the attributes it produces it with. A text filled here replaces
     what the combo provides under that field for this feature, wherever the combo writes as its producer.'''
     id: int
@@ -189,7 +189,7 @@ class FeatureProducedInCombo(Explanation, WithFeatureAttributes):
     feature_id: int
     combo = models.ForeignKey(to=Combo, on_delete=models.CASCADE)
     combo_id: int
-    attributes = models.ManyToManyField(to=FeatureAttribute, through='FeatureProducedInComboAttribute', blank=True, related_name='used_as_attribute_in_featureproducedincombo')
+    attributes = attributes_field('FeatureProducedInComboAttribute')
 
     def __str__(self):
         return f'{self.feature} produced in combo {self.combo_id}'
@@ -200,7 +200,6 @@ class FeatureProducedInComboAttribute(AttributeValue):
     producer_id: int
 
     class Meta:
-        db_table = 'spellbook_featureproducedincombo_attributes'
         unique_together = [('producer', 'attribute')]
 
 

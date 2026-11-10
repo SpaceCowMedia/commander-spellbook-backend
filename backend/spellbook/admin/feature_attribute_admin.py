@@ -1,18 +1,26 @@
 from django.contrib import admin
-from django.db.models import Q, QuerySet
-from django.http import HttpRequest, JsonResponse
-from django.urls import path
-from spellbook.models import Card, FeatureAttribute, Combo, FeatureNeededInCombo, FeatureOfCardAttribute, FeatureProducedInComboAttribute, replace_attribute_references
+from django.db.models import Prefetch, Q, QuerySet
+from django.http import HttpRequest
+from spellbook.models import Card, FeatureAttribute, Combo, FeatureNeededInCombo, FeatureOfCardAttribute, FeatureProducedInCombo, FeatureProducedInComboAttribute, replace_attribute_references
 from .utils import MergeableModelAdmin, SpellbookAdminForm
 
 
 class FeatureAttributeForm(SpellbookAdminForm):
-    def used_in_combos(self):
-        if self.instance.pk is None:
+    def used_in_combos(self) -> QuerySet[Combo]:
+        '''The combos needing or producing a feature with the attribute, most recent first, each with
+        the rows doing so.'''
+        attribute = self.instance
+        if attribute.pk is None:
             return Combo.objects.none()
-        return Combo.objects.filter(
-            Q(featureneededincombo__any_of_attributes=self.instance) | Q(featureneededincombo__all_of_attributes=self.instance) | Q(featureneededincombo__none_of_attributes=self.instance) | Q(featureproducedincombo__attributes=self.instance)
-        ).distinct().order_by('-created')
+        needing = FeatureNeededInCombo.objects.filter(Q(any_of_attributes=attribute) | Q(all_of_attributes=attribute) | Q(none_of_attributes=attribute)).values('combo_id')
+        producing = FeatureProducedInComboAttribute.objects.filter(attribute=attribute).values('producer__combo_id')
+        needed = FeatureNeededInCombo.objects.select_related('feature')
+        return Combo.objects.filter(Q(pk__in=needing) | Q(pk__in=producing)).order_by('-created').prefetch_related(
+            Prefetch('featureneededincombo_set', needed.filter(any_of_attributes=attribute), to_attr='needing_it_in_any_of'),
+            Prefetch('featureneededincombo_set', needed.filter(all_of_attributes=attribute), to_attr='needing_it_in_all_of'),
+            Prefetch('featureneededincombo_set', needed.filter(none_of_attributes=attribute), to_attr='needing_it_in_none_of'),
+            Prefetch('featureproducedincombo_set', FeatureProducedInCombo.objects.filter(attributes=attribute).select_related('feature'), to_attr='producing_it'),
+        )
 
     def used_in_cards(self):
         if self.instance.pk is None:
@@ -43,16 +51,6 @@ class FeatureAttributeAdmin(MergeableModelAdmin):
             except ValueError:
                 pass
         return super().get_search_results(request, queryset, search_term)
-
-    def get_urls(self):
-        return [
-            path('names/', self.admin_site.admin_view(self.names_view), name='spellbook_featureattribute_names'),
-            *super().get_urls(),
-        ]
-
-    def names_view(self, request: HttpRequest) -> JsonResponse:
-        '''The names of every attribute, which the attributes editor suggests.'''
-        return JsonResponse({'names': list(FeatureAttribute.objects.order_by('name').values_list('name', flat=True))})
 
     def merge_objects(self, from_obj: FeatureAttribute, to_obj: FeatureAttribute) -> None:
         merge_feature_attribute(from_obj, to_obj)

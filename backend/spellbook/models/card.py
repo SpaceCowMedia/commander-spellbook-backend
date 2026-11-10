@@ -13,7 +13,7 @@ from .mixins import ScryfallLinkMixin, PreSaveModelMixin, NamedModel
 from .feature import Feature
 from .fields import KeywordsField
 from .ingredient import Ingredient
-from .feature_attribute import AttributeValue, FeatureAttribute, WithFeatureAttributes
+from .feature_attribute import AttributeValue, attributes_field
 from .references import references_to_features_not_needed
 from .explanation import Explanation
 
@@ -282,11 +282,13 @@ class WithUsedFace(models.Model):
             raise ValidationError({'used_face': f'The used face must be a number between 1 and {card.faces}.'})
 
 
-class FeatureOfCard(Ingredient, Explanation, WithFeatureAttributes, WithUsedFace):
+class FeatureOfCard(Ingredient, Explanation, WithUsedFace):
     '''A card producing a feature on its own: its texts reach a variant the way the texts of a combo do,
     and its attributes hold what else it provides to the combos needing the feature.'''
     id: int
-    attributes = models.ManyToManyField(to=FeatureAttribute, through='FeatureOfCardAttribute', blank=True, related_name='used_as_attribute_in_featureofcard')
+    feature = models.ForeignKey(to=Feature, on_delete=models.CASCADE)
+    feature_id: int
+    attributes = attributes_field('FeatureOfCardAttribute')
 
     @classmethod
     def text_fields_with_references(cls) -> list[str]:
@@ -316,5 +318,4 @@ class FeatureOfCardAttribute(AttributeValue):
     producer_id: int
 
     class Meta:
-        db_table = 'spellbook_featureofcard_attributes'
         unique_together = [('producer', 'attribute')]

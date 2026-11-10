@@ -190,6 +190,14 @@ def references_to_unknown_keys(texts: Iterable[str], attribute_names: Collection
 
 # A feature is named by the feature of a reference, an attribute by its selector or its key
 ReferencePart = Literal['feature', 'selector', 'key']
+ATTRIBUTE_PARTS: tuple[ReferencePart, ...] = ('selector', 'key')
+
+
+def refers_to(reference: re.Match[str], part: ReferencePart, name: str) -> bool:
+    '''Whether the part of a reference names the given name, ignoring case the way names are unique. A
+    numeric selector is a position, never an attribute.'''
+    value = reference[part]
+    return value is not None and value.lower() == name.lower() and not (part == 'selector' and value.isdigit())
 
 
 def ingredient_models() -> tuple['TextModel', ...]:
@@ -214,17 +222,41 @@ def rename_references(text: str, part: ReferencePart, old_name: str, new_name: s
     '''Renames a feature or an attribute in the references of a text, the uses of an alias asking for
     the attribute as their key included. Names are matched ignoring case, the way they are unique, and a
     numeric selector is a position, never an attribute.'''
-    def renamed(name: str | None) -> bool:
-        return name is not None and name.lower() == old_name.lower() and not (part == 'selector' and name.isdigit())
-
     def rename(match: re.Match[str]) -> str:
-        return format_feature_reference(**(match.groupdict() | {part: new_name})) if renamed(match[part]) else match[0]
+        return format_feature_reference(**(match.groupdict() | {part: new_name})) if refers_to(match, part, old_name) else match[0]
 
     def rename_alias(match: re.Match[str]) -> str:
-        return format_alias_reference(match['alias'], new_name) if renamed(match['key']) else match[0]
+        return format_alias_reference(match['alias'], new_name) if refers_to(match, 'key', old_name) else match[0]
 
     text = FEATURE_REFERENCE_PATTERN.sub(rename, text)
     return ALIAS_REFERENCE_PATTERN.sub(rename_alias, text) if part == 'key' else text
+
+
+def remove_references(text: str, name: str) -> str:
+    '''Removes from a text the references selecting an attribute or writing it as a key, the uses of
+    their aliases included, which have nothing left to write once the attribute is gone. An alias whose
+    definition goes while a use of it writes another key is defined by the first such use instead.'''
+    definitions = dict[str, re.Match[str]]()
+    for match in FEATURE_REFERENCE_PATTERN.finditer(text):
+        if match['alias']:
+            definitions.setdefault(match['alias'], match)
+    redefined = set[str]()
+
+    def remove_use(use: re.Match[str]) -> str:
+        definition = definitions.get(use['alias'])
+        if definition is None:
+            return use[0]
+        if refers_to(definition, 'selector', name) or refers_to(use if use['key'] else definition, 'key', name):
+            return ''
+        if refers_to(definition, 'key', name) and use['alias'] not in redefined:
+            redefined.add(use['alias'])
+            return format_feature_reference(definition['feature'], definition['face'], definition['selector'], use['key'], use['alias'])
+        return use[0]
+
+    def remove(reference: re.Match[str]) -> str:
+        return '' if any(refers_to(reference, part, name) for part in ATTRIBUTE_PARTS) else reference[0]
+
+    return FEATURE_REFERENCE_PATTERN.sub(remove, ALIAS_REFERENCE_PATTERN.sub(remove_use, text))
 
 
 def replace_in_text_fields(objects: Iterable[_T], fields: Sequence[str], replacement: Callable[[str], str]) -> list[_T]:
@@ -243,13 +275,13 @@ def replace_in_text_fields(objects: Iterable[_T], fields: Sequence[str], replace
     return changed
 
 
-def rename_in_rows(model: 'TextModel', rename: Callable[[str], str], rows_filter: Q) -> None:
-    '''Renames in the texts of the rows of the model matching the filter, saving only the rows that
+def rewrite_rows(model: 'TextModel', rewrite: Callable[[str], str], rows_filter: Q) -> None:
+    '''Rewrites the texts of the rows of the model matching the filter, saving only the rows that
     changed. Every row loaded is rewritten, so the order they come in is irrelevant.'''
     fields = model.text_fields_with_references()
     manager: Manager[Any] = model._default_manager
     rows = manager.filter(rows_filter).order_by().only(*fields)
-    manager.bulk_update(replace_in_text_fields(rows, fields, rename), fields, batch_size=DEFAULT_BATCH_SIZE)
+    manager.bulk_update(replace_in_text_fields(rows, fields, rewrite), fields, batch_size=DEFAULT_BATCH_SIZE)
 
 
 def rename_in_models(models: Iterable['TextModel'], part: ReferencePart, old_name: str, new_name: str) -> Callable[[str], str]:
@@ -257,7 +289,7 @@ def rename_in_models(models: Iterable['TextModel'], part: ReferencePart, old_nam
     the rename for the texts left to the caller.'''
     rename = partial(rename_references, part=part, old_name=old_name, new_name=new_name)
     for model in models:
-        rename_in_rows(model, rename, references_filter(model, part, old_name))
+        rewrite_rows(model, rename, references_filter(model, part, old_name))
     return rename
 
 
@@ -308,5 +340,13 @@ def replace_attribute_references(instance: FeatureAttribute, old_name: str):
     the references selecting it or writing it as a key.'''
     if old_name and old_name != instance.name:
         from .combo import Combo
-        for part in ('selector', 'key'):
+        for part in ATTRIBUTE_PARTS:
             rename_in_models((Combo, *ingredient_models()), part, old_name, instance.name)
+
+
+def remove_attribute_references(name: str):
+    '''Propagates the deletion of an attribute to the references selecting it or writing it as a key.'''
+    from .combo import Combo
+    remove = partial(remove_references, name=name)
+    for model in (Combo, *ingredient_models()):
+        rewrite_rows(model, remove, references_filter(model, 'selector', name) | references_filter(model, 'key', name))

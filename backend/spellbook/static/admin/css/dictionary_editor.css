@@ -53,7 +53,8 @@
 
 .dictionary-dialog {
     width: min(48rem, 95vw);
-    max-height: 90vh;
+    /* for the dropdown of an attribute to reach past it, the rows scrolling instead */
+    overflow: visible;
     padding: 0;
     border: 1px solid var(--hairline-color);
     border-radius: 4px;
@@ -77,7 +78,7 @@
     letter-spacing: 0.5px;
 }
 
-.dictionary-dialog > :not(h2):not(datalist) {
+.dictionary-dialog > :not(h2):not(.select2-container) {
     margin-left: 16px;
     margin-right: 16px;
 }
@@ -99,6 +100,11 @@
     padding: 6px 14px;
 }
 
+.dictionary-rows {
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
 .dictionary-row {
     display: flex;
     flex-wrap: wrap;
@@ -108,7 +114,7 @@
     border-bottom: 1px solid var(--hairline-color);
 }
 
-.dictionary-key {
+.dictionary-row > .select2-container {
     flex: 0 1 11em;
     min-width: 6em;
 }

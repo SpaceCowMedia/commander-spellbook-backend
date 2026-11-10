@@ -8,8 +8,6 @@
 
     let dialog = null;
     let editing = null;
-    // loaded once from the attribute admin
-    let attributeNames = null;
 
     function element(tag, properties = {}, children = []) {
         const node = Object.assign(document.createElement(tag), properties);
@@ -31,10 +29,6 @@
             if (text !== null && typeof text !== 'string') {
                 return `The text of "${name}" must be a single text, or nothing. In YAML, quote a text starting with { or [, as in "{2}{U}".`;
             }
-        }
-        const unknown = attributeNames ? Object.keys(attributes).filter(name => !attributeNames.has(name)) : [];
-        if (unknown.length) {
-            return `These are no attributes: ${unknown.join(', ')}. Create them as attributes first.`;
         }
         return null;
     }
@@ -107,6 +101,23 @@
         return action;
     }
 
+    // the names are the ids, being what the attributes are written with
+    function pickAttribute(key, row) {
+        const source = editing.field.dataset;
+        django.jQuery(key).select2({
+            theme: 'admin-autocomplete',
+            dropdownParent: django.jQuery(dialog),
+            placeholder: 'attribute',
+            ajax: {
+                url: source.autocompleteUrl,
+                delay: 250,
+                cache: true,
+                data: params => ({ term: params.term, page: params.page, app_label: source.appLabel, model_name: source.modelName, field_name: source.fieldName }),
+                processResults: ({ results, pagination }) => ({ results: results.map(({ text }) => ({ id: text, text })), pagination }),
+            },
+        }).on('change', () => { row.key = key.value; });
+    }
+
     function renderRows() {
         const container = dialog.querySelector('.dictionary-rows');
         container.replaceChildren(...editing.rows.map((row, index) => {
@@ -119,18 +130,18 @@
                 input.addEventListener('input', () => { row.text = input.value; });
                 texts = element('div', { className: 'dictionary-texts' }, [input]);
             }
-            const key = element('input', { type: 'text', value: row.key, placeholder: 'attribute', className: 'dictionary-key' });
-            key.setAttribute('list', 'dictionary-suggested-keys');
-            key.addEventListener('input', () => { row.key = key.value; });
+            const key = element('select', { className: 'dictionary-key' }, [element('option', { value: row.key, textContent: row.key })]);
             const kind = element('select', { className: 'dictionary-kind', title: 'An attribute can hold a text, which a combo writes, or nothing' },
                 Object.entries(KINDS).map(([value, label]) => element('option', { value, textContent: label, selected: row.kind === value })));
             kind.addEventListener('change', () => { row.kind = kind.value; renderRows(); });
-            return element('div', { className: 'dictionary-row' }, [
+            const item = element('div', { className: 'dictionary-row' }, [
                 key,
                 texts,
                 kind,
                 link('inline-deletelink dictionary-remove', 'Remove this attribute', () => { editing.rows.splice(index, 1); renderRows(); }),
             ]);
+            pickAttribute(key, row);
+            return item;
         }));
     }
 
@@ -212,7 +223,7 @@
             tab.addEventListener('click', () => switchTo(name));
             return tab;
         });
-        const add = link('addlink dictionary-add', 'Add another attribute', () => { editing.rows.push({ key: '', kind: 'text', text: '' }); renderRows(); });
+        const add = link('addlink dictionary-add', 'Add another attribute', () => { editing.rows.push({ key: '', kind: 'none', text: '' }); renderRows(); });
         const save = element('button', { type: 'button', className: 'button default dictionary-apply', textContent: 'Apply' });
         save.addEventListener('click', apply);
         const cancel = element('button', { type: 'button', className: 'button dictionary-cancel', textContent: 'Cancel' });
@@ -225,32 +236,15 @@
             element('div', { className: 'dictionary-panel-yaml' }, [element('textarea', { className: 'dictionary-yaml', rows: 14, spellcheck: false })]),
             element('div', { className: 'dictionary-panel-json' }, [element('textarea', { className: 'dictionary-json', rows: 14, spellcheck: false })]),
             element('p', { className: 'dictionary-problem errornote', hidden: true }),
-            element('datalist', { id: 'dictionary-suggested-keys' }),
             element('div', { className: 'dictionary-buttons' }, [save, cancel]),
         ]);
         document.body.append(dialog);
-    }
-
-    function suggest() {
-        dialog.querySelector('#dictionary-suggested-keys').replaceChildren(...[...(attributeNames ?? [])].map(name => element('option', { value: name })));
-    }
-
-    function loadAttributeNames(field) {
-        if (attributeNames !== null || !field.dataset.attributesUrl) {
-            return;
-        }
-        attributeNames = new Set();
-        fetch(field.dataset.attributesUrl, { credentials: 'same-origin' })
-            .then(response => response.json())
-            .then(({ names }) => { attributeNames = new Set(names); suggest(); })
-            .catch(() => { attributeNames = null; });
     }
 
     function open(field) {
         if (!dialog) {
             build();
         }
-        loadAttributeNames(field);
         const stored = field.querySelector('textarea').value;
         editing = { field, tab: null, rows: [] };
         showProblem(null);

@@ -31,7 +31,7 @@ class AttributesForm(SpellbookAdminForm):
     '''The form of a producer, editing the attributes it produces its feature with, each holding the text
     it provides under that attribute or nothing, saved on its relationships with them.'''
     references_allowed = True
-    attribute_texts = AttributesFormField(required=False, label='attributes', help_text='The attributes this produces the feature with, each holding nothing or a text a combo needing the feature writes with the [[feature@attribute]] syntax.')
+    attribute_texts = AttributesFormField(required=False, initial=dict, label='attributes', help_text='The attributes this produces the feature with, each holding nothing or a text a combo needing the feature writes with the [[feature@attribute]] syntax.')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

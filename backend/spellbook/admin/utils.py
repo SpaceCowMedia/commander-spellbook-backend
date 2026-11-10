@@ -14,13 +14,15 @@ from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from django.utils.formats import localize
 from django.core.validators import EMPTY_VALUES
-from django.forms import JSONField as JSONFormField, Textarea
+from django.forms import JSONField as JSONFormField, Media, Textarea
 from django.contrib.admin import ModelAdmin
+from django.contrib.admin.widgets import AutocompleteSelect
 from django.contrib.admin.views.main import ORDER_VAR, ChangeList
 from django.utils.safestring import SafeText
 from constants import SORTED_COLORS
 from adminsortable2.admin import SortableAdminBase
 from spellbook.variants.variants_generator import DEFAULT_CARD_LIMIT
+from spellbook.models import FeatureOfCardAttribute
 from spellbook.models.utils import sanitize_newlines_apostrophes_and_quotes, sanitize_mana, sanitize_scryfall_query
 
 
@@ -48,14 +50,19 @@ class NormalizedTextareaWidget(Textarea):
 
 class AttributesWidget(Textarea):
     '''The attributes of a producer, each holding a text or nothing, shown as a summary of their names,
-    which opens an editor of them one by one, or of the whole of them as YAML or JSON, suggesting every
-    attribute as a name. The JSON it carries is submitted as it is, its texts normalized the way the
-    other texts of the admin are.'''
+    which opens an editor of them one by one, each picked from the autocomplete of the admin, or of the
+    whole of them as YAML or JSON. The JSON it carries is submitted as it is, its texts normalized the
+    way the other texts of the admin are.'''
     template_name = 'admin/spellbook/widgets/dictionary.html'
 
-    class Media:
-        js = ['admin/js/js-yaml/4.1.0/js-yaml.min.js', 'admin/js/dictionary_editor.js']
-        css = {'all': ['admin/css/dictionary_editor.css']}
+    @property
+    def autocomplete(self) -> AutocompleteSelect:
+        '''The select of the admin picking an attribute, whose source and assets the editor picks them with.'''
+        return AutocompleteSelect(FeatureOfCardAttribute._meta.get_field('attribute'), admin.site)
+
+    @property
+    def media(self):
+        return self.autocomplete.media + Media(js=['admin/js/js-yaml/4.1.0/js-yaml.min.js', 'admin/js/dictionary_editor.js'], css={'all': ['admin/css/dictionary_editor.css']})
 
     def get_context(self, name, value, attrs):
         context = super().get_context(name, value, attrs)
@@ -64,7 +71,13 @@ class AttributesWidget(Textarea):
         except ValueError:
             parsed = None
         context['widget']['keys'] = list(parsed) if isinstance(parsed, dict) else None
-        context['widget']['attributes_url'] = reverse('admin:spellbook_featureattribute_names')
+        autocomplete = self.autocomplete
+        context['widget']['autocomplete'] = {
+            'url': autocomplete.get_url(),
+            'app_label': autocomplete.field.model._meta.app_label,
+            'model_name': autocomplete.field.model._meta.model_name,
+            'field_name': autocomplete.field.name,
+        }
         return context
 
     def value_from_datadict(self, data, files, name: str):

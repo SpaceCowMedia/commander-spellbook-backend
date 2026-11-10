@@ -171,6 +171,32 @@ class ComboAdminAttributesWidgetTests(ComboAdminTestCase):
         self.assertIn('admin/js/js-yaml/4.1.0/js-yaml.min.js', content)
         self.assertIn('<span class="dictionary-keys">FA2, Landfall, step</span><span class="dictionary-count" title="3 attributes">3</span>', content)
 
+    def test_an_added_row_starts_with_no_attributes(self):
+        content = self.client.get(self.change_url(self.b2_id)).content.decode()
+        self.assertIn('name="featureproducedincombo_set-__prefix__-attribute_texts"', content)
+        self.assertNotIn('Invalid, edit to fix', content)
+
+    def test_an_added_row_left_blank_is_ignored(self):
+        combo_count = Combo.objects.count()
+        response = self.client.post(self.add_url(), data=self.combo_payload(cards=[self.c1_id], **{
+            'featureproducedincombo_set-TOTAL_FORMS': '1',
+            'featureproducedincombo_set-0-feature': '',
+            'featureproducedincombo_set-0-is_mana_needed_an_accurate_minimum': 'on',
+            'featureproducedincombo_set-0-attribute_texts': '{}',
+        }))
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(Combo.objects.count(), combo_count + 1)
+
+    def test_the_editor_picks_the_attributes_from_the_autocomplete_of_the_admin(self):
+        content = self.client.get(self.change_url(self.b2_id)).content.decode()
+        self.assertIn('admin/js/vendor/select2/select2.full', content)
+        source = re.search(r'data-autocomplete-url="([^"]+)" data-app-label="([^"]+)" data-model-name="([^"]+)" data-field-name="([^"]+)"', content)
+        assert source is not None
+        url, app_label, model_name, field_name = source.groups()
+        response = self.client.get(url, query_params={'app_label': app_label, 'model_name': model_name, 'field_name': field_name, 'term': 'FA'})  # type: ignore
+        self.assertEqual(response.status_code, 200)
+        self.assertCountEqual([result['text'] for result in response.json()['results']], ['FA1', 'FA2'])
+
     def test_submitted_texts_are_normalized_like_the_other_texts(self):
         widget = AttributesWidget()
         value = widget.value_from_datadict({'attributes': '{"step": "Sacrifice it’s target", "Landfall": null}'}, {}, 'attributes')

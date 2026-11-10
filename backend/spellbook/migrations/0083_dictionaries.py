@@ -176,7 +176,7 @@ class Migration(migrations.Migration):
             migrations.AlterField(
                 model_name='featureofcard',
                 name='attributes',
-                field=models.ManyToManyField(blank=True, related_name='used_as_attribute_in_featureofcard', through='spellbook.FeatureOfCardAttribute', to='spellbook.featureattribute'),
+                field=models.ManyToManyField(blank=True, related_name='used_as_attribute_in_%(class)s', through='spellbook.FeatureOfCardAttribute', to='spellbook.featureattribute'),
             ),
         ]),
         migrations.AddField(
@@ -202,7 +202,7 @@ class Migration(migrations.Migration):
             migrations.AlterField(
                 model_name='featureproducedincombo',
                 name='attributes',
-                field=models.ManyToManyField(blank=True, related_name='used_as_attribute_in_featureproducedincombo', through='spellbook.FeatureProducedInComboAttribute', to='spellbook.featureattribute'),
+                field=models.ManyToManyField(blank=True, related_name='used_as_attribute_in_%(class)s', through='spellbook.FeatureProducedInComboAttribute', to='spellbook.featureattribute'),
             ),
         ]),
         migrations.AddField(
@@ -210,6 +210,9 @@ class Migration(migrations.Migration):
             name='value',
             field=models.CharField(blank=True, default='', help_text='What the producer provides under the attribute, written where a combo references it, if anything.', max_length=512, validators=[django.core.validators.RegexValidator(message='Unpaired double square brackets are not allowed.', regex='^(?:[^\\[]*(?:\\[(?!\\[)|\\[{2}[^\\[]+\\]{2}|\\[{3,}))*[^\\[]*$'), django.core.validators.RegexValidator(message='Symbols must be in the {1}{W}{U}{B}{R}{G}{B/P}{A}{E}{T}{Q}... format.', regex='^(?:[^\\{]*\\{(?:(?:2\\/[WUBRG]|W\\/U|W\\/B|B\\/R|B\\/G|U\\/B|U\\/R|R\\/G|R\\/W|G\\/W|G\\/U)(?:\\/P)?|CHAOS|PW|TK|[WUBRG](?:\\/P)?|[1-9][0-9]{1,2}|H[WUBRG]|[0-9CPXYZSTQEA½∞])\\})*[^\\{]*$'), django.core.validators.RegexValidator(message='Only ordinary characters are allowed.', regex='^[\\x0A\\x0D\\x20-\\x7E\\x80\\x95\\x99\\xA1\\xA9\\xAE\\xB0\\xB1-\\xB3\\xBC-\\xFF\\u0100-\\u024F\\u0300-\\u036F\\u1E00-\\u1EFF\\u2014\\uA720-\\uA7FF]*$'), spellbook.models.validators.ReferencesValidator()]),
         ),
+        # then the tables are named after their models
+        migrations.AlterModelTable(name='featureofcardattribute', table=None),
+        migrations.AlterModelTable(name='featureproducedincomboattribute', table=None),
         migrations.AddField(
             model_name='featureproducedincombo',
             name='comment',

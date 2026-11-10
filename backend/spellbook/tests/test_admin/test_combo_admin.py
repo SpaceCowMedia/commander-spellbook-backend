@@ -5,7 +5,7 @@ from html import unescape
 from django.contrib.auth.models import Permission, User
 from django.urls import reverse
 from spellbook.admin.combo_admin import ALL_ZONE_LOCATIONS
-from spellbook.models import Card, CardInCombo, CardUsedInVariantSuggestion, Combo, FeatureAttribute, FeatureProducedInCombo, FeatureProducedInVariantSuggestion, Variant, VariantSuggestion, ZoneLocation
+from spellbook.models import Card, CardInCombo, CardUsedInVariantSuggestion, Combo, Explanation, FeatureAttribute, FeatureProducedInCombo, FeatureProducedInVariantSuggestion, Variant, VariantSuggestion, ZoneLocation
 from spellbook.models.references import format_alias_reference, format_line_reference
 from spellbook.admin.utils import AttributesWidget
 from spellbook.models.utils import sanitize_newlines_apostrophes_and_quotes
@@ -171,6 +171,32 @@ class ComboAdminAttributesWidgetTests(ComboAdminTestCase):
         self.assertIn('admin/js/dictionary_editor.js', content)
         self.assertIn('admin/js/js-yaml/4.1.0/js-yaml.min.js', content)
         self.assertIn('<span class="dictionary-keys">FA2, Landfall, step</span><span class="dictionary-count" title="3 attributes">3</span>', content)
+
+    def test_the_editor_edits_the_explanation_of_every_produced_feature_with_its_own_widgets(self):
+        content = self.client.get(self.change_url(self.b2_id)).content.decode()
+        editor = re.search(r'name="featureproducedincombo_set-0-attribute_texts".*?<button', content, re.DOTALL)
+        assert editor is not None
+        for field in Explanation.explanation_fields():
+            with self.subTest(field=field):
+                self.assertNotIn(f'class="column-{field}', content)
+                self.assertIn(f'name="featureproducedincombo_set-0-{field}"', editor[0])
+        self.assertIn('<input type="checkbox" name="featureproducedincombo_set-0-is_mana_needed_an_accurate_minimum"', editor[0])
+        self.assertIn('<textarea name="featureproducedincombo_set-0-description"', editor[0])
+
+    def test_who_cannot_change_the_produced_features_reads_their_explanation_in_columns(self):
+        viewer = User.objects.create_user(username='viewer', is_staff=True)
+        viewer.user_permissions.add(*Permission.objects.filter(codename__in=['view_combo', 'view_featureproducedincombo']))
+        self.client.force_login(viewer)
+        content = self.client.get(self.change_url(self.b2_id)).content.decode()
+        for field in Explanation.explanation_fields():
+            with self.subTest(field=field):
+                self.assertIn(f'class="column-{field}', content)
+
+    def test_the_summary_names_the_texts_written_before_the_attributes(self):
+        produced = FeatureProducedInCombo.objects.filter(combo_id=self.b2_id).first()
+        save_dictionary(produced, {'notes': 'an engine', 'step': 'untap it'})
+        content = self.client.get(self.change_url(self.b2_id)).content.decode()
+        self.assertIn('<span class="dictionary-keys"><em class="dictionary-written-text">Notes</em>, FA2, step</span><span class="dictionary-count" title="2 attributes">2</span>', content)
 
     def test_an_added_row_starts_with_no_attributes(self):
         content = self.client.get(self.change_url(self.b2_id)).content.decode()

@@ -8,7 +8,7 @@ from django.http import HttpRequest
 from spellbook.models import Explanation, FeatureAttribute, FeatureOfCard, Ingredient
 from spellbook.models.references import references_to_features_not_needed
 from spellbook.models.validators import validate_attributes
-from .utils import AttributesFormField, SpellbookAdminForm
+from .utils import AttributesFormField, AttributesWidget, SpellbookAdminForm
 
 
 def _textarea():
@@ -29,16 +29,19 @@ class IngredientForm(SpellbookAdminForm):
 
 
 class AttributesForm(SpellbookAdminForm):
-    '''The form of a producer, editing the attributes it produces its feature with, each holding the text
-    it provides under that attribute or nothing, saved on its relationships with them.'''
+    '''The form of a producer, editing in one editor the fields of its explanation, with the widgets they
+    resolve to, and the attributes it produces its feature with, each holding the text it provides under
+    that attribute or nothing, saved on its relationships with them.'''
     references_allowed = True
-    attribute_texts = AttributesFormField(required=False, initial=dict, label='attributes', help_text='The attributes this produces the feature with, each holding nothing or a text a combo needing the feature writes with the [[feature@attribute]] syntax.')
+    attribute_texts = AttributesFormField(required=False, initial=dict, label='explanation and attributes', help_text='The explanation of this, and the attributes it produces the feature with, each holding nothing or a text a combo needing the feature writes with the [[feature@attribute]] syntax.')
     # what the user may do with the attributes from the editor, set by the inline for each request
     attribute_links: dict[str, bool] = {}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['attribute_texts'].widget.links = self.attribute_links
+        widget: AttributesWidget = self.fields['attribute_texts'].widget
+        widget.links = self.attribute_links
+        widget.explanation = [self[name] for name in Explanation.explanation_fields() if name in self.fields]
         if self.instance.pk is not None:
             rows = self.instance.attributes.through.objects.filter(producer=self.instance).select_related('attribute').order_by('attribute__name')
             self.initial['attribute_texts'] = {row.attribute.name: row.value or None for row in rows}
@@ -76,8 +79,9 @@ class AttributesForm(SpellbookAdminForm):
 
 
 class WithFeatureAttributesAdminInline(TabularInline):
-    '''An inline of the rows producing a feature: the related object, its fields, then the attributes the
-    feature is produced with, edited in a dialog of their own.'''
+    '''An inline of the rows producing a feature: the related object, its fields, then its explanation and
+    the attributes the feature is produced with, edited in a dialog of their own. Who cannot change the
+    rows reads their explanation in columns instead.'''
     form = AttributesForm
     related_field: str
     formfield_overrides = {
@@ -86,12 +90,16 @@ class WithFeatureAttributesAdminInline(TabularInline):
     }
 
     def get_fields(self, request: HttpRequest, obj=None):
-        return [self.related_field, *(self.fields or ()), 'attribute_texts']
+        fields = self.fields or ()
+        if self.has_change_permission(request, obj):
+            fields = [field for field in fields if field not in Explanation.explanation_fields()]
+        return [self.related_field, *fields, 'attribute_texts']
 
     def get_autocomplete_fields(self, request: HttpRequest):
         return [self.related_field, *super().get_autocomplete_fields(request)]
 
     def get_formset(self, request: HttpRequest, obj=None, **kwargs):
+        kwargs.setdefault('fields', [self.related_field, *(self.fields or ()), 'attribute_texts'])
         formset = super().get_formset(request, obj, **kwargs)
         attributes = self.admin_site.get_model_admin(FeatureAttribute)
         # the form is made anew for each request, so it can carry what this user may do

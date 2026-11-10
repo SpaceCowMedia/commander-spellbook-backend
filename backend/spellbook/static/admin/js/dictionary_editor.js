@@ -80,17 +80,74 @@
         return attributes;
     }
 
+    // the fields of the explanation, which the widget renders with their own widgets, inside the form
+    // but while the editor shows them
+    function explanationOf(field) {
+        return [...field.querySelector('.dictionary-explanation-fields').children];
+    }
+
+    function controlsOf(fields) {
+        return fields.flatMap(row => [...row.querySelectorAll('input, select, textarea')]);
+    }
+
+    function stateOf(control) {
+        if (control.type === 'checkbox' || control.type === 'radio') {
+            return control.checked;
+        }
+        return control.type === 'select-multiple' ? [...control.options].map(option => option.selected) : control.value;
+    }
+
+    function restore(control, state) {
+        if (typeof state === 'boolean') {
+            control.checked = state;
+        } else if (Array.isArray(state)) {
+            [...control.options].forEach((option, index) => { option.selected = state[index]; });
+        } else {
+            control.value = state;
+        }
+    }
+
+    // the labels of the fields holding a text, which a box to tick is not
+    function writtenTexts(field) {
+        return explanationOf(field)
+            .filter(row => [...row.querySelectorAll('input, select, textarea')].some(control => !['checkbox', 'radio', 'hidden'].includes(control.type) && control.value))
+            .map(row => row.querySelector('label').textContent);
+    }
+
     // mirrors the widget's template, which writes the summary before this script runs
     function summarize(field, attributes) {
         const summary = field.querySelector('.dictionary-summary');
         const keys = Object.keys(attributes);
-        summary.classList.remove('dictionary-invalid');
-        summary.classList.toggle('dictionary-empty', !keys.length);
+        const written = writtenTexts(field);
+        const names = [
+            ...written.map(label => element('em', { className: 'dictionary-written-text', textContent: label })),
+            ...keys,
+        ].flatMap((name, index) => index ? [', ', name] : [name]);
+        summary.classList.toggle('dictionary-invalid', Boolean(field.querySelector(':scope > .errorlist')));
+        summary.classList.toggle('dictionary-empty', !keys.length && !written.length);
         summary.replaceChildren(
-            element('span', { className: 'dictionary-keys', textContent: keys.length ? keys.join(', ') : 'Add attributes' }),
+            element('span', { className: 'dictionary-keys' }, names.length ? names : ['Add explanation or attributes']),
             ...(keys.length ? [element('span', { className: 'dictionary-count', textContent: keys.length, title: `${keys.length} attribute${keys.length === 1 ? '' : 's'}` })] : []),
         );
-        summary.title = keys.length ? toYaml(attributes) : 'Edit the attributes';
+        summary.title = keys.length ? toYaml(attributes) : 'Edit the explanation and attributes';
+    }
+
+    // the fields of the explanation go back into the form, holding what they held unless the editor
+    // applies, and then telling the form what changed, which they could not while out of it
+    function putBack(applied) {
+        if (!editing || editing.done) {
+            return;
+        }
+        editing.done = true;
+        editing.field.querySelector('.dictionary-explanation-fields').append(...editing.explanation);
+        for (const [control, state] of editing.saved) {
+            if (!applied) {
+                restore(control, state);
+            } else if (JSON.stringify(stateOf(control)) !== JSON.stringify(state)) {
+                control.dispatchEvent(new Event('input', { bubbles: true }));
+                control.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        }
     }
 
     // an action inside the dialog, drawn the way the admin draws the ones of its inlines
@@ -236,6 +293,7 @@
         stored.value = JSON.stringify(attributes);
         stored.dispatchEvent(new Event('input', { bubbles: true }));
         stored.dispatchEvent(new Event('change', { bubbles: true }));
+        putBack(true);
         summarize(editing.field, attributes);
         dialog.close();
     }
@@ -253,15 +311,25 @@
         const cancel = element('button', { type: 'button', className: 'button dictionary-cancel', textContent: 'Cancel' });
         cancel.addEventListener('click', () => dialog.close());
         dialog = element('dialog', { className: 'dictionary-dialog' }, [
-            element('h2', { textContent: 'Attributes' }),
-            element('p', { className: 'dictionary-help', textContent: 'The attributes this produces the feature with. Each can hold a text, which a combo needing the feature writes with [[feature@attribute]], or nothing.' }),
-            element('div', { className: 'dictionary-tabs' }, tabs),
-            element('div', { className: 'dictionary-panel-keys' }, [element('div', { className: 'dictionary-rows' }), add]),
-            element('div', { className: 'dictionary-panel-yaml' }, [element('textarea', { className: 'dictionary-yaml', rows: 14, spellcheck: false })]),
-            element('div', { className: 'dictionary-panel-json' }, [element('textarea', { className: 'dictionary-json', rows: 14, spellcheck: false })]),
+            element('h2', { textContent: 'Explanation and attributes' }),
+            element('div', { className: 'dictionary-body' }, [
+                element('section', { className: 'dictionary-explanation' }, [
+                    element('h3', { textContent: 'Explanation' }),
+                    element('div', { className: 'dictionary-explanation-rows' }),
+                ]),
+                element('section', { className: 'dictionary-attributes' }, [
+                    element('h3', { textContent: 'Attributes' }),
+                    element('p', { className: 'dictionary-help', textContent: 'The attributes this produces the feature with. Each can hold a text, which a combo needing the feature writes with [[feature@attribute]], or nothing.' }),
+                    element('div', { className: 'dictionary-tabs' }, tabs),
+                    element('div', { className: 'dictionary-panel-keys' }, [element('div', { className: 'dictionary-rows' }), add]),
+                    element('div', { className: 'dictionary-panel-yaml' }, [element('textarea', { className: 'dictionary-yaml', rows: 14, spellcheck: false })]),
+                    element('div', { className: 'dictionary-panel-json' }, [element('textarea', { className: 'dictionary-json', rows: 14, spellcheck: false })]),
+                ]),
+            ]),
             element('p', { className: 'dictionary-problem errornote', hidden: true }),
             element('div', { className: 'dictionary-buttons' }, [save, cancel]),
         ]);
+        dialog.addEventListener('close', () => putBack(false));
         document.body.append(dialog);
     }
 
@@ -270,7 +338,10 @@
             build();
         }
         const stored = field.querySelector('textarea').value;
-        editing = { field, tab: null, rows: [] };
+        const explanation = explanationOf(field);
+        editing = { field, tab: null, rows: [], explanation, saved: controlsOf(explanation).map(control => [control, stateOf(control)]), done: false };
+        dialog.querySelector('.dictionary-explanation-rows').replaceChildren(...explanation);
+        dialog.querySelector('.dictionary-explanation').hidden = !explanation.length;
         showProblem(null);
         try {
             const attributes = fromJson(stored);

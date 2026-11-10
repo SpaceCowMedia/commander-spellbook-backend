@@ -6,7 +6,7 @@ from django.contrib import admin, messages
 from django.db.models.query import QuerySet
 from django.http import HttpRequest
 from django.http.response import HttpResponse
-from django.forms import ModelForm
+from django.forms import BoundField, ModelForm
 from django.shortcuts import redirect
 from django.urls import reverse, path
 from django.urls.resolvers import URLPattern
@@ -51,13 +51,17 @@ class NormalizedTextareaWidget(Textarea):
 
 
 class AttributesWidget(Textarea):
-    '''The attributes of a producer, each holding a text or nothing, shown as a summary of their names,
-    which opens an editor of them one by one, each picked from the autocomplete of the admin, or of the
-    whole of them as YAML or JSON. The JSON it carries is submitted as it is, its texts normalized the
-    way the other texts of the admin are.'''
+    '''The explanation and the attributes of a producer, each attribute holding a text or nothing, shown
+    as a summary of the texts written and of the attribute names, which opens an editor of the fields of
+    the explanation, then of the attributes one by one, each picked from the autocomplete of the admin,
+    or of the whole of them as YAML or JSON. The fields of the explanation are rendered here, with their
+    own widgets, for the editor to show them. The JSON it carries is submitted as it is, its texts
+    normalized the way the other texts of the admin are.'''
     template_name = 'admin/spellbook/widgets/dictionary.html'
     # what the user may do with the attributes from the editor, which the form sets for each request
     links: dict[str, bool] = {}
+    # the fields of the explanation of the producer, which the form sets
+    explanation: list[BoundField] = []
     # what the ids of the select of an attribute and of its links hold, until the editor names them after the row
     key_placeholder = '__key__'
 
@@ -102,6 +106,9 @@ class AttributesWidget(Textarea):
         }
         context['widget']['key_template'] = self.key_template()
         context['widget']['key_placeholder'] = self.key_placeholder
+        context['widget']['explanation'] = self.explanation
+        context['widget']['written_texts'] = [field.label for field in self.explanation if isinstance(field.value(), str) and field.value()]
+        context['widget']['explanation_errors'] = [f'{field.label}: {error}' for field in self.explanation for error in field.errors]
         return context
 
     def value_from_datadict(self, data, files, name: str):

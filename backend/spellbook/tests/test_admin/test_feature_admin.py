@@ -312,6 +312,15 @@ class FeatureAdminTests(SpellbookTestCaseWithSeeding):
         self.assertEqual(row.mana_needed, '{1}')
         self.assertEqual(list(row.attributes.through.objects.filter(producer=row).values_list('attribute__name', 'value')), [('effect', 'adding {C}')])
 
+    def test_an_error_of_a_hidden_text_shows_on_the_editor_of_its_row(self):
+        feature = Feature.objects.create(name='Attributed Feature', status=Feature.Status.HIDDEN_UTILITY)
+
+        response = self.post_card_row(feature, '{}', mana_needed='only words')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '<li>Mana needed: Mana needed must be in the')
+        self.assertFalse(feature.featureofcard_set.exists())
+
     def test_the_attributes_of_a_card_reference_no_feature(self):
         feature = Feature.objects.create(name='Attributed Feature', status=Feature.Status.HIDDEN_UTILITY)
         FeatureAttribute.objects.create(name='effect')

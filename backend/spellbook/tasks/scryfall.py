@@ -213,12 +213,12 @@ def never_legal(card_in_db: dict) -> bool:
 
 
 def reprint(card_in_db: dict) -> bool:
-    '''Whether the card was printed before. Scryfall's flag cannot tell for an unreleased printing: it left the
-    flag off the Star Trek Commander reprints, and it sets it on a promo of a card whose own set is not out
-    either. So an unreleased card is a reprint when Vintage already allows it, since Vintage takes in a card
-    only once its set is out, unlike Future Standard and Tiny Leaders, which list the new cards ahead of it.'''
+    '''Whether the card was printed before. For an unreleased printing neither Scryfall's flag nor its legalities
+    can tell alone: the flag is set on a promo of a card whose own set is not out either, and Vintage, which
+    usually takes in a card only once its set is out, took in the new Star Trek cards days before. So an
+    unreleased card is a reprint when Scryfall flags it and Vintage already allows it.'''
     if unreleased(card_in_db):
-        return card_in_db['legalities']['vintage'] in ('legal', 'restricted')
+        return card_in_db['reprint'] and card_in_db['legalities']['vintage'] in ('legal', 'restricted')
     return card_in_db['reprint']
 
 

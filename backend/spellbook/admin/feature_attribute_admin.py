@@ -51,7 +51,7 @@ class FeatureAttributeAdmin(MergeableModelAdmin):
         ]
 
     def names_view(self, request: HttpRequest) -> JsonResponse:
-        '''The names of every attribute, which the dictionary editor suggests as keys.'''
+        '''The names of every attribute, which the attributes editor suggests.'''
         return JsonResponse({'names': list(FeatureAttribute.objects.order_by('name').values_list('name', flat=True))})
 
     def merge_objects(self, from_obj: FeatureAttribute, to_obj: FeatureAttribute) -> None:

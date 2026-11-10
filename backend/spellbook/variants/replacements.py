@@ -19,12 +19,9 @@ SourceIndex = int
 # How the several texts of one field are combined into the single text of the variant
 MergeTexts = Callable[[Iterable[str]], str]
 Recipe = tuple[list[Card], list[Template]]
-# What a dictionary stored on a row maps a key to
-StoredValue = str | list[str]
-
 _V = TypeVar('_V')
 
-# How deep a dictionary text referencing other dictionaries is followed, so that a cycle of them ends
+# How deep an attribute text referencing other attributes is followed, so that a cycle of them ends
 MAX_REFERENCE_DEPTH = 8
 
 
@@ -34,10 +31,10 @@ MAX_REFERENCE_DEPTH = 8
 
 @dataclass(frozen=True)
 class Override:
-    '''A text a dictionary writes for one field of a variant in place of what its row brings, kept as a
-    source of its own placed right after the source owning the dictionary, so that it is written,
-    included and ordered like any other text. It resolves its references against the combo owning it.
-    Its mana is an accurate minimum unless the card feature owning it says otherwise.'''
+    '''A text the row a combo produces a feature with writes for one field of a variant in place of what
+    the combo provides, kept as a source of its own placed right after the combo, so that it is written,
+    included and ordered like any other text. It resolves its references against the combo owning it,
+    and its mana is an accurate minimum unless the row says otherwise.'''
     owner: SourceIndex
     combo_id: comboid | None
     field: str
@@ -45,7 +42,7 @@ class Override:
     is_mana_needed_an_accurate_minimum: bool = True
 
 
-# A text of a variant is written by a combo it needs, by a feature of one of its cards, or by a dictionary
+# A text of a variant is written by a combo it needs, by a feature of one of its cards, or by a produced row
 TextSource = Combo | FeatureOfCard | Override
 
 
@@ -62,35 +59,41 @@ def owning_combo_id(source: TextSource) -> comboid | None:
     return source.id if isinstance(source, Combo) else None
 
 
-def stored_texts(value: StoredValue) -> list[str]:
-    '''The texts a stored value holds, blanks left out.'''
-    return [text for text in ([value] if isinstance(value, str) else value) if text]
-
-
 def combo_rows(data: Data, combo: Combo) -> Iterable[Model]:
-    '''Every row of a combo holding a dictionary.'''
+    '''Every row of a combo that can override what it brings.'''
     return chain(data.combo_to_cards[combo.id], data.combo_to_templates[combo.id], data.combo_to_needed_features[combo.id], data.combo_to_produced_features[combo.id])
+
+
+def stored_of(data: Data, row: Model) -> dict[Key, str]:
+    '''What a row overrides, key by key: an ingredient out of replacements leaves its name out, and a
+    needed feature out of them the texts of its producers too, while the row a combo produces a feature
+    with replaces each text it fills. The attributes of a producer give their texts under their names.'''
+    if isinstance(row, FeatureProducedInCombo):
+        return {**data.feature_produced_in_combo_to_attribute_values.get(row.id, {}), **{key: text for key in TEXT_KEYS if (text := getattr(row, key))}}
+    if isinstance(row, FeatureOfCard):
+        return dict(data.feature_of_card_to_attribute_values.get(row.id, {}))
+    if getattr(row, 'in_replacements', True):
+        return {}
+    if isinstance(row, FeatureNeededInCombo):
+        return dict.fromkeys((DEFAULT_KEY, *TEXT_KEYS), '')
+    return {DEFAULT_KEY: ''}
 
 
 def collect_sources(data: Data, feature_of_cards: Sequence[FeatureOfCard], combos: Sequence[Combo]) -> tuple[list[TextSource], dict[tuple[Model, Key], list[SourceIndex]]]:
     '''The sources of a variant in the order their texts are written: the features of its cards, then
-    its combos, each followed by the texts the dictionaries of its rows write, and where those are, by
-    row and key.'''
-    sources = list[TextSource]()
+    its combos, each followed by the texts its rows override, and where those are, by row and key.'''
+    sources = list[TextSource](feature_of_cards)
     overrides = dict[tuple[Model, Key], list[SourceIndex]]()
 
-    def add_overrides(owner: SourceIndex, combo_id: comboid | None, row: Model, accurate: bool = True) -> None:
-        for key, value in row.dictionary.items():  # type: ignore[attr-defined]
+    def add_overrides(owner: SourceIndex, combo_id: comboid, row: Model) -> None:
+        accurate = getattr(row, 'is_mana_needed_an_accurate_minimum', True)
+        for key, text in stored_of(data, row).items():
             if key in TEXT_KEYS:
                 indices = overrides.setdefault((row, key), [])
-                for text in stored_texts(value):
+                if text:
                     indices.append(len(sources))
                     sources.append(Override(owner, combo_id, key, text, accurate or key != 'mana_needed'))
 
-    for feature_of_card in feature_of_cards:
-        owner = len(sources)
-        sources.append(feature_of_card)
-        add_overrides(owner, None, feature_of_card, feature_of_card.is_mana_needed_an_accurate_minimum)
     for combo in combos:
         owner = len(sources)
         sources.append(combo)
@@ -118,8 +121,8 @@ def roots_of(data: Data, sources: Sequence[TextSource], generator_combo_ids: Col
     '''The sources a variant holds for their own sake, the way the combo graph starts collecting the
     needed ones: its generator combos, and every source producing a feature that is no utility, or
     removing one the variant produces. Everything else is there to satisfy one of their rows. A combo
-    producing such features is held as the producer of each of them, for the dictionary of the row
-    producing it to override what it writes there.'''
+    producing such features is held as the producer of each of them, for the row producing it to
+    override what it writes there.'''
     results = {
         feature_id
         for source in sources
@@ -143,8 +146,8 @@ def roots_of(data: Data, sources: Sequence[TextSource], generator_combo_ids: Col
 @dataclass(frozen=True)
 class Item:
     '''One of the things a key holds, ordered among the others by where it is written: an ingredient
-    named in the display order of the variant, a text of a source in source order, or a text a
-    dictionary holds, which resolves its references against the combo owning it.'''
+    named in the display order of the variant, a text of a source in source order, or the text of an
+    attribute, which resolves its references against the combo owning it.'''
     order: tuple[int, int, int]
     source: SourceIndex | None = None
     text: str = ''
@@ -155,35 +158,26 @@ class Item:
 
 @dataclass(frozen=True)
 class Value:
-    '''What a key holds: a text, which any override replaces, or a list, which a list override extends.'''
+    '''What a key holds: the things written for it, in the order they are written.'''
     items: tuple[Item, ...] = ()
-    listed: bool = False
 
 
 EMPTY_VALUE = Value()
 Dictionary = dict[Key, Value]
 
 
-def override(base: Mapping[Key, Value], stored: Mapping[Key, StoredValue], item_of: Callable[[Key, int, str], Item]) -> Dictionary:
-    '''What a row brings once its dictionary overrides it: a text replaces whatever the key held, a
-    blank one leaving it out, and a list extends a list or replaces a text.'''
+def override(base: Mapping[Key, Value], stored: Mapping[Key, str], item_of: Callable[[Key, str], Item]) -> Dictionary:
+    '''What a row brings once it overrides it: a text replaces whatever the key held, and a blank one
+    leaves it out.'''
     result = dict(base)
-    for key, value in stored.items():
-        items = tuple(item_of(key, position, text) for position, text in enumerate(stored_texts(value)))
-        previous = result.get(key)
-        if isinstance(value, str):
-            result[key] = Value(items)
-        elif previous is not None and previous.listed:
-            result[key] = Value(previous.items + items, listed=True)
-        else:
-            result[key] = Value(items, listed=True)
+    for key, text in stored.items():
+        result[key] = Value((item_of(key, text),) if text else ())
     return result
 
 
 def combine(dictionaries: Iterable[Mapping[Key, Value]]) -> Dictionary:
-    '''What siblings bring together, whatever their order: a text counts as a list of one, a blank brings
-    nothing, and the lists are joined in the order their items are written. A key only one of them fills
-    keeps its value as it is.'''
+    '''What siblings bring together, whatever their order: their items joined in the order they are
+    written, a blank bringing nothing. A key only one of them fills keeps its value as it is.'''
     gathered = defaultdict[Key, list[Value]](list)
     for dictionary in dictionaries:
         for key, value in dictionary.items():
@@ -197,7 +191,7 @@ def combine(dictionaries: Iterable[Mapping[Key, Value]]) -> Dictionary:
             result[key] = filled[0]
         else:
             items = dict.fromkeys(item for value in filled for item in value.items)
-            result[key] = Value(tuple(sorted(items, key=lambda item: item.order)), listed=True)
+            result[key] = Value(tuple(sorted(items, key=lambda item: item.order)))
     return result
 
 
@@ -222,7 +216,7 @@ class Way:
 
 class DictionaryBuilder:
     '''Builds what each source of a variant provides out of its own texts, the names of its ingredients
-    and what its needed rows reach, each overridden by the dictionary of its row.'''
+    and what its needed rows reach, each overridden by its row.'''
 
     def __init__(self, data: Data, sources: Sequence[TextSource], overrides: Mapping[tuple[Model, Key], Sequence[SourceIndex]], positions: 'IngredientPositions') -> None:
         self.data = data
@@ -234,54 +228,50 @@ class DictionaryBuilder:
             for feature_id, attributes in produced_features(data, source):
                 self.producers[feature_id].append((index, attributes))
 
-    def item_of(self, row: Model, owner: SourceIndex, combo_id: comboid | None) -> Callable[[Key, int, str], Item]:
-        '''How the texts of the dictionary of a row become items: a text of a variant is the source it
-        was collected as, any other text is written as it is.'''
-        def item(key: Key, position: int, text: str) -> Item:
+    def item_of(self, row: Model, owner: SourceIndex, combo_id: comboid | None) -> Callable[[Key, str], Item]:
+        '''How the texts a row overrides become items: a text of a variant is the source it was collected
+        as, any other text is written as it is.'''
+        def item(key: Key, text: str) -> Item:
             if key in TEXT_KEYS:
-                index = self.overrides[row, key][position]
+                index = self.overrides[row, key][0]
                 return Item(order=(1, index, 0), source=index)
-            return Item(order=(1, owner, position), text=text, combo_id=combo_id)
+            return Item(order=(1, owner, 0), text=text, combo_id=combo_id)
         return item
 
     def own(self, index: SourceIndex) -> Dictionary:
-        '''The texts a source writes itself, under the keys of their fields. Like names, they are lists,
-        which a list in a dictionary extends.'''
+        '''The texts a source writes itself, under the keys of their fields.'''
         source = self.sources[index]
-        return {key: Value((Item(order=(1, index, 0), source=index),), listed=True) for key in TEXT_KEYS if text_of(source, key)}
+        return {key: Value((Item(order=(1, index, 0), source=index),)) for key in TEXT_KEYS if text_of(source, key)}
 
     def card(self, card: Card) -> Dictionary:
-        return {DEFAULT_KEY: Value((Item(order=(0, self.positions.of_card(card_number(card)), 0), card=card),), listed=True)}
+        return {DEFAULT_KEY: Value((Item(order=(0, self.positions.of_card(card_number(card)), 0), card=card),))}
 
     def template(self, template: Template) -> Dictionary:
-        return {DEFAULT_KEY: Value((Item(order=(0, self.positions.of_template(template.id), 0), template=template),), listed=True)}
+        return {DEFAULT_KEY: Value((Item(order=(0, self.positions.of_template(template.id), 0), template=template),))}
 
     def feature_of_card(self, index: SourceIndex) -> Dictionary:
-        '''What a card provides for a feature it produces: its name, the texts of its attributes and its
-        dictionary, whose texts and names are lists, like the ones a combo brings, for a list overriding
-        them to extend them.'''
+        '''What a card provides for a feature it produces: its name, its own texts and the texts of its
+        attributes.'''
         source = self.sources[index]
         assert isinstance(source, FeatureOfCard)
-        attributes = self.data.feature_of_card_to_attribute_values[source.id]
-        provided = override(self.card(self.data.id_to_card[source.card_id]), {**attributes, **source.dictionary}, self.item_of(source, index, None))
-        return {key: Value(value.items, listed=True) if key == DEFAULT_KEY or key in TEXT_KEYS or key in attributes else value for key, value in provided.items()}
+        return override({**self.card(self.data.id_to_card[source.card_id]), **self.own(index)}, stored_of(self.data, source), self.item_of(source, index, None))
 
     def combo(self, index: SourceIndex, reached: Callable[[FeatureNeededInCombo], Dictionary]) -> Dictionary:
         '''What a combo brings: its own texts, the names of its cards and templates, and what each of its
-        needed rows reaches, each overridden by the dictionary of its row.'''
+        needed rows reaches, each overridden by its row.'''
         combo = self.sources[index]
         assert isinstance(combo, Combo)
         parts = [self.own(index)]
         for card_in_combo in self.data.combo_to_cards[combo.id]:
-            parts.append(override(self.card(self.data.id_to_card[card_in_combo.card_id]), card_in_combo.dictionary, self.item_of(card_in_combo, index, combo.id)))
+            parts.append(override(self.card(self.data.id_to_card[card_in_combo.card_id]), stored_of(self.data, card_in_combo), self.item_of(card_in_combo, index, combo.id)))
         for template_in_combo in self.data.combo_to_templates[combo.id]:
-            parts.append(override(self.template(self.data.id_to_template[template_in_combo.template_id]), template_in_combo.dictionary, self.item_of(template_in_combo, index, combo.id)))
+            parts.append(override(self.template(self.data.id_to_template[template_in_combo.template_id]), stored_of(self.data, template_in_combo), self.item_of(template_in_combo, index, combo.id)))
         for row in self.data.combo_to_needed_features[combo.id]:
-            parts.append(override(reached(row), row.dictionary, self.item_of(row, index, combo.id)))
+            parts.append(override(reached(row), stored_of(self.data, row), self.item_of(row, index, combo.id)))
         return combine(parts)
 
     def produced_row(self, index: SourceIndex, feature: FeatureWithAttributes) -> FeatureProducedInCombo | None:
-        '''The row a combo produces a feature with, whose dictionary overrides what the combo provides for it.'''
+        '''The row a combo produces a feature with, which overrides what the combo provides for it.'''
         combo = self.sources[index]
         assert isinstance(combo, Combo)
         for row in self.data.combo_to_produced_features[combo.id]:
@@ -290,13 +280,10 @@ class DictionaryBuilder:
         return None
 
     def produced(self, index: SourceIndex, feature: FeatureWithAttributes, dictionary: Dictionary) -> Dictionary:
-        '''What a combo provides for one feature it produces: what it brings, overridden by the texts of
-        the attributes and the dictionary of the row producing that feature.'''
+        '''What a combo provides for one feature it produces: what it brings, overridden by the row
+        producing that feature, its texts and the texts of its attributes.'''
         row = self.produced_row(index, feature)
-        if row is None:
-            return dictionary
-        stored = {**self.data.feature_produced_in_combo_to_attribute_values[row.id], **row.dictionary}
-        return override(dictionary, stored, self.item_of(row, index, row.combo_id))
+        return override(dictionary, stored_of(self.data, row), self.item_of(row, index, row.combo_id)) if row is not None else dictionary
 
     def fits(self, index: SourceIndex, cards: frozenset[cardid], templates: frozenset[templateid]) -> bool:
         '''Whether every ingredient of a source is in a way.'''
@@ -318,8 +305,8 @@ class DictionaryBuilder:
         ]
 
     def as_producer(self, index: SourceIndex, feature: FeatureWithAttributes, dictionary: Dictionary) -> Dictionary:
-        '''What a source brings as the producer of a feature: a combo overrides it with the dictionary of
-        the row producing that feature.'''
+        '''What a source brings as the producer of a feature: a combo overrides it with the row
+        producing that feature.'''
         return self.produced(index, feature, dictionary) if isinstance(self.sources[index], Combo) else dictionary
 
     def satisfiable(self, cards: frozenset[cardid], templates: frozenset[templateid]) -> set[SourceIndex]:
@@ -386,18 +373,17 @@ class DictionaryBuilder:
     def written_by_default(self, roots: Iterable[Root], key: Key) -> frozenset[SourceIndex]:
         '''The sources a variant writes one of its fields with on its own: the ones it holds for their own
         sake, and every one their needed rows reach in turn, each row reaching every source producing what
-        it accepts, the way the variant itself was found. A dictionary overriding the key on the way writes
-        its texts instead, a text cutting off what that row brings, and a list adding to it. The row a
-        combo produces a feature with does the same wherever the combo writes as its producer, the
-        variant's own results included.'''
+        it accepts, the way the variant itself was found. A row overriding the key on the way writes its
+        texts instead, cutting off what it brings: a row out of replacements writes none. The row a combo
+        produces a feature with does the same wherever the combo writes as its producer, the variant's own
+        results included.'''
         written = set[SourceIndex]()
 
         def overridden(row: Model) -> bool:
-            value = row.dictionary.get(key)  # type: ignore[attr-defined]
-            if value is None:
+            if key not in stored_of(self.data, row):
                 return False
             written.update(self.overrides.get((row, key), ()))
-            return isinstance(value, str)
+            return True
 
         visited = set[Root]()
         to_visit = list(roots)
@@ -408,7 +394,8 @@ class DictionaryBuilder:
             visited.add((index, feature))
             source = self.sources[index]
             if isinstance(source, FeatureOfCard):
-                overridden(source)
+                if text_of(source, key):
+                    written.add(index)
                 continue
             assert isinstance(source, Combo)
             if feature is not None and (row := self.produced_row(index, feature)) is not None and overridden(row):
@@ -941,7 +928,7 @@ class VariantContext:
     '''Renders the ingredients and the texts of a single variant, resolving the references they hold.
 
     The texts come from the sources of the variant, the features of its cards followed by the combos it
-    needs, each followed by the texts their dictionaries write, and each identified by its position
+    needs, each followed by the texts their produced rows write, and each identified by its position
     among them. That numbering spans every field, so one context is built per variant and reused by all
     of them, along with everything else derived from the same sources: what each feature provides, which
     texts the variant writes on its own, what the ingredients start as, and what the needed feature rows

@@ -14,7 +14,8 @@ from .feature import Feature
 from .fields import KeywordsField
 from .ingredient import Ingredient
 from .feature_attribute import AttributeValue, FeatureAttribute, WithFeatureAttributes
-from .references import dictionary_texts, references_to_features_not_needed
+from .references import references_to_features_not_needed
+from .explanation import Explanation
 
 
 IMAGE_URI_HELP_TEXT = 'The image format, and with it the file extension, may vary'
@@ -281,31 +282,30 @@ class WithUsedFace(models.Model):
             raise ValidationError({'used_face': f'The used face must be a number between 1 and {card.faces}.'})
 
 
-class FeatureOfCard(Ingredient, WithFeatureAttributes, WithUsedFace):
-    '''A card producing a feature on its own. Besides its name, whatever it provides to the combos
-    needing the feature is in its dictionary, its texts included under the names of the fields of a
-    combo, which reach a variant the way the texts of a combo do, and in its attributes.'''
+class FeatureOfCard(Ingredient, Explanation, WithFeatureAttributes, WithUsedFace):
+    '''A card producing a feature on its own: its texts reach a variant the way the texts of a combo do,
+    and its attributes hold what else it provides to the combos needing the feature.'''
     id: int
     attributes = models.ManyToManyField(to=FeatureAttribute, through='FeatureOfCardAttribute', blank=True, related_name='used_as_attribute_in_featureofcard')
-    is_mana_needed_an_accurate_minimum = models.BooleanField(default=True, help_text='Does the first mana cost the dictionary provides under mana_needed represent the MINIMUM needed to start, ignoring all other text?')
+
+    @classmethod
+    def text_fields_with_references(cls) -> list[str]:
+        return [*Ingredient.text_fields_with_references(), *Explanation.text_fields_with_references()]
 
     def clean(self):
         '''A feature of a card needs no feature, so its texts cannot reference one: no variant would be
         sure to replace it, and a card is named by its own name.'''
         super().clean()
-        texts = {field: [getattr(self, field)] for field in self.text_fields_with_references()} | {'dictionary': dictionary_texts(self.dictionary or {})}
         errors = {
             field: f'A card feature cannot reference features, since it needs none: {", ".join(references)}.'
-            for field, field_texts in texts.items()
-            if (references := references_to_features_not_needed(field_texts, ()))
+            for field in self.text_fields_with_references()
+            if (references := references_to_features_not_needed([getattr(self, field)], ()))
         }
-        if not self.is_mana_needed_an_accurate_minimum and not any(dictionary_texts({'mana_needed': (self.dictionary or {}).get('mana_needed', '')})):
-            errors['is_mana_needed_an_accurate_minimum'] = 'It must be checked when the dictionary provides no mana_needed.'
         if errors:
             raise ValidationError(errors)
 
     class Meta(Ingredient.Meta):
-        indexes = Ingredient.card_state_trigram_indexes('foc')
+        indexes = Ingredient.card_state_trigram_indexes('foc') + Explanation.text_trigram_indexes('foc')
 
     def __str__(self):
         return f'{self.feature} for card {self.card_id}'

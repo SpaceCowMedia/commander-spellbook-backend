@@ -69,7 +69,7 @@ class FeatureAttributeAdminTests(SpellbookTestCaseWithSeeding):
             card_id=self.c2_id,
             feature=feature,
             zone_locations=ZoneLocation.BATTLEFIELD,
-            dictionary={'notable_prerequisites': 'needs [[Renaming Feature$Old Attribute]]'},
+            notable_prerequisites='needs [[Renaming Feature$Old Attribute]]',
         )
         feature_of_card.attributes.add(attribute)
         untouched = Combo.objects.create(status=Combo.Status.UTILITY, description='[[Renaming Feature$Other Attribute]]')
@@ -89,7 +89,7 @@ class FeatureAttributeAdminTests(SpellbookTestCaseWithSeeding):
         feature_in_combo.refresh_from_db()
         self.assertEqual(feature_in_combo.graveyard_card_state, 'below [[Renaming Feature$New Attribute]]')
         feature_of_card.refresh_from_db()
-        self.assertEqual(feature_of_card.dictionary, {'notable_prerequisites': 'needs [[Renaming Feature$New Attribute]]'})
+        self.assertEqual(feature_of_card.notable_prerequisites, 'needs [[Renaming Feature$New Attribute]]')
         untouched.refresh_from_db()
         self.assertEqual(untouched.description, '[[Renaming Feature$Other Attribute]]')
 
@@ -111,7 +111,7 @@ class FeatureAttributeAdminTests(SpellbookTestCaseWithSeeding):
             card_id=self.c2_id,
             feature=feature,
             zone_locations=ZoneLocation.BATTLEFIELD,
-            dictionary={'notable_prerequisites': 'needs [[Some Feature$Old Attribute]]'},
+            notable_prerequisites='needs [[Some Feature$Old Attribute]]',
         )
 
         attribute.name = 'New Attribute'
@@ -122,7 +122,7 @@ class FeatureAttributeAdminTests(SpellbookTestCaseWithSeeding):
         card_in_unrelated_combo.refresh_from_db()
         self.assertEqual(card_in_unrelated_combo.battlefield_card_state, 'next to [[Some Feature$New Attribute]]')
         feature_of_card.refresh_from_db()
-        self.assertEqual(feature_of_card.dictionary, {'notable_prerequisites': 'needs [[Some Feature$New Attribute]]'})
+        self.assertEqual(feature_of_card.notable_prerequisites, 'needs [[Some Feature$New Attribute]]')
 
     def test_rename_from_admin_updates_references(self):
         self.client.force_login(self.admin)
@@ -184,7 +184,9 @@ class FeatureAttributeAdminTests(SpellbookTestCaseWithSeeding):
         attribute = FeatureAttribute.objects.create(name='effect')
         feature = Feature.objects.create(name='Keyed Feature')
         combo = Combo.objects.create(status=Combo.Status.UTILITY, description='[[Keyed Feature|outlet]], [[Keyed Feature@effect]] and [[!outlet@Effect]], not [[Keyed Feature@effects]]')
-        needed = FeatureNeededInCombo.objects.create(combo=combo, feature=feature, order=1, zone_locations=ZoneLocation.BATTLEFIELD, dictionary={'name': 'it', 'effect': 'adding {C}', 'mana_needed': ''})
+        FeatureNeededInCombo.objects.create(combo=combo, feature=feature, order=1, zone_locations=ZoneLocation.BATTLEFIELD)
+        produced = FeatureProducedInCombo.objects.create(combo=combo, feature=Feature.objects.create(name='Produced Feature'), notes='then [[Keyed Feature@effect]]')
+        produced.attributes.add(attribute, through_defaults={'value': '[[!outlet@effect]] twice'})
         feature_of_card = FeatureOfCard.objects.create(card_id=self.c1_id, feature=feature, zone_locations=ZoneLocation.BATTLEFIELD)
         feature_of_card.attributes.add(attribute, through_defaults={'value': 'adding {C}'})
 
@@ -193,8 +195,9 @@ class FeatureAttributeAdminTests(SpellbookTestCaseWithSeeding):
 
         combo.refresh_from_db()
         self.assertEqual(combo.description, '[[Keyed Feature|outlet]], [[Keyed Feature@outcome]] and [[!outlet@outcome]], not [[Keyed Feature@effects]]')
-        needed.refresh_from_db()
-        self.assertEqual(list(needed.dictionary.items()), [('name', 'it'), ('outcome', 'adding {C}'), ('mana_needed', '')])
+        produced.refresh_from_db()
+        self.assertEqual(produced.notes, 'then [[Keyed Feature@outcome]]')
+        self.assertEqual(list(produced.attributes.through.objects.filter(producer=produced).values_list('attribute__name', 'value')), [('outcome', '[[!outlet@outcome]] twice')])
         self.assertEqual(list(feature_of_card.attributes.through.objects.filter(producer=feature_of_card).values_list('attribute__name', 'value')), [('outcome', 'adding {C}')])
 
     def test_merging_keeps_the_value_a_producer_gives_the_target(self):

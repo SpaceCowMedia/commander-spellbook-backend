@@ -1,13 +1,15 @@
 import re
 from functools import partial
 from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Iterator, Literal, Mapping, Sequence, TypeVar
-from django.db.models import Manager, Model, Q
+from django.db.models import Manager, Q
 from .utils import DEFAULT_BATCH_SIZE
 if TYPE_CHECKING:
     from .combo import Combo
+    from .explanation import Explanation
     from .feature import Feature
-    from .feature_attribute import FeatureAttribute
+    from .feature_attribute import AttributeValue, FeatureAttribute
     from .ingredient import Ingredient
+    TextModel = type[Combo] | type[Ingredient] | type[Explanation] | type[AttributeValue]
 
 
 _T = TypeVar('_T')
@@ -186,42 +188,19 @@ def references_to_unknown_keys(texts: Iterable[str], attribute_names: Collection
     })
 
 
-# What a dictionary maps a key to: a text, a list of texts, or nothing for a key that is only an attribute
-DictionaryValue = str | list[str] | None
-
-
-def attribute_keys(dictionary: Mapping[str, DictionaryValue]) -> list[str]:
-    '''The keys of a dictionary that are feature attributes, in order.'''
-    return [key for key in dictionary if key not in BUILT_IN_KEYS]
-
-
-def dictionary_texts(dictionary: Mapping[str, DictionaryValue]) -> list[str]:
-    '''Every text a dictionary holds, the items of its lists included.'''
-    return [text for value in dictionary.values() if value is not None for text in ([value] if isinstance(value, str) else value)]
-
-
-def map_dictionary_texts(dictionary: Mapping[str, DictionaryValue], function: Callable[[str], str]) -> dict[str, DictionaryValue]:
-    return {key: None if value is None else function(value) if isinstance(value, str) else [function(text) for text in value] for key, value in dictionary.items()}
-
-
 # A feature is named by the feature of a reference, an attribute by its selector or its key
 ReferencePart = Literal['feature', 'selector', 'key']
 
 
-def ingredient_models() -> tuple[type[Ingredient], ...]:
-    '''The models besides combos whose rows hold texts with references.'''
-    from .card import FeatureOfCard
-    from .combo import CardInCombo, FeatureNeededInCombo, TemplateInCombo
-    return CardInCombo, TemplateInCombo, FeatureNeededInCombo, FeatureOfCard
+def ingredient_models() -> tuple['TextModel', ...]:
+    '''The models besides combos whose rows hold texts with references: the rows of combos, the
+    features of cards, and the texts producers give their attributes.'''
+    from .card import FeatureOfCard, FeatureOfCardAttribute
+    from .combo import CardInCombo, FeatureNeededInCombo, FeatureProducedInCombo, FeatureProducedInComboAttribute, TemplateInCombo
+    return CardInCombo, TemplateInCombo, FeatureNeededInCombo, FeatureOfCard, FeatureProducedInCombo, FeatureOfCardAttribute, FeatureProducedInComboAttribute
 
 
-def dictionary_models() -> tuple[type[Model], ...]:
-    '''The models whose rows hold a dictionary, whose texts can hold references.'''
-    from .combo import FeatureProducedInCombo
-    return (*ingredient_models(), FeatureProducedInCombo)
-
-
-def references_filter(model: type[Combo] | type[Ingredient], part: ReferencePart, name: str) -> Q:
+def references_filter(model: 'TextModel', part: ReferencePart, name: str) -> Q:
     '''Matches the rows of the given model whose texts could reference the given name as the given part
     of a reference, so that a rename only loads the rows that mention it.'''
     start = {'feature': REFERENCE_BRACKETS[0], 'selector': SELECTOR_MARKER, 'key': KEY_MARKER}[part] + name
@@ -264,7 +243,7 @@ def replace_in_text_fields(objects: Iterable[_T], fields: Sequence[str], replace
     return changed
 
 
-def rename_in_rows(model: type[Combo] | type[Ingredient], rename: Callable[[str], str], rows_filter: Q) -> None:
+def rename_in_rows(model: 'TextModel', rename: Callable[[str], str], rows_filter: Q) -> None:
     '''Renames in the texts of the rows of the model matching the filter, saving only the rows that
     changed. Every row loaded is rewritten, so the order they come in is irrelevant.'''
     fields = model.text_fields_with_references()
@@ -273,27 +252,12 @@ def rename_in_rows(model: type[Combo] | type[Ingredient], rename: Callable[[str]
     manager.bulk_update(replace_in_text_fields(rows, fields, rename), fields, batch_size=DEFAULT_BATCH_SIZE)
 
 
-def rename_in_dictionaries(model: type[Model], rename: Callable[[str], str]) -> None:
-    '''Renames in the dictionaries of the rows of the model. Their texts are not searchable alike on
-    every database, so every row holding a dictionary is loaded, which few of them do.'''
-    manager: Manager[Any] = model._default_manager
-    changed = []
-    for row in manager.exclude(dictionary={}).order_by().only('dictionary').iterator(chunk_size=DEFAULT_BATCH_SIZE):
-        dictionary = map_dictionary_texts(row.dictionary, rename)
-        if dictionary != row.dictionary:
-            row.dictionary = dictionary
-            changed.append(row)
-    manager.bulk_update(changed, ['dictionary'], batch_size=DEFAULT_BATCH_SIZE)
-
-
-def rename_in_models(models: Iterable[type[Combo] | type[Ingredient]], part: ReferencePart, old_name: str, new_name: str) -> Callable[[str], str]:
-    '''Renames a feature or an attribute in the texts and the dictionaries of the given models that
-    mention it, and returns the rename for the texts left to the caller.'''
+def rename_in_models(models: Iterable['TextModel'], part: ReferencePart, old_name: str, new_name: str) -> Callable[[str], str]:
+    '''Renames a feature or an attribute in the texts of the given models that mention it, and returns
+    the rename for the texts left to the caller.'''
     rename = partial(rename_references, part=part, old_name=old_name, new_name=new_name)
     for model in models:
         rename_in_rows(model, rename, references_filter(model, part, old_name))
-    for dictionary_model in dictionary_models():
-        rename_in_dictionaries(dictionary_model, rename)
     return rename
 
 
@@ -339,33 +303,10 @@ def replace_feature_references_in_variants(instance: Feature, old_name: str):
         Variant.objects.bulk_update(variants_to_save, ['name'], skip_pre_save=True, batch_size=DEFAULT_BATCH_SIZE)
 
 
-def move_dictionary_key(old_name: str, new_name: str) -> None:
-    '''Moves an attribute key of every dictionary to another name, in its place. A dictionary holding
-    both keeps the value of the new one, unless it holds none.'''
-    for model in dictionary_models():
-        manager: Manager[Any] = model._default_manager
-        changed = []
-        for row in manager.filter(dictionary__has_key=old_name).order_by().only('dictionary'):
-            moved = row.dictionary[old_name]
-            dictionary = dict[str, DictionaryValue]()
-            for key, value in row.dictionary.items():
-                if key == old_name:
-                    if new_name not in row.dictionary:
-                        dictionary[new_name] = moved
-                elif key == new_name:
-                    dictionary[key] = moved if value is None else value
-                else:
-                    dictionary[key] = value
-            row.dictionary = dictionary
-            changed.append(row)
-        manager.bulk_update(changed, ['dictionary'], batch_size=DEFAULT_BATCH_SIZE)
-
-
 def replace_attribute_references(instance: FeatureAttribute, old_name: str):
     '''Propagates the loss of an attribute name, by a rename or by a merge into another attribute, to
-    the references selecting it or writing it as a key, and to the dictionaries holding it.'''
+    the references selecting it or writing it as a key.'''
     if old_name and old_name != instance.name:
         from .combo import Combo
         for part in ('selector', 'key'):
             rename_in_models((Combo, *ingredient_models()), part, old_name, instance.name)
-        move_dictionary_key(old_name, instance.name)

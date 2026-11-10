@@ -31,8 +31,8 @@ timeout 60 bash -c 'until curl -sf -o /dev/null http://127.0.0.1:8765/admin/logi
 
 The database is `spellbook-run-backend.sqlite3` in the temp folder, or whatever `RUN_BACKEND_DB`
 names; migrating a fresh one takes about 20 s. `seed` prints the superuser (`agent` /
-`agent-password`) and the change views of what it made: a feature produced by two cards, one with a
-dictionary, and a generator combo needing it whose rows carry dictionaries.
+`agent-password`) and the change views of what it made: a feature produced by two cards, one giving
+it two attributes and the other a mana cost, and a generator combo needing it out of replacements.
 
 For the real data, point `RUN_BACKEND_DB` at a copy of the developer's snapshot and migrate the copy
 (the 2 GB snapshot copied in a second and migrated from 0081 in 9 s); never migrate `db.sqlite3`
@@ -56,16 +56,16 @@ node .claude/skills/run-backend/driver.mjs <<'EOF'
 login
 nav /admin/spellbook/combo/1/change/
 wait .dictionary-summary
-scroll #featureneededincombo_set-group
+scroll #featureproducedincombo_set-group
 shot combo-rows
-click #featureneededincombo_set-group .dictionary-summary
+click #featureproducedincombo_set-group .dictionary-summary
 wait dialog.dictionary-dialog
-shot dictionary-keys dialog.dictionary-dialog
+shot attributes dialog.dictionary-dialog
 click .dictionary-tab-yaml
-fill .dictionary-yaml mana_needed: ""\nnotes: cast it for free\n
+fill .dictionary-yaml sac activation: Sacrifice it\n
 click .dictionary-apply
 submit input[name=_continue]
-text #featureneededincombo_set-group .dictionary-summary
+text #featureproducedincombo_set-group .dictionary-summary
 nav /admin/spellbook/feature/1/change/
 scroll .dictionary-summary
 shot feature-card-rows
@@ -89,8 +89,8 @@ uv run --no-sync python .claude/skills/run-backend/serve.py shell -c "from spell
 uv run --no-sync python .claude/skills/run-backend/serve.py shell -c "from spellbook.models import Variant; [print(v.id, repr(v.mana_needed), repr(v.description), repr(v.notes)) for v in Variant.objects.all()]"
 ```
 
-The seed gives two variants; the Viscera Seer one names no key the combo's text asks for, so those
-references are deleted, and the row's `{"mana_needed": ""}` keeps the card's `{B}` out of it.
+The seed gives two variants; Viscera Seer gives no attribute the combo's text asks for, so those
+references are deleted, and the needed row out of replacements keeps the card's `{B}` out of it.
 
 ## Test
 
@@ -117,7 +117,7 @@ pid=$(netstat -ano | grep "127.0.0.1:8765" | grep LISTENING | awk '{print $NF}' 
   the public EDHREC dataset. Generation is `generate_variants()`, as above.
 - Edge may be installed only as its `EdgeCore/<version>/msedge.exe` runtime, with no `Edge/Application`
   folder; the driver looks there first, newest version first.
-- The dictionary editor is a native `<dialog>`: while it is open it covers the page, so a click on the
+- The attributes editor is a native `<dialog>`: while it is open it covers the page, so a click on the
   page behind it times out. It stays open whenever it refuses its input, which an unquoted YAML value
   holding `: ` or starting with `{` triggers; quote such values in `fill`.
 - Inline rows are wider than the viewport and scroll sideways; `scroll <selector>` brings a row up

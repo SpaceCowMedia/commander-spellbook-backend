@@ -7,7 +7,7 @@ from spellbook.models.feature_attribute import FeatureAttribute
 from spellbook.tests.testing import SpellbookTestCase, SpellbookTestCaseWithSeeding, card_number, curated_card, save_dictionary
 from spellbook.models import Variant, Card, OrderedIngredient, CardInVariant, TemplateInVariant, Template, Combo, Feature, VariantAlias, FeatureOfCard, ZoneLocation, recompute_all_counts
 from spellbook.models import VariantGenerationFingerprints, VariantOfCombo, FeatureProducedByVariant, id_from_cards_and_templates_ids
-from spellbook.models.references import TEXT_KEYS, format_alias_reference, format_feature_reference, format_line_reference
+from spellbook.models.references import format_alias_reference, format_feature_reference, format_line_reference
 from spellbook.variants.combo_graph import FeatureWithAttributes
 from spellbook.variants.multiset import FrozenMultiset
 from spellbook.variants.variant_data import Data
@@ -338,7 +338,7 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
         produced_feature = Feature.objects.create(name='PF', status=Feature.Status.STANDALONE)
         utility = Combo.objects.create(status=Combo.Status.UTILITY)
         CardInCombo.objects.create(combo=utility, card=named_card, order=1, zone_locations=ZoneLocation.HAND)
-        CardInCombo.objects.create(combo=utility, card=unnamed_card, order=2, zone_locations=ZoneLocation.BATTLEFIELD, dictionary={'name': ''})
+        CardInCombo.objects.create(combo=utility, card=unnamed_card, order=2, zone_locations=ZoneLocation.BATTLEFIELD, in_replacements=False)
         utility.produces.add(utility_feature)
         main = Combo.objects.create(status=Combo.Status.GENERATOR, description='Cast [[UF]] by paying its mana cost')
         FeatureNeededInCombo.objects.create(combo=main, feature=utility_feature, order=1)
@@ -360,7 +360,7 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
         produced_feature = Feature.objects.create(name='POF', status=Feature.Status.STANDALONE)
         utility = Combo.objects.create(status=Combo.Status.UTILITY)
         CardInCombo.objects.create(combo=utility, card=named_card, order=1, zone_locations=ZoneLocation.HAND)
-        CardInCombo.objects.create(combo=utility, card=unnamed_card, order=2, zone_locations=ZoneLocation.BATTLEFIELD, dictionary={'name': ''})
+        CardInCombo.objects.create(combo=utility, card=unnamed_card, order=2, zone_locations=ZoneLocation.BATTLEFIELD, in_replacements=False)
         utility.produces.add(utility_feature)
         main = Combo.objects.create(status=Combo.Status.GENERATOR)
         FeatureNeededInCombo.objects.create(combo=main, feature=utility_feature, order=1, zone_locations=ZoneLocation.GRAVEYARD)
@@ -916,7 +916,7 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
         c2.removes.add(self.f1_id)
         c2.produces.add(self.f3_id)
         card = Card.objects.get(number=self.c1_id)
-        card.featureofcard_set.create(feature_id=self.f2_id, zone_locations=ZoneLocation.HAND, dictionary={'mana_needed': '{X}{U}{1}', 'easy_prerequisites': 'C', 'notable_prerequisites': 'C'})
+        card.featureofcard_set.create(feature_id=self.f2_id, zone_locations=ZoneLocation.HAND, mana_needed='{X}{U}{1}', easy_prerequisites='C', notable_prerequisites='C')
         generate_variants(c.id)
         v: Variant = Variant.objects.get(of=c)
         self.assertEqual(v.mana_value_needed, 8)
@@ -926,7 +926,7 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
         self.assertEqual(v.notable_prerequisites, 'C\nA\nB')
 
     def generator_needing_a_card_feature(self, is_mana_needed_an_accurate_minimum: bool = True, **texts) -> Combo:
-        """A generator combo using the card whose feature carries the given texts in its dictionary, and
+        """A generator combo using the card whose feature carries the given texts and attributes, and
         needing that feature, so that its texts can name it. FB is contextual, so the row producing it is
         kept in the variant, and the combo produces a standalone feature of its own."""
         card = Card.objects.get(number=self.c1_id)
@@ -1269,10 +1269,10 @@ class TextSourcesTestCase(SpellbookTestCase):
         combo.produces.add(feature)
         return combo
 
-    def make_main(self, feature: Feature, dictionary: dict | None = None, **texts) -> Combo:
+    def make_main(self, feature: Feature, in_replacements: bool = True, **texts) -> Combo:
         combo = Combo.objects.create(status=Combo.Status.GENERATOR, **texts)
         CardInCombo.objects.create(combo=combo, card=self.main_card, order=1, zone_locations=ZoneLocation.HAND)
-        FeatureNeededInCombo.objects.create(combo=combo, feature=feature, order=1, dictionary=dictionary or {})
+        FeatureNeededInCombo.objects.create(combo=combo, feature=feature, order=1, in_replacements=in_replacements)
         combo.produces.add(self.win)
         return combo
 
@@ -1384,8 +1384,8 @@ class FeatureInclusionTests(TextSourcesTestCase):
             ('Inclusion Step Outlet', '', 'Resolve its ability.'),
         ):
             card = curated_card(name=card_name, type_line='Creature - Bird')
-            card.featureofcard_set.create(feature=outlet_mana, zone_locations=ZoneLocation.BATTLEFIELD, dictionary={'description': mana_description})
-            card.featureofcard_set.create(feature=outlet_step, zone_locations=ZoneLocation.BATTLEFIELD, dictionary={'description': step_description})
+            card.featureofcard_set.create(feature=outlet_mana, zone_locations=ZoneLocation.BATTLEFIELD, description=mana_description)
+            card.featureofcard_set.create(feature=outlet_step, zone_locations=ZoneLocation.BATTLEFIELD, description=step_description)
 
         self.generate_variants()
 
@@ -1416,7 +1416,7 @@ class FeatureInclusionTests(TextSourcesTestCase):
         untapper_card = curated_card(name='Inclusion Untapper Card', type_line='Creature - Elf')
         untapper_card.featureofcard_set.create(feature=untapper, zone_locations=ZoneLocation.BATTLEFIELD)
         producer = self.make_producer('Inclusion Mana Card', self.mana, description='untap it with [[IFUntapper]] for infinite mana')
-        FeatureNeededInCombo.objects.create(combo=producer, feature=untapper, order=1, dictionary={'name': ''})
+        FeatureNeededInCombo.objects.create(combo=producer, feature=untapper, order=1, in_replacements=False)
         main = self.make_main(self.mana, description='First, [[IFMana@description]], then win with [[IFMana]].')
 
         self.generate_variants()
@@ -1428,7 +1428,7 @@ class FeatureInclusionTests(TextSourcesTestCase):
 
     def test_a_card_feature_is_a_producer_of_its_own(self):
         card = curated_card(name='Inclusion Feature Card', type_line='Creature - Elf')
-        FeatureOfCard.objects.create(card=card, feature=self.mana, zone_locations=ZoneLocation.BATTLEFIELD, dictionary={'easy_prerequisites': 'untap it first'})
+        FeatureOfCard.objects.create(card=card, feature=self.mana, zone_locations=ZoneLocation.BATTLEFIELD, easy_prerequisites='untap it first')
         main = self.make_main(self.mana, easy_prerequisites='To start, [[IFMana@easy_prerequisites]].')
 
         self.generate_variants()
@@ -1504,19 +1504,21 @@ class FeatureInclusionTests(TextSourcesTestCase):
 
 
 class DictionaryTests(TextSourcesTestCase):
-    '''What a needed feature brings to a variant follows the dictionaries on the way: a key a row blanks
-    keeps that text of whatever the variant holds only to satisfy the row out of the variant, unless a
-    text references it, while the texts of the combo owning the row still reference the feature whole.'''
+    '''What a needed feature brings to a variant follows the rows on the way: a needed row out of
+    replacements keeps the texts of whatever the variant holds only to satisfy it out of the variant,
+    unless a text references them, a produced row replaces what its producer writes for its feature with
+    the texts it fills and the attributes it holds, and the texts of the combo owning a row still
+    reference the feature whole.'''
 
     def setUp(self):
         super().setUp()
         self.spell = Feature.objects.create(name='IFSpell', status=Feature.Status.PUBLIC_UTILITY)
         self.untapper = Feature.objects.create(name='IFUntapper', status=Feature.Status.HIDDEN_UTILITY)
 
-    def make_card_producer(self, card_name: str, feature: Feature, dictionary: dict | None = None, **texts) -> Card:
-        '''A card producing the feature, whose dictionary holds the given texts under the names of their fields, and its attributes any other key.'''
+    def make_card_producer(self, card_name: str, feature: Feature, attributes: dict | None = None, **texts) -> Card:
+        '''A card producing the feature with the given texts, and the given attributes holding their text, if any.'''
         card = curated_card(name=card_name, type_line='Sorcery')
-        save_dictionary(FeatureOfCard.objects.create(card=card, feature=feature, zone_locations=ZoneLocation.HAND), {**texts, **(dictionary or {})})
+        save_dictionary(FeatureOfCard.objects.create(card=card, feature=feature, zone_locations=ZoneLocation.HAND, **texts), attributes or {})
         return card
 
     def variant_of(self, main: Combo) -> Variant:
@@ -1541,28 +1543,29 @@ class DictionaryTests(TextSourcesTestCase):
         main.featureneededincombo_set.get().all_of_attributes.add(FeatureAttribute.objects.get(name='effect'))
         self.assertEqual(descriptions(), tagged)
 
-    def test_a_card_cast_for_free_writes_no_mana(self):
-        self.make_card_producer('Free Spell Card', self.spell, mana_needed='{5}{U}{U}', easy_prerequisites='Free Spell Card in hand')
-        main = self.make_main(self.spell, {'mana_needed': ''}, mana_needed='{1}', description='Cast [[IFSpell]] for free.')
+    def test_a_card_cast_for_free_writes_none_of_its_texts(self):
+        self.make_card_producer('Free Spell Card', self.spell, mana_needed='{5}{U}{U}', easy_prerequisites='Free Spell Card in hand', notes='a note of the spell')
+        main = self.make_main(self.spell, in_replacements=False, mana_needed='{1}', description='Cast [[IFSpell]] for free.')
 
         variant = self.variant_of(main)
 
         self.assertEqual(variant.mana_needed, '{1}')
-        self.assertEqual(variant.easy_prerequisites, 'Free Spell Card in hand')
+        self.assertEqual(variant.easy_prerequisites, '')
+        self.assertEqual(variant.notes, '')
         self.assertEqual(variant.description, 'Cast Free Spell Card for free.')
 
-    def test_a_blanked_text_is_written_where_referenced(self):
+    def test_a_text_left_out_is_written_where_referenced(self):
         self.make_card_producer('Free Spell Card', self.spell, mana_needed='{5}{U}{U}', easy_prerequisites=', with Free Spell Card in hand')
-        main = self.make_main(self.spell, {'easy_prerequisites': '', 'mana_needed': ''}, easy_prerequisites='Start[[IFSpell@easy_prerequisites]].')
+        main = self.make_main(self.spell, in_replacements=False, easy_prerequisites='Start[[IFSpell@easy_prerequisites]].')
 
         variant = self.variant_of(main)
 
         self.assertEqual(variant.easy_prerequisites, 'Start, with Free Spell Card in hand.')
         self.assertEqual(variant.mana_needed, '')
 
-    def test_a_blanked_subtree_writes_nothing_either(self):
+    def test_what_a_producer_left_out_needs_writes_nothing_either(self):
         producer = self.make_producer('Inclusion Mana Card', self.mana, notes='a note of the producer')
-        FeatureNeededInCombo.objects.create(combo=producer, feature=self.untapper, order=1, dictionary={'notes': ''})
+        FeatureNeededInCombo.objects.create(combo=producer, feature=self.untapper, order=1, in_replacements=False)
         untapper = self.make_producer('Inclusion Untapper Card', self.untapper, notes='a note of the untapper')
         FeatureNeededInCombo.objects.create(combo=untapper, feature=self.spell, order=1)
         self.make_card_producer('Free Spell Card', self.spell, notes='a note of the spell')
@@ -1571,11 +1574,11 @@ class DictionaryTests(TextSourcesTestCase):
         variant = self.variant_of(main)
 
         self.assertEqual(variant.notes, 'a note of the main combo\na note of the producer')
-        self.assertEqual(variant.description, 'Win with Inclusion Mana Card, Inclusion Untapper Card and Free Spell Card.')
+        self.assertEqual(variant.description, 'Win with Inclusion Mana Card.')
 
     def test_a_producer_needed_elsewhere_writes_by_default(self):
         producer = self.make_producer('Inclusion Mana Card', self.mana, notes='a note of the producer')
-        FeatureNeededInCombo.objects.create(combo=producer, feature=self.spell, order=1, dictionary={'notes': ''})
+        FeatureNeededInCombo.objects.create(combo=producer, feature=self.spell, order=1, in_replacements=False)
         self.make_card_producer('Free Spell Card', self.spell, notes='a note of the spell')
         main = self.make_main(self.mana, notes='a note of the main combo')
         FeatureNeededInCombo.objects.create(combo=main, feature=self.spell, order=2)
@@ -1586,23 +1589,22 @@ class DictionaryTests(TextSourcesTestCase):
         '''The variant displays what the producer makes, so it explains how, whatever the row asks.'''
         infinite = Feature.objects.create(name='IFInfinite', status=Feature.Status.STANDALONE)
         self.make_producer('Inclusion Infinite Card', infinite, notes='a note of the producer')
-        main = self.make_main(infinite, {'notes': ''}, notes='a note of the main combo')
+        main = self.make_main(infinite, in_replacements=False, notes='a note of the main combo')
 
         self.assertEqual(self.variant_of(main).notes, 'a note of the main combo\na note of the producer')
 
-    def make_result_main(self, *dictionaries: dict) -> Combo:
+    def make_result_main(self, *rows_texts: dict) -> Combo:
         '''A generator needing IFInfinite from a producer paying {2} besides the {B} of the spell it needs,
-        which also makes a result of its own for each dictionary after the first, each produced row taking
-        its dictionary in turn.'''
+        which also makes a result of its own for each texts after the first, each produced row taking
+        its texts in turn.'''
         infinite = Feature.objects.create(name='IFInfinite', status=Feature.Status.STANDALONE)
         producer = self.make_producer('Inclusion Infinite Card', infinite, mana_needed='{2}', notes='a note of the producer')
         FeatureNeededInCombo.objects.create(combo=producer, feature=self.spell, order=1)
         self.make_card_producer('Free Spell Card', self.spell, mana_needed='{B}')
-        for position in range(1, len(dictionaries)):
+        for position in range(1, len(rows_texts)):
             producer.produces.add(Feature.objects.create(name=f'IFResult {position}', status=Feature.Status.STANDALONE))
-        for row, dictionary in zip(producer.featureproducedincombo_set.order_by('id'), dictionaries):
-            row.dictionary = dictionary
-            row.save()
+        for row, texts in zip(producer.featureproducedincombo_set.order_by('id'), rows_texts):
+            save_dictionary(row, texts)
         return self.make_main(infinite, mana_needed='{U}', notes='a note of the main combo', description='Pay [[IFInfinite@mana_needed]].')
 
     def test_a_result_row_text_replaces_what_its_producer_writes(self):
@@ -1612,36 +1614,26 @@ class DictionaryTests(TextSourcesTestCase):
         self.assertEqual((variant.mana_needed, variant.description), ('{1}{U}', 'Pay {1}.'))
         self.assertEqual(variant.notes, 'a note of the main combo\na note of the producer')
 
-    def test_a_result_row_list_adds_to_what_its_producer_writes(self):
-        variant = self.variant_of(self.make_result_main({'mana_needed': ['{1}']}))
-
-        self.assertEqual((variant.mana_needed, variant.description), ('{3}{U}{B}', 'Pay {3}{B}.'))
-
-    def test_a_blank_result_row_leaves_its_producer_out(self):
-        variant = self.variant_of(self.make_result_main({'mana_needed': ''}))
-
-        self.assertEqual((variant.mana_needed, variant.description), ('{U}', 'Pay .'))
-
-    def test_results_overriding_a_key_differently_write_each_override(self):
+    def test_results_writing_a_text_differently_write_each_text(self):
         variant = self.variant_of(self.make_result_main({'notes': 'how it loops'}, {'notes': 'how it ends'}))
 
         self.assertEqual(variant.notes, 'a note of the main combo\nhow it loops\nhow it ends')
 
-    def test_a_result_row_override_keeps_the_producer_for_its_other_results(self):
+    def test_a_result_row_text_keeps_the_producer_for_its_other_results(self):
         variant = self.variant_of(self.make_result_main({'notes': 'how it loops'}, {}))
 
         self.assertEqual(variant.notes, 'a note of the main combo\na note of the producer\nhow it loops')
 
-    def test_a_generator_row_override_replaces_what_the_generator_writes(self):
+    def test_a_generator_row_text_replaces_what_the_generator_writes(self):
         self.make_producer('Inclusion Mana Card', self.mana, notes='a note of the producer')
         main = self.make_main(self.mana, notes='a note of the main combo')
-        main.featureproducedincombo_set.update(dictionary={'notes': 'how it wins'})
+        main.featureproducedincombo_set.update(notes='how it wins')
 
         self.assertEqual(self.variant_of(main).notes, 'how it wins')
 
     def test_the_mana_left_out_is_not_judged_accurate_or_not(self):
         self.make_producer('Inclusion Mana Card', self.spell, mana_needed='{X}{U} for each copy', is_mana_needed_an_accurate_minimum=False)
-        main = self.make_main(self.spell, {'mana_needed': ''}, mana_needed='{1}')
+        main = self.make_main(self.spell, in_replacements=False, mana_needed='{1}')
 
         variant = self.variant_of(main)
 
@@ -1649,9 +1641,8 @@ class DictionaryTests(TextSourcesTestCase):
         self.assertTrue(variant.is_mana_needed_an_accurate_minimum)
 
     def test_the_mana_of_a_card_feature_left_out_is_not_judged_accurate_or_not(self):
-        card = self.make_card_producer('Free Spell Card', self.spell, mana_needed='{X}{U} for each copy')
-        FeatureOfCard.objects.filter(card=card).update(is_mana_needed_an_accurate_minimum=False)
-        main = self.make_main(self.spell, {'mana_needed': ''}, mana_needed='{1}')
+        self.make_card_producer('Free Spell Card', self.spell, mana_needed='{X}{U} for each copy', is_mana_needed_an_accurate_minimum=False)
+        main = self.make_main(self.spell, in_replacements=False, mana_needed='{1}')
 
         variant = self.variant_of(main)
 
@@ -1663,36 +1654,21 @@ class DictionaryTests(TextSourcesTestCase):
         producer = self.make_producer('Inclusion Mana Card', self.mana, notes='untap it: [[IFUntapper@notes]]')
         FeatureNeededInCombo.objects.create(combo=producer, feature=self.untapper, order=1)
         self.make_card_producer('Inclusion Untapper Card', self.untapper, notes='a note of the untapper')
-        main = self.make_main(self.mana, {'notes': ''}, notes='a note of the main combo')
+        main = self.make_main(self.mana, in_replacements=False, notes='a note of the main combo')
         FeatureNeededInCombo.objects.create(combo=main, feature=self.untapper, order=2)
 
         self.assertEqual(self.variant_of(main).notes, 'a note of the untapper\na note of the main combo')
 
     def test_a_card_left_out_still_starts_where_its_feature_asks(self):
         card = curated_card(name='Milled Spell Card', type_line='Creature - Elf')
-        FeatureOfCard.objects.create(card=card, feature=self.spell, zone_locations=ZoneLocation.GRAVEYARD, graveyard_card_state='milled', dictionary={'notes': 'a note of the spell'})
-        main = self.make_main(self.spell, {'name': '', **{key: '' for key in TEXT_KEYS}})
+        FeatureOfCard.objects.create(card=card, feature=self.spell, zone_locations=ZoneLocation.GRAVEYARD, graveyard_card_state='milled', notes='a note of the spell')
+        main = self.make_main(self.spell, in_replacements=False)
 
         variant = self.variant_of(main)
 
         card_in_variant = variant.cardinvariant_set.get(card=card)
         self.assertEqual((card_in_variant.zone_locations, card_in_variant.graveyard_card_state), (ZoneLocation.GRAVEYARD, 'milled'))
         self.assertEqual(variant.notes, '')
-
-    def test_a_text_override_replaces_what_the_row_brings(self):
-        self.make_card_producer('Free Spell Card', self.spell, mana_needed='{5}{U}{U}', notes='a note of the spell')
-        main = self.make_main(self.spell, {'mana_needed': '{2}', 'notes': 'cast it with [[IFSpell]]'}, mana_needed='{1}')
-
-        variant = self.variant_of(main)
-
-        self.assertEqual(variant.mana_needed, '{3}')
-        self.assertEqual(variant.notes, 'cast it with Free Spell Card')
-
-    def test_a_list_override_adds_to_what_the_row_brings(self):
-        self.make_card_producer('Free Spell Card', self.spell, notes='a note of the spell')
-        main = self.make_main(self.spell, {'notes': ['an added note', 'another one']}, notes='a note of the main combo')
-
-        self.assertEqual(self.variant_of(main).notes, 'a note of the spell\na note of the main combo\nan added note\nanother one')
 
     def test_a_custom_key_of_a_card_feature(self):
         self.make_card_producer('Free Spell Card', self.spell, {'sac activation': 'Activate it by sacrificing'})
@@ -1723,22 +1699,23 @@ class DictionaryTests(TextSourcesTestCase):
 
         self.assertEqual(self.variant_of(main).description, 'untap it twice.')
 
-    def test_a_row_overrides_a_custom_key_for_what_it_brings(self):
+    def test_a_produced_row_replaces_an_attribute_of_what_its_producer_brings(self):
         producer = self.make_producer('Inclusion Mana Card', self.mana)
-        FeatureNeededInCombo.objects.create(combo=producer, feature=self.untapper, order=1, dictionary={'untap step': 'untap it with [[IFUntapper]]', 'extras': ['again']})
+        FeatureNeededInCombo.objects.create(combo=producer, feature=self.untapper, order=1)
+        save_dictionary(producer.featureproducedincombo_set.get(), {'untap step': 'untap it with [[IFUntapper]]'})
         self.make_card_producer('Inclusion Untapper Card', self.untapper, {'untap step': 'untap it', 'extras': 'twice'})
         main = self.make_main(self.mana, description='[[IFMana@untap step]] [[IFMana@extras]].')
 
-        self.assertEqual(self.variant_of(main).description, 'untap it with Inclusion Untapper Card twice and again.')
+        self.assertEqual(self.variant_of(main).description, 'untap it with Inclusion Untapper Card twice.')
 
-    def test_a_produced_feature_row_defines_keys_for_its_feature(self):
+    def test_a_produced_row_gives_its_feature_attributes(self):
         producer = self.make_producer('Inclusion Mana Card', self.mana)
         FeatureNeededInCombo.objects.create(combo=producer, feature=self.untapper, order=1)
-        save_dictionary(producer.featureproducedincombo_set.get(), {'name': 'a mana engine', 'step': 'tap [[IFUntapper]]'})
+        save_dictionary(producer.featureproducedincombo_set.get(), {'step': 'tap [[IFUntapper]]'})
         self.make_card_producer('Inclusion Untapper Card', self.untapper)
         main = self.make_main(self.mana, description='Use [[IFMana]]: [[IFMana@step]].')
 
-        self.assertEqual(self.variant_of(main).description, 'Use a mana engine: tap Inclusion Untapper Card.')
+        self.assertEqual(self.variant_of(main).description, 'Use Inclusion Mana Card and Inclusion Untapper Card: tap Inclusion Untapper Card.')
 
     def test_names_join_as_a_sentence(self):
         producer = self.make_producer('Inclusion Mana Card', self.mana)

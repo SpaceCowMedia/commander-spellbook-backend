@@ -1187,7 +1187,7 @@ class ComboGraphCycleCachingTest(SpellbookTestCase):
 
 
 class ComboGraphReplacementsTest(SpellbookTestCase):
-    '''A dictionary blanking the name of an ingredient leaves the graph untouched: the ways it finds hold
+    '''An ingredient out of replacements leaves the graph untouched: the ways it finds hold
     every ingredient, and the variant leaves that one out of what the features its combo produces are
     named with, while it still takes part in matching the combo and in counting how many times it fires.'''
 
@@ -1263,12 +1263,12 @@ class ComboGraphReplacementsTest(SpellbookTestCase):
         self.assertEqual(self.name_in(4, 4, 'z'), 'A, C and D')
 
     def test_quantities_still_come_from_the_whole_variant_set(self):
-        '''A dictionary changes what a feature is named with, never how many times the combo producing it fires.'''
+        '''Replacements change what a feature is named with, never how many times the combo producing it fires.'''
         self.setup_combo_graph({
             ('A', '~B'): ('x',),
         })
         expected = Graph(Data()).results(Graph(Data()).variants(1))[0].features
-        CardInCombo.objects.filter(combo_id=1).update(dictionary={})
+        CardInCombo.objects.filter(combo_id=1).update(in_replacements=True)
         combo_graph = Graph(Data())
         self.assertMultisetEqual(combo_graph.results(combo_graph.variants(1))[0].features, dict(expected.items()))
 

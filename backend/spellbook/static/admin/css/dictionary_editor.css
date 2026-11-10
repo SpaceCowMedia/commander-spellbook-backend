@@ -29,10 +29,6 @@
     text-align: left;
 }
 
-/* a key blanking a text, which leaves it out */
-.dictionary-keys s {
-    color: var(--body-quiet-color);
-}
 
 .dictionary-count {
     flex: none;

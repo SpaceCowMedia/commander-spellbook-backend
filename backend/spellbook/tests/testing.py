@@ -13,19 +13,21 @@ from spellbook.models import CardUsedInVariantSuggestion, TemplateRequiredInVari
 from spellbook.models import VariantSuggestion, VariantAlias, Variant, ZoneLocation
 from spellbook.models import FeatureOfCard, FeatureNeededInCombo, FeatureProducedInCombo, FeatureRemovedInCombo, FeatureAttribute
 from spellbook.serializers import VariantSerializer
-from spellbook.models.references import BUILT_IN_KEYS
+from spellbook.models.references import TEXT_KEYS
 
 
 FEATURE_WITH_ATTRIBUTES_PATTERN = re.compile(r'([^?!-]+)(\?[^?!-]+)?(![^?!-]+)?(-[^?!-]+)?')
 
 
 def save_dictionary(producer: FeatureOfCard | FeatureProducedInCombo, dictionary: dict) -> None:
-    '''Saves a dictionary on a producer the way the admin does: its built-in keys in the dictionary, and
-    every other key as an attribute holding its text, if any.'''
-    producer.dictionary = {key: value for key, value in dictionary.items() if key in BUILT_IN_KEYS}
-    producer.save(update_fields=['dictionary'])
+    '''Saves what a producer provides the way the admin does: its texts in the fields of the same name,
+    and every other key as an attribute holding its text, if any.'''
     for key, value in dictionary.items():
-        if key not in BUILT_IN_KEYS:
+        if key in TEXT_KEYS:
+            setattr(producer, key, value)
+    producer.save()
+    for key, value in dictionary.items():
+        if key not in TEXT_KEYS:
             attribute, _ = FeatureAttribute.objects.get_or_create(name=key)
             producer.attributes.add(attribute, through_defaults={'value': value or ''})
 
@@ -120,9 +122,9 @@ class SpellbookTestCase(BaseTestCase):
         for recipe, result in model.items():
             cards = defaultdict[str, int](int)
             templates = defaultdict[str, int](int)
-            features = list[tuple[str, int, dict]]()
-            card_dictionaries = dict[str, dict]()
-            template_dictionaries = dict[str, dict]()
+            features = list[tuple[str, int, bool]]()
+            cards_in_replacements = dict[str, bool]()
+            templates_in_replacements = dict[str, bool]()
             if isinstance(recipe, str):
                 if '*' in recipe:
                     recipe, quantity = recipe.split('*')
@@ -152,9 +154,10 @@ class SpellbookTestCase(BaseTestCase):
                     feature_of_card_id += 1
             else:
                 for element in recipe:
-                    # a ~ prefix marks an ingredient whose dictionary leaves it out of the names
-                    dictionary = {'name': ''} if element.strip().startswith('~') else {}
-                    element = element.strip().removeprefix('~')
+                    # a ~ prefix marks an ingredient that is not in replacements
+                    in_replacements = not element.strip().startswith('~')
+                    if not in_replacements:
+                        element = element.strip().removeprefix('~')
                     if '*' in element:
                         element, quantity = element.split('*')
                         quantity = quantity.strip()
@@ -166,29 +169,29 @@ class SpellbookTestCase(BaseTestCase):
                         quantity = 1
                     element = element.strip()
                     if element[0].islower():
-                        features.append((element, quantity, dictionary))
+                        features.append((element, quantity, in_replacements))
                     elif element[0] == 'T':
                         templates[element] += quantity
-                        template_dictionaries[element] = dictionary
+                        templates_in_replacements[element] = in_replacements
                     else:
                         cards[element] += quantity
-                        card_dictionaries[element] = dictionary
+                        cards_in_replacements[element] = in_replacements
                 combo = Combo.objects.create(pk=combo_id, mana_needed='', is_mana_needed_an_accurate_minimum=True, easy_prerequisites='Test Easy Prerequisites', notable_prerequisites='Test Notable Prerequisites', description='Test Description', status=Combo.Status.GENERATOR)
                 for i, (card, quantity) in enumerate(cards.items(), start=1):
                     card_id = card_ids_by_name.setdefault(card, reduce(lambda x, y: max(x, y), card_ids_by_name.values(), 0) + 1)
                     c, _ = Card.objects.get_or_create(pk=card_id, number=card_id, name=card, identity='W', legal_commander=True, spoiler=False, type_line='Test Card')
-                    CardInCombo.objects.create(card=c, combo=combo, order=i, zone_locations=ZoneLocation.BATTLEFIELD, quantity=quantity, dictionary=card_dictionaries[card])
+                    CardInCombo.objects.create(card=c, combo=combo, order=i, zone_locations=ZoneLocation.BATTLEFIELD, quantity=quantity, in_replacements=cards_in_replacements[card])
                 for i, (template, quantity) in enumerate(templates.items(), start=1):
                     template_id = template_ids_by_name.setdefault(template, reduce(lambda x, y: max(x, y), template_ids_by_name.values(), 0) + 1)
                     t, _ = Template.objects.get_or_create(pk=template_id, name=template, scryfall_query='o:test', description='Test Template')
-                    TemplateInCombo.objects.create(template=t, combo=combo, order=i, zone_locations=ZoneLocation.BATTLEFIELD, quantity=quantity, dictionary=template_dictionaries[template])
-                for r, quantity, dictionary in features:
+                    TemplateInCombo.objects.create(template=t, combo=combo, order=i, zone_locations=ZoneLocation.BATTLEFIELD, quantity=quantity, in_replacements=templates_in_replacements[template])
+                for r, quantity, in_replacements in features:
                     r = FEATURE_WITH_ATTRIBUTES_PATTERN.match(r)
                     assert r is not None
                     feature, any_of_attributes, all_of_attributes, none_of_attributes = r.groups()
                     feature_id = feature_ids_by_name.setdefault(feature, reduce(lambda x, y: max(x, y), feature_ids_by_name.values(), 0) + 1)
                     f, _ = Feature.objects.get_or_create(pk=feature_id, name=feature, description='Test Feature', status=Feature.Status.HIDDEN_UTILITY if feature.startswith('u') else Feature.Status.STANDALONE)
-                    fnc = FeatureNeededInCombo.objects.create(feature=f, combo=combo, quantity=quantity, dictionary=dictionary)
+                    fnc = FeatureNeededInCombo.objects.create(feature=f, combo=combo, quantity=quantity, in_replacements=in_replacements)
                     for attribute in (any_of_attributes or '').removeprefix('?').split(','):
                         attribute = attribute.strip()
                         if attribute:
@@ -304,9 +307,9 @@ class SpellbookTestCaseWithSeeding(SpellbookTestCase):
         t1 = Template.objects.create(name='TA', scryfall_query='tou>5', description='hello.')
         t2 = Template.objects.create(name='TB')
         t2.replacements.add(c3)
-        fc1 = FeatureOfCard.objects.create(card=c1, feature=f1, zone_locations=ZoneLocation.BATTLEFIELD, quantity=1, dictionary={'notable_prerequisites': 'Some requisites for card.'})
+        fc1 = FeatureOfCard.objects.create(card=c1, feature=f1, zone_locations=ZoneLocation.BATTLEFIELD, quantity=1, notable_prerequisites='Some requisites for card.')
         fc1.attributes.add(fa2)
-        FeatureOfCard.objects.create(card=c1, feature=f1, zone_locations=ZoneLocation.BATTLEFIELD, quantity=1, dictionary={'notable_prerequisites': 'Some requisites for card two.', 'easy_prerequisites': 'Some easy requisites for card two.'})
+        FeatureOfCard.objects.create(card=c1, feature=f1, zone_locations=ZoneLocation.BATTLEFIELD, quantity=1, notable_prerequisites='Some requisites for card two.', easy_prerequisites='Some easy requisites for card two.')
         fn1 = FeatureNeededInCombo.objects.create(feature=f1, combo=b1, quantity=1)
         fn1.any_of_attributes.add(fa1, fa2)
         CardInCombo.objects.create(card=c2, combo=b1, order=1, zone_locations=ZoneLocation.HAND, quantity=1)

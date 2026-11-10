@@ -181,7 +181,9 @@ class FeatureNeededInCombo(ComboIngredient, WithFeatureAttributesMatcher):
         indexes = ComboIngredient.card_state_trigram_indexes('fnic')
 
 
-class FeatureProducedInCombo(WithFeatureAttributes):
+class FeatureProducedInCombo(Explanation, WithFeatureAttributes):
+    '''A feature a combo produces, with the attributes it produces it with. A text filled here replaces
+    what the combo provides under that field for this feature, wherever the combo writes as its producer.'''
     id: int
     feature = models.ForeignKey(to=Feature, on_delete=models.CASCADE)
     feature_id: int

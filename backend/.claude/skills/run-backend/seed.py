@@ -29,13 +29,13 @@ def seed() -> None:
     for name, value in (('sac activation', 'Activate Phyrexian Altar by sacrificing'), ('mana resolution', ', adding one mana of any color')):
         attribute, _ = FeatureAttribute.objects.get_or_create(name=name)
         altar_outlet.attributes.through.objects.update_or_create(producer=altar_outlet, attribute=attribute, defaults={'value': value})
-    FeatureOfCard.objects.update_or_create(card=viscera, feature=outlet, defaults={'zone_locations': ZoneLocation.BATTLEFIELD, 'dictionary': {'mana_needed': '{B}'}})
+    FeatureOfCard.objects.update_or_create(card=viscera, feature=outlet, defaults={'zone_locations': ZoneLocation.BATTLEFIELD, 'mana_needed': '{B}'})
     combo = Combo.objects.filter(description__startswith='[[Free Sacrifice Outlet@sac activation]]').first()
     if combo is None:
         combo = Combo.objects.create(status=Combo.Status.GENERATOR, description='[[Free Sacrifice Outlet@sac activation]] Gravecrawler[[Free Sacrifice Outlet@mana resolution]].\nCast Gravecrawler from your graveyard.\nRepeat.')
         CardInCombo.objects.create(combo=combo, card=card('Gravecrawler', 'Creature - Zombie'), order=1, zone_locations=ZoneLocation.BATTLEFIELD)
-        CardInCombo.objects.create(combo=combo, card=card('Rooftop Storm', 'Enchantment'), order=2, zone_locations=ZoneLocation.BATTLEFIELD, dictionary={'name': ''})
-        FeatureNeededInCombo.objects.create(combo=combo, feature=outlet, order=1, dictionary={'mana_needed': ''})
+        CardInCombo.objects.create(combo=combo, card=card('Rooftop Storm', 'Enchantment'), order=2, zone_locations=ZoneLocation.BATTLEFIELD, in_replacements=False)
+        FeatureNeededInCombo.objects.create(combo=combo, feature=outlet, order=1, in_replacements=False)
         combo.produces.add(loop)
     print(f'superuser {USERNAME} / {PASSWORD}')
     print(f'feature: /admin/spellbook/feature/{outlet.id}/change/')

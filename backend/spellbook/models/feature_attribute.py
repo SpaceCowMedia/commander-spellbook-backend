@@ -4,8 +4,7 @@ from django.db.models.signals import post_save
 from .feature import Feature
 from .constants import MAX_ATTRIBUTE_VALUE_LENGTH, MAX_FEATURE_NAME_LENGTH
 from .mixins import NamedModel
-from .fields import DictionaryField
-from .references import DEFAULT_KEY, TEXT_KEYS, format_feature_reference
+from .references import format_feature_reference
 from .validators import ATTRIBUTE_NAME_VALIDATORS, TEXT_VALIDATORS
 
 
@@ -32,17 +31,9 @@ def update_feature_attribute_references(sender, instance: FeatureAttribute, crea
 
 class WithFeatureAttributes(models.Model):
     '''A producer of a feature, with the attributes it produces the feature with, each holding the text
-    it provides under that attribute if any, and the dictionary of its built-in keys.'''
+    it provides under that attribute if any.'''
     feature = models.ForeignKey(to=Feature, on_delete=models.CASCADE)
     feature_id: int
-    dictionary = DictionaryField(attribute_keys=False, help_text=(
-        'What this provides for the feature, key by key, besides its attributes.'
-        f' The built-in keys {DEFAULT_KEY}, {", ".join(TEXT_KEYS)} hold a text or a list of texts, which a combo needing the feature writes with the {format_feature_reference("feature", key="key")} syntax,'
-        ' and override what is provided without them, the name of the card or what the combo brings, its own texts counting as lists of one:'
-        ' a text replaces it, a list adds to it, and a blank text leaves it out.'
-        f' The keys {", ".join(TEXT_KEYS)} are texts of the variants, written in the field of the same name wherever they write what the feature provides.'
-        f' Every other key is one of the attributes this produces the feature with, holding nothing or a text written with the {format_feature_reference("feature", key="attribute")} syntax.'
-    ))
 
     class Meta:
         abstract = True
@@ -57,6 +48,10 @@ class AttributeValue(models.Model):
 
     class Meta:
         abstract = True
+
+    @classmethod
+    def text_fields_with_references(cls) -> list[str]:
+        return ['value']
 
     def __str__(self):
         return f'{self.attribute} of {self.producer}'  # type: ignore[attr-defined]

@@ -4,11 +4,11 @@ from collections import defaultdict
 from html import unescape
 from django.urls import reverse
 from spellbook.admin.combo_admin import ALL_ZONE_LOCATIONS
-from spellbook.models import Card, CardInCombo, CardUsedInVariantSuggestion, Combo, FeatureAttribute, FeatureProducedInVariantSuggestion, Variant, VariantSuggestion, ZoneLocation
+from spellbook.models import Card, CardInCombo, CardUsedInVariantSuggestion, Combo, FeatureAttribute, FeatureProducedInCombo, FeatureProducedInVariantSuggestion, Variant, VariantSuggestion, ZoneLocation
 from spellbook.models.references import format_alias_reference, format_line_reference
-from spellbook.admin.utils import DictionaryWidget
+from spellbook.admin.utils import AttributesWidget
 from spellbook.models.utils import sanitize_newlines_apostrophes_and_quotes
-from ..testing import SpellbookTestCaseWithSeeding
+from ..testing import SpellbookTestCaseWithSeeding, save_dictionary
 
 
 INLINE_PREFIXES = [
@@ -50,7 +50,7 @@ class ComboAdminTestCase(SpellbookTestCaseWithSeeding):
                 f'cardincombo_set-{i}-quantity': '1',
                 f'cardincombo_set-{i}-zone_locations': zone_locations,
                 f'cardincombo_set-{i}-order': str(i + 1),
-                f'cardincombo_set-{i}-dictionary': '{}',
+                f'cardincombo_set-{i}-in_replacements': 'on',
             })
             if i < len(card_ids_to_update):
                 payload[f'cardincombo_set-{i}-id'] = str(card_ids_to_update[i])
@@ -116,90 +116,72 @@ class ComboAdminUtilityComboTests(ComboAdminTestCase):
 
 
 class ComboAdminReplacementsTests(ComboAdminTestCase):
-    '''At least one ingredient has to keep its name, or the features the combo produces would have
-    nothing to be named with in the texts referencing them.'''
-    rejection_message = 'blanks its name in its dictionary'
+    '''At least one ingredient has to be in replacements, or the features the combo produces would
+    have nothing to be replaced with in the texts referencing them.'''
+    rejection_message = 'none of its ingredients is in replacements'
 
-    def test_a_combo_with_one_ingredient_named_is_saved(self):
+    def test_a_combo_with_one_ingredient_in_replacements_is_saved(self):
         payload = self.combo_payload(cards=[self.c7_id, self.c8_id])
-        payload['cardincombo_set-1-dictionary'] = '{"name": ""}'
+        payload['cardincombo_set-1-in_replacements'] = ''
         response = self.client.post(self.add_url(), data=payload)
         self.assertEqual(response.status_code, 302)
         added_combo = Combo.objects.latest('created')
-        self.assertEqual({c.card_id: c.dictionary for c in added_combo.cardincombo_set.all()}, {self.c7_id: {}, self.c8_id: {'name': ''}})
+        self.assertEqual({c.card_id: c.in_replacements for c in added_combo.cardincombo_set.all()}, {self.c7_id: True, self.c8_id: False})
 
-    def test_a_combo_with_every_ingredient_blanked_is_rejected(self):
+    def test_a_combo_with_no_ingredient_in_replacements_is_rejected(self):
         combo_count = Combo.objects.count()
         payload = self.combo_payload(cards=[self.c7_id, self.c8_id])
-        payload['cardincombo_set-0-dictionary'] = '{"name": ""}'
-        payload['cardincombo_set-1-dictionary'] = '{"name": ""}'
+        payload['cardincombo_set-0-in_replacements'] = ''
+        payload['cardincombo_set-1-in_replacements'] = ''
         response = self.client.post(self.add_url(), data=payload)
         self.assertEqual(response.status_code, 200)
         self.assertIn(self.rejection_message, response.content.decode())
         self.assertEqual(Combo.objects.count(), combo_count)
 
-    def test_a_needed_feature_alone_named_is_enough(self):
+    def test_a_needed_feature_alone_in_replacements_is_enough(self):
         payload = self.combo_payload(cards=[self.c7_id])
-        payload['cardincombo_set-0-dictionary'] = '{"name": ""}'
+        payload['cardincombo_set-0-in_replacements'] = ''
         payload.update({
             'featureneededincombo_set-TOTAL_FORMS': '1',
             'featureneededincombo_set-0-feature': str(self.f2_id),
             'featureneededincombo_set-0-quantity': '1',
             'featureneededincombo_set-0-order': '1',
-            'featureneededincombo_set-0-dictionary': '{"mana_needed": ""}',
+            'featureneededincombo_set-0-in_replacements': 'on',
         })
         response = self.client.post(self.add_url(), data=payload)
         self.assertEqual(response.status_code, 302)
         added_combo = Combo.objects.latest('created')
-        self.assertEqual(added_combo.cardincombo_set.get().dictionary, {'name': ''})
-        self.assertEqual(added_combo.featureneededincombo_set.get().dictionary, {'mana_needed': ''})
-
-    def test_a_blank_dictionary_saves_an_empty_one(self):
-        payload = self.combo_payload(cards=[self.c7_id])
-        payload['cardincombo_set-0-dictionary'] = ''
-        response = self.client.post(self.add_url(), data=payload)
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(Combo.objects.latest('created').cardincombo_set.get().dictionary, {})
-
-    def test_an_invalid_dictionary_is_rejected(self):
-        combo_count = Combo.objects.count()
-        for dictionary in ('{"key@other": "x"}', '{"key": 3}', '["a list"]', 'not json'):
-            with self.subTest(dictionary=dictionary):
-                payload = self.combo_payload(cards=[self.c7_id])
-                payload['cardincombo_set-0-dictionary'] = dictionary
-                response = self.client.post(self.add_url(), data=payload)
-                self.assertEqual(response.status_code, 200)
-                self.assertEqual(Combo.objects.count(), combo_count)
+        self.assertFalse(added_combo.cardincombo_set.get().in_replacements)
+        self.assertTrue(added_combo.featureneededincombo_set.get().in_replacements)
 
     def test_a_combo_without_ingredients_is_left_alone(self):
-        '''Nothing to leave out yet, so this check stays quiet.'''
+        '''Nothing to opt out of yet, so this check stays quiet.'''
         combo_count = Combo.objects.count()
         response = self.client.post(self.add_url(), data=self.combo_payload(cards=[]))
         self.assertEqual(response.status_code, 302)
         self.assertEqual(Combo.objects.count(), combo_count + 1)
 
 
-class ComboAdminDictionaryWidgetTests(ComboAdminTestCase):
-    def test_the_change_page_shows_a_summary_of_every_dictionary(self):
-        CardInCombo.objects.filter(combo_id=self.b5_id).update(dictionary={'name': '', 'sac step': ['first', 'second']})
-        response = self.client.get(self.change_url(self.b5_id))
-        content = response.content.decode()
+class ComboAdminAttributesWidgetTests(ComboAdminTestCase):
+    def test_the_change_page_shows_a_summary_of_the_attributes_of_every_produced_feature(self):
+        produced = FeatureProducedInCombo.objects.filter(combo_id=self.b2_id).first()
+        save_dictionary(produced, {'step': 'untap it', 'Landfall': None})
+        content = self.client.get(self.change_url(self.b2_id)).content.decode()
         self.assertIn('admin/js/dictionary_editor.js', content)
         self.assertIn('admin/js/js-yaml/4.1.0/js-yaml.min.js', content)
-        self.assertIn('<span class="dictionary-keys"><s>name</s>, sac step</span><span class="dictionary-count" title="2 keys">2</span>', content)
-        self.assertIn('<span class="dictionary-keys">Add keys</span></button>', content)
+        self.assertIn('<span class="dictionary-keys">FA2, Landfall, step</span><span class="dictionary-count" title="3 attributes">3</span>', content)
 
     def test_submitted_texts_are_normalized_like_the_other_texts(self):
-        widget = DictionaryWidget()
-        value = widget.value_from_datadict({'dictionary': '{"step": "Sacrifice it’s target", "list": ["“quoted”"]}'}, {}, 'dictionary')
-        self.assertEqual(json.loads(value), {'step': "Sacrifice it's target", 'list': ['"quoted"']})
+        widget = AttributesWidget()
+        value = widget.value_from_datadict({'attributes': '{"step": "Sacrifice it’s target", "Landfall": null}'}, {}, 'attributes')
+        self.assertEqual(json.loads(value), {'step': "Sacrifice it's target", 'Landfall': None})
 
     def test_an_invalid_submission_is_left_for_the_form_to_refuse(self):
-        widget = DictionaryWidget()
-        for submitted in ('not json', '{"key": 3}', '["a list"]'):
+        widget = AttributesWidget()
+        for submitted in ('not json', '{"key": 3}', '["a list"]', '{"key": ["a list"]}'):
             with self.subTest(submitted=submitted):
-                self.assertEqual(widget.value_from_datadict({'dictionary': submitted}, {}, 'dictionary'), submitted)
-        self.assertIn('Invalid, edit to fix', widget.render('dictionary', 'not json'))
+                self.assertEqual(widget.value_from_datadict({'attributes': submitted}, {}, 'attributes'), submitted)
+        self.assertIn('Invalid, edit to fix', widget.render('attributes', 'not json'))
 
 
 class ComboAdminReferencesTests(ComboAdminTestCase):
@@ -215,7 +197,7 @@ class ComboAdminReferencesTests(ComboAdminTestCase):
                 f'featureneededincombo_set-{i}-feature': str(feature_id),
                 f'featureneededincombo_set-{i}-quantity': '1',
                 f'featureneededincombo_set-{i}-order': str(i + 1),
-                f'featureneededincombo_set-{i}-dictionary': '{}',
+                f'featureneededincombo_set-{i}-in_replacements': 'on',
             })
         return payload
 
@@ -270,38 +252,31 @@ class ComboAdminReferencesTests(ComboAdminTestCase):
     def test_a_key_of_a_feature_not_required_is_rejected(self):
         self.assertRejected(self.payload_requiring([], description='[[FB@description]]'), '[[FB@description]]')
 
-    def test_the_dictionaries_of_the_rows_are_checked_too(self):
-        payload = self.payload_requiring([self.f3_id])
-        payload['cardincombo_set-0-dictionary'] = '{"name": "the card [[FB]] targets"}'
-        self.assertRejected(payload, '[[FB]]')
+    def payload_producing(self, payload: dict, **fields: str) -> dict:
+        '''The payload of a combo producing FD, with the given fields on its produced row.'''
+        payload.update({
+            'featureproducedincombo_set-TOTAL_FORMS': '1',
+            'featureproducedincombo_set-0-feature': str(self.f4_id),
+            'featureproducedincombo_set-0-is_mana_needed_an_accurate_minimum': 'on',
+            **{f'featureproducedincombo_set-0-{field}': value for field, value in fields.items()},
+        })
+        return payload
 
-    def test_a_produced_row_keeps_its_attributes_apart_from_its_dictionary(self):
+    def test_a_produced_row_keeps_its_texts_and_its_attributes_apart(self):
         FeatureAttribute.objects.create(name='step')
         FeatureAttribute.objects.create(name='Landfall')
-        payload = self.payload_requiring([])
-        payload.update({
-            'featureproducedincombo_set-TOTAL_FORMS': '1',
-            'featureproducedincombo_set-0-feature': str(self.f4_id),
-            'featureproducedincombo_set-0-dictionary': '{"name": "an engine", "step": "untap it", "Landfall": null}',
-        })
-        self.assertSaved(payload)
+        self.assertSaved(self.payload_producing(self.payload_requiring([]), notes='an engine', attribute_texts='{"step": "untap it", "Landfall": null}'))
         combo = Combo.objects.latest('created')
         produced = combo.featureproducedincombo_set.get()
-        self.assertEqual(produced.dictionary, {'name': 'an engine'})
+        self.assertEqual(produced.notes, 'an engine')
         self.assertEqual(sorted(produced.attributes.through.objects.filter(producer=produced).values_list('attribute__name', 'value')), [('Landfall', ''), ('step', 'untap it')])
         content = unescape(self.client.get(self.change_url(combo.id)).content.decode())
-        self.assertIn('{"name": "an engine", "Landfall": null, "step": "untap it"}', content)
+        self.assertIn('{"Landfall": null, "step": "untap it"}', content)
 
     def test_a_produced_row_holds_existing_attributes_only(self):
-        payload = self.payload_requiring([])
-        payload.update({
-            'featureproducedincombo_set-TOTAL_FORMS': '1',
-            'featureproducedincombo_set-0-feature': str(self.f4_id),
-            'featureproducedincombo_set-0-dictionary': '{"step": "untap it"}',
-        })
-        response = self.client.post(self.add_url(), data=payload)
+        response = self.client.post(self.add_url(), data=self.payload_producing(self.payload_requiring([]), attribute_texts='{"step": "untap it"}'))
         self.assertEqual(response.status_code, 200)
-        self.assertIn('these are none: step. Create them as attributes first.', unescape(response.content.decode()))
+        self.assertIn('These are no attributes: step. Create them as attributes first.', unescape(response.content.decode()))
 
     def test_a_key_written_is_built_in_or_an_attribute(self):
         payload = self.payload_requiring([self.f2_id], description='Sacrifice it[[FB@effect]], naming [[FB]], [[FB@description]].')
@@ -309,15 +284,10 @@ class ComboAdminReferencesTests(ComboAdminTestCase):
         FeatureAttribute.objects.create(name='effect')
         self.assertSaved(payload)
 
-    def test_the_dictionaries_of_the_produced_features_are_checked_too(self):
+    def test_the_texts_and_attributes_of_the_produced_features_are_checked_too(self):
         FeatureAttribute.objects.create(name='sac step')
-        payload = self.payload_requiring([self.f3_id])
-        payload.update({
-            'featureproducedincombo_set-TOTAL_FORMS': '1',
-            'featureproducedincombo_set-0-feature': str(self.f4_id),
-            'featureproducedincombo_set-0-dictionary': '{"sac step": "Sacrifice [[FB]]"}',
-        })
-        self.assertRejected(payload, '[[FB]]')
+        self.assertRejected(self.payload_producing(self.payload_requiring([self.f3_id]), attribute_texts='{"sac step": "Sacrifice [[FB]]"}'), '[[FB]]')
+        self.assertRejected(self.payload_producing(self.payload_requiring([self.f3_id]), description='Sacrifice [[FB]]'), '[[FB]]')
 
     def test_line_references_are_saved(self):
         self.assertSaved(self.payload_requiring([], description='\n'.join(f'Step {i}' for i in range(1, 8)) + f'\nBack to {format_line_reference(5, "-")}, then {format_line_reference(7)}.'))
@@ -377,7 +347,7 @@ class ComboAdminMultipleCopiesTests(ComboAdminTestCase):
             'templateincombo_set-0-quantity': quantity,
             'templateincombo_set-0-zone_locations': ZoneLocation.BATTLEFIELD,
             'templateincombo_set-0-order': '1',
-            'templateincombo_set-0-dictionary': '{}',
+            'templateincombo_set-0-in_replacements': 'on',
         })
         return payload
 

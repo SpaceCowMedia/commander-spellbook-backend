@@ -59,8 +59,10 @@ class FeatureAdminTests(SpellbookTestCaseWithSeeding):
             order=1,
             zone_locations=ZoneLocation.GRAVEYARD,
             graveyard_card_state='below [[Old Feature]]',
-            dictionary={'description': 'Cast [[Old Feature]] for free', 'targets': ['[[Old Feature$2]]', 'a creature']},
         )
+        produced = FeatureProducedInCombo.objects.create(combo=combo, feature=Feature.objects.create(name='Produced Feature'), description='Cast [[Old Feature]] for free')
+        targets = FeatureAttribute.objects.create(name='targets')
+        produced.attributes.add(targets, through_defaults={'value': '[[Old Feature$2]] or a creature'})
         removing_combo = Combo.objects.create(status=Combo.Status.UTILITY)
         FeatureRemovedInCombo.objects.create(combo=removing_combo, feature=feature)
         only_included = Combo.objects.create(status=Combo.Status.UTILITY, description='[[Old Feature$Attribute@description]] only')
@@ -83,7 +85,9 @@ class FeatureAdminTests(SpellbookTestCaseWithSeeding):
         self.assertEqual(card_in_combo.battlefield_card_state, 'next to [[New Feature]]')
         feature_in_combo.refresh_from_db()
         self.assertEqual(feature_in_combo.graveyard_card_state, 'below [[New Feature]]')
-        self.assertEqual(feature_in_combo.dictionary, {'description': 'Cast [[New Feature]] for free', 'targets': ['[[New Feature$2]]', 'a creature']})
+        produced.refresh_from_db()
+        self.assertEqual(produced.description, 'Cast [[New Feature]] for free')
+        self.assertEqual(produced.attributes.through.objects.get(producer=produced).value, '[[New Feature$2]] or a creature')
         removing_combo.refresh_from_db()
         self.assertIn('New Feature', removing_combo.name)
         only_included.refresh_from_db()
@@ -109,8 +113,9 @@ class FeatureAdminTests(SpellbookTestCaseWithSeeding):
             card_id=self.c2_id,
             feature=unrelated_feature,
             zone_locations=ZoneLocation.BATTLEFIELD,
-            dictionary={'notable_prerequisites': 'needs [[Old Feature]]', 'description': ['then [[Old Feature]] happens']},
+            notable_prerequisites='needs [[Old Feature]]',
         )
+        feature_of_card.attributes.add(FeatureAttribute.objects.create(name='effect'), through_defaults={'value': 'then [[Old Feature]] happens'})
 
         feature.name = 'New Feature'
         feature.save()
@@ -120,7 +125,8 @@ class FeatureAdminTests(SpellbookTestCaseWithSeeding):
         card_in_unrelated_combo.refresh_from_db()
         self.assertEqual(card_in_unrelated_combo.battlefield_card_state, 'next to [[New Feature]]')
         feature_of_card.refresh_from_db()
-        self.assertEqual(feature_of_card.dictionary, {'notable_prerequisites': 'needs [[New Feature]]', 'description': ['then [[New Feature]] happens']})
+        self.assertEqual(feature_of_card.notable_prerequisites, 'needs [[New Feature]]')
+        self.assertEqual(feature_of_card.attributes.through.objects.get(producer=feature_of_card).value, 'then [[New Feature]] happens')
 
     def test_merge_feature_updates_references(self):
         source = Feature.objects.create(name='Source Feature')
@@ -277,7 +283,7 @@ class FeatureAdminTests(SpellbookTestCaseWithSeeding):
         self.assertIn('New Feature', combo.name)
         self.assertNotIn('Old Feature', combo.name)
 
-    def post_card_row(self, feature: Feature, dictionary: str):
+    def post_card_row(self, feature: Feature, attribute_texts: str, **fields: str):
         self.client.force_login(self.admin)
         return self.client.post(f'/admin/spellbook/feature/{feature.id}/change/', {
             'name': feature.name,
@@ -291,18 +297,19 @@ class FeatureAdminTests(SpellbookTestCaseWithSeeding):
             'featureofcard_set-0-quantity': '1',
             'featureofcard_set-0-zone_locations': ZoneLocation.BATTLEFIELD,
             'featureofcard_set-0-is_mana_needed_an_accurate_minimum': 'on',
-            'featureofcard_set-0-dictionary': dictionary,
+            'featureofcard_set-0-attribute_texts': attribute_texts,
+            **{f'featureofcard_set-0-{field}': value for field, value in fields.items()},
         })
 
-    def test_a_card_row_keeps_its_attributes_apart_from_its_dictionary(self):
+    def test_a_card_row_keeps_its_attributes_apart_from_its_texts(self):
         feature = Feature.objects.create(name='Attributed Feature', status=Feature.Status.HIDDEN_UTILITY)
         FeatureAttribute.objects.create(name='effect')
 
-        response = self.post_card_row(feature, '{"mana_needed": "{1}", "effect": "adding {C}"}')
+        response = self.post_card_row(feature, '{"effect": "adding {C}"}', mana_needed='{1}')
 
         self.assertEqual(response.status_code, 302)
         row = feature.featureofcard_set.get()
-        self.assertEqual(row.dictionary, {'mana_needed': '{1}'})
+        self.assertEqual(row.mana_needed, '{1}')
         self.assertEqual(list(row.attributes.through.objects.filter(producer=row).values_list('attribute__name', 'value')), [('effect', 'adding {C}')])
 
     def test_the_attributes_of_a_card_reference_no_feature(self):

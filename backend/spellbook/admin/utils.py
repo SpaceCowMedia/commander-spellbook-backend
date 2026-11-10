@@ -13,7 +13,8 @@ from django.urls.resolvers import URLPattern
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from django.utils.formats import localize
-from django.forms import Textarea
+from django.core.validators import EMPTY_VALUES
+from django.forms import JSONField as JSONFormField, Textarea
 from django.contrib.admin import ModelAdmin
 from django.contrib.admin.views.main import ORDER_VAR, ChangeList
 from django.utils.safestring import SafeText
@@ -21,7 +22,6 @@ from constants import SORTED_COLORS
 from adminsortable2.admin import SortableAdminBase
 from spellbook.variants.variants_generator import DEFAULT_CARD_LIMIT
 from spellbook.models.utils import sanitize_newlines_apostrophes_and_quotes, sanitize_mana, sanitize_scryfall_query
-from spellbook.models.references import map_dictionary_texts
 
 
 MESSAGE_LIST_LIMIT = 10
@@ -46,11 +46,11 @@ class NormalizedTextareaWidget(Textarea):
         return sanitize_newlines_apostrophes_and_quotes(s)
 
 
-class DictionaryWidget(Textarea):
-    '''A dictionary shown as a summary of its keys, the ones blanking a text struck through, which opens
-    an editor of its keys and values, or of the whole of it as YAML or JSON, suggesting every attribute
-    as a key. The JSON it holds is submitted as it is, its texts normalized the way the other texts of
-    the admin are.'''
+class AttributesWidget(Textarea):
+    '''The attributes of a producer, each holding a text or nothing, shown as a summary of their names,
+    which opens an editor of them one by one, or of the whole of them as YAML or JSON, suggesting every
+    attribute as a name. The JSON it carries is submitted as it is, its texts normalized the way the
+    other texts of the admin are.'''
     template_name = 'admin/spellbook/widgets/dictionary.html'
 
     class Media:
@@ -63,7 +63,7 @@ class DictionaryWidget(Textarea):
             parsed = json.loads(context['widget']['value'] or '{}')
         except ValueError:
             parsed = None
-        context['widget']['keys'] = [(key, value == '') for key, value in parsed.items()] if isinstance(parsed, dict) else None
+        context['widget']['keys'] = list(parsed) if isinstance(parsed, dict) else None
         context['widget']['attributes_url'] = reverse('admin:spellbook_featureattribute_names')
         return context
 
@@ -73,12 +73,20 @@ class DictionaryWidget(Textarea):
             parsed = json.loads(value)
         except (TypeError, ValueError):
             return value
-        if not isinstance(parsed, dict) or not all(item is None or isinstance(item, str) or isinstance(item, list) and all(isinstance(text, str) for text in item) for item in parsed.values()):
+        if not isinstance(parsed, dict) or not all(text is None or isinstance(text, str) for text in parsed.values()):
             return value
-        sanitized = map_dictionary_texts(parsed, sanitize_newlines_apostrophes_and_quotes)
-        if 'mana_needed' in sanitized:
-            sanitized['mana_needed'] = map_dictionary_texts({'mana_needed': sanitized['mana_needed']}, sanitize_mana)['mana_needed']
-        return json.dumps(sanitized, ensure_ascii=False)
+        return json.dumps({name: text if text is None else sanitize_newlines_apostrophes_and_quotes(text) for name, text in parsed.items()}, ensure_ascii=False)
+
+
+class AttributesFormField(JSONFormField):
+    '''The attributes of a producer, mapping their names to a text or nothing, which the form of the
+    producer saves on its relationships with them.'''
+    empty_values = [value for value in EMPTY_VALUES if not isinstance(value, dict)]
+    widget = AttributesWidget
+
+    def to_python(self, value):
+        value = super().to_python(value)
+        return {} if value is None else value
 
 
 class SpellbookAdminForm(ModelForm):

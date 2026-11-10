@@ -86,10 +86,9 @@ def compute_fingerprints(data: Data) -> Fingerprints:
                 feature_of_card.feature_id,
                 *(getattr(feature_of_card, field) for field in _INGREDIENT_FINGERPRINT_FIELDS),
                 feature_of_card.used_face,
+                *(getattr(feature_of_card, field) for field in _EXPLANATION_FINGERPRINT_FIELDS),
                 tuple(sorted(data.feature_of_card_to_attributes.get(feature_of_card.id, ()))),
                 canonical_dictionary(data.feature_of_card_to_attribute_values.get(feature_of_card.id, {})),
-                canonical_dictionary(feature_of_card.dictionary),
-                feature_of_card.is_mana_needed_an_accurate_minimum,
             )
             for feature_of_card in data.card_to_features.get(card_id, ())
         )
@@ -109,18 +108,18 @@ def compute_fingerprints(data: Data) -> Fingerprints:
     combo_fingerprints = dict[int, str]()
     for combo_id, combo in data.id_to_combo.items():
         card_in_combo_rows = [
-            (card_in_combo.card_id, card_in_combo.order, card_in_combo.used_face, canonical_dictionary(card_in_combo.dictionary), *(getattr(card_in_combo, field) for field in _INGREDIENT_FINGERPRINT_FIELDS))
+            (card_in_combo.card_id, card_in_combo.order, card_in_combo.used_face, card_in_combo.in_replacements, *(getattr(card_in_combo, field) for field in _INGREDIENT_FINGERPRINT_FIELDS))
             for card_in_combo in data.combo_to_cards.get(combo_id, ())
         ]
         template_in_combo_rows = [
-            (template_in_combo.template_id, template_in_combo.order, canonical_dictionary(template_in_combo.dictionary), *(getattr(template_in_combo, field) for field in _INGREDIENT_FINGERPRINT_FIELDS))
+            (template_in_combo.template_id, template_in_combo.order, template_in_combo.in_replacements, *(getattr(template_in_combo, field) for field in _INGREDIENT_FINGERPRINT_FIELDS))
             for template_in_combo in data.combo_to_templates.get(combo_id, ())
         ]
         feature_needed_in_combo_rows = sorted(
             (
                 feature_needed_in_combo.feature_id,
                 feature_needed_in_combo.quantity,
-                canonical_dictionary(feature_needed_in_combo.dictionary),
+                feature_needed_in_combo.in_replacements,
                 feature_needed_in_combo.zone_locations,
                 tuple(sorted(data.feature_needed_in_combo_to_attributes_matcher[feature_needed_in_combo.id].any_of)),
                 tuple(sorted(data.feature_needed_in_combo_to_attributes_matcher[feature_needed_in_combo.id].all_of)),
@@ -133,7 +132,7 @@ def compute_fingerprints(data: Data) -> Fingerprints:
                 feature_produced_in_combo.feature_id,
                 tuple(sorted(data.feature_produced_in_combo_to_attributes.get(feature_produced_in_combo.id, ()))),
                 canonical_dictionary(data.feature_produced_in_combo_to_attribute_values.get(feature_produced_in_combo.id, {})),
-                canonical_dictionary(feature_produced_in_combo.dictionary),
+                *(getattr(feature_produced_in_combo, field) for field in _EXPLANATION_FINGERPRINT_FIELDS),
             )
             for feature_produced_in_combo in data.combo_to_produced_features.get(combo_id, ())
         )

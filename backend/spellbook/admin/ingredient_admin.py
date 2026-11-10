@@ -4,12 +4,10 @@ from django.db.models import TextField, CharField
 from django.forms import TextInput, Textarea
 from adminsortable2.admin import SortableTabularInline
 from django.http import HttpRequest
-from spellbook.models import FeatureAttribute, FeatureOfCard, Ingredient
-from spellbook.models.constants import MAX_ATTRIBUTE_VALUE_LENGTH
-from spellbook.models.fields import DictionaryField
-from spellbook.models.references import BUILT_IN_KEYS, references_to_features_not_needed
-from spellbook.models.validators import PRODUCER_ATTRIBUTES_VALIDATOR
-from .utils import DictionaryWidget, SpellbookAdminForm
+from spellbook.models import Explanation, FeatureAttribute, FeatureOfCard, Ingredient
+from spellbook.models.references import references_to_features_not_needed
+from spellbook.models.validators import validate_attributes
+from .utils import AttributesFormField, SpellbookAdminForm
 
 
 def _textarea():
@@ -30,28 +28,24 @@ class IngredientForm(SpellbookAdminForm):
 
 
 class AttributesForm(SpellbookAdminForm):
-    '''The form of a producer, whose dictionary is edited along with its attributes: an attribute is a
-    key holding the text the producer provides under it, or nothing, saved with the attribute rather
-    than in the dictionary.'''
+    '''The form of a producer, editing the attributes it produces its feature with, each holding the text
+    it provides under that attribute or nothing, saved on its relationships with them.'''
     references_allowed = True
+    attribute_texts = AttributesFormField(required=False, label='attributes', help_text='The attributes this produces the feature with, each holding nothing or a text a combo needing the feature writes with the [[feature@attribute]] syntax.')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['dictionary'].widget.attrs['data-tags'] = 'true'
         if self.instance.pk is not None:
             rows = self.instance.attributes.through.objects.filter(producer=self.instance).select_related('attribute').order_by('attribute__name')
-            self.initial['dictionary'] = {**(self.instance.dictionary or {}), **{row.attribute.name: row.value or None for row in rows}}
+            self.initial['attribute_texts'] = {row.attribute.name: row.value or None for row in rows}
 
-    def clean_dictionary(self):
-        dictionary = self.cleaned_data.get('dictionary') or {}
-        PRODUCER_ATTRIBUTES_VALIDATOR(dictionary)
-        values = {key: value or '' for key, value in dictionary.items() if key not in BUILT_IN_KEYS}
-        if too_long := sorted(key for key, value in values.items() if len(value) > MAX_ATTRIBUTE_VALUE_LENGTH):
-            raise ValidationError(f'An attribute holds at most {MAX_ATTRIBUTE_VALUE_LENGTH} characters, which these exceed: {", ".join(too_long)}.')
-        if not self.references_allowed and (references := references_to_features_not_needed(values.values(), ())):
+    def clean_attribute_texts(self):
+        attributes = self.cleaned_data.get('attribute_texts') or {}
+        validate_attributes(attributes)
+        texts = {name: text or '' for name, text in attributes.items()}
+        if not self.references_allowed and (references := references_to_features_not_needed(texts.values(), ())):
             raise ValidationError(f'A card feature cannot reference features, since it needs none: {", ".join(references)}.')
-        self.cleaned_data['attribute_values'] = values
-        return {key: value for key, value in dictionary.items() if key in BUILT_IN_KEYS}
+        return texts
 
     def save(self, commit=True):
         instance = super().save(commit=commit)
@@ -67,34 +61,28 @@ class AttributesForm(SpellbookAdminForm):
         return instance
 
     def save_attributes(self):
-        values = self.cleaned_data.get('attribute_values')
-        if values is None:
+        texts = self.cleaned_data.get('attribute_texts')
+        if texts is None:
             return
-        attributes = dict(FeatureAttribute.objects.filter(name__in=values).values_list('name', 'id'))
+        attributes = dict(FeatureAttribute.objects.filter(name__in=texts).values_list('name', 'id'))
         rows = self.instance.attributes.through.objects
         rows.filter(producer=self.instance).exclude(attribute_id__in=attributes.values()).delete()
-        for name, value in values.items():
-            rows.update_or_create(producer=self.instance, attribute_id=attributes[name], defaults={'value': value})
+        for name, text in texts.items():
+            rows.update_or_create(producer=self.instance, attribute_id=attributes[name], defaults={'value': text})
 
 
-class DictionaryAdminInline(TabularInline):
-    '''An inline whose rows hold a dictionary: its fields, then the dictionary, edited in a dialog of its own.'''
+class WithFeatureAttributesAdminInline(TabularInline):
+    '''An inline of the rows producing a feature: the related object, its fields, then the attributes the
+    feature is produced with, edited in a dialog of their own.'''
+    form = AttributesForm
+    related_field: str
     formfield_overrides = {
-        DictionaryField: {'widget': DictionaryWidget},
+        CharField: {'widget': TextInput(attrs={'size': '12'})},
+        TextField: {'widget': _textarea()},
     }
 
     def get_fields(self, request: HttpRequest, obj=None):
-        return [*(self.fields or ()), 'dictionary']
-
-
-class WithFeatureAttributesAdminInline(DictionaryAdminInline):
-    '''An inline of the rows producing a feature: the related object, its fields, then the dictionary
-    edited along with the attributes the feature is produced with.'''
-    form = AttributesForm
-    related_field: str
-
-    def get_fields(self, request: HttpRequest, obj=None):
-        return [self.related_field, *super().get_fields(request, obj)]
+        return [self.related_field, *(self.fields or ()), 'attribute_texts']
 
     def get_autocomplete_fields(self, request: HttpRequest):
         return [self.related_field, *super().get_autocomplete_fields(request)]
@@ -124,20 +112,17 @@ class FeatureOfCardAdmin(WithFeatureAttributesAdminInline, IngredientAdmin):
     fields = [
         IngredientAdmin.fields[0],  # pyright: ignore[reportGeneralTypeIssues]
         'used_face',
-        *IngredientAdmin.fields[1:],
+        'mana_needed',
         'is_mana_needed_an_accurate_minimum',
+        *IngredientAdmin.fields[1:],
+        *(field for field in Explanation.text_fields_with_references() if field != 'mana_needed'),
     ]
     model = FeatureOfCard
-    formfield_overrides = {
-        **WithFeatureAttributesAdminInline.formfield_overrides,
-        CharField: {'widget': TextInput(attrs={'size': '12'})},
-        TextField: {'widget': _textarea()},
-    }
 
 
 class OrderedIngredientAdmin(IngredientAdmin, SortableTabularInline):
     pass
 
 
-class ComboIngredientAdmin(OrderedIngredientAdmin, DictionaryAdminInline):
-    '''Sortable first, so that its order field comes after the dictionary.'''
+class ComboIngredientAdmin(OrderedIngredientAdmin):
+    fields = [*OrderedIngredientAdmin.fields, 'in_replacements']

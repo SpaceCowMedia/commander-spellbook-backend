@@ -17,8 +17,8 @@ from django.urls import reverse, path
 from django.shortcuts import redirect
 from django.utils import timezone
 from django.tasks import TaskResult
-from spellbook.models import Card, FeatureAttribute, FeatureNeededInCombo, FeatureProducedInCombo, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, ZoneLocation
-from spellbook.models.references import DEFAULT_KEY, attribute_keys_referenced, dictionary_texts, references_past_copies_needed, references_to_features_not_needed, references_to_unknown_keys
+from spellbook.models import Card, Explanation, FeatureAttribute, FeatureNeededInCombo, FeatureProducedInCombo, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, ZoneLocation
+from spellbook.models.references import attribute_keys_referenced, references_past_copies_needed, references_to_features_not_needed, references_to_unknown_keys
 from spellbook.models.utils import sanitize_newlines_apostrophes_and_quotes
 from spellbook.tasks import generate_variants_task
 from .utils import SpellbookModelAdmin, SpellbookAdminForm, CustomFilter, IngredientCountListFilter, join_for_message
@@ -224,6 +224,7 @@ class FeatureNeededInComboAdminInline(ComboIngredientAdmin):
 class FeatureProducedInComboAdminInline(WithFeatureAttributesAdminInline):
     model = FeatureProducedInCombo
     related_field = 'feature'
+    fields = tuple(Explanation.explanation_fields())
     extra = 0
     verbose_name = 'Feature'
     verbose_name_plural = 'Produced Features'
@@ -525,8 +526,8 @@ class ComboAdmin(SpellbookModelAdmin):
 
     def reject_combo_without_replacements(self, formsets: list[BaseModelFormSet]):
         '''
-        Reject a combo whose every ingredient leaves itself out of the names of the features it produces,
-        which would then have nothing to be named with in the texts referencing them.
+        Reject a combo whose every ingredient opted out of replacements, because the features it
+        produces would then have nothing to be named with in the texts referencing them.
         '''
         formsets_by_model = {formset.model: formset for formset in formsets}
         rows = list[dict[str, Any]]()
@@ -535,10 +536,10 @@ class ComboAdmin(SpellbookModelAdmin):
             if formset is None or not formset.is_valid():
                 return  # the submitted data has errors of its own, and is going to be shown back to the editor anyway
             rows.extend(form_data for form_data in formset.cleaned_data if form_data and not form_data.get('DELETE'))
-        if rows and all((form_data.get('dictionary') or {}).get(DEFAULT_KEY) == '' for form_data in rows):
+        if rows and not any(form_data.get('in_replacements') for form_data in rows):
             formsets_by_model[CardInCombo].non_form_errors().append(
-                f'This combo was not saved, because every one of its ingredients blanks its {DEFAULT_KEY} in its dictionary.'
-                ' Leave at least one of them in, so that the features it produces have something to be named with.'
+                'This combo was not saved, because none of its ingredients is in replacements.'
+                ' Check that box on at least one of them, so that the features it produces have something to be named with.'
             )
 
     def reject_references_beyond_requirements(self, request: HttpRequest, formsets: list[BaseModelFormSet]):
@@ -559,7 +560,6 @@ class ComboAdmin(SpellbookModelAdmin):
             for form_data in formset.cleaned_data:
                 if form_data and not form_data.get('DELETE'):
                     texts.extend(form_data.get(field) or '' for field in model.text_fields_with_references())
-                    texts.extend(dictionary_texts(form_data.get('dictionary') or {}))
                     if model is FeatureNeededInCombo:
                         feature = form_data['feature']
                         copies_needed[feature.name] = 1 if feature.uncountable else copies_needed.get(feature.name, 0) + form_data['quantity']
@@ -568,8 +568,8 @@ class ComboAdmin(SpellbookModelAdmin):
             return
         for form_data in produced.cleaned_data:
             if form_data and not form_data.get('DELETE'):
-                texts.extend(dictionary_texts(form_data.get('dictionary') or {}))
-                texts.extend(form_data.get('attribute_values', {}).values())
+                texts.extend(form_data.get(field) or '' for field in FeatureProducedInCombo.text_fields_with_references())
+                texts.extend((form_data.get('attribute_texts') or {}).values())
         errors = formsets_by_model[FeatureNeededInCombo].non_form_errors()
         if references := references_to_features_not_needed(texts, copies_needed):
             errors.append(

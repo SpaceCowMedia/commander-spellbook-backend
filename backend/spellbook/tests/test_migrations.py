@@ -127,11 +127,11 @@ class DictionariesMigrationTests(SpellbookTestCase):
         outlet = Feature.objects.create(name='Outlet')
         FeatureAttribute.objects.create(name='effect')
         combo = Combo.objects.create(status=Combo.Status.UTILITY, description='[[Outlet|outlet]] then [[Outlet@mana]], [[!outlet@sac step]] and [[Outlet@description]]')
-        FeatureNeededInCombo.objects.create(combo=combo, feature=outlet, order=1, dictionary={'name': '', 'effect': 'it', 'step': ['first']})
+        FeatureNeededInCombo.objects.create(combo=combo, feature=outlet, order=1)
 
         dictionaries.create_key_attributes(apps, None)
 
-        self.assertEqual(sorted(FeatureAttribute.objects.values_list('name', flat=True)), ['effect', 'mana', 'sac step', 'step'])
+        self.assertEqual(sorted(FeatureAttribute.objects.values_list('name', flat=True)), ['effect', 'mana', 'sac step'])
 
     def test_names_holding_reserved_characters_stop_the_migration(self):
         dictionaries.refuse_reserved_names(apps, None)

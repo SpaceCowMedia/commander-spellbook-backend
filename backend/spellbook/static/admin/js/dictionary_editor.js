@@ -223,6 +223,16 @@
             pickAttribute(key, row);
             return item;
         }));
+        fitTexts();
+    }
+
+    // a text taking as many rows as it wraps to, up to eight, which only an open dialog can measure
+    function fitTexts() {
+        for (const input of dialog.querySelectorAll('.dictionary-text')) {
+            while (input.scrollHeight > input.clientHeight && input.rows < 8) {
+                input.rows++;
+            }
+        }
     }
 
     function currentAttributes() {
@@ -362,6 +372,7 @@
             showProblem(error.message);
         }
         dialog.showModal();
+        fitTexts();
     }
 
     document.addEventListener('click', event => {

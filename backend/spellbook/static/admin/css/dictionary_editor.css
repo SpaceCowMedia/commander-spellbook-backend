@@ -213,10 +213,16 @@ its names from the size of two lines of them */
     gap: 6px;
 }
 
+/* a column item: growing would size it by its column, ignoring the height a resize gives it */
 .dictionary-text {
-    flex: 1;
+    flex: none;
     min-width: 0;
     resize: vertical;
+}
+
+/* the admin caps a textarea on a narrow screen, where the editor scrolls instead */
+.dictionary-dialog textarea {
+    max-height: none;
 }
 
 .dictionary-kind {

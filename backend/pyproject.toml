@@ -5,7 +5,7 @@ requires-python = ">=3.14"
 dynamic = ["version"]
 dependencies = [
     "anytree==2.13.0",
-    "boto3==1.43.123",
+    "boto3==1.43.126",
     "Django==6.0.7",
     "django-filter==26.2",
     "django-cors-headers==4.9.0",
@@ -19,7 +19,7 @@ dependencies = [
     "django-tasks==0.11.0",
     "discord-webhook==1.4.1",
     "lark==1.3.1",
-    "markdown==3.11.2",
+    "markdown==3.11.3",
 ]
 
 [project.urls]
@@ -49,7 +49,7 @@ force-include = { "manage.py" = "manage.py" }
 py-modules = []
 
 [dependency-groups]
-prod = ["gunicorn", "psycopg[binary,pool]==3.3.6"]  # Dependabot only tracks a requirement with extras when it is pinned
+prod = ["gunicorn", "psycopg[binary,pool]==3.3.8"]  # Dependabot only tracks a requirement with extras when it is pinned
 cython = ["cython", "setuptools"]
 dev = [
     "tblib",
@@ -61,7 +61,7 @@ dev = [
     "aiohttp==3.14.5",
     "aiohttp-retry==2.9.1",
     "lazy-imports==1.2.0",
-    "pydantic==2.14.2",
+    "pydantic==2.14.3",
     "python-dateutil==2.9.0.post0",
     "urllib3==2.8.0",
     "django-stubs[compatible-mypy]>=6.1.0",

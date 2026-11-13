@@ -1,11 +1,14 @@
+from typing import cast
 from django.contrib.admin import TabularInline
+from django.core.exceptions import ValidationError
 from django.db.models import TextField, CharField
 from django.forms import TextInput, Textarea
 from adminsortable2.admin import SortableTabularInline
 from django.http import HttpRequest
-from spellbook.models import FeatureOfCard, Ingredient
-from spellbook.models.references import format_feature_inclusion
-from .utils import SpellbookAdminForm
+from spellbook.models import Explanation, FeatureAttribute, FeatureOfCard, Ingredient
+from spellbook.models.references import references_to_features_not_needed
+from spellbook.models.validators import validate_attributes
+from .utils import AttributesFormField, AttributesWidget, SpellbookAdminForm
 
 
 def _textarea():
@@ -25,6 +28,96 @@ class IngredientForm(SpellbookAdminForm):
         widgets = {state: _textarea() for state in Ingredient.CARD_STATE_FIELDS.values()}
 
 
+ATTRIBUTES_HELP = 'The attributes this produces the feature with. Each can hold a text, which a combo needing the feature writes with [[feature@attribute]], or nothing.'
+
+
+class AttributesForm(SpellbookAdminForm):
+    '''The form of a producer, editing in one editor the fields of its explanation, with the widgets they
+    resolve to, and the attributes it produces its feature with, each holding the text it provides under
+    that attribute or nothing, saved on its relationships with them.'''
+    references_allowed = True
+    attribute_texts = AttributesFormField(required=False, initial=dict, label='explanation and attributes', help_text='The explanation of this, and the attributes it produces the feature with, each holding nothing or a text a combo needing the feature writes with the [[feature@attribute]] syntax.')
+    # what the user may do with the attributes from the editor, set by the inline for each request
+    attribute_links: dict[str, bool] = {}
+    explanation_help = 'Each text filled here replaces what the combo writes in the same field, only where it writes as the producer of this feature: for a combo needing the feature, and in the variants listing it as a result.'
+    attributes_help = f'{ATTRIBUTES_HELP} An attribute holding a text here replaces the text a feature this combo needs brings under the same attribute.'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        widget: AttributesWidget = self.fields['attribute_texts'].widget
+        widget.links = self.attribute_links
+        widget.explanation = [self[name] for name in Explanation.explanation_fields() if name in self.fields]
+        widget.explanation_help = self.explanation_help
+        widget.attributes_help = self.attributes_help
+        if self.instance.pk is not None:
+            rows = self.instance.attributes.through.objects.filter(producer=self.instance).select_related('attribute').order_by('attribute__name')
+            self.initial['attribute_texts'] = {row.attribute.name: row.value or None for row in rows}
+
+    def clean_attribute_texts(self):
+        attributes = self.cleaned_data.get('attribute_texts') or {}
+        validate_attributes(attributes)
+        texts = {name: text or '' for name, text in attributes.items()}
+        if not self.references_allowed and (references := references_to_features_not_needed(texts.values(), ())):
+            raise ValidationError(f'A card feature cannot reference features, since it needs none: {", ".join(references)}.')
+        return texts
+
+    def save(self, commit=True):
+        instance = super().save(commit=commit)
+        if commit:
+            self.save_attributes()
+        else:
+            save_m2m = self.save_m2m
+
+            def save_all():
+                save_m2m()
+                self.save_attributes()
+            self.save_m2m = save_all
+        return instance
+
+    def save_attributes(self):
+        texts = self.cleaned_data.get('attribute_texts')
+        if texts is None:
+            return
+        attributes = dict(FeatureAttribute.objects.filter(name__in=texts).values_list('name', 'id'))
+        rows = self.instance.attributes.through.objects
+        rows.filter(producer=self.instance).exclude(attribute_id__in=attributes.values()).delete()
+        for name, text in texts.items():
+            rows.update_or_create(producer=self.instance, attribute_id=attributes[name], defaults={'value': text})
+
+
+class WithFeatureAttributesAdminInline(TabularInline):
+    '''An inline of the rows producing a feature: the related object, its fields, then its explanation and
+    the attributes the feature is produced with, edited in a dialog of their own. Who cannot change the
+    rows reads their explanation in columns instead.'''
+    form = AttributesForm
+    related_field: str
+    formfield_overrides = {
+        CharField: {'widget': TextInput(attrs={'size': '12'})},
+        TextField: {'widget': _textarea()},
+    }
+
+    def get_fields(self, request: HttpRequest, obj=None):
+        fields = self.fields or ()
+        if self.has_change_permission(request, obj):
+            fields = [field for field in fields if field not in Explanation.explanation_fields()]
+        return [self.related_field, *fields, 'attribute_texts']
+
+    def get_autocomplete_fields(self, request: HttpRequest):
+        return [self.related_field, *super().get_autocomplete_fields(request)]
+
+    def get_formset(self, request: HttpRequest, obj=None, **kwargs):
+        kwargs.setdefault('fields', [self.related_field, *(self.fields or ()), 'attribute_texts'])
+        formset = super().get_formset(request, obj, **kwargs)
+        attributes = self.admin_site.get_model_admin(FeatureAttribute)
+        # the form is made anew for each request, so it can carry what this user may do
+        cast(type[AttributesForm], formset.form).attribute_links = {
+            'can_add_related': attributes.has_add_permission(request),
+            'can_change_related': attributes.has_change_permission(request),
+            'can_view_related': attributes.has_view_permission(request),
+        }
+        return formset
+
+
 class IngredientAdmin(TabularInline):
     form = IngredientForm
     extra = 0
@@ -37,43 +130,26 @@ class IngredientAdmin(TabularInline):
     ]
 
 
-class FeatureOfCardForm(IngredientForm):
+class FeatureOfCardForm(AttributesForm, IngredientForm):
+    references_allowed = False
+    explanation_help = 'Each text filled here is added to the same field of the variants needing this feature from this card, ahead of the texts of their combos, unless a text of that field references it, as [[feature@description]] does in a description, writing it there instead. A needed row out of replacements leaves it out, unless a text references it.'
+    attributes_help = ATTRIBUTES_HELP
+
     class Meta(IngredientForm.Meta):
-        help_texts = {
-            'description': 'How the card produces the feature. Unlike the other fields, this one is never appended to the description of a variant on its own:'
-            f' it is written only where a text names this feature with the {format_feature_inclusion("name")} syntax, so that it lands among the steps that need it.'
-            ' Like every text of a card feature, it cannot reference features itself.',
-        }
+        pass
 
 
-class FeatureOfCardAdmin(IngredientAdmin):
+class FeatureOfCardAdmin(WithFeatureAttributesAdminInline, IngredientAdmin):
     form = FeatureOfCardForm
-    related_field: str
     fields = [
-        'attributes',
         IngredientAdmin.fields[0],  # pyright: ignore[reportGeneralTypeIssues]
         'used_face',
         'mana_needed',
         'is_mana_needed_an_accurate_minimum',
         *IngredientAdmin.fields[1:],
-        'easy_prerequisites',
-        'notable_prerequisites',
-        'description',
-        'notes',
-        'comment',
+        *(field for field in Explanation.text_fields_with_references() if field != 'mana_needed'),
     ]
     model = FeatureOfCard
-    autocomplete_fields = ['attributes']
-    formfield_overrides = {
-        CharField: {'widget': TextInput(attrs={'size': '12'})},
-        TextField: {'widget': _textarea()},
-    }
-
-    def get_fields(self, request: HttpRequest, obj: FeatureOfCard | None = None):
-        return [self.related_field, *self.fields]
-
-    def get_autocomplete_fields(self, request: HttpRequest):
-        return [self.related_field, *self.autocomplete_fields]
 
 
 class OrderedIngredientAdmin(IngredientAdmin, SortableTabularInline):

@@ -1,4 +1,5 @@
 import hashlib
+import json
 from collections import deque
 from dataclasses import dataclass
 from enum import Enum
@@ -14,7 +15,7 @@ Fingerprints = dict[str, dict[int, str]]
 
 # Bump this version to force a full regeneration
 # whenever the generation algorithm changes in a way that affects its output.
-_FINGERPRINT_VERSION = 7
+_FINGERPRINT_VERSION = 8
 
 _META_KIND = 'meta'
 _ENTITY_KINDS = ('card', 'template', 'feature', 'combo')
@@ -50,6 +51,10 @@ _INGREDIENT_FINGERPRINT_FIELDS = (
 )
 
 
+def canonical_dictionary(dictionary: dict) -> str:
+    return json.dumps(dictionary, sort_keys=True)
+
+
 def _hash_parts(parts: Iterable[object]) -> str:
     hasher = hashlib.blake2b(digest_size=16)
     for part in parts:
@@ -83,6 +88,7 @@ def compute_fingerprints(data: Data) -> Fingerprints:
                 feature_of_card.used_face,
                 *(getattr(feature_of_card, field) for field in _EXPLANATION_FINGERPRINT_FIELDS),
                 tuple(sorted(data.feature_of_card_to_attributes.get(feature_of_card.id, ()))),
+                canonical_dictionary(data.feature_of_card_to_attribute_values.get(feature_of_card.id, {})),
             )
             for feature_of_card in data.card_to_features.get(card_id, ())
         )
@@ -125,6 +131,8 @@ def compute_fingerprints(data: Data) -> Fingerprints:
             (
                 feature_produced_in_combo.feature_id,
                 tuple(sorted(data.feature_produced_in_combo_to_attributes.get(feature_produced_in_combo.id, ()))),
+                canonical_dictionary(data.feature_produced_in_combo_to_attribute_values.get(feature_produced_in_combo.id, {})),
+                *(getattr(feature_produced_in_combo, field) for field in _EXPLANATION_FINGERPRINT_FIELDS),
             )
             for feature_produced_in_combo in data.combo_to_produced_features.get(combo_id, ())
         )

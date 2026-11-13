@@ -4,6 +4,8 @@ from spellbook.variants.multiset import FrozenMultiset
 from spellbook.variants.variant_data import Data
 from spellbook.variants.combo_graph import FeatureWithAttributes, Graph, GraphError, VariantRecipe
 from spellbook.variants.variant_set import VariantIngredients, VariantSet
+from spellbook.variants.replacements import IngredientPositions, VariantContext
+from spellbook.models.references import format_feature_reference
 from spellbook.tests.testing import SpellbookTestCaseWithSeeding, SpellbookTestCase
 
 
@@ -1185,10 +1187,36 @@ class ComboGraphCycleCachingTest(SpellbookTestCase):
 
 
 class ComboGraphReplacementsTest(SpellbookTestCase):
-    '''An ingredient not in replacements is left out of what the features its combo produces are
-    replaced with, while still taking part in matching the combo and in counting how many times it fires.'''
+    '''An ingredient out of replacements leaves the graph untouched: the ways it finds hold
+    every ingredient, and the variant leaves that one out of what the features its combo produces are
+    named with, while it still takes part in matching the combo and in counting how many times it fires.'''
 
-    def test_card_not_in_replacements(self):
+    def name_in(self, generator: int, consumer: int, feature: str) -> str:
+        '''What a reference to the feature names in a text of the consumer, in the only variant of the
+        generator, its cards displayed in the order of their numbers.'''
+        data = Data()
+        combo_graph = Graph(data)
+        variants = combo_graph.results(combo_graph.variants(generator))
+        self.assertEqual(len(variants), 1)
+        variant = variants[0]
+        replacements = {
+            feature_with_attributes: [
+                ([data.id_to_card[c] for c in recipe.cards.distinct_elements()], [data.id_to_template[t] for t in recipe.templates.distinct_elements()])
+                for recipe in recipes
+            ]
+            for feature_with_attributes, recipes in variant.replacements.items()
+        }
+        context = VariantContext.build(
+            data,
+            replacements,
+            [data.id_to_combo[generator]],
+            [data.id_to_combo[c] for c in sorted(variant.needed_combos - {generator})],
+            [data.id_to_feature_of_card[f] for f in sorted(variant.needed_feature_of_cards)],
+            IngredientPositions(cards={number: number for number in variant.cards.distinct_elements()}),
+        )
+        return context.apply(format_feature_reference(feature), consumer)
+
+    def test_the_graph_keeps_every_ingredient(self):
         self.setup_combo_graph({
             ('A', '~B'): ('x',),
             ('x', 'C'): ('y',),
@@ -1196,66 +1224,46 @@ class ComboGraphReplacementsTest(SpellbookTestCase):
         combo_graph = Graph(Data())
         variants = combo_graph.results(combo_graph.variants(2))
         self.assertEqual(len(variants), 1)
-        self.assertMultisetEqual(variants[0].cards, {1: 1, 2: 1, 3: 1})
-        self.assertEqual(variants[0].replacements, {
-            FeatureWithAttributes(Feature.objects.get(name='x'), frozenset()): [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset())],
-        })
+        self.assertEqual(variants[0].replacements[FeatureWithAttributes(Feature.objects.get(name='x'), frozenset())], [
+            VariantIngredients(FrozenMultiset({1: 1, 2: 1}), FrozenMultiset()),
+        ])
 
-    def test_template_not_in_replacements(self):
+    def test_card_left_out_of_names(self):
+        self.setup_combo_graph({
+            ('A', '~B'): ('x',),
+            ('x', 'C'): ('y',),
+        })
+        self.assertEqual(self.name_in(2, 2, 'x'), 'A')
+
+    def test_template_left_out_of_names(self):
         self.setup_combo_graph({
             ('A', '~TB'): ('x',),
             ('x', 'C'): ('y',),
         })
-        combo_graph = Graph(Data())
-        variants = combo_graph.results(combo_graph.variants(2))
-        self.assertEqual(len(variants), 1)
-        self.assertMultisetEqual(variants[0].templates, {1: 1})
-        self.assertEqual(variants[0].replacements, {
-            FeatureWithAttributes(Feature.objects.get(name='x'), frozenset()): [VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset())],
-        })
+        self.assertEqual(self.name_in(2, 2, 'x'), 'A')
 
-    def test_needed_feature_not_in_replacements(self):
-        '''The whole entry the opted out feature contributes is dropped, not just one of its cards.'''
+    def test_needed_feature_left_out_of_names(self):
+        '''The whole subtree the blanked feature brings is left out, not just one of its cards.'''
         self.setup_combo_graph({
             'A': ('x',),
             ('~x', 'B'): ('y',),
             ('y', 'C'): ('z',),
         })
-        combo_graph = Graph(Data())
-        variants = combo_graph.results(combo_graph.variants(2))
-        self.assertEqual(len(variants), 1)
-        self.assertMultisetEqual(variants[0].cards, {1: 1, 2: 1, 3: 1})
-        self.assertEqual(variants[0].replacements[FeatureWithAttributes(Feature.objects.get(name='y'), frozenset())], [
-            VariantIngredients(FrozenMultiset({2: 1}), FrozenMultiset()),
-        ])
+        self.assertEqual(self.name_in(2, 2, 'y'), 'B')
 
-    def test_opting_out_propagates_past_one_level(self):
-        '''The combo consuming z never mentions B either, because what replaces x carries over into
-        what replaces y, and from there into what replaces z.'''
+    def test_leaving_out_propagates_past_one_level(self):
+        '''The combo consuming z never names B either, because what names x carries over into what names
+        y, and from there into what names z.'''
         self.setup_combo_graph({
             ('A', '~B'): ('x',),
             ('x', 'C'): ('y',),
             ('y', 'D'): ('z',),
             ('z', 'E'): ('w',),
         })
-        combo_graph = Graph(Data())
-        variants = combo_graph.results(combo_graph.variants(4))
-        self.assertEqual(len(variants), 1)
-        self.assertMultisetEqual(variants[0].cards, {1: 1, 2: 1, 3: 1, 4: 1, 5: 1})
-        replacements = variants[0].replacements
-        self.assertEqual(replacements[FeatureWithAttributes(Feature.objects.get(name='x'), frozenset())], [
-            VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset()),
-        ])
-        self.assertEqual(replacements[FeatureWithAttributes(Feature.objects.get(name='y'), frozenset())], [
-            VariantIngredients(FrozenMultiset({1: 1, 3: 1}), FrozenMultiset()),
-        ])
-        self.assertEqual(replacements[FeatureWithAttributes(Feature.objects.get(name='z'), frozenset())], [
-            VariantIngredients(FrozenMultiset({1: 1, 3: 1, 4: 1}), FrozenMultiset()),
-        ])
+        self.assertEqual(self.name_in(4, 4, 'z'), 'A, C and D')
 
     def test_quantities_still_come_from_the_whole_variant_set(self):
-        '''Opting an ingredient out changes what a feature is replaced with, never how many times the
-        combo producing it fires.'''
+        '''Replacements change what a feature is named with, never how many times the combo producing it fires.'''
         self.setup_combo_graph({
             ('A', '~B'): ('x',),
         })
@@ -1264,35 +1272,24 @@ class ComboGraphReplacementsTest(SpellbookTestCase):
         combo_graph = Graph(Data())
         self.assertMultisetEqual(combo_graph.results(combo_graph.variants(1))[0].features, dict(expected.items()))
 
-    def test_opting_out_inside_a_cycle_terminates(self):
-        '''Combo 2 and combo 3 need each other's feature, which is the shape the marking of the nodes
-        with differing texts has to survive.'''
+    def test_leaving_out_inside_a_cycle_terminates(self):
+        '''Combo 2 and combo 3 need each other's feature, which is the shape the walk of a way has to survive.'''
         self.setup_combo_graph({
             'A': ('f',),
             ('f', '~B'): ('g',),        # combo 1
             ('g', 'C'): ('f', 'h'),     # combo 2
             ('h', 'D'): ('k',),         # combo 3
         })
-        combo_graph = Graph(Data())
-        variants = combo_graph.results(combo_graph.variants(3))
-        self.assertEqual(len(variants), 1)
-        self.assertMultisetEqual(variants[0].cards, {1: 1, 2: 1, 3: 1, 4: 1})
-        self.assertEqual(variants[0].replacements[FeatureWithAttributes(Feature.objects.get(name='g'), frozenset())], [
-            VariantIngredients(FrozenMultiset({1: 1}), FrozenMultiset()),
-        ])
+        self.assertEqual(self.name_in(3, 2, 'g'), 'A')
 
-    def test_every_ingredient_opted_out_leaves_no_replacement(self):
-        '''Nothing to render the feature with, and no crash either: the admin is what keeps editors
-        from saving a combo in this state.'''
+    def test_every_ingredient_left_out_names_nothing(self):
+        '''Nothing to name the feature with, and no crash either: the admin is what keeps editors from
+        saving a combo in this state.'''
         self.setup_combo_graph({
             ('~A', '~B'): ('x',),
             ('x', 'C'): ('y',),
         })
-        combo_graph = Graph(Data())
-        variants = combo_graph.results(combo_graph.variants(2))
-        self.assertEqual(len(variants), 1)
-        self.assertMultisetEqual(variants[0].cards, {1: 1, 2: 1, 3: 1})
-        self.assertEqual(variants[0].replacements, {FeatureWithAttributes(Feature.objects.get(name='x'), frozenset()): []})
+        self.assertEqual(self.name_in(2, 2, 'x'), '')
 
 
 class ComboGraphTransitiveReferenceTest(SpellbookTestCase):

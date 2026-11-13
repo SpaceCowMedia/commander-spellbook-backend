@@ -38,9 +38,11 @@ cdef class Data:
     cdef public dict combo_to_removed_features
     cdef public dict feature_needed_in_combo_to_attributes_matcher
     cdef public dict feature_produced_in_combo_to_attributes
+    cdef public dict feature_produced_in_combo_to_attribute_values
     cdef public dict card_to_features
     cdef public dict features_to_cards
     cdef public dict feature_of_card_to_attributes
+    cdef public dict feature_of_card_to_attribute_values
     cdef public dict variant_to_cards
     cdef public dict variant_uses_card_dict
     cdef public dict variant_to_templates

@@ -1,3 +1,4 @@
+import json
 from typing import Any, Iterable
 from datetime import datetime
 from django.db.models import Model, TextField, DateTimeField, Count, Q, When, Case, Max
@@ -5,20 +6,25 @@ from django.contrib import admin, messages
 from django.db.models.query import QuerySet
 from django.http import HttpRequest
 from django.http.response import HttpResponse
-from django.forms import ModelForm
+from django.forms import BoundField, ModelForm
 from django.shortcuts import redirect
 from django.urls import reverse, path
 from django.urls.resolvers import URLPattern
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from django.utils.formats import localize
-from django.forms import Textarea
+from django.core.validators import EMPTY_VALUES
+from django.forms import JSONField as JSONFormField, Media, Textarea
 from django.contrib.admin import ModelAdmin
+from django.contrib.admin.widgets import AutocompleteSelect
+from django.contrib.admin.options import IS_POPUP_VAR, TO_FIELD_VAR
 from django.contrib.admin.views.main import ORDER_VAR, ChangeList
+from django.template.loader import render_to_string
 from django.utils.safestring import SafeText
 from constants import SORTED_COLORS
 from adminsortable2.admin import SortableAdminBase
 from spellbook.variants.variants_generator import DEFAULT_CARD_LIMIT
+from spellbook.models import FeatureAttribute, FeatureOfCardAttribute
 from spellbook.models.utils import sanitize_newlines_apostrophes_and_quotes, sanitize_mana, sanitize_scryfall_query
 
 
@@ -42,6 +48,93 @@ class NormalizedTextareaWidget(Textarea):
     def value_from_datadict(self, data, files, name: str):
         s = super().value_from_datadict(data, files, name)
         return sanitize_newlines_apostrophes_and_quotes(s)
+
+
+class AttributesWidget(Textarea):
+    '''The explanation and the attributes of a producer, each attribute holding a text or nothing, shown
+    as a summary of the texts written and of the attribute names, which opens an editor of the fields of
+    the explanation, then of the attributes one by one, each picked from the autocomplete of the admin,
+    or of the whole of them as YAML or JSON. The fields of the explanation are rendered here, with their
+    own widgets, for the editor to show them. The JSON it carries is submitted as it is, its texts
+    normalized the way the other texts of the admin are.'''
+    template_name = 'admin/spellbook/widgets/dictionary.html'
+    # what the user may do with the attributes from the editor, which the form sets for each request
+    links: dict[str, bool] = {}
+    # the fields of the explanation of the producer and what they and the attributes do, which the form sets
+    explanation: list[BoundField] = []
+    explanation_help = ''
+    attributes_help = ''
+    # what the ids of the select of an attribute and of its links hold, until the editor names them after the row
+    key_placeholder = '__key__'
+
+    @property
+    def autocomplete(self) -> AutocompleteSelect:
+        '''The select of the admin picking an attribute, whose source and assets the editor picks them with.'''
+        return AutocompleteSelect(FeatureOfCardAttribute._meta.get_field('attribute'), admin.site)
+
+    @property
+    def media(self):
+        return self.autocomplete.media + Media(js=['admin/js/admin/RelatedObjectLookups.js', 'admin/js/js-yaml/4.1.0/js-yaml.min.js', 'admin/js/dictionary_editor.js'], css={'all': ['admin/css/dictionary_editor.css']})
+
+    def key_template(self) -> str:
+        '''The select of the attribute of a row, wrapped in the links of the admin to add, change or view
+        an attribute and to copy its name, which refer to attributes by name.'''
+        opts = FeatureAttribute._meta
+        return render_to_string('admin/widgets/related_widget_wrapper.html', {
+            'rendered_widget': format_html('<select class="dictionary-key" id="id_{}"></select>', self.key_placeholder),
+            'name': self.key_placeholder,
+            'model': opts.verbose_name,
+            'model_name': opts.model_name,
+            'url_params': f'{TO_FIELD_VAR}=name&{IS_POPUP_VAR}=1',
+            'view_related_url_params': f'{TO_FIELD_VAR}=name',
+            'add_related_url': reverse(f'admin:{opts.app_label}_{opts.model_name}_add'),
+            'change_related_template_url': reverse(f'admin:{opts.app_label}_{opts.model_name}_change', args=['__fk__']),
+            **self.links,
+        })
+
+    def get_context(self, name, value, attrs):
+        context = super().get_context(name, value, attrs)
+        try:
+            parsed = json.loads(context['widget']['value'] or '{}')
+        except ValueError:
+            parsed = None
+        context['widget']['keys'] = list(parsed) if isinstance(parsed, dict) else None
+        autocomplete = self.autocomplete
+        context['widget']['autocomplete'] = {
+            'url': autocomplete.get_url(),
+            'app_label': autocomplete.field.model._meta.app_label,
+            'model_name': autocomplete.field.model._meta.model_name,
+            'field_name': autocomplete.field.name,
+        }
+        context['widget']['key_template'] = self.key_template()
+        context['widget']['key_placeholder'] = self.key_placeholder
+        context['widget']['explanation'] = self.explanation
+        context['widget']['explanation_help'] = self.explanation_help
+        context['widget']['attributes_help'] = self.attributes_help
+        context['widget']['written_texts'] = [field.label for field in self.explanation if isinstance(field.value(), str) and field.value()]
+        context['widget']['explanation_errors'] = [f'{field.label}: {error}' for field in self.explanation for error in field.errors]
+        return context
+
+    def value_from_datadict(self, data, files, name: str):
+        value = super().value_from_datadict(data, files, name)
+        try:
+            parsed = json.loads(value)
+        except (TypeError, ValueError):
+            return value
+        if not isinstance(parsed, dict) or not all(text is None or isinstance(text, str) for text in parsed.values()):
+            return value
+        return json.dumps({name: text if text is None else sanitize_newlines_apostrophes_and_quotes(text) for name, text in parsed.items()}, ensure_ascii=False)
+
+
+class AttributesFormField(JSONFormField):
+    '''The attributes of a producer, mapping their names to a text or nothing, which the form of the
+    producer saves on its relationships with them.'''
+    empty_values = [value for value in EMPTY_VALUES if not isinstance(value, dict)]
+    widget = AttributesWidget
+
+    def to_python(self, value):
+        value = super().to_python(value)
+        return {} if value is None else value
 
 
 class SpellbookAdminForm(ModelForm):

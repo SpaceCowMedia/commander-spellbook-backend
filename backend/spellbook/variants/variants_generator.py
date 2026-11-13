@@ -367,12 +367,12 @@ def _restore_variant(
         mana_needed = context.field_assembly('mana_needed', merge_mana_costs)
         variant.mana_needed = mana_needed.assemble()
         variant.is_mana_needed_an_accurate_minimum = not variant.mana_needed or all(
-            context.sources[source].is_mana_needed_an_accurate_minimum
-            for source in mana_needed.written_sources
+            context.sources[index].is_mana_needed_an_accurate_minimum
+            for index in mana_needed.written_sources
         )
         variant.easy_prerequisites = context.render_field('easy_prerequisites')
         variant.notable_prerequisites = context.render_field('notable_prerequisites')
-        variant.description = context.render_field('description', only_when_included=context.feature_of_card_sources)
+        variant.description = context.render_field('description')
         variant.notes = context.render_field('notes')
         variant.comment = context.render_field('comment')
 

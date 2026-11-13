@@ -311,10 +311,11 @@ EXPLANATION_TEXT_FIELDS = ('mana_needed', 'easy_prerequisites', 'notable_prerequ
 CARD_STATE_TEXT_FIELDS = ('battlefield_card_state', 'exile_card_state', 'library_card_state', 'graveyard_card_state')
 
 
-def rewrite_reference_texts(apps, rewrite: Callable[[str, int | None], str]) -> None:
+def rewrite_reference_texts(apps, rewrite: Callable[[str, int | None, str], str]) -> None:
     '''Rewrites every text that can hold references, the ones of combos, of their ingredients and of
     the features of cards, saving only the rows that changed. The rewrite is given each text along with
-    the combo it belongs to, if any. A change of the reference syntax reuses it to convert the texts.'''
+    the combo it belongs to, if any, and the field it is in. A change of the reference syntax reuses it
+    to convert the texts.'''
     for model_name, fields, combo_field in (
         ('Combo', EXPLANATION_TEXT_FIELDS, 'id'),
         ('CardInCombo', CARD_STATE_TEXT_FIELDS, 'combo_id'),
@@ -329,7 +330,7 @@ def rewrite_reference_texts(apps, rewrite: Callable[[str, int | None], str]) -> 
         changed = []
         for row in model.objects.filter(with_references).only('pk', *fields, *([combo_field] if combo_field else [])).order_by().iterator(chunk_size=DEFAULT_BATCH_SIZE):
             combo_id = getattr(row, combo_field) if combo_field else None
-            texts = {field: rewrite(getattr(row, field), combo_id) for field in fields}
+            texts = {field: rewrite(getattr(row, field), combo_id, field) for field in fields}
             if any(getattr(row, field) != text for field, text in texts.items()):
                 for field, text in texts.items():
                     setattr(row, field, text)

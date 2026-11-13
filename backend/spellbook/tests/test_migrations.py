@@ -1,11 +1,12 @@
 from importlib import import_module
 from unittest import TestCase
 from django.apps import apps
-from spellbook.models import CardInCombo, Combo, ZoneLocation
+from spellbook.models import CardInCombo, Combo, Feature, FeatureAttribute, FeatureNeededInCombo, ZoneLocation
 from .testing import SpellbookTestCase, curated_card
 
 # A migration converts between the syntaxes of its time, so its tests write both as they were
 reference_prefixes = import_module('spellbook.migrations.0081_reference_prefixes')
+dictionaries = import_module('spellbook.migrations.0083_dictionaries')
 FSO = ('Free Sacrifice Outlet', None, None)
 
 
@@ -56,3 +57,106 @@ class ReferencePrefixesMigrationTests(SpellbookTestCase):
         state.refresh_from_db()
         self.assertEqual(defining.description, '[[Free Sacrifice Outlet|FSO]] then [[FSO]].\nRepeat from step {{1}}.')
         self.assertEqual(state.battlefield_card_state, 'as in step {{+1}}')
+
+
+class DictionariesConversionTests(TestCase):
+    def test_an_inclusion_becomes_a_reference_to_the_key_of_its_field(self):
+        self.assertEqual(dictionaries.convert_text('First {{FSO}}, then {{FSO$2}}.', 'description'), 'First [[FSO@description]], then [[FSO$2@description]].')
+        self.assertEqual(dictionaries.convert_text('{{FSO}} on the battlefield', 'battlefield_card_state'), '[[FSO@battlefield_card_state]] on the battlefield')
+
+    def test_an_alias_inclusion_keeps_its_alias(self):
+        self.assertEqual(dictionaries.convert_text('[[FSO|outlet]] then {{!outlet}}', 'notes'), '[[FSO|outlet]] then [[!outlet@notes]]')
+
+    def test_a_line_reference_takes_square_brackets(self):
+        self.assertEqual(dictionaries.convert_text('Step {{#3}}, then {{#+1}} and {{#-2}}.', 'description'), 'Step [[#3]], then [[#+1]] and [[#-2]].')
+
+    def test_replacements_and_symbols_are_left_as_written(self):
+        text = 'Pay {2}{U} to activate [[FSO$2|outlet]] and [[!outlet]].'
+        self.assertEqual(dictionaries.convert_text(text, 'description'), text)
+
+    def test_reverting_undoes_the_keys_of_its_own_field_only(self):
+        text = 'First {{FSO}}, {{!a}}, step {{#+1}}'
+        converted = dictionaries.convert_text(text, 'description')
+        self.assertEqual(dictionaries.revert_text(converted, 'description'), text)
+        self.assertEqual(dictionaries.revert_text('[[FSO@mana_needed]] and [[FSO@sac step]]', 'description'), '[[FSO@mana_needed]] and [[FSO@sac step]]')
+
+    def test_an_inclusion_in_a_description_references_what_the_card_descriptions_became(self):
+        keys = {'Blood': ('effect',), 'FSO': ('effect', 'description')}
+        text = '[[FSO|outlet]] then {{!outlet}}, {{FSO$2}}, {{Blood}} and {{Plain}}'
+        converted = dictionaries.convert_text(text, 'description', keys)
+        self.assertEqual(converted, '[[FSO|outlet]] then [[!outlet@effect]][[!outlet@description]], [[FSO$2@effect]][[FSO$2@description]], [[Blood@effect]] and [[Plain@description]]')
+        self.assertEqual(dictionaries.revert_text(converted, 'description'), text)
+        self.assertEqual(dictionaries.convert_text('{{Blood}}', 'notes', keys), '[[Blood@notes]]')
+        self.assertEqual(dictionaries.revert_text('[[Blood@effect]]', 'notes'), '[[Blood@effect]]')
+
+
+class DictionariesMigrationTests(SpellbookTestCase):
+    def test_texts_are_converted_and_reverted(self):
+        combo = Combo.objects.create(status=Combo.Status.UTILITY, description='First {{FSO}}.\nRepeat from step {{#1}}.', notes='{{FSO$1}}')
+        state = CardInCombo.objects.create(combo=combo, card=curated_card(name='Migration Card'), order=1, zone_locations=ZoneLocation.BATTLEFIELD, battlefield_card_state='as {{FSO}} asks')
+
+        dictionaries.convert_references(apps, None)
+
+        combo.refresh_from_db()
+        state.refresh_from_db()
+        self.assertEqual((combo.description, combo.notes), ('First [[FSO@description]].\nRepeat from step [[#1]].', '[[FSO$1@notes]]'))
+        self.assertEqual(state.battlefield_card_state, 'as [[FSO@battlefield_card_state]] asks')
+
+        dictionaries.revert_references(apps, None)
+
+        combo.refresh_from_db()
+        self.assertEqual(combo.description, 'First {{FSO}}.\nRepeat from step {{#1}}.')
+
+    def test_inclusions_follow_the_producers_with_an_effect_or_a_description(self):
+        blood, outlet = Feature.objects.create(name='Blood'), Feature.objects.create(name='Outlet')
+        effect = FeatureAttribute.objects.create(name='effect')
+        card = curated_card(name='Migration Card')
+        for feature in (blood, outlet):
+            card.featureofcard_set.create(feature=feature, zone_locations=ZoneLocation.BATTLEFIELD).attributes.add(effect, through_defaults={'value': 'adding {C}'})
+        Combo.objects.create(status=Combo.Status.UTILITY, description='adding {B}{R}').produces.add(outlet)
+        Combo.objects.create(status=Combo.Status.UTILITY).produces.add(blood)
+        combo = Combo.objects.create(status=Combo.Status.UTILITY, description='{{Blood}}, {{Outlet}} and {{FSO}}', notes='{{Blood}}')
+
+        dictionaries.convert_references(apps, None)
+
+        combo.refresh_from_db()
+        self.assertEqual(combo.description, '[[Blood@effect]], [[Outlet@effect]][[Outlet@description]] and [[FSO@description]]')
+        self.assertEqual(combo.notes, '[[Blood@notes]]')
+
+    def test_the_keys_in_use_become_attributes(self):
+        outlet = Feature.objects.create(name='Outlet')
+        FeatureAttribute.objects.create(name='effect')
+        combo = Combo.objects.create(status=Combo.Status.UTILITY, description='[[Outlet|outlet]] then [[Outlet@mana]], [[!outlet@sac step]] and [[Outlet@description]]')
+        FeatureNeededInCombo.objects.create(combo=combo, feature=outlet, order=1)
+
+        dictionaries.create_key_attributes(apps, None)
+
+        self.assertEqual(sorted(FeatureAttribute.objects.values_list('name', flat=True)), ['effect', 'mana', 'sac step'])
+
+    def test_reserved_characters_leave_the_names_of_the_features_no_combo_needs(self):
+        renamed = Feature.objects.create(name='Permanent with "[Pay Mana]: Untap a creature" $ now')
+        producing = Combo.objects.create(status=Combo.Status.UTILITY)
+        producing.produces.add(renamed)
+        Combo.objects.filter(pk=producing.pk).update(name='Sac Outlet + Permanent with "[Pay Mana]: Untap a creature" $ now')
+        needed = Feature.objects.create(name='Needed $ feature')
+        FeatureNeededInCombo.objects.create(combo=Combo.objects.create(status=Combo.Status.UTILITY), feature=needed, order=1)
+        taken = Feature.objects.create(name='Taken @ name')
+        Feature.objects.create(name='Taken name')
+
+        dictionaries.rename_reserved_feature_names(apps, None)
+
+        renamed.refresh_from_db()
+        self.assertEqual(renamed.name, 'Permanent with "(Pay Mana): Untap a creature" now')
+        producing.refresh_from_db()
+        self.assertEqual(producing.name, 'Sac Outlet + Permanent with "(Pay Mana): Untap a creature" now')
+        needed.refresh_from_db()
+        self.assertEqual(needed.name, 'Needed $ feature')
+        taken.refresh_from_db()
+        self.assertEqual(taken.name, 'Taken @ name')
+
+    def test_names_holding_reserved_characters_stop_the_migration(self):
+        dictionaries.refuse_reserved_names(apps, None)
+        Feature.objects.create(name='Feature @ reserved')
+        FeatureAttribute.objects.create(name='attribute | reserved')
+        with self.assertRaisesMessage(RuntimeError, 'Feature "Feature @ reserved", FeatureAttribute "attribute | reserved"'):
+            dictionaries.refuse_reserved_names(apps, None)

@@ -10,7 +10,7 @@ from .feature import Feature
 from .template import Template
 from .ingredient import ComboIngredient, ZoneLocationsField
 from .constants import HIGHER_CARD_LIMIT, DEFAULT_CARD_LIMIT, LOWER_VARIANT_LIMIT, DEFAULT_VARIANT_LIMIT
-from .feature_attribute import WithFeatureAttributes, WithFeatureAttributesMatcher
+from .feature_attribute import AttributeValue, WithFeatureAttributesMatcher, attributes_field
 
 
 class RecipePrefetchedManager(models.Manager):
@@ -181,15 +181,26 @@ class FeatureNeededInCombo(ComboIngredient, WithFeatureAttributesMatcher):
         indexes = ComboIngredient.card_state_trigram_indexes('fnic')
 
 
-class FeatureProducedInCombo(WithFeatureAttributes):
+class FeatureProducedInCombo(Explanation):
+    '''A feature a combo produces, with the attributes it produces it with. A text filled here replaces
+    what the combo provides under that field for this feature, wherever the combo writes as its producer.'''
     id: int
     feature = models.ForeignKey(to=Feature, on_delete=models.CASCADE)
     feature_id: int
     combo = models.ForeignKey(to=Combo, on_delete=models.CASCADE)
     combo_id: int
+    attributes = attributes_field('FeatureProducedInComboAttribute')
 
     def __str__(self):
         return f'{self.feature} produced in combo {self.combo_id}'
+
+
+class FeatureProducedInComboAttribute(AttributeValue):
+    producer = models.ForeignKey(to=FeatureProducedInCombo, on_delete=models.CASCADE, db_column='featureproducedincombo_id')
+    producer_id: int
+
+    class Meta:
+        unique_together = [('producer', 'attribute')]
 
 
 class FeatureRemovedInCombo(models.Model):

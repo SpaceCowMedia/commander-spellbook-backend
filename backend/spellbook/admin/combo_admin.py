@@ -17,12 +17,12 @@ from django.urls import reverse, path
 from django.shortcuts import redirect
 from django.utils import timezone
 from django.tasks import TaskResult
-from spellbook.models import Card, FeatureNeededInCombo, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, ZoneLocation
-from spellbook.models.references import references_past_copies_needed, references_to_features_not_needed
+from spellbook.models import Card, Explanation, FeatureAttribute, FeatureNeededInCombo, FeatureProducedInCombo, Template, Feature, Combo, CardInCombo, TemplateInCombo, Variant, VariantSuggestion, CardUsedInVariantSuggestion, TemplateRequiredInVariantSuggestion, ZoneLocation
+from spellbook.models.references import attribute_keys_referenced, references_past_copies_needed, references_to_features_not_needed, references_to_unknown_keys
 from spellbook.models.utils import sanitize_newlines_apostrophes_and_quotes
 from spellbook.tasks import generate_variants_task
 from .utils import SpellbookModelAdmin, SpellbookAdminForm, CustomFilter, IngredientCountListFilter, join_for_message
-from .ingredient_admin import ComboIngredientAdmin, IngredientForm
+from .ingredient_admin import ComboIngredientAdmin, IngredientForm, WithFeatureAttributesAdminInline
 
 
 DUPLICATE_CONFIRMATION_INPUT_NAME = '_confirm_duplicate'
@@ -221,13 +221,13 @@ class FeatureNeededInComboAdminInline(ComboIngredientAdmin):
         return result
 
 
-class FeatureProducedInComboAdminInline(admin.TabularInline):
-    model = Combo.produces.through
-    fields = ['feature', 'attributes']
+class FeatureProducedInComboAdminInline(WithFeatureAttributesAdminInline):
+    model = FeatureProducedInCombo
+    related_field = 'feature'
+    fields = tuple(Explanation.explanation_fields())
     extra = 0
     verbose_name = 'Feature'
     verbose_name_plural = 'Produced Features'
-    autocomplete_fields = ['feature', 'attributes']
 
     def get_extra(self, request: HttpRequest, obj: Combo | None = None, **kwargs: Any) -> int:
         result = super().get_extra(request, obj, **kwargs)
@@ -527,7 +527,7 @@ class ComboAdmin(SpellbookModelAdmin):
     def reject_combo_without_replacements(self, formsets: list[BaseModelFormSet]):
         '''
         Reject a combo whose every ingredient opted out of replacements, because the features it
-        produces would then have nothing to be replaced with in the texts referencing them.
+        produces would then have nothing to be named with in the texts referencing them.
         '''
         formsets_by_model = {formset.model: formset for formset in formsets}
         rows = list[dict[str, Any]]()
@@ -539,14 +539,15 @@ class ComboAdmin(SpellbookModelAdmin):
         if rows and not any(form_data.get('in_replacements') for form_data in rows):
             formsets_by_model[CardInCombo].non_form_errors().append(
                 'This combo was not saved, because none of its ingredients is in replacements.'
-                ' Check that box on at least one of them, so that the features it produces have something to be replaced with.'
+                ' Check that box on at least one of them, so that the features it produces have something to be named with.'
             )
 
     def reject_references_beyond_requirements(self, request: HttpRequest, formsets: list[BaseModelFormSet]):
         '''
         Reject a combo whose texts reference a feature it does not require, which its variants only replace
-        when one of their cards happens to produce it, or select by position a copy of a feature past the
-        ones it requires, which none of its rows is satisfied by. The combo form is cleaned only after its
+        when one of their cards happens to produce it, select by position a copy of a feature past the
+        ones it requires, which none of its rows is satisfied by, or write a key that is neither built in nor
+        a feature attribute, which no producer can hold. The combo form is cleaned only after its
         formsets are built, so its texts are read the way its widgets read them.
         '''
         formsets_by_model = {formset.model: formset for formset in formsets}
@@ -562,6 +563,13 @@ class ComboAdmin(SpellbookModelAdmin):
                     if model is FeatureNeededInCombo:
                         feature = form_data['feature']
                         copies_needed[feature.name] = 1 if feature.uncountable else copies_needed.get(feature.name, 0) + form_data['quantity']
+        produced = formsets_by_model.get(FeatureProducedInCombo)
+        if produced is None or not produced.is_valid():
+            return
+        for form_data in produced.cleaned_data:
+            if form_data and not form_data.get('DELETE'):
+                texts.extend(form_data.get(field) or '' for field in FeatureProducedInCombo.text_fields_with_references())
+                texts.extend((form_data.get('attribute_texts') or {}).values())
         errors = formsets_by_model[FeatureNeededInCombo].non_form_errors()
         if references := references_to_features_not_needed(texts, copies_needed):
             errors.append(
@@ -572,6 +580,11 @@ class ComboAdmin(SpellbookModelAdmin):
             errors.append(
                 f'This combo was not saved, because its texts select copies of features it does not require: {join_for_message(references)}.'
                 ' A number counts through the copies the combo requires of that feature, from 1, in the order of its rows.'
+            )
+        if references := references_to_unknown_keys(texts, FeatureAttribute.objects.filter(name__in=attribute_keys_referenced(texts)).values_list('name', flat=True)):
+            errors.append(
+                f'This combo was not saved, because its texts write keys that are no feature attribute: {join_for_message(references)}.'
+                ' Create those attributes first, or write a built-in key.'
             )
 
     def reject_duplicate_combo(self, request: HttpRequest, obj: Combo | None, formsets: list[BaseModelFormSet]):

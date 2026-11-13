@@ -1,12 +1,16 @@
+import json
 import re
 from collections import defaultdict
 from html import unescape
+from django.contrib.auth.models import Permission, User
 from django.urls import reverse
 from spellbook.admin.combo_admin import ALL_ZONE_LOCATIONS
-from spellbook.models import Card, CardInCombo, CardUsedInVariantSuggestion, Combo, FeatureProducedInVariantSuggestion, Variant, VariantSuggestion, ZoneLocation
-from spellbook.models.references import format_alias_inclusion, format_alias_replacement, format_line_reference
+from spellbook.models import Card, CardInCombo, CardUsedInVariantSuggestion, Combo, Explanation, FeatureAttribute, FeatureProducedInCombo, FeatureProducedInVariantSuggestion, Variant, VariantSuggestion, ZoneLocation
+from spellbook.models.references import format_alias_reference, format_line_reference
+from spellbook.admin.ingredient_admin import AttributesForm
+from spellbook.admin.utils import AttributesWidget
 from spellbook.models.utils import sanitize_newlines_apostrophes_and_quotes
-from ..testing import SpellbookTestCaseWithSeeding
+from ..testing import SpellbookTestCaseWithSeeding, save_dictionary
 
 
 INLINE_PREFIXES = [
@@ -160,6 +164,99 @@ class ComboAdminReplacementsTests(ComboAdminTestCase):
         self.assertEqual(Combo.objects.count(), combo_count + 1)
 
 
+class ComboAdminAttributesWidgetTests(ComboAdminTestCase):
+    def test_the_change_page_shows_a_summary_of_the_attributes_of_every_produced_feature(self):
+        produced = FeatureProducedInCombo.objects.filter(combo_id=self.b2_id).first()
+        save_dictionary(produced, {'step': 'untap it', 'Landfall': None})
+        content = self.client.get(self.change_url(self.b2_id)).content.decode()
+        self.assertIn('admin/js/dictionary_editor.js', content)
+        self.assertIn('admin/js/js-yaml/4.1.0/js-yaml.min.js', content)
+        self.assertIn('<span class="dictionary-keys">FA2, Landfall, step</span><span class="dictionary-count" title="3 attributes">3</span>', content)
+
+    def test_the_editor_edits_the_explanation_of_every_produced_feature_with_its_own_widgets(self):
+        content = self.client.get(self.change_url(self.b2_id)).content.decode()
+        editor = re.search(r'name="featureproducedincombo_set-0-attribute_texts".*?<button', content, re.DOTALL)
+        assert editor is not None
+        for field in Explanation.explanation_fields():
+            with self.subTest(field=field):
+                self.assertNotIn(f'class="column-{field}', content)
+                self.assertIn(f'name="featureproducedincombo_set-0-{field}"', editor[0])
+        self.assertIn('<input type="checkbox" name="featureproducedincombo_set-0-is_mana_needed_an_accurate_minimum"', editor[0])
+        self.assertIn('<textarea name="featureproducedincombo_set-0-description"', editor[0])
+
+    def test_the_editor_tells_that_a_produced_feature_overrides_texts_and_attribute_texts(self):
+        content = self.client.get(self.change_url(self.b2_id)).content.decode()
+        self.assertIn(f'data-explanation-help="{AttributesForm.explanation_help}"', content)
+        self.assertIn(f'data-attributes-help="{AttributesForm.attributes_help}"', content)
+        self.assertIn('replaces the text a feature this combo needs brings under the same attribute', AttributesForm.attributes_help)
+
+    def test_who_cannot_change_the_produced_features_reads_their_explanation_in_columns(self):
+        viewer = User.objects.create_user(username='viewer', is_staff=True)
+        viewer.user_permissions.add(*Permission.objects.filter(codename__in=['view_combo', 'view_featureproducedincombo']))
+        self.client.force_login(viewer)
+        content = self.client.get(self.change_url(self.b2_id)).content.decode()
+        for field in Explanation.explanation_fields():
+            with self.subTest(field=field):
+                self.assertIn(f'class="column-{field}', content)
+
+    def test_the_summary_names_the_texts_written_before_the_attributes(self):
+        produced = FeatureProducedInCombo.objects.filter(combo_id=self.b2_id).first()
+        save_dictionary(produced, {'notes': 'an engine', 'step': 'untap it'})
+        content = self.client.get(self.change_url(self.b2_id)).content.decode()
+        self.assertIn('<span class="dictionary-keys"><em class="dictionary-written-text">Notes</em>, FA2, step</span><span class="dictionary-count" title="2 attributes">2</span>', content)
+
+    def test_an_added_row_starts_with_no_attributes(self):
+        content = self.client.get(self.change_url(self.b2_id)).content.decode()
+        self.assertIn('name="featureproducedincombo_set-__prefix__-attribute_texts"', content)
+        self.assertNotIn('Invalid, edit to fix', content)
+
+    def test_an_added_row_left_blank_is_ignored(self):
+        combo_count = Combo.objects.count()
+        response = self.client.post(self.add_url(), data=self.combo_payload(cards=[self.c1_id], **{
+            'featureproducedincombo_set-TOTAL_FORMS': '1',
+            'featureproducedincombo_set-0-feature': '',
+            'featureproducedincombo_set-0-is_mana_needed_an_accurate_minimum': 'on',
+            'featureproducedincombo_set-0-attribute_texts': '{}',
+        }))
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(Combo.objects.count(), combo_count + 1)
+
+    def test_the_editor_links_each_attribute_to_the_admin_as_far_as_the_user_may_use_it(self):
+        content = self.client.get(self.change_url(self.b2_id)).content.decode()
+        for link in ('change_id___key__', 'add_id___key__', 'view_id___key__'):
+            self.assertIn(link, content)
+        self.assertIn(f'href="{reverse("admin:spellbook_featureattribute_add")}?_to_field=name&amp;_popup=1"', content)
+        viewer = User.objects.create_user(username='viewer', is_staff=True)
+        viewer.user_permissions.add(*Permission.objects.filter(codename__in=['view_combo', 'change_combo', 'view_featureproducedincombo', 'change_featureproducedincombo', 'view_featureattribute']))
+        self.client.force_login(viewer)
+        content = self.client.get(self.change_url(self.b2_id)).content.decode()
+        self.assertIn('view_id___key__', content)
+        self.assertNotIn('change_id___key__', content)
+        self.assertNotIn('add_id___key__', content)
+
+    def test_the_editor_picks_the_attributes_from_the_autocomplete_of_the_admin(self):
+        content = self.client.get(self.change_url(self.b2_id)).content.decode()
+        self.assertIn('admin/js/vendor/select2/select2.full', content)
+        source = re.search(r'data-autocomplete-url="([^"]+)" data-app-label="([^"]+)" data-model-name="([^"]+)" data-field-name="([^"]+)"', content)
+        assert source is not None
+        url, app_label, model_name, field_name = source.groups()
+        response = self.client.get(url, query_params={'app_label': app_label, 'model_name': model_name, 'field_name': field_name, 'term': 'FA'})  # type: ignore
+        self.assertEqual(response.status_code, 200)
+        self.assertCountEqual([result['text'] for result in response.json()['results']], ['FA1', 'FA2'])
+
+    def test_submitted_texts_are_normalized_like_the_other_texts(self):
+        widget = AttributesWidget()
+        value = widget.value_from_datadict({'attributes': '{"step": "Sacrifice it’s target", "Landfall": null}'}, {}, 'attributes')
+        self.assertEqual(json.loads(value), {'step': "Sacrifice it's target", 'Landfall': None})
+
+    def test_an_invalid_submission_is_left_for_the_form_to_refuse(self):
+        widget = AttributesWidget()
+        for submitted in ('not json', '{"key": 3}', '["a list"]', '{"key": ["a list"]}'):
+            with self.subTest(submitted=submitted):
+                self.assertEqual(widget.value_from_datadict({'attributes': submitted}, {}, 'attributes'), submitted)
+        self.assertIn('Invalid, edit to fix', widget.render('attributes', 'not json'))
+
+
 class ComboAdminReferencesTests(ComboAdminTestCase):
     '''The texts of a combo can only reference the features it requires, by their exact names, since
     those are the ones its variants are sure to replace, and each text can repeat them by the aliases
@@ -208,25 +305,62 @@ class ComboAdminReferencesTests(ComboAdminTestCase):
     def test_an_alias_can_be_used_and_included_by_the_text_defining_it(self):
         self.assertSaved(self.payload_requiring(
             [self.f2_id],
-            description=f'When it enters, [[FB|outlet]] triggers.\nActivate {format_alias_replacement("outlet")}.\n{format_alias_inclusion("outlet")}',
+            description=f'When it enters, [[FB|outlet]] triggers.\nActivate {format_alias_reference("outlet")}.\n{format_alias_reference("outlet", "description")}',
         ))
 
     def test_an_alias_can_be_named_like_a_feature(self):
-        self.assertSaved(self.payload_requiring([self.f2_id], description=f'[[FB|FC]] triggers, then {format_alias_replacement("FC")} resolves.'))
+        self.assertSaved(self.payload_requiring([self.f2_id], description=f'[[FB|FC]] triggers, then {format_alias_reference("FC")} resolves.'))
 
     def test_an_alias_another_text_defines_is_rejected(self):
         combo_count = Combo.objects.count()
         response = self.client.post(self.add_url(), data=self.payload_requiring(
             [self.f2_id],
             easy_prerequisites='[[FB|outlet]] on the battlefield.',
-            description=f'Activate {format_alias_replacement("outlet")}.',
+            description=f'Activate {format_alias_reference("outlet")}.',
         ))
         self.assertEqual(response.status_code, 200)
-        self.assertIn(f'{format_alias_replacement("outlet")} uses an alias this text does not define.', unescape(response.content.decode()))
+        self.assertIn(f'{format_alias_reference("outlet")} uses an alias this text does not define.', unescape(response.content.decode()))
         self.assertEqual(Combo.objects.count(), combo_count)
 
-    def test_an_inclusion_of_a_feature_not_required_is_rejected(self):
-        self.assertRejected(self.payload_requiring([], description='{{FB}}'), '{{FB}}')
+    def test_a_key_of_a_feature_not_required_is_rejected(self):
+        self.assertRejected(self.payload_requiring([], description='[[FB@description]]'), '[[FB@description]]')
+
+    def payload_producing(self, payload: dict, **fields: str) -> dict:
+        '''The payload of a combo producing FD, with the given fields on its produced row.'''
+        payload.update({
+            'featureproducedincombo_set-TOTAL_FORMS': '1',
+            'featureproducedincombo_set-0-feature': str(self.f4_id),
+            'featureproducedincombo_set-0-is_mana_needed_an_accurate_minimum': 'on',
+            **{f'featureproducedincombo_set-0-{field}': value for field, value in fields.items()},
+        })
+        return payload
+
+    def test_a_produced_row_keeps_its_texts_and_its_attributes_apart(self):
+        FeatureAttribute.objects.create(name='step')
+        FeatureAttribute.objects.create(name='Landfall')
+        self.assertSaved(self.payload_producing(self.payload_requiring([]), notes='an engine', attribute_texts='{"step": "untap it", "Landfall": null}'))
+        combo = Combo.objects.latest('created')
+        produced = combo.featureproducedincombo_set.get()
+        self.assertEqual(produced.notes, 'an engine')
+        self.assertEqual(sorted(produced.attributes.through.objects.filter(producer=produced).values_list('attribute__name', 'value')), [('Landfall', ''), ('step', 'untap it')])
+        content = unescape(self.client.get(self.change_url(combo.id)).content.decode())
+        self.assertIn('{"Landfall": null, "step": "untap it"}', content)
+
+    def test_a_produced_row_holds_existing_attributes_only(self):
+        response = self.client.post(self.add_url(), data=self.payload_producing(self.payload_requiring([]), attribute_texts='{"step": "untap it"}'))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('These are no attributes: step. Create them as attributes first.', unescape(response.content.decode()))
+
+    def test_a_key_written_is_built_in_or_an_attribute(self):
+        payload = self.payload_requiring([self.f2_id], description='Sacrifice it[[FB@effect]], naming [[FB]], [[FB@description]].')
+        self.assertRejected(payload, '[[FB@effect]]', problem='write keys that are no feature attribute')
+        FeatureAttribute.objects.create(name='effect')
+        self.assertSaved(payload)
+
+    def test_the_texts_and_attributes_of_the_produced_features_are_checked_too(self):
+        FeatureAttribute.objects.create(name='sac step')
+        self.assertRejected(self.payload_producing(self.payload_requiring([self.f3_id]), attribute_texts='{"sac step": "Sacrifice [[FB]]"}'), '[[FB]]')
+        self.assertRejected(self.payload_producing(self.payload_requiring([self.f3_id]), description='Sacrifice [[FB]]'), '[[FB]]')
 
     def test_line_references_are_saved(self):
         self.assertSaved(self.payload_requiring([], description='\n'.join(f'Step {i}' for i in range(1, 8)) + f'\nBack to {format_line_reference(5, "-")}, then {format_line_reference(7)}.'))
@@ -237,7 +371,7 @@ class ComboAdminReferencesTests(ComboAdminTestCase):
         self.assertRejected(payload, '[[FB]]')
 
     def test_a_position_among_the_copies_required_is_saved(self):
-        self.assertSaved(self.payload_requiring([self.f2_id, self.f2_id], description='Activate [[FB$1]], then {{FB$2}}.'))
+        self.assertSaved(self.payload_requiring([self.f2_id, self.f2_id], description='Activate [[FB$1]], then [[FB$2@description]].'))
 
     def test_a_position_past_the_copies_required_is_rejected(self):
         self.assertPositionsRejected(self.payload_requiring([self.f2_id], description='Activate [[FB$2]], then [[FB$0]].'), '[[FB$0]]', '[[FB$2]]')

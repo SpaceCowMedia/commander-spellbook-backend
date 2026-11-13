@@ -3,7 +3,7 @@ from spellbook.tests.testing import SpellbookTestCaseWithSeeding, curated_card
 from django.core.exceptions import ValidationError
 from common.inspection import count_methods
 from spellbook.models import Card, CardType, Combo, FeatureOfCard, Variant, ZoneLocation
-from spellbook.models.references import format_feature_inclusion, format_feature_replacement, format_line_reference
+from spellbook.models.references import format_feature_reference, format_line_reference
 from spellbook.models.scryfall import SCRYFALL_WEBSITE_CARD_SEARCH
 from urllib.parse import quote_plus
 
@@ -179,11 +179,16 @@ class FeatureOfCardTests(SpellbookTestCaseWithSeeding):
 
     def test_a_feature_reference_in_any_text_is_rejected(self):
         for field in FeatureOfCard.text_fields_with_references():
-            for reference in (format_feature_replacement('FA'), format_feature_inclusion('FA')):
+            for reference in (format_feature_reference('FA'), format_feature_reference('FA', key='description')):
                 with self.subTest(field=field, reference=reference):
                     with self.assertRaises(ValidationError) as raised:
                         self.feature_of_card(**{field: f'Use {reference}.'}).full_clean()
                     self.assertIn(f'A card feature cannot reference features, since it needs none: {reference}.', raised.exception.message_dict[field])
+
+    def test_an_inaccurate_minimum_needs_mana(self):
+        with self.assertRaises(ValidationError):
+            self.feature_of_card(notes='{1}', is_mana_needed_an_accurate_minimum=False).full_clean()
+        self.feature_of_card(mana_needed='{4}{B} at most', is_mana_needed_an_accurate_minimum=False).full_clean()
 
 
 class IsCommanderTests(TestCase):

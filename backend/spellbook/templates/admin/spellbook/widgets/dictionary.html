@@ -1,0 +1,12 @@
+<div class="dictionary-field" data-autocomplete-url="{{ widget.autocomplete.url }}" data-app-label="{{ widget.autocomplete.app_label }}" data-model-name="{{ widget.autocomplete.model_name }}" data-field-name="{{ widget.autocomplete.field_name }}" data-explanation-help="{{ widget.explanation_help }}" data-attributes-help="{{ widget.attributes_help }}">
+    <template class="dictionary-key-template" data-placeholder="{{ widget.key_placeholder }}">{{ widget.key_template }}</template>
+    <textarea name="{{ widget.name }}"{% include "django/forms/widgets/attrs.html" %} hidden>{% if widget.value %}{{ widget.value }}{% endif %}</textarea>
+    <div class="dictionary-explanation-fields" hidden>{% for field in widget.explanation %}
+        <div class="dictionary-explanation-field">
+            <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.help_text %}<span class="dictionary-help-icon" title="{{ field.help_text|striptags }}"></span>{% endif %}</label>
+            <div class="dictionary-explanation-control">{{ field.errors }}{{ field }}</div>
+        </div>{% endfor %}
+    </div>
+    {% if widget.explanation_errors %}<ul class="errorlist">{% for error in widget.explanation_errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
+    <button type="button" class="dictionary-summary{% if widget.keys is None or widget.explanation_errors %} dictionary-invalid{% elif not widget.keys and not widget.written_texts %} dictionary-empty{% endif %}" title="Edit the explanation and attributes"><span class="dictionary-keys">{% if widget.keys is None %}Invalid, edit to fix{% elif widget.keys or widget.written_texts %}{% for label in widget.written_texts %}<em class="dictionary-written-text">{{ label }}</em>{% if not forloop.last or widget.keys %}, {% endif %}{% endfor %}{{ widget.keys|join:", " }}{% else %}Add explanation or attributes{% endif %}</span>{% if widget.keys %}<span class="dictionary-count" title="{{ widget.keys|length }} attribute{{ widget.keys|length|pluralize }}">{{ widget.keys|length }}</span>{% endif %}</button>
+</div>

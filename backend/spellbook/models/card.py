@@ -13,9 +13,9 @@ from .mixins import ScryfallLinkMixin, PreSaveModelMixin, NamedModel
 from .feature import Feature
 from .fields import KeywordsField
 from .ingredient import Ingredient
-from .feature_attribute import WithFeatureAttributes
-from .explanation import Explanation
+from .feature_attribute import AttributeValue, attributes_field
 from .references import references_to_features_not_needed
+from .explanation import Explanation
 
 
 IMAGE_URI_HELP_TEXT = 'The image format, and with it the file extension, may vary'
@@ -282,8 +282,13 @@ class WithUsedFace(models.Model):
             raise ValidationError({'used_face': f'The used face must be a number between 1 and {card.faces}.'})
 
 
-class FeatureOfCard(Ingredient, Explanation, WithFeatureAttributes, WithUsedFace):
+class FeatureOfCard(Ingredient, Explanation, WithUsedFace):
+    '''A card producing a feature on its own: its texts reach a variant the way the texts of a combo do,
+    and its attributes hold what else it provides to the combos needing the feature.'''
     id: int
+    feature = models.ForeignKey(to=Feature, on_delete=models.CASCADE)
+    feature_id: int
+    attributes = attributes_field('FeatureOfCardAttribute')
 
     @classmethod
     def text_fields_with_references(cls) -> list[str]:
@@ -306,3 +311,11 @@ class FeatureOfCard(Ingredient, Explanation, WithFeatureAttributes, WithUsedFace
 
     def __str__(self):
         return f'{self.feature} for card {self.card_id}'
+
+
+class FeatureOfCardAttribute(AttributeValue):
+    producer = models.ForeignKey(to=FeatureOfCard, on_delete=models.CASCADE, db_column='featureofcard_id')
+    producer_id: int
+
+    class Meta:
+        unique_together = [('producer', 'attribute')]

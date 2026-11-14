@@ -62,8 +62,28 @@
         }
     }
 
-    function toRows(attributes) {
-        return Object.entries(attributes).map(([key, text]) => ({ key, kind: text ? 'text' : 'none', text: text ?? '' }));
+    // mirrors AttributesForm.check_attribute_permissions, against the attributes the producer holds as far as the user sees them
+    function forbiddenOf(initial, attributes, permissions) {
+        const forbidden = [
+            ['add', 'add', Object.keys(attributes).filter(name => !Object.hasOwn(initial, name))],
+            ['change', 'change', Object.keys(attributes).filter(name => Object.hasOwn(initial, name) && (attributes[name] ?? '') !== (initial[name] ?? ''))],
+            ['delete', 'remove', Object.keys(initial).filter(name => !Object.hasOwn(attributes, name))],
+        ].filter(([action, , names]) => names.length && !permissions[action]).map(([, verb, names]) => `${verb} ${names.join(', ')}`);
+        return forbidden.length ? `You do not have permission to ${forbidden.join(', nor to ')}.` : null;
+    }
+
+    function permissionsOf(field) {
+        return Object.fromEntries(['view', 'add', 'change', 'delete'].map(action => [action, Object.hasOwn(field.dataset, `can${action[0].toUpperCase()}${action.slice(1)}`)]));
+    }
+
+    function showsAttributes(field) {
+        const permissions = permissionsOf(field);
+        return permissions.view || permissions.add;
+    }
+
+    // a row of an attribute the producer holds, which only the permissions on its rows let change
+    function toRows(attributes, initial = {}) {
+        return Object.entries(attributes).map(([key, text]) => ({ key, kind: text ? 'text' : 'none', text: text ?? '', stored: Object.hasOwn(initial, key) }));
     }
 
     function fromRows(rows) {
@@ -126,10 +146,10 @@
         summary.classList.toggle('dictionary-invalid', Boolean(field.querySelector(':scope > .errorlist')));
         summary.classList.toggle('dictionary-empty', !keys.length && !written.length);
         summary.replaceChildren(
-            element('span', { className: 'dictionary-keys' }, names.length ? names : ['Add explanation or attributes']),
+            element('span', { className: 'dictionary-keys' }, names.length ? names : [showsAttributes(field) ? 'Add explanation or attributes' : 'Add explanation']),
             ...(keys.length ? [element('span', { className: 'dictionary-count', textContent: keys.length, title: `${keys.length} attribute${keys.length === 1 ? '' : 's'}` })] : []),
         );
-        summary.title = keys.length ? toYaml(attributes) : 'Edit the explanation and attributes';
+        summary.title = keys.length ? toYaml(attributes) : `Edit the explanation${showsAttributes(field) ? ' and attributes' : ''}`;
     }
 
     // the fields of the explanation go back into the form, holding what they held unless the editor
@@ -198,27 +218,35 @@
 
     function renderRows() {
         const container = dialog.querySelector('.dictionary-rows');
+        const { permissions } = editing;
         container.replaceChildren(...editing.rows.map((row, index) => {
+            // a stored row changes its attribute by being removed and added again
+            const keyLocked = row.stored && !(permissions.add && permissions.delete);
+            const textLocked = row.stored && !permissions.change;
             // the text of an attribute holding nothing is kept, for a change of mind to bring it back
             let texts;
             if (row.kind === 'none') {
                 texts = element('div', { className: 'dictionary-texts dictionary-no-value', textContent: 'The attribute alone, with nothing to write.' });
             } else {
-                const input = element('textarea', { value: row.text, rows: Math.min(Math.max(row.text.split('\n').length, 1), 8), className: 'dictionary-text' });
+                const input = element('textarea', { value: row.text, rows: Math.min(Math.max(row.text.split('\n').length, 1), 8), className: 'dictionary-text', readOnly: textLocked });
                 input.addEventListener('input', () => { row.text = input.value; });
                 texts = element('div', { className: 'dictionary-texts' }, [input]);
             }
             const picker = keyPicker(index);
             const key = picker.querySelector('select');
             key.append(element('option', { value: quote(row.key), textContent: row.key }));
-            const kind = element('select', { className: 'dictionary-kind', title: 'An attribute can hold a text, which a combo writes, or nothing' },
+            if (keyLocked) {
+                key.disabled = true;
+                picker.querySelector('.add-related')?.remove();
+            }
+            const kind = element('select', { className: 'dictionary-kind', title: 'An attribute can hold a text, which a combo writes, or nothing', disabled: textLocked },
                 Object.entries(KINDS).map(([value, label]) => element('option', { value, textContent: label, selected: row.kind === value })));
             kind.addEventListener('change', () => { row.kind = kind.value; renderRows(); });
             const item = element('div', { className: 'dictionary-row' }, [
                 picker,
                 texts,
                 kind,
-                link('inline-deletelink dictionary-remove', 'Remove this attribute', () => { editing.rows.splice(index, 1); renderRows(); }),
+                ...(row.stored && !permissions.delete ? [] : [link('inline-deletelink dictionary-remove', 'Remove this attribute', () => { editing.rows.splice(index, 1); renderRows(); })]),
             ]);
             pickAttribute(key, row);
             return item;
@@ -260,7 +288,7 @@
             showProblem(error.message);
             return null;
         }
-        const problem = problemOf(attributes);
+        const problem = problemOf(attributes) ?? forbiddenOf(editing.initial, attributes, editing.permissions);
         showProblem(problem);
         return problem ? null : attributes;
     }
@@ -274,7 +302,7 @@
             dialog.querySelector(`.dictionary-panel-${name}`).hidden = name !== tab;
         }
         if (tab === 'keys') {
-            editing.rows = toRows(attributes);
+            editing.rows = toRows(attributes, editing.initial);
             renderRows();
         } else if (tab === 'yaml') {
             dialog.querySelector('.dictionary-yaml').value = toYaml(attributes);
@@ -314,7 +342,7 @@
             tab.addEventListener('click', () => switchTo(name));
             return tab;
         });
-        const add = link('addlink dictionary-add', 'Add another attribute', () => { editing.rows.push({ key: '', kind: 'none', text: '' }); renderRows(); });
+        const add = link('addlink dictionary-add', 'Add another attribute', () => { editing.rows.push({ key: '', kind: 'none', text: '', stored: false }); renderRows(); });
         const save = element('button', { type: 'button', className: 'button default dictionary-apply', textContent: 'Apply' });
         save.addEventListener('click', apply);
         const cancel = element('button', { type: 'button', className: 'button dictionary-cancel', textContent: 'Cancel' });
@@ -349,9 +377,17 @@
         }
         const stored = field.querySelector('textarea').value;
         const explanation = explanationOf(field);
-        editing = { field, tab: null, rows: [], explanation, saved: controlsOf(explanation).map(control => [control, stateOf(control)]), done: false };
+        const permissions = permissionsOf(field);
+        editing = { field, tab: null, rows: [], explanation, saved: controlsOf(explanation).map(control => [control, stateOf(control)]), done: false, permissions, initial: JSON.parse(field.dataset.initial || '{}') };
         dialog.querySelector('.dictionary-explanation-rows').replaceChildren(...explanation);
         dialog.querySelector('.dictionary-explanation').hidden = !explanation.length;
+        // the way the admin hides an inline from who may do nothing with its rows, and offers to add rows to who only may add them
+        dialog.querySelector('.dictionary-attributes').hidden = !showsAttributes(field);
+        dialog.querySelector('.dictionary-add').hidden = !permissions.add;
+        // a whole text can change anything, which only who may do everything can write
+        for (const text of dialog.querySelectorAll('.dictionary-yaml, .dictionary-json')) {
+            text.readOnly = !(permissions.add && permissions.change && permissions.delete);
+        }
         // what the explanation and the attributes do depends on the producer, which its form tells
         for (const [selector, text] of [['.dictionary-explanation-help', field.dataset.explanationHelp], ['.dictionary-attributes-help', field.dataset.attributesHelp]]) {
             const help = dialog.querySelector(selector);
@@ -396,5 +432,5 @@
         }
     });
 
-    window.dictionaryEditor = { problemOf, toYaml, fromYaml, toRows, fromRows };
+    window.dictionaryEditor = { problemOf, forbiddenOf, toYaml, fromYaml, toRows, fromRows };
 }

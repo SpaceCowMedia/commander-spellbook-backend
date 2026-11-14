@@ -60,6 +60,9 @@ class AttributesWidget(Textarea):
     template_name = 'admin/spellbook/widgets/dictionary.html'
     # what the user may do with the attributes from the editor, which the form sets for each request
     links: dict[str, bool] = {}
+    # what the user may do with the rows of the attributes, and the attributes those hold as far as the user may see them, which the form sets
+    permissions: dict[str, bool] = {}
+    initial_attributes = '{}'
     # the fields of the explanation of the producer and what they and the attributes do, which the form sets
     explanation: list[BoundField] = []
     explanation_help = ''
@@ -106,6 +109,9 @@ class AttributesWidget(Textarea):
             'model_name': autocomplete.field.model._meta.model_name,
             'field_name': autocomplete.field.name,
         }
+        context['widget']['permissions'] = self.permissions
+        context['widget']['initial_attributes'] = self.initial_attributes
+        context['widget']['shows_attributes'] = self.permissions.get('view', False) or self.permissions.get('add', False)
         context['widget']['key_template'] = self.key_template()
         context['widget']['key_placeholder'] = self.key_placeholder
         context['widget']['explanation'] = self.explanation

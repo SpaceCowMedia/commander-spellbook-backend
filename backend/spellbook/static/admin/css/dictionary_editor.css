@@ -252,6 +252,10 @@ its names from the size of two lines of them */
     margin-top: 10px;
 }
 
+.dictionary-add[hidden] {
+    display: none;
+}
+
 .dictionary-add-item {
     align-self: flex-start;
 }

@@ -1,5 +1,7 @@
+import json
 from typing import cast
 from django.contrib.admin import TabularInline
+from django.contrib.auth import get_permission_codename
 from django.core.exceptions import ValidationError
 from django.db.models import TextField, CharField
 from django.forms import TextInput, Textarea
@@ -8,7 +10,7 @@ from django.http import HttpRequest
 from spellbook.models import Explanation, FeatureAttribute, FeatureOfCard, Ingredient
 from spellbook.models.references import references_to_features_not_needed
 from spellbook.models.validators import validate_attributes
-from .utils import AttributesFormField, AttributesWidget, SpellbookAdminForm
+from .utils import AttributesFormField, AttributesWidget, SpellbookAdminForm, join_for_message
 
 
 def _textarea():
@@ -39,19 +41,34 @@ class AttributesForm(SpellbookAdminForm):
     attribute_texts = AttributesFormField(required=False, initial=dict, label='explanation and attributes', help_text='The explanation of this, and the attributes it produces the feature with, each holding nothing or a text a combo needing the feature writes with the [[feature@attribute]] syntax.')
     # what the user may do with the attributes from the editor, set by the inline for each request
     attribute_links: dict[str, bool] = {}
+    # what the user may do with the rows holding the attributes of this producer, set by the inline for each request
+    attribute_permissions: dict[str, bool] = {}
     explanation_help = 'Each text filled here replaces what the combo writes in the same field, only where it writes as the producer of this feature: for a combo needing the feature, and in the variants listing it as a result.'
     attributes_help = f'{ATTRIBUTES_HELP} An attribute holding a text here replaces the text a feature this combo needs brings under the same attribute.'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        widget: AttributesWidget = self.fields['attribute_texts'].widget
+        permissions = {action: self.attribute_permissions.get(action, False) for action in ('view', 'add', 'change', 'delete')}
+        # the way the admin treats an inline: changing implies viewing, and rows that cannot be seen cannot be changed or deleted either
+        permissions['view'] |= permissions['change']
+        if not permissions['view']:
+            permissions['change'] = permissions['delete'] = False
+        self.permissions = permissions
+        self.stored_attributes: dict[str, str] = {}
+        if self.instance.pk is not None:
+            rows = self.instance.attributes.through.objects.filter(producer=self.instance).select_related('attribute').order_by('attribute__name')
+            self.stored_attributes = {row.attribute.name: row.value for row in rows}
+        shown = {name: text or None for name, text in self.stored_attributes.items()} if permissions['view'] else {}
+        self.initial['attribute_texts'] = shown
+        field = self.fields['attribute_texts']
+        field.disabled = not any(permissions[action] for action in ('add', 'change', 'delete'))
+        widget: AttributesWidget = field.widget
         widget.links = self.attribute_links
+        widget.permissions = permissions
+        widget.initial_attributes = json.dumps(shown, ensure_ascii=False)
         widget.explanation = [self[name] for name in Explanation.explanation_fields() if name in self.fields]
         widget.explanation_help = self.explanation_help
         widget.attributes_help = self.attributes_help
-        if self.instance.pk is not None:
-            rows = self.instance.attributes.through.objects.filter(producer=self.instance).select_related('attribute').order_by('attribute__name')
-            self.initial['attribute_texts'] = {row.attribute.name: row.value or None for row in rows}
 
     def clean_attribute_texts(self):
         attributes = self.cleaned_data.get('attribute_texts') or {}
@@ -59,7 +76,27 @@ class AttributesForm(SpellbookAdminForm):
         texts = {name: text or '' for name, text in attributes.items()}
         if not self.references_allowed and (references := references_to_features_not_needed(texts.values(), ())):
             raise ValidationError(f'A card feature cannot reference features, since it needs none: {", ".join(references)}.')
-        return texts
+        if self.permissions['view']:
+            self.check_attribute_permissions(self.stored_attributes, texts)
+            return texts
+        # who cannot see the attributes can only add others, as the admin lets add rows to an inline it hides the rows of
+        self.check_attribute_permissions({}, texts)
+        if held := [name for name in texts if name in self.stored_attributes]:
+            raise ValidationError(f'This already holds the attributes {join_for_message(held)}.')
+        return {**self.stored_attributes, **texts}
+
+    def check_attribute_permissions(self, stored: dict[str, str], texts: dict[str, str]):
+        forbidden = [
+            f'{verb} {join_for_message(names)}'
+            for action, verb, names in (
+                ('add', 'add', [name for name in texts if name not in stored]),
+                ('change', 'change', [name for name in texts if name in stored and texts[name] != stored[name]]),
+                ('delete', 'remove', [name for name in stored if name not in texts]),
+            )
+            if names and not self.permissions[action]
+        ]
+        if forbidden:
+            raise ValidationError(f'You do not have permission to {", nor to ".join(forbidden)}.')
 
     def save(self, commit=True):
         instance = super().save(commit=commit)
@@ -76,7 +113,7 @@ class AttributesForm(SpellbookAdminForm):
 
     def save_attributes(self):
         texts = self.cleaned_data.get('attribute_texts')
-        if texts is None:
+        if texts is None or texts == self.stored_attributes:
             return
         attributes = dict(FeatureAttribute.objects.filter(name__in=texts).values_list('name', 'id'))
         rows = self.instance.attributes.through.objects
@@ -109,11 +146,17 @@ class WithFeatureAttributesAdminInline(TabularInline):
         kwargs.setdefault('fields', [self.related_field, *(self.fields or ()), 'attribute_texts'])
         formset = super().get_formset(request, obj, **kwargs)
         attributes = self.admin_site.get_model_admin(FeatureAttribute)
+        rows = self.model.attributes.through._meta
         # the form is made anew for each request, so it can carry what this user may do
-        cast(type[AttributesForm], formset.form).attribute_links = {
+        form = cast(type[AttributesForm], formset.form)
+        form.attribute_links = {
             'can_add_related': attributes.has_add_permission(request),
             'can_change_related': attributes.has_change_permission(request),
             'can_view_related': attributes.has_view_permission(request),
+        }
+        form.attribute_permissions = {
+            action: request.user.has_perm(f'{rows.app_label}.{get_permission_codename(action, rows)}')
+            for action in ('view', 'add', 'change', 'delete')
         }
         return formset
 

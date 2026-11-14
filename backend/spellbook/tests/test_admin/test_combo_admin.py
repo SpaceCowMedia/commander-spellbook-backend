@@ -244,6 +244,43 @@ class ComboAdminAttributesWidgetTests(ComboAdminTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertCountEqual([result['text'] for result in response.json()['results']], ['FA1', 'FA2'])
 
+    def login_without_permissions_on_the_attributes(self, *actions: str):
+        editor = User.objects.create_user(username=f'editor_{"_".join(actions)}', is_staff=True)
+        editor.user_permissions.add(*Permission.objects.filter(content_type__app_label='spellbook').exclude(content_type__model='featureproducedincomboattribute'))
+        editor.user_permissions.add(*Permission.objects.filter(codename__in=[f'{action}_featureproducedincomboattribute' for action in actions]))
+        self.client.force_login(editor)
+
+    def post_produced_row(self, attributes: dict):
+        payload = self.combo_payload(cards=[self.c1_id])
+        payload.update({
+            'featureproducedincombo_set-TOTAL_FORMS': '1',
+            'featureproducedincombo_set-0-feature': str(self.f1_id),
+            'featureproducedincombo_set-0-is_mana_needed_an_accurate_minimum': 'on',
+            'featureproducedincombo_set-0-attribute_texts': json.dumps(attributes),
+        })
+        return self.client.post(self.add_url(), data=payload)
+
+    def test_who_may_do_nothing_with_the_attributes_of_a_produced_feature_does_not_see_them(self):
+        save_dictionary(FeatureProducedInCombo.objects.filter(combo_id=self.b2_id)[0], {'step': 'untap it', 'Landfall': None})
+        self.login_without_permissions_on_the_attributes()
+        content = self.client.get(self.change_url(self.b2_id)).content.decode()
+        self.assertNotIn('Landfall', content)
+        self.assertNotIn('untap it', content)
+        self.assertNotIn('data-can-', content)
+
+    def test_who_may_not_add_attributes_to_a_produced_feature_cannot_add_them(self):
+        self.login_without_permissions_on_the_attributes('view', 'change', 'delete')
+        combo_count = Combo.objects.count()
+        response = self.post_produced_row({'FA1': 'untap it'})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'You do not have permission to add FA1.')
+        self.assertEqual(Combo.objects.count(), combo_count)
+        self.login_without_permissions_on_the_attributes('add')
+        response = self.post_produced_row({'FA1': 'untap it'})
+        self.assertEqual(response.status_code, 302)
+        produced = FeatureProducedInCombo.objects.get(combo__in=Combo.objects.order_by('-id')[:1])
+        self.assertEqual(list(produced.attributes.through.objects.filter(producer=produced).values_list('attribute__name', 'value')), [('FA1', 'untap it')])
+
     def test_submitted_texts_are_normalized_like_the_other_texts(self):
         widget = AttributesWidget()
         value = widget.value_from_datadict({'attributes': '{"step": "Sacrifice it’s target", "Landfall": null}'}, {}, 'attributes')

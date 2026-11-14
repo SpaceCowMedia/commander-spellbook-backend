@@ -1,4 +1,7 @@
-from ..testing import SpellbookTestCaseWithSeeding, curated_card
+import json
+import re
+from django.contrib.auth.models import Permission, User
+from ..testing import SpellbookTestCaseWithSeeding, curated_card, save_dictionary
 from spellbook.admin.feature_admin import merge_feature
 from spellbook.admin.ingredient_admin import ATTRIBUTES_HELP, FeatureOfCardForm
 from spellbook.models import CardInCombo, Combo, Feature, FeatureAttribute, FeatureNeededInCombo, FeatureOfCard, FeatureProducedInCombo, FeatureRemovedInCombo, Variant, ZoneLocation
@@ -340,3 +343,112 @@ class FeatureAdminTests(SpellbookTestCaseWithSeeding):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'A card feature cannot reference features, since it needs none: [[Attributed Feature]].')
         self.assertFalse(feature.featureofcard_set.exists())
+
+
+class FeatureAdminAttributePermissionsTests(SpellbookTestCaseWithSeeding):
+    '''The attributes of a card row are rows of their own, which only the permissions on them let see, add, change or remove.'''
+
+    def setUp(self):
+        super().setUp()
+        self.feature = Feature.objects.create(name='Attributed Feature', status=Feature.Status.HIDDEN_UTILITY)
+        FeatureAttribute.objects.create(name='other')
+        self.row = FeatureOfCard.objects.create(card_id=self.c1_id, feature=self.feature, zone_locations=ZoneLocation.BATTLEFIELD)
+        save_dictionary(self.row, {'effect': 'adding {C}', 'Landfall': None})
+
+    def login(self, *actions: str):
+        editor = User.objects.create_user(username='editor', is_staff=True)
+        editor.user_permissions.add(*Permission.objects.filter(content_type__app_label='spellbook').exclude(content_type__model='featureofcardattribute'))
+        editor.user_permissions.add(*Permission.objects.filter(codename__in=[f'{action}_featureofcardattribute' for action in actions]))
+        self.client.force_login(editor)
+
+    def stored(self) -> dict[str, str]:
+        return dict(self.row.attributes.through.objects.filter(producer=self.row).values_list('attribute__name', 'value'))
+
+    def editor_of_the_row(self) -> str:
+        content = self.client.get(f'/admin/spellbook/feature/{self.feature.id}/change/').content.decode()
+        editor = re.search(r'<div class="dictionary-field".*?</button>', content, re.DOTALL)
+        assert editor is not None
+        return editor[0]
+
+    def post_attributes(self, attributes: dict):
+        return self.client.post(f'/admin/spellbook/feature/{self.feature.id}/change/', {
+            'name': self.feature.name,
+            'status': self.feature.status,
+            'description': '',
+            'featureofcard_set-TOTAL_FORMS': '1',
+            'featureofcard_set-INITIAL_FORMS': '1',
+            'featureofcard_set-MIN_NUM_FORMS': '0',
+            'featureofcard_set-MAX_NUM_FORMS': '1000',
+            'featureofcard_set-0-id': str(self.row.id),
+            'featureofcard_set-0-feature': str(self.feature.id),
+            'featureofcard_set-0-card': str(self.c1_id),
+            'featureofcard_set-0-quantity': '1',
+            'featureofcard_set-0-zone_locations': ZoneLocation.BATTLEFIELD,
+            'featureofcard_set-0-is_mana_needed_an_accurate_minimum': 'on',
+            'featureofcard_set-0-attribute_texts': json.dumps(attributes),
+        })
+
+    def test_who_may_do_nothing_with_the_attributes_does_not_see_them(self):
+        self.login()
+        editor = self.editor_of_the_row()
+        self.assertNotIn('effect', editor)
+        self.assertNotIn('Landfall', editor)
+        self.assertNotIn('data-can-', editor)
+        self.assertRegex(editor, r'<textarea[^>]*disabled')
+        self.assertIn('Add explanation</span>', editor)
+
+    def test_who_may_do_nothing_with_the_attributes_leaves_them_as_they_are(self):
+        self.login()
+        response = self.post_attributes({'other': 'something else'})
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(self.stored(), {'effect': 'adding {C}', 'Landfall': ''})
+
+    def test_who_may_only_view_the_attributes_reads_them_and_leaves_them_as_they_are(self):
+        self.login('view')
+        editor = self.editor_of_the_row()
+        self.assertIn(' data-can-view>', editor)
+        self.assertIn('Landfall, effect', editor)
+        self.assertRegex(editor, r'<textarea[^>]*disabled')
+        response = self.post_attributes({})
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(self.stored(), {'effect': 'adding {C}', 'Landfall': ''})
+
+    def test_who_may_change_the_attributes_changes_their_texts_only(self):
+        self.login('change')
+        self.assertIn(' data-can-view data-can-change>', self.editor_of_the_row())
+        response = self.post_attributes({'effect': 'adding {G}', 'Landfall': 'on landfall'})
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(self.stored(), {'effect': 'adding {G}', 'Landfall': 'on landfall'})
+        for attributes, message in (
+            ({'effect': 'adding {G}'}, 'You do not have permission to remove Landfall.'),
+            ({'effect': 'adding {G}', 'Landfall': 'on landfall', 'other': None}, 'You do not have permission to add other.'),
+            ({'other': None}, 'You do not have permission to add other, nor to remove Landfall, effect.'),
+        ):
+            with self.subTest(attributes=attributes):
+                response = self.post_attributes(attributes)
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, message)
+                self.assertEqual(self.stored(), {'effect': 'adding {G}', 'Landfall': 'on landfall'})
+
+    def test_who_may_add_and_remove_the_attributes_cannot_change_their_texts(self):
+        self.login('view', 'add', 'delete')
+        response = self.post_attributes({'effect': 'adding {C}', 'other': 'more'})
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(self.stored(), {'effect': 'adding {C}', 'other': 'more'})
+        response = self.post_attributes({'effect': 'adding {G}', 'other': 'more'})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'You do not have permission to change effect.')
+        self.assertEqual(self.stored(), {'effect': 'adding {C}', 'other': 'more'})
+
+    def test_who_may_only_add_attributes_adds_them_without_seeing_the_others(self):
+        self.login('add')
+        editor = self.editor_of_the_row()
+        self.assertIn(' data-initial="{}" data-can-add>', editor)
+        self.assertNotIn('effect', editor)
+        response = self.post_attributes({'other': 'more'})
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(self.stored(), {'effect': 'adding {C}', 'Landfall': '', 'other': 'more'})
+        response = self.post_attributes({'effect': 'adding {G}'})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'This already holds the attributes effect.')
+        self.assertEqual(self.stored(), {'effect': 'adding {C}', 'Landfall': '', 'other': 'more'})

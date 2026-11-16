@@ -1402,21 +1402,21 @@ wheels = [
 
 [[package]]
 name = "social-auth-app-django"
-version = "7.2.0"
+version = "8.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "asgiref" },
     { name = "django" },
     { name = "social-auth-core" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ec/b5/32f7e96f7ab0fbb0e75d202b9d2af6666b3fae2abc8428db7b5ad9ba9b7e/social_auth_app_django-7.2.0.tar.gz", hash = "sha256:f0f647e1d96925cb0e368951266b36f4b9fcb8d4b36456a08ed6b54ad8a70785", size = 91023, upload-time = "2026-10-20T13:26:34.92Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/56/7a/489f8cbea2d62812cf87cfd65ad127fe3de083d502555ddc24cd614cc539/social_auth_app_django-8.1.0.tar.gz", hash = "sha256:df67120883ca1cbeb71843159b042ac82f719d4f777082a350ad94e4b3f74811", size = 101874, upload-time = "2026-11-12T14:58:15.243Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/bb/68/e31ab96c7750ab1d8706b09411d55562da9e87e200fa845f7cd014745872/social_auth_app_django-7.2.0-py3-none-any.whl", hash = "sha256:b91db5f116590c35160c1277ff1a5da8839eef682a2e9067c1c02bb1e47c2e1d", size = 51224, upload-time = "2026-10-20T13:26:33.496Z" },
+    { url = "https://files.pythonhosted.org/packages/a2/bc/90fb8ba368a95e25110e2d0edc6f419eeb276e3b7b7ac193759fa73a8faa/social_auth_app_django-8.1.0-py3-none-any.whl", hash = "sha256:13e98c1588a1e8f706facb6d28f6db2b83d336ffb9f9161136850bbc4688a8d6", size = 54502, upload-time = "2026-11-12T14:58:13.863Z" },
 ]
 
 [[package]]
 name = "social-auth-core"
-version = "6.2.0"
+version = "7.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cryptography" },
@@ -1427,9 +1427,9 @@ dependencies = [
     { name = "requests" },
     { name = "requests-oauthlib" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/72/fc/c0545b9a6a8bed1fec5eb1195999b278f5345c7f1b09ef835b0886092ea0/social_auth_core-6.2.0.tar.gz", hash = "sha256:93daa49e5cb11e7ac06838690679fc6e2901d9add2ba8316651ee19aca26a340", size = 474536, upload-time = "2026-10-20T13:15:02.045Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/2c/fd/f2c7859cb0f3580f3842d713b76d614fbe2292dc4cfcdacb9db403ca5751/social_auth_core-7.2.0.tar.gz", hash = "sha256:43dc6ea460ac4aae0b16c51c3082bd892abb27a0601587ca770ef7b7dcf62943", size = 489575, upload-time = "2026-11-12T10:36:27.609Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0f/0c/413127509bc8fbe5dace05ebc09c692096f152ecde65210152b680d8ffd7/social_auth_core-6.2.0-py3-none-any.whl", hash = "sha256:385771345372b9e87b448fe23b1ca4909fcbb0b752d1206600ab3c18342cd321", size = 308148, upload-time = "2026-10-20T13:15:00.267Z" },
+    { url = "https://files.pythonhosted.org/packages/d7/44/1f5e2fb0dfe17e4b4918ebe41a60b5446c594d41691bd5ec7bace61ab62c/social_auth_core-7.2.0-py3-none-any.whl", hash = "sha256:56c950226ff67253aa3b21d16165d977015b61c77839c1a59f1f55e10e4a032a", size = 317297, upload-time = "2026-11-12T10:36:25.945Z" },
 ]
 
 [[package]]
@@ -1494,7 +1494,7 @@ requires-dist = [
     { name = "drf-spectacular-sidecar", specifier = "==2026.9.1" },
     { name = "lark", specifier = "==1.3.1" },
     { name = "markdown", specifier = "==3.11.3" },
-    { name = "social-auth-app-django", specifier = "==7.2.0" },
+    { name = "social-auth-app-django", specifier = "==8.1.0" },
 ]
 
 [package.metadata.requires-dev]

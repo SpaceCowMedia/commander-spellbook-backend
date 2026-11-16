@@ -34,8 +34,8 @@ class Explanation(models.Model):
 
     mana_needed = models.CharField(blank=True, max_length=MAX_MANA_NEEDED_LENGTH, help_text='Mana needed. Use the {1}{W}{U}{B}{R}{G}{B/P}... format.', validators=[MANA_VALIDATOR, *TEXT_VALIDATORS])
     is_mana_needed_an_accurate_minimum = models.BooleanField(default=True, help_text='Does the first mana cost in this field represent the MINIMUM needed to start, ignoring all other text?')
-    easy_prerequisites = models.TextField(blank=True, help_text='Easily achievable prerequisites.', validators=TEXT_VALIDATORS)
-    notable_prerequisites = models.TextField(blank=True, help_text='Notable prerequisites.', validators=TEXT_VALIDATORS)
+    easy_prerequisites = models.TextField(blank=True, help_text='Prerequisites that usually do not require particular cards.', validators=TEXT_VALIDATORS)
+    notable_prerequisites = models.TextField(blank=True, help_text='Prerequisites that usually require particular cards.', validators=TEXT_VALIDATORS)
     description = models.TextField(blank=True, help_text=DESCRIPTION_HELP_TEXT, validators=TEXT_VALIDATORS)
     notes = models.TextField(blank=True, help_text='Notes that will be displayed on the site', validators=TEXT_VALIDATORS)
     comment = models.TextField(blank=True, help_text='Notes for the editors, not displayed on the site', validators=TEXT_VALIDATORS)

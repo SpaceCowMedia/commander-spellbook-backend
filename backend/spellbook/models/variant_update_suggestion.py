@@ -14,9 +14,9 @@ class VariantUpdateSuggestion(Suggestion):
         VARIANT_GROUPING = 'VG'
         BRACKET_CLASSIFICATION = 'BC'
         OTHER = 'O'
-    kind = models.CharField(choices=Kind.choices, help_text='Type of suggestion', max_length=2)
-    issue = models.TextField(blank=False, help_text='Description of the problem', validators=TEXT_VALIDATORS)
-    solution = models.TextField(blank=True, help_text='Description of the solution', validators=TEXT_VALIDATORS)
+    kind = models.CharField(choices=Kind.choices, max_length=2)
+    issue = models.TextField(blank=False, validators=TEXT_VALIDATORS)
+    solution = models.TextField(blank=True, validators=TEXT_VALIDATORS)
     variants: models.Manager['VariantInVariantUpdateSuggestion']
 
     class Meta(Suggestion.Meta):
@@ -37,9 +37,9 @@ class VariantUpdateSuggestion(Suggestion):
 
 
 class VariantInVariantUpdateSuggestion(models.Model):
-    variant = models.ForeignKey(Variant, on_delete=models.CASCADE, help_text='Variant used in this suggestion', related_name='variant_update_suggestions')
+    variant = models.ForeignKey(Variant, on_delete=models.CASCADE, related_name='variant_update_suggestions')
     variant_id: str
-    suggestion = models.ForeignKey(VariantUpdateSuggestion, on_delete=models.CASCADE, related_name='variants', help_text='Variant update suggestion this variant is used in')
+    suggestion = models.ForeignKey(VariantUpdateSuggestion, on_delete=models.CASCADE, related_name='variants')
     suggestion_id: int
     issue = models.TextField(blank=True, help_text='Description of the issue specific for this variant', validators=TEXT_VALIDATORS)
 

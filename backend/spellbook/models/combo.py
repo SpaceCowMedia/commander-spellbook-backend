@@ -58,7 +58,6 @@ class Combo(Recipe, Explanation, ScryfallLinkMixin):
         to=Card,
         through='CardInCombo',
         related_name='used_in_combos',
-        help_text='Cards that this combo uses',
         blank=True,
         verbose_name='used cards',
     )
@@ -67,7 +66,6 @@ class Combo(Recipe, Explanation, ScryfallLinkMixin):
         to=Feature,
         through='FeatureNeededInCombo',
         related_name='needed_by_combos',
-        help_text='Features that this combo needs',
         blank=True,
         verbose_name='needed features',
     )
@@ -76,7 +74,6 @@ class Combo(Recipe, Explanation, ScryfallLinkMixin):
         to=Template,
         through='TemplateInCombo',
         related_name='required_by_combos',
-        help_text='Templates that this combo requires',
         blank=True,
         verbose_name='required templates',
     )
@@ -85,7 +82,6 @@ class Combo(Recipe, Explanation, ScryfallLinkMixin):
         to=Feature,
         through='FeatureProducedInCombo',
         related_name='produced_by_combos',
-        help_text='Features that this combo produces',
         verbose_name='produced features',
     )
     featureproducedincombo_set: models.Manager['FeatureProducedInCombo']
@@ -93,7 +89,6 @@ class Combo(Recipe, Explanation, ScryfallLinkMixin):
         to=Feature,
         through='FeatureRemovedInCombo',
         related_name='removed_by_combos',
-        help_text='Features that this combo removes',
         blank=True,
         verbose_name='removed features',
     )
@@ -102,7 +97,7 @@ class Combo(Recipe, Explanation, ScryfallLinkMixin):
     allow_many_cards = models.BooleanField(default=False, help_text=f'Allow variants to have more cards ({HIGHER_CARD_LIMIT}) than the default limit ({DEFAULT_CARD_LIMIT}). On the other hand, with this option enabled, the limit on the number of allowed variants is lowered to {LOWER_VARIANT_LIMIT}, instead of the default {DEFAULT_VARIANT_LIMIT}.')
     allow_multiple_copies = models.BooleanField(default=False, help_text='Allow variants to have more copies of the same card or template')
     variant_count = models.PositiveIntegerField(default=0, editable=False)
-    public_variant_count = models.PositiveIntegerField(default=0, editable=False, help_text='Number of variants of this combo that are public')
+    public_variant_count = models.PositiveIntegerField(default=0, editable=False)
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, editable=False)
 

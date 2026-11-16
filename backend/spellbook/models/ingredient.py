@@ -41,7 +41,6 @@ class ZoneLocation(models.TextChoices):
 
 class ZoneLocationsField(models.CharField):
     def __init__(self, *args, **kwargs):
-        kwargs.setdefault('help_text', 'Starting location(s) for the card.')
         kwargs.setdefault('verbose_name', 'starting location')
         kwargs['max_length'] = len(ZoneLocation.choices)
         super().__init__(*args, **kwargs)
@@ -66,13 +65,13 @@ class Ingredient(models.Model):
         ZoneLocation.LIBRARY: 'in the library',
     }
 
-    quantity = models.PositiveSmallIntegerField(default=1, blank=False, help_text='Quantity of the card in the combo.', verbose_name='quantity', validators=[MinValueValidator(1), MaxValueValidator(MAX_INGREDIENT_QUANTITY)])
+    quantity = models.PositiveSmallIntegerField(default=1, blank=False, verbose_name='quantity', validators=[MinValueValidator(1), MaxValueValidator(MAX_INGREDIENT_QUANTITY)])
     zone_locations = ZoneLocationsField(blank=False)
-    battlefield_card_state = models.CharField(max_length=MAX_LOCATION_STATE_LENGTH, blank=True, help_text='State of the card on the battlefield, if present.', validators=TEXT_VALIDATORS, verbose_name='battlefield starting card state')
-    exile_card_state = models.CharField(max_length=MAX_LOCATION_STATE_LENGTH, blank=True, help_text='State of the card in exile, if present.', validators=TEXT_VALIDATORS, verbose_name='exile starting card state')
-    graveyard_card_state = models.CharField(max_length=MAX_LOCATION_STATE_LENGTH, blank=True, help_text='State of the card in the graveyard, if present.', validators=TEXT_VALIDATORS, verbose_name='graveyard starting card state')
-    library_card_state = models.CharField(max_length=MAX_LOCATION_STATE_LENGTH, blank=True, help_text='State of the card in the library, if present.', validators=TEXT_VALIDATORS, verbose_name='library starting card state')
-    must_be_commander = models.BooleanField(default=False, help_text='Does the card have to be a commander?', verbose_name='must be commander')
+    battlefield_card_state = models.CharField(max_length=MAX_LOCATION_STATE_LENGTH, blank=True, validators=TEXT_VALIDATORS, verbose_name='battlefield starting card state')
+    exile_card_state = models.CharField(max_length=MAX_LOCATION_STATE_LENGTH, blank=True, validators=TEXT_VALIDATORS, verbose_name='exile starting card state')
+    graveyard_card_state = models.CharField(max_length=MAX_LOCATION_STATE_LENGTH, blank=True, validators=TEXT_VALIDATORS, verbose_name='graveyard starting card state')
+    library_card_state = models.CharField(max_length=MAX_LOCATION_STATE_LENGTH, blank=True, validators=TEXT_VALIDATORS, verbose_name='library starting card state')
+    must_be_commander = models.BooleanField(default=False, verbose_name='must be commander')
 
     @classmethod
     def text_fields_with_references(cls) -> list[str]:
@@ -104,7 +103,7 @@ class Ingredient(models.Model):
 
 
 class OrderedIngredient(Ingredient):
-    order = models.PositiveIntegerField(default=0, db_index=True, blank=False, help_text='Order of the card in the combo.', verbose_name='order')
+    order = models.PositiveIntegerField(default=0, db_index=True, blank=False, verbose_name='order')
 
     class Meta(Ingredient.Meta):
         abstract = True

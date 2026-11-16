@@ -17,8 +17,8 @@ class SaltVote(models.Model):
     id: int
     user_id: int
     variant_id: str
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='salt_votes', editable=False, db_index=False, help_text='User that cast this vote')
-    variant = models.ForeignKey(Variant, on_delete=models.DO_NOTHING, db_constraint=False, db_index=False, related_name='salt_votes', editable=False, help_text='Variant this vote is about')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='salt_votes', editable=False, db_index=False)
+    variant = models.ForeignKey(Variant, on_delete=models.DO_NOTHING, db_constraint=False, db_index=False, related_name='salt_votes', editable=False)
     score = models.PositiveSmallIntegerField(validators=[MaxValueValidator(MAX_SALT)], help_text='How salty the variant is, from 0 (not at all) to 4 (the most)')
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, editable=False)

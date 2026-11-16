@@ -16,14 +16,13 @@ class Template(NamedModel):
     id: int
     name = NamedModel.name_field(max_length=MAX_TEMPLATE_NAME_LENGTH, verbose_name='template name', help_text='short description of the template in natural language', validators=NAME_VALIDATORS)
     scryfall_query = models.CharField(blank=True, null=True, max_length=SCRYFALL_MAX_QUERY_LENGTH, verbose_name='Scryfall query', help_text=SCRYFALL_QUERY_HELP, validators=SCRYFALL_QUERY_VALIDATORS)
-    description = models.TextField(blank=True, help_text='Long description of the template', verbose_name='description of the template')
+    description = models.TextField(blank=True, verbose_name='description of the template')
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, editable=False)
     replacements: 'models.ManyToManyField[Card, TemplateReplacement]' = models.ManyToManyField(
         to=Card,
         through='TemplateReplacement',
         related_name='replaces',
-        help_text='Cards that are valid replacements of this template',
         blank=True,
         verbose_name='replacements for template',
     )
@@ -46,8 +45,8 @@ class Template(NamedModel):
         return self._scryfall_query != self.scryfall_query
 
     @classmethod
-    def from_db(cls, db, field_names, values):
-        instance = super().from_db(db, field_names, values)
+    def from_db(cls, db, field_names, values, *, fetch_mode=None):
+        instance = super().from_db(db, field_names, values, fetch_mode=fetch_mode)
         instance._scryfall_query = instance.__dict__.get('scryfall_query')
         return instance
 

@@ -21,10 +21,10 @@ class VariantSuggestion(Recipe, Suggestion):
     max_features = 100
 
     mana_needed = models.CharField(blank=True, max_length=MAX_MANA_NEEDED_LENGTH, help_text='Mana needed for this combo. Use the {1}{W}{U}{B}{R}{G}{B/P}... format.', validators=[MANA_VALIDATOR, *TEXT_VALIDATORS])
-    easy_prerequisites = models.TextField(blank=True, help_text='Easily achievable prerequisites for this combo.', validators=TEXT_VALIDATORS)
-    notable_prerequisites = models.TextField(blank=True, help_text='Notable prerequisites for this combo.', validators=TEXT_VALIDATORS)
+    easy_prerequisites = models.TextField(blank=True, help_text='Prerequisites that usually do not require particular cards.', validators=TEXT_VALIDATORS)
+    notable_prerequisites = models.TextField(blank=True, help_text='Prerequisites that usually require particular cards.', validators=TEXT_VALIDATORS)
     description = models.TextField(blank=False, help_text='Long description, in steps', validators=TEXT_VALIDATORS)
-    spoiler = models.BooleanField(default=False, help_text='Is this combo a spoiler?', verbose_name='is spoiler')
+    spoiler = models.BooleanField(default=False, verbose_name='is spoiler')
     variant_of = models.ForeignKey(
         to=Variant,
         on_delete=models.SET_NULL,
@@ -97,7 +97,7 @@ class VariantSuggestion(Recipe, Suggestion):
 
 
 class CardUsedInVariantSuggestion(PreSaveModelMixin, OrderedIngredient):
-    card = models.CharField(max_length=MAX_CARD_NAME_LENGTH, blank=False, help_text='Card name', verbose_name='card name', validators=[NOT_URL_VALIDATOR])
+    card = models.CharField(max_length=MAX_CARD_NAME_LENGTH, blank=False, verbose_name='card name', validators=[NOT_URL_VALIDATOR])
     card_unaccented = models.CharField(max_length=MAX_CARD_NAME_LENGTH, blank=True, editable=False)
     card_unaccented_simplified = models.GeneratedField(
         db_persist=True,
@@ -122,7 +122,7 @@ class CardUsedInVariantSuggestion(PreSaveModelMixin, OrderedIngredient):
 
 
 class TemplateRequiredInVariantSuggestion(OrderedIngredient):
-    template = models.CharField(max_length=Template.MAX_TEMPLATE_NAME_LENGTH, blank=False, help_text='Template name', verbose_name='template name', validators=NAME_VALIDATORS)
+    template = models.CharField(max_length=Template.MAX_TEMPLATE_NAME_LENGTH, blank=False, verbose_name='template name', validators=NAME_VALIDATORS)
     scryfall_query = models.CharField(max_length=SCRYFALL_MAX_QUERY_LENGTH, blank=True, null=True, verbose_name='Scryfall query', help_text=SCRYFALL_QUERY_HELP, validators=SCRYFALL_QUERY_VALIDATORS)
     suggestion = models.ForeignKey(to=VariantSuggestion, on_delete=models.CASCADE, related_name='requires')
 
@@ -134,7 +134,7 @@ class TemplateRequiredInVariantSuggestion(OrderedIngredient):
 
 
 class FeatureProducedInVariantSuggestion(models.Model):
-    feature = models.CharField(max_length=MAX_FEATURE_NAME_LENGTH, blank=False, help_text='Feature name', verbose_name='feature name', validators=FEATURE_NAME_VALIDATORS)
+    feature = models.CharField(max_length=MAX_FEATURE_NAME_LENGTH, blank=False, verbose_name='feature name', validators=FEATURE_NAME_VALIDATORS)
     suggestion = models.ForeignKey(to=VariantSuggestion, on_delete=models.CASCADE, related_name='produces')
 
     def __str__(self):

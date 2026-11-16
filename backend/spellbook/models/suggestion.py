@@ -12,11 +12,11 @@ class Suggestion(models.Model):
         REJECTED = 'R'
 
     id: int
-    status = models.CharField(choices=Status.choices, default=Status.NEW, help_text='Suggestion status for editors', max_length=2)
+    status = models.CharField(choices=Status.choices, default=Status.NEW, max_length=2)
     comment = models.TextField(blank=True, max_length=2**10, help_text='Comment written by the user that suggested this', validators=TEXT_VALIDATORS)
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, editable=False)
-    suggested_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, editable=False, help_text='User that suggested this', related_name='%(class)s')
+    suggested_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, editable=False, related_name='%(class)s')
     notes = models.TextField(blank=True, help_text='Notes written by editors', validators=TEXT_VALIDATORS)
 
     class Meta:

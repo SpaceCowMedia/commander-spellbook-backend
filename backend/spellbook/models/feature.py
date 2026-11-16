@@ -18,11 +18,11 @@ class Feature(NamedModel):
 
     id: int
     name = NamedModel.name_field(max_length=MAX_FEATURE_NAME_LENGTH, help_text='Short name for a produced effect', verbose_name='name of feature', validators=FEATURE_NAME_VALIDATORS)
-    description = models.TextField(blank=True, help_text='Long description of a produced effect', verbose_name='description of the feature')
+    description = models.TextField(blank=True, verbose_name='description of the feature')
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, editable=False)
     status = models.CharField(choices=Status.choices, default=Status.HIDDEN_UTILITY, help_text='Is this feature an utility for variant generation, a helper to be exploited somehow, or a standalone, probably impactful effect? (public utilities are visible to combo submitters)', verbose_name='status', max_length=2)
-    uncountable = models.BooleanField(default=False, help_text='Is this an uncountable feature? Uncountable features can only appear in one copy and speed up variant generation.', verbose_name='is uncountable')
+    uncountable = models.BooleanField(default=False, help_text='Uncountable features can only appear in one copy and speed up variant generation.', verbose_name='is uncountable')
 
     @property
     def is_utility(self) -> bool:

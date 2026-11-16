@@ -29,8 +29,8 @@ class NamedModel(Model):
         return self._name if self._name != self.name else None
 
     @classmethod
-    def from_db(cls, db, field_names, values):
-        instance = super().from_db(db, field_names, values)
+    def from_db(cls, db, field_names, values, *, fetch_mode=None):
+        instance = super().from_db(db, field_names, values, fetch_mode=fetch_mode)
         # read from the loaded values, to avoid fetching the name when it is deferred
         instance._name = instance.__dict__.get('name')
         return instance

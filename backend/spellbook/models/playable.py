@@ -30,31 +30,31 @@ class Playable(models.Model):
     @cache
     def legalities_fields(cls):
         return [field for field in dir(cls) if field.startswith('legal_')]
-    legal_commander = models.BooleanField(default=True, help_text='Is this legal in Commander?', verbose_name='is legal in Commander')
-    legal_pauper_commander_main = models.BooleanField(default=True, help_text='Is this legal in Pauper Commander main deck?', verbose_name='is legal in Pauper Commander main deck')
-    legal_pauper_commander = models.BooleanField(default=True, help_text='Is this legal in Pauper Commander?', verbose_name='is legal in Pauper Commander')
-    legal_oathbreaker = models.BooleanField(default=True, help_text='Is this legal in Oathbreaker?', verbose_name='is legal in Oathbreaker')
-    legal_predh = models.BooleanField(default=True, help_text='Is this legal in PreDH Commander?', verbose_name='is legal in Pre-Modern Commander')
-    legal_standard_brawl = models.BooleanField(default=True, help_text='Is this legal in Standard Brawl?', verbose_name='is legal in Standard Brawl')
-    legal_brawl = models.BooleanField(default=True, help_text='Is this legal in Brawl?', verbose_name='is legal in Brawl')
-    legal_competitive_brawl = models.BooleanField(default=True, help_text='Is this legal in Competitive Brawl?', verbose_name='is legal in Competitive Brawl')
-    legal_alchemy = models.BooleanField(default=True, help_text='Is this legal in Alchemy?', verbose_name='is legal in Alchemy')
-    legal_vintage = models.BooleanField(default=True, help_text='Is this legal in Vintage?', verbose_name='is legal in Vintage')
-    legal_legacy = models.BooleanField(default=True, help_text='Is this legal in Legacy?', verbose_name='is legal in Legacy')
-    legal_premodern = models.BooleanField(default=True, help_text='Is this legal in PreModern?', verbose_name='is legal in PreModern')
-    legal_modern = models.BooleanField(default=True, help_text='Is this legal in Modern?', verbose_name='is legal in Modern')
-    legal_pioneer = models.BooleanField(default=True, help_text='Is this legal in Pioneer?', verbose_name='is legal in Pioneer')
-    legal_standard = models.BooleanField(default=True, help_text='Is this legal in Standard?', verbose_name='is legal in Standard')
-    legal_pauper = models.BooleanField(default=True, help_text='Is this legal in Pauper?', verbose_name='is legal in Pauper')
+    legal_commander = models.BooleanField(default=True, verbose_name='is legal in Commander')
+    legal_pauper_commander_main = models.BooleanField(default=True, verbose_name='is legal in Pauper Commander main deck')
+    legal_pauper_commander = models.BooleanField(default=True, verbose_name='is legal in Pauper Commander')
+    legal_oathbreaker = models.BooleanField(default=True, verbose_name='is legal in Oathbreaker')
+    legal_predh = models.BooleanField(default=True, verbose_name='is legal in Pre-Modern Commander')
+    legal_standard_brawl = models.BooleanField(default=True, verbose_name='is legal in Standard Brawl')
+    legal_brawl = models.BooleanField(default=True, verbose_name='is legal in Brawl')
+    legal_competitive_brawl = models.BooleanField(default=True, verbose_name='is legal in Competitive Brawl')
+    legal_alchemy = models.BooleanField(default=True, verbose_name='is legal in Alchemy')
+    legal_vintage = models.BooleanField(default=True, verbose_name='is legal in Vintage')
+    legal_legacy = models.BooleanField(default=True, verbose_name='is legal in Legacy')
+    legal_premodern = models.BooleanField(default=True, verbose_name='is legal in PreModern')
+    legal_modern = models.BooleanField(default=True, verbose_name='is legal in Modern')
+    legal_pioneer = models.BooleanField(default=True, verbose_name='is legal in Pioneer')
+    legal_standard = models.BooleanField(default=True, verbose_name='is legal in Standard')
+    legal_pauper = models.BooleanField(default=True, verbose_name='is legal in Pauper')
 
     # Prices
     @classmethod
     @cache
     def prices_fields(cls):
         return [field for field in dir(cls) if field.startswith('price_')]
-    price_tcgplayer = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal(0), help_text='Price on TCGPlayer', verbose_name='TCGPlayer price (USD)')
-    price_cardkingdom = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal(0), help_text='Price on Card Kingdom', verbose_name='Card Kingdom price (USD)')
-    price_cardmarket = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal(0), help_text='Price on Cardmarket', verbose_name='Cardmarket price (EUR)')
+    price_tcgplayer = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal(0), verbose_name='TCGPlayer price (USD)')
+    price_cardkingdom = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal(0), verbose_name='Card Kingdom price (USD)')
+    price_cardmarket = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal(0), verbose_name='Cardmarket price (EUR)')
 
     class Meta:
         abstract = True

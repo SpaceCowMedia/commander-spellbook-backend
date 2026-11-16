@@ -110,12 +110,18 @@ body.has-floating-inline-scrollbar #content {
 
 /* Equalize the height of every object tool (plain links and POST-form buttons
    alike): make the list a flex row whose items all stretch to the tallest one,
-   then vertically center each item's content within that shared height. */
+   then vertically center each item's content within that shared height.
+   Since Django 6.1 the list is a flex item beside the page titles: without
+   align-self it would stretch to their height, and every tool with it. It keeps
+   its width too, so a long title wraps instead of squeezing the tools. */
 .object-tools {
     display: flex;
     flex-wrap: wrap;
     align-items: stretch;
     justify-content: flex-end;
+    align-self: flex-start;
+    flex-shrink: 0;
+    max-width: 100%;
 }
 .object-tools > li {
     display: flex;

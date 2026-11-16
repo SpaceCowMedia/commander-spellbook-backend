@@ -917,7 +917,7 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
         c2.produces.add(self.f3_id)
         card = Card.objects.get(number=self.c1_id)
         card.featureofcard_set.create(feature_id=self.f2_id, zone_locations=ZoneLocation.HAND, mana_needed='{X}{U}{1}', easy_prerequisites='C', notable_prerequisites='C')
-        generate_variants(c.id)
+        generate_variants([c.id])
         v: Variant = Variant.objects.get(of=c)
         self.assertEqual(v.mana_value_needed, 8)
         self.assertEqual(v.mana_needed, '{X}{4}{U}{U}{U}{U}')
@@ -935,7 +935,7 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
         combo.cardincombo_set.create(card_id=self.c1_id, order=1, zone_locations=ZoneLocation.BATTLEFIELD)
         combo.featureneededincombo_set.create(feature_id=self.f2_id, order=1)
         combo.produces.add(self.f4_id)
-        generate_variants(combo.id)
+        generate_variants([combo.id])
         return combo
 
     def test_an_inclusion_writes_the_description_of_a_card_feature(self):
@@ -993,7 +993,7 @@ class VariantsGeneratorTests(SpellbookTestCaseWithSeeding):
         remover = Combo.objects.create(mana_needed='{U}', status=Combo.Status.UTILITY)
         remover.cardincombo_set.create(card_id=self.c1_id, order=1, zone_locations=ZoneLocation.BATTLEFIELD)
         remover.removes.add(self.f4_id)
-        generate_variants(c.id)
+        generate_variants([c.id])
         v: Variant = Variant.objects.get(of=c)
         self.assertSetEqual(set(v.includes.values_list('id', flat=True)), {c.id, remover.id})
         produced = set(v.produces.values_list('id', flat=True))
@@ -1168,7 +1168,7 @@ class IncrementalGenerationTests(SpellbookTestCaseWithSeeding):
 
     def test_single_combo_generation_does_not_store_fingerprints(self):
         combo: Combo = Combo.objects.filter(status=Combo.Status.GENERATOR).first()  # type: ignore
-        generate_variants(combo.id)
+        generate_variants([combo.id])
         self.assertEqual(VariantGenerationFingerprints.objects.count(), 0)
 
     def _generate_capturing_metadata(self, **kwargs) -> dict[str, object]:
@@ -1197,9 +1197,9 @@ class IncrementalGenerationTests(SpellbookTestCaseWithSeeding):
         captured = self._generate_capturing_metadata()
         self.assertIs(captured['incremental'], False)
 
-    def test_metadata_reports_not_incremental_on_single_combo(self):
+    def test_metadata_reports_not_incremental_on_selected_combos(self):
         combo: Combo = Combo.objects.filter(status=Combo.Status.GENERATOR).first()  # type: ignore
-        captured = self._generate_capturing_metadata(combo=combo.id)
+        captured = self._generate_capturing_metadata(combos=[combo.id])
         self.assertIs(captured['incremental'], False)
 
 

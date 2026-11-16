@@ -1,8 +1,9 @@
 import json
 import re
+from unittest.mock import patch
 from django.contrib.auth.models import Permission, User
 from ..testing import SpellbookTestCaseWithSeeding, curated_card, save_dictionary
-from spellbook.admin.feature_admin import merge_feature
+from spellbook.admin.feature_admin import FeatureAdmin, merge_feature
 from spellbook.admin.ingredient_admin import ATTRIBUTES_HELP, FeatureOfCardForm
 from spellbook.models import CardInCombo, Combo, Feature, FeatureAttribute, FeatureNeededInCombo, FeatureOfCard, FeatureProducedInCombo, FeatureRemovedInCombo, Variant, ZoneLocation
 from spellbook.models.references import format_alias_reference, format_line_reference, rename_references
@@ -222,6 +223,19 @@ class FeatureAdminTests(SpellbookTestCaseWithSeeding):
         for combo in Combo.objects.filter(id__in=combo_ids):
             self.assertIn('Renamed Twice', combo.name)
 
+    def test_merge_confirmation_truncates_the_objects_it_lists(self):
+        self.client.force_login(self.admin)
+        source = Feature.objects.create(name='Source Feature')
+        target = Feature.objects.create(name='Target Feature')
+        for i in range(3):
+            combo = Combo.objects.create(status=Combo.Status.UTILITY, description=f'Combo {i}')
+            FeatureNeededInCombo.objects.create(combo=combo, feature=source, order=1, zone_locations=ZoneLocation.BATTLEFIELD)
+        with patch.object(FeatureAdmin, 'delete_confirmation_max_display', 2):
+            response = self.client.get(f'/admin/spellbook/feature/{source.id}/delete/?merge_into={target.id}')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Are you sure you want to merge')
+        self.assertContains(response, '…and 2 more objects.')
+
     def test_merge_from_admin_deletes_the_merged_feature(self):
         self.client.force_login(self.admin)
         source = Feature.objects.create(name='Source Feature')
@@ -229,8 +243,8 @@ class FeatureAdminTests(SpellbookTestCaseWithSeeding):
         combo = Combo.objects.create(status=Combo.Status.UTILITY, description='[[Source Feature]] does something')
         FeatureNeededInCombo.objects.create(combo=combo, feature=source, order=1, zone_locations=ZoneLocation.BATTLEFIELD)
 
-        response = self.client.post(f'/admin/spellbook/feature/{source.id}/merge/', {'into': str(target.id)}, follow=True)
-        self.assertEqual(response.status_code, 200)
+        response = self.post_object_tool(Feature, source.id, 'merge', into=str(target.id))
+        self.assertRedirects(response, f'/admin/spellbook/feature/{source.id}/delete/?merge_into={target.id}', fetch_redirect_response=False)
         response = self.client.post(f'/admin/spellbook/feature/{source.id}/delete/?merge_into={target.id}', {'post': 'yes', 'merge_into': str(target.id)}, follow=True)
         self.assertEqual(response.status_code, 200)
 

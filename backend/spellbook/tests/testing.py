@@ -4,7 +4,11 @@ import re
 from functools import reduce
 from collections import defaultdict
 from django.tasks import TaskResult, TaskResultStatus
+from django.contrib.admin import ActionLocation
+from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
 from django.contrib.auth.models import User
+from django.db.models import Model
+from django.urls import reverse
 from spellbook.tasks.generate_variants import generate_variants_task
 from website.tests.testing import BaseTestCase
 from spellbook.variants.multiset import FrozenMultiset
@@ -49,6 +53,11 @@ class SpellbookTestCase(BaseTestCase):
     def tearDown(self):
         self.assertVariantCountsAreExact()
         super().tearDown()
+
+    def post_object_tool(self, model: type[Model], pk: object, action: str, **data: str):
+        '''Posts a change form action the way its object tools button does.'''
+        url = reverse(f'admin:{model._meta.app_label}_{model._meta.model_name}_change', args=[pk])
+        return self.client.post(url, {f'{ActionLocation.CHANGE_FORM.value}-action': action, ACTION_CHECKBOX_NAME: str(pk), **data})
 
     def assertVariantCountsAreExact(self):
         '''Checks every denormalized count against the query it stands for.

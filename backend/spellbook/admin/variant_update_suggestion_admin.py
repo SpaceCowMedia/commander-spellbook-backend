@@ -1,5 +1,6 @@
 from typing import Any
 from django.contrib import admin
+from django.contrib.admin import action
 from django.utils import timezone
 from spellbook.tasks import notify_task, EventNotification
 from .utils import SpellbookAdminForm, SpellbookModelAdmin
@@ -25,7 +26,7 @@ class VariantUpdateSuggestionAdminForm(SpellbookAdminForm):
         ).distinct().order_by('-created')
 
 
-@admin.action(description='Mark selected suggestions as REJECTED')
+@action(description='Mark selected suggestions as REJECTED')
 def set_rejected(modeladmin, request, queryset):
     queryset.update(status=VariantUpdateSuggestion.Status.REJECTED, updated=timezone.now())
     ids = queryset.exclude(suggested_by=request.user).values_list('id', flat=True)
@@ -36,7 +37,7 @@ def set_rejected(modeladmin, request, queryset):
         )
 
 
-@admin.action(description='Mark selected suggestions as ACCEPTED')
+@action(description='Mark selected suggestions as ACCEPTED')
 def set_accepted(modeladmin, request, queryset):
     queryset.update(status=VariantUpdateSuggestion.Status.ACCEPTED, updated=timezone.now())
     ids = queryset.exclude(suggested_by=request.user).values_list('id', flat=True)

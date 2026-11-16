@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 @task(takes_context=True)  # type: ignore[arg-type]
-def generate_variants_task(context: TaskContext, combo: int | None = None, started_by_user_id: int | None = None, incremental: bool = False) -> str:
+def generate_variants_task(context: TaskContext, combos: list[int] | None = None, started_by_user_id: int | None = None, incremental: bool = False) -> str:
     job_id = task_result_identifier(context.task_result)  # type: ignore
     if hasattr(context, 'metadata'):
         context.metadata['generation_id'] = job_id
@@ -50,7 +50,7 @@ def generate_variants_task(context: TaskContext, combo: int | None = None, start
         def metadata(key: str, value: object):
             pass
     added, restored, removed = generate_variants(
-        combo=combo,
+        combos=combos,
         job=job_id,
         log=log,
         log_error=log_error,
@@ -67,7 +67,12 @@ def generate_variants_task(context: TaskContext, combo: int | None = None, start
         message = 'Variants are already synced with'
     else:
         message = f'Generated {added} new variants, restored {restored} variants, removed {removed} variants for'
-    message += ' all combos'
+    if combos is None:
+        message += ' all combos'
+    elif len(combos) == 1:
+        message += f' combo {combos[0]}'
+    else:
+        message += f' {len(combos)} selected combos'
     logger.info(message)
     if hasattr(context, 'metadata'):
         context.metadata['variant_count'] = added + restored

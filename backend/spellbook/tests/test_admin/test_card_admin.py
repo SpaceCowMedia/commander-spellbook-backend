@@ -35,29 +35,43 @@ class CardAdminTests(SpellbookTestCaseWithSeeding):
     def test_change_view_offers_the_curate_button_only_when_uncurated(self):
         self.client.force_login(self.admin)
         uncurated = Card.objects.create(name='Card To Curate', type_line='Instant')
-        curate_url = reverse('admin:spellbook_card_curate', args=[uncurated.pk])
         response = self.client.get(reverse('admin:spellbook_card_change', args=[uncurated.pk]))
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(curate_url, str(response.content))
+        self.assertContains(response, '<span class="button__text">Curate this card, so that combos and templates can use it</span>')
+        self.assertNotContains(response, '<div class="actions">')
         curated = Card.objects.get(number=self.c1_id)
         response = self.client.get(reverse('admin:spellbook_card_change', args=[curated.pk]))
-        self.assertEqual(response.status_code, 200)
-        self.assertNotIn(reverse('admin:spellbook_card_curate', args=[curated.pk]), str(response.content))
+        self.assertNotContains(response, '<span class="button__text">Curate this card')
 
-    def test_curate_view_assigns_the_next_number(self):
+    def test_curate_action_assigns_the_next_number(self):
         self.client.force_login(self.admin)
         last = Card.objects.order_by('-number').first()
         assert last is not None and last.number is not None
         uncurated = Card.objects.create(name='Card To Curate', type_line='Instant')
-        response = self.client.post(reverse('admin:spellbook_card_curate', args=[uncurated.pk]), follow=True)
-        self.assertEqual(response.status_code, 200)
+        response = self.post_object_tool(Card, uncurated.pk, 'curate')
+        self.assertRedirects(response, reverse('admin:spellbook_card_change', args=[uncurated.pk]), fetch_redirect_response=False)
         uncurated.refresh_from_db()
         self.assertEqual(uncurated.number, last.number + 1)
 
-    def test_curate_view_ignores_get_requests(self):
+    def test_curate_action_ignores_get_requests(self):
         self.client.force_login(self.admin)
         uncurated = Card.objects.create(name='Card To Curate', type_line='Instant')
-        response = self.client.get(reverse('admin:spellbook_card_curate', args=[uncurated.pk]), follow=True)
+        response = self.client.get(reverse('admin:spellbook_card_change', args=[uncurated.pk]), {'CHANGE_FORM-action': 'curate', '_selected_action': str(uncurated.pk)})
         self.assertEqual(response.status_code, 200)
         uncurated.refresh_from_db()
         self.assertIsNone(uncurated.number)
+
+    def test_curate_action_curates_the_selected_cards_from_the_changelist(self):
+        self.client.force_login(self.admin)
+        last = Card.objects.order_by('-number').first()
+        assert last is not None and last.number is not None
+        first = Card.objects.create(name='A Card To Curate', type_line='Instant')
+        second = Card.objects.create(name='B Card To Curate', type_line='Instant')
+        curated = Card.objects.get(number=self.c1_id)
+        response = self.client.post(reverse('admin:spellbook_card_changelist'), {'action': 'curate', '_selected_action': [first.pk, second.pk, curated.pk]}, follow=True)
+        self.assertEqual(response.status_code, 200)
+        first.refresh_from_db()
+        second.refresh_from_db()
+        self.assertEqual((first.number, second.number), (last.number + 1, last.number + 2))
+        messages = [str(m) for m in response.context['messages']]
+        self.assertIn(f'Curated A Card To Curate as card number {first.number}, B Card To Curate as card number {second.number}.', messages)
+        self.assertIn(f'Already curated: {curated.name} as card number {curated.number}.', messages)

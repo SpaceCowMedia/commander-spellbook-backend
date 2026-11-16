@@ -7,6 +7,7 @@ from django.urls import reverse, path
 from django.http import HttpRequest
 from django.shortcuts import redirect
 from django.contrib import admin, messages
+from django.contrib.admin import action
 from django.forms import Textarea
 from django.utils import timezone
 from django.tasks import TaskResult
@@ -102,11 +103,11 @@ def set_status(request, queryset, status: Variant.Status):
 
 
 def status_action(status: Variant.Status):
-    @admin.action(description=f'Mark selected variants as {status.name.replace("_", " ")}')
-    def action(modeladmin, request, queryset: QuerySet):
+    @action(description=f'Mark selected variants as {status.name.replace("_", " ")}')
+    def set_status_action(modeladmin, request, queryset: QuerySet):
         set_status(request, queryset, status)
-    action.__name__ = f'set_{status.name.lower()}'
-    return action
+    set_status_action.__name__ = f'set_{status.name.lower()}'
+    return set_status_action
 
 
 @admin.register(Variant)

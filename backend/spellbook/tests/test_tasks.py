@@ -40,11 +40,25 @@ class TasksTest(SpellbookTestCaseWithSeeding):
         single_combo_generator = Variant.objects.get(id=v1_id).of.first()
         expected_variants_ids = set(single_combo_generator.variants.values_list('id', flat=True))
         Variant.objects.all().delete()
-        result: TaskResult = generate_variants_task.enqueue(started_by_user_id=u.pk, combo=single_combo_generator.id)
+        result: TaskResult = generate_variants_task.enqueue(started_by_user_id=u.pk, combos=[single_combo_generator.id])
         self.assertTrue(result.is_finished)
         self.assertEqual(result.status, TaskResultStatus.SUCCESSFUL)
         self.assertSetEqual(set(Variant.objects.values_list('id', flat=True)), expected_variants_ids)
+        self.assertTrue(result.return_value.endswith(f' for combo {single_combo_generator.id}'))
         # Combos that lost their variants to the deletion above are brought back down to zero
+        self.assertVariantCountsAreExact()
+
+    def test_generate_variants_for_selected_combos(self):
+        super().generate_variants()
+        selected = list(Combo.objects.filter(status=Combo.Status.GENERATOR, variants__isnull=False).distinct().order_by('id')[:2])
+        self.assertEqual(len(selected), 2)
+        expected_variants_ids = set(Variant.objects.filter(of__in=selected).values_list('id', flat=True))
+        self.assertLess(len(expected_variants_ids), Variant.objects.count())
+        Variant.objects.all().delete()
+        result: TaskResult = generate_variants_task.enqueue(combos=[combo.id for combo in selected])
+        self.assertEqual(result.status, TaskResultStatus.SUCCESSFUL)
+        self.assertSetEqual(set(Variant.objects.values_list('id', flat=True)), expected_variants_ids)
+        self.assertTrue(result.return_value.endswith(' for 2 selected combos'))
         self.assertVariantCountsAreExact()
 
     def test_recompute_combo_variant_counts(self):

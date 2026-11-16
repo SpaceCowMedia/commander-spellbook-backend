@@ -1,5 +1,20 @@
 {% extends "admin/change_form.html" %}
-{% load static %}
+{% load static l10n %}
+
+{% block object-tools-items %}
+    {% for tool in object_tools %}
+        <li>
+            <form method="post" class="inline" novalidate onsubmit="const button = this.querySelector('button'); button.classList.add('button--loading'); button.disabled = true;">
+                {% csrf_token %}
+                <input type="hidden" name="{{ tool.field_name }}" value="{{ tool.action }}">
+                <input type="hidden" name="{{ action_checkbox_name }}" value="{{ original.pk|unlocalize }}">
+                <button type="submit" class="default"><span class="button__text">{{ tool.description }}</span></button>
+                {% if tool.input_name %}<input type="text" name="{{ tool.input_name }}" placeholder="{{ tool.input_placeholder }}" style="width: {{ tool.input_placeholder|length|add:1 }}ch;">{% endif %}
+            </form>
+        </li>
+    {% endfor %}
+    {{ block.super }}
+{% endblock %}
 
 {% block extrahead %}
     {{ block.super }}

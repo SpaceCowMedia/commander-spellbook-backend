@@ -208,18 +208,6 @@
     {% endif %}
 {% endblock %}
 
-{% block object-tools-items %}
-{% if original and original.number is None %}
-<li>
-    <form method="post" action="{% url 'admin:spellbook_card_curate' original.id %}" class="inline" novalidate>
-        {% csrf_token %}
-        <button type="submit" class="default">Curate this card, so that combos and templates can use it</button>
-    </form>
-</li>
-{% endif %}
-{{ block.super }}
-{% endblock %}
-
 {% block after-content %}
     {{ block.super }}
     <table>

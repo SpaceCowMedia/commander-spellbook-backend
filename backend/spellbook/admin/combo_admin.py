@@ -3,17 +3,19 @@ from collections.abc import Mapping
 from typing import Any
 from urllib.parse import urlencode
 from adminsortable2.admin import CustomInlineFormSet
+from django.contrib.admin import ActionLocation, action
 from django.contrib.admin.options import InlineModelAdmin
-from django.db.models import Case, Sum, When, Count, Q
+from django.db.models import Case, Sum, When, Count, Q, QuerySet
 from django.contrib import admin, messages
 from django.db.models.functions import Coalesce
 from django.forms.models import BaseModelFormSet
+from django.http import HttpResponse
 from django.http.request import HttpRequest
 from django.forms import Textarea
 from django.template.response import TemplateResponse
 from django.utils.html import format_html, format_html_join
 from django.utils.safestring import SafeString, mark_safe
-from django.urls import reverse, path
+from django.urls import reverse
 from django.shortcuts import redirect
 from django.utils import timezone
 from django.tasks import TaskResult
@@ -21,7 +23,7 @@ from spellbook.models import Card, Explanation, FeatureAttribute, FeatureNeededI
 from spellbook.models.references import attribute_keys_referenced, references_past_copies_needed, references_to_features_not_needed, references_to_unknown_keys
 from spellbook.models.utils import sanitize_newlines_apostrophes_and_quotes
 from spellbook.tasks import generate_variants_task
-from .utils import SpellbookModelAdmin, SpellbookAdminForm, CustomFilter, IngredientCountListFilter, join_for_message
+from .utils import SpellbookModelAdmin, SpellbookAdminForm, CustomFilter, IngredientCountListFilter, join_for_message, object_tool
 from .ingredient_admin import ComboIngredientAdmin, IngredientForm, WithFeatureAttributesAdminInline
 
 
@@ -290,6 +292,10 @@ class VariantRelatedFilter(CustomFilter):
         return Q()
 
 
+def describe_combos(ids: list[int]) -> str:
+    return f'combo {ids[0]}' if len(ids) == 1 else f'combos {join_for_message(ids)}'
+
+
 @admin.register(Combo)
 class ComboAdmin(SpellbookModelAdmin):
     form = ComboForm
@@ -319,6 +325,7 @@ class ComboAdmin(SpellbookModelAdmin):
         'needs__name'
     ]
     list_display = ['name', 'id', 'status', 'allow_many_cards', 'allow_multiple_copies', 'updated', 'variant_count']
+    actions = ['generate_variants']
 
     def get_inline_formsets(self, request, formsets, inline_instances, obj=None, **kwargs):
         inline_admin_formsets = super().get_inline_formsets(request, formsets, inline_instances, obj=obj, **kwargs)
@@ -670,26 +677,17 @@ class ComboAdmin(SpellbookModelAdmin):
             if updated:
                 messages.info(request, f'Set {updated} "New" variants to "Restore" status.')
 
-    def generate_variants(self, request: HttpRequest, object_id: str):
-        if request.method == 'POST' and request.user.is_authenticated:
-            combo = Combo.objects.filter(pk=object_id).first()
-            if not combo:
-                messages.error(request, f'Combo with id {object_id} does not exist.')
-                return redirect('admin:spellbook_combo_changelist')
-            if combo.status == Combo.Status.GENERATOR:
-                result: TaskResult = generate_variants_task.enqueue(combo=int(object_id), started_by_user_id=request.user.pk)
-                messages.info(request, f'Enqueued variant generation task for combo {object_id}.')
-                return redirect('admin:django_tasks_database_dbtaskresult_change', result.id)
-            else:
-                messages.error(request, f'Combo with id {object_id} is not marked as a generator combo.')
-        return redirect('admin:spellbook_combo_change', object_id)
-
-    def get_urls(self):
-        return [
-            path(
-                '<path:object_id>/generate-variants/',
-                self.admin_site.admin_view(view=self.generate_variants, cacheable=False),
-                name='spellbook_combo_generate_variants',
-            ),
-            *super().get_urls(),
-        ]
+    @object_tool(shown_for=lambda combo: combo.status == Combo.Status.GENERATOR)
+    @action(description='Generate variants for this combo', description_plural='Generate variants for selected combos', location=[ActionLocation.CHANGE_FORM, ActionLocation.CHANGE_LIST])  # type: ignore[call-overload]
+    def generate_variants(self, request: HttpRequest, queryset: QuerySet[Combo]) -> HttpResponse | None:
+        statuses = dict(queryset.order_by('id').values_list('id', 'status'))
+        generators = [id for id, status in statuses.items() if status == Combo.Status.GENERATOR]
+        skipped = [id for id, status in statuses.items() if status != Combo.Status.GENERATOR]
+        if skipped:
+            level = messages.WARNING if generators else messages.ERROR
+            messages.add_message(request, level, f'Skipped {describe_combos(skipped)}: only generator combos generate variants.')
+        if not generators:
+            return None
+        result: TaskResult = generate_variants_task.enqueue(combos=generators, started_by_user_id=request.user.pk)
+        messages.info(request, f'Enqueued variant generation task for {describe_combos(generators)}.')
+        return redirect('admin:django_tasks_database_dbtaskresult_change', result.id)

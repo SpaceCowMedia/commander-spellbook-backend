@@ -3,6 +3,7 @@ import re
 from collections import defaultdict
 from html import unescape
 from django.contrib.auth.models import Permission, User
+from django.contrib.messages import get_messages
 from django.urls import reverse
 from spellbook.admin.combo_admin import ALL_ZONE_LOCATIONS
 from spellbook.models import Card, CardInCombo, CardUsedInVariantSuggestion, Combo, Explanation, FeatureAttribute, FeatureProducedInCombo, FeatureProducedInVariantSuggestion, Variant, VariantSuggestion, ZoneLocation
@@ -786,3 +787,49 @@ class ComboFromSuggestionTests(SpellbookTestCaseWithSeeding):
         self.assertEqual(response.status_code, 200)
         messages = [str(m) for m in response.context['messages']]
         self.assertFalse(any('has not been curated' in message for message in messages), messages)
+
+
+class ComboAdminGenerateVariantsTests(ComboAdminTestCase):
+    task_result_path = '/admin/django_tasks_database/dbtaskresult/'
+
+    def messages_of(self, response) -> list[str]:
+        return [str(m) for m in get_messages(response.wsgi_request)]
+
+    def generators_of_variants(self) -> set[int]:
+        return set(Variant.objects.values_list('of', flat=True))
+
+    def test_the_action_generates_the_variants_of_the_selected_generator_combos(self):
+        response = self.client.post(reverse('admin:spellbook_combo_changelist'), {'action': 'generate_variants', '_selected_action': [self.b2_id, self.b3_id, self.b6_id]})
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(self.task_result_path, response['Location'])
+        self.assertSetEqual(self.generators_of_variants(), {self.b2_id, self.b6_id})
+        messages = self.messages_of(response)
+        self.assertIn(f'Skipped combo {self.b3_id}: only generator combos generate variants.', messages)
+        self.assertIn(f'Enqueued variant generation task for combos {self.b2_id}, {self.b6_id}.', messages)
+
+    def test_the_action_refuses_a_selection_without_generator_combos(self):
+        response = self.client.post(reverse('admin:spellbook_combo_changelist'), {'action': 'generate_variants', '_selected_action': [self.b3_id, self.b7_id]})
+        self.assertEqual(response.status_code, 302)
+        self.assertNotIn(self.task_result_path, response['Location'])
+        self.assertFalse(Variant.objects.exists())
+        self.assertIn(f'Skipped combos {self.b3_id}, {self.b7_id}: only generator combos generate variants.', self.messages_of(response))
+
+    def test_the_change_form_offers_the_button_only_on_generator_combos(self):
+        response = self.client.get(reverse('admin:spellbook_combo_change', args=[self.b2_id]))
+        self.assertContains(response, '<span class="button__text">Generate variants for this combo</span>')
+        self.assertNotContains(response, '<div class="actions">')
+        response = self.client.get(reverse('admin:spellbook_combo_change', args=[self.b3_id]))
+        self.assertNotContains(response, '<span class="button__text">Generate variants for this combo')
+
+    def test_the_button_generates_the_variants_of_its_combo(self):
+        response = self.post_object_tool(Combo, self.b2_id, 'generate_variants')
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(self.task_result_path, response['Location'])
+        self.assertSetEqual(self.generators_of_variants(), {self.b2_id})
+        self.assertIn(f'Enqueued variant generation task for combo {self.b2_id}.', self.messages_of(response))
+
+    def test_the_button_refuses_a_combo_that_is_not_a_generator(self):
+        response = self.post_object_tool(Combo, self.b7_id, 'generate_variants')
+        self.assertRedirects(response, reverse('admin:spellbook_combo_change', args=[self.b7_id]), fetch_redirect_response=False)
+        self.assertFalse(Variant.objects.exists())
+        self.assertIn(f'Skipped combo {self.b7_id}: only generator combos generate variants.', self.messages_of(response))

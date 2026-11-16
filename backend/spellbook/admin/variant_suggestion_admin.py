@@ -1,5 +1,6 @@
 from typing import Any
 from django.contrib import admin, messages
+from django.contrib.admin import action
 from django.utils import timezone
 from django.utils.safestring import mark_safe
 from django.urls import reverse, path
@@ -37,7 +38,7 @@ class FeatureProducedInVariantAdminInline(admin.TabularInline):
     extra = 0
 
 
-@admin.action(description='Mark selected suggestions as REJECTED')
+@action(description='Mark selected suggestions as REJECTED')
 def set_rejected(modeladmin, request, queryset):
     queryset.update(status=VariantSuggestion.Status.REJECTED, updated=timezone.now())
     ids = queryset.exclude(suggested_by=request.user).values_list('id', flat=True)

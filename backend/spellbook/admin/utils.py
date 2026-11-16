@@ -1,5 +1,6 @@
 import json
-from typing import Any, Iterable
+from dataclasses import dataclass
+from typing import Any, Callable, Iterable
 from datetime import datetime
 from django.db.models import Model, TextField, DateTimeField, Count, Q, When, Case, Max
 from django.contrib import admin, messages
@@ -8,14 +9,15 @@ from django.http import HttpRequest
 from django.http.response import HttpResponse
 from django.forms import BoundField, ModelForm
 from django.shortcuts import redirect
-from django.urls import reverse, path
-from django.urls.resolvers import URLPattern
+from django.urls import reverse
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from django.utils.formats import localize
 from django.core.validators import EMPTY_VALUES
 from django.forms import JSONField as JSONFormField, Media, Textarea
-from django.contrib.admin import ModelAdmin
+from django.contrib.admin import ActionLocation, ModelAdmin, action
+from django.contrib.admin.utils import model_format_dict
+from django.utils.text import capfirst
 from django.contrib.admin.widgets import AutocompleteSelect
 from django.contrib.admin.options import IS_POPUP_VAR, TO_FIELD_VAR
 from django.contrib.admin.views.main import ORDER_VAR, ChangeList
@@ -220,8 +222,32 @@ class LocalDatetimeAdminMixin(ModelAdmin):
         ]
 
 
+@dataclass(frozen=True)
+class ObjectTool:
+    '''A change form action shown among the object tools, as a button posting it the way Django's action bar would.'''
+    field_name: str
+    action: str
+    description: str
+    input_name: str | None
+    input_placeholder: str
+
+
+def object_tool(*, shown_for: Callable[[Any], bool] | None = None, input_name: str | None = None, input_placeholder: str = ''):
+    '''Tunes the object tools button of a change form action: shown only for the objects passing shown_for, and next
+    to a text input posted as input_name for the action to read, its placeholder formatted like action descriptions.'''
+    def decorator(func):
+        if shown_for is not None:
+            func.shown_for = shown_for
+        if input_name is not None:
+            func.input_name = input_name
+            func.input_placeholder = input_placeholder
+        return func
+    return decorator
+
+
 class SpellbookModelAdmin(LocalDatetimeAdminMixin, SortableAdminBase, ModelAdmin):
     form = SpellbookAdminForm
+    delete_confirmation_max_display = 100
     search_help_text = 'Type text to search for, using spaces to separate multiple terms.' \
         ' Wrap terms in quotes to search for exact phrases.' \
         ' Use " + " instead of space to require multiple terms to be present on different related objects.' \
@@ -310,10 +336,32 @@ class SpellbookModelAdmin(LocalDatetimeAdminMixin, SortableAdminBase, ModelAdmin
     def get_changelist(self, request, **kwargs: Any) -> type[ChangeList]:
         return SpellbookAdminChangelist
 
+    def get_object_tools(self, request: HttpRequest, obj: Model) -> list[ObjectTool]:
+        field_name = self.action_form(auto_id=None, prefix=ActionLocation.CHANGE_FORM.value)['action'].html_name
+        names = model_format_dict(self.opts)
+        return [
+            ObjectTool(
+                field_name=field_name,
+                action=action.name,
+                description=action.description % names,
+                input_name=getattr(action.func, 'input_name', None),
+                input_placeholder=capfirst(getattr(action.func, 'input_placeholder', '') % names),
+            )
+            for action in self.get_actions(request, action_location=ActionLocation.CHANGE_FORM).values()
+            if action is not None and getattr(action.func, 'shown_for', lambda _: True)(obj)
+        ]
+
+    def render_change_form(self, request, context, add=False, change=False, form_url='', obj=None):
+        context['object_tools'] = self.get_object_tools(request, obj) if change and obj is not None else []
+        # Django's action bar would list every action regardless of shown_for and without their inputs
+        context['action_form'] = None
+        return super().render_change_form(request, context, add, change, form_url, obj)
+
 
 class MergeableModelAdmin(SpellbookModelAdmin):
-    '''Adds a "merge into" button that redirects to the deletion page of the object being merged,
+    '''Adds a "merge into" action that redirects to the deletion page of the object being merged,
     where confirming moves every relationship and reference to the other object before deleting it.'''
+    actions = ['merge']
 
     def merge_objects(self, from_obj: Any, to_obj: Any) -> None:
         raise NotImplementedError()
@@ -321,21 +369,23 @@ class MergeableModelAdmin(SpellbookModelAdmin):
     def admin_url_name(self, view: str) -> str:
         return f'{self.opts.app_label}_{self.opts.model_name}_{view}'
 
-    def merge(self, request: HttpRequest, object_id: str) -> HttpResponse:
-        if request.method == 'POST' and request.user.is_authenticated:
-            into_id = request.POST.get('into')
-            if into_id is None:
-                messages.error(request, f'No {self.opts.verbose_name} selected for merging.')
-            elif into_id == str(object_id):
-                messages.error(request, f'Cannot merge a {self.opts.verbose_name} into itself.')
+    @object_tool(input_name='into', input_placeholder='%(verbose_name)s ID')
+    @action(description='Merge into', permissions=['delete'], location=ActionLocation.CHANGE_FORM)
+    def merge(self, request: HttpRequest, queryset: QuerySet) -> HttpResponse | None:
+        obj = queryset.get()
+        into_id = request.POST.get('into', '').strip()
+        if not into_id:
+            messages.error(request, f'No {self.opts.verbose_name} selected for merging.')
+        elif into_id == str(obj.pk):
+            messages.error(request, f'Cannot merge a {self.opts.verbose_name} into itself.')
+        else:
+            try:
+                into_obj = self.model.objects.get(pk=into_id)
+            except (self.model.DoesNotExist, ValueError):
+                messages.error(request, f'Invalid {self.opts.verbose_name} selected for merging.')
             else:
-                try:
-                    into_obj = self.model.objects.get(pk=into_id)
-                    obj_to_merge = self.model.objects.get(pk=object_id)
-                    return redirect(reverse(f'admin:{self.admin_url_name("delete")}', args=[obj_to_merge.pk]) + f'?merge_into={into_obj.pk}')
-                except (self.model.DoesNotExist, ValueError):
-                    messages.error(request, f'Invalid {self.opts.verbose_name} selected for merging.')
-        return redirect(f'admin:{self.admin_url_name("change")}', object_id)
+                return redirect(reverse(f'admin:{self.admin_url_name("delete")}', args=[obj.pk]) + f'?merge_into={into_obj.pk}')
+        return None
 
     def delete_view(self, request: HttpRequest, object_id: str, extra_context=None) -> HttpResponse:
         merge_into = request.GET.get('merge_into')
@@ -360,16 +410,6 @@ class MergeableModelAdmin(SpellbookModelAdmin):
                 messages.error(request, f'Invalid {self.opts.verbose_name} selected for merging. Deletion aborted.')
                 return
         super().delete_model(request, obj)
-
-    def get_urls(self) -> list[URLPattern]:
-        return [
-            path(
-                '<path:object_id>/merge/',
-                self.admin_site.admin_view(self.merge),
-                name=self.admin_url_name('merge'),
-            ),
-            *super().get_urls(),
-        ]
 
 
 class CustomFilter(admin.SimpleListFilter):

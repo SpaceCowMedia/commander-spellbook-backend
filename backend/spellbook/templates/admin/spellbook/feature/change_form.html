@@ -22,11 +22,6 @@
     </script>
 {% endblock %}
 
-{% block object-tools-items %}
-{% include 'admin/spellbook/includes/merge_button.html' with merge_url='admin:spellbook_feature_merge' merge_placeholder='Feature ID' %}
-{{ block.super }}
-{% endblock %}
-
 {% block after-content %}
     <table>
         <thead>

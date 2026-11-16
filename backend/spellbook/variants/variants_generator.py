@@ -674,7 +674,7 @@ def sync_variant_aliases(data: Data, added_variants_ids: set[str], deleted_varia
 # ---------------------------------------------------------------------------
 
 def generate_variants(
-    combo: int | None = None,
+    combos: Sequence[int] | None = None,
     job: str | None = None,
     log: LogFunction = lambda _: None,
     log_error: LogFunction = lambda _: None,
@@ -684,8 +684,8 @@ def generate_variants(
 ) -> tuple[int, int, int]:
     workers = resolve_workers()
     progress(0, 100)
-    if combo is not None:
-        log(f'Variant generation started for combo {combo}.')
+    if combos is not None:
+        log(f'Variant generation started for combo {combos[0]}.' if len(combos) == 1 else f'Variant generation started for {len(combos)} selected combos.')
     else:
         log('Variant generation started for all combos.')
     log('Fetching data...')
@@ -696,14 +696,14 @@ def generate_variants(
     gc.collect()
     gc.freeze()
     try:
-        return _generate_variants(data, combo, job, log, log_error, progress, metadata, incremental, workers)
+        return _generate_variants(data, combos, job, log, log_error, progress, metadata, incremental, workers)
     finally:
         gc.unfreeze()
 
 
 def _generate_variants(
     data: Data,
-    combo: int | None,
+    combos: Sequence[int] | None,
     job: str | None,
     log: LogFunction,
     log_error: LogFunction,
@@ -714,11 +714,11 @@ def _generate_variants(
 ) -> tuple[int, int, int]:
     log('Computing entity fingerprints...')
     current_fingerprints = compute_fingerprints(data)
-    if combo is not None:
+    if combos is not None:
         plan = GenerationPlan(
-            scope=GenerationScope.SINGLE,
-            combos_to_generate=[data.id_to_combo[combo]],
-            regenerated_combo_ids={combo},
+            scope=GenerationScope.SELECTED,
+            combos_to_generate=[data.id_to_combo[combo] for combo in combos],
+            regenerated_combo_ids=set(combos),
         )
     elif incremental:
         plan = plan_incremental_generation(data, current_fingerprints, load_stored_fingerprints())
@@ -790,7 +790,7 @@ def _generate_variants(
     log(f'Deleted {len(to_delete)} variants.')
     added_aliases, deleted_aliases = sync_variant_aliases(data, added, to_delete)
     log(f'Added {added_aliases} new aliases, deleted {deleted_aliases} aliases.')
-    if plan.scope is not GenerationScope.SINGLE:
+    if plan.scope is not GenerationScope.SELECTED:
         # Only a full or incremental generation leaves the database in a state
         # that is consistent with the computed fingerprints
         store_fingerprints(current_fingerprints)

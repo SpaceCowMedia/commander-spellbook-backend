@@ -198,7 +198,7 @@ def store_fingerprints(fingerprints: Fingerprints) -> None:
 class GenerationScope(Enum):
     FULL = 'full'
     INCREMENTAL = 'incremental'
-    SINGLE = 'single'
+    SELECTED = 'selected'
 
 
 @dataclass(frozen=True)

@@ -352,13 +352,15 @@ class FeatureAttributeAdminTests(SpellbookTestCaseWithSeeding):
         response = self.client.get(f'/admin/spellbook/featureattribute/{attribute.id}/change/')
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, f'/admin/spellbook/featureattribute/{attribute.id}/merge/')
+        self.assertContains(response, '<span class="button__text">Merge into</span>', html=False)
+        self.assertContains(response, 'placeholder="Feature attribute ID"')
 
     def test_merge_from_admin_rejects_merging_into_itself(self):
         self.client.force_login(self.admin)
         attribute = FeatureAttribute.objects.create(name='Some Attribute')
 
-        response = self.client.post(f'/admin/spellbook/featureattribute/{attribute.id}/merge/', {'into': str(attribute.id)}, follow=True)
+        response = self.post_object_tool(FeatureAttribute, attribute.id, 'merge', into=str(attribute.id))
+        response = self.client.get(response['Location'])
 
         self.assertEqual(response.status_code, 200)
         self.assertTrue(FeatureAttribute.objects.filter(pk=attribute.pk).exists())

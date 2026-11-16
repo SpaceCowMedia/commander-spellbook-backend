@@ -132,15 +132,15 @@ class BaseMultiset:
         return m if m != _COUNT_NOT_SET else 0
 
     def issubset(self, other: 'BaseMultiset') -> bool:
-        self_len: int = self._total
+        self_len = self._total
         if self_len == 0:
             return True
-        other_len: int = other._total
+        other_len = other._total
         if self_len > other_len:
             return False
-        other_get = other._elements.get
+        other_elements = other._elements
         for element, q in self._elements.items():
-            if q > other_get(element, 0):
+            if q > other_elements.get(element, 0):
                 return False
         return True
 

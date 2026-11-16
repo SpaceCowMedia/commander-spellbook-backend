@@ -23,6 +23,7 @@ cdef class BaseMultiset:
     cpdef BaseMultiset union(self, BaseMultiset other)
     cpdef BaseMultiset combine(self, BaseMultiset other)
     cpdef BaseMultiset intersection(self, BaseMultiset other)
+    @cython.locals(self_len=Py_ssize_t, other_len=Py_ssize_t, other_elements=dict)
     cpdef bint issubset(self, BaseMultiset other)
     cpdef bint issuperset(self, BaseMultiset other)
     cpdef BaseMultiset copy(self)

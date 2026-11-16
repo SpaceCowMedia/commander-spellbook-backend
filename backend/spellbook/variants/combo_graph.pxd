@@ -34,7 +34,8 @@ cdef class Node:
 
 
 cdef class NodeWithState(Node):
-    pass
+    cpdef object get_state(self)
+    cpdef set_state(self, object value)
 
 
 cdef class NodeWithoutState(Node):
@@ -96,6 +97,8 @@ cdef class Graph:
 
     cpdef _reset(self)
     cpdef list results(self, VariantSet variant_set)
+    @cython.locals(cards=FrozenMultiset, templates=FrozenMultiset, combo=ComboNode, feature_combo=ComboNode, parked_combo=ComboNode, combo_node=ComboNode, card=CardNode, feature_of_card=FeatureOfCardNode, foc_node=FeatureOfCardNode, feature=FeatureWithAttributesNode, fa_node=FeatureWithAttributesNode, matching_feature=FeatureWithAttributesMatcherNode, fam_node=FeatureWithAttributesMatcherNode, variant_set=VariantSet)
+    cpdef object _card_nodes_up(self, object ingredients)
     cpdef VariantSet _variant_and(self, ComboNode combo, VariantSet left, VariantSet right)
     cpdef VariantSet _variant_or(self, FeatureWithAttributesNode feature, VariantSet left, VariantSet right)
     cpdef tuple _combo_nodes_down(self, ComboNode combo)

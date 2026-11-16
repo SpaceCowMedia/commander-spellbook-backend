@@ -69,12 +69,10 @@ class NodeWithState(Node):
         self._state = NodeState.NOT_VISITED
         self._subgraph_state = NodeState.NOT_VISITED
 
-    @property
-    def state(self) -> NodeState:
+    def get_state(self) -> NodeState:
         return self._subgraph_state if self._graph.subgraph else self._state
 
-    @state.setter
-    def state(self, value: NodeState):
+    def set_state(self, value: NodeState):
         if self._graph.subgraph:
             self._subgraph_state = value
             self._graph._to_reset_nodes_subgraph_state.add(self)
@@ -152,10 +150,16 @@ class FeatureOfCardNode(NodeWithoutState):
         feature.add_producing_card(self)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class FeatureWithAttributes:
     feature: Feature
     attributes: frozenset[int]
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, FeatureWithAttributes) and self.feature.id == other.feature.id and self.attributes == other.attributes
+
+    def __hash__(self) -> int:
+        return hash((self.feature.id, self.attributes))
 
 
 class FeatureWithAttributesNode(NodeWithState):
@@ -204,10 +208,16 @@ class FeatureWithAttributesNode(NodeWithState):
         ]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class FeatureWithAttributesMatcher:
     feature: Feature
     matcher: AttributesMatcher
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, FeatureWithAttributesMatcher) and self.feature.id == other.feature.id and self.matcher == other.matcher
+
+    def __hash__(self) -> int:
+        return hash((self.feature.id, self.matcher))
 
 
 class FeatureWithAttributesMatcherNode(NodeWithState):
@@ -297,7 +307,7 @@ def satisfies(produced: Iterable[FeatureWithAttributes], needed: Iterable[Featur
     for n in needed:
         found = False
         for p in produced:
-            if p.feature == n.feature and n.matcher.matches(p.attributes):
+            if p.feature.id == n.feature.id and n.matcher.matches(p.attributes):
                 found = True
                 break
         if not found:
@@ -374,7 +384,7 @@ class Graph:
         variant_set = node.variant_set
         if variant_set is None:
             return None
-        node.state = NodeState.VISITED
+        node.set_state(NodeState.VISITED)
         return variant_set, True
 
     @staticmethod
@@ -383,7 +393,7 @@ class Graph:
         cached can never be an under-approximation owed to the cycle the walk happened to be in the middle of.'''
         if complete:
             node.variant_set = variant_set
-        node.state = NodeState.VISITED
+        node.set_state(NodeState.VISITED)
         return variant_set, complete
 
     def _unresolved(self) -> tuple[VariantSet, bool]:
@@ -461,7 +471,7 @@ class Graph:
         '''The variant set of a combo, and whether the walk saw everything it depends on.'''
         if cached := self._cached(combo):
             return cached
-        combo.state = NodeState.VISITING
+        combo.set_state(NodeState.VISITING)
         complete = True
         card_variant_sets: list[VariantSet] = []
         for c, q in combo.cards.items():
@@ -479,7 +489,7 @@ class Graph:
         for feature, features_needed in combo.features_needed.items():
             variant_sets = list[VariantSet]()
             for f, q in features_needed.items():
-                if f.state is NodeState.VISITING:
+                if f.get_state() is NodeState.VISITING:
                     return self._unresolved()
                 variant_set, complete_below = self._feature_with_attribute_matchers_nodes_down(f)
                 complete = complete and complete_below
@@ -503,11 +513,11 @@ class Graph:
     def _feature_with_attribute_matchers_nodes_down(self, feature: FeatureWithAttributesMatcherNode) -> tuple[VariantSet, bool]:
         if cached := self._cached(feature):
             return cached
-        feature.state = NodeState.VISITING
+        feature.set_state(NodeState.VISITING)
         variant_sets: list[VariantSet] = []
         complete = True
         for m in feature.matches:
-            if m.state is NodeState.VISITING:
+            if m.get_state() is NodeState.VISITING:
                 complete = False
                 continue
             variant_set, complete_below = self._feature_with_attributes_nodes_down(m)
@@ -519,12 +529,12 @@ class Graph:
     def _feature_with_attributes_nodes_down(self, feature: FeatureWithAttributesNode) -> tuple[VariantSet, bool]:
         if cached := self._cached(feature):
             return cached
-        feature.state = NodeState.VISITING
+        feature.set_state(NodeState.VISITING)
         complete = True
         card_variant_sets: list[VariantSet] = [f.variant_set for f in feature.produced_by_cards]
         produced_combos_variant_sets: list[VariantSet] = []
         for c in feature.produced_by_combos:
-            if c.state is NodeState.VISITING:
+            if c.get_state() is NodeState.VISITING:
                 complete = False
                 continue
             variant_set, complete_below = self._combo_nodes_down(c)
@@ -564,12 +574,12 @@ class Graph:
 
         for ingredient, quantity in chain(cards.items(), templates.items()):
             for combo in ingredient.combos:  # type: ignore[attr-defined]
-                if combo.state is NodeState.NOT_VISITED:
+                if combo.get_state() is NodeState.NOT_VISITED:
                     if cards.issuperset(combo.cards) and templates.issuperset(combo.templates) or combo.variant_set:
-                        combo.state = NodeState.VISITING
+                        combo.set_state(NodeState.VISITING)
                         combo_nodes_to_visit.append(combo)
                     else:
-                        combo.state = NodeState.VISITED
+                        combo.set_state(NodeState.VISITED)
 
         for card, quantity in cards.items():
             assert card.item.number is not None
@@ -589,17 +599,17 @@ class Graph:
                         templates=FrozenMultiset()
                     )
                 )
-                if feature.state is NodeState.VISITED:
+                if feature.get_state() is NodeState.VISITED:
                     continue
-                feature.state = NodeState.VISITED
+                feature.set_state(NodeState.VISITED)
                 for matching_feature in feature.matches:
                     for feature_combo in matching_feature.needed_by_combos:
-                        if feature_combo.state is NodeState.NOT_VISITED:
+                        if feature_combo.get_state() is NodeState.NOT_VISITED:
                             if cards.issuperset(feature_combo.cards) and templates.issuperset(feature_combo.templates) or feature_combo.variant_set:
-                                feature_combo.state = NodeState.VISITING
+                                feature_combo.set_state(NodeState.VISITING)
                                 combo_nodes_to_visit.append(feature_combo)
                             else:
-                                feature_combo.state = NodeState.VISITED
+                                feature_combo.set_state(NodeState.VISITED)
 
         while combo_nodes_to_visit:
             combo = combo_nodes_to_visit.popleft()
@@ -626,7 +636,7 @@ class Graph:
                     quantity = variant_set.firing_count(ingredients)
                 else:
                     unfired_combo_nodes.append(combo)
-                combo.state = NodeState.VISITED
+                combo.set_state(NodeState.VISITED)
             combo_nodes.add(combo)
             for feature in combo.features_produced:
                 if feature.item.feature.uncountable:
@@ -637,16 +647,16 @@ class Graph:
                     if parked_combo in parked_combo_nodes:
                         parked_combo_nodes.remove(parked_combo)
                         combo_nodes_to_visit.append(parked_combo)
-                if feature.state is NodeState.NOT_VISITED:
-                    feature.state = NodeState.VISITED
+                if feature.get_state() is NodeState.NOT_VISITED:
+                    feature.set_state(NodeState.VISITED)
                     for matching_feature in feature.matches:
                         for feature_combo in matching_feature.needed_by_combos:
-                            if feature_combo.state is NodeState.NOT_VISITED:
+                            if feature_combo.get_state() is NodeState.NOT_VISITED:
                                 if cards.issuperset(feature_combo.cards) and templates.issuperset(feature_combo.templates) or feature_combo.variant_set:
-                                    feature_combo.state = NodeState.VISITING
+                                    feature_combo.set_state(NodeState.VISITING)
                                     combo_nodes_to_visit.append(feature_combo)
                                 else:
-                                    feature_combo.state = NodeState.VISITED
+                                    feature_combo.set_state(NodeState.VISITED)
 
         interesting_features = set[FeatureWithAttributes]()
         for fa_node in chain(countable_feature_nodes.keys(), uncountable_feature_nodes):
@@ -657,8 +667,8 @@ class Graph:
         needed_combo_nodes = set[ComboNode]()
         for combo_node in combo_nodes:
             # a combo matters either because it produces an interesting feature or because it removes one
-            if any(fa_node.item in interesting_features for fa_node in combo_node.features_produced) \
-                    or any(removed.feature_id in interesting_feature_ids for removed in self.data.combo_to_removed_features[combo_node.item.id]):
+            if not interesting_features.isdisjoint([fa_node.item for fa_node in combo_node.features_produced]) \
+                    or not interesting_feature_ids.isdisjoint([removed.feature_id for removed in self.data.combo_to_removed_features[combo_node.item.id]]):
                 needed_combo_nodes.add(combo_node)
 
         needed_feature_of_card_nodes = set[FeatureOfCardNode]()
@@ -676,7 +686,7 @@ class Graph:
             new_features_produced_by_needed_combos = set[FeatureWithAttributes]()
             for fa in chain(countable_feature_nodes.keys(), uncountable_feature_nodes):
                 for fam in new_features_needed_by_needed_combos:
-                    if fam.feature == fa.item.feature and fam.matcher.matches(fa.item.attributes):
+                    if fam.feature.id == fa.item.feature.id and fam.matcher.matches(fa.item.attributes):
                         new_features_produced_by_needed_combos.add(fa.item)
                         break
 
@@ -718,13 +728,12 @@ class Graph:
                 for feature in produced_features_needed:
                     replacements[feature.item].extend(replacements_for_combo)
         self._reset()
+        features = {f.item.feature.id: q for f, q in countable_feature_nodes.items()}
+        features.update({f.item.feature.id: 1 for f in uncountable_feature_nodes})
         return VariantRecipe(
             cards=ingredients.cards,
             templates=ingredients.templates,
-            features=FrozenMultiset(dict(chain(
-                ((f.item.feature.id, q) for f, q in countable_feature_nodes.items()),
-                ((f.item.feature.id, 1) for f in uncountable_feature_nodes)
-            ))),
+            features=FrozenMultiset(features),
             replacements=replacements,
             needed_feature_of_cards={fn.item.id for fn in needed_feature_of_card_nodes},
             needed_combos={cn.item.id for cn in needed_combo_nodes},
@@ -756,7 +765,7 @@ class Graph:
                 required_total_quantity = sum(group.values())
                 available_total_quantity = 0
                 for f, q in available.items():
-                    if f.item.feature == feature:
+                    if f.item.feature.id == feature.id:
                         for matcher in group:
                             if f in matcher.matches:
                                 available_total_quantity += q

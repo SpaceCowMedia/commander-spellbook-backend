@@ -469,14 +469,14 @@ wheels = [
 
 [[package]]
 name = "django-admin-sortable2"
-version = "2.3.1"
+version = "2.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "django" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e2/09/cc2d19412e47aaf627f54f9b5b544de73553bd71e25d417dd62e91b36edd/django_admin_sortable2-2.3.1.tar.gz", hash = "sha256:e397d08606f9e0da73e52661b841021ecab21be6f74783408e625ccddfe975af", size = 67497, upload-time = "2026-01-22T14:20:29.049Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c9/c9/6180012bd468baad24274136e7bd0b897b218093b9d1851766dbd99e6b92/django_admin_sortable2-2.4.tar.gz", hash = "sha256:358cbd8257cba0c03923bb50b357ef4be57c3b62ae7d0f79542a405f97d13e4b", size = 67512, upload-time = "2026-11-08T21:52:44.312Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c8/77/4396e853c3ee3b1264a2bb23f9b1934194ab750c6ecd30aa194b53dec7b9/django_admin_sortable2-2.3.1-py3-none-any.whl", hash = "sha256:5784f441f3532013438c3c3226fbccc39b9c733f867b26a5f477d6b05f734b93", size = 107015, upload-time = "2026-01-22T14:20:27.604Z" },
+    { url = "https://files.pythonhosted.org/packages/19/e8/ba5245f61d82ec135861abded65bfa58d14efb58ff614c3e35208e2aaf2a/django_admin_sortable2-2.4-py3-none-any.whl", hash = "sha256:f3c1e28ee1f70f34b6ef0c592aaaa5b5e5a449d0a5fc808167b6af575e3d8772", size = 94929, upload-time = "2026-11-08T21:52:43.12Z" },
 ]
 
 [[package]]
@@ -1483,7 +1483,7 @@ requires-dist = [
     { name = "boto3", specifier = "==1.43.126" },
     { name = "discord-webhook", specifier = "==1.4.1" },
     { name = "django", specifier = "==6.0.8" },
-    { name = "django-admin-sortable2", specifier = "==2.3.1" },
+    { name = "django-admin-sortable2", specifier = "==2.4" },
     { name = "django-cors-headers", specifier = "==4.9.0" },
     { name = "django-filter", specifier = "==26.2" },
     { name = "django-tasks", specifier = "==0.11.0" },
